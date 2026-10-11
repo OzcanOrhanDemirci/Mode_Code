@@ -1,0 +1,62 @@
+{
+  "name": "terminal-code",
+  "version": "0.1.0-dev",
+  "description": "A local, open-source companion for Claude Code: a behavior layer inside Claude Code and a control center in your terminal. No telemetry.",
+  "license": "Apache-2.0",
+  "author": "Özcan Orhan Demirci",
+  "homepage": "https://github.com/OzcanOrhanDemirci/terminal-code#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OzcanOrhanDemirci/terminal-code.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OzcanOrhanDemirci/terminal-code/issues"
+  },
+  "keywords": [
+    "claude-code",
+    "cli",
+    "tui",
+    "hooks",
+    "plugin",
+    "developer-tools",
+    "privacy"
+  ],
+  "private": true,
+  "type": "module",
+  "bin": {
+    "terminal-code": "dist/cli.mjs"
+  },
+  "files": [
+    "dist/",
+    "LICENSE",
+    "NOTICE",
+    "THIRD_PARTY_NOTICES.md",
+    "TRADEMARK.md",
+    "README.md",
+    "README.tr.md",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --import tsx --test --test-reporter=spec \"test/**/*.test.ts\" \"test/**/*.test.tsx\"",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run typecheck && npm run format:check && npm test && npm run build",
+    "start": "node dist/cli.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "esbuild": "0.28.2",
+    "ink": "8.0.0",
+    "ink-testing-library": "4.0.0",
+    "prettier": "3.9.10",
+    "react": "19.3.0",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  }
+}
