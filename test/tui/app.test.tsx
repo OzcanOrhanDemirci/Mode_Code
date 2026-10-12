@@ -127,6 +127,18 @@ test('plain mode uses no box drawing and no emoji-only signals', async () => {
   }
 });
 
+test('the report screen sums up the day and switches to the week with p', async () => {
+  const s = await draw(new FakeData(), { address: 'measure/report' });
+  try {
+    assert.match(s.text(), /What happened in the last day/);
+    assert.match(s.text(), /1 blocked/);
+    await s.press('p');
+    assert.match(s.text(), /What happened in the last 7 days/);
+  } finally {
+    s.close();
+  }
+});
+
 test('home warns when two sessions work in the same folder', async () => {
   class TwoSessions extends FakeData {
     override modStates() {

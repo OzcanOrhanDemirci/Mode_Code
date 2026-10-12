@@ -18,6 +18,7 @@ import {
   cmdSessions,
   cmdStatus,
   cmdTokens,
+  cmdReport,
   cmdTry,
   cmdUninstall,
   helpText,
@@ -68,6 +69,8 @@ async function main(argv: string[]): Promise<number> {
       return cmdQuota(sub);
     case 'tokens':
       return cmdTokens(sub);
+    case 'report':
+      return cmdReport(sub);
     case 'sessions':
       return cmdSessions(sub);
     case 'belt':

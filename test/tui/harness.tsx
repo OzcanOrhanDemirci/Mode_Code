@@ -15,6 +15,7 @@ import type { QuotaView, ToolEvent } from '../../src/app/data.js';
 import { assessQuota, DEFAULT_BUDGET, fromModRateLimits } from '../../src/core/quota.js';
 import type { SessionRow, TokenTotals } from '../../src/node/index-db.js';
 import type { ModSessionState } from '../../src/core/session.js';
+import { buildReport } from '../../src/app/report.js';
 
 export const NOW = Date.parse('2026-10-12T09:00:00Z');
 
@@ -198,6 +199,9 @@ export class FakeData implements DataSource {
   }
   folders() {
     return [{ cwd: 'C:/work/app', sessions: 1, lastTs: NOW - 120_000, prompts: 4, tokens: 41_000_000 }];
+  }
+  report(days: number) {
+    return buildReport(null, this.events(), NOW - days * 86400_000, NOW);
   }
   claude() {
     return this.health().env;

@@ -9,7 +9,7 @@ import { healthCounts } from '../app/health.js';
 import type { NavNode } from './nav.js';
 import type { DataSource } from './store.js';
 import { inboxEvents, Inbox, Overview } from './screens/home.js';
-import { Folders, Quota, Tokens, Tools } from './screens/measure.js';
+import { Folders, Quota, ReportScreen, Tokens, Tools } from './screens/measure.js';
 import { ProjectCard, SessionCard, sessionLabel } from './screens/work.js';
 import { Events, Protection, RuleDetail, Secrets, TestCommand } from './screens/security.js';
 import { Extensions, Hooks, Instructions, Mcp, Permissions, Plugins, SettingsSources } from './screens/claude.js';
@@ -93,6 +93,7 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
         })(),
         screen: (p) => <Quota {...p} />,
       }),
+      n('report', 'page.report', { description: d('desc.report'), screen: (p) => <ReportScreen {...p} /> }),
       n('tokens', 'page.tokens', { description: d('desc.tokens'), screen: (p) => <Tokens {...p} /> }),
       n('tools', 'page.tools', { description: d('desc.tools'), minView: 'recommended', screen: (p) => <Tools {...p} /> }),
       n('folders', 'page.folders', { description: d('desc.folders'), minView: 'recommended', screen: (p) => <Folders {...p} /> }),

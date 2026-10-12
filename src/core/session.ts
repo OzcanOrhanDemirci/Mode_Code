@@ -118,7 +118,12 @@ export const LIVE_WINDOW_MS = 15 * 60 * 1000;
  * Other sessions working in the same folder right now: two agents editing one tree is how work gets lost.
  * Folders compare case-insensitively where the file system does (Windows, macOS).
  */
-export function sameFolderSessions(self: { sessionId: string; cwd?: string }, others: readonly ModSessionState[], now: number, caseInsensitive: boolean): ModSessionState[] {
+export function sameFolderSessions(
+  self: { sessionId: string; cwd?: string },
+  others: readonly ModSessionState[],
+  now: number,
+  caseInsensitive: boolean,
+): ModSessionState[] {
   if (!self.cwd) return [];
   const key = (p: string) => {
     const s = p.replace(/\\/g, '/').replace(/\/+$/, '');

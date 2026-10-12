@@ -21,5 +21,6 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Settings changed in the control center apply to running sessions at the next prompt.
 - The session state (autonomous work, project, weekly budget, chat mode) survives a compaction; /clear starts fresh.
 - Footer lines are drawn inside the answer, and the mode and quota beside the prompt, without notice prefixes.
+- `terminal-code report` and Measure › What happened: the last day or week in a few lines.
 - A warning, for the person and for Claude, when another Claude Code session is working in the same folder; Home lists such folders.
 - After a quota reset, autonomous work resumes with a prompt that ends with your own continue keyword.

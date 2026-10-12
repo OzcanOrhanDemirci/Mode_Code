@@ -23,6 +23,7 @@ import { readClaudeEnv, runClaudeInteractive } from '../node/claude-env.js';
 import { appContext, type AppContext } from '../app/context.js';
 import { loadEvents, loadQuota, openIndex, scanPaths } from '../app/data.js';
 import { checkHealth, healthCounts, type FeatureHealth } from '../app/health.js';
+import { buildReport, reportLines } from '../app/report.js';
 import { flag, intValue, value, values, type Args } from './args.js';
 import { bold, dim, green, red, yellow, gray, cyan, table } from './style.js';
 
@@ -428,6 +429,29 @@ export async function cmdTokens(a: Args): Promise<number> {
   }
 }
 
+export async function cmdReport(a: Args): Promise<number> {
+  const ctx = appContext();
+  const days = flag(a, 'week') ? 7 : intValue(a, 'days', 1, 1, 365);
+  const to = Date.now();
+  const from = to - days * 86400_000;
+  const idx = openIndex(ctx);
+  try {
+    const r = buildReport(idx, loadEvents(ctx, days + 1), from, to);
+    if (flag(a, 'json')) {
+      json('report', { days, report: { ...r, sessions: r.sessions.map((s) => s.id) } });
+      return 0;
+    }
+    say(bold(days === 1 ? T(ctx, 'report.titleDay') : T(ctx, 'report.title', { n: days })) + dim(`  ${dateTime(from, ctx.lang)} → ${dateTime(to, ctx.lang)}`));
+    say();
+    const lines = reportLines(r, ctx.lang, homedir());
+    const w = Math.max(...lines.map((l) => l.label.length)) + 2;
+    for (const l of lines) say(`  ${bold(l.label.padEnd(w))}${l.text}`);
+    return 0;
+  } finally {
+    idx.close();
+  }
+}
+
 export async function cmdSessions(a: Args): Promise<number> {
   const ctx = appContext();
   const idx = openIndex(ctx);
@@ -646,6 +670,7 @@ export function helpText(lang: Lang): string {
     `  ${c('quota'.padEnd(28))}${L('help.quota')}`,
     `  ${c('tokens [--days N] [--by …]'.padEnd(28))}${L('help.tokens')}`,
     `  ${c('sessions [search]'.padEnd(28))}${L('help.sessions')}`,
+    `  ${c('report [--week]'.padEnd(28))}${L('help.report')}`,
     `  ${c('belt rules|events|test'.padEnd(28))}${L('help.belt')}`,
     `  ${c('secrets [path…]'.padEnd(28))}${L('help.secrets')}`,
     `  ${c('config get|set|path'.padEnd(28))}${L('help.config')}`,

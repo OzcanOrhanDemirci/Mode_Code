@@ -19,6 +19,7 @@
 | `uninstall [--dry-run] [--yes] [--purge]`                                                              | Removes exactly what the installation recorded; `--purge` also deletes the data folder (asks you to type the name)                           | 1 on a failed step               |
 | `quota`                                                                                                | The quota windows, resets and your budget                                                                                                    | 1 without a reading              |
 | `tokens [--days N] [--by day\|model\|cwd]`                                                             | Token use from the transcripts, each API message once                                                                                        | 0                                |
+| `report [--week] [--days N]`                                                                           | What happened: sessions, tokens, what the belt did, quota movement, stops and resumes                                                        | 0                                |
 | `sessions [search] [--limit N]`                                                                        | Past sessions, newest first                                                                                                                  | 0                                |
 | `belt rules`                                                                                           | Every rule, its action and whether it is locked                                                                                              | 0                                |
 | `belt events [--days N]`                                                                               | What the belt blocked, asked about or noted                                                                                                  | 0                                |
@@ -35,7 +36,7 @@ Commands that change your Claude Code setup or lower a protection (`install`, `u
 | `home`, `home/overview`, `home/inbox`                                                                                            | Home        |
 | `projects`, `projects/<folder, URL-encoded>`                                                                                     | Projects    |
 | `sessions`, `sessions/<session id>`                                                                                              | Sessions    |
-| `measure/quota`, `measure/tokens`, `measure/tools`, `measure/folders`                                                            | Measure     |
+| `measure/quota`, `measure/report`, `measure/tokens`, `measure/tools`, `measure/folders`                                          | Measure     |
 | `security/protection`, `security/rules`, `security/rules/<rule id>`, `security/events`, `security/test`, `security/secrets`      | Security    |
 | `claude-code/instructions`, `/settings`, `/hooks`, `/permissions`, `/mcp`, `/plugins`, `/extensions`                             | Claude Code |
 | `settings/general`, `/modules`, `/footer-quota`, `/memory`, `/projects`, `/keywords`, `/accessibility`, `/maintenance`, `/about` | Settings    |

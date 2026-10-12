@@ -139,6 +139,7 @@ Her şey komut olarak da var; her biri sürümlü `--json` çıktısı verir:
 ```sh
 terminal-code status            # ne kurulu ve çalışıyor, kota, bugün
 terminal-code doctor            # her özelliğin sağlığı ve bozuk olanın nasıl düzeleceği
+terminal-code report --week     # olanlar: oturumlar, tokenler, kemer, kota
 terminal-code tokens --by model # güne, modele ya da klasöre göre token
 terminal-code belt test --command "git clean -f"   # kemerin ne yapacağı; hiçbir şey çalıştırılmaz
 ```

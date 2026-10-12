@@ -15,6 +15,7 @@ import { readClaudeEnv, type ClaudeEnv, type PluginInfo } from '../node/claude-e
 import { appContext, reloadConfig, type AppContext } from '../app/context.js';
 import { loadEvents, loadQuota, openIndex, recentModStates, scanPaths, type QuotaView, type ToolEvent, type SecretFinding } from '../app/data.js';
 import { checkHealth, type Health } from '../app/health.js';
+import { buildReport, type Report } from '../app/report.js';
 import type { ModSessionState } from '../core/session.js';
 
 export interface Timed<T> {
@@ -42,6 +43,7 @@ export interface DataSource {
   sessionTotals(id: string): TokenTotals | null;
   tools(opts: { days?: number; session?: string }): ToolStat[];
   folders(days: number): FolderRow[];
+  report(days: number): Report;
   claude(): ClaudeEnv;
   plugins(): PluginInfo[] | null;
   scanMemory(): { findings: SecretFinding[]; files: number; skipped: number };
@@ -145,6 +147,9 @@ export class LiveData implements DataSource {
   }
   folders(days: number): FolderRow[] {
     return this.memo(`folders:${days}`, 30_000, () => this.index()?.folders(Date.now() - days * 86400_000) ?? []);
+  }
+  report(days: number): Report {
+    return this.memo(`report:${days}`, 30_000, () => buildReport(this.index(), loadEvents(this.ctx, days + 1), Date.now() - days * 86400_000, Date.now()));
   }
   claude(): ClaudeEnv {
     return this.memo('claude', 30_000, () => readClaudeEnv(this.ctx.cwd));

@@ -6,6 +6,7 @@ import { homedir } from 'node:os';
 import { ago, compact, dateTime, integer, percent, shortPath, sparkline, until } from '../../core/format.js';
 import { cacheHitRate } from '../../node/index-db.js';
 import { bucketize, type ReadingPoint } from '../../core/history.js';
+import { reportLines } from '../../app/report.js';
 import type { ScreenProps } from '../nav.js';
 import { Empty, Gauge, Muted, Note, Row, Section, Table, useEnv, useScreenKeys, useT } from '../ui.js';
 import { LinkList, type Link } from '../widgets.js';
@@ -48,6 +49,37 @@ export function Quota({ width }: ScreenProps) {
         <Row label={t('quota.measured')}>{ago(q.reading.measuredAt, now, lang) + (a.stale ? ' · ' + t('cli.quota.stale') : '')}</Row>
       </Section>
       <Note>{t('quota.explain')}</Note>
+    </Box>
+  );
+}
+
+/** What happened in the last day or week, in a few lines; p switches the period. */
+export function ReportScreen({ width, open }: ScreenProps) {
+  const { data, lang } = useEnv();
+  const t = useT();
+  const [days, setDays] = useState(1);
+  useScreenKeys((input) => {
+    if (input === 'p') {
+      setDays((d) => (d === 1 ? 7 : 1));
+      return true;
+    }
+    return false;
+  }, open);
+  const lines = reportLines(data.report(days), lang, homedir());
+  const w = Math.min(18, Math.max(...lines.map((l) => l.label.length)) + 2);
+  return (
+    <Box flexDirection="column" width={width}>
+      <Box>
+        <Text bold>{days === 1 ? t('report.titleDay') : t('report.title', { n: days })}</Text>
+        {open ? <Muted> {t('tokens.periodHint')}</Muted> : null}
+      </Box>
+      <Box marginTop={1} flexDirection="column">
+        {lines.map((l) => (
+          <Row key={l.label} label={l.label} width={w}>
+            {l.text}
+          </Row>
+        ))}
+      </Box>
     </Box>
   );
 }

@@ -136,6 +136,7 @@ Everything is also available as commands, each with `--json` output whose shape 
 ```sh
 terminal-code status            # what is installed and working, quota, today
 terminal-code doctor            # every feature's health and how to fix what is broken
+terminal-code report --week     # what happened: sessions, tokens, the belt, quota
 terminal-code tokens --by model # token use by day, model or folder
 terminal-code belt test --command "git clean -f"   # what the belt would do; nothing is run
 ```
