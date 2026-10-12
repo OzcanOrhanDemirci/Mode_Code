@@ -46,6 +46,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run typecheck && npm run format:check && npm run build && npm test",
+    "test:mod": "node scripts/typecheck-mod.mjs && node scripts/test-mod.mjs",
     "start": "node dist/cli.mjs"
   },
   "devDependencies": {
