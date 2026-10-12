@@ -2,6 +2,7 @@
 /** Builds the contexts the pure core needs from what a Node process can see. */
 import { homedir } from 'node:os';
 import { parseConfig, type Config, type ConfigProblem } from '../core/config.js';
+import { beltConfigOf } from '../core/settings-view.js';
 import type { BeltContext } from '../core/belt/types.js';
 import type { ClassifyEnv } from '../core/footer.js';
 import { resolvePath } from '../core/paths.js';
@@ -36,7 +37,7 @@ export function beltContext(opts: { cwd: string; projectDir?: string | undefined
     memoryDirs: memoryDirs(opts.config, opts.cwd),
     managedSettingsFiles: managedSettingsFiles(),
     lang: opts.lang,
-    config: opts.config.belt,
+    config: beltConfigOf(opts.config),
     git: gitFacts(),
     fileSize: async (p) => fileSize(p),
   };

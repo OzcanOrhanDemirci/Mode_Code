@@ -1,0 +1,572 @@
+// SPDX-License-Identifier: Apache-2.0
+/**
+ * The command line. Every command prints plain text for people and, with --json, one JSON document whose
+ * shape is versioned in its "schema" field ("terminal-code.<command>/1"): fields are only ever added
+ * within a version, so scripts keep working.
+ */
+import { createInterface } from 'node:readline/promises';
+import { homedir } from 'node:os';
+import { APP_NAME, APP_VERSION, MIN_CLAUDE_CODE_FOR_HOOKS, REPO_URL } from '../core/app.js';
+import { serializeConfig, setConfigValue, type Config } from '../core/config.js';
+import { evaluateToolCall } from '../core/belt/evaluate.js';
+import { RULES, RULE_IDS } from '../core/belt/rules.js';
+import { compact, percent, ago, until, dateTime, bar, shortPath, integer } from '../core/format.js';
+import { tIn, type Lang, type MessageKey } from '../core/i18n/index.js';
+import { maskSecrets } from '../core/secrets/scan.js';
+import { beltContext } from '../node/context.js';
+import { writeAtomic } from '../node/fsx.js';
+import { applyInstall, applyUninstall, planInstall, readManifest, underAgent } from '../node/install.js';
+import { cacheHitRate } from '../node/index-db.js';
+import { appContext, type AppContext } from '../app/context.js';
+import { loadEvents, loadQuota, openIndex, scanPaths } from '../app/data.js';
+import { checkHealth, healthCounts, type FeatureHealth } from '../app/health.js';
+import { flag, intValue, value, values, type Args } from './args.js';
+import { bold, dim, green, red, yellow, gray, cyan, table } from './style.js';
+
+type Out = (s?: string) => void;
+const say: Out = (s = '') => process.stdout.write(s + '\n');
+
+function json(schema: string, data: object): void {
+  process.stdout.write(JSON.stringify({ schema: `terminal-code.${schema}/1`, version: APP_VERSION, ...data }, null, 2) + '\n');
+}
+
+function T(ctx: AppContext, key: MessageKey, params?: Record<string, string | number>): string {
+  return tIn(ctx.lang, key, params);
+}
+
+function stateMark(ctx: AppContext, s: FeatureHealth['state']): string {
+  const word = T(ctx, `health.state.${s}` as MessageKey);
+  if (s === 'ok') return green(`✓ ${word}`);
+  if (s === 'red') return red(`✗ ${word}`);
+  if (s === 'gray') return yellow(`◌ ${word}`);
+  return gray(`· ${word}`);
+}
+
+async function confirm(ctx: AppContext, question: string, word?: string): Promise<boolean> {
+  if (!process.stdin.isTTY) return false;
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = (await rl.question(`${question} `)).trim();
+    if (word) return answer === word;
+    return /^(?:y|yes|e|evet)$/i.test(answer);
+  } finally {
+    rl.close();
+  }
+}
+
+// ── status ──
+
+export async function cmdStatus(a: Args): Promise<number> {
+  const ctx = appContext();
+  const h = checkHealth(ctx);
+  const q = loadQuota(ctx);
+  const now = Date.now();
+  const events = loadEvents(ctx, 1, now).filter((e) => e.kind === 'belt' && e.verdict === 'deny');
+  if (flag(a, 'json')) {
+    json('status', {
+      installed: h.installed,
+      claudeCode: h.claude,
+      dataDir: ctx.layout.root,
+      features: h.features,
+      modSeen: h.modSeen,
+      quota: q.reading
+        ? { measuredAt: q.reading.measuredAt, fiveHour: q.assessment.five, sevenDay: q.assessment.week, level: q.assessment.level, stale: q.assessment.stale }
+        : null,
+      blockedToday: events.length,
+      configProblems: ctx.problems,
+    });
+    return 0;
+  }
+  const c = healthCounts(h);
+  say(`${bold(APP_NAME)} ${APP_VERSION} · Claude Code ${h.claude ?? T(ctx, 'cli.notFound')}`);
+  say(dim(shortPath(ctx.layout.root, homedir())));
+  say();
+  if (!h.installed) {
+    say(yellow(T(ctx, 'cli.status.notInstalled')));
+    say(T(ctx, 'cli.status.installHint', { cmd: cyan(`${APP_NAME} install`) }));
+    return 0;
+  }
+  for (const f of h.features) {
+    const reason = f.reason ? dim(' · ' + T(ctx, f.reason.key as MessageKey, f.reason.params)) : '';
+    say(`  ${stateMark(ctx, f.state)}  ${T(ctx, `feature.${f.id}` as MessageKey)}${reason}`);
+  }
+  say();
+  if (q.reading) {
+    const five = q.assessment.five;
+    const week = q.assessment.week;
+    if (five)
+      say(
+        `  ${T(ctx, 'cli.quota.five').padEnd(14)} ${bar(five.used, 20)} ${percent(five.used, ctx.lang)} ${dim(T(ctx, 'cli.quota.resets', { when: until(five.resetsAt, now, ctx.lang) }))}`,
+      );
+    if (week)
+      say(
+        `  ${T(ctx, 'cli.quota.week').padEnd(14)} ${bar(week.used, 20)} ${percent(week.used, ctx.lang)} ${dim(T(ctx, 'cli.quota.resets', { when: until(week.resetsAt, now, ctx.lang) }))}`,
+      );
+    say(dim(`  ${T(ctx, 'cli.measured', { when: ago(q.reading.measuredAt, now, ctx.lang) })}`));
+  }
+  if (events.length) say(`  ${red('🛡')} ${T(ctx, 'cli.status.blockedToday', { n: events.length })}`);
+  if (ctx.problems.length) say(yellow(`  ${T(ctx, 'cli.status.configProblems', { n: ctx.problems.length, file: shortPath(ctx.layout.config, homedir()) })}`));
+  if (c.red) say(red(`\n${T(ctx, 'cli.status.redHint', { cmd: `${APP_NAME} doctor` })}`));
+  return c.red ? 1 : 0;
+}
+
+// ── doctor ──
+
+export async function cmdDoctor(a: Args): Promise<number> {
+  const ctx = appContext();
+  const h = checkHealth(ctx, { selfTest: true, withPlugins: true });
+  const c = healthCounts(h);
+  if (flag(a, 'json')) {
+    json('doctor', {
+      installed: h.installed,
+      claudeCode: h.claude,
+      minimumClaudeCode: MIN_CLAUDE_CODE_FOR_HOOKS,
+      node: process.version,
+      features: h.features,
+      modSeen: h.modSeen,
+      hooks: h.env.hooks.filter((x) => x.ours),
+      hooksDisabledBy: h.env.hooksDisabledBy,
+      plugins: h.env.plugins,
+      configProblems: ctx.problems,
+    });
+    return c.red ? 1 : 0;
+  }
+  say(bold(T(ctx, 'cli.doctor.title')));
+  say();
+  say(`  Node.js ${process.version}  ·  Claude Code ${h.claude ?? red(T(ctx, 'cli.notFound'))}`);
+  say(`  ${T(ctx, 'cli.doctor.data')}: ${shortPath(ctx.layout.root, homedir())}`);
+  say();
+  for (const f of h.features) {
+    say(`  ${stateMark(ctx, f.state)}  ${bold(T(ctx, `feature.${f.id}` as MessageKey))}${f.protection ? dim(' · ' + T(ctx, 'cli.doctor.protection')) : ''}`);
+    if (f.reason) say(`       ${T(ctx, f.reason.key as MessageKey, f.reason.params)}`);
+    if (f.fix && f.state !== 'ok') say(dim(`       ${T(ctx, 'cli.doctor.fix', { cmd: `${APP_NAME} open ${f.fix}` })}`));
+  }
+  for (const p of ctx.problems) say(yellow(`  ! ${T(ctx, 'cli.doctor.configProblem', { path: p.path || '(file)', detail: p.detail })}`));
+  say();
+  say(
+    c.red
+      ? red(T(ctx, 'cli.doctor.summaryRed', { n: c.red }))
+      : c.gray
+        ? yellow(T(ctx, 'cli.doctor.summaryGray', { n: c.gray }))
+        : green(T(ctx, 'cli.doctor.summaryOk')),
+  );
+  return c.red ? 1 : 0;
+}
+
+// ── install / uninstall ──
+
+export async function cmdInstall(a: Args): Promise<number> {
+  const ctx = appContext();
+  const plan = planInstall(ctx.layout);
+  const dry = flag(a, 'dry-run');
+  if (flag(a, 'json') && dry) {
+    json('install-plan', { plan });
+    return plan.blockers.length ? 1 : 0;
+  }
+  say(bold(T(ctx, 'install.title', { app: APP_NAME, version: APP_VERSION })));
+  say();
+  say(T(ctx, 'install.intro'));
+  say();
+  for (const s of plan.steps) {
+    const mark = s.done ? gray('·') : cyan('+');
+    say(`  ${mark} ${T(ctx, `install.step.${s.kind}` as MessageKey)}`);
+    for (const t of s.targets) say(dim(`      ${shortPath(t, homedir(), 90)}`));
+  }
+  say();
+  say(dim(T(ctx, 'install.hookCommand', { cmd: `${plan.hookCommand.command} ${plan.hookCommand.args.join(' ')}` })));
+  for (const w of plan.warnings) say(yellow(`  ! ${T(ctx, w.key, w.params)}`));
+  for (const b of plan.blockers) say(red(`  ✗ ${T(ctx, b.key, b.params)}`));
+  if (plan.blockers.length) return 1;
+  if (dry) {
+    say();
+    say(dim(T(ctx, 'install.dryRun')));
+    return 0;
+  }
+  say();
+  if (!flag(a, 'yes', 'y') && !(await confirm(ctx, T(ctx, 'install.confirm')))) {
+    say(T(ctx, 'cli.cancelled'));
+    return 1;
+  }
+  const chosen: Partial<Config> = {};
+  const lang = value(a, 'lang');
+  if (lang === 'en' || lang === 'tr') chosen.language = lang;
+  const view = value(a, 'view');
+  if (view === 'simple' || view === 'recommended' || view === 'detailed') chosen.view = view;
+  const mem = values(a, 'memory');
+  if (mem.length) chosen.memory = { dirs: mem };
+  const r = applyInstall(ctx.layout, plan, { config: chosen });
+  if (flag(a, 'json')) {
+    json('install', { ok: r.ok, steps: r.steps, manifest: r.manifest });
+    return r.ok ? 0 : 1;
+  }
+  for (const s of r.steps) say(`  ${s.ok ? green('✓') : red('✗')} ${T(ctx, `install.step.${s.kind}` as MessageKey)}${s.detail ? dim(' · ' + s.detail) : ''}`);
+  say();
+  if (!r.ok) {
+    say(red(T(ctx, 'install.failed')));
+    say(T(ctx, 'install.failedHint', { cmd: `${APP_NAME} uninstall`, repo: `${REPO_URL}/issues` }));
+    return 1;
+  }
+  say(green(bold(T(ctx, 'install.done'))));
+  say(T(ctx, 'install.next', { cmd: cyan(APP_NAME) }));
+  return 0;
+}
+
+export async function cmdUninstall(a: Args): Promise<number> {
+  const ctx = appContext();
+  const m = readManifest(ctx.layout);
+  const purge = flag(a, 'purge');
+  if (underAgent()) {
+    say(red(T(ctx, 'cli.agentRefused')));
+    return 1;
+  }
+  say(bold(T(ctx, 'uninstall.title')));
+  say();
+  say(T(ctx, m ? 'uninstall.intro' : 'uninstall.noManifest'));
+  say(`  - ${T(ctx, 'uninstall.plugin')}`);
+  say(`  - ${T(ctx, 'uninstall.hooks', { file: shortPath(m?.settingsFile ?? '~/.claude/settings.json', homedir()) })}`);
+  say(`  - ${T(ctx, 'uninstall.files')}`);
+  say(
+    purge
+      ? red(`  - ${T(ctx, 'uninstall.purge', { dir: shortPath(ctx.layout.root, homedir()) })}`)
+      : dim(`  ${T(ctx, 'uninstall.keep', { dir: shortPath(ctx.layout.root, homedir()) })}`),
+  );
+  if (flag(a, 'dry-run')) return 0;
+  say();
+  const word = purge ? APP_NAME : undefined;
+  if (!flag(a, 'yes', 'y') || purge) {
+    const ok = await confirm(ctx, purge ? T(ctx, 'uninstall.typeName', { name: APP_NAME }) : T(ctx, 'uninstall.confirm'), word);
+    if (!ok) {
+      say(T(ctx, 'cli.cancelled'));
+      return 1;
+    }
+  }
+  const r = applyUninstall(ctx.layout, { purge });
+  if (flag(a, 'json')) {
+    json('uninstall', r as unknown as object);
+    return r.ok ? 0 : 1;
+  }
+  for (const s of r.steps)
+    say(`  ${s.ok ? green('✓') : red('✗')} ${T(ctx, `uninstall.step.${s.what}` as MessageKey)}${s.detail && !s.ok ? dim(' · ' + s.detail) : ''}`);
+  say();
+  say(r.ok ? green(T(ctx, 'uninstall.done')) : red(T(ctx, 'uninstall.partial')));
+  return r.ok ? 0 : 1;
+}
+
+// ── quota ──
+
+export async function cmdQuota(a: Args): Promise<number> {
+  const ctx = appContext();
+  const q = loadQuota(ctx);
+  const now = Date.now();
+  if (flag(a, 'json')) {
+    json('quota', { reading: q.reading, assessment: q.assessment, target: q.target });
+    return 0;
+  }
+  if (!q.reading) {
+    say(yellow(T(ctx, 'cli.quota.none')));
+    return 1;
+  }
+  const rows = [
+    [T(ctx, 'cli.quota.window'), T(ctx, 'cli.quota.used'), '', T(ctx, 'cli.quota.resetsAt')],
+    ...q.reading.windows.map((w) => [
+      w.kind === 'five_hour' ? T(ctx, 'cli.quota.five') : w.kind === 'seven_day' ? T(ctx, 'cli.quota.week') : w.kind,
+      percent(w.used, ctx.lang),
+      bar(w.used, 24),
+      w.resetsAt ? `${dateTime(w.resetsAt, ctx.lang)} (${until(w.resetsAt, now, ctx.lang)})` : '?',
+    ]),
+  ];
+  say(table(rows, [1]));
+  say();
+  const t = q.assessment.target;
+  say(T(ctx, t.explicit ? 'cli.quota.targetExplicit' : 'cli.quota.targetDefault', { n: percent(t.value, ctx.lang) }));
+  if (q.assessment.level !== 'ok') say(red(T(ctx, q.assessment.level === 'stop' ? 'cli.quota.levelStop' : 'cli.quota.levelWrapUp')));
+  say(dim(T(ctx, 'cli.measured', { when: ago(q.reading.measuredAt, now, ctx.lang) }) + (q.assessment.stale ? ' · ' + T(ctx, 'cli.quota.stale') : '')));
+  return 0;
+}
+
+// ── tokens / sessions ──
+
+export async function cmdTokens(a: Args): Promise<number> {
+  const ctx = appContext();
+  const days = intValue(a, 'days', 7, 1, 3650);
+  const by = (value(a, 'by') ?? 'day') as 'day' | 'model' | 'cwd';
+  const since = Date.now() - days * 86400_000;
+  const idx = openIndex(ctx);
+  try {
+    const total = idx.totals(since);
+    const rows = idx.breakdown(by === 'model' || by === 'cwd' ? by : 'day', since);
+    if (flag(a, 'json')) {
+      json('tokens', { days, by, total, cacheHitRate: cacheHitRate(total), rows });
+      return 0;
+    }
+    say(bold(T(ctx, 'cli.tokens.title', { n: days })));
+    say();
+    const hit = cacheHitRate(total);
+    say(
+      table(
+        [
+          [T(ctx, 'tokens.kind'), T(ctx, 'tokens.count')],
+          [T(ctx, 'tokens.input'), compact(total.input, ctx.lang)],
+          [T(ctx, 'tokens.cacheWrite'), compact(total.cacheWrite, ctx.lang)],
+          [T(ctx, 'tokens.cacheRead'), compact(total.cacheRead, ctx.lang)],
+          [T(ctx, 'tokens.output'), compact(total.output, ctx.lang)],
+          [T(ctx, 'tokens.thinking'), compact(total.thinking, ctx.lang)],
+          [T(ctx, 'tokens.agents'), compact(total.agentTokens, ctx.lang)],
+          [T(ctx, 'tokens.messages'), integer(total.messages, ctx.lang)],
+          [T(ctx, 'tokens.cacheHit'), hit === null ? '?' : percent(hit * 100, ctx.lang, 1)],
+        ],
+        [1],
+      ),
+    );
+    say();
+    const head = by === 'model' ? T(ctx, 'tokens.model') : by === 'cwd' ? T(ctx, 'tokens.folder') : T(ctx, 'tokens.day');
+    say(
+      table(
+        [
+          [head, T(ctx, 'tokens.output'), T(ctx, 'tokens.cacheRead'), T(ctx, 'tokens.messages')],
+          ...rows
+            .slice(0, 30)
+            .map((r) => [
+              by === 'cwd' ? shortPath(r.key, homedir(), 50) : r.key,
+              compact(r.output, ctx.lang),
+              compact(r.cacheRead, ctx.lang),
+              integer(r.messages, ctx.lang),
+            ]),
+        ],
+        [1, 2, 3],
+      ),
+    );
+    say();
+    say(dim(T(ctx, 'tokens.note')));
+    return 0;
+  } finally {
+    idx.close();
+  }
+}
+
+export async function cmdSessions(a: Args): Promise<number> {
+  const ctx = appContext();
+  const idx = openIndex(ctx);
+  try {
+    const search = value(a, 'search') ?? (a.positionals.length ? a.positionals.join(' ') : undefined);
+    const list = idx.sessions({ limit: intValue(a, 'limit', 20, 1, 1000), ...(search ? { search } : {}) });
+    if (flag(a, 'json')) {
+      json('sessions', { sessions: list });
+      return 0;
+    }
+    if (!list.length) {
+      say(T(ctx, 'cli.sessions.none'));
+      return 0;
+    }
+    const now = Date.now();
+    say(
+      table(
+        [
+          [T(ctx, 'sessions.when'), T(ctx, 'sessions.title'), T(ctx, 'sessions.folder'), T(ctx, 'sessions.prompts'), T(ctx, 'sessions.tokens'), 'id'],
+          ...list.map((s) => [
+            ago(s.lastTs, now, ctx.lang),
+            (s.title ?? s.firstPrompt ?? '').slice(0, 40),
+            shortPath(s.cwd, homedir(), 28),
+            String(s.prompts),
+            compact(s.tokens, ctx.lang),
+            dim(s.id.slice(0, 8)),
+          ]),
+        ],
+        [3, 4],
+      ),
+    );
+    return 0;
+  } finally {
+    idx.close();
+  }
+}
+
+// ── belt ──
+
+export async function cmdBelt(a: Args): Promise<number> {
+  const ctx = appContext();
+  const sub = a.positionals[0] ?? 'rules';
+  if (sub === 'rules') {
+    const rows = RULE_IDS.map((id) => {
+      const info = RULES[id];
+      const disabled = !info.locked && ctx.config.belt.disabled?.includes(id);
+      const v = ctx.config.belt.verdicts?.[id] ?? info.verdict;
+      return {
+        id,
+        category: info.category,
+        verdict: disabled ? 'off' : v,
+        locked: info.locked,
+        pack: info.pack ?? null,
+        description: T(ctx, `rule.${id}` as MessageKey),
+      };
+    });
+    if (flag(a, 'json')) {
+      json('belt-rules', { rules: rows });
+      return 0;
+    }
+    say(
+      table([
+        [T(ctx, 'belt.col.rule'), T(ctx, 'belt.col.verdict'), T(ctx, 'belt.col.what')],
+        ...rows.map((r) => [r.id + (r.locked ? ' 🔒' : ''), T(ctx, `verdict.${r.verdict}` as MessageKey), r.description]),
+      ]),
+    );
+    say();
+    say(dim(T(ctx, 'belt.lockedNote')));
+    return 0;
+  }
+  if (sub === 'test') {
+    const tool = value(a, 'tool') ?? (value(a, 'path') ? 'Write' : 'Bash');
+    const input: Record<string, unknown> = {};
+    if (value(a, 'command') !== undefined) input.command = value(a, 'command');
+    if (value(a, 'path') !== undefined) input.file_path = value(a, 'path');
+    if (value(a, 'content') !== undefined) input.content = value(a, 'content');
+    if (tool === 'Write' && input.content === undefined) input.content = '';
+    const d = await evaluateToolCall(tool, input, beltContext({ cwd: process.cwd(), config: ctx.config, layout: ctx.layout, lang: ctx.lang }));
+    if (flag(a, 'json')) {
+      json('belt-test', { tool, input, decision: d });
+      return 0;
+    }
+    say(`${bold(T(ctx, `verdict.${d.verdict}` as MessageKey))}  ${dim(T(ctx, 'belt.testNote'))}`);
+    for (const f of d.findings)
+      say(`  ${f.verdict === 'deny' ? red('✗') : f.verdict === 'ask' ? yellow('?') : gray('i')} ${f.reason} ${dim('[' + f.rule + ']')}`);
+    for (const i of d.issues) say(dim(`  · ${i}`));
+    return 0;
+  }
+  if (sub === 'events') {
+    const days = intValue(a, 'days', 7, 1, 3650);
+    const ev = loadEvents(ctx, days).filter((e) => e.kind === 'belt' || e.kind === 'chat' || e.kind === 'quota');
+    if (flag(a, 'json')) {
+      json('belt-events', { days, events: ev });
+      return 0;
+    }
+    if (!ev.length) {
+      say(T(ctx, 'belt.noEvents', { n: days }));
+      return 0;
+    }
+    const now = Date.now();
+    say(
+      table([
+        [T(ctx, 'sessions.when'), T(ctx, 'belt.col.verdict'), T(ctx, 'belt.col.tool'), T(ctx, 'belt.col.why')],
+        ...ev
+          .slice(0, 50)
+          .map((e) => [
+            ago(e.at, now, ctx.lang),
+            T(ctx, `verdict.${e.verdict ?? 'deny'}` as MessageKey),
+            e.tool ?? e.kind,
+            (e.reasons?.[0] ?? (e.rules ?? []).join(', ')).slice(0, 90),
+          ]),
+      ]),
+    );
+    return 0;
+  }
+  say(red(T(ctx, 'cli.unknownSub', { sub, cmd: 'belt' })));
+  return 2;
+}
+
+// ── secrets ──
+
+export async function cmdSecrets(a: Args): Promise<number> {
+  const ctx = appContext();
+  const paths = a.positionals.slice(a.positionals[0] === 'scan' ? 1 : 0);
+  const targets = paths.length ? paths : ctx.config.memory.dirs;
+  if (!targets.length) {
+    say(T(ctx, 'secrets.noTargets'));
+    return 2;
+  }
+  const r = scanPaths(targets);
+  if (flag(a, 'json')) {
+    json('secrets', { targets, files: r.files, skipped: r.skipped, findings: r.findings });
+    return r.findings.length ? 1 : 0;
+  }
+  if (!r.findings.length) {
+    say(green(T(ctx, 'secrets.clean', { n: r.files })));
+    return 0;
+  }
+  say(red(T(ctx, 'secrets.found', { n: r.findings.length, files: r.files })));
+  for (const f of r.findings.slice(0, 100)) say(`  ${shortPath(f.path, homedir(), 70)}:${f.line}  ${f.kind}  ${dim(f.masked)}`);
+  say();
+  say(dim(T(ctx, 'secrets.note')));
+  return 1;
+}
+
+// ── config ──
+
+const PROTECTIVE = /^(?:belt|memory|modules\.(?:quota|secrets))(?:\.|$)/;
+
+export async function cmdConfig(a: Args): Promise<number> {
+  const ctx = appContext();
+  const sub = a.positionals[0] ?? 'get';
+  if (sub === 'path') {
+    say(ctx.layout.config);
+    return 0;
+  }
+  if (sub === 'get') {
+    const key = a.positionals[1];
+    let v: unknown = ctx.config;
+    if (key) for (const k of key.split('.')) v = v && typeof v === 'object' ? (v as Record<string, unknown>)[k] : undefined;
+    if (flag(a, 'json') || typeof v === 'object') say(JSON.stringify(v, null, 2));
+    else say(String(v));
+    return v === undefined ? 1 : 0;
+  }
+  if (sub === 'set') {
+    const key = a.positionals[1];
+    const raw = a.positionals[2];
+    if (!key || raw === undefined) {
+      say(red(T(ctx, 'config.usage')));
+      return 2;
+    }
+    if (PROTECTIVE.test(key) && underAgent()) {
+      say(red(T(ctx, 'cli.agentRefused')));
+      return 1;
+    }
+    let parsed: unknown = raw;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = raw;
+    }
+    const r = setConfigValue(ctx.config, key, parsed);
+    const mine = r.problems.filter((p) => p.path === key || p.path.startsWith(key + '.') || key.startsWith(p.path + '.'));
+    if (mine.length) {
+      for (const p of mine) say(red(T(ctx, 'cli.doctor.configProblem', { path: p.path, detail: p.detail })));
+      return 1;
+    }
+    writeAtomic(ctx.layout.config, serializeConfig(r.config));
+    say(green(T(ctx, 'config.saved', { key })));
+    return 0;
+  }
+  say(red(T(ctx, 'cli.unknownSub', { sub, cmd: 'config' })));
+  return 2;
+}
+
+/** A transcript export with secrets masked, for sharing a session. */
+export function maskedLine(s: string): string {
+  return maskSecrets(s);
+}
+
+export function helpText(lang: Lang): string {
+  const c = (s: string) => cyan(s);
+  const L = (k: MessageKey) => tIn(lang, k);
+  return [
+    `${bold(APP_NAME)} ${APP_VERSION}  ${dim(L('help.tagline'))}`,
+    '',
+    `${bold(L('help.usage'))}  ${APP_NAME} ${dim('[' + L('help.command') + ']')}`,
+    '',
+    `  ${c(APP_NAME.padEnd(28))}${L('help.open')}`,
+    `  ${c('open <address>'.padEnd(28))}${L('help.openAt')}`,
+    `  ${c('status'.padEnd(28))}${L('help.status')}`,
+    `  ${c('doctor'.padEnd(28))}${L('help.doctor')}`,
+    `  ${c('install [--dry-run]'.padEnd(28))}${L('help.install')}`,
+    `  ${c('uninstall [--purge]'.padEnd(28))}${L('help.uninstall')}`,
+    `  ${c('quota'.padEnd(28))}${L('help.quota')}`,
+    `  ${c('tokens [--days N] [--by …]'.padEnd(28))}${L('help.tokens')}`,
+    `  ${c('sessions [search]'.padEnd(28))}${L('help.sessions')}`,
+    `  ${c('belt rules|events|test'.padEnd(28))}${L('help.belt')}`,
+    `  ${c('secrets [path…]'.padEnd(28))}${L('help.secrets')}`,
+    `  ${c('config get|set|path'.padEnd(28))}${L('help.config')}`,
+    '',
+    dim(L('help.json')),
+    dim(L('help.privacy')),
+    dim(`${REPO_URL}`),
+  ].join('\n');
+}

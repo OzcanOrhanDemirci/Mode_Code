@@ -3,7 +3,12 @@
  * English messages: the source dictionary. Every key here must exist in every other language file.
  * Style: plain words, one idea per sentence, no long dashes, technical terms explained where they appear.
  */
+import { enUi } from './en-ui.js';
+import { enTui } from './en-tui.js';
+
 export const en = {
+  ...enUi,
+  ...enTui,
   // ── safety belt: reasons (one per situation; {placeholders} are filled in) ──
   'belt.reason.inline': 'Inside code passed to an interpreter: {reason}',
   'belt.reason.deleteUnknown': 'Recursive delete whose target is only known at run time: {target}.',

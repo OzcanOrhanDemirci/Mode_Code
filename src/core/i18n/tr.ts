@@ -4,8 +4,12 @@
  * Üslup: sade cümle, her cümlede tek fikir, uzun çizgi yok, teknik terim geçtiği yerde açıklanır.
  */
 import type { MessageKey } from './en.js';
+import { trUi } from './tr-ui.js';
+import { trTui } from './tr-tui.js';
 
 export const tr: Record<MessageKey, string> = {
+  ...trUi,
+  ...trTui,
   'belt.reason.inline': 'Yorumlayıcıya verilen kodun içinde: {reason}',
   'belt.reason.deleteUnknown': 'Hedefi ancak çalışırken belli olan özyinelemeli silme: {target}.',
   'belt.reason.deleteCritical': '{target} siliniyor; bu konum {critical} konumunun kendisi ya da onu içeriyor.',

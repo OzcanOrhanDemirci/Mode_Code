@@ -37,8 +37,16 @@ const cli = await build({
   banner: {
     js: `#!/usr/bin/env node\n${banner}\nimport { createRequire as __tcCreateRequire } from 'node:module';\nconst require = __tcCreateRequire(import.meta.url);`,
   },
-  // react-devtools-core is an optional Ink dependency for debugging only; it is never loaded.
-  external: ['react-devtools-core'],
+  // react-devtools-core is an optional Ink dependency for debugging only: replace it with an empty module.
+  plugins: [
+    {
+      name: 'stub-react-devtools',
+      setup(b) {
+        b.onResolve({ filter: /^react-devtools-core$/ }, () => ({ path: 'react-devtools-core', namespace: 'stub' }));
+        b.onLoad({ filter: /.*/, namespace: 'stub' }, () => ({ contents: 'export default { initialize() {}, connectToDevTools() {} };', loader: 'js' }));
+      },
+    },
+  ],
 });
 
 const hook = await build({
@@ -100,7 +108,12 @@ for (const input of inputs) {
     version: meta.version ?? '?',
     license: typeof meta.license === 'string' ? meta.license : (meta.license?.type ?? 'UNKNOWN'),
     repository: typeof meta.repository === 'string' ? meta.repository : (meta.repository?.url ?? ''),
-    text: licenseFile ? readFileSync(licenseFile, 'utf8').trim() : '',
+    // A few packages publish without their license file; the upstream text is kept in scripts/licenses/.
+    text: licenseFile
+      ? readFileSync(licenseFile, 'utf8').trim()
+      : existsSync(join(root, 'scripts', 'licenses', `${name.replace('/', '__')}.txt`))
+        ? readFileSync(join(root, 'scripts', 'licenses', `${name.replace('/', '__')}.txt`), 'utf8').trim()
+        : '',
   });
 }
 const ALLOWED = /^(?:MIT|ISC|BSD-2-Clause|BSD-3-Clause|Apache-2\.0|0BSD|BlueOak-1\.0\.0|CC0-1\.0|Unlicense|\(MIT OR CC0-1\.0\)|MIT OR Apache-2\.0)$/;

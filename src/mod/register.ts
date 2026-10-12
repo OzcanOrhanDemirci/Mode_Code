@@ -23,7 +23,7 @@ import { keywordContext, wrapUpContext, stopContext, resumePrompt } from '../cor
 import { addApproval, applyKeyword, newModState, parseModState, type ModSessionState } from '../core/session.js';
 import { assessQuota, fromModRateLimits, weeklyTargetFrom, type QuotaAssessment, type QuotaReading } from '../core/quota.js';
 import { buildFooter, classifyTurn, type ClassifyEnv, type MemoryStatus, type ToolUse } from '../core/footer.js';
-import { keywordTables, projectRefs, budgetOf } from '../core/settings-view.js';
+import { keywordTables, projectRefs, budgetOf, beltConfigOf } from '../core/settings-view.js';
 import { maskSecrets } from '../core/secrets/scan.js';
 
 type $ = EngineInterface;
@@ -273,7 +273,7 @@ async function beltContextFor($: $, c: Ctx): Promise<BeltContext> {
     memoryDirs: memoryDirs(c, cwd),
     managedSettingsFiles: managedFiles(c.platform),
     lang: c.lang,
-    config: c.config.belt,
+    config: beltConfigOf(c.config),
     git: await gitFactsFor($),
     fileSize: (p) => statSize($, p),
   };

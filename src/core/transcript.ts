@@ -31,6 +31,9 @@ function content(row: Row): unknown[] | string | null {
  */
 export function isHumanPrompt(row: Row): boolean {
   if (row.type !== 'user' || row.isMeta === true || row.isSidechain === true) return false;
+  // Newer transcripts stamp where a prompt came from; trust the stamp when it is there.
+  const origin = row.origin as Row | undefined;
+  if (origin && typeof origin.kind === 'string' && origin.kind !== 'human') return false;
   const c = content(row);
   if (typeof c === 'string') return !c.trimStart().startsWith('<');
   if (!Array.isArray(c)) return false;

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /** Derived views of the settings that several layers need in the same shape. Pure. */
 import type { Config } from './config.js';
+import type { RuleConfig } from './belt/types.js';
 import { DEFAULT_KEYWORDS, type KeywordKind, type KeywordTable, type ProjectRef } from './keywords.js';
 import type { Lang } from './i18n/index.js';
 import type { QuotaBudget } from './quota.js';
@@ -37,4 +38,10 @@ export function budgetOf(c: Config, s: Pick<ModSessionState, 'weeklyTarget' | 'w
     defaultWeeklyWrapUp: c.quota.defaultWeeklyWrapUp,
     staleMinutes: c.quota.staleMinutes,
   };
+}
+
+/** The belt's rule configuration with the feature switches applied (the secret scanner switch turns off secret-write notes). */
+export function beltConfigOf(c: Config): RuleConfig {
+  if (c.modules.secrets) return c.belt;
+  return { ...c.belt, disabled: [...new Set([...(c.belt.disabled ?? []), 'secrets.write' as const])] };
 }
