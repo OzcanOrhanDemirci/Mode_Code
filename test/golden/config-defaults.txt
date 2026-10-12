@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "language": "auto",
+  "view": "recommended",
+  "modules": {
+    "keywords": true,
+    "footer": true,
+    "quota": true,
+    "secrets": true,
+    "status": true,
+    "notifications": true,
+    "quietWork": true
+  },
+  "belt": {
+    "disabled": [],
+    "verdicts": {},
+    "protectedBranches": [
+      "main",
+      "master",
+      "release/*"
+    ],
+    "prOnlyRepos": [],
+    "singleBranchRepos": [],
+    "packs": {
+      "dockerVolumes": false
+    }
+  },
+  "memory": {
+    "dirs": []
+  },
+  "footer": {
+    "mode": "draw",
+    "showFiveFrom": 70,
+    "showWeekFrom": 85
+  },
+  "quota": {
+    "fiveHourWrapUp": 95,
+    "fiveHourStop": 99,
+    "defaultWeeklyTarget": 99,
+    "defaultWeeklyWrapUp": 97,
+    "staleMinutes": 360,
+    "autoResume": true
+  },
+  "keywords": {
+    "extra": {}
+  },
+  "projects": [],
+  "accessibility": {
+    "plain": false,
+    "highContrast": false,
+    "reduceMotion": false
+  }
+}

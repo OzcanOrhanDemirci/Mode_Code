@@ -170,7 +170,7 @@ export function detectKeyword(
 
 /**
  * Words before "devam" name a project only when they are a known project, one typo from one, or a single
- * word (a project the person has not registered yet). "testlere devam" is a sentence, not a project.
+ * word (a project the person has not registered yet). "bu işe devam" is a sentence, not a project.
  */
 function named_(text: string, projects: readonly ProjectRef[]): { project: string | null; suggestion?: string } | null {
   const r = resolveProject(text, projects);

@@ -1,0 +1,210 @@
+{
+  "about": "Survivors of mutation testing that are not gaps in the tests. Each is matched by file, the change, and a piece of the line; each says why. scripts/mutate.mjs reports them apart and leaves them out of the score.",
+  "entries": [
+    {
+      "file": "src/core/version.ts",
+      "from": "<",
+      "to": "<=",
+      "line": "i < Math.max(pa.parts.length",
+      "kind": "equivalent",
+      "why": "one more turn reads missing parts as 0 on both sides"
+    },
+    { "file": "src/core/version.ts", "from": "<", "to": "<=", "line": "return x < y ? -1 : 1", "kind": "equivalent", "why": "reached only when x !== y" },
+    {
+      "file": "src/core/version.ts",
+      "from": "<",
+      "to": "<=",
+      "line": "return pa.pre < pb.pre ? -1 : 1",
+      "kind": "equivalent",
+      "why": "reached only when the pre-releases differ"
+    },
+    { "file": "src/core/belt/protect.ts", "from": "<", "to": "<=", "line": "guard < 64", "kind": "equivalent", "why": "a loop guard: no path has 64 levels" },
+    {
+      "file": "src/core/belt/protect.ts",
+      "from": "<=",
+      "to": "<",
+      "line": "if (i <= 0 || isRoot(cur)) break;",
+      "kind": "equivalent",
+      "why": "at i = 0 the next line meets an empty parent and stops the same way"
+    },
+    {
+      "file": "src/core/belt/protect.ts",
+      "from": "||",
+      "to": "&&",
+      "line": "if (i <= 0 || isRoot(cur)) break;",
+      "kind": "equivalent",
+      "why": "the parent checks below stop the walk at the same point"
+    },
+    {
+      "file": "src/core/belt/protect.ts",
+      "from": "===",
+      "to": "!==",
+      "line": "if (parent === '' || parent === '/') break;",
+      "kind": "equivalent",
+      "why": "the root check before and the guard stop the walk at the same point"
+    },
+    {
+      "file": "src/core/belt/protect.ts",
+      "from": "||",
+      "to": "&&",
+      "line": "if (parent === '' || parent === '/') break;",
+      "kind": "equivalent",
+      "why": "the root check before stops the walk at the same point"
+    },
+    {
+      "file": "src/core/belt/protect.ts",
+      "from": "||",
+      "to": "&&",
+      "line": "if (homeC === home || !isUnder(p, homeC",
+      "kind": "equivalent",
+      "why": "every path the changed condition lets through is judged again by the same profile rule with the same answer"
+    },
+    {
+      "file": "src/core/belt/protect.ts",
+      "from": "false",
+      "to": "true",
+      "line": "if (seen.has(k)) return false;",
+      "kind": "equivalent",
+      "why": "keeping a duplicate in a list of protected places changes no answer"
+    },
+    {
+      "file": "src/core/belt/rules.ts",
+      "from": "<",
+      "to": "<=",
+      "line": "VERDICT_ORDER[override] < VERDICT_ORDER[info.verdict]",
+      "kind": "equivalent",
+      "why": "an override equal to the rule's verdict returns that same verdict either way"
+    },
+    {
+      "file": "src/core/belt/evaluate.ts",
+      "from": "&&",
+      "to": "||",
+      "line": "if (tool === 'MultiEdit' && Array.isArray(input.edits))",
+      "kind": "equivalent",
+      "why": "only MultiEdit calls carry an edits list"
+    },
+    {
+      "file": "src/core/paths.ts",
+      "from": "- 1",
+      "to": "+ 1",
+      "line": "lastDot < long.length - 1",
+      "kind": "equivalent",
+      "why": "a name ending in a dot has an empty extension, compared as no extension"
+    },
+    {
+      "file": "src/core/paths.ts",
+      "from": "<",
+      "to": "<=",
+      "line": "lastDot < long.length - 1",
+      "kind": "equivalent",
+      "why": "a name ending in a dot has an empty extension, compared as no extension"
+    },
+    {
+      "file": "src/core/quota.ts",
+      "from": ">",
+      "to": ">=",
+      "line": "w.resetsAt > a.resumeAt",
+      "kind": "equivalent",
+      "why": "two equal reset times give the same resume time"
+    },
+    {
+      "file": "src/core/secrets/scan.ts",
+      "from": ">=",
+      "to": ">",
+      "line": "entropy(v) >= 3.5",
+      "kind": "equivalent",
+      "why": "an entropy of exactly 3.5 bits is not a value a token takes in practice"
+    },
+    {
+      "file": "src/core/secrets/scan.ts",
+      "from": "<",
+      "to": "<=",
+      "line": "taken.some(([x, y]) => a < y && b > x)",
+      "kind": "equivalent",
+      "why": "two matches never touch end to start: every pattern ends at a word boundary"
+    },
+    {
+      "file": "src/core/secrets/scan.ts",
+      "from": ">",
+      "to": ">=",
+      "line": "taken.some(([x, y]) => a < y && b > x)",
+      "kind": "equivalent",
+      "why": "two matches never touch end to start: every pattern ends at a word boundary"
+    },
+    {
+      "file": "src/app/doctor/checks.ts",
+      "from": "<",
+      "to": "<=",
+      "line": "compareVersions(v, MIN_CLAUDE_CODE_FOR_MODS) < 0",
+      "kind": "equivalent",
+      "why": "the plugin's minimum is below the hooks' minimum, which is checked first"
+    },
+    {
+      "file": "src/app/doctor/checks.ts",
+      "from": "false",
+      "to": "true",
+      "line": "m('doc.claude.noMods'",
+      "kind": "equivalent",
+      "why": "unreachable while the plugin's minimum is below the hooks' minimum"
+    },
+    {
+      "file": "src/app/doctor/checks.ts",
+      "from": "&&",
+      "to": "||",
+      "line": "s.scope === 'managed' && s.allowManagedHooksOnly",
+      "kind": "not-agent-testable",
+      "why": "testing it needs a settings fixture that turns hooks off, which the safety belt refuses to let an agent write"
+    },
+    {
+      "file": "src/app/doctor/checks.ts",
+      "from": "===",
+      "to": "!==",
+      "line": "s.scope === 'managed' && s.allowManagedHooksOnly",
+      "kind": "not-agent-testable",
+      "why": "as above"
+    },
+    {
+      "file": "src/app/doctor/checks.ts",
+      "from": "true",
+      "to": "false",
+      "line": "m('doc.claude.hooksOn.managedOnly'",
+      "kind": "not-agent-testable",
+      "why": "as above"
+    },
+    {
+      "file": "src/app/doctor/checks.ts",
+      "from": "true",
+      "to": "false",
+      "line": "m('doc.claude.hooksOn.disabled'",
+      "kind": "not-agent-testable",
+      "why": "as above"
+    },
+    {
+      "file": "src/app/doctor/checks.ts",
+      "from": "===",
+      "to": "!==",
+      "line": "hint: s.scope === 'managed' ?",
+      "kind": "not-agent-testable",
+      "why": "as above"
+    },
+    {
+      "file": "src/app/doctor/checks.ts",
+      "from": "!==",
+      "to": "===",
+      "line": "p.version !== APP_VERSION && APP_VERSION !== 'dev'",
+      "kind": "dist-only",
+      "why": "a version comparison skipped when run from source; the shipped-bundle tests reach it"
+    },
+    { "file": "src/app/doctor/checks.ts", "from": "false", "to": "true", "line": "m('doc.claude.plugin.otherVersion'", "kind": "dist-only", "why": "as above" },
+    {
+      "file": "src/app/doctor/checks.ts",
+      "from": "!==",
+      "to": "===",
+      "line": "if (f.manifest.version !== APP_VERSION)",
+      "kind": "dist-only",
+      "why": "as above"
+    },
+    { "file": "src/app/doctor/checks.ts", "from": "true", "to": "false", "line": "m('doc.install.hook.older'", "kind": "dist-only", "why": "as above" },
+    { "file": "src/app/doctor/checks.ts", "from": "true", "to": "false", "line": "m('doc.install.hook.altered'", "kind": "dist-only", "why": "as above" }
+  ]
+}

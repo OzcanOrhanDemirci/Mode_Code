@@ -49,6 +49,7 @@
     "test:coverage": "node scripts/coverage.mjs",
     "test:mod": "node scripts/typecheck-mod.mjs && node scripts/test-mod.mjs",
     "test:live": "node scripts/test-live.mjs",
+    "test:mutation": "node scripts/mutate.mjs",
     "start": "node dist/cli.mjs"
   },
   "devDependencies": {

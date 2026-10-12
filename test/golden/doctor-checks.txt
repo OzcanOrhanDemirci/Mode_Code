@@ -1,0 +1,327 @@
+## healthy Windows
+node.version ok doc.node.version.ok {"v":"24.15.0","min":"22.13.0"}
+node.hooks ok protection doc.node.hooks.ok {"v":"24.15.0","path":"C:/Program Files/nodejs/node.exe"}
+node.sqlite ok doc.node.sqlite.ok
+claude.version ok protection doc.claude.ok {"v":"2.1.295","min":"2.1.295"}
+claude.installs ok doc.claude.installs.one {"path":"C:/Users/ada/.local/bin/claude.exe"}
+claude.settings ok protection doc.claude.settings.ok {"n":1}
+claude.hooksOn ok protection doc.claude.hooksOn.ok
+claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"dev"}
+install.manifest ok doc.install.ok {"v":"dev","when":"2026-10-11"}
+install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
+install.hooks ok protection doc.install.hooks.ok {"n":4}
+install.pluginFiles ok doc.install.pluginFiles.ok
+install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
+protect.agreement ok protection doc.protect.agreement.ok {"n":30}
+protect.links ok protection doc.protect.links.none
+protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
+    doc.protect.shortNames.one {"short":"C:/Users/ada/TERMIN~1","long":"C:/Users/ada/.terminal-code"}
+protect.memory ok doc.protect.memory.ok {"n":1}
+shell.gitBash ok protection doc.shell.gitBash.ok {"path":"C:/Program Files/Git/bin/bash.exe"}
+shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
+shell.posix skip doc.notMeasured
+shell.terminal info doc.shell.terminal.info {"program":"Windows Terminal","columns":"120","cp":"65001"}
+shell.locale info doc.shell.locale.info {"intl":"en-US","lang":"-","chosen":"en"}
+files.data ok doc.files.data.ok
+files.space ok doc.files.space.ok {"gb":"100.0"}
+files.case ok protection doc.files.case.insensitive
+files.leftovers ok doc.files.leftovers.none
+files.permissions skip protection doc.notMeasured
+git.found ok doc.git.ok {"v":"2.55.0"}
+git.projects ok doc.git.projects.ok {"n":1}
+data.config ok doc.data.config.ok
+data.index ok doc.data.index.ok {"n":42}
+data.quota ok doc.data.quota.ok
+data.transcripts ok doc.data.transcripts.ok {"files":3,"rows":100}
+data.toolNames ok protection doc.data.toolNames.ok {"names":"Bash, Edit"}
+data.sessionIds ok doc.data.sessionIds.ok
+selftest.suites ok protection doc.selftest.ok {"passed":30,"suites":1}
+
+## not installed
+node.version ok doc.node.version.ok {"v":"24.15.0","min":"22.13.0"}
+node.hooks skip protection doc.notInstalled
+node.sqlite ok doc.node.sqlite.ok
+claude.version ok protection doc.claude.ok {"v":"2.1.295","min":"2.1.295"}
+claude.installs ok doc.claude.installs.one {"path":"C:/Users/ada/.local/bin/claude.exe"}
+claude.settings ok protection doc.claude.settings.ok {"n":1}
+claude.hooksOn ok protection doc.claude.hooksOn.ok
+claude.plugin skip doc.notInstalled
+install.manifest info hint=doc.install.hint doc.install.none
+install.hookProgram skip protection doc.notInstalled
+install.hooks skip protection doc.notInstalled
+install.pluginFiles skip doc.notInstalled
+install.modSeen skip doc.notInstalled
+protect.agreement ok protection doc.protect.agreement.ok {"n":30}
+protect.links ok protection doc.protect.links.none
+protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
+    doc.protect.shortNames.one {"short":"C:/Users/ada/TERMIN~1","long":"C:/Users/ada/.terminal-code"}
+protect.memory ok doc.protect.memory.ok {"n":1}
+shell.gitBash ok protection doc.shell.gitBash.ok {"path":"C:/Program Files/Git/bin/bash.exe"}
+shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
+shell.posix skip doc.notMeasured
+shell.terminal info doc.shell.terminal.info {"program":"Windows Terminal","columns":"120","cp":"65001"}
+shell.locale info doc.shell.locale.info {"intl":"en-US","lang":"-","chosen":"en"}
+files.data ok doc.files.data.ok
+files.space ok doc.files.space.ok {"gb":"100.0"}
+files.case ok protection doc.files.case.insensitive
+files.leftovers ok doc.files.leftovers.none
+files.permissions skip protection doc.notMeasured
+git.found ok doc.git.ok {"v":"2.55.0"}
+git.projects ok doc.git.projects.ok {"n":1}
+data.config ok doc.data.config.ok
+data.index ok doc.data.index.ok {"n":42}
+data.quota ok doc.data.quota.ok
+data.transcripts ok doc.data.transcripts.ok {"files":3,"rows":100}
+data.toolNames ok protection doc.data.toolNames.ok {"names":"Bash, Edit"}
+data.sessionIds ok doc.data.sessionIds.ok
+selftest.suites ok protection doc.selftest.ok {"passed":30,"suites":1}
+
+## healthy macOS
+node.version ok doc.node.version.ok {"v":"24.15.0","min":"22.13.0"}
+node.hooks ok protection doc.node.hooks.ok {"v":"24.15.0","path":"C:/Program Files/nodejs/node.exe"}
+node.sqlite ok doc.node.sqlite.ok
+claude.version ok protection doc.claude.ok {"v":"2.1.295","min":"2.1.295"}
+claude.installs ok doc.claude.installs.one {"path":"C:/Users/ada/.local/bin/claude.exe"}
+claude.settings ok protection doc.claude.settings.ok {"n":1}
+claude.hooksOn ok protection doc.claude.hooksOn.ok
+claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"dev"}
+install.manifest ok doc.install.ok {"v":"dev","when":"2026-10-11"}
+install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
+install.hooks ok protection doc.install.hooks.ok {"n":4}
+install.pluginFiles ok doc.install.pluginFiles.ok
+install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
+protect.agreement ok protection doc.protect.agreement.ok {"n":30}
+protect.links ok protection doc.protect.links.none
+protect.shortNames skip protection doc.windowsOnly
+protect.memory ok doc.protect.memory.ok {"n":1}
+shell.gitBash skip protection doc.windowsOnly
+shell.powershell skip doc.notMeasured
+shell.posix info doc.shell.posix.info {"shell":"/bin/zsh","version":"zsh 5.9"}
+shell.terminal info doc.shell.terminal.info {"program":"iTerm.app","columns":"120","cp":"-"}
+shell.locale info doc.shell.locale.info {"intl":"en-US","lang":"-","chosen":"en"}
+files.data ok doc.files.data.ok
+files.space ok doc.files.space.ok {"gb":"100.0"}
+files.case ok protection doc.files.case.insensitive
+files.leftovers ok doc.files.leftovers.none
+files.permissions ok protection doc.files.permissions.ok
+git.found ok doc.git.ok {"v":"2.55.0"}
+git.projects ok doc.git.projects.ok {"n":1}
+data.config ok doc.data.config.ok
+data.index ok doc.data.index.ok {"n":42}
+data.quota ok doc.data.quota.ok
+data.transcripts ok doc.data.transcripts.ok {"files":3,"rows":100}
+data.toolNames ok protection doc.data.toolNames.ok {"names":"Bash, Edit"}
+data.sessionIds ok doc.data.sessionIds.ok
+selftest.suites ok protection doc.selftest.ok {"passed":30,"suites":1}
+
+## broken everywhere
+node.version fail hint=doc.node.version.hint doc.node.version.old {"v":"20.1.0","min":"22.13.0"}
+node.hooks fail protection hint=doc.node.version.hint doc.node.hooks.gone {"path":"C:/gone/node.exe"}
+node.sqlite fail hint=doc.node.version.hint doc.node.sqlite.missing
+claude.version fail protection hint=doc.claude.updateHint doc.claude.old {"v":"2.0.1","min":"2.1.295"}
+claude.installs warn hint=doc.claude.installs.hint doc.claude.installs.many {"n":2,"path":"C:/a/claude.exe"}
+    doc.line {"text":"C:/a/claude.exe"}
+    doc.line {"text":"C:/b/claude.cmd"}
+claude.settings fail protection hint=doc.claude.settings.hintBackup doc.claude.settings.bad {"n":1}
+    doc.claude.settings.broken {"scope":"user","path":"C:/Users/ada/.claude/settings.json","error":"Unexpected token (line 2, column 3)"}
+claude.hooksOn ok protection doc.claude.hooksOn.ok
+claude.plugin info doc.claude.plugin.offInScope {"scope":"project","path":"C:/dev/app/.claude/settings.json"}
+install.manifest ok doc.install.ok {"v":"dev","when":"2026-10-11"}
+install.hookProgram warn protection repair=restore-hook-program doc.install.hook.notThisBuild
+install.hooks fail protection repair=restore-hooks doc.install.hooks.missing {"events":"UserPromptSubmit, SessionStart","n":2,"of":4}
+install.pluginFiles warn repair=restore-plugin-files doc.install.pluginFiles.bad {"n":1}
+    doc.line {"text":"hooks/register.js"}
+install.modSeen info doc.install.modSeen.never
+protect.agreement fail protection repair=restore-hook-program doc.protect.agreement.differ {"n":2,"of":30}
+    doc.protect.agreement.diff {"call":"Write C:/x","mine":"@verdict.deny","theirs":"@verdict.allow"}
+protect.links info protection doc.protect.links.some {"n":1}
+    doc.protect.links.one {"spelled":"C:/Users/ada/.claude","real":"D:/dotfiles/claude"}
+protect.shortNames fail protection hint=doc.reportHint doc.protect.shortNames.missed {"n":1}
+    doc.protect.shortNames.one {"short":"C:/Users/ada/CLAUDE~1","long":"C:/Users/ada/.claude"}
+protect.memory warn doc.protect.memory.missing {"path":"C:/notes"}
+shell.gitBash fail protection hint=doc.reportHint doc.shell.gitBash.tmpDiffers {"tmp":"C:/msys/tmp","expected":"C:/Users/ada/AppData/Local/Temp"}
+shell.powershell info doc.shell.pwsh.only51
+shell.posix skip doc.notMeasured
+shell.terminal warn doc.shell.terminal.narrow {"program":"Windows Terminal","columns":"50","cp":"65001"}
+shell.locale info doc.shell.locale.info {"intl":"en-US","lang":"-","chosen":"en"}
+files.data warn doc.files.data.noRename {"path":"C:/Users/ada/.terminal-code"}
+files.space fail doc.files.space.low {"mb":30}
+files.case ok protection doc.files.case.insensitive
+files.leftovers warn repair=remove-stale-temp doc.files.leftovers.temp {"n":1}
+    doc.line {"text":"config.json.1.0a1b2c3d.tmp"}
+files.permissions skip protection doc.notMeasured
+git.found warn protection hint=doc.git.hint doc.git.missing
+git.projects warn hint=doc.git.projects.safeHint doc.git.projects.unreadable {"n":1}
+    doc.line {"text":"C:/dev/app: fatal: detected dubious ownership"}
+data.config warn repair=rewrite-config doc.data.config.problems {"n":1}
+    doc.line {"text":"view: expected simple, recommended or detailed"}
+data.index warn repair=rebuild-index doc.data.index.bad {"detail":"malformed"}
+data.quota warn repair=remove-bad-quota doc.data.quota.bad
+data.transcripts warn hint=doc.reportHint doc.data.transcripts.changed
+    doc.data.transcripts.noUsage
+data.toolNames fail protection hint=doc.reportHint doc.data.toolNames.gap {"names":"StrReplace"}
+data.sessionIds warn hint=doc.reportHint doc.data.sessionIds.bad {"ids":"a/b"}
+selftest.suites fail protection hint=doc.reportHint doc.selftest.failed {"failed":1,"total":11}
+    doc.selftest.failure {"suite":"belt","name":"win32: x","expected":"deny","actual":"allow"}
+
+## Linux with loose permissions and a case-folding disk
+node.version ok doc.node.version.ok {"v":"24.15.0","min":"22.13.0"}
+node.hooks ok protection doc.node.hooks.ok {"v":"24.15.0","path":"C:/Program Files/nodejs/node.exe"}
+node.sqlite ok doc.node.sqlite.ok
+claude.version ok protection doc.claude.ok {"v":"2.1.295","min":"2.1.295"}
+claude.installs ok doc.claude.installs.one {"path":"C:/Users/ada/.local/bin/claude.exe"}
+claude.settings ok protection doc.claude.settings.ok {"n":1}
+claude.hooksOn ok protection doc.claude.hooksOn.ok
+claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"dev"}
+install.manifest ok doc.install.ok {"v":"dev","when":"2026-10-11"}
+install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
+install.hooks ok protection doc.install.hooks.ok {"n":4}
+install.pluginFiles ok doc.install.pluginFiles.ok
+install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
+protect.agreement ok protection doc.protect.agreement.ok {"n":30}
+protect.links ok protection doc.protect.links.none
+protect.shortNames skip protection doc.windowsOnly
+protect.memory ok doc.protect.memory.ok {"n":1}
+shell.gitBash skip protection doc.windowsOnly
+shell.powershell skip doc.notMeasured
+shell.posix info doc.shell.posix.unknown
+shell.terminal info doc.shell.terminal.info {"program":"Windows Terminal","columns":"120","cp":"65001"}
+shell.locale info doc.shell.locale.info {"intl":"en-US","lang":"-","chosen":"en"}
+files.data ok doc.files.data.ok
+files.space ok doc.files.space.ok {"gb":"100.0"}
+files.case fail protection hint=doc.reportHint doc.files.case.gap
+files.leftovers ok doc.files.leftovers.none
+files.permissions fail protection repair=tighten-permissions doc.files.permissions.loose
+    doc.line {"text":".terminal-code 777"}
+git.found ok doc.git.ok {"v":"2.55.0"}
+git.projects ok doc.git.projects.ok {"n":1}
+data.config ok doc.data.config.ok
+data.index ok doc.data.index.ok {"n":42}
+data.quota ok doc.data.quota.ok
+data.transcripts ok doc.data.transcripts.ok {"files":3,"rows":100}
+data.toolNames ok protection doc.data.toolNames.ok {"names":"Bash, Edit"}
+data.sessionIds ok doc.data.sessionIds.ok
+selftest.suites ok protection doc.selftest.ok {"passed":30,"suites":1}
+
+## tour 1: Node.js that does not start, Claude Code missing, the plugin missing, a missing hook program
+node.version ok doc.node.version.ok {"v":"24.15.0","min":"22.13.0"}
+node.hooks fail protection repair=repoint-node doc.node.hooks.wontRun {"path":"C:/node/node.exe"}
+node.sqlite ok doc.node.sqlite.ok
+claude.version fail protection hint=doc.claude.installHint doc.claude.missing
+claude.installs skip doc.claude.missing
+claude.settings ok protection doc.claude.settings.ok {"n":1}
+claude.hooksOn ok protection doc.claude.hooksOn.ok
+claude.plugin warn repair=reinstall-plugin doc.claude.plugin.missing {"id":"terminal-code@terminal-code-local"}
+install.manifest ok doc.install.ok {"v":"dev","when":"2026-10-11"}
+install.hookProgram fail protection repair=restore-hook-program doc.install.hook.missing {"path":"C:/Users/ada/.terminal-code/bin/hook.mjs"}
+install.hooks ok protection doc.install.hooks.ok {"n":4}
+install.pluginFiles info doc.install.hook.noBuild
+install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
+protect.agreement skip protection doc.protect.agreement.notRun
+protect.links ok protection doc.protect.links.none
+protect.shortNames ok protection doc.protect.shortNames.none
+protect.memory info doc.protect.memory.none
+shell.gitBash warn hint=doc.shell.gitBash.hint doc.shell.gitBash.missing
+shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
+shell.posix skip doc.notMeasured
+shell.terminal info doc.shell.terminal.info {"program":"Windows Terminal","columns":"60","cp":"65001"}
+shell.locale info doc.shell.locale.info {"intl":"en-US","lang":"-","chosen":"en"}
+files.data ok doc.files.data.ok
+files.space warn doc.files.space.low {"mb":50}
+files.case info protection doc.notMeasured
+files.leftovers info repair=prune-session-state doc.files.leftovers.states {"n":2}
+files.permissions skip protection doc.notMeasured
+git.found ok doc.git.ok {"v":"2.5"}
+git.projects skip doc.git.projects.none
+data.config info doc.data.config.none
+data.index info doc.data.index.none
+data.quota info doc.data.quota.none
+data.transcripts info doc.data.transcripts.none
+data.toolNames skip protection doc.data.transcripts.none
+data.sessionIds skip doc.data.sessionIds.ok
+selftest.suites skip protection doc.notMeasured
+
+## tour 2: Node.js too old for the hooks, the plugin turned off, the hook program without a build, weakened hooks
+node.version ok doc.node.version.ok {"v":"24.15.0","min":"22.13.0"}
+node.hooks fail protection repair=repoint-node doc.node.hooks.old {"v":"22.12.9","min":"22.13.0","path":"C:/node/node.exe"}
+node.sqlite ok doc.node.sqlite.ok
+claude.version ok protection doc.claude.ok {"v":"2.1.296","min":"2.1.295"}
+claude.installs info doc.claude.installs.notOnPath
+claude.settings ok protection doc.claude.settings.ok {"n":1}
+claude.hooksOn ok protection doc.claude.hooksOn.ok
+claude.plugin warn repair=enable-plugin doc.claude.plugin.disabled {"id":"terminal-code@terminal-code-local"}
+install.manifest ok doc.install.ok {"v":"dev","when":"2026-10-11"}
+install.hookProgram info protection doc.install.hook.noBuild
+install.hooks fail protection repair=restore-hooks doc.install.hooks.changed
+install.pluginFiles ok doc.install.pluginFiles.ok
+install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
+protect.agreement warn protection doc.protect.agreement.error {"error":"spawn failed"}
+protect.links ok protection doc.protect.links.none
+protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
+    doc.protect.shortNames.one {"short":"C:/Users/ada/TERMIN~1","long":"C:/Users/ada/.terminal-code"}
+protect.memory info doc.protect.memory.noGit {"n":1}
+shell.gitBash warn protection doc.shell.gitBash.noTmp {"path":"C:/Git/bin/bash.exe","error":"timeout"}
+shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
+shell.posix skip doc.notMeasured
+shell.terminal info doc.shell.terminal.info {"program":"Windows Terminal","columns":"120","cp":"65001"}
+shell.locale info doc.shell.locale.info {"intl":"en-US","lang":"-","chosen":"en"}
+files.data warn repair=create-data-folders doc.files.data.missingDirs {"n":1}
+    doc.line {"text":"C:/x/events"}
+files.space warn doc.files.space.low {"mb":500}
+files.case ok protection doc.files.case.insensitive
+files.leftovers ok doc.files.leftovers.none
+files.permissions skip protection doc.notMeasured
+git.found ok doc.git.ok {"v":"2.5"}
+git.projects info doc.git.projects.missing {"n":1}
+    doc.line {"text":"C:/gone"}
+data.config ok doc.data.config.ok
+data.index ok doc.data.index.ok {"n":42}
+data.quota info doc.data.quota.old {"n":7}
+data.transcripts fail hint=doc.reportHint doc.data.transcripts.unknown {"n":1}
+data.toolNames ok protection doc.data.toolNames.ok {"names":"Bash, Edit"}
+data.sessionIds ok doc.data.sessionIds.ok
+selftest.suites warn hint=doc.reportHint doc.selftest.failed {"failed":1,"total":4}
+    doc.selftest.failure {"suite":"footer","name":"f","expected":"a","actual":"b"}
+
+## tour 3: another data folder, duplicated hooks, another plugin version, MCP tools, a stricter belt
+node.version ok doc.node.version.ok {"v":"24.15.0","min":"22.13.0"}
+node.hooks ok protection doc.node.hooks.ok {"v":"24.15.0","path":"C:/Program Files/nodejs/node.exe"}
+node.sqlite ok doc.node.sqlite.ok
+claude.version ok protection doc.claude.ok {"v":"2.1.295","min":"2.1.295"}
+claude.installs ok doc.claude.installs.one {"path":"C:/Users/ada/.local/bin/claude.exe"}
+claude.settings ok protection doc.claude.settings.ok {"n":1}
+claude.hooksOn ok protection doc.claude.hooksOn.ok
+claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"older"}
+install.manifest warn doc.install.otherData {"recorded":"D:/elsewhere/.terminal-code","now":"C:/Users/ada/.terminal-code"}
+install.hookProgram warn protection repair=restore-hook-program doc.install.hook.notThisBuild
+install.hooks warn repair=remove-duplicate-hooks doc.install.hooks.duplicates {"n":2}
+    doc.line {"text":"UserPromptSubmit"}
+    doc.line {"text":"project: PreToolUse"}
+install.pluginFiles ok doc.install.pluginFiles.ok
+install.modSeen info doc.install.modSeen.other {"have":"older","now":"dev"}
+protect.agreement ok protection doc.protect.agreement.ok {"n":30}
+protect.links ok protection doc.protect.links.none
+protect.shortNames skip protection doc.windowsOnly
+protect.memory ok doc.protect.memory.ok {"n":1}
+shell.gitBash skip protection doc.windowsOnly
+shell.powershell skip doc.notMeasured
+shell.posix info doc.shell.posix.info {"shell":"/bin/zsh","version":"?"}
+shell.terminal info doc.shell.terminal.info {"program":"Windows Terminal","columns":"120","cp":"65001"}
+shell.locale info doc.shell.locale.info {"intl":"en-US","lang":"-","chosen":"en"}
+files.data ok doc.files.data.ok
+files.space info doc.notMeasured
+files.case info protection doc.files.case.stricter
+files.leftovers ok doc.files.leftovers.none
+files.permissions ok protection doc.files.permissions.ok
+git.found ok doc.git.ok {"v":"2.5"}
+git.projects info doc.git.projects.notRepo {"n":1,"of":1}
+    doc.line {"text":"C:/plain"}
+data.config ok doc.data.config.ok
+data.index ok doc.data.index.ok {"n":42}
+data.quota ok doc.data.quota.ok
+data.transcripts warn hint=doc.reportHint doc.data.transcripts.changed
+    doc.data.transcripts.noTime
+data.toolNames info protection doc.data.toolNames.mcp {"n":1}
+    doc.line {"text":"mcp__shell__run"}
+data.sessionIds ok doc.data.sessionIds.ok
+selftest.suites ok protection doc.selftest.ok {"passed":30,"suites":1}

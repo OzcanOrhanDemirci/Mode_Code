@@ -59,7 +59,69 @@ test('every check id is unique, and every message and hint exists in both langua
 test('a check that throws is reported as a failure, not skipped', () => {
   const broken = healthyFacts({ settings: null as never });
   const results = runChecks(broken);
-  assert.ok(results.some((r) => r.status === 'fail' && r.summary.key === 'doc.checkCrashed'));
+  const crashed = results.find((r) => r.summary.key === 'doc.checkCrashed');
+  assert.equal(crashed?.status, 'fail');
+  assert.equal(crashed?.protection, false, 'a crash is not counted as a weakened protection');
+});
+
+test('the tally counts protection failures apart: only failures, only of protections', () => {
+  const r = (status: 'ok' | 'fail' | 'warn', protection: boolean) => ({
+    id: 'x',
+    group: 'node' as const,
+    status,
+    protection,
+    summary: { key: 'doc.line' as const },
+  });
+  assert.deepEqual(tally([r('fail', true), r('fail', false), r('warn', true), r('ok', true)]), {
+    ok: 1,
+    info: 0,
+    warn: 1,
+    fail: 2,
+    skip: 0,
+    protectionFail: 1,
+  });
+});
+
+test('version boundaries: exactly the minimum is enough, for this Node.js and for the hooks', () => {
+  assert.equal(check('node.hooks', healthyFacts({ hookNode: { path: 'x', exists: true, version: MIN_NODE } })).status, 'ok');
+  const repointable = check(
+    'node.hooks',
+    healthyFacts({ node: { version: MIN_NODE, execPath: 'x', sqlite: true }, hookNode: { path: 'x', exists: false, version: null } }),
+  );
+  assert.equal(repointable.repair, 'repoint-node', 'a Node.js at exactly the minimum can take over the hooks');
+});
+
+test('the plugin list could not be read and nothing turned it off: a note, not a protection problem', () => {
+  const r = check('claude.plugin', healthyFacts({ plugins: null }));
+  assert.deepEqual([r.status, r.protection, r.repair], ['info', false, undefined]);
+});
+
+test('Git Bash not measured on Windows is skipped as a protection check; data folder states carry the protection flag', () => {
+  const g = check('shell.gitBash', healthyFacts({ gitBash: null }));
+  assert.deepEqual([g.status, g.protection], ['skip', true]);
+  const d = healthyFacts().data;
+  const missing = check('files.data', healthyFacts({ data: { ...d, exists: false } }));
+  assert.deepEqual([missing.status, missing.protection], ['fail', true]);
+  const absent = check('files.data', healthyFacts({ manifest: null, data: { ...d, exists: false } }));
+  assert.deepEqual([absent.status, absent.protection], ['skip', false]);
+  const readOnly = check('files.data', healthyFacts({ data: { ...d, writable: false } }));
+  assert.deepEqual([readOnly.status, readOnly.protection], ['fail', true]);
+  assert.equal(check('files.space', healthyFacts({ data: { ...d, freeBytes: 500 * 1048576 } })).status, 'ok', 'exactly 500 MB is enough');
+});
+
+test('transcripts with a shape but no file are reported as none', () => {
+  const shape = healthyFacts().transcripts.shape!;
+  assert.equal(check('data.transcripts', healthyFacts({ transcripts: { files: 0, shape, badSessionIds: [] } })).summary.key, 'doc.data.transcripts.none');
+});
+
+test('a self-test failure is a protection failure when any failing suite guards something, whatever else passed', () => {
+  const s = (suite: string, failed: number) => ({ suite, passed: 2, failed, failures: failed ? [{ name: 'n', expected: 'a', actual: 'b' }] : [], ms: 1 });
+  for (const guarding of ['belt', 'paths', 'shell']) {
+    const r = check('selftest.suites', healthyFacts({ selftest: [s('text', 0), s(guarding, 1)] }));
+    assert.deepEqual([r.status, r.protection], ['fail', true], guarding);
+  }
+  const plain = check('selftest.suites', healthyFacts({ selftest: [s('belt', 0), s('footer', 1)] }));
+  assert.deepEqual([plain.status, plain.protection], ['warn', false]);
 });
 
 test('Node.js: too old to run, the hooks node gone, too old or not starting', () => {

@@ -170,7 +170,6 @@ export function protectedPaths(ctx: BeltContext): ProtectedPaths {
   const claudeProjectConfig = (p: string): boolean => {
     const key = pathKey(p, ctx.platform);
     if (/\/\.claude\/settings(\.local)?\.json$/.test(key)) return true; // any project's settings
-    if (key === pathKey(joinPath(cdir, 'CLAUDE.md'), ctx.platform)) return true; // the person's global instructions
     if (/\/\.mcp\.json$/.test(key)) return true; // project MCP servers
     return false;
   };
@@ -225,6 +224,7 @@ export function protectedPaths(ctx: BeltContext): ProtectedPaths {
       (r) => !isRoot(r) && !system.some((d) => isUnder(d, r, ctx.platform)),
     ),
     claudeConfig: same(claudeConfig),
+    // The person's global instructions (CLAUDE.md in Claude Code's folder) count as configuration a project changes now and then.
     claudeProjectConfig: (p) => claudeProjectConfig(p) || pathKey(p, ctx.platform) === pathKey(joinPath(cdirC, 'CLAUDE.md'), ctx.platform),
     toolDirs: same(toolDirs),
     memoryDirs: same(memoryDirs),
