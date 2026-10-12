@@ -769,6 +769,8 @@ function checkPublish(p: string, ws: Word[], raw: string, s: Scope): void {
   const first = a[0] ?? '';
   const pub = () => add(s, 'publish.package', 'belt.reason.publish', { command: show(raw) });
   const dep = () => add(s, 'publish.deploy', 'belt.reason.deploy', { command: show(raw) });
+  // A dry run publishes and deploys nothing (wrangler, npm, cargo, helm, kubectl --dry-run=client|server).
+  if (a.some((x) => x === '--dry-run' || x === '--dryrun' || x.startsWith('--dry-run='))) return;
   if (['npm', 'pnpm', 'bun'].includes(p) && ['publish', 'unpublish', 'deprecate', 'owner', 'access'].includes(first)) return pub();
   if (p === 'npm' && first === 'dist-tag' && ['add', 'rm'].includes(a[1] ?? '')) return pub();
   if (p === 'yarn' && (first === 'publish' || (first === 'npm' && a[1] === 'publish'))) return pub();
