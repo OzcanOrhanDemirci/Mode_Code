@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question
+    url: https://github.com/OzcanOrhanDemirci/terminal-code/discussions
+    about: Ask in Discussions.
+  - name: Security problem
+    url: https://github.com/OzcanOrhanDemirci/terminal-code/security/advisories/new
+    about: Report it privately, never in a public issue.

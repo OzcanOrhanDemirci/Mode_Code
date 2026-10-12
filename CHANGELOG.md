@@ -1,0 +1,18 @@
+# Changelog
+
+All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+### Added
+
+- Safety belt: 39 rules over bash, PowerShell and cmd commands and file writes, with locked self-protection rules; runs in the in-process plugin and in a safety-net hook that blocks on failure.
+- Keywords in English and Turkish (`continue`/`devam`, `quota 40`/`kota 40`, `chat`/`sohbet`, `wrap up`/`toparla`, `stop`/`dur` …), robust to Turkish keyboards and typos.
+- Quota guard: wraps up at the budget, stops at the limit, resumes autonomous work after the reset.
+- Footer lines under each answer, drawn by the plugin or written by the model and checked by a hook.
+- Quiet long work: Claude Code's "the user has not heard from you" reminders are left out.
+- Chat mode enforced by code: no project or memory writes until you say continue.
+- Control center with seven categories, three columns, addresses, a go-to palette, filters, view levels, plain and high-contrast modes, settings edited in place.
+- Session index in SQLite: incremental, each API message counted once, secrets masked.
+- Commands: `status`, `doctor`, `install`, `uninstall`, `quota`, `tokens`, `sessions`, `belt`, `secrets`, `config`, each with versioned `--json` output.
+- Installer that shows every change, asks once, backs up the settings, records a manifest and self-tests; removal undoes exactly the manifest.
