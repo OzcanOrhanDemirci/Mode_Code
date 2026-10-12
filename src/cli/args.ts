@@ -24,6 +24,10 @@ const BOOLEAN = new Set([
   'all',
   'print',
   'week',
+  'fix',
+  'self-check',
+  'report',
+  'quick',
 ]);
 
 export function parseArgs(argv: readonly string[]): Args {

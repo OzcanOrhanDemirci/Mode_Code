@@ -89,7 +89,7 @@ export interface ClaudeEnv {
   hooksDisabledBy: SettingsScope[];
 }
 
-function readSettings(scope: SettingsScope, path: string): SettingsSource {
+export function readSettings(scope: SettingsScope, path: string): SettingsSource {
   const text = readText(path);
   if (text === null) return { scope, path, exists: false, json: null };
   try {
@@ -133,6 +133,42 @@ export function runClaudeInteractive(args: readonly string[]): number | null {
   return r.error ? null : (r.status ?? 0);
 }
 
+/** Environment for running `claude` as a separate program: without the variables of a session it may run in. */
+export function cleanClaudeEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const out = { ...env };
+  for (const k of Object.keys(out)) if (k.startsWith('CLAUDE_CODE_') || k === 'CLAUDECODE') delete out[k];
+  return out;
+}
+
+/** How the tool runs `claude`: the real command, or a stand-in in tests and the doctor's sandbox. */
+export interface ClaudeRunner {
+  version(): string | null;
+  run(args: readonly string[], timeoutMs?: number): { status: number | null; stdout: string; stderr: string };
+}
+
+export const realClaude: ClaudeRunner = {
+  version: () => claudeVersion(),
+  run: (args, timeoutMs = 120_000) => runClaude(args, { timeoutMs, env: cleanClaudeEnv() }),
+};
+
+/** The plugins `claude plugin list --json` reports through a runner, or null when it could not be run or read. */
+export function pluginsVia(runner: ClaudeRunner): PluginInfo[] | null {
+  try {
+    const r = runner.run(['plugin', 'list', '--json'], 30_000);
+    if (r.status !== 0) return null;
+    const list = JSON.parse(r.stdout) as Record<string, unknown>[];
+    if (!Array.isArray(list)) return null;
+    return list.map((p) => ({
+      id: String(p.id ?? p.name ?? '?'),
+      enabled: typeof p.enabled === 'boolean' ? p.enabled : null,
+      version: typeof p.version === 'string' ? p.version : null,
+      scope: typeof p.scope === 'string' ? p.scope : null,
+    }));
+  } catch {
+    return null;
+  }
+}
+
 let versionCache: string | null | undefined;
 
 /** The installed Claude Code version ("2.1.296"), or null when `claude` cannot be run. Cached per process. */
@@ -153,7 +189,7 @@ export function claudeAtLeast(min: string): boolean | null {
   return v === null ? null : compareVersions(v, min) >= 0;
 }
 
-function hooksOf(src: SettingsSource, ourMarker: string): HookEntry[] {
+export function hooksOf(src: SettingsSource, ourMarker: string): HookEntry[] {
   const out: HookEntry[] = [];
   const hooks = src.json?.hooks;
   if (!hooks || typeof hooks !== 'object') return out;
@@ -235,36 +271,38 @@ function named(dir: string, scope: NamedFile['scope'], kind: 'skill' | 'md'): Na
   }
 }
 
-function plugins(): PluginInfo[] | null {
-  try {
-    const env = { ...process.env };
-    for (const k of Object.keys(env)) if (k.startsWith('CLAUDE_CODE_') || k === 'CLAUDECODE') delete env[k];
-    const r = runClaude(['plugin', 'list', '--json'], { timeoutMs: 30000, env });
-    if (r.status !== 0) return null;
-    const list = JSON.parse(r.stdout) as Record<string, unknown>[];
-    return list.map((p) => ({
-      id: String(p.id ?? p.name ?? '?'),
-      enabled: typeof p.enabled === 'boolean' ? p.enabled : null,
-      version: typeof p.version === 'string' ? p.version : null,
-      scope: typeof p.scope === 'string' ? p.scope : null,
-    }));
-  } catch {
-    return null;
-  }
+/** `claude plugin list --json`, or null when it could not be run or read. */
+export function plugins(): PluginInfo[] | null {
+  return pluginsVia(realClaude);
 }
 
-/** Reads the setup as Claude Code would see it for a session started in `cwd`. `withPlugins` runs `claude plugin list` (slow). */
-export function readClaudeEnv(cwd: string, opts: { withPlugins?: boolean; ourMarker?: string } = {}): ClaudeEnv {
-  const dir = claudeDir();
+export interface ClaudeEnvOptions {
+  /** Run `claude plugin list` (slow). */
+  withPlugins?: boolean;
+  /** A text that only this tool's hook commands contain (its hook program's path). */
+  ourMarker?: string;
+  /** Claude Code's configuration folder and global config file, when not the ones of this process. */
+  dir?: string;
+  globalConfig?: string;
+  managed?: string[];
+  /** The Claude Code version, when already known (null: not installed); measured when absent. */
+  version?: string | null;
+  /** Lists plugins, when not by running `claude plugin list`. */
+  plugins?: () => PluginInfo[] | null;
+}
+
+/** Reads the setup as Claude Code would see it for a session started in `cwd`. */
+export function readClaudeEnv(cwd: string, opts: ClaudeEnvOptions = {}): ClaudeEnv {
+  const dir = opts.dir ?? claudeDir();
   const settings: SettingsSource[] = [
-    ...managedSettingsFiles().map((p) => readSettings('managed', p)),
+    ...(opts.managed ?? managedSettingsFiles()).map((p) => readSettings('managed', p)),
     readSettings('user', join(dir, 'settings.json')),
     readSettings('project', join(cwd, '.claude', 'settings.json')),
     readSettings('local', join(cwd, '.claude', 'settings.local.json')),
   ];
   const marker = opts.ourMarker ?? '.terminal-code';
   const global = (() => {
-    const text = readText(process.env.CLAUDE_CONFIG_DIR ? join(dir, '.claude.json') : join(homedir(), '.claude.json'));
+    const text = readText(opts.globalConfig ?? (process.env.CLAUDE_CONFIG_DIR ? join(dir, '.claude.json') : join(homedir(), '.claude.json')));
     try {
       return text ? (JSON.parse(text) as Record<string, unknown>) : null;
     } catch {
@@ -287,12 +325,12 @@ export function readClaudeEnv(cwd: string, opts: { withPlugins?: boolean; ourMar
   const memoryDir = memSetting ?? join(dir, 'projects', projectSlug(cwd), 'memory');
   return {
     dir,
-    version: claudeVersion(),
+    version: opts.version !== undefined ? opts.version : claudeVersion(),
     settings,
     hooks: settings.flatMap((s) => hooksOf(s, marker)),
     permissions: settings.flatMap(permissionsOf),
     mcp: [...mcpOf(global?.mcpServers, 'user'), ...mcpOf(projectEntry?.mcpServers, 'local'), ...mcpOf(projectMcp, 'project')],
-    plugins: opts.withPlugins ? plugins() : null,
+    plugins: opts.withPlugins ? (opts.plugins ?? plugins)() : null,
     instructions: [
       instruction('user', join(dir, 'CLAUDE.md')),
       instruction('project', join(cwd, 'CLAUDE.md')),

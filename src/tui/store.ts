@@ -18,6 +18,7 @@ import { appContext, reloadConfig, type AppContext } from '../app/context.js';
 import { loadEvents, loadQuota, openIndex, recentModStates, scanPaths, type QuotaView, type ToolEvent, type SecretFinding } from '../app/data.js';
 import { checkHealth, type Health } from '../app/health.js';
 import { buildReport, type Report } from '../app/report.js';
+import { loadSummary, type DoctorSummary } from '../app/doctor/doctor.js';
 import type { ModSessionState } from '../core/session.js';
 
 export interface Timed<T> {
@@ -54,6 +55,8 @@ export interface DataSource {
   scanMemory(): { findings: SecretFinding[]; files: number; skipped: number };
   lastSeen(): number | null;
   markSeen(at: number): void;
+  /** The last maintenance check's summary, written by `terminal-code doctor`. */
+  doctorSummary(): DoctorSummary | null;
   refresh(): void;
   close(): void;
 }
@@ -185,6 +188,9 @@ export class LiveData implements DataSource {
   }
   scanMemory() {
     return this.memo('scan', 60_000, () => scanPaths(this.ctx.config.memory.dirs));
+  }
+  doctorSummary(): DoctorSummary | null {
+    return loadSummary(this.ctx.layout);
   }
   lastSeen(): number | null {
     const s = readJson<{ lastSeenAt?: number }>(this.ctx.layout.stateDir + '/ui.json');

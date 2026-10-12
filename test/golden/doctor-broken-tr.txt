@@ -1,0 +1,60 @@
+Node.js
+  ✓ Bu komutu Node.js 24.15.0 çalıştırıyor (22.13.0 ya da daha yenisi gerekir).
+  ✓ Hook'ları Node.js 24.15.0 çalıştırıyor (C:/Program Files/nodejs/node.exe).
+  ✓ Node.js'in yerleşik SQLite modülü var (oturum dizini onu kullanır).
+Claude Code
+  ✓ Claude Code 2.1.295 (2.1.295 ya da daha yenisi gerekir).
+  ✓ PATH'te bir claude komutu var: ~/.local/bin/claude.exe.
+  ✓ Claude Code ayar dosyalarını hatasız okuyor (1 dosya okundu).
+  ✓ Hiçbir ayar dosyası hook'ları kapatmıyor.
+  ✓ terminal-code@terminal-code-local eklentisi kurulu ve açık (sürüm dev).
+Kurulum
+  ✓ dev sürümü 2026-10-11 tarihinde kuruldu.
+  ✗ Hook programı yok: ~/.terminal-code/bin/hook.mjs.
+      → Bu sürümün hook programını geri kopyala
+  ✗ Şu olaylarda güvenlik ağı hook'u eksik: Stop (4 olaydan 3 tanesi yerinde).
+      → Güvenlik ağı hook'larını Claude Code ayarlarına geri koy
+  ✓ Eklenti dosyaları bu sürümle aynı.
+  ✓ Eklenti en son 2026-10-12 11:50 (UTC) zamanında bir oturumdan haber verdi.
+Koruma
+  ✗ Kurulu hook, 30 örnekten 1 tanesine bu sürümden farklı cevap verdi.
+      Write ~/TERMIN~1/config.json: bu sürüm "engelle" diyor, kurulu hook "izin" diyor.
+      → Bu sürümün hook programını geri kopyala
+  ✓ Korunan klasörlerin hiçbiri bağlantı değil.
+  ✓ Kemer, Windows'un korunan yerlere verdiği 1 kısa adı da koruyor.
+      ~/TERMIN~1 = ~/.terminal-code.
+  ✓ 1 hafıza klasörü korunuyor ve git deposu.
+Kabuklar ve terminal
+  ✓ Git Bash (C:/Program Files/Git/bin/bash.exe), kemerin varsaydığı gibi /tmp'yi Temp klasörüne bağlıyor.
+  ✓ PowerShell 7.6.6.
+  · Terminal: Windows Terminal, 120 sütun, kod sayfası 65001.
+  · Sistem yerel ayarı en-US, LANG -; arayüz dili en.
+Dosyalar
+  ✓ Veri klasörü yazılabilir ve bölünmez yazma çalışıyor.
+  ✓ Veri klasörü için 100.0 GB boş yer var.
+  ✓ Disk büyük-küçük harfi ayırmıyor; kemer de ayırmıyor.
+  ! Yarıda kalmış yazmalardan 1 artık dosya var.
+      config.json.4242.0a1b2c3d.tmp
+      → Artık dosyaları kaldır
+git
+  ✓ git 2.55.0.
+  ! git, 1 kayıtlı projeyi okuyamıyor.
+      C:/dev/app: fatal: detected dubious ownership
+      → C:/dev/app senin ise güvenli işaretle: git config --global --add safe.directory C:/dev/app
+Veri
+  ✓ Ayar dosyası geçerli.
+  ✓ Oturum dizini sağlam (42 oturum).
+  ✓ Yakın zamanda alınmış bir kota ölçümü kayıtlı.
+  ✓ Son 3 oturum kaydı okundu: 100 satır beklenen biçimde.
+  ✓ Son oturumlarda komut çalıştıran ya da dosya yazan her aracı kemer denetliyor (Bash, Edit).
+  ✓ Oturum kimlikleri beklenen biçimde.
+Öz-sınama
+  ✓ 1 paketteki 30 yerleşik örneğin hepsi beklenen cevabı verdi.
+
+2.1 sn içinde 36 denetim: 27 tamam, 2 uyarı, 3 sorun.
+Sorunlardan 3 tanesi bir korumayı zayıflatıyor.
+
+3 sorun kendiliğinden onarılabilir:
+  1. Bu sürümün hook programını geri kopyala
+  2. Güvenlik ağı hook'larını Claude Code ayarlarına geri koy
+  3. Artık dosyaları kaldır

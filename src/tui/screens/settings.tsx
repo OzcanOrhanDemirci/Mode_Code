@@ -316,8 +316,26 @@ export function Maintenance({ width }: ScreenProps) {
   const t = useT();
   const h = data.health();
   const m = h.manifest;
+  const last = data.doctorSummary();
   return (
     <Box flexDirection="column" width={width}>
+      <Section title={t('maint.lastCheck')}>
+        {last ? (
+          <>
+            <Text>
+              {t('maint.lastCheckLine', { when: ago(last.at, now, lang), ok: last.tally.ok, warn: last.tally.warn, fail: last.tally.fail })}
+              {last.quick ? ` ${t('maint.lastCheckQuick')}` : ''}
+            </Text>
+            {last.problems.slice(0, 6).map((p) => (
+              <Note key={p.id} kind={p.status === 'fail' ? 'bad' : 'warn'}>
+                {t(p.summary.key, p.summary.params)}
+              </Note>
+            ))}
+          </>
+        ) : (
+          <Muted>{t('maint.lastCheckNever')}</Muted>
+        )}
+      </Section>
       <Section>
         <Row label={t('maint.installed')}>
           {m ? t('maint.installedAt', { when: ago(m.installedAt, now, lang), version: m.version }) : t('health.notInstalled')}
@@ -334,6 +352,8 @@ export function Maintenance({ width }: ScreenProps) {
         {(
           [
             ['doctor', 'maint.doctor'],
+            ['doctor --fix', 'maint.doctorFix'],
+            ['doctor --self-check', 'maint.selfCheck'],
             ['install', 'maint.install'],
             ['uninstall', 'maint.uninstall'],
             ['uninstall --purge', 'maint.purge'],

@@ -1,0 +1,8 @@
+The doctor tests itself
+A real installation in a temporary folder, broken on purpose in 3 ways. Your own files are not touched.
+  ✓ The fresh installation passes every check.
+  ✓ Safety-net hooks removed from the settings · noticed · repaired
+  ✓ Claude Code settings file broken · noticed · yours to fix
+  ✗ Hook program altered · NOT noticed · NOT repaired
+      ok; restore-hook-program not planned (none)
+Faults the doctor missed or could not repair: 1. Please report it.

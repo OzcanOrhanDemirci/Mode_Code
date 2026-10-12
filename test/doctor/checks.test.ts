@@ -1,0 +1,324 @@
+// SPDX-License-Identifier: Apache-2.0
+/**
+ * The doctor's checks on made-up facts: a healthy machine passes every check with no warning (the doctor
+ * must not cry wolf either), and each check reacts to exactly the fact it is about, with the repair or the
+ * hint the person needs.
+ */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { CHECKS, runChecks, tally, MIN_NODE } from '../../src/app/doctor/checks.js';
+import { en } from '../../src/core/i18n/en.js';
+import { tr } from '../../src/core/i18n/tr.js';
+import { APP_VERSION, MIN_CLAUDE_CODE_FOR_HOOKS, MIN_CLAUDE_CODE_FOR_MODS, PLUGIN_ID } from '../../src/core/app.js';
+import { HOOK_EVENTS } from '../../src/node/install.js';
+import { compareVersions } from '../../src/core/version.js';
+import type { CheckResult, Facts } from '../../src/app/doctor/types.js';
+import { healthyFacts, ourHook, settingsFile } from '../helpers/facts.js';
+
+function check(id: string, f: Facts): CheckResult {
+  const r = runChecks(f).find((x) => x.id === id);
+  assert.ok(r, `no check ${id}`);
+  return r;
+}
+
+const brief = (r: CheckResult) => `${r.status} ${r.summary.key}${r.repair ? ` → ${r.repair}` : ''}`;
+
+test('a healthy machine: every check passes, none warns, none fails', () => {
+  const results = runChecks(healthyFacts());
+  const loud = results.filter((r) => r.status === 'warn' || r.status === 'fail');
+  assert.deepEqual(loud.map(brief), []);
+  assert.equal(results.length, CHECKS.length);
+  const t = tally(results);
+  assert.equal(t.fail + t.warn, 0);
+  assert.ok(t.ok >= 28, `only ${t.ok} checks passed`);
+});
+
+test('every check id is unique, and every message and hint exists in both languages', () => {
+  const variants: Facts[] = [
+    healthyFacts(),
+    healthyFacts({ manifest: null }),
+    healthyFacts({
+      claude: { installs: [], version: null },
+      platform: 'linux',
+      gitBash: null,
+      powershell: null,
+      posixShell: { shell: '/bin/zsh', version: null },
+    }),
+  ];
+  for (const f of variants) {
+    const results = runChecks(f);
+    assert.equal(new Set(results.map((r) => r.id)).size, results.length);
+    for (const r of results)
+      for (const m of [r.summary, r.hint, ...(r.details ?? [])].filter((x) => x !== undefined)) {
+        assert.ok(m.key in en, `${r.id}: ${m.key} missing in English`);
+        assert.ok(m.key in tr, `${r.id}: ${m.key} missing in Turkish`);
+      }
+  }
+});
+
+test('a check that throws is reported as a failure, not skipped', () => {
+  const broken = healthyFacts({ settings: null as never });
+  const results = runChecks(broken);
+  assert.ok(results.some((r) => r.status === 'fail' && r.summary.key === 'doc.checkCrashed'));
+});
+
+test('Node.js: too old to run, the hooks node gone, too old or not starting', () => {
+  assert.equal(brief(check('node.version', healthyFacts({ node: { version: '20.11.0', execPath: 'x', sqlite: false } }))), 'fail doc.node.version.old');
+  assert.equal(check('node.version', healthyFacts({ node: { version: MIN_NODE, execPath: 'x', sqlite: true } })).status, 'ok');
+  assert.equal(
+    brief(check('node.hooks', healthyFacts({ hookNode: { path: 'C:/gone/node.exe', exists: false, version: null } }))),
+    'fail doc.node.hooks.gone → repoint-node',
+  );
+  assert.equal(
+    brief(check('node.hooks', healthyFacts({ hookNode: { path: 'C:/x/node.exe', exists: true, version: null } }))),
+    'fail doc.node.hooks.wontRun → repoint-node',
+  );
+  assert.equal(
+    brief(check('node.hooks', healthyFacts({ hookNode: { path: 'C:/x/node.exe', exists: true, version: '20.0.0' } }))),
+    'fail doc.node.hooks.old → repoint-node',
+  );
+  // Repointing needs a good Node.js here; without one the person is told to install it.
+  const both = check(
+    'node.hooks',
+    healthyFacts({ node: { version: '20.0.0', execPath: 'x', sqlite: true }, hookNode: { path: 'C:/gone', exists: false, version: null } }),
+  );
+  assert.equal(both.repair, undefined);
+  assert.equal(both.hint?.key, 'doc.node.version.hint');
+  assert.equal(check('node.hooks', healthyFacts({ manifest: null })).status, 'skip');
+  assert.equal(brief(check('node.sqlite', healthyFacts({ node: { version: '24.0.0', execPath: 'x', sqlite: false } }))), 'fail doc.node.sqlite.missing');
+});
+
+test('Claude Code: missing, too old for the hooks, too old for the plugin, several installs', () => {
+  assert.equal(brief(check('claude.version', healthyFacts({ claude: { installs: [], version: null } }))), 'fail doc.claude.missing');
+  assert.equal(brief(check('claude.version', healthyFacts({ claude: { installs: ['x'], version: '2.0.0' } }))), 'fail doc.claude.old');
+  // Below the hooks' minimum is a failure even where the plugin would load: protection comes first. The
+  // "plugin needs newer" warning only exists while the plugin's minimum is the higher one.
+  const mods: string = MIN_CLAUDE_CODE_FOR_MODS;
+  const hooks: string = MIN_CLAUDE_CODE_FOR_HOOKS;
+  const at = (version: string) => check('claude.version', healthyFacts({ claude: { installs: ['x'], version } })).status;
+  if (compareVersions(mods, hooks) > 0) assert.equal(at(hooks), 'warn');
+  else assert.equal(at(mods), compareVersions(mods, hooks) < 0 ? 'fail' : 'ok');
+  assert.equal(at(hooks), compareVersions(mods, hooks) > 0 ? 'warn' : 'ok');
+  const many = check('claude.installs', healthyFacts({ claude: { installs: ['C:/a/claude.exe', 'C:/b/claude.cmd'], version: '2.1.296' } }));
+  assert.equal(brief(many), 'warn doc.claude.installs.many');
+  assert.equal(many.details?.length, 2);
+  assert.equal(check('claude.installs', healthyFacts({ claude: { installs: [], version: '2.1.296' } })).status, 'info');
+});
+
+test('Claude Code settings: a broken user file fails with the backup named; a broken project file warns', () => {
+  const user = check('claude.settings', healthyFacts({ settings: [settingsFile({ error: 'Unexpected token (line 3, column 1)' })] }));
+  assert.equal(brief(user), 'fail doc.claude.settings.bad');
+  assert.equal(user.hint?.key, 'doc.claude.settings.hintBackup');
+  assert.equal(user.repair, undefined, 'a file Claude Code cannot read is never rewritten');
+  const project = check(
+    'claude.settings',
+    healthyFacts({ settings: [settingsFile(), settingsFile({ scope: 'project', path: 'C:/dev/app/.claude/settings.json', error: 'x' })] }),
+  );
+  assert.equal(project.status, 'warn');
+  assert.equal(
+    check('claude.settings', healthyFacts({ manifest: { ...healthyFacts().manifest!, settingsBackup: null }, settings: [settingsFile({ error: 'x' })] })).hint
+      ?.key,
+    'doc.claude.settings.hint',
+  );
+  // The branches for settings files that switch the hooks off are not covered by an agent-written test: the
+  // safety belt (rightly) refuses to let an agent write such a fixture. See docs/testing.md, "Not covered".
+  assert.equal(check('claude.hooksOn', healthyFacts()).status, 'ok');
+});
+
+test('the plugin: missing, off, off for this folder only, another version, not listable', () => {
+  assert.equal(brief(check('claude.plugin', healthyFacts({ plugins: [] }))), `warn doc.claude.plugin.missing → reinstall-plugin`);
+  assert.equal(
+    brief(check('claude.plugin', healthyFacts({ plugins: [{ id: PLUGIN_ID, enabled: false, version: APP_VERSION, scope: 'user' }] }))),
+    'warn doc.claude.plugin.disabled → enable-plugin',
+  );
+  assert.equal(check('claude.plugin', healthyFacts({ settings: [settingsFile(), settingsFile({ scope: 'project', pluginEnabled: false })] })).status, 'info');
+  assert.equal(check('claude.plugin', healthyFacts({ plugins: null })).status, 'info');
+  assert.equal(check('claude.plugin', healthyFacts({ manifest: null })).status, 'skip');
+  const other = check('claude.plugin', healthyFacts({ plugins: [{ id: PLUGIN_ID, enabled: true, version: '0.0.1', scope: 'user' }] }));
+  assert.equal(other.status, APP_VERSION === 'dev' ? 'ok' : 'warn');
+});
+
+test('installation: the hook program missing, outdated, altered; hooks missing, weakened, doubled', () => {
+  const m = healthyFacts().manifest!;
+  assert.equal(check('install.manifest', healthyFacts({ manifest: null })).status, 'info');
+  assert.equal(check('install.manifest', healthyFacts({ manifest: { ...m, dataDir: 'D:/elsewhere' } })).status, 'warn');
+  const hp = healthyFacts().hookProgram;
+  assert.equal(
+    brief(check('install.hookProgram', healthyFacts({ hookProgram: { ...hp, exists: false, hash: null } }))),
+    'fail doc.install.hook.missing → restore-hook-program',
+  );
+  assert.equal(check('install.hookProgram', healthyFacts({ hookProgram: { ...hp, shippedHash: null } })).status, 'info');
+  const differs = check('install.hookProgram', healthyFacts({ hookProgram: { ...hp, hash: 'b'.repeat(64) } }));
+  assert.equal(differs.repair, 'restore-hook-program');
+  assert.ok(differs.status === 'fail' || differs.status === 'warn');
+
+  const without = (ev: string) => healthyFacts().hooks.filter((h) => h.event !== ev);
+  const missing = check('install.hooks', healthyFacts({ hooks: without('PreToolUse') }));
+  assert.equal(brief(missing), 'fail doc.install.hooks.missing → restore-hooks');
+  assert.equal(missing.summary.params?.events, 'PreToolUse');
+  const weak = HOOK_EVENTS.map((e) => (e === 'PreToolUse' ? ourHook(e, { onFailure: null }) : ourHook(e)));
+  assert.equal(brief(check('install.hooks', healthyFacts({ hooks: weak }))), 'fail doc.install.hooks.changed → restore-hooks');
+  const narrow = HOOK_EVENTS.map((e) => (e === 'PreToolUse' ? ourHook(e, { matcher: 'Bash' }) : ourHook(e)));
+  assert.equal(check('install.hooks', healthyFacts({ hooks: narrow })).status, 'fail');
+  const doubled = [...healthyFacts().hooks, ourHook('Stop')];
+  assert.equal(brief(check('install.hooks', healthyFacts({ hooks: doubled }))), 'warn doc.install.hooks.duplicates → remove-duplicate-hooks');
+  const moved = check('install.hooks', healthyFacts({ claudeDir: 'D:/claude', hooks: [] }));
+  assert.equal(moved.status, 'fail');
+  assert.equal(moved.details?.[0]?.key, 'doc.install.hooks.movedConfig');
+  // Somebody else's hooks never count as ours.
+  assert.equal(
+    check(
+      'install.hooks',
+      healthyFacts({ hooks: [...healthyFacts().hooks, ourHook('PreToolUse', { ours: false, command: 'node', args: ['C:/mine/guard.js'] })] }),
+    ).status,
+    'ok',
+  );
+});
+
+test('installation: plugin files and the plugin seen in a session', () => {
+  const pf = healthyFacts().pluginFiles;
+  assert.equal(
+    brief(check('install.pluginFiles', healthyFacts({ pluginFiles: { ...pf, different: ['hooks/register.js'] } }))),
+    'warn doc.install.pluginFiles.bad → restore-plugin-files',
+  );
+  assert.equal(check('install.pluginFiles', healthyFacts({ pluginFiles: { ...pf, shipped: false } })).status, 'info');
+  assert.equal(check('install.modSeen', healthyFacts({ modSeen: null })).status, 'info');
+  assert.equal(
+    check('install.modSeen', healthyFacts({ modSeen: { at: 1, version: 'other' } })).summary.key,
+    APP_VERSION === 'other' ? 'doc.install.modSeen.ok' : 'doc.install.modSeen.other',
+  );
+});
+
+test('protection: the installed hook disagreeing, links, short names, memory folders', () => {
+  const a = check(
+    'protect.agreement',
+    healthyFacts({ hookAgreement: { samples: 30, agreed: 29, differences: [{ call: 'Write C:/x', mine: 'deny', theirs: 'allow' }], error: null } }),
+  );
+  assert.equal(brief(a), 'fail doc.protect.agreement.differ → restore-hook-program');
+  assert.equal(a.details?.[0]?.params?.mine, '@verdict.deny');
+  assert.equal(check('protect.agreement', healthyFacts({ hookAgreement: null })).status, 'skip');
+  assert.equal(check('protect.agreement', healthyFacts({ hookAgreement: { samples: 0, agreed: 0, differences: [], error: 'spawn failed' } })).status, 'warn');
+  assert.equal(check('protect.links', healthyFacts({ aliases: [{ real: 'D:/dot/claude', spelled: 'C:/Users/ada/.claude' }] })).status, 'info');
+  assert.equal(
+    brief(check('protect.shortNames', healthyFacts({ shortNames: [{ long: 'a', short: 'b', recognised: false }] }))),
+    'fail doc.protect.shortNames.missed',
+  );
+  assert.equal(check('protect.shortNames', healthyFacts({ shortNames: [] })).status, 'ok');
+  assert.equal(check('protect.shortNames', healthyFacts({ platform: 'darwin' })).status, 'skip');
+  assert.equal(check('protect.memory', healthyFacts({ memoryDirs: [] })).status, 'info');
+  assert.equal(check('protect.memory', healthyFacts({ memoryDirs: [{ path: 'C:/m', exists: false, isRepo: false }] })).status, 'warn');
+  assert.equal(check('protect.memory', healthyFacts({ memoryDirs: [{ path: 'C:/m', exists: true, isRepo: false }] })).status, 'info');
+});
+
+test('shells: Git Bash missing or mapping /tmp elsewhere than the belt assumes; PowerShell; the terminal', () => {
+  const gb = healthyFacts().gitBash!;
+  assert.equal(check('shell.gitBash', healthyFacts({ gitBash: { ...gb, path: null, tmp: null } })).status, 'warn');
+  assert.equal(check('shell.gitBash', healthyFacts({ gitBash: { ...gb, tmp: null, error: 'timeout' } })).status, 'warn');
+  const differs = check('shell.gitBash', healthyFacts({ gitBash: { ...gb, tmp: 'C:/msys64/tmp' } }));
+  assert.equal(brief(differs), 'fail doc.shell.gitBash.tmpDiffers');
+  assert.equal(differs.protection, true);
+  assert.equal(check('shell.gitBash', healthyFacts({ gitBash: { ...gb, tmp: 'c:/users/ADA/appdata/local/temp' } })).status, 'ok');
+  assert.equal(check('shell.gitBash', healthyFacts({ platform: 'linux' })).status, 'skip');
+  assert.equal(check('shell.powershell', healthyFacts({ powershell: { pwsh: null, windowsPowerShell: true } })).summary.key, 'doc.shell.pwsh.only51');
+  assert.equal(check('shell.powershell', healthyFacts({ powershell: { pwsh: null, windowsPowerShell: false } })).summary.key, 'doc.shell.pwsh.none');
+  const t = healthyFacts().terminal;
+  assert.equal(check('shell.terminal', healthyFacts({ terminal: { ...t, columns: 50 } })).status, 'warn');
+  assert.equal(check('shell.terminal', healthyFacts({ terminal: { ...t, tty: false, columns: 50 } })).status, 'info');
+  assert.equal(
+    check('shell.posix', healthyFacts({ platform: 'darwin', posixShell: { shell: '/bin/zsh', version: 'zsh 5.9' } })).summary.params?.shell,
+    '/bin/zsh',
+  );
+});
+
+test('files: data folder, space, letter case, leftovers, permissions', () => {
+  const d = healthyFacts().data;
+  assert.equal(brief(check('files.data', healthyFacts({ data: { ...d, exists: false } }))), 'fail doc.files.data.missing → create-data-folders');
+  assert.equal(check('files.data', healthyFacts({ manifest: null, data: { ...d, exists: false } })).status, 'skip');
+  assert.equal(brief(check('files.data', healthyFacts({ data: { ...d, writable: false } }))), 'fail doc.files.data.readOnly');
+  assert.equal(check('files.data', healthyFacts({ data: { ...d, renameWorks: false } })).status, 'warn');
+  assert.equal(brief(check('files.data', healthyFacts({ data: { ...d, missingDirs: ['x'] } }))), 'warn doc.files.data.missingDirs → create-data-folders');
+  assert.equal(check('files.space', healthyFacts({ data: { ...d, freeBytes: 10 * 1048576 } })).status, 'fail');
+  assert.equal(check('files.space', healthyFacts({ data: { ...d, freeBytes: 200 * 1048576 } })).status, 'warn');
+  assert.equal(check('files.space', healthyFacts({ data: { ...d, freeBytes: null } })).status, 'info');
+  // The disk ignores case but the belt (Linux rules) does not: a real gap.
+  assert.equal(brief(check('files.case', healthyFacts({ platform: 'linux', data: { ...d, caseInsensitive: true } }))), 'fail doc.files.case.gap');
+  assert.equal(check('files.case', healthyFacts({ platform: 'darwin', data: { ...d, caseInsensitive: false } })).status, 'info');
+  assert.equal(check('files.case', healthyFacts({ platform: 'linux', data: { ...d, caseInsensitive: false } })).status, 'ok');
+  assert.equal(
+    brief(check('files.leftovers', healthyFacts({ data: { ...d, staleTemp: ['config.json.1.0a1b2c3d.tmp'] } }))),
+    'warn doc.files.leftovers.temp → remove-stale-temp',
+  );
+  assert.equal(brief(check('files.leftovers', healthyFacts({ data: { ...d, staleStates: 3 } }))), 'info doc.files.leftovers.states → prune-session-state');
+  assert.equal(
+    brief(check('files.permissions', healthyFacts({ platform: 'linux', data: { ...d, looseModes: ['.terminal-code 777'] } }))),
+    'fail doc.files.permissions.loose → tighten-permissions',
+  );
+  assert.equal(check('files.permissions', healthyFacts()).status, 'skip');
+});
+
+test('git: missing, projects not repositories, unreadable with the safe.directory hint', () => {
+  assert.equal(check('git.found', healthyFacts({ git: { version: null, projects: [] } })).status, 'warn');
+  const p = (over: object) => ({ path: 'C:/dev/app', exists: true, readable: true, error: null, notRepo: false, ...over });
+  assert.equal(
+    check('git.projects', healthyFacts({ git: { version: '2.5', projects: [p({ readable: false, notRepo: true, error: 'fatal: not a git repository' })] } }))
+      .status,
+    'info',
+  );
+  const dubious = check(
+    'git.projects',
+    healthyFacts({ git: { version: '2.5', projects: [p({ readable: false, error: 'fatal: detected dubious ownership in repository' })] } }),
+  );
+  assert.equal(dubious.status, 'warn');
+  assert.equal(dubious.hint?.key, 'doc.git.projects.safeHint');
+  assert.equal(check('git.projects', healthyFacts({ git: { version: '2.5', projects: [p({ exists: false, readable: false })] } })).status, 'info');
+  assert.equal(check('git.projects', healthyFacts({ git: { version: '2.5', projects: [] } })).status, 'skip');
+});
+
+test('data: settings problems, the index, the quota reading', () => {
+  assert.equal(check('data.config', healthyFacts({ config: { problems: [], exists: false } })).status, 'info');
+  const bad = check('data.config', healthyFacts({ config: { problems: [{ path: 'view', kind: 'type', detail: 'expected a string' }], exists: true } }));
+  assert.equal(brief(bad), 'warn doc.data.config.problems → rewrite-config');
+  assert.equal(
+    brief(check('data.index', healthyFacts({ index: { exists: true, ok: false, detail: 'malformed', sessions: null } }))),
+    'warn doc.data.index.bad → rebuild-index',
+  );
+  assert.equal(check('data.index', healthyFacts({ index: { exists: false, ok: null, detail: null, sessions: null } })).status, 'info');
+  assert.equal(
+    brief(check('data.quota', healthyFacts({ quota: { exists: true, valid: false, measuredAt: null } }))),
+    'warn doc.data.quota.bad → remove-bad-quota',
+  );
+  assert.equal(
+    check('data.quota', healthyFacts({ quota: { exists: true, valid: true, measuredAt: Date.parse('2026-10-01T00:00:00Z') } })).summary.key,
+    'doc.data.quota.old',
+  );
+  assert.equal(check('data.quota', healthyFacts({ quota: { exists: false, valid: false, measuredAt: null } })).status, 'info');
+});
+
+test('data: a transcript format change, and a tool that changes files without the belt seeing it', () => {
+  const shape = healthyFacts().transcripts.shape!;
+  const t = (s: Partial<typeof shape>) => healthyFacts({ transcripts: { files: 3, shape: { ...shape, ...s }, badSessionIds: [] } });
+  assert.equal(check('data.transcripts', t({ user: 0, assistant: 0 })).status, 'fail');
+  assert.equal(check('data.transcripts', t({ assistantWithBlocks: 10 })).status, 'warn');
+  assert.equal(check('data.transcripts', t({ assistantWithUsage: 0 })).status, 'warn');
+  assert.equal(check('data.transcripts', t({ timestamped: 0 })).status, 'warn');
+  assert.equal(check('data.transcripts', healthyFacts({ transcripts: { files: 0, shape: null, badSessionIds: [] } })).status, 'info');
+  // A renamed file tool would slip past the belt's matcher: that is a protection failure.
+  const gap = check('data.toolNames', t({ tools: { ...shape.tools, StrReplace: { calls: 2, runsCommands: false, writesFiles: true } } }));
+  assert.equal(brief(gap), 'fail doc.data.toolNames.gap');
+  assert.equal(gap.summary.params?.names, 'StrReplace');
+  assert.equal(gap.protection, true);
+  assert.equal(check('data.toolNames', t({ tools: { ...shape.tools, mcp__shell__run: { calls: 1, runsCommands: true, writesFiles: false } } })).status, 'info');
+  assert.equal(check('data.toolNames', t({ tools: { Read: { calls: 3, runsCommands: false, writesFiles: false } } })).status, 'ok');
+  assert.equal(check('data.sessionIds', healthyFacts({ transcripts: { ...healthyFacts().transcripts, badSessionIds: ['a/b'] } })).status, 'warn');
+});
+
+test('self-tests: a belt failure fails as a protection; another suite only warns', () => {
+  const failing = (suite: string) =>
+    healthyFacts({ selftest: [{ suite, passed: 3, failed: 1, failures: [{ name: 's', expected: 'a', actual: 'b' }], ms: 1 }] });
+  const belt = check('selftest.suites', failing('belt'));
+  assert.equal(belt.status, 'fail');
+  assert.equal(belt.protection, true);
+  assert.equal(belt.details?.[0]?.key, 'doc.selftest.failure');
+  assert.equal(check('selftest.suites', failing('footer')).status, 'warn');
+  assert.equal(check('selftest.suites', healthyFacts({ selftest: null })).status, 'skip');
+});

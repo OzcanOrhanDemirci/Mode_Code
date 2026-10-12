@@ -142,49 +142,6 @@ export async function cmdStatus(a: Args): Promise<number> {
   return c.red ? 1 : 0;
 }
 
-// ── doctor ──
-
-export async function cmdDoctor(a: Args): Promise<number> {
-  const ctx = appContext();
-  const h = checkHealth(ctx, { selfTest: true, withPlugins: true });
-  const c = healthCounts(h);
-  if (flag(a, 'json')) {
-    json('doctor', {
-      installed: h.installed,
-      claudeCode: h.claude,
-      minimumClaudeCode: MIN_CLAUDE_CODE_FOR_HOOKS,
-      node: process.version,
-      features: h.features,
-      modSeen: h.modSeen,
-      hooks: h.env.hooks.filter((x) => x.ours),
-      hooksDisabledBy: h.env.hooksDisabledBy,
-      plugins: h.env.plugins,
-      configProblems: ctx.problems,
-    });
-    return c.red ? 1 : 0;
-  }
-  say(bold(T(ctx, 'cli.doctor.title')));
-  say();
-  say(`  Node.js ${process.version}  ·  Claude Code ${h.claude ?? red(T(ctx, 'cli.notFound'))}`);
-  say(`  ${T(ctx, 'cli.doctor.data')}: ${shortPath(ctx.layout.root, homedir())}`);
-  say();
-  for (const f of h.features) {
-    say(`  ${stateMark(ctx, f.state)}  ${bold(T(ctx, `feature.${f.id}` as MessageKey))}${f.protection ? dim(' · ' + T(ctx, 'cli.doctor.protection')) : ''}`);
-    if (f.reason) say(`       ${T(ctx, f.reason.key as MessageKey, f.reason.params)}`);
-    if (f.fix && f.state !== 'ok') say(dim(`       ${T(ctx, 'cli.doctor.fix', { cmd: `${APP_NAME} open ${f.fix}` })}`));
-  }
-  for (const p of ctx.problems) say(yellow(`  ! ${T(ctx, 'cli.doctor.configProblem', { path: p.path || '(file)', detail: p.detail })}`));
-  say();
-  say(
-    c.red
-      ? red(T(ctx, 'cli.doctor.summaryRed', { n: c.red }))
-      : c.gray
-        ? yellow(T(ctx, 'cli.doctor.summaryGray', { n: c.gray }))
-        : green(T(ctx, 'cli.doctor.summaryOk')),
-  );
-  return c.red ? 1 : 0;
-}
-
 // ── install / uninstall ──
 
 export async function cmdInstall(a: Args): Promise<number> {

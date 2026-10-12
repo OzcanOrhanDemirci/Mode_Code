@@ -30,7 +30,7 @@ import { compareVersions } from '../core/version.js';
 import type { Layout } from '../core/layout.js';
 import { ensureDir, readJson, readText, writeAtomic, writeJsonAtomic } from './fsx.js';
 import { claudeDir } from './env.js';
-import { claudeVersion, runClaude } from './claude-env.js';
+import { claudeVersion, realClaude, type ClaudeRunner } from './claude-env.js';
 
 export const HOOK_EVENTS = ['PreToolUse', 'UserPromptSubmit', 'Stop', 'SessionStart'] as const;
 export const BELT_MATCHER = 'Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit';
@@ -156,9 +156,9 @@ export function underAgent(env: NodeJS.ProcessEnv = process.env): boolean {
   return env.CLAUDECODE === '1' || !!env.CLAUDE_CODE_ENTRYPOINT;
 }
 
-export function planInstall(l: Layout, opts: { node?: string; claude?: string | null } = {}): InstallPlan {
+export function planInstall(l: Layout, opts: { node?: string; claude?: string | null; claudeDir?: string; env?: NodeJS.ProcessEnv } = {}): InstallPlan {
   const node = (opts.node ?? stableNodePath()).replace(/\\/g, '/');
-  const settingsFile = join(claudeDir(), 'settings.json');
+  const settingsFile = join(opts.claudeDir ?? claudeDir(), 'settings.json');
   const hook = hookProgram(l).replace(/\\/g, '/');
   const plan: InstallPlan = {
     steps: [],
@@ -179,7 +179,7 @@ export function planInstall(l: Layout, opts: { node?: string; claude?: string | 
     plan.blockers.push({ key: 'install.block.oldClaude', params: { have: claude, need: MIN_CLAUDE_CODE_FOR_HOOKS } });
   else if (compareVersions(claude, MIN_CLAUDE_CODE_FOR_MODS) < 0)
     plan.warnings.push({ key: 'install.warn.noMods', params: { need: MIN_CLAUDE_CODE_FOR_MODS } });
-  if (underAgent()) plan.blockers.push({ key: 'install.block.agent' });
+  if (underAgent(opts.env)) plan.blockers.push({ key: 'install.block.agent' });
 
   const settings = readJson<Record<string, unknown>>(settingsFile) ?? {};
   if (settings.disableAllHooks === true) plan.warnings.push({ key: 'install.warn.hooksDisabled', params: { file: settingsFile } });
@@ -205,14 +205,8 @@ export interface ApplyResult {
   manifest: Manifest | null;
 }
 
-function cleanEnv(): NodeJS.ProcessEnv {
-  const env = { ...process.env };
-  for (const k of Object.keys(env)) if (k.startsWith('CLAUDE_CODE_') || k === 'CLAUDECODE') delete env[k];
-  return env;
-}
-
-function claudeCli(args: string[]): { ok: boolean; out: string } {
-  const r = runClaude(args, { timeoutMs: 120_000, env: cleanEnv() });
+function claudeCli(runner: ClaudeRunner, args: string[]): { ok: boolean; out: string } {
+  const r = runner.run(args, 120_000);
   return { ok: r.status === 0, out: `${r.stdout}${r.stderr}`.trim() };
 }
 
@@ -236,7 +230,8 @@ export function selfTest(node: string, hook: string, l: Layout): { ok: boolean; 
   return { ok: true, detail: 'read passed, protected write refused' };
 }
 
-export function applyInstall(l: Layout, plan: InstallPlan, opts: { config?: Partial<Config> } = {}): ApplyResult {
+export function applyInstall(l: Layout, plan: InstallPlan, opts: { config?: Partial<Config>; runner?: ClaudeRunner } = {}): ApplyResult {
+  const runner = opts.runner ?? realClaude;
   const steps: ApplyResult['steps'] = [];
   const dist = distDir();
   const hook = hookProgram(l);
@@ -257,22 +252,10 @@ export function applyInstall(l: Layout, plan: InstallPlan, opts: { config?: Part
   ok &&= step('hook-program', () => {
     cpSync(join(dist, 'hook.mjs'), hook);
   });
-  ok &&= step('marketplace', () => {
-    rmSync(l.pluginDir, { recursive: true, force: true });
-    cpSync(join(dist, 'plugin'), l.pluginDir, { recursive: true });
-    const pkgManifest = readJson<Record<string, unknown>>(join(l.pluginDir, '.claude-plugin', 'plugin.json')) ?? {};
-    writeJsonAtomic(join(l.marketplace, '.claude-plugin', 'marketplace.json'), {
-      name: MARKETPLACE_NAME,
-      owner: { name: APP_ID },
-      metadata: { description: 'Local marketplace created by the terminal-code installer.' },
-      plugins: [
-        { name: PLUGIN_NAME, source: `./plugins/${PLUGIN_NAME}`, version: pkgManifest.version ?? APP_VERSION, description: pkgManifest.description ?? '' },
-      ],
-    });
-  });
+  ok &&= step('marketplace', () => writeMarketplace(l, dist));
   let pluginInstalled = false;
   ok &&= step('plugin', () => {
-    const r = claudeCli(['plugin', 'install', PLUGIN_NAME, '--marketplace', l.marketplace, '--scope', 'user']);
+    const r = claudeCli(runner, pluginInstallArgs(l));
     if (!r.ok) throw new Error(r.out.slice(0, 500) || 'claude plugin install failed');
     pluginInstalled = true;
     return r.out.split('\n').pop();
@@ -322,6 +305,26 @@ export function applyInstall(l: Layout, plan: InstallPlan, opts: { config?: Part
   return { ok, steps, manifest };
 }
 
+/** Copies the shipped plugin into the local marketplace folder and writes the marketplace's catalog. */
+export function writeMarketplace(l: Layout, dist: string): void {
+  rmSync(l.pluginDir, { recursive: true, force: true });
+  cpSync(join(dist, 'plugin'), l.pluginDir, { recursive: true });
+  const pkgManifest = readJson<Record<string, unknown>>(join(l.pluginDir, '.claude-plugin', 'plugin.json')) ?? {};
+  writeJsonAtomic(join(l.marketplace, '.claude-plugin', 'marketplace.json'), {
+    name: MARKETPLACE_NAME,
+    owner: { name: APP_ID },
+    metadata: { description: 'Local marketplace created by the terminal-code installer.' },
+    plugins: [
+      { name: PLUGIN_NAME, source: `./plugins/${PLUGIN_NAME}`, version: pkgManifest.version ?? APP_VERSION, description: pkgManifest.description ?? '' },
+    ],
+  });
+}
+
+/** The command that installs the plugin from the local marketplace, at user scope. */
+export function pluginInstallArgs(l: Layout): string[] {
+  return ['plugin', 'install', PLUGIN_NAME, '--marketplace', l.marketplace, '--scope', 'user'];
+}
+
 export function readManifest(l: Layout): Manifest | null {
   const m = readJson<Manifest>(l.manifest);
   return m && m.v === 1 && m.app === APP_ID ? m : null;
@@ -333,13 +336,14 @@ export interface UninstallResult {
 }
 
 /** Removes what the manifest lists. With `purge`, also the data folder (settings, history, index). */
-export function applyUninstall(l: Layout, opts: { purge?: boolean } = {}): UninstallResult {
+export function applyUninstall(l: Layout, opts: { purge?: boolean; runner?: ClaudeRunner; claudeDir?: string } = {}): UninstallResult {
   const steps: UninstallResult['steps'] = [];
+  const runner = opts.runner ?? realClaude;
   const m = readManifest(l);
-  const settingsFile = m?.settingsFile ?? join(claudeDir(), 'settings.json');
-  const r1 = claudeCli(['plugin', 'uninstall', PLUGIN_ID, '--scope', 'user']);
+  const settingsFile = m?.settingsFile ?? join(opts.claudeDir ?? claudeDir(), 'settings.json');
+  const r1 = claudeCli(runner, ['plugin', 'uninstall', PLUGIN_ID, '--scope', 'user']);
   steps.push({ what: 'plugin', ok: r1.ok || /not (?:installed|found)/i.test(r1.out), detail: r1.out.split('\n').pop() });
-  const r2 = claudeCli(['plugin', 'marketplace', 'remove', MARKETPLACE_NAME]);
+  const r2 = claudeCli(runner, ['plugin', 'marketplace', 'remove', MARKETPLACE_NAME]);
   steps.push({ what: 'marketplace', ok: r2.ok || /not found|no marketplace/i.test(r2.out), detail: r2.out.split('\n').pop() });
   try {
     const text = readText(settingsFile);

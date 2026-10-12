@@ -48,8 +48,15 @@ export function aliasRoots(dataDir: string, memory: readonly string[], env: Node
   return [dataDir, cdir, joinPath(cdir, 'settings.json'), joinPath(cdir, 'settings.local.json'), globalConfig, ...memory];
 }
 
-export function beltContext(opts: { cwd: string; projectDir?: string | undefined; config: Config; layout: Layout; lang: Lang }): BeltContext {
-  const env = process.env;
+export function beltContext(opts: {
+  cwd: string;
+  projectDir?: string | undefined;
+  config: Config;
+  layout: Layout;
+  lang: Lang;
+  env?: NodeJS.ProcessEnv;
+}): BeltContext {
+  const env = opts.env ?? process.env;
   const memory = memoryDirs(opts.config, opts.cwd);
   return {
     platform,

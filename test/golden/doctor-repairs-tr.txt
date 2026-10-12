@@ -1,0 +1,6 @@
+Onarımlar
+  Güvenlik ağı hook'larını Claude Code ayarlarına geri koy: ✓ onarıldı ve yeniden denetlendi
+      yedek: ~/.terminal-code/install/backups/settings.json.doctor.1
+  Bu sürümün hook programını geri kopyala: ! yapıldı, ama denetim hâlâ geçmiyor
+  Bozuk oturum dizinini kaldır (yeniden kurulur): ✗ onarılamadı: ~/.terminal-code/index.db is locked
+Onarımlardan sonra: 32 tamam, 0 uyarı, 0 sorun.

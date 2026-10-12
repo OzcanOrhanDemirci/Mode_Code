@@ -112,3 +112,67 @@ export function currentTurn(lines: readonly string[]): TurnInfo {
   const startedAt = typeof ts === 'string' ? Date.parse(ts) : null;
   return { startedAt: startedAt !== null && Number.isFinite(startedAt) ? startedAt : null, uses, complete: start >= 0 };
 }
+
+/** What a stretch of transcript looks like, for noticing when Claude Code changes its format. */
+export interface TranscriptShape {
+  lines: number;
+  /** Lines that are not a JSON object. */
+  unreadable: number;
+  /** Rows of the two kinds every reader relies on, and how many of them have the expected shape. */
+  user: number;
+  assistant: number;
+  /** Assistant rows whose `message.content` is a list of blocks, as the readers expect. */
+  assistantWithBlocks: number;
+  /** Assistant rows that carry `message.usage` (the token figures). */
+  assistantWithUsage: number;
+  /** Rows that carry a `timestamp` the reader can parse. */
+  timestamped: number;
+  /** Session ids the rows carry. */
+  sessionIds: string[];
+  /** Tool calls by name: how many, and whether their input names a command or writes a file. */
+  tools: Record<string, { calls: number; runsCommands: boolean; writesFiles: boolean }>;
+}
+
+/** Reads the shape of transcript lines: counts only, no text kept. */
+export function transcriptShape(lines: readonly string[]): TranscriptShape {
+  const s: TranscriptShape = {
+    lines: lines.length,
+    unreadable: 0,
+    user: 0,
+    assistant: 0,
+    assistantWithBlocks: 0,
+    assistantWithUsage: 0,
+    timestamped: 0,
+    sessionIds: [],
+    tools: {},
+  };
+  const ids = new Set<string>();
+  for (const line of lines) {
+    const r = parse(line);
+    if (!r) {
+      s.unreadable++;
+      continue;
+    }
+    if (typeof r.sessionId === 'string') ids.add(r.sessionId);
+    if (typeof r.timestamp === 'string' && Number.isFinite(Date.parse(r.timestamp))) s.timestamped++;
+    if (r.type === 'user') s.user++;
+    if (r.type !== 'assistant') continue;
+    s.assistant++;
+    const m = r.message as Row | undefined;
+    if (m && typeof m === 'object' && typeof m.usage === 'object' && m.usage !== null) s.assistantWithUsage++;
+    const c = content(r);
+    if (!Array.isArray(c)) continue;
+    s.assistantWithBlocks++;
+    for (const b of c as Row[]) {
+      if (b?.type !== 'tool_use' || typeof b.name !== 'string') continue;
+      const input = (typeof b.input === 'object' && b.input !== null ? b.input : {}) as Row;
+      const t = (s.tools[b.name] ??= { calls: 0, runsCommands: false, writesFiles: false });
+      t.calls++;
+      if (typeof input.command === 'string' || typeof input.script === 'string') t.runsCommands = true;
+      const path = input.file_path ?? input.notebook_path ?? input.path;
+      if (typeof path === 'string' && ['content', 'new_string', 'edits', 'new_source', 'patch'].some((k) => k in input)) t.writesFiles = true;
+    }
+  }
+  s.sessionIds = [...ids];
+  return s;
+}

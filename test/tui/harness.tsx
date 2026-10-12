@@ -16,6 +16,7 @@ import { assessQuota, DEFAULT_BUDGET, fromModRateLimits } from '../../src/core/q
 import type { SessionRow, TokenTotals } from '../../src/node/index-db.js';
 import type { ModSessionState } from '../../src/core/session.js';
 import { buildReport } from '../../src/app/report.js';
+import type { DoctorSummary } from '../../src/app/doctor/doctor.js';
 
 export const NOW = Date.parse('2026-10-12T09:00:00Z');
 
@@ -219,6 +220,10 @@ export class FakeData implements DataSource {
   }
   scanMemory() {
     return { findings: [], files: 3, skipped: 0 };
+  }
+  doctor: DoctorSummary | null = null;
+  doctorSummary() {
+    return this.doctor;
   }
   lastSeen() {
     return this.seen;

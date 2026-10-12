@@ -1,0 +1,46 @@
+Node.js
+  ✓ Bu komutu Node.js 24.15.0 çalıştırıyor (22.13.0 ya da daha yenisi gerekir).
+  ✓ Hook'ları Node.js 24.15.0 çalıştırıyor (C:/Program Files/nodejs/node.exe).
+  ✓ Node.js'in yerleşik SQLite modülü var (oturum dizini onu kullanır).
+Claude Code
+  ✓ Claude Code 2.1.295 (2.1.295 ya da daha yenisi gerekir).
+  ✓ PATH'te bir claude komutu var: ~/.local/bin/claude.exe.
+  ✓ Claude Code ayar dosyalarını hatasız okuyor (1 dosya okundu).
+  ✓ Hiçbir ayar dosyası hook'ları kapatmıyor.
+  ✓ terminal-code@terminal-code-local eklentisi kurulu ve açık (sürüm dev).
+Kurulum
+  ✓ dev sürümü 2026-10-11 tarihinde kuruldu.
+  ✓ Hook programı bu sürümle aynı (sha256 aaaaaaaaaaaa…).
+  ✓ Güvenlik ağı hook'ları 4 olayın hepsinde yerinde ve hata olursa engelliyor.
+  ✓ Eklenti dosyaları bu sürümle aynı.
+  ✓ Eklenti en son 2026-10-12 11:50 (UTC) zamanında bir oturumdan haber verdi.
+Koruma
+  ✓ Kurulu hook, 30 örneğin hepsine bu sürümle birebir aynı cevabı verdi.
+  ✓ Korunan klasörlerin hiçbiri bağlantı değil.
+  ✓ Kemer, Windows'un korunan yerlere verdiği 1 kısa adı da koruyor.
+      ~/TERMIN~1 = ~/.terminal-code.
+  ✓ 1 hafıza klasörü korunuyor ve git deposu.
+Kabuklar ve terminal
+  ✓ Git Bash (C:/Program Files/Git/bin/bash.exe), kemerin varsaydığı gibi /tmp'yi Temp klasörüne bağlıyor.
+  ✓ PowerShell 7.6.6.
+  · Terminal: Windows Terminal, 120 sütun, kod sayfası 65001.
+  · Sistem yerel ayarı en-US, LANG -; arayüz dili en.
+Dosyalar
+  ✓ Veri klasörü yazılabilir ve bölünmez yazma çalışıyor.
+  ✓ Veri klasörü için 100.0 GB boş yer var.
+  ✓ Disk büyük-küçük harfi ayırmıyor; kemer de ayırmıyor.
+  ✓ Artık dosya yok.
+git
+  ✓ git 2.55.0.
+  ✓ 1 kayıtlı proje, okunabilen birer git deposu.
+Veri
+  ✓ Ayar dosyası geçerli.
+  ✓ Oturum dizini sağlam (42 oturum).
+  ✓ Yakın zamanda alınmış bir kota ölçümü kayıtlı.
+  ✓ Son 3 oturum kaydı okundu: 100 satır beklenen biçimde.
+  ✓ Son oturumlarda komut çalıştıran ya da dosya yazan her aracı kemer denetliyor (Bash, Edit).
+  ✓ Oturum kimlikleri beklenen biçimde.
+Öz-sınama
+  ✓ 1 paketteki 30 yerleşik örneğin hepsi beklenen cevabı verdi.
+
+2.1 sn içinde 36 denetim: 32 tamam, 0 uyarı, 0 sorun.

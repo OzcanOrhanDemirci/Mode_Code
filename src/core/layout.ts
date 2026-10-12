@@ -11,6 +11,7 @@
  *   events/<yyyy-mm>/<id>.<who>.jsonl  one writer per file: belt and keyword events, append-only
  *   index.db                         the control center (session index)
  *   install/manifest.json            the installer (every change it made, so removal undoes exactly that)
+ *   state/doctor.json                the maintenance check (its last summary, which the control center shows)
  *   marketplace/                     the installer (the local plugin marketplace Claude Code reads)
  */
 import { joinPath } from './paths.js';

@@ -1,0 +1,60 @@
+Node.js
+  ✓ Node.js 24.15.0 runs this command (needs 22.13.0 or newer).
+  ✓ The hooks run Node.js 24.15.0 (C:/Program Files/nodejs/node.exe).
+  ✓ Node.js's built-in SQLite is available (the session index uses it).
+Claude Code
+  ✓ Claude Code 2.1.295 (needs 2.1.295 or newer).
+  ✓ One claude command on PATH: ~/.local/bin/claude.exe.
+  ✓ Claude Code reads its settings files without errors (1 read).
+  ✓ No settings file turns the hooks off.
+  ✓ The plugin terminal-code@terminal-code-local is installed and on (version dev).
+Installation
+  ✓ Installed version dev on 2026-10-11.
+  ✗ The hook program is missing: ~/.terminal-code/bin/hook.mjs.
+      → Copy the hook program of this version back
+  ✗ Safety-net hooks are missing for Stop (3 of 4 in place).
+      → Put the safety-net hooks back into the Claude Code settings
+  ✓ The plugin files match this version.
+  ✓ The plugin last reported in from a session at 2026-10-12 11:50 (UTC).
+Protection
+  ✗ The installed hook answered 1 of 30 samples differently from this version.
+      Write ~/TERMIN~1/config.json: this version says block, the installed hook says allow.
+      → Copy the hook program of this version back
+  ✓ No protected folder is a link.
+  ✓ The belt protects the short names Windows gave the protected places (1).
+      ~/TERMIN~1 is ~/.terminal-code.
+  ✓ Memory folders are protected and are git repositories (1).
+Shells and terminal
+  ✓ Git Bash (C:/Program Files/Git/bin/bash.exe) maps /tmp to your Temp folder, as the belt assumes.
+  ✓ PowerShell 7.6.6.
+  · Terminal: Windows Terminal, 120 columns, code page 65001.
+  · System locale en-US, LANG -; the interface speaks en.
+Files
+  ✓ The data folder is writable and atomic writes work.
+  ✓ 100.0 GB free for the data folder.
+  ✓ The disk ignores letter case, and so does the belt.
+  ! Leftover files of interrupted writes: 1.
+      config.json.4242.0a1b2c3d.tmp
+      → Remove the leftover files
+git
+  ✓ git 2.55.0.
+  ! git cannot read some registered projects (1).
+      C:/dev/app: fatal: detected dubious ownership
+      → If you own C:/dev/app, mark it safe: git config --global --add safe.directory C:/dev/app
+Data
+  ✓ The settings file is valid.
+  ✓ The session index is sound (42 sessions).
+  ✓ A recent quota reading is stored.
+  ✓ 3 recent session transcripts read: 100 rows in the expected shape.
+  ✓ Every tool that ran commands or wrote files in recent sessions is checked by the belt (Bash, Edit).
+  ✓ Session ids have the expected shape.
+Self-tests
+  ✓ All 30 built-in samples of 1 suites gave the expected answer.
+
+36 checks in 2.1 s: 27 ok, 2 warnings, 3 problems.
+Problems that weaken a protection: 3.
+
+Problems that can be repaired automatically: 3.
+  1. Copy the hook program of this version back
+  2. Put the safety-net hooks back into the Claude Code settings
+  3. Remove the leftover files

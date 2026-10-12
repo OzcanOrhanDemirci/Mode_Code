@@ -5,10 +5,12 @@
  */
 import { enUi } from './en-ui.js';
 import { enTui } from './en-tui.js';
+import { enDoctor } from './en-doctor.js';
 
 export const en = {
   ...enUi,
   ...enTui,
+  ...enDoctor,
   // ── safety belt: reasons (one per situation; {placeholders} are filled in) ──
   'belt.reason.inline': 'Inside code passed to an interpreter: {reason}',
   'belt.reason.deleteUnknown': 'Recursive delete whose target is only known at run time: {target}.',

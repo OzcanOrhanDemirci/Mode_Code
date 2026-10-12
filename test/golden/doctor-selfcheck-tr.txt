@@ -1,0 +1,8 @@
+Denetim kendini sınıyor
+Geçici bir klasörde gerçek bir kurulum, bilerek 3 farklı şekilde bozuluyor. Senin dosyalarına dokunulmuyor.
+  ✓ Yeni kurulum bütün denetimlerden geçiyor.
+  ✓ Güvenlik ağı hook'ları ayarlardan silindi · fark edildi · onarıldı
+  ✓ Claude Code ayar dosyası bozuldu · fark edildi · senin düzelteceğin
+  ✗ Hook programı değiştirildi · FARK EDİLMEDİ · ONARILMADI
+      ok; restore-hook-program not planned (none)
+Denetim 1 bozulmayı kaçırdı ya da onaramadı. Lütfen bildir.

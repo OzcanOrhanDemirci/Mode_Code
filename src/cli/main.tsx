@@ -11,7 +11,6 @@ import { setColor } from './style.js';
 import {
   cmdBelt,
   cmdConfig,
-  cmdDoctor,
   cmdInstall,
   cmdQuota,
   cmdSecrets,
@@ -25,6 +24,7 @@ import {
   helpText,
 } from './commands.js';
 import { runControlCenter } from '../tui/run.js';
+import { cmdDoctor } from './doctor.js';
 
 const MIN_NODE = [22, 13];
 
