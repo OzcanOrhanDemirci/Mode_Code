@@ -1,7 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addApproval, applyKeyword, APPROVAL_TTL_MS, isApproved, newModState, parseHookState, parseModState } from '../../src/core/session.js';
+import {
+  addApproval,
+  applyKeyword,
+  APPROVAL_TTL_MS,
+  isApproved,
+  newModState,
+  parseHookState,
+  parseModState,
+  sameFolderSessions,
+} from '../../src/core/session.js';
 import type { KeywordMatch } from '../../src/core/keywords.js';
 
 const s0 = newModState('abc', '1.0.0', 1000);
@@ -41,6 +50,22 @@ test('an approval covers one tool call, for a short time', () => {
   assert.equal(isApproved(s, 'toolu_1', 10_000 + APPROVAL_TTL_MS + 1), false);
   assert.equal(isApproved(s, undefined, 10_500), false);
   assert.equal(isApproved(null, 'toolu_1', 10_500), false);
+});
+
+test('two live sessions in one folder are found; old ones, other folders and self are not', () => {
+  const now = 1_000_000_000;
+  const me = { ...newModState('me', '1', now), cwd: 'C:/work/app' };
+  const others = [
+    { ...newModState('a', '1', now - 60_000), cwd: 'c:\\WORK\\app\\' }, // same folder, other spelling
+    { ...newModState('b', '1', now - 60 * 60_000), cwd: 'C:/work/app' }, // asleep for an hour
+    { ...newModState('c', '1', now), cwd: 'C:/work/other' },
+    { ...me },
+  ];
+  assert.deepEqual(
+    sameFolderSessions(me, others, now, true).map((s) => s.sessionId),
+    ['a'],
+  );
+  assert.deepEqual(sameFolderSessions(me, others, now, false), []); // case matters on Linux
 });
 
 test('state files that are missing, torn or foreign parse to nothing', () => {

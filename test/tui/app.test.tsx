@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { draw, FakeData, KEY, SESSION } from './harness.js';
+import { draw, FakeData, KEY, NOW, SESSION } from './harness.js';
+import { newModState } from '../../src/core/session.js';
 
 test('the first screen lists the seven categories and shows protection and quota at the top', async () => {
   const s = await draw(new FakeData());
@@ -121,6 +122,21 @@ test('plain mode uses no box drawing and no emoji-only signals', async () => {
     const t = s.text();
     assert.doesNotMatch(t, /[╭╮│─🛡]/u);
     assert.match(t, /\[belt\] working/);
+  } finally {
+    s.close();
+  }
+});
+
+test('home warns when two sessions work in the same folder', async () => {
+  class TwoSessions extends FakeData {
+    override modStates() {
+      const s = (id: string) => ({ ...newModState(id, 'dev', NOW - 60_000), cwd: 'C:/work/app' });
+      return [s('one'), s('two')];
+    }
+  }
+  const s = await draw(new TwoSessions(), { address: 'home/overview' });
+  try {
+    assert.match(s.text(), /2 sessions are working in the same folder: C:\/work\/app/);
   } finally {
     s.close();
   }

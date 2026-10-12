@@ -135,6 +135,8 @@ export const trTui: Record<keyof typeof enTui, string> = {
   'home.inbox': 'Sen yokken',
   'home.inboxCount': '{n} yeni; Ana ekran › Sen yokken olanlar',
   'home.inboxEmpty': 'yeni bir şey yok',
+  'conflict.toast': 'Bu klasörde şu an {n} başka Claude Code oturumu çalışıyor. Düzenlemeler çakışabilir.',
+  'home.conflict': 'Aynı klasörde {n} oturum çalışıyor: {folder}',
   'home.live': 'Şu an çalışan',
   'home.noLive': 'Son 15 dakikada etkin bir oturum yok.',
   'inbox.empty': 'Sana gereken bir şey olmadı.',

@@ -137,6 +137,8 @@ export const enTui = {
   'home.inbox': 'While you were away',
   'home.inboxCount': '{n} new, see Home › While you were away',
   'home.inboxEmpty': 'nothing new',
+  'conflict.toast': 'Other Claude Code sessions working in this folder now: {n}. Edits may collide.',
+  'home.conflict': '{n} sessions are working in the same folder: {folder}',
   'home.live': 'Running now',
   'home.noLive': 'No session was active in the last 15 minutes.',
   'inbox.empty': 'Nothing needed you.',

@@ -21,8 +21,8 @@ import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
 import type { BeltContext, BeltDecision, GitFacts } from '../core/belt/types.js';
 import { checkGuards } from '../core/guard.js';
 import { detectKeyword, type KeywordMatch } from '../core/keywords.js';
-import { keywordContext, wrapUpContext, stopContext, resumePrompt } from '../core/guidance.js';
-import { addApproval, applyKeyword, newModState, parseModState, type ModSessionState } from '../core/session.js';
+import { conflictContext, keywordContext, wrapUpContext, stopContext, resumePrompt } from '../core/guidance.js';
+import { addApproval, applyKeyword, LIVE_WINDOW_MS, newModState, parseModState, sameFolderSessions, type ModSessionState } from '../core/session.js';
 import { assessQuota, fromModRateLimits, weeklyTargetFrom, type QuotaAssessment, type QuotaReading } from '../core/quota.js';
 import { buildFooter, classifyTurn, type ClassifyEnv, type MemoryStatus, type ToolUse } from '../core/footer.js';
 import { keywordTables, projectRefs, budgetOf, beltConfigOf } from '../core/settings-view.js';
@@ -50,6 +50,8 @@ interface Ctx {
   events: string[];
   eventsPath: string | null;
   resumeTimer: { cancel(): void } | null;
+  /** Sessions in the same folder already announced, so each is said once. */
+  conflictsSeen: Set<string>;
 }
 
 let ctxPromise: Promise<Ctx> | null = null;
@@ -159,6 +161,7 @@ async function load($: $): Promise<Ctx> {
   const previous = path ? parseModState(await readFile($, path)) : null;
   const state: ModSessionState =
     previous && previous.sessionId === sessionId ? { ...previous, aliveAt: now, modVersion: APP_VERSION } : newModState(sessionId, APP_VERSION, now);
+  state.cwd = resolvePath(cwd, { platform, home, cwd });
   const reading = parseReading(await readFile($, l.quota));
   const eventsPath = eventsFile(l, sessionId, 'mod', now);
   const existing = await readFile($, eventsPath);
@@ -177,6 +180,7 @@ async function load($: $): Promise<Ctx> {
     events: existing ? existing.split('\n').filter(Boolean) : [],
     eventsPath,
     resumeTimer: null,
+    conflictsSeen: new Set(),
   };
 }
 
@@ -202,6 +206,39 @@ async function ctxOf($: $): Promise<Ctx> {
     ctxPromise = null;
     throw err;
   }
+}
+
+/** Marks this session as working now (other sessions and the control center read it). */
+async function heartbeat($: $, c: Ctx): Promise<void> {
+  c.state = { ...c.state, aliveAt: await $.clock.now() };
+  await saveState($, c);
+}
+
+/**
+ * Other sessions working in the same folder: a notice for the person the first time each is seen, and a
+ * note for the model on every prompt while it lasts.
+ */
+async function sameFolderNotes($: $, c: Ctx): Promise<string[]> {
+  const now = await $.clock.now();
+  let entries: { name: string; mtimeMs: number }[] = [];
+  try {
+    entries = (await $.fs.list(c.layout.sessionsDir)).filter((x) => x.name.endsWith('.mod.json') && now - x.mtimeMs < LIVE_WINDOW_MS);
+  } catch {
+    return [];
+  }
+  const others: ModSessionState[] = [];
+  for (const x of entries.slice(0, 40)) {
+    const s = parseModState(await readFile($, joinPath(c.layout.sessionsDir, x.name)));
+    if (s) others.push(s);
+  }
+  const found = sameFolderSessions(c.state, others, now, c.platform === 'win32' || c.platform === 'darwin');
+  const fresh = found.filter((s) => !c.conflictsSeen.has(s.sessionId));
+  for (const s of fresh) c.conflictsSeen.add(s.sessionId);
+  if (fresh.length) {
+    $.ui.toast(tIn(c.lang, 'conflict.toast', { n: found.length }), { timeoutMs: 8000 });
+    await logEvent($, c, { kind: 'conflict', sessions: found.map((s) => s.sessionId) });
+  }
+  return found.length ? [conflictContext(found.length)] : [];
 }
 
 /** Settings changed in the control center take effect at the next prompt, without restarting the session. */
@@ -471,11 +508,13 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   // The person's own prompts, and this plugin's resume prompt (which ends with their continue keyword).
   const ours = kind === 'plugin' && (e.origin as { name?: string }).name === PLUGIN_NAME;
   const human = kind === 'composer' || kind === 'bridge' || kind === 'sdk' || ours;
+  const extra: string[] = [];
   if (human) {
     c.turn = { startedAt: await $.clock.now(), uses: [] };
     await refreshConfig($, c);
+    await heartbeat($, c);
+    extra.push(...(await sameFolderNotes($, c)));
   }
-  const extra: string[] = [];
   if (human && c.config.modules.keywords) extra.push(...(await keywordTurn($, c, String(e.text ?? ''))));
   extra.push(...(await quotaContext($, c)));
   return extra.length ? next({ ...e, context: [...(e.context ?? []), ...extra] }) : next(e);

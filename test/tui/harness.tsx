@@ -14,6 +14,7 @@ import type { Health } from '../../src/app/health.js';
 import type { QuotaView, ToolEvent } from '../../src/app/data.js';
 import { assessQuota, DEFAULT_BUDGET, fromModRateLimits } from '../../src/core/quota.js';
 import type { SessionRow, TokenTotals } from '../../src/node/index-db.js';
+import type { ModSessionState } from '../../src/core/session.js';
 
 export const NOW = Date.parse('2026-10-12T09:00:00Z');
 
@@ -171,7 +172,7 @@ export class FakeData implements DataSource {
       },
     ];
   }
-  modStates() {
+  modStates(): ModSessionState[] {
     return [];
   }
   totals() {

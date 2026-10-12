@@ -86,6 +86,11 @@ export function stopContext(q: QuotaAssessment, resumeAt: number | null): string
   return `${P} Quota guard: ${quotaLine(q)} The hard limit is reached. Only reading, saving notes and committing are allowed now; report and stop.${when}`;
 }
 
+/** Told to the model when another session is working in the same folder. */
+export function conflictContext(count: number): string {
+  return `${P} ${count === 1 ? 'Another Claude Code session is' : `${count} other Claude Code sessions are`} working in this same folder right now. Avoid editing files the other session may be editing; commit small steps, check git status before you edit, and tell the person if you see changes you did not make.`;
+}
+
 /**
  * The instruction behind the "checked" footer mode: the model writes the lines and the Stop hook compares
  * them with the facts. Labels are given in the person's language, exactly as the check expects them.

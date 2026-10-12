@@ -23,6 +23,8 @@ export interface ModSessionState {
   sessionId: string;
   /** When the mod last confirmed it is running in this session (epoch ms). */
   aliveAt: number;
+  /** The folder the session works in (resolved), to tell when two sessions work in the same place. */
+  cwd?: string;
   modVersion: string;
   mode: WorkMode;
   interaction: Interaction;
@@ -107,6 +109,23 @@ export const APPROVAL_TTL_MS = 10 * 60 * 1000;
 export function addApproval(s: ModSessionState, a: Approval): ModSessionState {
   const fresh = s.approvals.filter((x) => a.at - x.at < APPROVAL_TTL_MS && x.toolUseId !== a.toolUseId);
   return { ...s, approvals: [...fresh, a].slice(-50) };
+}
+
+/** A session counts as working when it was alive this recently. */
+export const LIVE_WINDOW_MS = 15 * 60 * 1000;
+
+/**
+ * Other sessions working in the same folder right now: two agents editing one tree is how work gets lost.
+ * Folders compare case-insensitively where the file system does (Windows, macOS).
+ */
+export function sameFolderSessions(self: { sessionId: string; cwd?: string }, others: readonly ModSessionState[], now: number, caseInsensitive: boolean): ModSessionState[] {
+  if (!self.cwd) return [];
+  const key = (p: string) => {
+    const s = p.replace(/\\/g, '/').replace(/\/+$/, '');
+    return caseInsensitive ? s.toLowerCase() : s;
+  };
+  const mine = key(self.cwd);
+  return others.filter((o) => o.sessionId !== self.sessionId && o.cwd && key(o.cwd) === mine && now - o.aliveAt < LIVE_WINDOW_MS);
 }
 
 export function isApproved(s: ModSessionState | null, toolUseId: string | undefined, now: number): boolean {

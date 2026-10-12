@@ -7,6 +7,7 @@ import { ago, compact, percent, until, shortPath } from '../../core/format.js';
 import type { MessageKey } from '../../core/i18n/index.js';
 import { healthCounts } from '../../app/health.js';
 import type { ToolEvent } from '../../app/data.js';
+import { LIVE_WINDOW_MS, type ModSessionState } from '../../core/session.js';
 import type { ScreenProps } from '../nav.js';
 import { Empty, Gauge, Muted, Note, Row, Section, StateMark, useEnv, useT } from '../ui.js';
 import { LinkList, type Link } from '../widgets.js';
@@ -87,10 +88,28 @@ export function Overview({ width, height, open }: ScreenProps) {
         </Row>
       </Section>
       <Section title={t('home.live')}>
+        {sameFolderGroups(data.modStates(), now).map((g) => (
+          <Note key={g.folder} kind="warn">
+            {t('home.conflict', { n: g.count, folder: shortPath(g.folder, homedir(), Math.max(20, width - 40)) })}
+          </Note>
+        ))}
         <LinkList items={links} height={Math.max(2, height - 18)} width={width} open={open} emptyText={t('home.noLive')} />
       </Section>
     </Box>
   );
+}
+
+/** Folders where more than one session is working right now. */
+export function sameFolderGroups(states: readonly ModSessionState[], now: number): { folder: string; count: number }[] {
+  const groups = new Map<string, { folder: string; count: number }>();
+  for (const s of states) {
+    if (!s.cwd || now - s.aliveAt >= LIVE_WINDOW_MS) continue;
+    const key = s.cwd.replace(/\\/g, '/').toLowerCase();
+    const g = groups.get(key) ?? { folder: s.cwd, count: 0 };
+    g.count++;
+    groups.set(key, g);
+  }
+  return [...groups.values()].filter((g) => g.count > 1);
 }
 
 /** Events worth the person's attention: blocks, questions, quota stops and resumes. */
