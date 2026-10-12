@@ -3,7 +3,7 @@
  * The protected path sets the belt checks against, derived from the context (platform, home, project,
  * data folder, memory folders, environment). Every path here is resolved and slash-separated.
  */
-import { isRoot, isUnder, joinPath, pathKey, resolvePath, type Platform } from '../paths.js';
+import { applyAliases, expandShortNames, isRoot, isUnder, joinPath, pathKey, resolvePath, type Platform } from '../paths.js';
 import type { BeltContext } from './types.js';
 
 export interface ProtectedPaths {
@@ -23,6 +23,11 @@ export interface ProtectedPaths {
   sshDir: string;
   /** Places where deleting freely is normal. */
   tempDirs: string[];
+  /**
+   * The one spelling the checks compare: a resolved path with the 8.3 short names of known folders written
+   * out and the real locations of linked protected folders replaced by their protected spelling.
+   */
+  canonical: (resolved: string) => string;
 }
 
 function ancestors(p: string): string[] {
@@ -165,29 +170,53 @@ export function protectedPaths(ctx: BeltContext): ProtectedPaths {
     return false;
   };
 
+  const startupDirs = [
+    joinPath(home, 'AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup'),
+    'C:/ProgramData/Microsoft/Windows/Start Menu/Programs/StartUp',
+    joinPath(home, 'Library/LaunchAgents'),
+    '/Library/LaunchAgents',
+    '/Library/LaunchDaemons',
+    joinPath(home, '.config/autostart'),
+    joinPath(home, '.config/systemd/user'),
+    '/etc/systemd/system',
+    '/etc/init.d',
+    '/etc/cron.d',
+    '/etc/crontab',
+  ].map((p) => resolvePath(p, env));
+  const memoryDirs = ctx.memoryDirs.map((p) => resolvePath(p, env));
+  const toolDirs = [resolvePath(ctx.dataDir, env)];
+  // Every folder and file the checks name, so a short-name spelling of any of them is written out.
+  const known = dedupe(
+    [
+      ...critical,
+      ...claudeConfig,
+      joinPath(cdir, 'CLAUDE.md'),
+      ...toolDirs,
+      ...memoryDirs,
+      ...startupDirs,
+      ...tempDirs,
+      ...(ctx.knownProjects ?? []).map((p) => resolvePath(p, env)),
+      ...[...profileNames].map((n) => joinPath(home, n)),
+      joinPath(home, 'Documents/PowerShell'),
+      joinPath(home, 'Documents/WindowsPowerShell'),
+    ],
+    ctx.platform,
+  );
+  const aliases = (ctx.aliases ?? []).map((a) => ({ real: resolvePath(a.real, env), spelled: resolvePath(a.spelled, env) }));
+  const canonical = (p: string): string => expandShortNames(applyAliases(p, aliases, ctx.platform), known, ctx.platform);
+
   return {
     critical: dedupe(critical, ctx.platform),
     systemDirs: system,
     claudeConfig,
     claudeProjectConfig,
-    toolDirs: [resolvePath(ctx.dataDir, env)],
-    memoryDirs: ctx.memoryDirs.map((p) => resolvePath(p, env)),
-    startupDirs: [
-      joinPath(home, 'AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup'),
-      'C:/ProgramData/Microsoft/Windows/Start Menu/Programs/StartUp',
-      joinPath(home, 'Library/LaunchAgents'),
-      '/Library/LaunchAgents',
-      '/Library/LaunchDaemons',
-      joinPath(home, '.config/autostart'),
-      joinPath(home, '.config/systemd/user'),
-      '/etc/systemd/system',
-      '/etc/init.d',
-      '/etc/cron.d',
-      '/etc/crontab',
-    ].map((p) => resolvePath(p, env)),
+    toolDirs,
+    memoryDirs,
+    startupDirs,
     shellProfiles,
     sshDir: joinPath(home, '.ssh'),
     tempDirs,
+    canonical,
   };
 }
 

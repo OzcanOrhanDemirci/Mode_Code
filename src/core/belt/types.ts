@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /** Shapes of the safety belt: the rule-based guard that stands between Claude and risky tool calls. */
-import type { Platform } from '../paths.js';
+import type { PathAlias, Platform } from '../paths.js';
 import type { Lang } from '../i18n/index.js';
 
 /** allow: nothing to say · warn: allowed, Claude gets a note · ask: the person must confirm · deny: blocked. */
@@ -110,4 +110,9 @@ export interface BeltContext {
   git?: GitFacts;
   /** Size in bytes of an existing file, or null. Used for the memory shrink rule. */
   fileSize?(path: string): Promise<number | null>;
+  /**
+   * Protected folders that are links, measured by an adapter that can touch the disk: a path inside the
+   * place a link leads to is judged as the protected folder (a dotfiles repository behind `~/.claude`).
+   */
+  aliases?: readonly PathAlias[];
 }

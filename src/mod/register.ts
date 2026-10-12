@@ -15,7 +15,7 @@ import type { TerminalCodeFooters, TerminalCodeLabels } from './contract.js';
 import { APP_NAME, APP_VERSION, DATA_DIR_NAME, PLUGIN_NAME } from '../core/app.js';
 import { parseConfig, type Config } from '../core/config.js';
 import { layout, sessionFile, eventsFile, type Layout } from '../core/layout.js';
-import { joinPath, resolvePath, type Platform } from '../core/paths.js';
+import { joinPath, pathKey, resolvePath, type PathAlias, type Platform } from '../core/paths.js';
 import { detectLanguage, tIn, setLanguage, type Lang } from '../core/i18n/index.js';
 import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
 import type { BeltContext, BeltDecision, GitFacts } from '../core/belt/types.js';
@@ -52,6 +52,8 @@ interface Ctx {
   resumeTimer: { cancel(): void } | null;
   /** Sessions in the same folder already announced, so each is said once. */
   conflictsSeen: Set<string>;
+  /** Protected places that are links, measured at most once a minute (see BeltContext.aliases). */
+  aliases: { at: number; list: PathAlias[] } | null;
 }
 
 let ctxPromise: Promise<Ctx> | null = null;
@@ -181,6 +183,7 @@ async function load($: $): Promise<Ctx> {
     eventsPath,
     resumeTimer: null,
     conflictsSeen: new Set(),
+    aliases: null,
   };
 }
 
@@ -317,6 +320,28 @@ function memoryDirs(c: Ctx, cwd: string): string[] {
   return c.config.memory.dirs.map((d) => resolvePath(d, pathEnv(c, cwd)));
 }
 
+/** The protected places whose real location differs from their spelling: links, measured through `$.fs.stat`. */
+async function aliasesFor($: $, c: Ctx, cwd: string): Promise<PathAlias[]> {
+  const now = await $.clock.now();
+  if (c.aliases && now - c.aliases.at < 60_000) return c.aliases.list;
+  const env = pathEnv(c, cwd);
+  const cdir = c.env.CLAUDE_CONFIG_DIR ? resolvePath(c.env.CLAUDE_CONFIG_DIR, env) : joinPath(c.home, '.claude');
+  const globalConfig = c.env.CLAUDE_CONFIG_DIR ? joinPath(cdir, '.claude.json') : joinPath(c.home, '.claude.json');
+  const list: PathAlias[] = [];
+  for (const p of [c.layout.root, cdir, joinPath(cdir, 'settings.json'), joinPath(cdir, 'settings.local.json'), globalConfig, ...memoryDirs(c, cwd)]) {
+    try {
+      const real = (await $.fs.stat(p, { resolve: true })).realPath;
+      if (!real) continue;
+      const r = resolvePath(real, env);
+      if (pathKey(r, c.platform) !== pathKey(p, c.platform)) list.push({ real: r, spelled: p });
+    } catch {
+      /* a place that does not exist has no other spelling */
+    }
+  }
+  c.aliases = { at: now, list };
+  return list;
+}
+
 async function beltContextFor($: $, c: Ctx): Promise<BeltContext> {
   const cwd = await $.session.cwd();
   const root = await $.session.root();
@@ -334,6 +359,7 @@ async function beltContextFor($: $, c: Ctx): Promise<BeltContext> {
     config: beltConfigOf(c.config),
     git: await gitFactsFor($),
     fileSize: (p) => statSize($, p),
+    aliases: await aliasesFor($, c, cwd),
   };
 }
 

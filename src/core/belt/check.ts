@@ -109,7 +109,7 @@ function target(word: { text: string; dynamic: boolean; glob: boolean }, cwd: st
   }
   if (cwd === null && !/^(?:[A-Za-z]:[\\/]|[\\/]|~|\$HOME|%USERPROFILE%)/i.test(text)) return { path: null, glob: word.glob, raw: word.text };
   const env: PathEnv = { platform: s.ctx.platform, home: s.ctx.home, cwd: cwd ?? s.ctx.cwd };
-  let p = resolvePath(text, env);
+  let p = s.paths.canonical(resolvePath(text, env));
   if (word.glob) {
     // A glob deletes matches inside its base folder; a bare * (or .*, *.*, **) empties that folder.
     const segs = p.split('/');
@@ -579,7 +579,7 @@ async function checkGit(inv: Invocation, ws: Word[], cwd: string | null, s: Scop
       };
     }
   }
-  const dir = call.dir;
+  const dir = call.dir === null ? null : paths.canonical(call.dir);
   const inMemory = dir !== null && under(dir, paths.memoryDirs, ctx.platform) !== null;
   for (const kv of call.config) if (/^core\.hookspath=/i.test(kv)) add(s, 'git.hooks-path', 'belt.reason.hooksPath', { command: show(inv.raw) });
   const a = call.args;
@@ -693,7 +693,10 @@ async function checkGit(inv: Invocation, ws: Word[], cwd: string | null, s: Scop
         add(s, 'git.no-verify', 'belt.reason.noVerify', { command: show(inv.raw) });
       break;
     case 'rm':
-      if (inMemory || (dir && a.some((x) => !x.startsWith('-') && under(resolvePath(x, { ...env, cwd: dir }), paths.memoryDirs, ctx.platform))))
+      if (
+        inMemory ||
+        (dir && a.some((x) => !x.startsWith('-') && under(paths.canonical(resolvePath(x, { ...env, cwd: dir })), paths.memoryDirs, ctx.platform)))
+      )
         add(s, 'self.memory-delete', 'belt.reason.gitRmMemory', { command: show(inv.raw) });
       break;
     case 'add':
@@ -877,10 +880,12 @@ async function evaluateScript(command: string, dialect: Dialect, s: Scope, start
       if (arg === undefined) cwd = s.ctx.home;
       else if (arg === '-' || inv.dynamic[inv.args.indexOf(arg)]) {
         const e = expandVars(arg, s.ctx);
-        cwd = e === null || arg === '-' ? null : resolvePath(e, { platform: s.ctx.platform, home: s.ctx.home, cwd: cwd ?? s.ctx.cwd });
+        cwd = e === null || arg === '-' ? null : s.paths.canonical(resolvePath(e, { platform: s.ctx.platform, home: s.ctx.home, cwd: cwd ?? s.ctx.cwd }));
       } else
         cwd =
-          cwd === null && !/^(?:[A-Za-z]:|[\\/]|~)/.test(arg) ? null : resolvePath(arg, { platform: s.ctx.platform, home: s.ctx.home, cwd: cwd ?? s.ctx.cwd });
+          cwd === null && !/^(?:[A-Za-z]:|[\\/]|~)/.test(arg)
+            ? null
+            : s.paths.canonical(resolvePath(arg, { platform: s.ctx.platform, home: s.ctx.home, cwd: cwd ?? s.ctx.cwd }));
       continue;
     }
     if (inv.program === 'popd' || inv.program === 'pop-location') {

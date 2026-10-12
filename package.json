@@ -52,6 +52,7 @@
     "@types/node": "24.19.2",
     "@types/react": "19.3.0",
     "esbuild": "0.28.2",
+    "fast-check": "4.10.2",
     "ink": "8.0.0",
     "prettier": "3.9.10",
     "react": "19.3.0",

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /** File helpers with the failure behaviour the tool needs: reads never throw, writes are atomic. */
-import { appendFileSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { randomBytes } from 'node:crypto';
 
@@ -72,6 +72,18 @@ export function fileSize(path: string): number | null {
   try {
     const s = statSync(path);
     return s.isFile() ? s.size : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Where a path really is: links followed and, on Windows, 8.3 short names written out (the native call
+ * asks the file system). Null when the path does not exist or cannot be read.
+ */
+export function realPathOf(path: string): string | null {
+  try {
+    return realpathSync.native(path);
   } catch {
     return null;
   }

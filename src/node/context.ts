@@ -5,12 +5,12 @@ import { parseConfig, type Config, type ConfigProblem } from '../core/config.js'
 import { beltConfigOf } from '../core/settings-view.js';
 import type { BeltContext } from '../core/belt/types.js';
 import type { ClassifyEnv } from '../core/footer.js';
-import { resolvePath } from '../core/paths.js';
+import { joinPath, pathKey, resolvePath, type PathAlias } from '../core/paths.js';
 import type { Lang } from '../core/i18n/index.js';
 import type { Layout } from '../core/layout.js';
-import { readText, fileSize } from './fsx.js';
+import { readText, fileSize, realPathOf } from './fsx.js';
 import { gitFacts } from './git.js';
-import { home, managedSettingsFiles, platform, scratchDirs } from './env.js';
+import { claudeDir, home, managedSettingsFiles, platform, scratchDirs, toolPath } from './env.js';
 
 export interface LoadedConfig {
   config: Config;
@@ -25,8 +25,32 @@ export function memoryDirs(config: Config, cwd: string): string[] {
   return config.memory.dirs.map((d) => resolvePath(d, { platform, home: homedir(), cwd }));
 }
 
+/**
+ * The protected folders and files that are links, or that the file system spells differently (8.3 short
+ * names written out on Windows): measured here, where the disk can be asked, so the pure belt can judge
+ * a path that reaches them another way. Only differences are returned.
+ */
+export function protectedAliases(paths: readonly string[]): PathAlias[] {
+  const out: PathAlias[] = [];
+  for (const p of paths) {
+    const real = realPathOf(p);
+    if (real === null) continue;
+    const r = toolPath(real);
+    if (pathKey(r, platform) !== pathKey(p, platform)) out.push({ real: r, spelled: p });
+  }
+  return out;
+}
+
+/** The places whose real location the belt is told: the data folder, Claude Code's settings and the memory folders. */
+export function aliasRoots(dataDir: string, memory: readonly string[], env: NodeJS.ProcessEnv = process.env): string[] {
+  const cdir = claudeDir(env);
+  const globalConfig = env.CLAUDE_CONFIG_DIR ? joinPath(cdir, '.claude.json') : joinPath(home(), '.claude.json');
+  return [dataDir, cdir, joinPath(cdir, 'settings.json'), joinPath(cdir, 'settings.local.json'), globalConfig, ...memory];
+}
+
 export function beltContext(opts: { cwd: string; projectDir?: string | undefined; config: Config; layout: Layout; lang: Lang }): BeltContext {
   const env = process.env;
+  const memory = memoryDirs(opts.config, opts.cwd);
   return {
     platform,
     home: home(),
@@ -35,12 +59,13 @@ export function beltContext(opts: { cwd: string; projectDir?: string | undefined
     knownProjects: opts.config.projects.flatMap((p) => (p.path ? [resolvePath(p.path, { platform, home: homedir(), cwd: opts.cwd })] : [])),
     env,
     dataDir: opts.layout.root,
-    memoryDirs: memoryDirs(opts.config, opts.cwd),
+    memoryDirs: memory,
     managedSettingsFiles: managedSettingsFiles(),
     lang: opts.lang,
     config: beltConfigOf(opts.config),
     git: gitFacts(),
     fileSize: async (p) => fileSize(p),
+    aliases: protectedAliases(aliasRoots(opts.layout.root, memory, env)),
   };
 }
 

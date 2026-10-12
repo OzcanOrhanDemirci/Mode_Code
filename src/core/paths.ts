@@ -5,8 +5,9 @@
  * Every path an agent can write (Windows, Git Bash `/c/...`, `~`, `$HOME`, `%USERPROFILE%`, relative) is
  * turned into one absolute form with forward slashes. Comparisons are case-insensitive on Windows and
  * macOS, whose default file systems ignore case, so `~/.Claude/Settings.json` is the same file as
- * `~/.claude/settings.json` there. This is lexical only: links and 8.3 short names are resolved by the
- * adapters that can touch the disk.
+ * `~/.claude/settings.json` there. Everything here is lexical: 8.3 short names are matched against the
+ * names they can stand for, and links are known only through the aliases an adapter that can touch the
+ * disk measured.
  */
 
 export type Platform = 'win32' | 'darwin' | 'linux' | (string & {});
@@ -124,4 +125,96 @@ export function baseName(resolved: string): string {
 export function joinPath(dir: string, ...parts: string[]): string {
   const all = [dir.replace(/\/+$/, ''), ...parts.map((x) => x.replace(/\\/g, '/').replace(/^\/+|\/+$/g, ''))].filter(Boolean);
   return all.join('/') || '/';
+}
+
+// ── Windows 8.3 short names ───────────────────────────────────────────────────────────────────────────
+
+/** A segment in the 8.3 short form Windows generates for long names: `TERMIN~1`, `CLAUDE~1.JSO`, `TE1A2B~5`. */
+const SHORT_NAME = /^([^~.\s/]{1,6})~(\d{1,6})(?:\.([^.\s/]{1,3}))?$/;
+
+export function isShortNameSegment(seg: string): boolean {
+  return SHORT_NAME.test(seg);
+}
+
+/**
+ * ASCII letters and digits of a name, upper-cased: the part of a long name its short name keeps. Letters
+ * outside ASCII are dropped before upper-casing, as Windows does (measured: `çağrı-öğe` is `AR-E~1`; an
+ * upper-cased `ı` would otherwise become an `I` Windows never wrote).
+ */
+function shortBasis(s: string): string {
+  return s
+    .replace(/[^\x20-\x7e]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+}
+
+/**
+ * Whether Windows could have given `long` the short name `short`. It keeps the first letters of the name
+ * (dots, spaces and most punctuation dropped), then `~N`; after a few clashes it keeps two letters and four
+ * hex digits of a hash. Lexical and generous on purpose: a false match only means a path is judged as the
+ * protected folder it may be.
+ */
+export function couldBeShortName(short: string, long: string): boolean {
+  const m = SHORT_NAME.exec(short);
+  if (!m) return false;
+  const head = shortBasis(m[1]!);
+  if (!head) return false;
+  const lastDot = long.lastIndexOf('.');
+  const hasExt = lastDot > 0 && lastDot < long.length - 1;
+  const base = shortBasis(hasExt ? long.slice(0, lastDot) : long);
+  const ext = hasExt ? shortBasis(long.slice(lastDot + 1)) : '';
+  if (m[3] !== undefined && !ext.startsWith(shortBasis(m[3]))) return false;
+  if (base.startsWith(head)) return true;
+  // The hashed form: two letters of the name, then four hex digits.
+  return head.length === 6 && /^[0-9A-F]{4}$/.test(head.slice(2)) && base.startsWith(head.slice(0, 2));
+}
+
+/**
+ * Rewrites a resolved Windows path whose leading segments spell one of the `known` paths through 8.3 short
+ * names (`C:/Users/ada/TERMIN~1/x` for `C:/Users/ada/.terminal-code/x`), so a protected folder is recognised
+ * however it is spelled. The longest known path that matches wins; paths without a short segment are
+ * returned unchanged. Elsewhere than Windows nothing changes.
+ */
+export function expandShortNames(p: string, known: readonly string[], platform: Platform): string {
+  if (!isWindows(platform)) return p;
+  const segs = p.split('/');
+  if (!segs.some(isShortNameSegment)) return p;
+  let best: { known: string[]; length: number } | null = null;
+  for (const k of known) {
+    const ks = k.replace(/\/+$/, '').split('/');
+    if (ks.length > segs.length || (best && ks.length <= best.length)) continue;
+    let viaShort = false;
+    let ok = true;
+    for (let i = 0; i < ks.length; i++) {
+      const a = segs[i]!;
+      const b = ks[i]!;
+      if (a.toLowerCase() === b.toLowerCase()) continue;
+      if (isShortNameSegment(a) && couldBeShortName(a, b)) {
+        viaShort = true;
+        continue;
+      }
+      ok = false;
+      break;
+    }
+    if (ok && viaShort) best = { known: ks, length: ks.length };
+  }
+  return best ? [...best.known, ...segs.slice(best.length)].join('/') : p;
+}
+
+// ── links ─────────────────────────────────────────────────────────────────────────────────────────────
+
+/** A protected folder that is a link: `real` is where it leads, `spelled` the protected spelling. */
+export interface PathAlias {
+  real: string;
+  spelled: string;
+}
+
+/** Rewrites a path inside the real location of a linked protected folder to the protected spelling. */
+export function applyAliases(p: string, aliases: readonly PathAlias[], platform: Platform): string {
+  for (const a of aliases) {
+    if (!isUnder(p, a.real, platform)) continue;
+    const rest = pathKey(p, platform) === pathKey(a.real, platform) ? '' : p.slice(a.real.replace(/\/+$/, '').length + 1);
+    return rest ? joinPath(a.spelled, rest) : a.spelled;
+  }
+  return p;
 }
