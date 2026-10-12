@@ -176,6 +176,12 @@ export const enUi = {
   'belt.lockedNote': '🔒 Locked rules protect the protection itself: they cannot be switched off, only made stricter.',
   'belt.testNote': '(evaluated only; nothing was run)',
   'belt.noEvents': 'Nothing was blocked or asked in the last {n} days.',
+  'belt.replay.title': 'The belt over your last {n} days',
+  'belt.replay.summary': '{files} sessions, {calls} checked calls: {asked} questions ({perDay} a day), {blocked} blocked, {noted} notes.',
+  'belt.replay.count': 'times',
+  'belt.replay.progress': 'Reading session {done} of {total}…',
+  'belt.replay.note':
+    "Each call was judged as the belt judges it today, with today's settings and repository state. Nothing was run; no command text is shown.",
   'rule.git.force-push-protected': 'Force-pushing a protected branch (main, master, release/*), which rewrites shared history.',
   'rule.git.force-push': 'Force-pushing any other branch.',
   'rule.git.delete-remote-branch-protected': 'Deleting a protected branch on the remote.',

@@ -24,6 +24,8 @@ import { appContext, type AppContext } from '../app/context.js';
 import { loadEvents, loadQuota, openIndex, scanPaths } from '../app/data.js';
 import { checkHealth, healthCounts, type FeatureHealth } from '../app/health.js';
 import { buildReport, reportLines } from '../app/report.js';
+import { replay } from '../app/replay.js';
+import { claudeDir as claudeDirOf } from '../node/env.js';
 import { appliedTemplates, repoKey, TEMPLATES, templateById, withTemplates } from '../core/templates.js';
 import { git } from '../node/git.js';
 import { flag, intValue, value, values, type Args } from './args.js';
@@ -587,6 +589,49 @@ export async function cmdBelt(a: Args): Promise<number> {
     for (const i of d.issues) say(dim(`  · ${i}`));
     return 0;
   }
+  if (sub === 'replay') {
+    const days = intValue(a, 'days', 30, 1, 365);
+    const tty = process.stderr.isTTY && !flag(a, 'json');
+    const r = await replay({
+      claudeDir: claudeDirOf(),
+      config: ctx.config,
+      layout: ctx.layout,
+      lang: ctx.lang,
+      days,
+      ...(tty ? { onProgress: (done: number, total: number) => process.stderr.write(`\r${T(ctx, 'belt.replay.progress', { done, total })}   `) } : {}),
+    });
+    if (tty) process.stderr.write(`\r${' '.repeat(60)}\r`);
+    if (flag(a, 'json')) {
+      json('belt-replay', r);
+      return 0;
+    }
+    say(bold(T(ctx, 'belt.replay.title', { n: days })));
+    say(
+      T(ctx, 'belt.replay.summary', {
+        files: r.files,
+        calls: integer(r.calls, ctx.lang),
+        asked: r.asked,
+        perDay: r.askedPerDay,
+        blocked: r.blocked,
+        noted: r.noted,
+      }),
+    );
+    if (r.byRule.length) {
+      say();
+      say(
+        table(
+          [
+            [T(ctx, 'belt.col.verdict'), T(ctx, 'belt.col.rule'), T(ctx, 'belt.replay.count')],
+            ...r.byRule.map((x) => [T(ctx, `verdict.${x.verdict}` as MessageKey), x.rule, String(x.count)]),
+          ],
+          [2],
+        ),
+      );
+    }
+    say();
+    say(dim(T(ctx, 'belt.replay.note')));
+    return 0;
+  }
   if (sub === 'events') {
     const days = intValue(a, 'days', 7, 1, 3650);
     const ev = loadEvents(ctx, days).filter((e) => e.kind === 'belt' || e.kind === 'chat' || e.kind === 'quota');
@@ -719,7 +764,7 @@ export function helpText(lang: Lang): string {
     `  ${c('sessions [search]'.padEnd(28))}${L('help.sessions')}`,
     `  ${c('report [--week]'.padEnd(28))}${L('help.report')}`,
     `  ${c('template list|apply|remove'.padEnd(28))}${L('help.template')}`,
-    `  ${c('belt rules|events|test'.padEnd(28))}${L('help.belt')}`,
+    `  ${c('belt rules|events|test|replay'.padEnd(28))}${L('help.belt')}`,
     `  ${c('secrets [path…]'.padEnd(28))}${L('help.secrets')}`,
     `  ${c('config get|set|path'.padEnd(28))}${L('help.config')}`,
     '',
