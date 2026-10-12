@@ -11,6 +11,7 @@ import { LIVE_WINDOW_MS, type ModSessionState } from '../../core/session.js';
 import type { ScreenProps } from '../nav.js';
 import { Empty, Gauge, Muted, Note, Row, Section, StateMark, useEnv, useT } from '../ui.js';
 import { LinkList, type Link } from '../widgets.js';
+import { flowTitle, statusText } from '../../core/flow-view.js';
 
 export function Overview({ width, height, open }: ScreenProps) {
   const { data, theme, lang, now } = useEnv();
@@ -28,6 +29,17 @@ export function Overview({ width, height, open }: ScreenProps) {
   const live = data.sessions({ limit: 50 }).filter((s) => now - s.lastTs < 15 * 60_000);
   const unseen = inboxEvents(data.events(14), data.lastSeen());
   const gw = Math.max(10, Math.min(30, width - 34));
+  // Plans waiting for the person first, then the rest that are still open.
+  const openFlows = data
+    .flows()
+    .filter((f) => f.status !== 'done' && f.status !== 'canceled')
+    .sort((a, b) => Number(b.status === 'waiting') - Number(a.status === 'waiting'));
+  const flowLinks: Link[] = openFlows.map((f) => ({
+    key: f.id,
+    label: `${f.status === 'waiting' ? '⏸ ' : ''}${flowTitle(f, 50)}`,
+    right: `${statusText(f.status, lang)} · ${ago(f.updatedAt, now, lang)}`,
+    address: `projects/flows/${f.id}`,
+  }));
   const links: Link[] = live.map((s) => ({
     key: s.id,
     label: `${s.title ?? s.firstPrompt ?? s.id.slice(0, 8)}`,
@@ -87,6 +99,11 @@ export function Overview({ width, height, open }: ScreenProps) {
           {unseen.length ? t('home.inboxCount', { n: unseen.length }) : t('home.inboxEmpty')}
         </Row>
       </Section>
+      {openFlows.length ? (
+        <Section title={t('home.flows')}>
+          <LinkList items={flowLinks} height={Math.min(4, flowLinks.length)} width={width} open={false} />
+        </Section>
+      ) : null}
       <Section title={t('home.live')}>
         {sameFolderGroups(data.modStates(), now).map((g) => (
           <Note key={g.folder} kind="warn">
@@ -117,7 +134,11 @@ export function inboxEvents(events: ToolEvent[], lastSeen: number | null): ToolE
   return events.filter(
     (e) =>
       (lastSeen === null || e.at > lastSeen) &&
-      ((e.kind === 'belt' && (e.verdict === 'deny' || e.verdict === 'ask')) || e.kind === 'quota' || e.kind === 'resume'),
+      ((e.kind === 'belt' && (e.verdict === 'deny' || e.verdict === 'ask')) ||
+        e.kind === 'quota' ||
+        e.kind === 'resume' ||
+        // A flow that now waits for the person, or has ended.
+        (e.kind === 'flow' && (e.status === 'waiting' || e.status === 'done') && (e.action === 'done' || e.action === 'resume'))),
   );
 }
 
@@ -158,5 +179,12 @@ export function eventTitle(e: ToolEvent, t: (k: MessageKey, p?: Record<string, s
   if (e.kind === 'resume') return t('event.resume');
   if (e.kind === 'chat') return t('event.chat', { tool: e.tool ?? '?' });
   if (e.kind === 'keyword') return t('event.keyword', { keyword: e.keyword ?? '?' });
+  if (e.kind === 'mode') return t('event.mode', { mode: t(`mode.name.${e.mode ?? 'chat'}` as MessageKey), tool: e.tool ?? '?' });
+  if (e.kind === 'modeDisagree') return t('event.modeDisagree');
+  if (e.kind === 'flow') {
+    if (e.status === 'waiting') return t('event.flow.waiting', { flow: e.flow ?? '?' });
+    if (e.status === 'done') return t('event.flow.complete', { flow: e.flow ?? '?' });
+    return t(`event.flow.${e.action ?? 'start'}` as MessageKey, { flow: e.flow ?? '?' });
+  }
   return e.kind;
 }

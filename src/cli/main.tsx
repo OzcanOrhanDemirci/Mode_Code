@@ -22,6 +22,7 @@ import {
   cmdTry,
   cmdUninstall,
   helpText,
+  cmdFlow,
 } from './commands.js';
 import { runControlCenter } from '../tui/run.js';
 import { cmdDoctor } from './doctor.js';
@@ -77,6 +78,9 @@ async function main(argv: string[]): Promise<number> {
       return cmdReport(sub);
     case 'sessions':
       return cmdSessions(sub);
+    case 'flow':
+    case 'flows':
+      return cmdFlow(sub);
     case 'belt':
       return cmdBelt(sub);
     case 'secrets':

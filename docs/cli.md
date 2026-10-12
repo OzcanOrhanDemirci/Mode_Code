@@ -22,6 +22,7 @@
 | `template list` · `template apply <id>` · `template remove <id>`                                       | Ready-made rules for the current folder: written into its CLAUDE.md, and for some a tighter belt (repository lists, the Docker pack). Shows the change and asks first                                                                                                                                                                                                                                                                                                    | 1 when refused                   |
 | `report [--week] [--days N]`                                                                           | What happened: sessions, tokens, what the belt did, quota movement, stops and resumes                                                                                                                                                                                                                                                                                                                                                                                    | 0                                |
 | `sessions [search] [--limit N]`                                                                        | Past sessions, newest first                                                                                                                                                                                                                                                                                                                                                                                                                                              | 0                                |
+| `flow [--all]`, `flow show [<id>]`                                                                     | Flows ([modes.md](modes.md)): the open ones and the last five that ended (`--all`: every one), or one flow with its steps, what each check found, the approved verification commands and its files                                                                                                                                                                                                                                                                       | 0, 1 when no flow has the id     |
 | `belt rules`                                                                                           | Every rule, its action and whether it is locked                                                                                                                                                                                                                                                                                                                                                                                                                          | 0                                |
 | `belt events [--days N]`                                                                               | What the belt blocked, asked about or noted                                                                                                                                                                                                                                                                                                                                                                                                                              | 0                                |
 | `belt test --command "<cmd>" [--tool Bash\|PowerShell]` · `belt test --path <file>`                    | What the belt would do; nothing is run                                                                                                                                                                                                                                                                                                                                                                                                                                   | 0                                |
@@ -36,7 +37,7 @@ Commands that change your Claude Code setup or lower a protection (`install`, `u
 | Address                                                                                                                          | Screen      |
 | -------------------------------------------------------------------------------------------------------------------------------- | ----------- |
 | `home`, `home/overview`, `home/inbox`                                                                                            | Home        |
-| `projects`, `projects/<folder, URL-encoded>`                                                                                     | Projects    |
+| `projects`, `projects/flows`, `projects/flows/<flow id>`, `projects/<folder, URL-encoded>`                                       | Projects    |
 | `sessions`, `sessions/<session id>`                                                                                              | Sessions    |
 | `measure/quota`, `measure/report`, `measure/tokens`, `measure/tools`, `measure/folders`                                          | Measure     |
 | `security/protection`, `security/rules`, `security/rules/<rule id>`, `security/events`, `security/test`, `security/secrets`      | Security    |
@@ -51,7 +52,7 @@ Commands that change your Claude Code setup or lower a protection (`install`, `u
 {
   "language": "auto",
   "view": "recommended",
-  "modules": { "keywords": true, "footer": true, "quota": true, "secrets": true, "status": true, "notifications": true, "quietWork": true },
+  "modules": { "keywords": true, "footer": true, "quota": true, "secrets": true, "status": true, "notifications": true, "quietWork": true, "modes": true },
   "belt": {
     "disabled": [],
     "verdicts": { "git.force-push": "deny" },
@@ -65,6 +66,7 @@ Commands that change your Claude Code setup or lower a protection (`install`, `u
   "quota": { "fiveHourWrapUp": 95, "fiveHourStop": 99, "defaultWeeklyTarget": 99, "defaultWeeklyWrapUp": 97, "staleMinutes": 360, "autoResume": true },
   "keywords": { "extra": { "en": { "continue": ["go on"] } } },
   "projects": [{ "id": "my-app", "names": ["app"], "path": "~/dev/my-app" }],
+  "modes": { "workDir": null },
   "accessibility": { "plain": false, "highContrast": false, "reduceMotion": false }
 }
 ```

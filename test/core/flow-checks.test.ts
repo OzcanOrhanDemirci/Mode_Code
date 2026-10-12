@@ -152,3 +152,10 @@ test('a source names its file first; words in backticks after it are not the pat
     ],
   );
 });
+
+test('one verification command per line: later code spans on the line are notes about it', () => {
+  const p = checkPlan(
+    '## Steps\n\n### 1. A\n\nAcceptance: ok\n\n## Verification\n\n- `node hello.js | od -c` (expect `hello\n`, no escape bytes)\n- `npm test` and `npm run lint` together\n',
+  );
+  assert.deepEqual(p.verification, ['node hello.js | od -c', 'npm test']);
+});

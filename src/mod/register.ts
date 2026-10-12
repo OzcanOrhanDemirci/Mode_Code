@@ -69,6 +69,7 @@ import {
   type StartableFlow,
 } from '../core/flow.js';
 import { checkPlan, checkReport, sourceProblems, type CheckProblem } from '../core/flow-checks.js';
+import { count, evidenceText } from '../core/flow-view.js';
 import { commandEffects, hidingIssues, strongest } from '../core/shell/effects.js';
 import { assessQuota, fromModRateLimits, weeklyTargetFrom, type QuotaAssessment, type QuotaReading } from '../core/quota.js';
 import { buildFooter, classifyTurn, type ClassifyEnv, type MemoryStatus, type ToolUse } from '../core/footer.js';
@@ -617,10 +618,17 @@ async function askApproval($: $, c: Ctx, f: Flow, steps: number, verification: r
   const pause = tIn(c.lang, 'flow.ask.pause');
   let answer: string | null = null;
   try {
-    answer = await $.ui.ask(tIn(c.lang, 'flow.ask.question', { steps, commands: verification.map((v) => `\`${v}\``).join(', '), path: planPathOf(c, f) }), {
-      options: [approve, revise, pause],
-      header: tIn(c.lang, 'flow.ask.header').slice(0, 12),
-    });
+    answer = await $.ui.ask(
+      tIn(c.lang, 'flow.ask.question', {
+        steps: count(c.lang, 'steps', steps),
+        commands: verification.map((v) => `\`${v}\``).join(', '),
+        path: planPathOf(c, f),
+      }),
+      {
+        options: [approve, revise, pause],
+        header: tIn(c.lang, 'flow.ask.header').slice(0, 12),
+      },
+    );
   } catch {
     answer = null;
   }
@@ -722,11 +730,15 @@ async function onFlowStep($: $, e: any): Promise<any> {
     if (!r.ok) return answer(tIn(c.lang, 'flow.step.terminal', { status: f.status }));
     await saveFlow($, c, r.flow);
     await flowEvent($, c, r.flow, 'done', { done: 'research' });
-    const done = tIn(c.lang, 'flow.step.doneResearch', { findings: check.findings, sources: check.sources, copy });
+    const done = tIn(c.lang, 'flow.step.doneResearch', {
+      findings: count(c.lang, 'findings', check.findings),
+      sources: count(c.lang, 'sources', check.sources),
+      copy,
+    });
     $.ui.toast(
       tIn(c.lang, r.flow.status === 'done' ? 'flow.toast.complete' : 'flow.toast.stepDone', {
         step: stepName('research', c.lang),
-        evidence: tIn(c.lang, 'flow.evidence.research', { findings: check.findings, sources: check.sources }),
+        evidence: evidenceText({ kind: 'research', findings: check.findings, sources: check.sources }, c.lang),
       }),
     );
     return answer(`${done}\n${stepGuidance(r.flow, c.lang, stepTexts(c, r.flow))}`);
@@ -749,7 +761,10 @@ async function onFlowStep($: $, e: any): Promise<any> {
       await flowEvent($, c, waiting, 'done', { done: 'plan' });
       $.ui.toast(tIn(c.lang, 'flow.toast.waiting'));
     }
-    const done = tIn(c.lang, 'flow.step.donePlan', { steps: check.steps, commands: check.verification.length });
+    const done = tIn(c.lang, 'flow.step.donePlan', {
+      steps: count(c.lang, 'steps', check.steps),
+      commands: count(c.lang, 'commands', check.verification.length),
+    });
     // In Claude Code's plan mode the approval is its own dialog, which also ends plan mode.
     if (c.state.nativePlan?.on) return answer(`${done}\n${tIn(c.lang, 'flow.step.callExitPlanMode')}`);
     return answer(`${done}\n${await askApproval($, c, waiting, check.steps, check.verification)}`);
@@ -774,7 +789,7 @@ async function onFlowStep($: $, e: any): Promise<any> {
         /* a convenience */
       }
     }
-    return answer(tIn(c.lang, 'flow.step.doneCode', { commands: f.verification.length, seconds: run.seconds }));
+    return answer(tIn(c.lang, 'flow.step.doneCode', { commands: count(c.lang, 'commands', f.verification.length), seconds: run.seconds }));
   }
   return answer(tIn(c.lang, 'flow.step.notCurrent', { current: stepName(step.kind, c.lang), asked }));
 }

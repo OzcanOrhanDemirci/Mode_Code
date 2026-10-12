@@ -6,11 +6,12 @@ import type { RuleId } from '../core/belt/types.js';
 import { ago, percent, shortPath } from '../core/format.js';
 import { tIn, type Lang, type MessageKey } from '../core/i18n/index.js';
 import { healthCounts } from '../app/health.js';
-import type { NavNode } from './nav.js';
+import type { NavNode, ScreenProps } from './nav.js';
 import type { DataSource } from './store.js';
 import { inboxEvents, Inbox, Overview } from './screens/home.js';
 import { Folders, Quota, ReportScreen, Tokens, Tools } from './screens/measure.js';
-import { ProjectCard, SessionCard, sessionLabel } from './screens/work.js';
+import { FlowCard, FlowsEmpty, ProjectCard, SessionCard, sessionLabel } from './screens/work.js';
+import { flowTitle, statusText } from '../core/flow-view.js';
 import { Events, Protection, RuleDetail, Secrets, TestCommand } from './screens/security.js';
 import { Extensions, Hooks, Instructions, Mcp, Permissions, Plugins, SettingsSources } from './screens/claude.js';
 import { Templates } from './screens/templates.js';
@@ -51,17 +52,44 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
     ],
   });
 
+  const flows = data.flows();
+  const waiting = flows.filter((f) => f.status === 'waiting').length;
+  const flowsNode = n('flows', 'page.flows', {
+    description: d('desc.flows'),
+    ...(waiting
+      ? { badge: { text: t('badge.waiting', { n: waiting }), state: 'gray' as const } }
+      : flows.length
+        ? { badge: { text: String(flows.length), state: 'info' as const } }
+        : {}),
+    ...(flows.length
+      ? {
+          children: () =>
+            flows.map((f) => ({
+              id: f.id,
+              label: `${f.status === 'waiting' ? '⏸ ' : ''}${flowTitle(f, 48)}`,
+              description: d('desc.flow'),
+              badge: { text: statusText(f.status, lang), state: f.status === 'waiting' ? ('gray' as const) : ('info' as const) },
+              keywords: [f.id, f.task],
+              screen: (p: ScreenProps) => <FlowCard id={f.id} {...p} />,
+            })),
+        }
+      : { screen: (p: ScreenProps) => <FlowsEmpty {...p} /> }),
+  });
+
   const projects = n('projects', 'cat.projects', {
     description: d('desc.projects'),
-    children: () =>
-      data.folders(90).map((f) => ({
+    ...(waiting ? { badge: { text: t('badge.waiting', { n: waiting }), state: 'gray' as const } } : {}),
+    children: () => [
+      flowsNode,
+      ...data.folders(90).map((f) => ({
         id: encodeURIComponent(f.cwd),
         label: shortPath(f.cwd, homedir(), 48),
         description: d('desc.project'),
         badge: { text: ago(f.lastTs, now, lang), state: 'info' as const },
         keywords: [f.cwd],
-        screen: (p) => <ProjectCard cwd={f.cwd} {...p} />,
+        screen: (p: ScreenProps) => <ProjectCard cwd={f.cwd} {...p} />,
       })),
+    ],
   });
 
   const sessions = n('sessions', 'cat.sessions', {

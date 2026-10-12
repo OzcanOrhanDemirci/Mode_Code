@@ -308,6 +308,53 @@ export function defineCliTests(mode: 'source' | 'dist'): void {
     }
   });
 
+  test(`${mode}: flow lists the flows on record and shows one; an unknown id fails`, (t) => {
+    if (skip(t)) return;
+    const w = world({ lang: 'en' });
+    try {
+      assert.match(cli(w, ['flow'], opt).out, /No flows yet/);
+      const now = Date.now();
+      const flow = {
+        v: 1,
+        id: '20261012-0900-add-sign-in',
+        variant: 'plan',
+        task: 'Add sign-in',
+        project: null,
+        cwd: 'C:/work/app',
+        createdAt: now - 60_000,
+        updatedAt: now,
+        status: 'waiting',
+        current: 1,
+        steps: [
+          { kind: 'plan', status: 'done', startedAt: now - 60_000, doneAt: now, evidence: { kind: 'plan', steps: 2, commands: 1 } },
+          { kind: 'approve', status: 'active', startedAt: now, doneAt: null, evidence: null },
+          { kind: 'code', status: 'pending', startedAt: null, doneAt: null, evidence: null },
+        ],
+        sessionId: 's1',
+        workDir: 'C:/tmp/w/20261012-0900-add-sign-in',
+        reportPath: 'C:/tmp/w/20261012-0900-add-sign-in/research.md',
+        planPath: 'C:/tmp/w/20261012-0900-add-sign-in/plan.md',
+        approval: null,
+        verification: [],
+        history: [{ at: now, event: 'start', detail: 'plan' }],
+      };
+      mkdirSync(join(w.data, 'flows', flow.id), { recursive: true });
+      writeFileSync(join(w.data, 'flows', flow.id, 'flow.json'), JSON.stringify(flow));
+      const list = cli(w, ['flow'], opt);
+      assert.equal(list.code, 0);
+      assert.match(list.out, /waiting for approval/);
+      assert.match(list.out, /2\/3 ⏸ approval/);
+      assert.equal(cli(w, ['flow', '--json'], opt).json?.flows[0].id, flow.id);
+      const show = cli(w, ['flow', 'show', '20261012'], opt);
+      assert.equal(show.code, 0);
+      assert.match(show.out, /2 steps, 1 verification command/);
+      assert.equal(cli(w, ['flow', 'show', flow.id, '--json'], opt).json?.schema, 'terminal-code.flow/1');
+      assert.equal(cli(w, ['flow', 'show', 'nope'], opt).code, 1);
+    } finally {
+      w.done();
+    }
+  });
+
   test(`${mode}: templates: listed, previewed, applied into CLAUDE.md`, (t) => {
     if (skip(t)) return;
     const w = world();

@@ -259,7 +259,9 @@ export function checkPlan(markdown: string): PlanCheck {
         if (c && !c.startsWith('#')) verification.push(c.replace(/^\$\s+/, ''));
         continue;
       }
-      for (const m of l.matchAll(/`([^`\n]+)`/g)) verification.push(m[1]!.trim().replace(/^\$\s+/, ''));
+      // One command per line: the first code span; later ones are notes about it ("expect `hello\n`").
+      const m = /`([^`\n]+)`/.exec(l);
+      if (m) verification.push(m[1]!.trim().replace(/^\$\s+/, ''));
     }
     if (!verification.length) problems.push({ key: 'flow.check.plan.noCommands' });
   }

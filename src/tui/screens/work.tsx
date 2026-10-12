@@ -13,6 +13,9 @@ import { writeAtomic } from '../../node/fsx.js';
 import type { ScreenProps } from '../nav.js';
 import { Empty, Muted, Note, Row, Section, Table, useEnv, useScreenKeys, useT } from '../ui.js';
 import { LinkList, type Link } from '../widgets.js';
+import type { MessageKey } from '../../core/i18n/index.js';
+import { evidenceText, flowTitle, statusText } from '../../core/flow-view.js';
+import { stepName } from '../../core/guidance.js';
 
 export function ProjectCard({ cwd, width, height, open }: ScreenProps & { cwd: string }) {
   const { data, lang, now, theme } = useEnv();
@@ -163,4 +166,98 @@ export function exportSession(s: SessionRow, root: string): string {
 
 export function sessionLabel(s: SessionRow): string {
   return s.title ?? s.firstPrompt ?? s.id.slice(0, 8);
+}
+
+/** A flow: where it stands, what each step's check found, the commands that verify it, its files, what happened. */
+export function FlowCard({ id, width }: ScreenProps & { id: string }) {
+  const { data, lang, now, theme } = useEnv();
+  const t = useT();
+  const f = data.flows().find((x) => x.id === id);
+  if (!f) return <Empty>{t('flow.missing')}</Empty>;
+  const files = data.flowFiles(f);
+  const fileRows: [MessageKey, string | null][] = [
+    ['flow.card.report', files.report],
+    ['flow.card.plan', files.plan],
+    ['flow.card.checkedReport', files.checkedReport],
+    ['flow.card.approvedPlan', files.approvedPlan],
+  ];
+  const wide = Math.max(20, width - 24);
+  return (
+    <Box flexDirection="column" width={width}>
+      <Section>
+        <Row label={t('flow.card.task')}>{f.task ? flowTitle(f, wide) : t('flow.noTask')}</Row>
+        <Row label={t('flow.card.status')} {...(f.status === 'waiting' ? { color: theme.warn } : {})}>
+          {statusText(f.status, lang)}
+        </Row>
+        <Row label={t('flow.card.folder')}>{shortPath(f.cwd, homedir(), wide)}</Row>
+        <Row label={t('flow.card.updated')}>{ago(f.updatedAt, now, lang)}</Row>
+      </Section>
+      <Section title={t('flow.card.steps')}>
+        {f.steps.map((s, i) => (
+          <Box key={i}>
+            <Box width={3} flexShrink={0}>
+              <Text color={s.status === 'done' ? theme.ok : s.status === 'active' ? theme.warn : theme.muted}>
+                {s.status === 'done' ? '✓' : s.status === 'active' ? '▶' : '·'}
+              </Text>
+            </Box>
+            <Box width={16} flexShrink={0}>
+              <Text>{stepName(s.kind, lang)}</Text>
+            </Box>
+            <Text color={theme.muted} wrap="truncate-end">
+              {s.evidence ? evidenceText(s.evidence, lang) : t(`flow.step.status.${s.status}` as MessageKey)}
+            </Text>
+          </Box>
+        ))}
+      </Section>
+      {f.verification.length ? (
+        <Section title={t('flow.card.verification')}>
+          {f.verification.map((v, i) => (
+            <Text key={i} color={theme.accent} wrap="truncate-end">
+              {v}
+            </Text>
+          ))}
+        </Section>
+      ) : null}
+      {fileRows.some(([, p]) => p) ? (
+        <Section title={t('flow.card.files')}>
+          {fileRows.map(([k, p]) =>
+            p ? (
+              <Row key={k} label={t(k)}>
+                {shortPath(p, homedir(), wide)}
+              </Row>
+            ) : null,
+          )}
+        </Section>
+      ) : null}
+      <Section title={t('flow.card.history')}>
+        {f.history
+          .slice(-6)
+          .reverse()
+          .map((h, i) => (
+            <Box key={i}>
+              <Box width={14} flexShrink={0}>
+                <Text color={theme.muted}>{ago(h.at, now, lang)}</Text>
+              </Box>
+              <Text wrap="truncate-end">
+                {t(`flow.history.${h.event}` as MessageKey)}
+                {h.step ? ` · ${stepName(h.step, lang)}` : ''}
+              </Text>
+            </Box>
+          ))}
+      </Section>
+    </Box>
+  );
+}
+
+/** Projects › Flows before there is one: what a flow is and how to start one. */
+export function FlowsEmpty({ width }: ScreenProps) {
+  const t = useT();
+  return (
+    <Box flexDirection="column" width={width}>
+      <Muted wrap="wrap">{t('flows.empty')}</Muted>
+      <Box marginTop={1}>
+        <Note>{t('flows.howTo')}</Note>
+      </Box>
+    </Box>
+  );
 }

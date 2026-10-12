@@ -136,7 +136,7 @@ test('the minimum versions agree everywhere they are written', () => {
 
 test('every command is in the help text and in docs/cli.md', () => {
   const main = read(join(ROOT, 'src/cli/main.tsx'));
-  const commands = [...main.matchAll(/case '([a-z-]+)':/g)].map((m) => m[1]!).filter((c) => !['help', 'version', 'templates'].includes(c));
+  const commands = [...main.matchAll(/case '([a-z-]+)':/g)].map((m) => m[1]!).filter((c) => !['help', 'version', 'templates', 'flows'].includes(c)); // aliases of template and flow
   const help = read(join(ROOT, 'src/cli/commands.ts'));
   const doc = read(join(ROOT, 'docs/cli.md'));
   assert.ok(commands.length >= 14);

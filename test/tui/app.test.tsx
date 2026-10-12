@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { draw, FakeData, KEY, NOW, SESSION } from './harness.js';
 import { newModState } from '../../src/core/session.js';
+import { completeStep, startFlow } from '../../src/core/flow.js';
 
 test('the first screen lists the seven categories and shows protection and quota at the top', async () => {
   const s = await draw(new FakeData());
@@ -179,6 +180,53 @@ test('the help explains keys and terms and closes with Esc', async () => {
     assert.match(s.text(), /Safety belt:/);
     await s.press(KEY.esc);
     assert.doesNotMatch(s.text(), /Keys work the same on every screen/);
+  } finally {
+    s.close();
+  }
+});
+
+test('flows: home lists a plan waiting for approval, Projects › Flows shows each one, its card the steps and evidence', async () => {
+  const data = new FakeData('en');
+  const f = startFlow({
+    id: '20261012-0900-add-sign-in',
+    variant: 'full',
+    task: 'Add a second sign-in factor',
+    project: null,
+    cwd: 'C:/work/app',
+    sessionId: 's',
+    workDir: 'C:/tmp/w',
+    now: NOW - 600_000,
+  });
+  const r1 = completeStep(f, 'research', { kind: 'research', findings: 4, sources: 3 }, NOW - 300_000);
+  const r2 = r1.ok ? completeStep(r1.flow, 'plan', { kind: 'plan', steps: 3, commands: 1 }, NOW - 60_000) : r1;
+  assert.ok(r2.ok);
+  data.flowList = [r2.flow];
+  const home = await draw(data, { address: 'home/overview' });
+  try {
+    assert.match(home.text(), /Flows/);
+    assert.match(home.text(), /⏸ Add a second sign-in factor/);
+    assert.match(home.text(), /waiting for approval/);
+  } finally {
+    home.close();
+  }
+  const card = await draw(data, { address: 'projects/flows/20261012-0900-add-sign-in' });
+  try {
+    const t = card.text();
+    assert.match(t, /Projects › Flows › ⏸ Add a second sign-in factor/);
+    assert.match(t, /✓\s+🔍 research\s+4 findings, 3 sources/);
+    assert.match(t, /✓\s+📐 plan\s+3 steps, 1 verification command\b/);
+    assert.match(t, /▶\s+⏸ approval\s+in progress/);
+    assert.match(t, /Checked report/);
+  } finally {
+    card.close();
+  }
+});
+
+test('Projects › Flows says how to start one when there is none', async () => {
+  const s = await draw(new FakeData('tr'), { address: 'projects/flows' });
+  try {
+    assert.match(s.text(), /Henüz akış yok/);
+    assert.match(s.text(), /"akış plan"/);
   } finally {
     s.close();
   }

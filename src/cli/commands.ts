@@ -25,6 +25,10 @@ import { loadEvents, loadQuota, openIndex, scanPaths } from '../app/data.js';
 import { checkHealth, healthCounts, type FeatureHealth } from '../app/health.js';
 import { buildReport, reportLines } from '../app/report.js';
 import { replay } from '../app/replay.js';
+import { findFlow, flowFiles, loadFlows } from '../app/flows.js';
+import { progress } from '../core/flow.js';
+import { evidenceText, flowTitle, statusText } from '../core/flow-view.js';
+import { stepName, stepsLine } from '../core/guidance.js';
 import { claudeDir as claudeDirOf } from '../node/env.js';
 import { appliedTemplates, repoKey, TEMPLATES, templateById, withTemplates } from '../core/templates.js';
 import { git } from '../node/git.js';
@@ -538,6 +542,90 @@ export async function cmdSessions(a: Args): Promise<number> {
   }
 }
 
+// ── flows ──
+
+export async function cmdFlow(a: Args): Promise<number> {
+  const ctx = appContext();
+  const flows = loadFlows(ctx);
+  const sub = a.positionals[0] ?? 'list';
+  if (sub === 'show') {
+    const f = a.positionals[1] ? findFlow(flows, a.positionals[1]) : flows[0];
+    if (!f) {
+      process.stderr.write(T(ctx, 'cli.flow.notFound', { id: a.positionals[1] ?? '' }) + '\n');
+      return 1;
+    }
+    const files = flowFiles(ctx, f);
+    if (flag(a, 'json')) {
+      json('flow', { flow: f, files });
+      return 0;
+    }
+    const now = Date.now();
+    say(bold(flowTitle(f, 100)) + dim(`  ${f.id}`));
+    say(`  ${T(ctx, 'flow.card.status').padEnd(16)}${statusText(f.status, ctx.lang)} · ${stepsLine(f, ctx.lang)}`);
+    say(`  ${T(ctx, 'flow.card.folder').padEnd(16)}${shortPath(f.cwd, homedir(), 70)}`);
+    say(`  ${T(ctx, 'flow.card.updated').padEnd(16)}${ago(f.updatedAt, now, ctx.lang)}`);
+    say();
+    for (const s of f.steps) {
+      const mark = s.status === 'done' ? green('✓') : s.status === 'active' ? yellow('▶') : gray('·');
+      say(
+        `  ${mark} ${stepName(s.kind, ctx.lang).padEnd(16)}${s.evidence ? evidenceText(s.evidence, ctx.lang) : dim(T(ctx, `flow.step.status.${s.status}` as MessageKey))}`,
+      );
+    }
+    if (f.verification.length) {
+      say();
+      say(`  ${T(ctx, 'flow.card.verification')}`);
+      for (const v of f.verification) say(`    ${cyan(v)}`);
+    }
+    say();
+    const fileRows: [MessageKey, string | null][] = [
+      ['flow.card.report', files.report],
+      ['flow.card.plan', files.plan],
+      ['flow.card.checkedReport', files.checkedReport],
+      ['flow.card.approvedPlan', files.approvedPlan],
+    ];
+    for (const [k, p] of fileRows) if (p) say(`  ${T(ctx, k).padEnd(16)}${p}`);
+    return 0;
+  }
+  if (sub !== 'list') {
+    process.stderr.write(T(ctx, 'cli.unknownCommand', { cmd: `flow ${sub}` }) + '\n');
+    return 2;
+  }
+  const open = flag(a, 'all')
+    ? flows
+    : flows
+        .filter((f) => f.status !== 'done' && f.status !== 'canceled')
+        .concat(flows.filter((f) => f.status === 'done' || f.status === 'canceled').slice(0, 5));
+  if (flag(a, 'json')) {
+    json('flows', { flows: open });
+    return 0;
+  }
+  if (!open.length) {
+    say(T(ctx, 'cli.flow.none'));
+    return 0;
+  }
+  const now = Date.now();
+  say(
+    table(
+      [
+        [T(ctx, 'sessions.when'), T(ctx, 'flow.card.status'), T(ctx, 'flow.card.step'), T(ctx, 'flow.card.task'), 'id'],
+        ...open.map((f) => {
+          const p = progress(f);
+          const step = f.steps[f.current];
+          return [
+            ago(f.updatedAt, now, ctx.lang),
+            f.status === 'waiting' ? yellow(statusText(f.status, ctx.lang)) : statusText(f.status, ctx.lang),
+            step ? `${p.at}/${p.of} ${stepName(step.kind, ctx.lang)}` : `${p.of}/${p.of}`,
+            flowTitle(f, 40),
+            dim(f.id),
+          ];
+        }),
+      ],
+      [],
+    ),
+  );
+  return 0;
+}
+
 // ── belt ──
 
 export async function cmdBelt(a: Args): Promise<number> {
@@ -763,6 +851,7 @@ export function helpText(lang: Lang): string {
     `  ${c('tokens [--days N] [--by …]'.padEnd(28))}${L('help.tokens')}`,
     `  ${c('sessions [search]'.padEnd(28))}${L('help.sessions')}`,
     `  ${c('report [--week]'.padEnd(28))}${L('help.report')}`,
+    `  ${c('flow [show <id>] [--all]'.padEnd(28))}${L('help.flow')}`,
     `  ${c('template list|apply|remove'.padEnd(28))}${L('help.template')}`,
     `  ${c('belt rules|events|test|replay'.padEnd(28))}${L('help.belt')}`,
     `  ${c('secrets [path…]'.padEnd(28))}${L('help.secrets')}`,

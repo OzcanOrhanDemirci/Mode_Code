@@ -86,14 +86,14 @@ test('a full flow: research, plan, the approval dialog and the verification run,
   expect(String(((await $.tool.call(step('research'))) as any).result)).toMatch(/Source 1, src\/login\.ts, does not exist/);
   w.write('/home/ada/dev/app/src/login.ts', 'line 1\nline 2\n');
   const done: any = await $.tool.call(step('research'));
-  expect(String(done.result)).toMatch(/The research step is done: 1 findings, 1 sources checked/);
+  expect(String(done.result)).toMatch(/The research step is done: 1 finding and 1 source checked/);
   expect(String(done.result)).toMatch(/Next, 📐 plan: write the plan to .*plan\.md/);
   expect(w.read(`/home/ada/.terminal-code/flows/${f.id}/research.md`)).toBe(REPORT);
 
   // The plan, checked; the dialog asks the person, who approves; the commands are the approved plan's.
   w.write(flowOf(w).planPath, PLAN);
   const planned: any = await $.tool.call(step('plan'));
-  expect(w.asked.at(-1)).toMatch(/The plan is ready: 1 steps, verified by `npm test`\./);
+  expect(w.asked.at(-1)).toMatch(/The plan is ready: 1 step, verified by `npm test`\./);
   expect(String(planned.result)).toMatch(/The person approved the plan\.\nNext, 🔨 code: implement the approved plan/);
   f = flowOf(w);
   expect([f.status, f.steps[2].status, f.approval.via, f.verification]).toEqual(['active', 'done', 'dialog', ['npm test']]);
@@ -101,7 +101,7 @@ test('a full flow: research, plan, the approval dialog and the verification run,
 
   // The code step runs the verification through the shell tool; the flow then ends and lets the session go.
   const coded: any = await $.tool.call(step('code'));
-  expect(String(coded.result)).toMatch(/The code step is done: 1 verification commands passed/);
+  expect(String(coded.result)).toMatch(/The code step is done: 1 verification command passed/);
   expect(w.calls.some((c: any) => c.tool === 'Bash' && c.command === 'npm test')).toBe(true);
   const final = w.json(`/home/ada/.terminal-code/flows/${f.id}/flow.json`);
   expect(final.status).toBe('done');

@@ -17,6 +17,7 @@ import type { SessionRow, TokenTotals } from '../../src/node/index-db.js';
 import type { ModSessionState } from '../../src/core/session.js';
 import { buildReport } from '../../src/app/report.js';
 import type { DoctorSummary } from '../../src/app/doctor/doctor.js';
+import type { Flow } from '../../src/core/flow.js';
 
 export const NOW = Date.parse('2026-10-12T09:00:00Z');
 
@@ -224,6 +225,13 @@ export class FakeData implements DataSource {
   doctor: DoctorSummary | null = null;
   doctorSummary() {
     return this.doctor;
+  }
+  flowList: Flow[] = [];
+  flows() {
+    return this.flowList;
+  }
+  flowFiles(f: Flow) {
+    return { report: f.reportPath, plan: null, checkedReport: `${this.layout.flowsDir}/${f.id}/research.md`, approvedPlan: null };
   }
   lastSeen() {
     return this.seen;

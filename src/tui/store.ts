@@ -20,6 +20,8 @@ import { checkHealth, type Health } from '../app/health.js';
 import { buildReport, type Report } from '../app/report.js';
 import { loadSummary, type DoctorSummary } from '../app/doctor/doctor.js';
 import type { ModSessionState } from '../core/session.js';
+import type { Flow } from '../core/flow.js';
+import { flowFiles, loadFlows, type FlowFiles } from '../app/flows.js';
 
 export interface Timed<T> {
   at: number;
@@ -57,6 +59,10 @@ export interface DataSource {
   markSeen(at: number): void;
   /** The last maintenance check's summary, written by `terminal-code doctor`. */
   doctorSummary(): DoctorSummary | null;
+  /** Every flow on record, the most recently changed first. */
+  flows(): Flow[];
+  /** Where a flow's drafts and checked copies are. */
+  flowFiles(f: Flow): FlowFiles;
   refresh(): void;
   close(): void;
 }
@@ -191,6 +197,12 @@ export class LiveData implements DataSource {
   }
   doctorSummary(): DoctorSummary | null {
     return loadSummary(this.ctx.layout);
+  }
+  flows(): Flow[] {
+    return this.memo('flows', 3_000, () => loadFlows(this.ctx));
+  }
+  flowFiles(f: Flow): FlowFiles {
+    return flowFiles(this.ctx, f);
   }
   lastSeen(): number | null {
     const s = readJson<{ lastSeenAt?: number }>(this.ctx.layout.stateDir + '/ui.json');

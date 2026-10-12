@@ -70,6 +70,14 @@ export interface ToolEvent {
   keyword?: string;
   project?: string | null;
   level?: string;
+  /** Mode refusals ("mode" events): the mode and what was refused. */
+  mode?: string;
+  what?: string;
+  /** Flow events: what happened, to which flow, its step and status after. */
+  action?: string;
+  flow?: string;
+  step?: string | null;
+  status?: string;
   /** Quota readings ("reading" events). */
   five?: number | null;
   week?: number | null;
