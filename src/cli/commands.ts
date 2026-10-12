@@ -716,6 +716,20 @@ export async function cmdBelt(a: Args): Promise<number> {
         ),
       );
     }
+    if (r.modes.shell) {
+      const pc = (n: number) => percent((100 * n) / r.modes.shell, ctx.lang);
+      say();
+      say(
+        T(ctx, 'belt.replay.modes', {
+          n: integer(r.modes.shell, ctx.lang),
+          read: pc(r.modes.read),
+          write: pc(r.modes.write),
+          local: pc(r.modes.local),
+          outside: pc(r.modes.outside),
+          unknown: pc(r.modes.unknown + r.modes.unreadable),
+        }),
+      );
+    }
     say();
     say(dim(T(ctx, 'belt.replay.note')));
     return 0;

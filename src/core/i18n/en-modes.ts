@@ -219,6 +219,8 @@ export const enModes = {
   'event.flow.resume': 'Flow resumed ({flow})',
   'event.flow.cancel': 'Flow canceled ({flow})',
   'event.flow.refused': 'A flow step was refused ({flow})',
+  'belt.replay.modes':
+    'In chat, research and plan mode, of these {n} shell commands {read} only read and run anywhere; {write} write files and {local} change things around their folder (these run only inside a temporary or work folder); {outside} reach outside and never run; {unknown} are unknown or could not be read in full (these too run only inside such a folder).',
   'flow.toast.start': 'Flow started: {steps}',
   'flow.toast.stepDone': 'Flow: {step} done ({evidence})',
   'flow.toast.waiting': 'The plan waits for your approval',

@@ -209,6 +209,8 @@ export const trModes: Record<keyof typeof enModes, string> = {
   'event.flow.resume': 'Akış sürdürüldü ({flow})',
   'event.flow.cancel': 'Akış iptal edildi ({flow})',
   'event.flow.refused': 'Bir akış adımı geri çevrildi ({flow})',
+  'belt.replay.modes':
+    'Sohbet, araştırma ve plan modunda bu {n} kabuk komutunun {read} kadarı yalnız okur ve her yerde çalışır; {write} dosya yazar, {local} çalıştığı klasörde bir şeyi değiştirir (bunlar yalnız geçici ya da çalışma klasöründe çalışır); {outside} dışarıya uzanır ve hiç çalışmaz; {unknown} bilinmiyor ya da tamamı okunamadı (bunlar da yalnız böyle bir klasörde çalışır).',
   'flow.toast.start': 'Akış başladı: {steps}',
   'flow.toast.stepDone': 'Akış: {step} bitti ({evidence})',
   'flow.toast.waiting': 'Plan onayını bekliyor',

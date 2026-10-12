@@ -14,6 +14,8 @@ import { evaluateToolCall } from '../core/belt/evaluate.js';
 import { isBeltTool } from '../core/belt/tools.js';
 import type { BeltContext, Verdict } from '../core/belt/types.js';
 import { beltContext } from '../node/context.js';
+import { commandEffects, hidingIssues, strongest, type EffectKind } from '../core/shell/effects.js';
+import { shellOf } from '../core/belt/tools.js';
 import { readText } from '../node/fsx.js';
 
 export interface ReplayResult {
@@ -30,6 +32,12 @@ export interface ReplayResult {
   /** Questions per day over the period. */
   askedPerDay: number;
   byRule: { rule: string; verdict: Verdict; count: number }[];
+  /**
+   * The same shell commands as the restricted modes (chat, research, plan) judge them: how many only read
+   * and run anywhere, and how many write, change around their folder, reach outside, or are unknown (those
+   * run only inside allowed folders, or not at all). "unreadable": the command could not be read in full.
+   */
+  modes: Record<'shell' | EffectKind | 'unreadable', number>;
   ms: number;
 }
 
@@ -86,6 +94,7 @@ export async function replay(opts: {
   let blocked = 0;
   let noted = 0;
   let sessionsAsked = 0;
+  const modes: ReplayResult['modes'] = { shell: 0, read: 0, write: 0, local: 0, outside: 0, unknown: 0, unreadable: 0 };
   for (let i = 0; i < files.length; i++) {
     opts.onProgress?.(i, files.length);
     let fileAsked = false;
@@ -103,7 +112,14 @@ export async function replay(opts: {
       for (const b of row.message.content as { type?: string; name?: string; input?: Record<string, unknown> }[]) {
         if (b?.type !== 'tool_use' || !b.name || !isBeltTool(b.name)) continue;
         calls++;
-        const d = await evaluateToolCall(b.name, b.input ?? {}, ctxFor(row.cwd ?? opts.claudeDir));
+        const ctx = ctxFor(row.cwd ?? opts.claudeDir);
+        const dialect = shellOf(b.name);
+        if (dialect && typeof b.input?.command === 'string') {
+          const r = commandEffects(b.input.command, dialect, { platform: ctx.platform, home: ctx.home, cwd: ctx.cwd, env: ctx.env });
+          modes.shell++;
+          modes[hidingIssues(r.issues).length ? 'unreadable' : strongest(r.effects)]++;
+        }
+        const d = await evaluateToolCall(b.name, b.input ?? {}, ctx);
         if (d.verdict === 'allow') continue;
         if (d.verdict === 'ask') {
           asked++;
@@ -131,6 +147,7 @@ export async function replay(opts: {
     sessionsAsked,
     askedPerDay: Math.round((asked / Math.max(1, opts.days)) * 10) / 10,
     byRule: [...counts.values()].sort((a, b) => b.count - a.count || a.rule.localeCompare(b.rule, 'en')),
+    modes,
     ms: Date.now() - started,
   };
 }

@@ -45,6 +45,8 @@ test('replay counts what the belt would have asked, blocked and noted, and keeps
     assert.equal(r.calls, 4, 'reads are not checked, and calls before the period do not count');
     assert.deepEqual([r.asked, r.blocked, r.noted], [1, 1, 1]);
     assert.equal(r.sessionsAsked, 1);
+    // The three shell commands as the restricted modes see them: a read and two changes to the repository.
+    assert.deepEqual(r.modes, { shell: 3, read: 1, write: 0, local: 2, outside: 0, unknown: 0, unreadable: 0 });
     assert.deepEqual(
       r.byRule.map((x) => `${x.verdict} ${x.rule} ${x.count}`),
       ['ask git.clean 1', 'warn git.discard-work 1', 'deny self.tool-files 1'], // by count, then by rule
