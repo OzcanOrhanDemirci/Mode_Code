@@ -438,7 +438,8 @@ async function quotaTail($: $): Promise<string> {
 async function askPerson($: $, c: Ctx, tool: string, d: BeltDecision): Promise<'allow' | 'block' | 'none'> {
   const reasons = d.findings
     .filter((f) => f.verdict === 'ask')
-    .map((f) => f.reason)
+    // A reason that ends with the command has no full stop of its own; the question follows it.
+    .map((f) => (/[.!?…]$/.test(f.reason) ? f.reason : `${f.reason}.`))
     .join(' ');
   const allow = tIn(c.lang, 'belt.ask.allow');
   const block = tIn(c.lang, 'belt.ask.block');
