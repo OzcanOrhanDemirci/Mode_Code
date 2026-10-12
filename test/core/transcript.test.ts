@@ -32,6 +32,24 @@ test('the turn starts at the last prompt the person typed', () => {
   );
 });
 
+test('calls that did not run do not count: refused ones, and file tools that failed', () => {
+  const result = (id: string, text: string) =>
+    J({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, is_error: true, content: text }] } });
+  const t = currentTurn([
+    user('do it', '2026-10-12T06:00:00Z'),
+    toolUse('a', 'Write', { file_path: 'x', content: '' }),
+    result('a', 'PreToolUse:Write hook error: 🛡 Blocked by the safety belt: …'),
+    toolUse('b', 'Edit', { file_path: 'y', old_string: 'q', new_string: 'r' }),
+    result('b', 'String to replace not found'),
+    toolUse('c', 'Bash', { command: 'npm run build' }),
+    result('c', 'exit code 1'),
+  ]);
+  assert.deepEqual(
+    t.uses.map((u) => u.name),
+    ['Bash'],
+  );
+});
+
 test('a tail without the turn start says so', () => {
   const t = currentTurn([toolUse('t1', 'Bash', { command: 'ls' })]);
   assert.equal(t.complete, false);

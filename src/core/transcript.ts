@@ -48,6 +48,16 @@ export function isHumanPrompt(row: Row): boolean {
   return text;
 }
 
+const FILE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
+
+/** The text of a tool result, whatever its shape (a string or a list of blocks). */
+function resultText(b: Row): string {
+  const c = b.content;
+  if (typeof c === 'string') return c;
+  if (Array.isArray(c)) return (c as Row[]).map((x) => (typeof x?.text === 'string' ? x.text : '')).join('\n');
+  return '';
+}
+
 export interface TurnInfo {
   /** When the person's prompt that started this turn was written (epoch ms), or null when not found. */
   startedAt: number | null;
@@ -68,6 +78,19 @@ export function currentTurn(lines: readonly string[]): TurnInfo {
       break;
     }
   }
+  // Calls that did not run change nothing: a refused call (its error names the safety belt) and a file
+  // tool that failed. A failed shell command still counts, because it may have changed things first.
+  const didNotRun = new Set<string>();
+  for (let i = start + 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.type !== 'user') continue;
+    const c = content(r);
+    if (!Array.isArray(c)) continue;
+    for (const b of c as Row[]) {
+      if (b?.type !== 'tool_result' || b.is_error !== true || typeof b.tool_use_id !== 'string') continue;
+      didNotRun.add(b.tool_use_id + (resultText(b).includes('🛡') ? '\u0000refused' : '\u0000failed'));
+    }
+  }
   const uses: ToolUse[] = [];
   const seen = new Set<string>();
   for (let i = start + 1; i < rows.length; i++) {
@@ -80,6 +103,8 @@ export function currentTurn(lines: readonly string[]): TurnInfo {
       const id = typeof b.id === 'string' ? b.id : `${i}:${uses.length}`;
       if (seen.has(id)) continue;
       seen.add(id);
+      if (didNotRun.has(id + '\u0000refused')) continue;
+      if (didNotRun.has(id + '\u0000failed') && FILE_TOOLS.has(b.name)) continue;
       uses.push({ name: b.name, input: (typeof b.input === 'object' && b.input !== null ? b.input : {}) as Record<string, unknown> });
     }
   }

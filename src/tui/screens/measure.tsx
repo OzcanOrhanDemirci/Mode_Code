@@ -5,6 +5,7 @@ import { Box, Text } from 'ink';
 import { homedir } from 'node:os';
 import { ago, compact, dateTime, integer, percent, shortPath, sparkline, until } from '../../core/format.js';
 import { cacheHitRate } from '../../node/index-db.js';
+import { bucketize, type ReadingPoint } from '../../core/history.js';
 import type { ScreenProps } from '../nav.js';
 import { Empty, Gauge, Muted, Note, Row, Section, Table, useEnv, useScreenKeys, useT } from '../ui.js';
 import { LinkList, type Link } from '../widgets.js';
@@ -35,6 +36,7 @@ export function Quota({ width }: ScreenProps) {
           </Box>
         ))}
       </Section>
+      <QuotaHistory width={width} />
       <Section title={t('quota.budget')}>
         <Row label={t('quota.weeklyBudget')}>{a.target.explicit ? t('quota.explicit', { n: a.target.value }) : t('quota.default', { n: a.target.value })}</Row>
         <Row label={t('quota.fiveRule')}>{t('quota.fiveRuleText', { wrap: data.config().quota.fiveHourWrapUp, stop: data.config().quota.fiveHourStop })}</Row>
@@ -45,6 +47,38 @@ export function Quota({ width }: ScreenProps) {
       </Section>
       <Note>{t('quota.explain')}</Note>
     </Box>
+  );
+}
+
+/** How the windows moved: the weekly window over seven days, the 5-hour window over the last day. */
+function QuotaHistory({ width }: { width: number }) {
+  const { data, now, theme } = useEnv();
+  const t = useT();
+  const points: ReadingPoint[] = data
+    .events(8)
+    .filter((e) => e.kind === 'reading')
+    .map((e) => ({ at: e.at, five: e.five ?? null, week: e.week ?? null, fiveResetsAt: e.fiveResetsAt ?? null, weekResetsAt: e.weekResetsAt ?? null }));
+  if (points.length < 2) return null;
+  const n = Math.max(12, Math.min(56, width - 22));
+  const draw = (vals: (number | null)[]) => vals.map((v) => (v === null ? ' ' : sparkline([v, 100], theme.plain)[0])).join('');
+  const week = bucketize(points, 'week', now - 7 * 86400_000, now, n);
+  const five = bucketize(points, 'five', now - 86400_000, now, n);
+  return (
+    <Section title={t('quota.history')}>
+      <Box>
+        <Box width={18} flexShrink={0}>
+          <Text color={theme.muted}>{t('quota.historyWeek')}</Text>
+        </Box>
+        <Text color={theme.accent}>{draw(week)}</Text>
+      </Box>
+      <Box>
+        <Box width={18} flexShrink={0}>
+          <Text color={theme.muted}>{t('quota.historyFive')}</Text>
+        </Box>
+        <Text color={theme.accent}>{draw(five)}</Text>
+      </Box>
+      <Muted>{t('quota.historyNote')}</Muted>
+    </Section>
   );
 }
 

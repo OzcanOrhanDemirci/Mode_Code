@@ -40,6 +40,7 @@ test('an address opens its screen directly, the same address the command line us
     assert.match(t, /5-hour/);
     assert.match(t, /21%/);
     assert.match(t, /Address: measure\/quota/);
+    assert.match(t, /Weekly, 7 days\s+\S/);
   } finally {
     s.close();
   }

@@ -148,6 +148,28 @@ export class FakeData implements DataSource {
         rules: ['git.clean'],
         reasons: ['Deletes untracked files'],
       },
+      {
+        v: 1,
+        at: NOW - 3 * 86400_000,
+        kind: 'reading',
+        source: 'mod',
+        session: 's',
+        five: 40,
+        week: 12,
+        fiveResetsAt: NOW - 3 * 86400_000 + 3600_000,
+        weekResetsAt: NOW + 86400_000,
+      },
+      {
+        v: 1,
+        at: NOW - 3600_000,
+        kind: 'reading',
+        source: 'mod',
+        session: 's',
+        five: 21,
+        week: 27,
+        fiveResetsAt: NOW + 3600_000,
+        weekResetsAt: NOW + 86400_000,
+      },
     ];
   }
   modStates() {

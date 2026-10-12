@@ -149,6 +149,10 @@ export const trTui: Record<keyof typeof enTui, string> = {
   'event.chat': 'Sohbet modu bir {tool} çağrısının yazmasını önledi',
   'event.keyword': 'Anahtar kelime: {keyword}',
 
+  'quota.history': 'Geçmiş',
+  'quota.historyWeek': 'Haftalık, 7 gün',
+  'quota.historyFive': '5 saatlik, 24 saat',
+  'quota.historyNote': 'Her işaret kendi zaman diliminin en yüksek ölçümü; tam yükseklik %100.',
   'quota.resetsAt': '{at} sıfırlanır ({when})',
   'quota.budget': 'Bütçe',
   'quota.weeklyBudget': 'Haftalık bütçe',

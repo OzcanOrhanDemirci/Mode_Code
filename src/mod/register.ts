@@ -339,7 +339,6 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   const { tool: _t, tool_use_id, agentId: _a, consent: _c, requestMeta: _m, ...input } = e as unknown as Record<string, unknown>;
   void [_t, _a, _c, _m];
   const cwd = await $.session.cwd();
-  if (e.agentId === undefined) c.turn.uses.push({ name: tool, input });
 
   const ctx = await beltContextFor($, c);
   const d = await evaluateToolCall(tool, input, ctx);
@@ -366,10 +365,13 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   const refusal = checkGuards(tool, input, c.state, c.config.modules.quota ? await quotaNow($, c) : null, classifyEnvFor(c, cwd), c.lang);
   if (refusal) {
     await logEvent($, c, { kind: refusal.kind, tool, verdict: 'deny' });
-    return { deny: refusal.reason };
+    return { deny: `🛡 ${refusal.reason}` };
   }
 
   const result = await next(e);
+  // The footer counts what ran: a refused call changed nothing, and neither did a file tool that failed.
+  const ran = result.deny === undefined && !(result.isError === true && /^(?:Write|Edit|MultiEdit|NotebookEdit)$/.test(tool));
+  if (ran && e.agentId === undefined) c.turn.uses.push({ name: tool, input });
   if (d.verdict === 'warn' && result && result.deny === undefined) {
     await logEvent($, c, { kind: 'belt', tool, verdict: 'warn', rules });
     return { ...result, context: [...(result.context ?? []), decisionText(d, ctx)] };
@@ -425,6 +427,18 @@ async function onMeasure($: $, e: In<'session.measure'>, next: Nx<'session.measu
       await $.fs.write(c.layout.quota, JSON.stringify(c.reading) + '\n');
     } catch {
       /* the control center shows the last reading it has */
+    }
+    // The history the quota screen draws: one point each time a window moved (Claude Code raises this per whole point).
+    if (Array.isArray(e.changed) && e.changed.includes('rateLimits')) {
+      const f = c.reading.windows.find((w) => w.kind === 'five_hour');
+      const w = c.reading.windows.find((x) => x.kind === 'seven_day');
+      await logEvent($, c, {
+        kind: 'reading',
+        five: f?.used ?? null,
+        week: w?.used ?? null,
+        fiveResetsAt: f?.resetsAt ?? null,
+        weekResetsAt: w?.resetsAt ?? null,
+      });
     }
     if (c.config.modules.quota) await quotaGuard($, c);
   }

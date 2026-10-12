@@ -152,6 +152,10 @@ export const enTui = {
   'event.keyword': 'Keyword: {keyword}',
 
   // measure
+  'quota.history': 'History',
+  'quota.historyWeek': 'Weekly, 7 days',
+  'quota.historyFive': '5-hour, 24 hours',
+  'quota.historyNote': 'Each mark is the highest reading in its slice of time; the full height is 100%.',
   'quota.resetsAt': 'resets {at} ({when})',
   'quota.budget': 'Budget',
   'quota.weeklyBudget': 'Weekly budget',

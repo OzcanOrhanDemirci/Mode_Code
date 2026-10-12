@@ -70,6 +70,11 @@ export interface ToolEvent {
   keyword?: string;
   project?: string | null;
   level?: string;
+  /** Quota readings ("reading" events). */
+  five?: number | null;
+  week?: number | null;
+  fiveResetsAt?: number | null;
+  weekResetsAt?: number | null;
 }
 
 /** Events of the last `days` days, newest first. */
