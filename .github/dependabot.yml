@@ -7,9 +7,22 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: chore(deps)
+    # Minor and patch updates of the development tools arrive as one pull request a week.
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # The Node.js types stay at the newest Node.js the tool supports (24; CI also runs 22): the types of a
+      # newer major would let code use APIs no supported version has. They are raised by hand, together
+      # with the supported versions.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
     commit-message:
       prefix: chore(ci)
+    groups:
+      actions:
+        patterns: ['*']
