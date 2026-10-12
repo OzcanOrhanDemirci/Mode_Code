@@ -36,7 +36,7 @@
 - **Alt satırlar.** Her cevabın altında: hafıza deposu itildi mi, bir şey değişti mi, gerektiğinde kota. Git'ten, turun araç çağrılarından ve ölçülen kotadan hesaplanır, asla tahmin edilmez.
 - **Sessiz uzun iş.** Claude Code'un "kullanıcı uzun süredir haber alamadı" hatırlatmalarını dışarıda bırakır; uzun otonom iş ekranını durum satırlarıyla doldurmaz.
 
-**Terminalinde** (`terminal-code`): yedi kategorili, Türkçe ve İngilizce bir kontrol merkezi.
+**Terminalinde** (`terminal-code`): yedi kategorili, Türkçe ve İngilizce bir kontrol merkezi; bir de kurulumu ve çevresindeki makineyi sınayıp güvenle onarabileceğini onaran bakım denetimi (`terminal-code doctor`).
 
 |                 |                                                                                                                                                                                                                           |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -213,12 +213,15 @@ Kendi makinende `terminal-code doctor` aynı denetimleri yapar: Node.js, Claude 
 
 ## Yol haritası
 
-- Kodla uygulanan modlar ve mod akışları (araştırma, plan, onay, kod)
-- WSL2'de, bitti tanımıyla tam otonom çalışma
-- Sıkıştırmadan önce oturum devir notları, kota geçmişi, sabah raporu
-- Makineler arası ayar ve geçmiş eşitleme (yalnız ekleme, makine başına)
-- Daha çok kural şablonu (Flutter, herkese açık depolar, üretim sunucuları)
-- Nihai adla, kaynağı doğrulanabilir biçimde npm'de yayın
+Sıradakiler, bu sırayla:
+
+- **Modlar ve mod akışları**, kodla uygulanır: araştırma, plan, onay ve kod; bir akış olarak bağlanır (araştırma ▶ plan → onay → kod), hiçbir adım atlanmaz ve her adımın bittiğini kod denetler. Sohbet modu zaten var.
+- **Oturum devri:** `/clear` ve sıkıştırma öncesinde devir notu, sabah raporu. Oturum durumu sıkıştırmadan zaten sağ çıkıyor.
+- **Makineler arası eşitleme:** ayarlar ve geçmiş, yalnız ekleme, makine başına.
+- **Tam otonom çalışma**, bitti tanımıyla, WSL2'de. Bilerek en sonda: modların üzerine kurulur.
+- **Yayın:** nihai adla, kaynağı doğrulanabilir biçimde npm'de.
+
+Önceki yol haritasından tamamlananlar: kural şablonları (yedi tane), kota geçmişi, günlük ve haftalık rapor, bakım denetimi (`doctor`) ve [docs/testing.md](docs/testing.md) belgesinde anlatılan test süreci.
 
 ## Katkı
 

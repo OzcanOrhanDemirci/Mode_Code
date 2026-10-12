@@ -36,7 +36,7 @@
 - **Footer lines.** Under each answer: whether your memory repository was pushed, whether anything changed, and the quota when it matters. Computed from git, the turn's tool calls and the measured quota, never guessed.
 - **Quiet long work.** Leaves out Claude Code's "the user has not heard from you" reminders, so long autonomous work does not fill your screen with status lines.
 
-**In your terminal** (`terminal-code`): a control center with seven categories, in English and Turkish.
+**In your terminal** (`terminal-code`): a control center with seven categories, in English and Turkish, and a maintenance check (`terminal-code doctor`) that tests the installation and the machine around it and repairs what it safely can.
 
 |                 |                                                                                                                                                                                                                          |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -210,12 +210,15 @@ On your machine, `terminal-code doctor` runs the same checks: Node.js, Claude Co
 
 ## Roadmap
 
-- Modes and mode flows (research, plan, approval, code) enforced by code
-- Fully autonomous runs with a definition of done, in WSL2
-- Session handoff notes before compaction, quota history, a morning report
-- Settings and history sync across machines (append-only, per machine)
-- More rule templates (Flutter, public repositories, production servers)
-- Publication on npm under the final name, with provenance
+Next, in this order:
+
+- **Modes and mode flows**, enforced by code: research, plan, approval and code, chained as a flow (research ▶ plan → approval → code) in which no step is skipped and code checks that each step is done. Chat mode is already in.
+- **Session handoff:** a handoff note before `/clear` and before compaction, and a morning report. The session state already survives compaction.
+- **Sync across machines:** settings and history, append-only, per machine.
+- **Fully autonomous runs** with a definition of done, in WSL2. Last on purpose: they build on the modes.
+- **Publication** on npm under the final name, with provenance.
+
+Shipped from the earlier roadmap: rule templates (seven), quota history, the day and week report, the maintenance check (`doctor`) and the test process described in [docs/testing.md](docs/testing.md).
 
 ## Contributing
 
