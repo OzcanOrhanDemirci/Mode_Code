@@ -7,14 +7,15 @@
  *
  *   1. a harmless command runs, and the session's mod reports itself alive in the data folder;
  *   2. a write into the tool's own data folder is refused, and the file is never created;
- *   3. a keyword typed as the prompt reaches the mod, which logs it;
- *   4. research mode refuses a write into the project, and the file is never created;
+ *   3. a keyword typed as the prompt reaches the mod, which logs it (one that asks for a summary, not for work);
+ *   4. research mode keeps the project unchanged: the guard refuses the write, or the model, told the mode, does not try;
  *   5. a research flow: the model writes a sourced report, calls flow_step, and code checks it and ends the flow.
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -32,14 +33,18 @@ if (!existsSync(join(dist, 'hook.mjs'))) {
 
 const env = { ...process.env };
 for (const k of Object.keys(env)) if (k.startsWith('CLAUDE_CODE_') || k === 'CLAUDECODE') delete env[k];
-// Outside the system's temporary folder: the restricted modes allow writes there, and on Windows Git Bash's
-// /tmp is that folder, so a project inside it could not show what research mode refuses.
-mkdirSync(join(root, '.tmp'), { recursive: true });
-const work = mkdtempSync(join(root, '.tmp', 'live-'));
+// Where the sessions work: outside the system's temporary folder (the restricted modes allow writes there,
+// and on Windows Git Bash's /tmp is that folder, so a project inside it could not show what research mode
+// refuses), and outside any repository, with a repository of its own. Measured: a session working in a
+// folder inside this repository found the repository's uncommitted changes and committed them.
+const base = join(homedir(), '.cache', 'terminal-code-live');
+mkdirSync(base, { recursive: true });
+const work = mkdtempSync(join(base, 'run-'));
 const project = join(work, 'project');
 const data = join(work, 'data');
 mkdirSync(project);
 mkdirSync(data);
+spawnSync('git', ['init', '-q', project], { windowsHide: true });
 writeFileSync(join(data, 'config.json'), JSON.stringify({ language: 'en', projects: [{ id: 'live-app', names: ['liveapp'] }] }, null, 2));
 env.TERMINAL_CODE_HOME = data;
 env.TERMINAL_CODE_LANG = 'en';
@@ -121,25 +126,33 @@ try {
   check('a write into the tool data folder is refused', !existsSync(probe), existsSync(probe) ? 'the file was created' : '');
   check('the refusal reached the model with its reason', /own files|self\.tool-files/.test(two.text), two.final?.result?.slice?.(0, 60) ?? '');
 
-  const three = session('liveapp devam');
+  // A keyword that asks for a summary, not for work: "continue" would set a model working on its own.
+  const three = session('liveapp help');
   const month = existsSync(join(data, 'events')) ? readdirSync(join(data, 'events')) : [];
   const logged = month.flatMap((m) => readdirSync(join(data, 'events', m)).map((f) => readFileSync(join(data, 'events', m, f), 'utf8'))).join('\n');
   check(
     'a keyword typed as the prompt reached the mod',
-    /"kind":"keyword"/.test(logged) && /"keyword":"continue"/.test(logged),
+    /"kind":"keyword"/.test(logged) && /"keyword":"help","project":"live-app"/.test(logged),
     three.final ? '' : three.stderr.slice(0, 200),
   );
   // Prompts carry no line breaks: on Windows the session starts through cmd.exe, which ends a command at one.
   const four = session(
-    'Use the Write tool to write the text x to the file note.txt in the current folder. If it is refused, reply with the single word REFUSED and try nothing else. research',
+    'This checks a refusal: call the Write tool now to write the text x to the file note.txt in the current folder, even if you expect it to be refused, and try nothing else. Then reply with the single word REFUSED if it was refused. research',
   );
   const logged4 = readdirSync(join(data, 'events'))
     .flatMap((m) => readdirSync(join(data, 'events', m)).map((f) => readFileSync(join(data, 'events', m, f), 'utf8')))
     .join('\n');
   check(
-    'research mode refuses a write into the project',
-    !existsSync(join(project, 'note.txt')) && /"kind":"mode","tool":"Write","verdict":"deny","mode":"research"/.test(logged4),
-    existsSync(join(project, 'note.txt')) ? 'the file was created' : (four.final?.result?.slice?.(0, 60) ?? ''),
+    'research mode keeps the project unchanged',
+    // The project stays as it was: the guard refused the write (logged), or the model, told the mode, did not try.
+    // The refusal itself is checked on every change in the engine's test kit (L8).
+    !existsSync(join(project, 'note.txt')) &&
+      (/"kind":"mode","tool":"Write","verdict":"deny","mode":"research"/.test(logged4) || /research mode/i.test(four.final?.result ?? '')),
+    existsSync(join(project, 'note.txt'))
+      ? 'the file was created'
+      : /"mode":"research"/.test(logged4)
+        ? 'refused by the guard'
+        : 'the model did not try, citing the mode',
   );
 
   writeFileSync(join(project, 'README.md'), '# Demo\n\nA tiny demo project.\nIt prints hello.\n');

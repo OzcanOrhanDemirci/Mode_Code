@@ -32,6 +32,8 @@
 
 - **Emniyet kemeri.** Her kabuk komutunu ve dosya yazmayı çalışmadan önce okur, riskli olanları durdurur: ev klasörünü silmek, korunan bir dala zorla push, hook'ları kapatmak, Claude Code ayarlarını değiştirmek, hafızanın geçmişini yeniden yazmak, paket yayınlamak. Kural kural engeller, sana sorar ya da not düşer. Bütün izin modlarında çalışır, "bypass permissions" dahil.
 - **Anahtar kelimeler.** Mesajını `devam`, `manuel devam`, `sohbet`, `kota 40`, `toparla`, `dur`, `durum` ya da `yardım` ile bitir (İngilizceleri de geçerli), araç Claude'a ne demek istediğini tam olarak söyler. `projem devam kota 40` o projede, haftalık kotanın %40'ına kadar otonom çalışır.
+- **Modlar**, kodla uygulanır: 💬 sohbet, 🔍 araştırma, 📐 plan ve 🔨 kod. Sohbet, araştırma ve plan; geçici klasör, çalışma klasörü ya da plan dosyası dışında hiçbir şeyi değiştirmez: bir kabuk komutunun çalıştırdığı her program sınıflandırılır (yalnız okur, adı verilen dosyaları yazar, klasöründe bir şeyi değiştirir, dışarıya uzanır, bilinmiyor) ve sınıflandırılamayan reddedilir, nedeni söylenir. Claude Code'un kendi plan modu 📐 plana köprülenir.
+- **Akışlar.** Bir görevi `akış` ile bitir; 🔍 araştırma ▶ 📐 plan → ⏸ onay → 🔨 kod olarak yürür. Hiçbir adım atlanmaz ve her birini kod denetler: bulguları var olan kaynaklara dayanan bir rapor, kabul ölçütleri ve doğrulama komutları olan bir plan, bir iletişim kutusunda (ya da Claude Code'un plan penceresinde) senin onayın ve eklenti çalıştırdığında geçen doğrulama komutları. Akışlar duraklatılır, yeni bir oturumda sürer ve kontrol merkezinde görünür. Ayrıntı: [docs/modes.md](docs/modes.md) (İngilizce).
 - **Kota bekçisi.** Claude Code'un bildirdiği 5 saatlik ve haftalık pencereleri okur; bütçende işi toparlar, sınırda durdurur ve iş otonomsa pencere sıfırlandıktan bir dakika sonra kendiliğinden sürdürür.
 - **Alt satırlar.** Her cevabın altında: hafıza deposu itildi mi, bir şey değişti mi, gerektiğinde kota. Git'ten, turun araç çağrılarından ve ölçülen kotadan hesaplanır, asla tahmin edilmez.
 - **Sessiz uzun iş.** Claude Code'un "kullanıcı uzun süredir haber alamadı" hatırlatmalarını dışarıda bırakır; uzun otonom iş ekranını durum satırlarıyla doldurmaz.
@@ -41,7 +43,7 @@
 |                 |                                                                                                                                                                                                                           |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Ana ekran**   | Koruma durumu, kota, bugün, çalışan oturumlar ve sen yokken olanlar                                                                                                                                                       |
-| **Projeler**    | Çalıştığın her klasör: oturumlar, tokenler, git durumu                                                                                                                                                                    |
+| **Projeler**    | Çalıştığın her klasör: oturumlar, tokenler, git durumu; her akış, adımları, her denetimin bulduğu ve dosyaları                                                                                                            |
 | **Oturumlar**   | Bu makinedeki her oturum, aranabilir; birini sırları maskeleyerek Markdown olarak dışa aktar                                                                                                                              |
 | **Ölçüm**       | Kota pencereleri, güne ve modele göre token, önbellek isabeti, araç hata oranları                                                                                                                                         |
 | **Güvenlik**    | Her korumanın çalışıp çalışmadığı, 39 kemer kuralı, yakaladıkları, bir sınayıcı, hafızadaki sırlar                                                                                                                        |
@@ -76,6 +78,19 @@ Bir cevabın altındaki satırlar, Claude Code'un kendi modlarının yanında ot
 ```
 
 Türkçe kurulumda aynı satırlar "Hafıza İtildi", "İşlem Yapıldı", "otonom" ve "5s %31 · hafta %28" olarak görünür.
+
+Bir akışın planı onay bekliyor: eklenti onu önce denetledi; akışı kod adımına yalnız kişinin cevabı geçirir (oturum İngilizceydi):
+
+```
+● terminal-code - flow_step (MCP)(step: "plan")
+──────────────────────────────────────────────────────────────────────────────
+ ☐ Plan
+│ The plan is ready: 1 step, verified by `cat hello.txt`, `git status --short`.
+│ Plan: …/flows/20261013-0044-plan-a-tiny-change-add/plan.md. Approve it?
+❯ 1. Approve, start coding
+  2. Change the plan
+  3. Pause the flow
+```
 
 ## Neden
 
@@ -151,16 +166,19 @@ Bütün komutlar: [docs/cli.md](docs/cli.md).
 
 Bir anahtar kelime ancak mesajın tamamıysa ya da mesajı bitiriyorsa sayılır; cümlenin içinde sıradan bir kelimedir. Büyük küçük harf ve aksan önemsenmez; `termınal devam` da çalışır. `dur` ve `toparla` yalnız mesajın tamamıysa sayılır, kazara tetiklenmez.
 
-| Anahtar | Türkçe                    | İngilizce           | Claude'a söylenen                                                       |
-| ------- | ------------------------- | ------------------- | ----------------------------------------------------------------------- |
-| devam   | `devam`, `terminal devam` | `continue`          | Otonom çalış; yalnız senin vermen gereken bir kararda dur               |
-| manuel  | `manuel terminal devam`   | `manual … continue` | Adım adım; ne yapacağını söyle ve bekle                                 |
-| sohbet  | `sohbet`                  | `chat`              | Yalnız konuşma; "devam" diyene kadar proje ve hafızaya yazma reddedilir |
-| kota    | `kota 40`, `kota +8`      | `quota 40`          | Haftalık bütçe: %40 ya da şu anki ölçümün 8 puan üstü                   |
-| toparla | `toparla`                 | `wrap up`           | Adımı tutarlı bir yere getir, commit et, raporla, dur                   |
-| dur     | `dur`                     | `stop`              | Hemen dur; zamanlayıcıları ve ajanları durdur                           |
-| durum   | `durum`                   | `status`            | Durmadan nerede olduğunu söyle                                          |
-| yardım  | `yardım`                  | `help`              | Anahtar kelimeleri ve kuralları özetle                                  |
+| Anahtar | Türkçe                                              | İngilizce                                           | Claude'a söylenen                                                           |
+| ------- | --------------------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------- |
+| devam   | `devam`, `terminal devam`                           | `continue`                                          | Otonom çalış; yalnız senin vermen gereken bir kararda dur                   |
+| manuel  | `manuel terminal devam`                             | `manual … continue`                                 | Adım adım; ne yapacağını söyle ve bekle                                     |
+| sohbet  | `sohbet`                                            | `chat`                                              | Yalnız konuşma; "devam" diyene kadar proje ve hafızaya yazma reddedilir     |
+| kota    | `kota 40`, `kota +8`                                | `quota 40`                                          | Haftalık bütçe: %40 ya da şu anki ölçümün 8 puan üstü                       |
+| toparla | `toparla`                                           | `wrap up`                                           | Adımı tutarlı bir yere getir, commit et, raporla, dur                       |
+| dur     | `dur`                                               | `stop`                                              | Hemen dur; zamanlayıcıları ve ajanları durdur                               |
+| durum   | `durum`                                             | `status`                                            | Durmadan nerede olduğunu söyle                                              |
+| yardım  | `yardım`                                            | `help`                                              | Anahtar kelimeleri ve kuralları özetle                                      |
+| modlar  | `araştırma`, `plan`, `kod`, `serbest`               | `research`, `plan`, `code`, `free`                  | Mod değiştir; bir akış sürerken, uzun bir mesajın sonunda yalnız o tur için |
+| akış    | `akış`, `akış plan`, `akış araştırma`, `akış iptal` | `flow`, `flow plan`, `flow research`, `flow cancel` | Mesajdaki görevle bir akış başlat ya da akışı bitir                         |
+| onay    | `onay`                                              | `approve`                                           | Onay bekleyen planı onayla (yalnız mesajın tamamıysa)                       |
 
 Projelerine Ayarlar › Projeler ve anahtar kelimeler altından ad ver; kendi ifadelerini ayar dosyasına ekleyebilirsin. Ayrıntı: [docs/keywords.md](docs/keywords.md).
 
@@ -184,11 +202,11 @@ Bir güvenlik açığı mı buldun? Lütfen gizli bildir: [SECURITY.md](SECURITY
 
 ## Nasıl test ediliyor
 
-Bir ajanla makinen arasında duran bir araç güveni kanıtla kazanmalı. Kodun kendisiyle ilgili kurallardan gerçek Claude Code oturumlarına kadar on iki katman var; her biri neyi kanıtladığını ve neyi kanıtlayamadığını söylüyor ([docs/testing.md](docs/testing.md), İngilizce). 2026-10-12 ölçümü:
+Bir ajanla makinen arasında duran bir araç güveni kanıtla kazanmalı. Kodun kendisiyle ilgili kurallardan gerçek Claude Code oturumlarına kadar on iki katman var; her biri neyi kanıtladığını ve neyi kanıtlayamadığını söylüyor ([docs/testing.md](docs/testing.md), İngilizce). 2026-10-13 ölçümü:
 
-- Windows, Linux ve macOS'ta, Node.js 22 ve 24 ile **395 test**; ortalama satır kapsamı **%96**, her dosya yalnız yukarı giden bir tabana bağlı.
-- **Yanlış alarm da hata sayılır.** 197 günlük komut her platformda tek bir soru sorulmadan geçmek zorunda. Yazarın son 30 gününde (36.349 araç çağrısı) kemer günde 4,2 kez sorardı.
-- **Testlerin kendisi de test ediliyor.** Mutasyon testi karar veren koda 615 küçük, bilerek yapılmış değişiklik uygular; testler 615'ini de yakalıyor. Bakım denetimi bir deneme ortamını 13 şekilde bozar; 13'ünü de fark etmesi ve onarılabilecek olanları onarması gerekir.
+- Windows, Linux ve macOS'ta, Node.js 22 ve 24 ile **468 test**; ortalama satır kapsamı **%96,6**, her dosya bir tabana bağlı.
+- **Yanlış alarm da hata sayılır.** 197 günlük komut her platformda kemerden tek bir soru sorulmadan geçmek, 162 okuma komutu da sohbet, araştırma ve plan modunda çalışmak zorunda. Yazarın son 30 gününde (36.658 araç çağrısı) kemer günde 4,4 kez sorardı.
+- **Testlerin kendisi de test ediliyor.** Mutasyon testi karar veren koda, kemere de modlara da, 1.116 küçük, bilerek yapılmış değişiklik uygular; testler 1.116'sını da yakalıyor. Bakım denetimi bir deneme ortamını 13 şekilde bozar; 13'ünü de fark etmesi ve onarılabilecek olanları onarması gerekir.
 - **Gerçek motorun içinde.** Eklenti Claude Code'un kendi test takımıyla, her gece en yeni Claude Code sürümüne karşı ve gerçek başsız oturumlarda sınanıyor.
 - **Testler gerçek hatalar buldu**, her biri düzeltildi ve bir testle düzeltilmiş kalıyor: Windows kısa adlarıyla (`TERMIN~1`) ya da sonda bir noktayla erişilebilen korumalı dosyalar, macOS'ta ev klasörü altındaki her özyinelemeli silmenin engellenmesi, `__proto__` sözcüğünde ayrıştırıcının çökmesi.
 
@@ -215,13 +233,12 @@ Kendi makinende `terminal-code doctor` aynı denetimleri yapar: Node.js, Claude 
 
 Sıradakiler, bu sırayla:
 
-- **Modlar ve mod akışları**, kodla uygulanır: araştırma, plan, onay ve kod; bir akış olarak bağlanır (araştırma ▶ plan → onay → kod), hiçbir adım atlanmaz ve her adımın bittiğini kod denetler. Sohbet modu zaten var.
 - **Oturum devri:** `/clear` ve sıkıştırma öncesinde devir notu, sabah raporu. Oturum durumu sıkıştırmadan zaten sağ çıkıyor.
 - **Makineler arası eşitleme:** ayarlar ve geçmiş, yalnız ekleme, makine başına.
-- **Tam otonom çalışma**, bitti tanımıyla, WSL2'de. Bilerek en sonda: modların üzerine kurulur.
+- **Tam otonom çalışma**, bitti tanımıyla, WSL2'de. Bilerek en sonda: modların ve akışların üzerine kurulur.
 - **Yayın:** nihai adla, kaynağı doğrulanabilir biçimde npm'de.
 
-Önceki yol haritasından tamamlananlar: kural şablonları (yedi tane), kota geçmişi, günlük ve haftalık rapor, bakım denetimi (`doctor`) ve [docs/testing.md](docs/testing.md) belgesinde anlatılan test süreci.
+Önceki yol haritasından tamamlananlar: modlar ve akışlar ([docs/modes.md](docs/modes.md)), kural şablonları (yedi tane), kota geçmişi, günlük ve haftalık rapor, bakım denetimi (`doctor`) ve [docs/testing.md](docs/testing.md) belgesinde anlatılan test süreci.
 
 ## Katkı
 

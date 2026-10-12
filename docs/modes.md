@@ -112,7 +112,9 @@ Acceptance: <how we know this step is right>
 - `npm test`
 ```
 
-The check: at least one step; steps numbered 1, 2, 3 … without gaps; every step has a non-empty `Acceptance:` line (`Kabul:` in Turkish); a Verification section (`Doğrulama`) with at least one command in backticks; every command parses and is not one the safety belt would refuse. Numbered list items under Steps work as well as `###` headings.
+The check: at least one step; steps numbered 1, 2, 3 … without gaps; every step has a non-empty `Acceptance:` line (`Kabul:` in Turkish); a Verification section (`Doğrulama`) with at least one command; every command parses and is not one the safety belt would refuse. A command is the first text in backticks on its line (later backticks on the line are notes about it, such as an expected output), or a line of a fenced block (`#` comments left out). Numbered list items under Steps work as well as `###` headings.
+
+Where the plan is: the flow's work file, or, while Claude Code's plan mode is on, the plan file Claude Code names. Plan mode can be switched on after the flow started, so when both exist the one that passes the check is taken.
 
 **⏸ Approval: the person said yes.** Through the dialog the plugin opens when the plan step is done, through Claude Code's plan dialog when Claude Code's plan mode is on, or by typing `approve` / `onay` (headless sessions, a phone, a dismissed dialog). In the dialog the person can also ask for changes (the flow goes back to the plan step with their words) or pause the flow. The approved plan is copied into the flow's record; the verification commands are taken from that copy, so a later edit of the work file cannot change them.
 
@@ -155,23 +157,36 @@ The record and the copies live in the tool's own folder, which the safety belt k
 - **Web addresses are checked for form, not fetched**: the tool opens no network connection.
 - **Needs the plugin.** Modes and flows run in the plugin. Where the plugin is not loaded (an older Claude Code, plugins turned off by policy), the safety-net hook says so when a mode or flow keyword is typed; the safety belt runs either way.
 - **Claude Code's plan dialog needs an interactive session.** Headless sessions (`claude -p`) wait for `approve` / `onay` instead.
+- **A project inside a temporary folder is a temporary folder.** The restricted modes allow writes in temporary folders, and on Windows Git Bash's `/tmp` is the user's temporary folder, so a project kept there is writable in every mode.
+- **Plan mode's own questions stay.** In Claude Code's plan mode, a write outside its plan file asks the person first (Claude Code's rule, not this tool's); the guidance sends the plan to Claude Code's plan file there so that no such question comes up.
 
 ## Measured
 
-_Filled in from the runs that produced them._
+All on the author's Windows 11 machine with Claude Code 2.1.296, 2026-10-13.
+
+| What                                         | Result                                                                                                                                                                                                                                                    |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The classifier over 30 days of real sessions | 29,825 shell commands: 42% only read (they run in every mode), 4% write named files, 45% change things around their folder, 5% reach outside, 4% unknown or not readable in full. `terminal-code belt replay` prints the same line for your own sessions. |
+| Forms the classifier knows                   | 297 command forms, each with its class, reason, files and folder, reviewed one by one and kept as a test                                                                                                                                                  |
+| Reading commands in restricted modes         | 162 reading commands (137 Bash, 25 PowerShell) run in chat, research and plan mode on Windows, macOS and Linux: no false alarm. 110 changing commands: none passes as a read                                                                              |
+| Mutation testing of the deciding code        | 483 of 483 changes caught in the classifier, modes, guard, flow and flow checks; 15 equivalents explained in `test/mutation-equivalents.json`                                                                                                             |
+| The flow_step tool's cost                    | 224 input tokens per request (the tool's name, description and schema in every request, mostly read from the prompt cache)                                                                                                                                |
+| Live, headless (`npm run test:live`)         | research mode refused a project write; a research flow ended only after its report passed the check (sources measured on disk)                                                                                                                            |
+| Live, interactive (driven by hand)           | the plugin's approval dialog and Claude Code's plan dialog each approved a plan; the flow moved to its code step only after                                                                                                                               |
 
 ## Plan and status
 
 The plan this page was written from (2026-10-12), kept as a checklist:
 
-- [ ] Core: the five modes, what each allows, the effective mode (a turn's mode, the flow's step, Claude Code's plan mode, the session's mode).
-- [ ] Core: the command classifier (five classes, the working folder followed through `cd`), and the mode guard for shell, file, MCP and Claude Code tools.
-- [ ] Core: mode, flow and approval keywords in both languages; a mode keyword ending a message during a flow changes that turn only.
-- [ ] Core: the flow state machine (start, step done, approval, revision, pause, resume, cancel), its record, and the checks of the report and the plan.
-- [ ] Plugin: the `flow_step` tool, the approval dialog, running the verification commands, Claude Code's plan dialog as an approval, plan-mode notes, labels and the approval line, flows across sessions and through compaction, quota resume that waits for approval.
-- [ ] Safety-net hook: records Claude Code's permission mode; says when a mode keyword cannot be honoured because the plugin is not loaded.
-- [ ] `terminal-code flow`, Projects › Flows, pending approvals on Home.
-- [ ] Tests in every layer of [testing.md](testing.md): unit, properties (no sequence of events completes a step out of order or without its check), the false-alarm corpus for the classifier, the engine's test kit, live sessions; mutation targets and coverage floors for the new deciding code.
-- [ ] Measured: the classifier over real sessions, the cost of the tool definition in tokens.
-- [ ] An interactive session, driven by hand: Claude Code's plan dialog as the approval, the plugin's dialog.
-- [ ] Docs: keywords, architecture, command reference, README in both languages, changelog.
+- [x] Core: the five modes, what each allows, the effective mode (a turn's mode, the flow's step, Claude Code's plan mode, the session's mode).
+- [x] Core: the command classifier (five classes, the working folder followed through `cd`), and the mode guard for shell, file, MCP and Claude Code tools.
+- [x] Core: mode, flow and approval keywords in both languages; a mode keyword ending a message during a flow changes that turn only.
+- [x] Core: the flow state machine (start, step done, approval, revision, pause, resume, cancel), its record, and the checks of the report and the plan.
+- [x] Plugin: the `flow_step` tool, the approval dialog, running the verification commands, Claude Code's plan dialog as an approval, plan-mode notes, labels and the approval line, flows across sessions and through compaction, quota resume that waits for approval.
+- [x] Safety-net hook: records Claude Code's permission mode; says when a mode keyword cannot be honoured because the plugin is not loaded.
+- [x] `terminal-code flow`, Projects › Flows, pending approvals on Home.
+- [x] Tests in every layer of [testing.md](testing.md): unit, properties (no sequence of events completes a step out of order or without its check), the false-alarm corpus for the classifier, the engine's test kit, live sessions; mutation targets and coverage floors for the new deciding code.
+- [x] Measured: the classifier over real sessions, the cost of the tool definition in tokens.
+- [x] An interactive session, driven by hand: Claude Code's plan dialog as the approval, the plugin's dialog.
+- [x] Docs: keywords, architecture, command reference, README in both languages, changelog.
+- [x] Also built: the doctor's self-tests include the modes; `belt replay` shows what the restricted modes would run.

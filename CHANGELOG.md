@@ -28,9 +28,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `terminal-code doctor` measures the machine, checks the installation and the protections, runs the built-in self-tests, compares the installed hook program with this build on the same samples, and offers safe repairs that back up, restore and check again (`--fix`, `--report`, `--quick`, `--self-check`, `--json`). The maintenance page shows the last check.
 - `terminal-code belt replay`: the belt run over your recent sessions, counting what it would have asked about or blocked, by rule. Nothing is run.
 - A test process with twelve layers, from invariants about the code to real Claude Code sessions, and `npm run verify` to run every layer that can run on a machine. See [docs/testing.md](docs/testing.md).
-- Modes: chat, research, plan and code, enforced by code. A restricted mode refuses shell commands and file writes it does not allow before they run; the classifier splits shell commands into read, write, local, outside and unknown. See [docs/modes.md](docs/modes.md).
-- Flows: `research`, `plan` and `code` chain modes into steps that cannot be skipped. A step counts as done only when code has checked what it produced: a sourced report, a plan with acceptance criteria and verification commands, and verification commands that exit 0. Projects › Flows lists them; Home lists plans waiting for approval.
-- `belt replay` shows how the shell calls split by mode.
+- Modes, enforced by code: chat, research, plan and code (`sohbet`, `araştırma`, `plan`, `kod`; `serbest` for free). Chat, research and plan write only into temporary folders, the flows' work folder or the plan file, and run a shell command only when they can place what it does: a classifier sorts every program a command runs into reads, writes named files, changes around its folder, changes outside, or unknown, and refuses what it cannot place, saying why. See [docs/modes.md](docs/modes.md).
+- Flows: `flow` / `akış` (research ▶ plan → approval → code), `flow plan`, `flow research`. Steps run in order and the model finishes one through the `flow_step` tool; code checks each: a report whose findings cite sources that exist, a plan with numbered steps, acceptance criteria and verification commands the belt allows, the person's approval (the plugin's dialog, Claude Code's plan dialog, or `approve` / `onay`), and verification commands that pass when the plugin runs them. Flows pause, resume across sessions and survive a compaction.
+- Claude Code's plan mode is bridged: its plan mode puts the session in plan mode, and its plan dialog approves a flow's plan after the plugin has checked it.
+- `terminal-code flow`, Projects › Flows, and plans waiting for approval on Home and in the inbox.
+- `belt replay` also says what the restricted modes would run of your recent shell commands; `doctor` runs a modes self-test.
 
 ### Changed
 
