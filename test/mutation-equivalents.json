@@ -288,6 +288,14 @@
       "line": ".map((x) => pathOf({ text: x.w, dynamic: x.dynamic, glob: false }, cwd, env))",
       "kind": "equivalent",
       "why": "the glob mark is not read when resolving a redirection's file"
+    },
+    {
+      "file": "src/core/keywords.ts",
+      "from": ">=",
+      "to": ">",
+      "line": "while (last >= 0 && !lines[last]!.trim()) last--;",
+      "kind": "equivalent",
+      "why": "stopping at the first line instead of before it leaves an empty or the only line, and both give the same text"
     }
   ]
 }

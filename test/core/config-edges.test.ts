@@ -109,3 +109,26 @@ test('setting one value by its dotted path creates what is missing and is valida
     ['quota.staleMinutes'],
   );
 });
+
+test('modes: the work folder is a path or null; anything else is reported and left at its default', () => {
+  assert.equal(normalizeConfig({ modes: { workDir: '  /work/flows  ' } }).config.modes.workDir, '/work/flows');
+  assert.equal(normalizeConfig({ modes: { workDir: null } }).config.modes.workDir, null);
+  assert.equal(normalizeConfig({ modes: {} }).config.modes.workDir, null);
+  for (const bad of [5, '', '   ', true]) {
+    const r = normalizeConfig({ modes: { workDir: bad } });
+    assert.equal(r.config.modes.workDir, null, String(bad));
+    assert.deepEqual(
+      r.problems.map((p) => [p.path, p.kind]),
+      [['modes.workDir', 'type']],
+      String(bad),
+    );
+  }
+  assert.deepEqual(
+    normalizeConfig({ modes: { other: 1 } }).problems.map((p) => [p.path, p.kind]),
+    [['modes.other', 'unknown-key']],
+  );
+  assert.deepEqual(
+    normalizeConfig({ modes: 'x' }).problems.map((p) => [p.path, p.kind]),
+    [['modes', 'type']],
+  );
+});

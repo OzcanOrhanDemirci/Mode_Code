@@ -56,7 +56,8 @@ const layers = [
     counts: (o) => {
       const p = /(\d+) pass/.exec(o);
       const f = /(\d+) fail/.exec(o);
-      return /skipped/.test(o)
+      // Only the script's own "skipped" line: a test may have the word in its name.
+      return /^test-mod: skipped/m.test(o)
         ? (/test-mod: (skipped.*)/.exec(o)?.[1] ?? 'skipped')
         : p
           ? `${p[1]} passed, ${f?.[1] ?? 0} failed in the engine's own test kit`
