@@ -49,6 +49,7 @@ Every runtime file has exactly one writer, so no two processes race on a file; w
 - **Mod first, hooks as a net.** Claude Code's mods API runs the plugin in-process (no process start per call, direct quota figures, dialogs, notices). Settings hooks are slower and simpler, so they carry only what must survive when the plugin is missing: the belt, keyword context, the footer check.
 - **Exec-form hooks with an absolute Node path and `onFailure: "block"`.** No shell in between (faster, no quoting), and a hook that cannot start blocks instead of letting the call through.
 - **Approvals by `tool_use_id`.** When you allow a call the belt asked about, the approval names that call's id, which the model cannot choose; it expires in ten minutes.
+- **Drawn, not written.** Footer lines are added to the drawing of the answer (a render hook) and the mode and quota to the prompt footer, so they cost no tokens and carry no notice prefix. The session state (autonomous work, project, budget, chat mode) is restated through a compaction and reset by /clear.
 - **Tokens counted per API message.** Transcripts repeat a message's usage on each content block; the index deduplicates by message id.
 - **No runtime dependencies.** Each program is one bundled file; bundled third-party code is listed in `THIRD_PARTY_NOTICES.md`, and the build fails on a license outside the allowed list.
 

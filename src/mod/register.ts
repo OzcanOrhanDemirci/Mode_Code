@@ -191,9 +191,13 @@ function parseReading(text: string | null): QuotaReading | null {
 }
 
 async function ctxOf($: $): Promise<Ctx> {
+  const fresh = !ctxPromise;
   if (!ctxPromise) ctxPromise = load($);
   try {
-    return await ctxPromise;
+    const c = await ctxPromise;
+    // A fresh state (a new session, or a /clear) redraws the mode labels from it.
+    if (fresh) await refreshStatus($, c);
+    return c;
   } catch (err) {
     ctxPromise = null;
     throw err;
@@ -334,6 +338,38 @@ async function refreshStatus($: $, c: Ctx): Promise<void> {
         : tIn(c.lang, 'status.week', { n: Math.round(q.week.used) }),
     );
   await update($, labelsAtom, () => ({ modes, tail: quota.length ? `🛡 ${quota.join(' · ')}` : '🛡' }));
+}
+
+/**
+ * The session's state in one paragraph for the model, or '' when there is nothing beyond the defaults.
+ * Claude Code reads it with the first message's context, which it reads again after a compaction: the
+ * keyword context of the original prompt is summarized away there, this is not.
+ */
+async function sessionStateText($: $): Promise<string> {
+  let c: Ctx;
+  try {
+    c = await ctxOf($);
+  } catch {
+    return '';
+  }
+  const s = c.state;
+  const parts: string[] = [];
+  const label = s.project ? (c.config.projects.find((p) => p.id === s.project)?.names[0] ?? s.project) : null;
+  if (s.interaction === 'autonomous') parts.push(`the person asked for autonomous work${label ? ` on project "${label}"` : ''}`);
+  else if (s.interaction === 'manual') parts.push(`the person asked to work step by step${label ? ` on project "${label}"` : ''}`);
+  if (s.mode === 'chat') parts.push('chat mode is on: no project or memory writes and no commits until the person says continue');
+  if (s.weeklyTarget !== null) parts.push(`the weekly quota budget is ${s.weeklyTarget}%`);
+  if (s.wrapUp) parts.push('work is wrapping up: finish the current step, commit, report and stop');
+  return parts.length ? `[${APP_NAME}] Session state, kept across compaction: ${parts.join('; ')}.` : '';
+}
+
+/** Adds the state note to the conversation as a row the model reads and the person does not see as typed. */
+async function restateSession($: $, text: string): Promise<void> {
+  try {
+    await $.session.append({ message: { type: 'user', content: [{ type: 'text', text }] } });
+  } catch {
+    /* the summary was asked to keep it too */
+  }
 }
 
 /** A short, stable key for an answer's text (FNV-1a), to find the footer of the answer being drawn. */
@@ -664,6 +700,21 @@ export function register(on: On): void {
   on('session.measure', onMeasure);
   on('turn.complete', onTurnComplete);
   on('prompt.attachment', { type: 'silent_turn_reminder' }, async ($, e, next) => ((await quietWork($)) ? { text: null } : next(e)));
+  // The session's state survives a compaction: the summarizer is asked to keep it, and it is restated after.
+  on('session.compact', async ($, e, next) => {
+    if (e.agentId !== undefined) return next(e);
+    const text = await sessionStateText($);
+    if (!text) return next(e);
+    const r = await next({ ...e, instructions: [e.instructions, `Keep this in the summary, word for word: ${text}`].filter(Boolean).join('\n') });
+    await restateSession($, text);
+    return r;
+  });
+  // After /clear the conversation goes on under a new session id with a fresh state.
+  on('session.end', async ($, e, next) => {
+    const r = await next(e);
+    if (e.reason === 'clear') ctxPromise = null;
+    return r;
+  });
   // The footer lines, as part of the answer's drawing (every surface, the phone included).
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
     const lines = await footerFor($, e.props.text, e.props.isSummary === true);
