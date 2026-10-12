@@ -12,7 +12,7 @@
  *   4. a settings file for the tool itself, created only when there is none.
  */
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, realpathSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { APP_ID, APP_VERSION, MARKETPLACE_NAME, MIN_CLAUDE_CODE_FOR_HOOKS, MIN_CLAUDE_CODE_FOR_MODS, PLUGIN_ID, PLUGIN_NAME } from '../core/app.js';
@@ -68,6 +68,18 @@ export function distDir(): string {
   const here = dirname(fileURLToPath(import.meta.url));
   for (const d of [here, join(here, '..', '..', 'dist')]) if (existsSync(join(d, 'hook.mjs')) && existsSync(join(d, 'plugin'))) return d;
   return here;
+}
+
+/**
+ * The Node.js the hooks will run, by a path that outlives this shell: version managers hand out per-shell
+ * links (fnm's "multishells") that disappear, so the link is resolved to the installation it points at.
+ */
+export function stableNodePath(): string {
+  try {
+    return realpathSync(process.execPath);
+  } catch {
+    return process.execPath;
+  }
 }
 
 export function hookProgram(l: Layout): string {
@@ -136,7 +148,7 @@ export function underAgent(env: NodeJS.ProcessEnv = process.env): boolean {
 }
 
 export function planInstall(l: Layout, opts: { node?: string; claude?: string | null } = {}): InstallPlan {
-  const node = (opts.node ?? process.execPath).replace(/\\/g, '/');
+  const node = (opts.node ?? stableNodePath()).replace(/\\/g, '/');
   const settingsFile = join(claudeDir(), 'settings.json');
   const hook = hookProgram(l).replace(/\\/g, '/');
   const plan: InstallPlan = {

@@ -26,6 +26,7 @@ export const enUi = {
   'health.notInstalled': 'Not installed yet.',
   'health.belt.disabledAll': 'A Claude Code settings file ({scope}) turns every hook off (disableAllHooks), so the safety belt cannot run.',
   'health.belt.noProgram': 'The hook program is missing: {path}. Reinstall to restore it.',
+  'health.belt.noNode': 'The Node.js the hooks run is gone ({path}), so Claude Code blocks every checked call. Run "terminal-code install" again to repair it.',
   'health.belt.noHook': 'The safety-net hook is not in your Claude Code settings. Reinstall to add it back.',
   'health.claudeOld': 'Claude Code {have} is older than {need}, which this feature needs. Update Claude Code with "claude update".',
   'health.belt.selfTest': 'The self-test failed: {detail}',

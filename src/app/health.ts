@@ -67,6 +67,15 @@ export function checkHealth(ctx: AppContext, opts: { selfTest?: boolean; withPlu
     belt = { id: 'belt', protection: true, state: 'red', reason: { key: 'health.belt.noProgram', params: { path: hookFile } }, fix: 'settings/maintenance' };
   else if (missingEvents.includes('PreToolUse'))
     belt = { id: 'belt', protection: true, state: 'red', reason: { key: 'health.belt.noHook' }, fix: 'settings/maintenance' };
+  else if (ours.some((h) => h.command && !existsSync(h.command)))
+    // A hook that cannot start blocks every checked call (onFailure: block): say so before it surprises anyone.
+    belt = {
+      id: 'belt',
+      protection: true,
+      state: 'red',
+      reason: { key: 'health.belt.noNode', params: { path: ours.find((h) => h.command && !existsSync(h.command))!.command } },
+      fix: 'settings/maintenance',
+    };
   else if (claude && compareVersions(claude, MIN_CLAUDE_CODE_FOR_HOOKS) < 0)
     belt = { id: 'belt', protection: true, state: 'red', reason: { key: 'health.claudeOld', params: { have: claude, need: MIN_CLAUDE_CODE_FOR_HOOKS } } };
   else {
