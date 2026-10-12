@@ -50,6 +50,7 @@
     "test:mod": "node scripts/typecheck-mod.mjs && node scripts/test-mod.mjs",
     "test:live": "node scripts/test-live.mjs",
     "test:mutation": "node scripts/mutate.mjs",
+    "verify": "node scripts/verify.mjs",
     "start": "node dist/cli.mjs"
   },
   "devDependencies": {
