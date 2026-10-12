@@ -28,6 +28,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `terminal-code doctor` measures the machine, checks the installation and the protections, runs the built-in self-tests, compares the installed hook program with this build on the same samples, and offers safe repairs that back up, restore and check again (`--fix`, `--report`, `--quick`, `--self-check`, `--json`). The maintenance page shows the last check.
 - `terminal-code belt replay`: the belt run over your recent sessions, counting what it would have asked about or blocked, by rule. Nothing is run.
 - A test process with twelve layers, from invariants about the code to real Claude Code sessions, and `npm run verify` to run every layer that can run on a machine. See [docs/testing.md](docs/testing.md).
+- Modes: chat, research, plan and code, enforced by code. A restricted mode refuses shell commands and file writes it does not allow before they run; the classifier splits shell commands into read, write, local, outside and unknown. See [docs/modes.md](docs/modes.md).
+- Flows: `research`, `plan` and `code` chain modes into steps that cannot be skipped. A step counts as done only when code has checked what it produced: a sourced report, a plan with acceptance criteria and verification commands, and verification commands that exit 0. Projects › Flows lists them; Home lists plans waiting for approval.
+- `belt replay` shows how the shell calls split by mode.
 
 ### Changed
 
