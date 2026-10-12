@@ -47,6 +47,35 @@
 | **Claude Code** | Kurulumunun salt okunur haritası: talimat dosyaları ve hafıza sınırı, ayar kaynakları, hook'lar, izin kuralları, MCP sunucuları, eklentiler |
 | **Ayarlar**     | Aracın kendi ayarları, yerinde düzenlenir                                                                                                   |
 
+### Claude Code'un içinde
+
+Gerçek bir Claude Code oturumundan alındı (Windows, Claude Code 2.1.296; oturum İngilizceydi). Kemer, izlenmeyen dosyaları silen bir temizlikten önce soruyor:
+
+```
+● Bash(git clean -f)
+  ⎿  Waiting…
+──────────────────────────────────────────────────────────────────────────────
+ ☐ Safety belt
+│ The safety belt stopped a Bash call. Deletes untracked files (git clean -f): git clean -f Allow it this once?
+❯ 1. Allow once
+  2. Block
+```
+
+Bir cevabın altındaki satırlar, Claude Code'un kendi modlarının yanında oturumun modu ve ipucu satırının sonunda kota:
+
+```
+● ready
+  Memory pushed: No (the memory repository has no remote branch)
+  Changes made: No
+✻ Baked for 1s
+──────────────────────────────────────────────────────────────────────────────
+❯
+──────────────────────────────────────────────────────────────────────────────
+  ⏵⏵ auto mode on (shift+tab to cycle) · 🛡 5h 31% · week 28%        autonomous
+```
+
+Türkçe kurulumda aynı satırlar "Hafıza İtildi", "İşlem Yapıldı", "otonom" ve "5s %31 · hafta %28" olarak görünür.
+
 ## Neden
 
 Yazarın Windows 11 makinesinde, Claude Code 2.1.296 ve Node.js 24.15 ile ölçüldü:

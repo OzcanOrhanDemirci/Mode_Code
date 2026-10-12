@@ -47,6 +47,33 @@
 | **Claude Code** | A read-only map of your setup: instruction files and the memory limit, settings sources, hooks, permission rules, MCP servers, plugins |
 | **Settings**    | The tool's own settings, edited in place                                                                                               |
 
+### Inside Claude Code
+
+Captured from a real Claude Code session (Windows, Claude Code 2.1.296). The belt asks before an untracked-files cleanup:
+
+```
+● Bash(git clean -f)
+  ⎿  Waiting…
+──────────────────────────────────────────────────────────────────────────────
+ ☐ Safety belt
+│ The safety belt stopped a Bash call. Deletes untracked files (git clean -f): git clean -f Allow it this once?
+❯ 1. Allow once
+  2. Block
+```
+
+The footer lines under an answer, the mode beside Claude Code's own, and the quota at the end of the hint line:
+
+```
+● ready
+  Memory pushed: No (the memory repository has no remote branch)
+  Changes made: No
+✻ Baked for 1s
+──────────────────────────────────────────────────────────────────────────────
+❯
+──────────────────────────────────────────────────────────────────────────────
+  ⏵⏵ auto mode on (shift+tab to cycle) · 🛡 5h 31% · week 28%        autonomous
+```
+
 ## Why
 
 Measured on the author's Windows 11 machine with Claude Code 2.1.296 and Node.js 24.15:
