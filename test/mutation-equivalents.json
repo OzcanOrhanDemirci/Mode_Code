@@ -200,6 +200,94 @@
       "line": "hint: s.scope === 'managed' ?",
       "kind": "not-agent-testable",
       "why": "as above"
+    },
+    {
+      "file": "src/core/flow.ts",
+      "from": ">=",
+      "to": ">",
+      "line": "o.current >= 0 && o.current <= steps.length",
+      "kind": "equivalent",
+      "why": "a current step of 0 and the fallback for an out-of-range one are both 0"
+    },
+    {
+      "file": "src/core/flow.ts",
+      "from": "&&",
+      "to": "||",
+      "line": "typeof x === 'number' && Number.isFinite(x)",
+      "kind": "equivalent",
+      "why": "the record is JSON, which holds no infinite or NaN number: a number is finite, anything else is not a number"
+    },
+    {
+      "file": "src/core/shell/effects.ts",
+      "from": "false",
+      "to": "true",
+      "line": "dynamic: inv.dynamic[i] ?? false, glob: inv.glob[i] ?? false",
+      "kind": "equivalent",
+      "why": "the analysis gives one dynamic and one glob mark per argument, so the fallback is never taken"
+    },
+    {
+      "file": "src/core/shell/effects.ts",
+      "from": ">",
+      "to": ">=",
+      "line": "const end = ws.findIndex((w, j) => j > i &&",
+      "kind": "equivalent",
+      "why": "the word at i is the -exec flag itself, never a terminator"
+    },
+    {
+      "file": "src/core/shell/effects.ts",
+      "from": ">",
+      "to": ">=",
+      "line": "const rest = ws.findIndex((w, j) => j > end &&",
+      "kind": "equivalent",
+      "why": "the word at end is the terminator, never an -exec flag"
+    },
+    {
+      "file": "src/core/shell/effects.ts",
+      "from": ">",
+      "to": ">=",
+      "line": "return W(paths(pos.length > 1 ? pos.slice(-1) : pos))",
+      "kind": "equivalent",
+      "why": "for one path, its last is itself"
+    },
+    {
+      "file": "src/core/shell/effects.ts",
+      "from": "false",
+      "to": "true",
+      "line": "[{ text: '.', dynamic: false, glob: false }]",
+      "kind": "equivalent",
+      "why": "expanding variables in '.' gives '.', and the glob mark is not read here"
+    },
+    {
+      "file": "src/core/shell/effects.ts",
+      "from": "false",
+      "to": "true",
+      "line": "dynamic: inv.dynamic[i] ?? false, glob: false }, cwd, env)]) : R()",
+      "kind": "equivalent",
+      "why": "the analysis marks every argument, so the fallback is never taken; the glob mark is not read when resolving a target"
+    },
+    {
+      "file": "src/core/shell/effects.ts",
+      "from": "false",
+      "to": "true",
+      "line": "else cwd = pathOf({ text: arg, dynamic: inv.dynamic[i] ?? false, glob: false }",
+      "kind": "equivalent",
+      "why": "the analysis marks every argument, so the fallback is never taken; the glob mark is not read when resolving a folder"
+    },
+    {
+      "file": "src/core/shell/effects.ts",
+      "from": "false",
+      "to": "true",
+      "line": ".map((w, i) => ({ w, dynamic: inv.writeDynamic[i] ?? false }))",
+      "kind": "equivalent",
+      "why": "the analysis gives one dynamic mark per redirection"
+    },
+    {
+      "file": "src/core/shell/effects.ts",
+      "from": "false",
+      "to": "true",
+      "line": ".map((x) => pathOf({ text: x.w, dynamic: x.dynamic, glob: false }, cwd, env))",
+      "kind": "equivalent",
+      "why": "the glob mark is not read when resolving a redirection's file"
     }
   ]
 }

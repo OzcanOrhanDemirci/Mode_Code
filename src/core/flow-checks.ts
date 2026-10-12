@@ -118,12 +118,11 @@ function sourceOf(n: number, text: string): Source | null {
     if (/^https?:\/\/[^/\s]*[A-Za-z0-9]\.[A-Za-z]{2,}(?:[/:?#]|$)/.test(u) || /^https?:\/\/localhost(?:[:/]|$)/.test(u)) return { n, kind: 'url', url: u };
     return null;
   }
-  // The path is the first word ("src/a.ts:42: the handler") or, as it may hold spaces, a word in backticks;
-  // a source that starts with backticks names its path in them.
+  // The path is the first word ("src/a.ts:42: the handler") or, as it may hold spaces, a word in backticks
+  // (a first word that opens backticks is no path: a path holds no backtick).
   const body = text.replace(/^\[\d{1,3}\]\s*/, '').trim();
   const ticked = [...body.matchAll(/`([^`]+)`/g)].map((m) => m[1]!);
-  const first = body.startsWith('`') ? [] : [body.split(/\s+/)[0] ?? ''];
-  for (const raw of [...first, ...ticked]) {
+  for (const raw of [body.split(/\s+/)[0] ?? '', ...ticked]) {
     const candidate = raw.trim().replace(/[.,;:]+$/, '');
     const m = /^((?:[A-Za-z]:)?[^:*?"<>|`]*(?:[\\/][^:*?"<>|`]*|\.[A-Za-z0-9]{1,8}))(?::(\d+)(?:[-–](\d+))?)?$/.exec(candidate);
     if (m && /[\\/.]/.test(m[1]!) && /[A-Za-z0-9]/.test(m[1]!) && !/\s$/.test(m[1]!))

@@ -13,7 +13,7 @@
  */
 import { spawn } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { cpus, tmpdir } from 'node:os';
+import { cpus } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -48,6 +48,12 @@ const TARGETS = {
   'src/core/secrets/scan.ts': ['test/core/secrets.test.ts', 'test/core/edges.test.ts', 'test/core/selftest.test.ts'],
   'src/core/version.ts': ['test/core/format.test.ts', 'test/core/selftest.test.ts'],
   'src/app/doctor/checks.ts': ['test/doctor/checks.test.ts', 'test/doctor/checks-golden.test.ts'],
+  // Modes and flows: what a restricted mode lets through, and when a flow's step counts as done.
+  'src/core/shell/effects.ts': ['test/core/effects.test.ts', 'test/core/effects-forms.test.ts', 'test/corpus/modes.test.ts', 'test/core/guard.test.ts'],
+  'src/core/modes.ts': ['test/core/guard.test.ts', 'test/core/effects.test.ts', 'test/core/modes.test.ts'],
+  'src/core/guard.ts': ['test/core/guard.test.ts', 'test/corpus/modes.test.ts'],
+  'src/core/flow.ts': ['test/core/flow.test.ts', 'test/core/guidance.test.ts'],
+  'src/core/flow-checks.ts': ['test/core/flow-checks.test.ts'],
 };
 
 // ── finding mutation sites in TypeScript without a parser: code outside strings, comments and regexes ──
@@ -182,7 +188,17 @@ function mutantsOf(file) {
 
 // ── workers: private copies of the tree, node_modules shared through a link ──
 
-const work = join(tmpdir(), `tc-mutate-${process.pid}`);
+// Inside the repository's ignored .tmp folder, not the system's temporary folder: some antivirus programs lock
+// copies of the test files there (measured: a test file full of shell commands could not be read back).
+const work = join(root, '.tmp', `mutate-${process.pid}`);
+/** Removes the work folder; a file another program still holds is left for the next run to clear. */
+function clearWork() {
+  try {
+    rmSync(work, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  } catch (err) {
+    console.error(`mutate: could not remove ${work} (${err.code}); remove it by hand`);
+  }
+}
 function makeWorker(i) {
   const dir = join(work, `w${i}`);
   mkdirSync(dir, { recursive: true });
@@ -210,7 +226,7 @@ const limit = Number(arg('limit', '0'));
 const workers = Number(arg('workers', String(Math.max(2, Math.min(12, cpus().length - 2)))));
 const files = Object.keys(TARGETS).filter((f) => !only || f === only);
 const started = Date.now();
-rmSync(work, { recursive: true, force: true });
+clearWork();
 const dirs = Array.from({ length: workers }, (_, i) => makeWorker(i));
 
 const jobs = [];
@@ -221,7 +237,7 @@ for (const file of files) {
   const base = await runTests(dirs[0], TARGETS[file]);
   if (base !== 'passed') {
     console.error(`mutate: the tests of ${file} do not pass unmutated (${base}); fix them first`);
-    rmSync(work, { recursive: true, force: true });
+    clearWork();
     process.exit(1);
   }
   for (const m of picked) jobs.push({ ...m, src, tests: TARGETS[file] });
@@ -252,7 +268,7 @@ await Promise.all(
   }),
 );
 process.stdout.write('\r');
-rmSync(work, { recursive: true, force: true });
+clearWork();
 
 // Survivors already examined and found not to be gaps: changes that make no difference, branches an agent
 // may not write a fixture for, comparisons that only the shipped bundle reaches. Each one says why.

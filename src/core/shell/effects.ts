@@ -85,6 +85,11 @@ export interface EffectEnv extends PathEnv {
 
 const NULL_TARGETS = /^(?:\/dev\/(?:null|stdout|stderr|tty|fd\/\d+)|nul|\$null|con)$/i;
 
+/** A table's own entry: a program named "__proto__" or "constructor" finds nothing, not Object's members. */
+function own<T>(table: Readonly<Record<string, T>>, key: string): T | undefined {
+  return Object.hasOwn(table, key) ? table[key] : undefined;
+}
+
 /** A set from words separated by spaces or line breaks: the lists below stay readable. */
 function wordSet(list: string): Set<string> {
   return new Set(list.split(/\s+/).filter(Boolean));
@@ -375,7 +380,6 @@ const READ_PAIRS: Record<string, ReadonlySet<string>> = {
   'yarn config': wordSet(`get list`),
   'bun pm': wordSet(`ls hash cache bin`),
   'cargo help': new Set([]),
-  'go env': new Set([]),
   'flutter pub': wordSet(`deps outdated`),
   'dart pub': wordSet(`deps outdated`),
   'docker compose': wordSet(`ps logs config ls images top version port`),
@@ -419,7 +423,7 @@ const OUTSIDE = wordSet(`
   register-scheduledtask unregister-scheduledtask set-executionpolicy setx set-itemproperty new-itemproperty remove-itemproperty osascript
   notify-send say mail sendmail heroku vercel netlify firebase wrangler fly flyctl railway eas fastlane twine aws gsutil start-job
   invoke-command enter-pssession new-pssession send-mailmessage mount umount diskpart format mkfs fdisk parted useradd userdel passwd chpasswd
-  visudo iptables ufw netsh route nmcli systemctl brew winget choco scoop apt apt-get dnf yum pacman snap flatpak port nvm fnm volta rustup
+  visudo iptables ufw netsh route nmcli systemctl brew winget choco scoop apt apt-get dpkg dnf yum pacman snap flatpak port nvm fnm volta rustup
   sdk asdf pyenv rbenv docker podman kubectl helm terraform pulumi gcloud az gh glab reg defaults launchctl powercfg schtasks wsl claude code
   cursor pm2 supervisorctl adb fastboot emulator tailscale avdmanager sdkmanager xcrun simctl idevicesyslog
 `);
@@ -607,7 +611,6 @@ function hasFlag(ws: readonly Word[], re: RegExp): boolean {
 function judgeGit(inv: Invocation, cwd: string | null, env: EffectEnv): Judged {
   const call = parseGit(inv.args, inv.dynamic, { platform: env.platform, home: env.home, cwd: cwd ?? env.cwd });
   const dir = cwd === null && call.dir === (cwd ?? env.cwd) ? null : call.dir;
-  if (call.args.length === 1 && VERSION_ONLY.has(call.args[0]!)) return { ...R(), dir };
   if (GIT_OUTSIDE.has(call.sub)) return { ...O('push'), dir };
   if (call.sub === 'diff' && call.args.some((a) => /^--output(?:=|$)/.test(a))) return { ...L('writes'), dir };
   if (GIT_READS.has(call.sub) || gitOnlyReads(call.sub, call.args)) return { ...R(), dir };
@@ -686,8 +689,9 @@ function judgeSed(inv: Invocation, cwd: string | null, env: EffectEnv): Judged {
     else if (!w.text.startsWith('-')) files.push(w);
   }
   if (!scripts.length && files.length) scripts.push(files.shift()!.text);
-  // `w file`, `W file` and `e command` inside a script write or run.
-  if (scripts.some((s) => /(?:^|[;}\n]|\/[a-zA-Z0-9]*)\s*[wWe](?:\s|$)/.test(s) && /\b[wWe]\s+\S/.test(s))) return U('scriptMay');
+  // The commands `w file`, `W file` and `e command` write or run: after an address (a line number, `$`, a
+  // pattern), after a substitution's flags, or at the start of a command (`1w out`, `s/a/b/gw out`, `/x/w out`).
+  if (scripts.some((s) => /(?:^|[;}\n]|\/[gpIiMm0-9]*|[0-9$])\s*[wWe](?:\s|$)/.test(s))) return U('scriptMay');
   if (!inPlace) return R();
   return W(files.length ? files.map((f) => pathOf(f, cwd, env)) : [null], 'editsInPlace');
 }
@@ -695,13 +699,14 @@ function judgeSed(inv: Invocation, cwd: string | null, env: EffectEnv): Judged {
 function judgeAwk(inv: Invocation, cwd: string | null, env: EffectEnv): Judged {
   const ws = words(inv);
   if (hasFlag(ws, /^-f$|^--file/)) return L('scriptFile');
-  if (ws.some((w, i) => w.text === '-i' && /inplace/.test(ws[i + 1]?.text ?? '')))
-    return W(
-      positional(ws)
-        .slice(1)
-        .map((f) => pathOf(f, cwd, env)),
-      'editsInPlace',
-    );
+  // gawk -i LIBRARY loads code this tool does not read; -i inplace rewrites the files.
+  if (ws.some((w, j) => w.text === '-i' && !/inplace/.test(ws[j + 1]?.text ?? ''))) return L('scriptFile');
+  const i = ws.findIndex((w, j) => w.text === '-i' && /inplace/.test(ws[j + 1]?.text ?? ''));
+  // awk -i inplace PROGRAM FILE…: the files after the program are rewritten.
+  if (i !== -1) {
+    const files = positional(ws.filter((_, j) => j !== i + 1)).slice(1);
+    return W(files.length ? files.map((f) => pathOf(f, cwd, env)) : [null], 'editsInPlace');
+  }
   const script = positional(ws)[0]?.text ?? '';
   // Output redirection belongs to print and printf (a comparison `$3 > 5` does not write); system() and `| getline` run commands.
   if (/system\s*\(|\b(?:print|printf)\b[^;}]*(?:>>?|\|)\s*\S|\|\s*getline/.test(script)) return U('scriptMay');
@@ -728,11 +733,17 @@ function judgeWget(inv: Invocation, cwd: string | null, env: EffectEnv): Judged 
   const ws = words(inv);
   if (hasFlag(ws, /^--(?:post-data|post-file|method|body-data|body-file)(?:=|$)/)) return O('server');
   if (hasFlag(ws, /^--spider$/)) return R('readsNetwork');
-  const o = ws.findIndex((w) => /^(?:-O|--output-document)$/.test(w.text) || /^-[a-zA-Z]*O$/.test(w.text));
-  const inline = ws.find((w) => /^--output-document=/.test(w.text));
-  const target = inline ? inline.text.slice(inline.text.indexOf('=') + 1) : o !== -1 ? ws[o + 1]?.text : undefined;
-  if (target === '-') return R('readsNetwork');
-  if (target !== undefined) return W([pathOf(inline ? { ...inline, text: target } : ws[o + 1], cwd, env)], 'download');
+  // -O FILE, -OFILE, bundled (-qO-, -qO FILE) or --output-document[=FILE]; "-" is standard output.
+  let target: Word | undefined;
+  for (let i = 0; i < ws.length; i++) {
+    const t = ws[i]!.text;
+    const short = /^-[a-zA-Z]*O(.*)$/.exec(t);
+    if (t === '--output-document' || (short && short[1] === '')) target = ws[i + 1];
+    else if (short) target = { ...ws[i]!, text: short[1]! };
+    else if (t.startsWith('--output-document=')) target = { ...ws[i]!, text: t.slice(18) };
+  }
+  if (target?.text === '-') return R('readsNetwork');
+  if (target !== undefined) return W([pathOf(target, cwd, env)], 'download');
   return L('downloadHere');
 }
 
@@ -747,15 +758,16 @@ function judgeWebCmdlet(inv: Invocation, cwd: string | null, env: EffectEnv): Ju
 /** A package manager or toolchain: version and reading subcommands read, global installs reach outside. */
 function judgeTool(inv: Invocation): Judged | null {
   const p = inv.program;
-  const reads = READ_SUBS[p];
+  const reads = own(READ_SUBS, p);
   if (!reads && !LOCAL.has(p) && !OUTSIDE.has(p)) return null;
   const ws = words(inv);
   const args = inv.args;
   if (args.length === 0) return LOCAL.has(p) ? L() : OUTSIDE.has(p) ? O() : R();
   if (args.length === 1 && (VERSION_ONLY.has(args[0]!) || args[0] === '-v')) return R();
-  // Some reading "subcommands" are flags: dpkg -l, wsl --list, dotnet --info, powercfg /list.
+  // A shell given a script file runs it (a shell given its code as a string was judged before).
+  if (/^(?:bash|sh|zsh|dash|ksh|fish|pwsh|powershell|cmd|source|\.)$/.test(p)) return L('script');
+  // Some reading "subcommands" are flags: dpkg -l, wsl --list, dotnet --info (powercfg /list is a word).
   if (reads?.has(args[0]!) && args[0]!.startsWith('-')) return R();
-  if (reads?.has(args[0]!.toLowerCase()) && args[0]!.startsWith('/')) return R();
   const sub = first(ws);
   if (/^(?:npm|pnpm|yarn|bun)$/.test(p) && args.some((a) => a === '-g' || a === '--global' || a === '--location=global')) return O('global');
   if (
@@ -764,16 +776,16 @@ function judgeTool(inv: Invocation): Judged | null {
   )
     return args.includes('--dry-run') ? R() : O('publish');
   if ((p === 'cargo' || p === 'go') && sub === 'install') return O('global');
-  if (p === 'go' && sub === 'env' && !args.includes('-w') && !args.includes('-u')) return R();
+  if (p === 'go' && sub === 'env') return args.includes('-w') || args.includes('-u') ? O('global') : R();
   if ((p === 'npm' || p === 'pnpm' || p === 'yarn') && sub === 'audit' && !args.includes('fix')) return R();
   if ((p === 'npm' || p === 'pnpm') && sub === 'pack' && args.includes('--dry-run')) return R();
   if (reads?.has(sub)) {
-    const pair = READ_PAIRS[`${p} ${sub}`];
+    const pair = own(READ_PAIRS, `${p} ${sub}`);
     if (!pair) return R();
     const next = positional(ws)[1]?.text.toLowerCase() ?? '';
     return pair.size === 0 || pair.has(next) ? R() : OUTSIDE.has(p) ? O() : L();
   }
-  const pair = READ_PAIRS[`${p} ${sub}`];
+  const pair = own(READ_PAIRS, `${p} ${sub}`);
   if (pair) {
     const next = positional(ws)[1]?.text.toLowerCase() ?? '';
     if (pair.size === 0 || pair.has(next)) return R();
@@ -829,8 +841,8 @@ function judgeWriter(inv: Invocation, cwd: string | null, env: EffectEnv): Judge
     case 'chgrp':
       return W(paths(pos.slice(1)));
     case 'dd': {
-      const of = inv.args.find((a) => a.startsWith('of='));
-      return of ? W([pathOf({ text: of.slice(3), dynamic: false, glob: false }, cwd, env)]) : R();
+      const i = inv.args.findIndex((a) => a.startsWith('of='));
+      return i !== -1 ? W([pathOf({ text: inv.args[i]!.slice(3), dynamic: inv.dynamic[i] ?? false, glob: false }, cwd, env)]) : R();
     }
     default:
       return W(paths(pos));

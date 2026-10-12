@@ -159,3 +159,38 @@ test('one verification command per line: later code spans on the line are notes 
   );
   assert.deepEqual(p.verification, ['node hello.js | od -c', 'npm test']);
 });
+
+test('lists and fences: a fenced block is not a list, a heading inside it does not end the section, bullets number by place', () => {
+  const r = checkReport(
+    '## Findings\n\n- First [1].\n\n```\n- not a finding\n## not a heading\n```\n\n- Second [2].\n\n## Sources\n\n- https://example.org/a\n- docs/b.md\n',
+  );
+  assert.deepEqual(r.problems, []);
+  assert.equal(r.findings, 2);
+  assert.deepEqual(
+    r.sources.map((s) => s.n),
+    [1, 2],
+  );
+  const un = checkReport('## Findings\n\n- ok [1]\n- no source here\n\n## Sources\n\n1. https://example.org\n');
+  assert.deepEqual(un.problems[0], { key: 'flow.check.report.uncited', params: { n: 2, text: 'no source here' } });
+});
+
+test('cited lines: the first and the last line are inside, 0 and one past the end are not, a range must run forward', () => {
+  const src = (ref: string) => checkReport(`## Findings\n\n- x [1]\n\n## Sources\n\n1. ${ref}\n`).sources;
+  const ten = (p: string) => (p === 'a.ts' ? 10 : null);
+  assert.deepEqual(sourceProblems(src('a.ts:1'), ten), []);
+  assert.deepEqual(sourceProblems(src('a.ts:10'), ten), []);
+  assert.deepEqual(sourceProblems(src('a.ts:1-10'), ten), []);
+  assert.deepEqual(sourceProblems(src('a.ts:4-4'), ten), []);
+  for (const bad of ['a.ts:0', 'a.ts:11', 'a.ts:2-11', 'a.ts:5-3']) assert.equal(sourceProblems(src(bad), ten)[0]?.key, 'flow.check.report.lineOutside', bad);
+  assert.deepEqual(sourceProblems(src('https://example.org/a'), ten), []);
+});
+
+test('a step without criteria is found even when the step before ends with its own criteria line', () => {
+  const p = checkPlan('## Steps\n\n### 1. A\nAcceptance: a works\n### 2. B\nNo criteria.\n\n## Verification\n\n```sh\n# a comment\n\n$ npm test\n```\n');
+  assert.deepEqual(p.problems, [{ key: 'flow.check.plan.noAcceptance', params: { n: 2, title: 'B' } }]);
+  assert.deepEqual(p.verification, ['npm test']);
+});
+
+test('a section name may go on: "Findings so far", "Sources and notes"', () => {
+  assert.deepEqual(checkReport('## Findings so far\n\n- x [1]\n\n## Sources and notes\n\n1. https://example.org\n').problems, []);
+});

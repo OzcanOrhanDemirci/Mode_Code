@@ -51,6 +51,7 @@ test('a fresh installation: the protections work, the self-test passes, the plug
     // Without the plugin seen, keywords fall back to the hook; the quota and quiet work need the plugin.
     assert.equal(s.state('keywords'), 'ok health.fallback');
     assert.equal(s.state('quietWork'), 'gray health.needsMod');
+    assert.equal(s.state('modes'), 'gray health.needsMod');
     assert.equal(healthCounts(h).red, 0);
   } finally {
     s.done();
@@ -121,6 +122,7 @@ test('the conveniences: off when switched off, the memory folder states, the tra
   try {
     assert.equal(s.state('footer', s.ctx({ footer: { ...cloneDefaults().footer, mode: 'off' } })), 'off');
     assert.equal(s.state('secrets', s.ctx({ modules: { ...cloneDefaults().modules, secrets: false } })), 'off');
+    assert.equal(s.state('modes', s.ctx({ modules: { ...cloneDefaults().modules, modes: false } })), 'off');
     assert.equal(s.state('memory'), 'off health.memory.none');
     assert.equal(s.state('memory', s.ctx({ memory: { dirs: [join(s.sb.root, 'nope')] } })), 'gray health.memory.missing');
     mkdirSync(join(s.sb.root, 'notes'));

@@ -19,6 +19,7 @@ import {
   type Flow,
   type FlowResult,
 } from '../../src/core/flow.js';
+import { flowDir, layout } from '../../src/core/layout.js';
 
 const T = Date.parse('2026-10-12T20:15:00Z');
 const start = (variant: 'full' | 'plan' | 'research' = 'full'): Flow =>
@@ -131,4 +132,54 @@ test('records round-trip, and anything torn or foreign is rejected rather than h
     assert.equal(parseFlow(bad), null, String(bad));
   const odd = parseFlow(JSON.stringify({ ...f, current: 99, approval: { at: 1, via: 'chat' }, verification: [1, 'a'] }))!;
   assert.deepEqual([odd.current, odd.approval, odd.verification], [0, null, ['a']]);
+});
+
+test('a flow folder only for ids of the flows own shape', () => {
+  const l = layout('/home/ada/.terminal-code');
+  assert.equal(flowDir(l, '20261012-2015-add-sign-in'), '/home/ada/.terminal-code/flows/20261012-2015-add-sign-in');
+  for (const bad of ['', '../x', 'A', 'a/b', 'x'.repeat(90), '-x']) assert.equal(flowDir(l, bad), null, bad);
+});
+
+test('running means active or waiting; a second pause changes nothing; only the first step has started', () => {
+  const f = start('plan');
+  assert.deepEqual(
+    f.steps.map((s) => s.startedAt),
+    [T, null, null],
+  );
+  const w = ok(completeStep(f, 'plan', P, T + 1));
+  assert.equal(isRunning(w), true);
+  assert.equal(isRunning(f), true);
+  const p = ok(pauseFlow(w, 'stop', T + 2));
+  assert.equal(isRunning(p), false);
+  const again = pauseFlow(p, 'stop', T + 3);
+  assert.equal(again.ok, true);
+  assert.equal(again.flow, p);
+});
+
+test('flow ids keep whole words up to 40 characters', () => {
+  const forty = 'abcdefghij-abcdefghij-abcdefghij-abcdefg'; // 40 characters in three words
+  assert.equal(forty.length, 40);
+  assert.match(flowId('abcdefghij abcdefghij abcdefghij abcdefg', T, new Set()), /-abcdefghij-abcdefghij-abcdefghij-abcdefg$/);
+  assert.match(flowId('abcdefghij abcdefghij abcdefghij abcdefgh', T, new Set()), /-abcdefghij-abcdefghij-abcdefghij$/);
+});
+
+test('records: every field of the wrong kind is caught, each on its own', () => {
+  const f = ok(approvePlan(ok(completeStep(start('plan'), 'plan', P, T)), 'plan-mode', ['npm test'], T));
+  const json = (o: object) => JSON.stringify({ ...f, ...o });
+  assert.equal(parseFlow('null'), null);
+  assert.equal(parseFlow('5'), null);
+  assert.equal(parseFlow(json({ v: 2 })), null);
+  assert.equal(parseFlow(json({ id: 5 })), null);
+  assert.equal(parseFlow(json({ steps: 'x' })), null);
+  assert.equal(parseFlow(json({ status: 'odd' })), null);
+  assert.equal(parseFlow(json({ current: 3 }))!.current, 3);
+  assert.equal(parseFlow(json({ current: 4 }))!.current, 0);
+  assert.equal(parseFlow(json({ current: -1 }))!.current, 0);
+  assert.equal(parseFlow(json({ current: 0 }))!.current, 0);
+  assert.equal(parseFlow(json({ variant: 'research' }))!.variant, 'research');
+  assert.equal(parseFlow(json({ variant: 'plan' }))!.variant, 'plan');
+  assert.equal(parseFlow(json({ variant: 'odd' }))!.variant, 'full');
+  assert.equal(parseFlow(json({ createdAt: 'x' }))!.createdAt, 0);
+  const h = parseFlow(json({ history: [{ at: 1, event: 'start' }, { at: 'x', event: 'start' }, { at: 1, event: 2 }, [1], null] }))!;
+  assert.deepEqual(h.history, [{ at: 1, event: 'start' }]);
 });
