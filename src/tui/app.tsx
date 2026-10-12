@@ -284,7 +284,7 @@ export function App(props: AppProps) {
     </Box>
   );
 
-  const hints: [string, string][] = open
+  const allHints: [string, string][] = open
     ? [
         ['←/Esc', t('keys.back')],
         ['?', t('keys.help')],
@@ -301,6 +301,14 @@ export function App(props: AppProps) {
         ['?', t('keys.help')],
         ['q', t('keys.quit')],
       ];
+  // One line of hints: on a narrow terminal the less essential ones give way (help still lists them all).
+  const hintWidth = (h: [string, string][]) => h.reduce((n, [k, v]) => n + k.length + v.length + 3, 0);
+  const hints = [...allHints];
+  for (const drop of ['1-7', '/', 'Ctrl+K', '←']) {
+    if (hintWidth(hints) <= columns) break;
+    const i = hints.findIndex(([k]) => k === drop);
+    if (i >= 0) hints.splice(i, 1);
+  }
 
   const footer = (
     <Box width={columns} flexDirection="column">
