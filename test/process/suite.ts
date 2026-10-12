@@ -1,0 +1,326 @@
+// SPDX-License-Identifier: Apache-2.0
+/**
+ * The command line, end to end, as separate processes: install with a stand-in `claude`, check, repair,
+ * every --json contract, uninstall. Defined once and run twice: against the TypeScript source
+ * (test/process) and against the shipped bundle (test/dist), so what is tested is what ships.
+ */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { built, cli, world } from '../helpers/proc.js';
+
+export function defineCliTests(mode: 'source' | 'dist'): void {
+  const dist = mode === 'dist';
+  const skip = (t: { skip(msg: string): void }) => {
+    if (!built()) {
+      t.skip('needs the build: npm run build');
+      return true;
+    }
+    return false;
+  };
+  const opt = { dist };
+
+  test(`${mode}: version, help, an unknown command, open without a terminal`, (t) => {
+    if (dist && skip(t)) return;
+    const w = world();
+    try {
+      const v = cli(w, ['--version'], opt);
+      assert.equal(v.code, 0);
+      assert.match(v.out.trim(), dist ? /^\d+\.\d+\.\d+/ : /^dev$/);
+      assert.equal(cli(w, ['version'], opt).out, v.out);
+      const h = cli(w, ['help'], opt);
+      assert.equal(h.code, 0);
+      for (const c of ['status', 'doctor', 'install', 'uninstall', 'belt', 'secrets', 'config']) assert.match(h.out, new RegExp(c));
+      assert.equal(cli(w, ['--help'], opt).out, h.out);
+      const u = cli(w, ['frobnicate'], opt);
+      assert.equal(u.code, 2);
+      assert.match(u.err, /frobnicate/);
+      assert.equal(cli(w, ['open', 'home'], opt).code, 2, 'no terminal: refuses instead of hanging');
+    } finally {
+      w.done();
+    }
+  });
+
+  test(`${mode}: before installing, status and doctor say so and fail nothing they cannot know`, (t) => {
+    if (skip(t)) return;
+    const w = world();
+    try {
+      const s = cli(w, ['status', '--json'], opt);
+      assert.equal(s.code, 0, s.err);
+      assert.equal(s.json?.schema, 'terminal-code.status/1');
+      assert.equal(s.json?.installed, false);
+      assert.equal(s.json?.claudeCode, '2.1.296');
+      const d = cli(w, ['doctor', '--json', '--quick'], opt);
+      assert.equal(d.json?.schema, 'terminal-code.doctor/1');
+      assert.ok(Array.isArray(d.json?.checks) && d.json.checks.length >= 30);
+      const byId = Object.fromEntries((d.json?.checks as { id: string; status: string }[]).map((c) => [c.id, c.status]));
+      assert.equal(byId['install.manifest'], 'info');
+      assert.equal(byId['install.hooks'], 'skip');
+      assert.equal(byId['claude.version'], 'ok');
+      assert.equal(byId['selftest.suites'], 'ok');
+      assert.equal(d.code, d.json?.tally.fail ? 1 : 0);
+    } finally {
+      w.done();
+    }
+  });
+
+  test(`${mode}: install --dry-run lists every change and makes none`, (t) => {
+    if (skip(t)) return;
+    const w = world();
+    try {
+      const r = cli(w, ['install', '--dry-run', '--json'], opt);
+      assert.equal(r.code, 0, r.err);
+      assert.equal(r.json?.schema, 'terminal-code.install-plan/1');
+      assert.deepEqual(
+        r.json?.plan.steps.map((s: { kind: string }) => s.kind),
+        ['data-folder', 'hook-program', 'marketplace', 'plugin', 'settings-hooks', 'config', 'self-test'],
+      );
+      assert.deepEqual(r.json?.plan.blockers, []);
+      assert.equal(existsSync(w.data), false, 'nothing was created');
+      assert.equal(existsSync(join(w.claudeDir, 'settings.json')), false);
+      assert.deepEqual(w.claudeState().calls, [['--version']]);
+    } finally {
+      w.done();
+    }
+  });
+
+  test(`${mode}: no Claude Code, or one too old: install refuses and says why`, (t) => {
+    if (skip(t)) return;
+    const none = world({ claude: null });
+    const old = world({ claude: { version: '2.0.0' } });
+    try {
+      const a = cli(none, ['install', '--dry-run', '--json'], opt);
+      assert.equal(a.code, 1);
+      assert.deepEqual(
+        a.json?.plan.blockers.map((b: { key: string }) => b.key),
+        ['install.block.noClaude'],
+      );
+      const b = cli(old, ['install', '--dry-run', '--json'], opt);
+      assert.equal(b.code, 1);
+      assert.deepEqual(
+        b.json?.plan.blockers.map((x: { key: string }) => x.key),
+        ['install.block.oldClaude'],
+      );
+    } finally {
+      none.done();
+      old.done();
+    }
+  });
+
+  test(`${mode}: install, check, break, repair, uninstall: the whole life of an installation`, { timeout: 180_000 }, (t) => {
+    if (skip(t)) return;
+    const w = world({ lang: 'en' });
+    try {
+      const mine = { theme: 'dark', hooks: { Notification: [{ hooks: [{ type: 'command', command: 'echo done' }] }] } };
+      writeFileSync(join(w.claudeDir, 'settings.json'), JSON.stringify(mine));
+      const i = cli(w, ['install', '--yes', '--json', '--lang', 'en'], opt);
+      assert.equal(i.code, 0, i.out + i.err);
+      assert.equal(i.json?.ok, true);
+      assert.ok(i.json?.steps.every((s: { ok: boolean }) => s.ok));
+      const settings = JSON.parse(readFileSync(join(w.claudeDir, 'settings.json'), 'utf8'));
+      assert.equal(settings.theme, 'dark');
+      assert.deepEqual(settings.hooks.Notification, mine.hooks.Notification);
+      assert.equal(settings.hooks.PreToolUse[0].hooks[0].onFailure, 'block');
+      assert.ok(w.claudeState().plugins.some((p) => p.id === 'terminal-code@terminal-code-local'));
+
+      const s = cli(w, ['status', '--json'], opt);
+      assert.equal(s.json?.installed, true);
+      assert.equal(s.code, 0, 'no protection is broken');
+
+      const healthy = cli(w, ['doctor', '--json'], opt);
+      const fails = (healthy.json?.checks as { id: string; status: string; protection: boolean }[]).filter((c) => c.status === 'fail');
+      // On a machine where the real environment has a problem (no git, say) that is not about the installation, it may fail
+      // here too; the installation's own checks must pass.
+      for (const id of ['install.hooks', 'install.hookProgram', 'node.hooks', 'protect.agreement', 'install.pluginFiles'])
+        assert.ok(!fails.some((f) => f.id === id), `${id} failed on a fresh installation`);
+
+      // Break it the way an accident would: the hooks gone from the settings, the hook program deleted.
+      writeFileSync(join(w.claudeDir, 'settings.json'), JSON.stringify(mine));
+      const hook = join(w.data, 'bin', 'hook.mjs');
+      writeFileSync(hook, 'process.exit(0);\n');
+      const broken = cli(w, ['doctor', '--json'], opt);
+      assert.equal(broken.code, 1);
+      const status = (id: string, j: Record<string, any> | null) => (j?.checks as { id: string; status: string }[]).find((c) => c.id === id)?.status;
+      assert.equal(status('install.hooks', broken.json), 'fail');
+      assert.equal(status('install.hookProgram', broken.json), dist ? 'fail' : 'warn');
+      const fixed = cli(w, ['doctor', '--json', '--fix'], opt);
+      const repairs = fixed.json?.repairs as { id: string; verified: boolean }[];
+      assert.ok(repairs.some((r) => r.id === 'restore-hooks' && r.verified));
+      assert.ok(repairs.some((r) => r.id === 'restore-hook-program' && r.verified));
+      assert.equal(status('install.hooks', fixed.json), 'ok');
+      const after = JSON.parse(readFileSync(join(w.claudeDir, 'settings.json'), 'utf8'));
+      assert.equal(after.theme, 'dark', "the person's settings survived the repair");
+      assert.ok(after.hooks.PreToolUse);
+      assert.ok(existsSync(join(w.data, 'state', 'doctor.json')), 'the control center can show the last check');
+
+      const u = cli(w, ['uninstall', '--yes', '--json'], opt);
+      assert.equal(u.code, 0, u.out + u.err);
+      const left = JSON.parse(readFileSync(join(w.claudeDir, 'settings.json'), 'utf8'));
+      assert.deepEqual(left, mine, 'removal restores the settings exactly');
+      assert.equal(existsSync(hook), false);
+      assert.ok(existsSync(join(w.data, 'config.json')), 'settings and history stay unless --purge');
+    } finally {
+      w.done();
+    }
+  });
+
+  test(`${mode}: commands that lower a protection refuse inside an agent's shell`, (t) => {
+    if (skip(t)) return;
+    const w = world();
+    try {
+      const agent = { ...w, env: { ...w.env, CLAUDECODE: '1' } };
+      const i = cli(agent, ['install', '--dry-run', '--json'], opt);
+      assert.ok(i.json?.plan.blockers.some((b: { key: string }) => b.key === 'install.block.agent'));
+      assert.equal(cli(agent, ['config', 'set', 'belt.disabled', '["git.clean"]'], opt).code, 1);
+      assert.equal(cli(agent, ['uninstall', '--yes'], opt).code, 1);
+      // Plain settings are fine from anywhere.
+      assert.equal(cli(agent, ['config', 'set', 'view', '"detailed"'], opt).code, 0);
+    } finally {
+      w.done();
+    }
+  });
+
+  test(`${mode}: config: path, get, set with validation`, (t) => {
+    if (skip(t)) return;
+    const w = world();
+    try {
+      assert.equal(cli(w, ['config', 'path'], opt).out.trim().replace(/\\/g, '/'), `${w.data.replace(/\\/g, '/')}/config.json`);
+      assert.equal(cli(w, ['config', 'get', 'language'], opt).out.trim(), 'auto');
+      assert.equal(cli(w, ['config', 'set', 'language', '"tr"'], opt).code, 0);
+      assert.equal(cli(w, ['config', 'get', 'language'], opt).out.trim(), 'tr');
+      assert.equal(cli(w, ['config', 'set', 'language', '"klingon"'], opt).code, 1);
+      assert.equal(cli(w, ['config', 'get', 'no.such.key'], opt).code, 1);
+      assert.equal(cli(w, ['config', 'set', 'view'], opt).code, 2);
+      assert.equal(cli(w, ['config', 'frob'], opt).code, 2);
+    } finally {
+      w.done();
+    }
+  });
+
+  test(`${mode}: belt rules, test and events`, (t) => {
+    if (skip(t)) return;
+    const w = world();
+    try {
+      const rules = cli(w, ['belt', 'rules', '--json'], opt);
+      assert.equal(rules.json?.schema, 'terminal-code.belt-rules/1');
+      assert.ok(rules.json?.rules.length >= 30);
+      const tst = cli(w, ['belt', 'test', '--command', 'git status', '--json'], opt);
+      assert.equal(tst.json?.decision.verdict, 'allow');
+      const prot = cli(w, ['belt', 'test', '--path', join(w.data, 'config.json'), '--json'], opt);
+      assert.equal(prot.json?.decision.verdict, 'deny');
+      assert.equal(cli(w, ['belt', 'events', '--json'], opt).json?.events.length, 0);
+      assert.equal(cli(w, ['belt', 'frob'], opt).code, 2);
+    } finally {
+      w.done();
+    }
+  });
+
+  test(`${mode}: secrets: a token in a file is found and shown masked`, (t) => {
+    if (skip(t)) return;
+    const w = world();
+    try {
+      const dir = join(w.root, 'notes');
+      mkdirSync(dir);
+      const token = 'ghp' + '_' + 'aB3dE5fG7hJ9kL2mN4pQ6rS8tU0vW1xYzA1b';
+      writeFileSync(join(dir, 'note.md'), `token: ${token}\n`);
+      const r = cli(w, ['secrets', dir, '--json'], opt);
+      assert.equal(r.code, 1);
+      assert.equal(r.json?.findings[0].kind, 'github-token');
+      assert.ok(!r.out.includes(token), 'the token itself is never printed');
+      writeFileSync(join(dir, 'note.md'), 'nothing here\n');
+      assert.equal(cli(w, ['secrets', dir], opt).code, 0);
+      assert.equal(cli(w, ['secrets'], opt).code, 2, 'no memory folder and no path: nothing to scan');
+    } finally {
+      w.done();
+    }
+  });
+
+  test(`${mode}: quota, tokens, sessions and report read what is there and say when nothing is`, (t) => {
+    if (skip(t)) return;
+    const w = world();
+    try {
+      assert.equal(cli(w, ['quota'], opt).code, 1, 'no reading yet');
+      mkdirSync(join(w.data, 'state'), { recursive: true });
+      const now = Date.now();
+      writeFileSync(
+        join(w.data, 'state', 'quota.json'),
+        JSON.stringify({ measuredAt: now, windows: [{ kind: 'five_hour', used: 42, resetsAt: now + 3600_000 }] }),
+      );
+      const q = cli(w, ['quota', '--json'], opt);
+      assert.equal(q.code, 0);
+      assert.equal(q.json?.reading.windows[0].used, 42);
+      const proj = join(w.claudeDir, 'projects', 'C--work-app');
+      mkdirSync(proj, { recursive: true });
+      const ts = new Date(now - 60_000).toISOString();
+      const rows = [
+        { type: 'user', sessionId: 's1', cwd: 'C:/work/app', timestamp: ts, message: { role: 'user', content: 'fix the bug' } },
+        {
+          type: 'assistant',
+          sessionId: 's1',
+          timestamp: ts,
+          message: {
+            id: 'm1',
+            role: 'assistant',
+            model: 'claude-opus-5-5',
+            usage: { input_tokens: 10, output_tokens: 20, cache_read_input_tokens: 300 },
+            content: [],
+          },
+        },
+      ];
+      writeFileSync(join(proj, 's1.jsonl'), rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
+      const tok = cli(w, ['tokens', '--json'], opt);
+      assert.equal(tok.json?.total.output, 20);
+      assert.equal(cli(w, ['sessions', '--json'], opt).json?.sessions.length, 1);
+      const rep = cli(w, ['report', '--json'], opt);
+      assert.equal(rep.code, 0);
+      assert.equal(rep.json?.schema, 'terminal-code.report/1');
+    } finally {
+      w.done();
+    }
+  });
+
+  test(`${mode}: templates: listed, previewed, applied into CLAUDE.md`, (t) => {
+    if (skip(t)) return;
+    const w = world();
+    try {
+      const list = cli(w, ['template', 'list', '--json'], opt);
+      assert.ok(list.json?.templates.length >= 5);
+      const id = 'measured'; // needs no git remote
+      const dry = cli(w, ['template', 'apply', id, '--dry-run'], opt);
+      assert.equal(dry.code, 0, dry.err);
+      assert.equal(existsSync(join(w.root, 'CLAUDE.md')), false);
+      assert.equal(cli(w, ['template', 'apply', 'no-such-template'], opt).code, 2);
+    } finally {
+      w.done();
+    }
+  });
+
+  test(`${mode}: try --print shows the one-session command and starts nothing`, (t) => {
+    if (skip(t)) return;
+    const w = world();
+    try {
+      const r = cli(w, ['try', '--print'], opt);
+      assert.equal(r.code, 0, r.err);
+      assert.match(r.out, /--plugin-dir/);
+      assert.match(r.out, /--settings/);
+      assert.deepEqual(w.claudeState().calls, [], 'claude itself was not run');
+    } finally {
+      w.done();
+    }
+  });
+
+  test(`${mode}: doctor --self-check passes; --report names no user`, { timeout: 180_000 }, (t) => {
+    if (skip(t)) return;
+    const w = world();
+    try {
+      const r = cli(w, ['doctor', '--self-check', '--json'], opt);
+      assert.equal(r.code, 0, r.out.slice(0, 2000) + r.err);
+      assert.equal(r.json?.ok, true);
+      const rep = cli(w, ['doctor', '--report', '--quick'], opt);
+      assert.match(rep.out, /^## Problem report for terminal-code/);
+    } finally {
+      w.done();
+    }
+  });
+}
