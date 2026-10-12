@@ -148,9 +148,26 @@ export async function cmdInstall(a: Args): Promise<number> {
   const ctx = appContext();
   const plan = planInstall(ctx.layout);
   const dry = flag(a, 'dry-run');
-  if (flag(a, 'json') && dry) {
+  if (flag(a, 'json') && (dry || plan.blockers.length)) {
     json('install-plan', { plan });
     return plan.blockers.length ? 1 : 0;
+  }
+  // With --json the output is one JSON document and nothing else; with nobody to confirm, --yes is the confirmation.
+  if (flag(a, 'json')) {
+    if (!flag(a, 'yes', 'y')) {
+      json('install', { ok: false, steps: [], manifest: null, error: 'needs --yes' });
+      return 1;
+    }
+    const chosen: Partial<Config> = {};
+    const lang = value(a, 'lang');
+    if (lang === 'en' || lang === 'tr') chosen.language = lang;
+    const view = value(a, 'view');
+    if (view === 'simple' || view === 'recommended' || view === 'detailed') chosen.view = view;
+    const mem = values(a, 'memory');
+    if (mem.length) chosen.memory = { dirs: mem };
+    const r = applyInstall(ctx.layout, plan, { config: chosen });
+    json('install', { ok: r.ok, steps: r.steps, manifest: r.manifest });
+    return r.ok ? 0 : 1;
   }
   say(bold(T(ctx, 'install.title', { app: APP_NAME, version: APP_VERSION })));
   say();
@@ -206,10 +223,6 @@ export async function cmdInstall(a: Args): Promise<number> {
     return 1;
   }
   const r = applyInstall(ctx.layout, plan, { config: chosen });
-  if (flag(a, 'json')) {
-    json('install', { ok: r.ok, steps: r.steps, manifest: r.manifest });
-    return r.ok ? 0 : 1;
-  }
   for (const s of r.steps) say(`  ${s.ok ? green('✓') : red('✗')} ${T(ctx, `install.step.${s.kind}` as MessageKey)}${s.detail ? dim(' · ' + s.detail) : ''}`);
   say();
   if (!r.ok) {
@@ -260,8 +273,24 @@ export async function cmdUninstall(a: Args): Promise<number> {
   const m = readManifest(ctx.layout);
   const purge = flag(a, 'purge');
   if (underAgent()) {
-    say(red(T(ctx, 'cli.agentRefused')));
+    if (flag(a, 'json')) json('uninstall', { ok: false, steps: [], error: 'refused inside a Claude Code session' });
+    else say(red(T(ctx, 'cli.agentRefused')));
     return 1;
+  }
+  // With --json the output is one JSON document. --yes confirms; deleting the data folder (--purge) needs the
+  // person to type the name, so it is not available there.
+  if (flag(a, 'json')) {
+    if (!flag(a, 'yes', 'y') || purge) {
+      json('uninstall', { ok: false, steps: [], error: purge ? '--purge needs a terminal' : 'needs --yes' });
+      return 1;
+    }
+    if (flag(a, 'dry-run')) {
+      json('uninstall', { ok: true, steps: [], dryRun: true });
+      return 0;
+    }
+    const r = applyUninstall(ctx.layout);
+    json('uninstall', r as unknown as object);
+    return r.ok ? 0 : 1;
   }
   say(bold(T(ctx, 'uninstall.title')));
   say();
@@ -285,10 +314,6 @@ export async function cmdUninstall(a: Args): Promise<number> {
     }
   }
   const r = applyUninstall(ctx.layout, { purge });
-  if (flag(a, 'json')) {
-    json('uninstall', r as unknown as object);
-    return r.ok ? 0 : 1;
-  }
   for (const s of r.steps)
     say(`  ${s.ok ? green('✓') : red('✗')} ${T(ctx, `uninstall.step.${s.what}` as MessageKey)}${s.detail && !s.ok ? dim(' · ' + s.detail) : ''}`);
   say();
