@@ -160,30 +160,30 @@ function checkDelete(t: Target, recursive: boolean, s: Scope): void {
     return;
   }
   if (under(t.path, paths.tempDirs, ctx.platform)) return;
-  const project = resolvePath(ctx.projectDir, { platform: ctx.platform, home: ctx.home, cwd: ctx.cwd });
+  const project = paths.canonical(resolvePath(ctx.projectDir, { platform: ctx.platform, home: ctx.home, cwd: ctx.cwd }));
   const gitDir = /\/\.git(?:\/|$)/.test(t.path) && isUnder(t.path, project, ctx.platform);
   if (gitDir && /\/\.git$/.test(t.path)) {
     add(s, 'fs.delete-git-dir', 'belt.reason.deleteGitDir', { target: show(t.path) });
     return;
   }
-  if (isUnder(t.path, claudeDir(ctx), ctx.platform)) {
+  if (isUnder(t.path, paths.canonical(claudeDir(ctx)), ctx.platform)) {
     add(s, 'fs.delete-outside-project', 'belt.reason.deleteInClaudeDir', { target: show(t.path) });
     return;
   }
-  if (!recursive || insideAProject(t.path, project, ctx)) return;
-  if (homeIsProject(project, ctx)) add(s, 'fs.delete-outside-project', 'belt.reason.deleteOutsideProjects', { target: show(t.path) });
+  if (!recursive || insideAProject(t.path, project, ctx, paths)) return;
+  if (homeIsProject(project, ctx, paths)) add(s, 'fs.delete-outside-project', 'belt.reason.deleteOutsideProjects', { target: show(t.path) });
   else add(s, 'fs.delete-outside-project', 'belt.reason.deleteOutside', { target: show(t.path), project: show(project) });
 }
 
 /** A session started in the home folder (or above it) has no project of its own: the home folder is not one. */
-function homeIsProject(project: string, ctx: BeltContext): boolean {
-  return isUnder(resolvePath(ctx.home, { platform: ctx.platform, home: ctx.home, cwd: ctx.cwd }), project, ctx.platform);
+function homeIsProject(project: string, ctx: BeltContext, paths: ProtectedPaths): boolean {
+  return isUnder(paths.canonical(resolvePath(ctx.home, { platform: ctx.platform, home: ctx.home, cwd: ctx.cwd })), project, ctx.platform);
 }
 
 /** Inside the session's project, or strictly inside one of the folders the person registered as projects. */
-function insideAProject(path: string, project: string, ctx: BeltContext): boolean {
-  if (!homeIsProject(project, ctx) && isUnder(path, project, ctx.platform)) return true;
-  return (ctx.knownProjects ?? []).some((p) => isUnder(path, p, ctx.platform) && !isUnder(p, path, ctx.platform));
+function insideAProject(path: string, project: string, ctx: BeltContext, paths: ProtectedPaths): boolean {
+  if (!homeIsProject(project, ctx, paths) && isUnder(path, project, ctx.platform)) return true;
+  return (ctx.knownProjects ?? []).map(paths.canonical).some((p) => isUnder(path, p, ctx.platform) && !isUnder(p, path, ctx.platform));
 }
 
 function checkMove(t: Target, s: Scope): void {

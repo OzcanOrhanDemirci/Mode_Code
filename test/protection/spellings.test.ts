@@ -94,3 +94,18 @@ test('a shell command that reaches the data folder through cd and a short name',
   assert.equal(summary(await bash('cd C:/Users/ada/TERMIN~1 && rm -rf state')), TOOL);
   assert.equal(summary(await bash('echo x > /c/Users/ada/TERMIN~1/config.json')), TOOL);
 });
+
+test('a data folder given by its short name (a short TEMP, as on CI machines) meets targets in either spelling', async () => {
+  // Seen on GitHub's Windows runners: TEMP is C:/Users/RUNNER~1/..., the home folder is long.
+  const short = 'C:/Users/RUNNER~1/AppData/Local/Temp/tc-hook-x';
+  const long = 'C:/Users/runneradmin/AppData/Local/Temp/tc-hook-x';
+  const base = { home: 'C:/Users/runneradmin', dataDir: short, env: { TEMP: 'C:/Users/RUNNER~1/AppData/Local/Temp' } };
+  for (const ctx of [winCtx(base), winCtx({ ...base, aliases: [{ real: long, spelled: short }] })]) {
+    assert.equal(summary(await write(`${short}/config.json`, 'x', ctx)), TOOL);
+    assert.equal(summary(await write(`${long}/config.json`, 'x', ctx)), TOOL);
+    assert.equal(summary(await bash(`rm -rf ${long}`, ctx)), 'deny fs.delete-critical');
+  }
+  // And the other way round: the data folder long, the target short.
+  const longData = winCtx({ home: 'C:/Users/runneradmin', dataDir: long });
+  assert.equal(summary(await write(`${short}/config.json`, 'x', longData)), TOOL);
+});

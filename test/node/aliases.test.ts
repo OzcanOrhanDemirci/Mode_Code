@@ -6,7 +6,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { protectedAliases } from '../../src/node/context.js';
@@ -15,7 +15,9 @@ import { evaluateToolCall } from '../../src/core/belt/evaluate.js';
 import { winCtx, macCtx, linuxCtx, summary } from '../helpers/belt.js';
 
 test('a protected folder that is a link is reported with the place it leads to; plain folders are not', async (t) => {
-  const root = mkdtempSync(join(tmpdir(), 'tc-alias-'));
+  // The long, real spelling: on some machines the temporary folder is reached through a short name
+  // (C:/Users/RUNNER~1/... on CI), which would be an alias of its own.
+  const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'tc-alias-')));
   try {
     const real = join(root, 'dotfiles', 'claude');
     mkdirSync(real, { recursive: true });

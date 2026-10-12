@@ -209,23 +209,33 @@ export function protectedPaths(ctx: BeltContext): ProtectedPaths {
   );
   const aliases = (ctx.aliases ?? []).map((a) => ({ real: resolvePath(a.real, env), spelled: resolvePath(a.spelled, env) }));
   const canonical = (p: string): string => expandShortNames(applyAliases(p, aliases, ctx.platform), known, ctx.platform);
+  // The protected places are brought to the same spelling as the targets they are compared with: a data
+  // folder given as C:/Users/RUNNER~1/… (a short TEMP, as on CI machines) and a target written in long form
+  // must meet. Measured on GitHub's Windows runners, where the first version of this missed it.
+  const same = (list: readonly string[]) => dedupe(list.map(canonical), ctx.platform);
+  const homeC = canonical(home);
+  const cdirC = canonical(cdir);
 
   return {
-    critical: dedupe(critical, ctx.platform),
+    critical: same(critical),
     systemDirs: system,
     // A place counts as the person's own only when it is not itself an operating system folder (a session
     // started in /usr does not make /usr a project whose insides may be deleted).
-    ownRoots: dedupe([home, project, ...tempDirs, ...(ctx.knownProjects ?? []).map((p) => resolvePath(p, env))], ctx.platform).filter(
+    ownRoots: same([home, project, ...tempDirs, ...(ctx.knownProjects ?? []).map((p) => resolvePath(p, env))]).filter(
       (r) => !isRoot(r) && !system.some((d) => isUnder(d, r, ctx.platform)),
     ),
-    claudeConfig,
-    claudeProjectConfig,
-    toolDirs,
-    memoryDirs,
-    startupDirs,
-    shellProfiles,
-    sshDir: joinPath(home, '.ssh'),
-    tempDirs,
+    claudeConfig: same(claudeConfig),
+    claudeProjectConfig: (p) => claudeProjectConfig(p) || pathKey(p, ctx.platform) === pathKey(joinPath(cdirC, 'CLAUDE.md'), ctx.platform),
+    toolDirs: same(toolDirs),
+    memoryDirs: same(memoryDirs),
+    startupDirs: same(startupDirs),
+    shellProfiles: (p) => {
+      if (shellProfiles(p)) return true;
+      if (homeC === home || !isUnder(p, homeC, ctx.platform) || pathKey(p, ctx.platform) === pathKey(homeC, ctx.platform)) return false;
+      return shellProfiles(joinPath(home, p.slice(homeC.replace(/\/+$/, '').length + 1)));
+    },
+    sshDir: canonical(joinPath(home, '.ssh')),
+    tempDirs: same(tempDirs),
     canonical,
   };
 }
