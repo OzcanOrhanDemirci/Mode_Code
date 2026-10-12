@@ -6,7 +6,7 @@ import type { Key } from 'ink';
 import type { Lang, MessageKey } from '../core/i18n/index.js';
 import { tIn } from '../core/i18n/index.js';
 import { bar as barText } from '../core/format.js';
-import { fitWidth, textWidth } from '../core/text.js';
+import { fitWidth, textWidth } from '../node/width.js';
 import type { HealthState } from '../app/health.js';
 import type { DataSource } from './store.js';
 import { makeTheme, stateColor, stateSymbol, type Theme } from './theme.js';

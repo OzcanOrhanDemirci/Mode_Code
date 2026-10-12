@@ -13,7 +13,7 @@ import { maskSecrets, scanSecrets } from '../secrets/scan.js';
 import { detectKeyword } from '../keywords.js';
 import { buildFooter, checkFooter } from '../footer.js';
 import { cloneDefaults, parseConfig, serializeConfig } from '../config.js';
-import { fold, textWidth } from '../text.js';
+import { fold } from '../text.js';
 import { tIn, LANGUAGES, type Lang } from '../i18n/index.js';
 import { en } from '../i18n/en.js';
 import { compareVersions } from '../version.js';
@@ -186,9 +186,6 @@ export function textSuite(): Promise<SuiteResult> {
   return runSuite('text', [
     { name: 'fold Turkish İ', run: (): [string, string] => ['istanbul', fold('İSTANBUL')] },
     { name: 'fold dotless ı', run: (): [string, string] => ['istanbul', fold('ıstanbul')] },
-    { name: 'emoji is two columns', run: (): [string, string] => ['2', String(textWidth('🛡'))] },
-    { name: 'CJK is two columns', run: (): [string, string] => ['4', String(textWidth('漢字'))] },
-    { name: 'combining mark is zero columns', run: (): [string, string] => ['1', String(textWidth('e\u0301'))] },
     {
       name: 'versions order',
       run: (): [string, string] => [

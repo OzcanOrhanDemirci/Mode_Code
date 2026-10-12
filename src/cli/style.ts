@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /** Terminal colors for plain command output. Off when NO_COLOR is set, when output is not a terminal, or in plain mode. */
-import { textWidth } from '../core/text.js';
+import { textWidth } from '../node/width.js';
 
 let enabled = (() => {
   if (process.env.NO_COLOR !== undefined && process.env.NO_COLOR !== '') return false;

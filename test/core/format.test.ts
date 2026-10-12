@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ago, bar, compact, percent, shortPath, sparkline, until } from '../../src/core/format.js';
 import { compareVersions } from '../../src/core/version.js';
-import { fitWidth, textWidth } from '../../src/core/text.js';
+import { fitWidth, textWidth } from '../../src/node/width.js';
 
 test('numbers read naturally in both languages', () => {
   assert.equal(compact(999, 'en'), '999');
@@ -47,7 +47,9 @@ test('paths are shortened around the home folder and in the middle', () => {
 
 test('terminal width counts wide emoji as two columns', () => {
   assert.equal(textWidth('abc'), 3);
-  assert.equal(textWidth('🛡 x'), 4);
+  assert.equal(textWidth('🛡 x'), 3); // a pictograph shown as text is one column
+  assert.equal(textWidth('🛡️ x'), 4); // asked for as a picture (U+FE0F), two
+  assert.equal(textWidth('✅ ⚪ ⛔'), 8);
   assert.equal(textWidth('çğış'), 4);
   assert.equal(fitWidth('Delete a critical folder', 10), 'Delete a…');
   assert.equal(textWidth(fitWidth('🔒🔒🔒🔒', 5)), 5);
