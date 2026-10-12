@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { summary, winCtx, macCtx, linuxCtx, write, bash } from '../helpers/belt.js';
+import { summary, winCtx, macCtx, linuxCtx, write, bash, pwsh } from '../helpers/belt.js';
 
 const TOOL = 'deny self.tool-files';
 const SETTINGS = 'deny self.claude-settings';
@@ -108,4 +108,15 @@ test('a data folder given by its short name (a short TEMP, as on CI machines) me
   // And the other way round: the data folder long, the target short.
   const longData = winCtx({ home: 'C:/Users/runneradmin', dataDir: long });
   assert.equal(summary(await write(`${short}/config.json`, 'x', longData)), TOOL);
+});
+
+test('Windows: trailing dots and spaces, which PowerShell and cmd drop from every name, change nothing', async () => {
+  // Measured on Windows 11: Set-Content -Path folder.\x.txt. and `echo x > folder.\x.txt.` both write folder\x.txt.
+  assert.equal(summary(await pwsh('Set-Content -Path C:/Users/ada/.claude./settings.json. -Value x')), SETTINGS);
+  assert.equal(summary(await pwsh('Set-Content -Path "C:\\Users\\ada\\.terminal-code \\config.json" -Value x')), TOOL);
+  assert.equal(summary(await write('C:/Users/ada/.terminal-code./config.json...')), TOOL);
+  assert.equal(summary(await write('C:/Users/ada/.claude/settings.json. ')), SETTINGS);
+  // A name of three dots or more is a name of its own; elsewhere than Windows trailing dots are kept.
+  assert.equal(summary(await write('C:/dev/app/.../x.txt')), 'allow');
+  assert.equal(summary(await write('/home/ada/.terminal-code./config.json', 'x', linuxCtx())), 'allow');
 });

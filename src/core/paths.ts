@@ -47,9 +47,16 @@ function splitRoot(p: string): { root: string; rest: string } {
   return { root: '', rest: p };
 }
 
-function normalizeSegments(rest: string): string[] {
+/**
+ * Segments with `.` and `..` folded. On Windows, trailing dots and spaces are dropped from each segment as
+ * the Win32 path rules do: measured, PowerShell's Set-Content and cmd's `>` write `folder.\x.txt.` into
+ * `folder\x.txt`, so `.claude.\settings.json` is the settings file. (Node and Git Bash keep such names
+ * literally; judging them as the plain name only ever protects more.) Three or more dots alone are a name.
+ */
+function normalizeSegments(rest: string, win: boolean): string[] {
   const out: string[] = [];
-  for (const seg of rest.split('/')) {
+  for (const raw of rest.split('/')) {
+    const seg = win && raw !== '.' && raw !== '..' && /[. ]$/.test(raw) && !/^\.{3,}$/.test(raw) ? raw.replace(/[. ]+$/, '') : raw;
     if (seg === '' || seg === '.') continue;
     if (seg === '..') out.pop();
     else out.push(seg);
@@ -91,7 +98,11 @@ export function resolvePath(input: string, env: PathEnv): string {
     const drive = splitRoot(windowsSlashForm(env.cwd)).root;
     if (/^[A-Z]:\/$/.test(drive)) root = drive;
   }
-  const segs = normalizeSegments(rest);
+  const segs = normalizeSegments(rest, win);
+  // The input was trimmed; a last name that ends in spaces only once ".." is folded is trimmed the same way,
+  // so a path resolves to the same form however often it is resolved (and such a name is judged as the plain one).
+  while (segs.length && /^\s*$/.test(segs[segs.length - 1]!)) segs.pop();
+  if (segs.length) segs[segs.length - 1] = segs[segs.length - 1]!.replace(/\s+$/, '');
   return root + segs.join('/');
 }
 
