@@ -138,3 +138,20 @@ test('redirect-only commands still count as writes', () => {
   const inv = analyzeCommand('> ~/.bashrc', 'bash').invocations[0]!;
   assert.deepEqual(inv.writes, ['~/.bashrc']);
 });
+
+test('package runners run the program of the package they name', () => {
+  const programs = (c: string) => analyzeCommand(c, 'bash').invocations.map((i) => `${i.program} ${i.args.join(' ')}`.trim());
+  assert.deepEqual(programs('npx --yes prettier --check .'), ['prettier --check .']);
+  assert.deepEqual(programs('npx rimraf@5 dist'), ['rimraf dist']);
+  assert.deepEqual(programs('npx -p typescript tsc --noEmit'), ['tsc --noEmit']);
+  assert.deepEqual(programs('pnpm dlx @scope/tool@1.2 x'), ['tool x']);
+  assert.deepEqual(programs('bunx eslint .'), ['eslint .']);
+  assert.deepEqual(programs('bun x tsc'), ['tsc']);
+  assert.deepEqual(programs('yarn dlx create-app y'), ['create-app y']);
+  assert.deepEqual(programs('npx -c "rm -rf x"'), ['rm -rf x']);
+  // Not runners: their own commands stay as they are.
+  assert.deepEqual(programs('pnpm install'), ['pnpm install']);
+  assert.deepEqual(programs('bun run build'), ['bun run build']);
+  assert.deepEqual(programs('yarn test'), ['yarn test']);
+  assert.deepEqual(programs('npx'), ['npx']);
+});

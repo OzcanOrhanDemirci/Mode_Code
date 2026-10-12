@@ -541,9 +541,34 @@ function unwrap(program: string, rest: readonly Word[]): Unwrapped | null {
       while (i < rest.length && (rest[i]!.text.startsWith('/') || (i === 0 && rest[i]!.text === ''))) i++;
       return { inner: rest.slice(i) };
     }
+    case 'npx':
+    case 'pnpx':
+    case 'bunx':
+      return packageRunner(rest);
+    case 'pnpm':
+    case 'yarn':
+      return rest[0]?.text === 'dlx' ? packageRunner(rest.slice(1)) : null;
+    case 'bun':
+      return rest[0]?.text === 'x' ? packageRunner(rest.slice(1)) : null;
     default:
       return null;
   }
+}
+
+const RUNNER_VALUE = new Set(['-p', '--package', '--cache', '--registry', '--userconfig', '-w', '--workspace']);
+
+/**
+ * A package runner (`npx`, `pnpm dlx`, `bunx`) runs the program of the package it names: `npx rimraf@5 x`
+ * runs `rimraf x`. `-c '<command>'` runs a shell string instead.
+ */
+function packageRunner(rest: readonly Word[]): Unwrapped {
+  const ci = rest.findIndex((w) => w.text === '-c' || w.text === '--call');
+  if (ci !== -1 && rest[ci + 1]) return nestedString(rest[ci + 1]!);
+  const inner = rest.slice(skipOptions(rest, 0, RUNNER_VALUE));
+  const [first, ...more] = inner;
+  if (!first) return { inner: [] };
+  // "rimraf@5" and "@scope/tool@1.2" name the package's program without the version.
+  return { inner: [{ ...first, text: first.text.replace(/^(@[^/@]+\/[^@]+|[^@]+)@.*$/, '$1') }, ...more] };
 }
 
 /** A wrapper whose argument is itself a shell string (watch 'cmd', su -c 'cmd'): parse it as bash words. */

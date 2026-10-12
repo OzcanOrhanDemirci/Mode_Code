@@ -323,7 +323,7 @@ describe('persistence, publishing, docker, inline code, uncertainty', () => {
       ['gh repo create app --private', 'allow'],
       ['gh release create v1.0.0', 'ask'],
       ['firebase deploy --only functions', 'ask'],
-      ['npx wrangler deploy', 'allow'], // npx itself is not a wrapper; see the note in the rules
+      ['npx wrangler deploy', 'ask'], // a package runner runs the package's program: the same as wrangler deploy
       ['wrangler deploy', 'ask'],
       ['terraform plan', 'allow'],
       ['terraform apply', 'ask'],
