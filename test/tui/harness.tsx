@@ -200,6 +200,14 @@ export class FakeData implements DataSource {
   folders() {
     return [{ cwd: 'C:/work/app', sessions: 1, lastTs: NOW - 120_000, prompts: 4, tokens: 41_000_000 }];
   }
+  applied: string[] = [];
+  templates() {
+    return { applied: this.applied, remote: 'github.com/me/app' };
+  }
+  setTemplate(id: string, on: boolean) {
+    this.applied = on ? [...new Set([...this.applied, id])] : this.applied.filter((x) => x !== id);
+    return null;
+  }
   report(days: number) {
     return buildReport(null, this.events(), NOW - days * 86400_000, NOW);
   }

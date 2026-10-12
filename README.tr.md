@@ -37,15 +37,15 @@
 
 **Terminalinde** (`terminal-code`): yedi kategorili, Türkçe ve İngilizce bir kontrol merkezi.
 
-|                 |                                                                                                                                             |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Ana ekran**   | Koruma durumu, kota, bugün, çalışan oturumlar ve sen yokken olanlar                                                                         |
-| **Projeler**    | Çalıştığın her klasör: oturumlar, tokenler, git durumu                                                                                      |
-| **Oturumlar**   | Bu makinedeki her oturum, aranabilir; birini sırları maskeleyerek Markdown olarak dışa aktar                                                |
-| **Ölçüm**       | Kota pencereleri, güne ve modele göre token, önbellek isabeti, araç hata oranları                                                           |
-| **Güvenlik**    | Her korumanın çalışıp çalışmadığı, 39 kemer kuralı, yakaladıkları, bir sınayıcı, hafızadaki sırlar                                          |
-| **Claude Code** | Kurulumunun salt okunur haritası: talimat dosyaları ve hafıza sınırı, ayar kaynakları, hook'lar, izin kuralları, MCP sunucuları, eklentiler |
-| **Ayarlar**     | Aracın kendi ayarları, yerinde düzenlenir                                                                                                   |
+|                 |                                                                                                                                                                                                                           |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Ana ekran**   | Koruma durumu, kota, bugün, çalışan oturumlar ve sen yokken olanlar                                                                                                                                                       |
+| **Projeler**    | Çalıştığın her klasör: oturumlar, tokenler, git durumu                                                                                                                                                                    |
+| **Oturumlar**   | Bu makinedeki her oturum, aranabilir; birini sırları maskeleyerek Markdown olarak dışa aktar                                                                                                                              |
+| **Ölçüm**       | Kota pencereleri, güne ve modele göre token, önbellek isabeti, araç hata oranları                                                                                                                                         |
+| **Güvenlik**    | Her korumanın çalışıp çalışmadığı, 39 kemer kuralı, yakaladıkları, bir sınayıcı, hafızadaki sırlar                                                                                                                        |
+| **Claude Code** | Kurulumunun salt okunur haritası: talimat dosyaları ve hafıza sınırı, ayar kaynakları, hook'lar, izin kuralları, MCP sunucuları, eklentiler; ve kural şablonları (herkese açık depo, üretim sunucusu, Flutter, tek dal …) |
+| **Ayarlar**     | Aracın kendi ayarları, yerinde düzenlenir                                                                                                                                                                                 |
 
 ### Claude Code'un içinde
 

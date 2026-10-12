@@ -19,6 +19,7 @@ import {
   cmdStatus,
   cmdTokens,
   cmdReport,
+  cmdTemplate,
   cmdTry,
   cmdUninstall,
   helpText,
@@ -69,6 +70,9 @@ async function main(argv: string[]): Promise<number> {
       return cmdQuota(sub);
     case 'tokens':
       return cmdTokens(sub);
+    case 'template':
+    case 'templates':
+      return cmdTemplate(sub);
     case 'report':
       return cmdReport(sub);
     case 'sessions':

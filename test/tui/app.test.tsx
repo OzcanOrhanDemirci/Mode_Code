@@ -139,6 +139,23 @@ test('the report screen sums up the day and switches to the week with p', async 
   }
 });
 
+test('a rule template is applied only after a second press', async () => {
+  const data = new FakeData();
+  const s = await draw(data, { address: 'claude-code/templates' });
+  try {
+    assert.match(s.text(), /Public repository/);
+    await s.press('a');
+    assert.match(s.text(), /Press a again to apply it/);
+    assert.deepEqual(data.applied, []);
+    await s.press('a');
+    assert.deepEqual(data.applied, ['public-repo']);
+    await s.press(KEY.down, 'x');
+    assert.deepEqual(data.applied, ['public-repo']); // x on a template that is not applied does nothing
+  } finally {
+    s.close();
+  }
+});
+
 test('home warns when two sessions work in the same folder', async () => {
   class TwoSessions extends FakeData {
     override modStates() {

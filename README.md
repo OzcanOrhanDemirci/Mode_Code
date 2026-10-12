@@ -37,15 +37,15 @@
 
 **In your terminal** (`terminal-code`): a control center with seven categories, in English and Turkish.
 
-|                 |                                                                                                                                        |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **Home**        | Protection status, quota, today, running sessions, and what happened while you were away                                               |
-| **Projects**    | Every folder you worked in: sessions, tokens, git state                                                                                |
-| **Sessions**    | Every session on this machine, searchable; export one as Markdown with secrets masked                                                  |
-| **Measure**     | Quota windows, tokens by day and model, cache hit rate, tool error rates                                                               |
-| **Security**    | Whether each protection runs, all 39 belt rules, what they caught, a tester, secrets in memory                                         |
-| **Claude Code** | A read-only map of your setup: instruction files and the memory limit, settings sources, hooks, permission rules, MCP servers, plugins |
-| **Settings**    | The tool's own settings, edited in place                                                                                               |
+|                 |                                                                                                                                                                                                                          |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Home**        | Protection status, quota, today, running sessions, and what happened while you were away                                                                                                                                 |
+| **Projects**    | Every folder you worked in: sessions, tokens, git state                                                                                                                                                                  |
+| **Sessions**    | Every session on this machine, searchable; export one as Markdown with secrets masked                                                                                                                                    |
+| **Measure**     | Quota windows, tokens by day and model, cache hit rate, tool error rates                                                                                                                                                 |
+| **Security**    | Whether each protection runs, all 39 belt rules, what they caught, a tester, secrets in memory                                                                                                                           |
+| **Claude Code** | A read-only map of your setup: instruction files and the memory limit, settings sources, hooks, permission rules, MCP servers, plugins; and rule templates (public repository, production server, Flutter, one branch …) |
+| **Settings**    | The tool's own settings, edited in place                                                                                                                                                                                 |
 
 ### Inside Claude Code
 

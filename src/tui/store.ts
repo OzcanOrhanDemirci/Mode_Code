@@ -8,7 +8,9 @@ import { setConfigValue, serializeConfig, type Config, type ConfigProblem } from
 import type { Lang } from '../core/i18n/index.js';
 import type { Layout } from '../core/layout.js';
 import { join } from 'node:path';
-import { readJson, writeAtomic, writeJsonAtomic } from '../node/fsx.js';
+import { readJson, readText, writeAtomic, writeJsonAtomic } from '../node/fsx.js';
+import { git } from '../node/git.js';
+import { appliedTemplates, repoKey, templateById, withTemplates } from '../core/templates.js';
 import { claudeDir } from '../node/env.js';
 import type { SessionIndex, SessionRow, TokenTotals, ToolStat, FolderRow } from '../node/index-db.js';
 import { readClaudeEnv, type ClaudeEnv, type PluginInfo } from '../node/claude-env.js';
@@ -44,6 +46,9 @@ export interface DataSource {
   tools(opts: { days?: number; session?: string }): ToolStat[];
   folders(days: number): FolderRow[];
   report(days: number): Report;
+  /** Templates applied in this folder, and whether the folder has a remote (some templates need one). */
+  templates(): { applied: string[]; remote: string | null };
+  setTemplate(id: string, on: boolean): string | null;
   claude(): ClaudeEnv;
   plugins(): PluginInfo[] | null;
   scanMemory(): { findings: SecretFinding[]; files: number; skipped: number };
@@ -147,6 +152,27 @@ export class LiveData implements DataSource {
   }
   folders(days: number): FolderRow[] {
     return this.memo(`folders:${days}`, 30_000, () => this.index()?.folders(Date.now() - days * 86400_000) ?? []);
+  }
+  templates(): { applied: string[]; remote: string | null } {
+    const r = git(this.ctx.cwd, ['remote', 'get-url', 'origin']);
+    return { applied: appliedTemplates(readText(join(this.ctx.cwd, 'CLAUDE.md'))), remote: r.ok && r.out ? repoKey(r.out) : null };
+  }
+  /** Applies or removes a template in this folder; returns an error message key, or null. */
+  setTemplate(id: string, on: boolean): string | null {
+    const t = templateById(id);
+    if (!t) return 'template.unknown';
+    const { applied, remote } = this.templates();
+    if (on && t.needsRemote && !remote) return 'template.noRemote';
+    let cfg = this.ctx.config;
+    const changes = on ? (t.changes?.(remote) ?? []) : [];
+    for (const ch of changes) cfg = setConfigValue(cfg, ch.path, ch.apply(cfg)).config;
+    if (changes.length) writeAtomic(this.ctx.layout.config, serializeConfig(cfg));
+    const md = join(this.ctx.cwd, 'CLAUDE.md');
+    const ids = on ? [...new Set([...applied, id])] : applied.filter((x) => x !== id);
+    writeAtomic(md, withTemplates(readText(md), ids, this.ctx.lang));
+    this.ctx = reloadConfig(this.ctx);
+    this.cache.clear();
+    return null;
   }
   report(days: number): Report {
     return this.memo(`report:${days}`, 30_000, () => buildReport(this.index(), loadEvents(this.ctx, days + 1), Date.now() - days * 86400_000, Date.now()));

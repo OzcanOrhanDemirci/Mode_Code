@@ -13,6 +13,7 @@ import { Folders, Quota, ReportScreen, Tokens, Tools } from './screens/measure.j
 import { ProjectCard, SessionCard, sessionLabel } from './screens/work.js';
 import { Events, Protection, RuleDetail, Secrets, TestCommand } from './screens/security.js';
 import { Extensions, Hooks, Instructions, Mcp, Permissions, Plugins, SettingsSources } from './screens/claude.js';
+import { Templates } from './screens/templates.js';
 import { About, Accessibility, FooterAndQuota, General, Keywords, Maintenance, Memory, Modules, Projects } from './screens/settings.js';
 
 const other = (lang: Lang): Lang => (lang === 'tr' ? 'en' : 'tr');
@@ -146,6 +147,7 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
       n('permissions', 'page.permissions', { description: d('desc.permissions'), screen: (p) => <Permissions {...p} /> }),
       n('mcp', 'page.mcp', { description: d('desc.mcp'), screen: (p) => <Mcp {...p} /> }),
       n('plugins', 'page.plugins', { description: d('desc.plugins'), screen: (p) => <Plugins {...p} /> }),
+      n('templates', 'page.templates', { description: d('desc.templates'), screen: (p) => <Templates {...p} /> }),
       n('extensions', 'page.extensions', { description: d('desc.extensions'), minView: 'recommended', screen: (p) => <Extensions {...p} /> }),
     ],
   });

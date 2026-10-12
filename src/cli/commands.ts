@@ -14,7 +14,7 @@ import { compact, percent, ago, until, dateTime, bar, shortPath, integer } from 
 import { tIn, type Lang, type MessageKey } from '../core/i18n/index.js';
 import { maskSecrets } from '../core/secrets/scan.js';
 import { beltContext } from '../node/context.js';
-import { writeAtomic } from '../node/fsx.js';
+import { readText, writeAtomic } from '../node/fsx.js';
 import { applyInstall, applyUninstall, distDir, hookGroups, planInstall, readManifest, stableNodePath, underAgent } from '../node/install.js';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -24,6 +24,8 @@ import { appContext, type AppContext } from '../app/context.js';
 import { loadEvents, loadQuota, openIndex, scanPaths } from '../app/data.js';
 import { checkHealth, healthCounts, type FeatureHealth } from '../app/health.js';
 import { buildReport, reportLines } from '../app/report.js';
+import { appliedTemplates, repoKey, TEMPLATES, templateById, withTemplates } from '../core/templates.js';
+import { git } from '../node/git.js';
 import { flag, intValue, value, values, type Args } from './args.js';
 import { bold, dim, green, red, yellow, gray, cyan, table } from './style.js';
 
@@ -429,6 +431,69 @@ export async function cmdTokens(a: Args): Promise<number> {
   }
 }
 
+/** Rule templates for the current folder: list, apply (preview and confirm), remove. */
+export async function cmdTemplate(a: Args): Promise<number> {
+  const ctx = appContext();
+  const sub = a.positionals[0] ?? 'list';
+  const mdPath = join(process.cwd(), 'CLAUDE.md');
+  const md = readText(mdPath);
+  const applied = appliedTemplates(md);
+  if (sub === 'list') {
+    if (flag(a, 'json')) {
+      json('templates', {
+        folder: process.cwd(),
+        applied,
+        templates: TEMPLATES.map((t) => ({ id: t.id, name: t.name[ctx.lang], description: t.description[ctx.lang], rules: t.rules[ctx.lang] })),
+      });
+      return 0;
+    }
+    for (const t of TEMPLATES) {
+      say(`${applied.includes(t.id) ? green('✓') : ' '} ${bold(t.id.padEnd(15))} ${t.name[ctx.lang]}`);
+      say(dim(`                  ${t.description[ctx.lang]}`));
+    }
+    say();
+    say(dim(T(ctx, 'template.hint')));
+    return 0;
+  }
+  if (sub !== 'apply' && sub !== 'remove') {
+    say(red(T(ctx, 'cli.unknownSub', { sub, cmd: 'template' })));
+    return 2;
+  }
+  const t = templateById(a.positionals[1] ?? '');
+  if (!t) {
+    say(red(T(ctx, 'template.unknown', { id: a.positionals[1] ?? '' })));
+    return 2;
+  }
+  if (sub === 'remove' && underAgent()) {
+    say(red(T(ctx, 'cli.agentRefused')));
+    return 1;
+  }
+  const remoteRun = git(process.cwd(), ['remote', 'get-url', 'origin']);
+  const remote = remoteRun.ok && remoteRun.out ? repoKey(remoteRun.out) : null;
+  if (sub === 'apply' && t.needsRemote && !remote) {
+    say(red(T(ctx, 'template.noRemote')));
+    return 1;
+  }
+  const changes = sub === 'apply' ? (t.changes?.(remote) ?? []) : [];
+  const ids = sub === 'apply' ? [...new Set([...applied, t.id])] : applied.filter((x) => x !== t.id);
+  say(bold(t.name[ctx.lang]) + dim(`  (${t.id})`));
+  say(T(ctx, sub === 'apply' ? 'template.willWrite' : 'template.willRemove', { file: shortPath(mdPath, homedir(), 80) }));
+  for (const r of t.rules[ctx.lang]) say(`  - ${r}`);
+  for (const ch of changes) say(`  ${cyan('+')} ${ch.text[ctx.lang]}`);
+  if (sub === 'remove' && t.changes) say(dim(T(ctx, 'template.settingsStay')));
+  if (flag(a, 'dry-run')) return 0;
+  if (!flag(a, 'yes', 'y') && !(await confirm(T(ctx, 'template.confirm')))) {
+    say(T(ctx, 'cli.cancelled'));
+    return 1;
+  }
+  let cfg = ctx.config;
+  for (const ch of changes) cfg = setConfigValue(cfg, ch.path, ch.apply(cfg)).config;
+  if (changes.length) writeAtomic(ctx.layout.config, serializeConfig(cfg));
+  writeAtomic(mdPath, withTemplates(md, ids, ctx.lang));
+  say(green(T(ctx, sub === 'apply' ? 'template.applied' : 'template.removed')));
+  return 0;
+}
+
 export async function cmdReport(a: Args): Promise<number> {
   const ctx = appContext();
   const days = flag(a, 'week') ? 7 : intValue(a, 'days', 1, 1, 365);
@@ -671,6 +736,7 @@ export function helpText(lang: Lang): string {
     `  ${c('tokens [--days N] [--by …]'.padEnd(28))}${L('help.tokens')}`,
     `  ${c('sessions [search]'.padEnd(28))}${L('help.sessions')}`,
     `  ${c('report [--week]'.padEnd(28))}${L('help.report')}`,
+    `  ${c('template list|apply|remove'.padEnd(28))}${L('help.template')}`,
     `  ${c('belt rules|events|test'.padEnd(28))}${L('help.belt')}`,
     `  ${c('secrets [path…]'.padEnd(28))}${L('help.secrets')}`,
     `  ${c('config get|set|path'.padEnd(28))}${L('help.config')}`,
