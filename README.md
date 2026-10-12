@@ -66,7 +66,7 @@ cd terminal-code && npm ci && npm run build
 node dist/cli.mjs install
 ```
 
-To try it first without installing anything, run `node dist/cli.mjs try`: it starts one Claude Code session with everything loaded and leaves nothing behind.
+To try it first without installing anything, run `node dist/cli.mjs try`: it starts one Claude Code session with everything loaded and changes nothing in your Claude Code configuration.
 
 The installer first shows every change it will make and asks once before it changes anything. Then start a new Claude Code session, and open the control center with `node dist/cli.mjs`.
 

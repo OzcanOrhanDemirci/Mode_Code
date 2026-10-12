@@ -66,7 +66,7 @@ cd terminal-code && npm ci && npm run build
 node dist/cli.mjs install
 ```
 
-Hiçbir şey kurmadan önce denemek için `node dist/cli.mjs try` çalıştır: her şey yüklü tek bir Claude Code oturumu başlatır ve geride bir şey bırakmaz.
+Hiçbir şey kurmadan önce denemek için `node dist/cli.mjs try` çalıştır: her şey yüklü tek bir Claude Code oturumu başlatır ve Claude Code yapılandırmanda hiçbir şeyi değiştirmez.
 
 Kurulum önce yapacağı her değişikliği gösterir ve hiçbir şeyi değiştirmeden önce bir kez sorar. Sonra yeni bir Claude Code oturumu başlat; kontrol merkezini `node dist/cli.mjs` ile aç.
 

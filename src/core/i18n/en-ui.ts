@@ -237,7 +237,7 @@ export const enUi = {
   'help.install': 'Show every change, then install after you confirm',
   'help.try': 'Start one Claude Code session with everything loaded, without installing',
   'try.intro':
-    'Starting Claude Code with the plugin and the safety-net hooks loaded for this session only. Nothing is installed; when the session ends, nothing is left behind.',
+    'Starting Claude Code with the plugin and the safety-net hooks loaded for this session only. Nothing is installed and nothing in your Claude Code configuration changes.',
   'try.agent': 'This starts a new Claude Code session, so it runs only from your own terminal.',
   'help.uninstall': 'Remove exactly what the installation added',
   'help.quota': 'Quota windows and the budget',
