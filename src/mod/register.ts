@@ -490,6 +490,7 @@ async function memoryStatusFor($: $, c: Ctx, cwd: string): Promise<MemoryStatus>
   let dirty = 0;
   let ahead = 0;
   let unknown = false;
+  let noUpstream = false;
   let pushed = false;
   for (const dir of memoryDirs(c, cwd)) {
     const inside = await runGit($, dir, ['rev-parse', '--is-inside-work-tree']);
@@ -497,9 +498,13 @@ async function memoryStatusFor($: $, c: Ctx, cwd: string): Promise<MemoryStatus>
     any = true;
     const st = await runGit($, dir, ['status', '--porcelain=v1']);
     dirty += st.ok ? st.out.split('\n').filter(Boolean).length : 0;
-    const ah = await runGit($, dir, ['rev-list', '--count', '@{upstream}..HEAD']);
-    if (ah.ok && /^\d+$/.test(ah.out)) ahead += parseInt(ah.out, 10);
-    else unknown = true;
+    const up = await runGit($, dir, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}']);
+    if (!up.ok || !up.out) noUpstream = true;
+    else {
+      const ah = await runGit($, dir, ['rev-list', '--count', '@{upstream}..HEAD']);
+      if (ah.ok && /^\d+$/.test(ah.out)) ahead += parseInt(ah.out, 10);
+      else unknown = true;
+    }
     const ht = await runGit($, dir, ['log', '-1', '--format=%ct']);
     if (ht.ok && c.turn.startedAt !== null && /^\d+$/.test(ht.out) && parseInt(ht.out, 10) * 1000 >= c.turn.startedAt - 1000) pushed = true;
   }
@@ -507,6 +512,7 @@ async function memoryStatusFor($: $, c: Ctx, cwd: string): Promise<MemoryStatus>
   if (dirty) return { state: 'dirty', count: dirty };
   if (ahead) return { state: 'ahead', count: ahead };
   if (unknown) return { state: 'unknown' };
+  if (noUpstream) return { state: 'noUpstream' };
   return { state: pushed ? 'pushed' : 'unchanged' };
 }
 

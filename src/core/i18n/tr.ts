@@ -72,6 +72,7 @@ export const tr: Record<MessageKey, string> = {
   'footer.memory.dirty': '{n} dosya commit edilmemiş',
   'footer.memory.ahead': '{n} commit itilmemiş',
   'footer.memory.unchanged': 'hafıza değişmedi',
+  'footer.memory.noUpstream': 'hafıza deposunun uzak dalı yok',
   'footer.changed': 'İşlem Yapıldı',
   'footer.acts.files': '{n} dosya yazıldı',
   'footer.acts.memory': 'hafızada {n} dosya',

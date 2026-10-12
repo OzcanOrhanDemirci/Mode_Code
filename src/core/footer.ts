@@ -142,7 +142,7 @@ export function classifyTurn(uses: readonly ToolUse[], env: ClassifyEnv): TurnAc
 
 export interface MemoryStatus {
   /** null when the person has no git-backed memory: the line is then hidden. */
-  state: 'pushed' | 'dirty' | 'ahead' | 'unchanged' | 'unknown' | null;
+  state: 'pushed' | 'dirty' | 'ahead' | 'unchanged' | 'noUpstream' | 'unknown' | null;
   count?: number;
 }
 
@@ -186,7 +186,9 @@ export function buildFooter(f: FooterFacts, lang: Lang): Footer {
           ? tIn(lang, 'footer.memory.dirty', { n: f.memory.count ?? 0 })
           : f.memory.state === 'ahead'
             ? tIn(lang, 'footer.memory.ahead', { n: f.memory.count ?? 0 })
-            : tIn(lang, 'footer.memory.unchanged');
+            : f.memory.state === 'noUpstream'
+              ? tIn(lang, 'footer.memory.noUpstream')
+              : tIn(lang, 'footer.memory.unchanged');
       lines.push(`${label}: ${no} (${why})`);
       memory = 'no';
     }

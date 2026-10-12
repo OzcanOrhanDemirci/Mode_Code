@@ -55,22 +55,26 @@ export function gitFacts(): GitFacts {
 export interface RepoStatus {
   isRepo: boolean;
   dirty: number;
-  /** Commits not on the upstream; null when there is no upstream. */
+  /** Commits not on the upstream; null when there is no upstream or it could not be read. */
   ahead: number | null;
+  /** True when the branch has an upstream to push to. */
+  hasUpstream: boolean;
   /** Commit time of HEAD, epoch ms. */
   headTime: number | null;
 }
 
 export function repoStatus(dir: string): RepoStatus {
   const top = git(dir, ['rev-parse', '--is-inside-work-tree']);
-  if (!top.ok || top.out !== 'true') return { isRepo: false, dirty: 0, ahead: null, headTime: null };
+  if (!top.ok || top.out !== 'true') return { isRepo: false, dirty: 0, ahead: null, hasUpstream: false, headTime: null };
   const st = git(dir, ['status', '--porcelain=v1', '--untracked-files=normal']);
   const dirty = st.ok ? st.out.split('\n').filter(Boolean).length : 0;
-  const ah = git(dir, ['rev-list', '--count', '@{upstream}..HEAD']);
+  const up = git(dir, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}']);
+  const hasUpstream = up.ok && up.out.length > 0;
+  const ah = hasUpstream ? git(dir, ['rev-list', '--count', '@{upstream}..HEAD']) : { ok: false, out: '' };
   const ahead = ah.ok && /^\d+$/.test(ah.out) ? parseInt(ah.out, 10) : null;
   const ht = git(dir, ['log', '-1', '--format=%ct']);
   const headTime = ht.ok && /^\d+$/.test(ht.out) ? parseInt(ht.out, 10) * 1000 : null;
-  return { isRepo: true, dirty, ahead, headTime };
+  return { isRepo: true, dirty, ahead, hasUpstream, headTime };
 }
 
 /**
@@ -84,12 +88,14 @@ export function memoryStatus(dirs: readonly string[], turnStartedAt: number | nu
   let ahead = 0;
   let pushed = false;
   let unknown = false;
+  let noUpstream = false;
   for (const d of dirs) {
     const s = repoStatus(d);
     if (!s.isRepo) continue;
     any = true;
     dirty += s.dirty;
-    if (s.ahead === null) unknown = true;
+    if (!s.hasUpstream) noUpstream = true;
+    else if (s.ahead === null) unknown = true;
     else ahead += s.ahead;
     if (turnStartedAt !== null && s.headTime !== null && s.headTime >= turnStartedAt - 1000) pushed = true;
   }
@@ -97,5 +103,6 @@ export function memoryStatus(dirs: readonly string[], turnStartedAt: number | nu
   if (dirty > 0) return { state: 'dirty', count: dirty };
   if (ahead > 0) return { state: 'ahead', count: ahead };
   if (unknown) return { state: 'unknown' };
+  if (noUpstream) return { state: 'noUpstream' };
   return { state: pushed ? 'pushed' : 'unchanged' };
 }

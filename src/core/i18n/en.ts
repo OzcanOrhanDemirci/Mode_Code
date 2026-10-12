@@ -72,6 +72,7 @@ export const en = {
   'footer.memory.dirty': '{n} files not committed',
   'footer.memory.ahead': '{n} commits not pushed',
   'footer.memory.unchanged': 'memory unchanged',
+  'footer.memory.noUpstream': 'the memory repository has no remote branch',
   'footer.changed': 'Changes made',
   'footer.acts.files': '{n} files written',
   'footer.acts.memory': '{n} memory files',

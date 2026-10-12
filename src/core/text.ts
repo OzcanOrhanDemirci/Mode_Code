@@ -92,5 +92,5 @@ export function fitWidth(text: string, max: number): string {
     out += ch;
     w += cw;
   }
-  return out + '…';
+  return out.trimEnd() + '…';
 }

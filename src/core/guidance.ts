@@ -8,6 +8,7 @@ import type { KeywordMatch } from './keywords.js';
 import type { QuotaAssessment } from './quota.js';
 import type { ModSessionState } from './session.js';
 import { APP_NAME } from './app.js';
+import { tIn, type Lang } from './i18n/index.js';
 
 const P = `[${APP_NAME}]`;
 
@@ -83,6 +84,30 @@ export function wrapUpContext(q: QuotaAssessment): string {
 export function stopContext(q: QuotaAssessment, resumeAt: number | null): string {
   const when = resumeAt ? ` Work resumes by itself after ${new Date(resumeAt).toISOString()}.` : '';
   return `${P} Quota guard: ${quotaLine(q)} The hard limit is reached. Only reading, saving notes and committing are allowed now; report and stop.${when}`;
+}
+
+/**
+ * The instruction behind the "checked" footer mode: the model writes the lines and the Stop hook compares
+ * them with the facts. Labels are given in the person's language, exactly as the check expects them.
+ */
+export function footerInstruction(lang: Lang, opts: { memory: boolean; showFiveFrom: number; showWeekFrom: number }): string {
+  const yes = tIn(lang, 'footer.yes');
+  const no = tIn(lang, 'footer.no');
+  const lines: string[] = [];
+  if (opts.memory)
+    lines.push(
+      `"${tIn(lang, 'footer.memory')}: ${yes}" or "${tIn(lang, 'footer.memory')}: ${no}": whether the memory repository was committed and pushed this turn.`,
+    );
+  lines.push(
+    `"${tIn(lang, 'footer.changed')}: ${yes}" or "${tIn(lang, 'footer.changed')}: ${no}": whether files, settings, git or anything outside changed this turn (temporary folders do not count).`,
+  );
+  lines.push(`"${tIn(lang, 'footer.five')}: N" only when the 5-hour quota is at least ${opts.showFiveFrom}.`);
+  lines.push(`"${tIn(lang, 'footer.week')}: N" only when the weekly quota is at least ${opts.showWeekFrom}, or "N/T" whenever a weekly target T is set.`);
+  return [
+    `${P} End every answer with these lines, after a blank line, each as its own paragraph, worded exactly like this:`,
+    ...lines.map((l) => `- ${l}`),
+    'A hook checks them against git, the tool calls of the turn and the measured quota, and sends wrong lines back once. When it does, answer with only the corrected lines.',
+  ].join('\n');
 }
 
 export function resumePrompt(project: string | null): string {

@@ -308,7 +308,7 @@ export class SessionIndex {
     return this.db
       .prepare(
         `SELECT name, COUNT(*) AS calls, SUM(error) AS errors, SUM(sidechain) AS byAgents FROM tool_uses ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-         GROUP BY name ORDER BY calls DESC LIMIT ?`,
+         GROUP BY name ORDER BY calls DESC, name LIMIT ?`,
       )
       .all(...args) as unknown as ToolStat[];
   }

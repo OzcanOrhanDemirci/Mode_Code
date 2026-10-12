@@ -15,7 +15,7 @@ import { sessionFile, eventsFile } from '../core/layout.js';
 import { maskSecrets } from '../core/secrets/scan.js';
 import { tIn, setLanguage, type Lang } from '../core/i18n/index.js';
 import { detectKeyword, DEFAULT_KEYWORDS } from '../core/keywords.js';
-import { keywordContext } from '../core/guidance.js';
+import { footerInstruction, keywordContext } from '../core/guidance.js';
 import { newModState } from '../core/session.js';
 import { assessQuota, type QuotaReading } from '../core/quota.js';
 import { buildFooter, checkFooter, classifyTurn } from '../core/footer.js';
@@ -156,18 +156,32 @@ function stop(input: Input, lang: Lang): void {
   });
 }
 
-function sessionStart(input: Input): void {
+function sessionStart(input: Input, lang: Lang): void {
   const l = dataLayout();
+  const { config } = loadConfig(l);
   const sessionId = str(input.session_id) ?? '';
   const hookFile = sessionFile(l, sessionId, 'hook');
-  if (!hookFile) return;
-  const state = parseHookState(readText(hookFile), sessionId);
-  state.lastRunAt = Date.now();
-  try {
-    writeJsonAtomic(hookFile, state);
-  } catch {
-    /* a session must start even when the data folder is not writable */
+  if (hookFile) {
+    const state = parseHookState(readText(hookFile), sessionId);
+    state.lastRunAt = Date.now();
+    try {
+      writeJsonAtomic(hookFile, state);
+    } catch {
+      /* a session must start even when the data folder is not writable */
+    }
   }
+  // In the "checked" footer mode the model writes the lines; it learns their exact wording here (also after a compaction).
+  if (config.modules.footer && config.footer.mode === 'check')
+    out({
+      hookSpecificOutput: {
+        hookEventName: 'SessionStart',
+        additionalContext: footerInstruction(lang, {
+          memory: config.memory.dirs.length > 0,
+          showFiveFrom: config.footer.showFiveFrom,
+          showWeekFrom: config.footer.showWeekFrom,
+        }),
+      },
+    });
 }
 
 async function main(): Promise<void> {
@@ -205,7 +219,7 @@ async function main(): Promise<void> {
   try {
     if (event === 'UserPromptSubmit') userPromptSubmit(input);
     else if (event === 'Stop') stop(input, lang);
-    else if (event === 'SessionStart') sessionStart(input);
+    else if (event === 'SessionStart') sessionStart(input, lang);
   } catch {
     /* outside the belt a failure passes silently: these features are conveniences, not protection */
   }
