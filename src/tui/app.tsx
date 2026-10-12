@@ -347,7 +347,7 @@ export function App(props: AppProps) {
   else if (open && selected?.screen) {
     const side = columns >= 110 && list.length > 1;
     const sideW = side ? Math.min(30, Math.floor(columns * 0.24)) : 0;
-    const mainW = columns - sideW - (side ? 1 : 0);
+    const mainW = columns - sideW;
     body = (
       <Box width={columns} height={bodyH}>
         {side ? (

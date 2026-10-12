@@ -155,7 +155,7 @@ Found a vulnerability? Please report it privately: see [SECURITY.md](SECURITY.md
 - **On native Windows the belt is an accident preventer, not a security boundary.** Claude Code's sandbox does not run there, and a script can do what a single command cannot. For unattended autonomous work use WSL2, macOS or Linux, where the sandbox adds a layer.
 - **The plugin uses Claude Code's early-access mods API**, which can change between releases. When it does not load, the hook keeps the belt running and the control center says which features are paused.
 - **Quota figures come from Claude Code**, recorded by the plugin after each answer. Without the plugin there is no quota reading; tokens are not quota.
-- **Footer lines drawn by the plugin** appear as a notice under the answer, as Claude Code shows it. If you want them inside the answer itself (so they also reach your phone and exports), choose the "Checked" footer mode: Claude writes them and a hook checks them.
+- **Footer lines drawn by the plugin** are part of how the answer is drawn, not of the conversation: the model never reads them and a transcript export does not contain them. If you want them written into the answers themselves, choose the "Checked" footer mode: Claude writes them and a hook checks them.
 
 ## FAQ
 

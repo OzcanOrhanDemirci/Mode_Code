@@ -38,7 +38,9 @@ export function Quota({ width }: ScreenProps) {
       </Section>
       <QuotaHistory width={width} />
       <Section title={t('quota.budget')}>
-        <Row label={t('quota.weeklyBudget')}>{a.target.explicit ? t('quota.explicit', { n: a.target.value }) : t('quota.default', { n: a.target.value })}</Row>
+        <Row label={t('quota.weeklyBudget')}>
+          {a.target.explicit ? t('quota.explicit', { n: percent(a.target.value, lang) }) : t('quota.default', { n: percent(a.target.value, lang) })}
+        </Row>
         <Row label={t('quota.fiveRule')}>{t('quota.fiveRuleText', { wrap: data.config().quota.fiveHourWrapUp, stop: data.config().quota.fiveHourStop })}</Row>
         <Row label={t('quota.state')} color={a.level === 'stop' ? theme.bad : a.level === 'wrapUp' ? theme.warn : theme.ok}>
           {t(a.level === 'stop' ? 'cli.quota.levelStop' : a.level === 'wrapUp' ? 'cli.quota.levelWrapUp' : 'quota.levelOk')}

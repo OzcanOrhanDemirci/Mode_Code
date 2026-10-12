@@ -10,6 +10,8 @@
  * is a top-level function of this file, as the engine's validator requires.
  */
 import type { EngineInterface, EventName, Hook, On } from 'claude-code';
+import { atom, read, update } from 'claude-code';
+import type { TerminalCodeFooters, TerminalCodeLabels } from './contract.js';
 import { APP_NAME, APP_VERSION, DATA_DIR_NAME, PLUGIN_NAME } from '../core/app.js';
 import { parseConfig, type Config } from '../core/config.js';
 import { layout, sessionFile, eventsFile, type Layout } from '../core/layout.js';
@@ -51,6 +53,10 @@ interface Ctx {
 }
 
 let ctxPromise: Promise<Ctx> | null = null;
+
+/** Session state the drawings read (kept by Claude Code across reloads of this module). */
+const footersAtom = atom({ plugin: 'terminal-code', key: 'footers' } as const, {} as TerminalCodeFooters);
+const labelsAtom = atom({ plugin: 'terminal-code', key: 'labels' } as const, { modes: [], tail: '' } as TerminalCodeLabels);
 
 /** Environment variables the belt may need to expand in paths; the API reads them one literal name at a time. */
 async function readEnv($: $): Promise<Record<string, string | undefined>> {
@@ -300,29 +306,59 @@ async function quotaNow($: $, c: Ctx): Promise<QuotaAssessment> {
   return assessQuota(c.reading, budgetOf(c.config, c.state), await $.clock.now());
 }
 
+/**
+ * What the prompt footer shows: the session's mode as labels at the right of the footer (beside Claude
+ * Code's own), and the quota dim at the end of the hint line. Drawn by render hooks, so no notice prefix.
+ */
 async function refreshStatus($: $, c: Ctx): Promise<void> {
   if (!c.config.modules.status) {
-    $.ui.status(undefined);
+    await update($, labelsAtom, () => ({ modes: [], tail: '' }));
     return;
   }
   const q = await quotaNow($, c);
-  const parts: string[] = [`🛡 ${APP_NAME}`];
-  if (c.state.mode === 'chat') parts.push(tIn(c.lang, 'status.chat'));
-  if (c.state.interaction === 'autonomous') parts.push(tIn(c.lang, 'status.autonomous'));
-  else if (c.state.interaction === 'manual') parts.push(tIn(c.lang, 'status.manual'));
-  if (c.state.wrapUp) parts.push(tIn(c.lang, 'status.wrapUp'));
-  if (q.usable && q.five) parts.push(tIn(c.lang, 'status.five', { n: Math.round(q.five.used) }));
+  const modes: string[] = [];
+  if (c.state.mode === 'chat') modes.push(tIn(c.lang, 'status.chat'));
+  if (c.state.interaction === 'autonomous') modes.push(tIn(c.lang, 'status.autonomous'));
+  else if (c.state.interaction === 'manual') modes.push(tIn(c.lang, 'status.manual'));
+  if (c.state.wrapUp) modes.push(tIn(c.lang, 'status.wrapUp'));
+  if (c.state.resumeAt) {
+    const d = new Date(c.state.resumeAt);
+    modes.push(tIn(c.lang, 'status.resume', { time: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }));
+  }
+  const quota: string[] = [];
+  if (q.usable && q.five) quota.push(tIn(c.lang, 'status.five', { n: Math.round(q.five.used) }));
   if (q.usable && q.week)
-    parts.push(
+    quota.push(
       c.state.weeklyTarget !== null
         ? tIn(c.lang, 'status.weekTarget', { n: Math.round(q.week.used), target: c.state.weeklyTarget })
         : tIn(c.lang, 'status.week', { n: Math.round(q.week.used) }),
     );
-  if (c.state.resumeAt) {
-    const d = new Date(c.state.resumeAt);
-    parts.push(tIn(c.lang, 'status.resume', { time: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }));
+  await update($, labelsAtom, () => ({ modes, tail: quota.length ? `🛡 ${quota.join(' · ')}` : '🛡' }));
+}
+
+/** A short, stable key for an answer's text (FNV-1a), to find the footer of the answer being drawn. */
+function textKey(text: string): string {
+  let h = 0x811c9dc5;
+  const s = text.trim();
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
   }
-  $.ui.status(parts.join(' · '));
+  return `${s.length}:${h.toString(16)}`;
+}
+
+async function footerFor($: $, text: string, isSummary: boolean): Promise<string[] | null> {
+  if (isSummary || !text.trim()) return null;
+  const map = await read($, footersAtom);
+  return map[textKey(text)] ?? null;
+}
+
+async function modeLabels($: $): Promise<string[]> {
+  return (await read($, labelsAtom)).modes;
+}
+
+async function quotaTail($: $): Promise<string> {
+  return (await read($, labelsAtom)).tail;
 }
 
 /** Asks the person about a belt "ask" verdict. Resolves true only on an explicit "allow". */
@@ -566,7 +602,15 @@ async function onTurnComplete($: $, e: In<'turn.complete'>, next: Nx<'turn.compl
     },
     c.lang,
   );
-  return { ...result, text: footer.lines.join('\n') };
+  // Drawn under the answer by the AssistantMessage render hook: part of the drawing, never of the transcript the model reads.
+  const key = textKey(e.answer);
+  await update($, footersAtom, (m) => {
+    const next: TerminalCodeFooters = { ...m, [key]: footer.lines };
+    const keys = Object.keys(next);
+    for (const k of keys.slice(0, Math.max(0, keys.length - 200))) delete next[k];
+    return next;
+  });
+  return result;
 }
 
 async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.start'>): Out<'session.start'> {
@@ -617,4 +661,18 @@ export function register(on: On): void {
   on('session.measure', onMeasure);
   on('turn.complete', onTurnComplete);
   on('prompt.attachment', { type: 'silent_turn_reminder' }, async ($, e, next) => ((await quietWork($)) ? { text: null } : next(e)));
+  // The footer lines, as part of the answer's drawing (every surface, the phone included).
+  on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
+    const lines = await footerFor($, e.props.text, e.props.isSummary === true);
+    return lines?.length ? next({ ...e, props: { ...e.props, text: `${e.props.text}\n\n${lines.join('\n\n')}` } }) : next(e);
+  });
+  // The session's mode beside Claude Code's own mode labels, and the quota at the end of the hint line.
+  on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
+    const mine = await modeLabels($);
+    return mine.length ? next({ ...e, props: { ...e.props, modes: [...e.props.modes, ...mine] } }) : next(e);
+  });
+  on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
+    const tail = await quotaTail($);
+    return tail ? next({ ...e, props: { ...e.props, tail: e.props.tail ? `${e.props.tail} · ${tail}` : tail } }) : next(e);
+  });
 }

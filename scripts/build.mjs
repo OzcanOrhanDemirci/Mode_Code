@@ -79,10 +79,14 @@ const manifest = {
   homepage: pkg.homepage,
   repository: pkg.repository.url.replace(/^git\+/, ''),
   license: pkg.license,
+  types: './types/index.d.ts',
 };
 await writeFile(join(dist, 'plugin', '.claude-plugin', 'plugin.json'), JSON.stringify(manifest, null, 2) + '\n');
 await writeFile(join(dist, 'plugin', 'hooks', 'hooks.json'), JSON.stringify({ modules: ['./register.js'] }, null, 2) + '\n');
 for (const f of ['LICENSE', 'NOTICE']) await cp(join(root, f), join(dist, 'plugin', f));
+// The contract of the values the plugin keeps in Claude Code's session state; the validator checks it.
+await mkdir(join(dist, 'plugin', 'types'), { recursive: true });
+await cp(join(root, 'src', 'mod', 'contract.d.ts'), join(dist, 'plugin', 'types', 'index.d.ts'));
 
 // ── third-party notices: every package that ended up in a bundle, with its license text ──
 const inputs = new Set();

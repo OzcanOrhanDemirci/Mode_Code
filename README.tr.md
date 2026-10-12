@@ -156,7 +156,7 @@ Bir güvenlik açığı mı buldun? Lütfen gizli bildir: [SECURITY.md](SECURITY
 - **Yerel Windows'ta kemer bir kaza önleyicidir, güvenlik sınırı değildir.** Claude Code'un kum havuzu orada çalışmaz ve bir betik, tek bir komutun yapamadığını yapabilir. Gözetimsiz otonom iş için kum havuzunun bir katman eklediği WSL2, macOS ya da Linux kullan.
 - **Eklenti Claude Code'un erken erişimdeki mod API'sini kullanır**; sürümler arasında değişebilir. Yüklenmediğinde kemeri hook yürütmeye devam eder; kontrol merkezi hangi özelliklerin duraklatıldığını söyler.
 - **Kota rakamları Claude Code'dan gelir**; eklenti her cevaptan sonra kaydeder. Eklenti olmadan kota ölçümü olmaz; token kota değildir.
-- **Eklentinin çizdiği alt satırlar** Claude Code'un gösterdiği biçimde cevabın altında bir bildirim olarak görünür. Cevabın içinde olmalarını istiyorsan (o zaman telefonuna ve dışa aktarmalara da ulaşırlar) "Denetlenir" kipini seç: satırları Claude yazar, bir hook denetler.
+- **Eklentinin çizdiği alt satırlar** konuşmanın değil, cevabın çiziminin parçasıdır: model onları okumaz, dışa aktarılan kayıtta yer almazlar. Cevapların içine yazılmalarını istiyorsan "Denetlenir" kipini seç: satırları Claude yazar, bir hook denetler.
 
 ## Sık sorulanlar
 

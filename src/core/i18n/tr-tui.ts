@@ -334,7 +334,7 @@ export const trTui: Record<keyof typeof enTui, string> = {
   'mod.beltNote': 'Emniyet kemeri bu listede yok: her zaman açıktır. Kuralları Güvenlik › Emniyet kemeri kuralları altından değiştirilebilir.',
   'set.footerMode': 'Alt satırlar',
   'set.footerModeHelp':
-    'Çizilir: eklenti cevabın altına çizer. Denetlenir: Claude yazar, bir hook denetler (o zaman telefonuna ve dışa aktarmalara da ulaşır). Kapalı: hiç yok.',
+    'Çizilir: eklenti cevabın altına çizer; model onları okumaz. Denetlenir: Claude cevaba yazar, bir hook denetler; böylece kayıtlarda ve dışa aktarmalarda da bulunur. Kapalı: hiç yok.',
   'footer.mode.draw': 'Çizilir',
   'footer.mode.check': 'Denetlenir',
   'footer.mode.off': 'Kapalı',

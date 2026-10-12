@@ -341,7 +341,7 @@ export const enTui = {
   'mod.beltNote': 'The safety belt is not on this list: it is always on. Its rules can be changed under Security › Safety belt rules.',
   'set.footerMode': 'Footer lines',
   'set.footerModeHelp':
-    'Drawn: the plugin draws them under the answer. Checked: Claude writes them and a hook checks them (they then also reach your phone and exports). Off: none.',
+    'Drawn: the plugin draws them under the answer; the model never reads them. Checked: Claude writes them into the answer and a hook checks them, so they are also in transcripts and exports. Off: none.',
   'footer.mode.draw': 'Drawn',
   'footer.mode.check': 'Checked',
   'footer.mode.off': 'Off',
