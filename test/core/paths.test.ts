@@ -57,6 +57,9 @@ test('POSIX resolution', () => {
   assert.equal(resolvePath('~/.claude', LINUX), '/home/ada/.claude');
   assert.equal(resolvePath('../../../../..', LINUX), '/');
   assert.equal(resolvePath('src/./a/../b', MAC), '/Users/ada/dev/app/src/b');
+  // Found by a property run with more cases: a last name that trims to "." or ".." folds like one.
+  assert.equal(resolvePath('. /a/..', MAC), '/Users/ada/dev/app');
+  assert.equal(resolvePath('src/.. /a/..', LINUX), resolvePath('.', LINUX));
 });
 
 test('comparison ignores case on Windows and macOS, not on Linux', () => {

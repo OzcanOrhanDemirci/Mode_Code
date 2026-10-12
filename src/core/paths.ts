@@ -101,8 +101,16 @@ export function resolvePath(input: string, env: PathEnv): string {
   const segs = normalizeSegments(rest, win);
   // The input was trimmed; a last name that ends in spaces only once ".." is folded is trimmed the same way,
   // so a path resolves to the same form however often it is resolved (and such a name is judged as the plain one).
-  while (segs.length && /^\s*$/.test(segs[segs.length - 1]!)) segs.pop();
-  if (segs.length) segs[segs.length - 1] = segs[segs.length - 1]!.replace(/\s+$/, '');
+  // A name that trims to "." or ".." is then folded too (". /a/.." ends at ". ", which is ".").
+  while (segs.length) {
+    const last = segs[segs.length - 1]!.replace(/\s+$/, '');
+    if (last === '' || last === '.') segs.pop();
+    else if (last === '..') segs.splice(-2, 2);
+    else {
+      segs[segs.length - 1] = last;
+      break;
+    }
+  }
   return root + segs.join('/');
 }
 
