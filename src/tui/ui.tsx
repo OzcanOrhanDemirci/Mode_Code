@@ -117,7 +117,7 @@ export function Row({ label, children, width = 22, color }: { label: string; chi
   const { theme } = useEnv();
   return (
     <Box>
-      <Box width={width} flexShrink={0}>
+      <Box width={width} flexShrink={0} paddingRight={1}>
         <Text color={theme.muted} wrap="truncate-end">
           {label}
         </Text>
