@@ -106,7 +106,7 @@ export const tr: Record<MessageKey, string> = {
   'belt.ask.question': 'Emniyet kemeri bir {tool} çağrısını durdurdu. {reasons} Bu seferlik izin verilsin mi?',
   'belt.ask.allow': 'Bu seferlik izin ver',
   'belt.ask.block': 'Engelle',
-  'belt.ask.header': 'Emniyet kemeri',
+  'belt.ask.header': 'Kemer',
   'belt.failed':
     'Emniyet kemeri bu çağrıyı denetleyemedi ({error}); güvenli olsun diye engellendi. Kullanıcıya söyle; hata, kontrol merkezinde Güvenlik altında görünür.',
 

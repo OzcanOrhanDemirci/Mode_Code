@@ -75,6 +75,13 @@ test('classifyTurn counts distinct files, memory, git and changing commands', ()
   assert.deepEqual(acts, { files: 1, memoryFiles: 1, settings: 0, git: 1, shell: 1, external: 0 });
 });
 
+test('listing forms of git subcommands that can change things are only reads', () => {
+  const shell = (command: string) => classifyTurn([{ name: 'Bash', input: { command } }], env).shell;
+  for (const c of ['git branch -a && git remote -v && git log --oneline -3', 'git tag -l', 'git config --get user.name', 'git stash list', 'git worktree list'])
+    assert.equal(shell(c), 0, c);
+  for (const c of ['git branch feature', 'git tag -a v1 -m x', 'git remote add up x', 'git config user.name Ada', 'git stash']) assert.equal(shell(c), 1, c);
+});
+
 test('the footer reads like the working rules ask, in Turkish', () => {
   const f = buildFooter(
     {

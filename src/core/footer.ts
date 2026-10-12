@@ -35,6 +35,32 @@ export interface ClassifyEnv extends PathEnv {
 const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 const MUTATING_GIT =
   /^(?:add|rm|mv|checkout|switch|reset|rebase|merge|tag|stash|cherry-pick|apply|am|revert|clean|restore|pull|init|clone|worktree|branch|config|remote|submodule|filter-branch|filter-repo|update-ref|notes)$/;
+/** Listing and showing forms of otherwise changing git subcommands: `git branch -a`, `git remote -v`, … */
+function gitOnlyReads(sub: string, args: readonly string[]): boolean {
+  const words = args.filter((a) => !a.startsWith('-'));
+  const flags = args.filter((a) => a.startsWith('-'));
+  switch (sub) {
+    // Without a name, or with a listing flag, these only list.
+    case 'branch':
+      return (
+        words.length === 0 || flags.some((f) => /^(?:-l|--list|-a|--all|-r|--remotes|--contains|--merged|--no-merged|--points-at|--show-current)$/.test(f))
+      );
+    case 'tag':
+      return words.length === 0 || flags.some((f) => /^(?:-l|--list|--contains|--merged|--no-merged|--points-at)$/.test(f));
+    case 'remote':
+      return words.length === 0 || ['show', 'get-url'].includes(words[0]!);
+    case 'config':
+      return flags.some((f) => /^(?:--get|--get-all|--get-regexp|--list|-l|--show-origin)$/.test(f)) || (words.length === 1 && !flags.length);
+    case 'stash':
+    case 'worktree':
+    case 'notes':
+      return ['list', 'show'].includes(words[0] ?? '');
+    case 'submodule':
+      return words.length === 0 || words[0] === 'status';
+    default:
+      return false;
+  }
+}
 const MUTATING_PROGRAMS = new Set([
   'rm',
   'mv',
@@ -93,7 +119,7 @@ function shellChanges(command: string, dialect: 'bash' | 'powershell', env: Clas
     if (inv.program === 'git') {
       const call = parseGit(inv.args, inv.dynamic, env);
       if (call.sub === 'commit' || call.sub === 'push') git = true;
-      else if (MUTATING_GIT.test(call.sub)) other = true;
+      else if (MUTATING_GIT.test(call.sub) && !gitOnlyReads(call.sub, call.args)) other = true;
       continue;
     }
     if (MUTATING_PROGRAMS.has(inv.program)) {
