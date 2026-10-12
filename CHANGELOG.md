@@ -44,3 +44,6 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - A command containing a word such as `__proto__` or `constructor` crashed the parser.
 - `install --json` and `uninstall --json` printed text before the JSON.
 - A path whose last name trims to `.` or `..` resolved differently the second time.
+- Scripts run by Claude Code's Monitor tool were not checked by the belt; they are now read like Bash commands, in the plugin and in the safety-net hook. Found by `doctor` on the author's machine.
+- A session started in the home folder counted the user's own settings twice, as user and as project settings, and the doctor reported the safety-net hooks as duplicated.
+- The doctor called a hook program from an earlier build of the same version "changed after installation". The installation now records the program's fingerprint, so an earlier build and a change are told apart; an older hook matcher is named as such, with the tools it does not check.

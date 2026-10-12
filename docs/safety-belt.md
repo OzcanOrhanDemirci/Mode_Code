@@ -1,6 +1,6 @@
 # The safety belt
 
-The belt reads every shell command (Bash, PowerShell) and every file write (Write, Edit, MultiEdit, NotebookEdit) before it runs, and answers with one of four actions:
+The belt reads every shell command (Bash, PowerShell, and the scripts Monitor runs) and every file write (Write, Edit, MultiEdit, NotebookEdit) before it runs, and answers with one of four actions:
 
 | Action | In the settings file | What happens                                                                                                                     |
 | ------ | -------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
