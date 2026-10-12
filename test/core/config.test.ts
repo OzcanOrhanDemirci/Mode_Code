@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: Apache-2.0
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { DEFAULT_CONFIG, parseConfig, serializeConfig, setConfigValue } from '../../src/core/config.js';
+
+test('no file or an empty file gives the defaults and no problems', () => {
+  assert.deepEqual(parseConfig(null), { config: DEFAULT_CONFIG, problems: [] });
+  assert.deepEqual(parseConfig('  \n').problems, []);
+});
+
+test('invalid JSON keeps the defaults and says why', () => {
+  const r = parseConfig('{ "view": ');
+  assert.deepEqual(r.config, DEFAULT_CONFIG);
+  assert.equal(r.problems[0]?.kind, 'invalid-json');
+});
+
+test('a wrong value falls back for that setting only', () => {
+  const r = parseConfig(JSON.stringify({ view: 'huge', footer: { mode: 'check', showFiveFrom: 150 }, modules: { keywords: 'yes', quietWork: false } }));
+  assert.equal(r.config.view, 'recommended');
+  assert.equal(r.config.footer.mode, 'check');
+  assert.equal(r.config.footer.showFiveFrom, 70);
+  assert.equal(r.config.modules.keywords, true);
+  assert.equal(r.config.modules.quietWork, false);
+  assert.deepEqual(
+    r.problems.map((p) => p.path),
+    ['view', 'modules.keywords', 'footer.showFiveFrom'],
+  );
+});
+
+test('a locked belt rule cannot be switched off or softened through the file', () => {
+  const r = parseConfig(
+    JSON.stringify({ belt: { disabled: ['self.claude-settings', 'git.clean'], verdicts: { 'self.tool-files': 'warn', 'git.force-push': 'deny' } } }),
+  );
+  assert.deepEqual(r.config.belt.disabled, ['git.clean']);
+  assert.deepEqual(r.config.belt.verdicts, { 'git.force-push': 'deny' });
+  assert.equal(r.problems.filter((p) => p.kind === 'weakened').length, 2);
+});
+
+test('unknown keys are reported, not fatal', () => {
+  const r = parseConfig(JSON.stringify({ colour: 'blue', modules: { telemetry: true } }));
+  assert.deepEqual(
+    r.problems.map((p) => [p.path, p.kind]),
+    [
+      ['colour', 'unknown-key'],
+      ['modules.telemetry', 'unknown-key'],
+    ],
+  );
+});
+
+test('projects need unique kebab-case ids; keyword phrases are kept per language', () => {
+  const r = parseConfig(
+    JSON.stringify({
+      projects: [{ id: 'terminal-code', names: ['terminal'] }, { id: 'Bad Id' }, { id: 'terminal-code', names: [] }],
+      keywords: { extra: { tr: { continue: ['sürdür'] }, xx: {} } },
+    }),
+  );
+  assert.deepEqual(r.config.projects, [{ id: 'terminal-code', names: ['terminal'] }]);
+  assert.deepEqual(r.config.keywords.extra.tr, { continue: ['sürdür'] });
+  assert.equal(r.problems.length, 3);
+});
+
+test('wrap-up thresholds never sit above their stop thresholds', () => {
+  const r = parseConfig(JSON.stringify({ quota: { fiveHourWrapUp: 99, fiveHourStop: 90 } }));
+  assert.equal(r.config.quota.fiveHourWrapUp, 90);
+});
+
+test('setConfigValue changes one setting and round-trips through the file text', () => {
+  const r = setConfigValue(DEFAULT_CONFIG, 'footer.mode', 'off');
+  assert.equal(r.config.footer.mode, 'off');
+  assert.deepEqual(parseConfig(serializeConfig(r.config)).config, r.config);
+  assert.equal(DEFAULT_CONFIG.footer.mode, 'draw'); // the defaults are never mutated
+});

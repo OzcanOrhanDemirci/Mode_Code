@@ -3,3 +3,4 @@ node_modules/
 coverage/
 LICENSE
 package-lock.json
+THIRD_PARTY_NOTICES.md

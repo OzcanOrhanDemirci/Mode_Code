@@ -82,4 +82,46 @@ export const tr: Record<MessageKey, string> = {
   'footer.problem.changed': '"{label}" Hayır diyor, ama bu turda dosya, git ya da ayar değişti',
   'footer.problem.missingValue': '"{label}" satırı yok (şu an {value})',
   'footer.problem.value': '"{label}" {said} diyor, ölçülen {value}',
+
+  'guard.chat':
+    'Sohbet modu açık: proje ve hafıza salt okunur, commit duraklatıldı. Geçici bir klasörde çalış ya da sohbet modundan çıkmak için kullanıcıdan "devam" yazmasını iste.',
+  'guard.quota.heavy': 'Kota bütçesi doldu: yeni ajan, iş akışı ya da web araştırması yok. Elindeki adımı toparla ve raporla.',
+  'guard.quota.stop': 'Kotanın kesin sınırına gelindi: yalnız okuma, not ya da hafıza kaydı ve commit serbest. Raporla ve dur.',
+
+  'footer.check.head': 'Cevabının altındaki satırlar gerçekle uyuşmuyor: {problems}.',
+  'footer.check.tail': 'Yalnız şu satırlarla yeniden cevap ver, başka hiçbir şey yazma:',
+
+  'belt.ask.question': 'Emniyet kemeri bir {tool} çağrısını durdurdu. {reasons} Bu seferlik izin verilsin mi?',
+  'belt.ask.allow': 'Bu seferlik izin ver',
+  'belt.ask.block': 'Engelle',
+  'belt.ask.header': 'Emniyet kemeri',
+  'belt.ask.declined': 'Emniyet kemeri sorduğunda kullanıcı bu çağrıyı reddetti.',
+  'belt.ask.noOne': 'Emniyet kemeri bu çağrı için kullanıcının onayını istedi; burada sorulacak kimse yok (arayüzsüz çalışma), bu yüzden engellendi.',
+  'belt.failed':
+    'Emniyet kemeri bu çağrıyı denetleyemedi ({error}); güvenli olsun diye engellendi. Kullanıcıya söyle; hata, kontrol merkezinde Güvenlik altında görünür.',
+
+  'kw.toast': 'Anahtar kelime: {kind}{project}',
+  'kw.toast.unknownProject': 'Anahtar kelime: {kind} · "{text}" kayıtlı bir proje değil',
+  'kw.kind.continue': 'devam',
+  'kw.kind.manual': 'manuel',
+  'kw.kind.chat': 'sohbet',
+  'kw.kind.quota': 'kota',
+  'kw.kind.wrapUp': 'toparla',
+  'kw.kind.stop': 'dur',
+  'kw.kind.status': 'durum',
+  'kw.kind.help': 'yardım',
+
+  'status.chat': '💬 sohbet',
+  'status.autonomous': 'otonom',
+  'status.manual': 'manuel',
+  'status.wrapUp': 'toparlanıyor',
+  'status.five': '5s %{n}',
+  'status.week': 'hafta %{n}',
+  'status.weekTarget': 'hafta %{n}/{target}',
+  'status.resume': '{time} devam',
+  'quota.toast.wrapUp': 'Kota bütçesi doldu ({window} %{used}): toparlanıyor.',
+  'quota.toast.stop': 'Kota sınırı doldu ({window} %{used}): duruluyor.',
+  'quota.window.five_hour': '5 saatlik',
+  'quota.window.seven_day': 'haftalık',
+  'quota.notify.resume': 'Kota penceresi sıfırlandı. Çalışma şimdi sürüyor.',
 };

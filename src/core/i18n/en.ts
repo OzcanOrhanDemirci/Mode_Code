@@ -81,6 +81,53 @@ export const en = {
   'footer.problem.changed': '"{label}" says no, but files, git or settings changed this turn',
   'footer.problem.missingValue': 'the "{label}" line is missing (now {value})',
   'footer.problem.value': '"{label}" says {said}, measured {value}',
+
+  // ── state guards (chat mode, quota) ──
+  'guard.chat':
+    'Chat mode is on: the project and the memory are read-only and commits are paused. Work in a temporary folder, or ask the person to type "continue" to leave chat mode.',
+  'guard.quota.heavy': 'The quota budget is reached: no new agents, workflows or web research. Wrap up the current step and report.',
+  'guard.quota.stop': 'The hard quota limit is reached: only reading, saving notes or memory, and committing are allowed. Report and stop.',
+
+  // ── footer check (the model wrote the lines, the Stop hook compares) ──
+  'footer.check.head': 'The lines under your answer do not match the facts: {problems}.',
+  'footer.check.tail': 'Reply again with only these lines, nothing else:',
+
+  // ── belt: asking the person, failures ──
+  'belt.ask.question': 'The safety belt stopped a {tool} call. {reasons} Allow it this once?',
+  'belt.ask.allow': 'Allow once',
+  'belt.ask.block': 'Block',
+  'belt.ask.header': 'Safety belt',
+  'belt.ask.declined': 'The person declined this call when the safety belt asked.',
+  'belt.ask.noOne': 'The safety belt needed the person to confirm this call, and no one could be asked here (a headless run), so it was blocked.',
+  'belt.failed':
+    'The safety belt could not check this call ({error}), so it was blocked to be safe. Tell the person; the control center shows the error under Security.',
+
+  // ── keywords as the person sees them ──
+  'kw.toast': 'Keyword: {kind}{project}',
+  'kw.toast.unknownProject': 'Keyword: {kind} · "{text}" is not a registered project',
+  'kw.kind.continue': 'continue',
+  'kw.kind.manual': 'manual',
+  'kw.kind.chat': 'chat',
+  'kw.kind.quota': 'quota',
+  'kw.kind.wrapUp': 'wrap up',
+  'kw.kind.stop': 'stop',
+  'kw.kind.status': 'status',
+  'kw.kind.help': 'help',
+
+  // ── status line and toasts ──
+  'status.chat': '💬 chat',
+  'status.autonomous': 'autonomous',
+  'status.manual': 'manual',
+  'status.wrapUp': 'wrapping up',
+  'status.five': '5h {n}%',
+  'status.week': 'week {n}%',
+  'status.weekTarget': 'week {n}/{target}%',
+  'status.resume': 'resumes {time}',
+  'quota.toast.wrapUp': 'Quota budget reached ({window} {used}%): wrapping up.',
+  'quota.toast.stop': 'Quota limit reached ({window} {used}%): stopping.',
+  'quota.window.five_hour': '5-hour',
+  'quota.window.seven_day': 'weekly',
+  'quota.notify.resume': 'The quota window reset. Work resumes now.',
 } as const;
 
 export type MessageKey = keyof typeof en;

@@ -1,0 +1,332 @@
+// SPDX-License-Identifier: Apache-2.0
+/**
+ * The tool's settings: one JSON file in the data folder, read by every layer (the in-process mod, the
+ * safety-net hook, the command line and the interface). Pure: parsing never throws. A value of the wrong
+ * kind falls back to its default and is reported, so a typo in the file degrades one setting instead of
+ * switching the tool off; protection settings can only be made stricter by the file, never weaker.
+ */
+import { isLang, type Lang } from './i18n/index.js';
+import { RULE_IDS, RULES } from './belt/rules.js';
+import { VERDICT_ORDER, type RuleConfig, type RuleId, type Verdict } from './belt/types.js';
+import type { KeywordKind } from './keywords.js';
+
+export const CONFIG_VERSION = 1;
+
+/** How much of the interface is shown. Protections are the same at every level. */
+export type ViewLevel = 'simple' | 'recommended' | 'detailed';
+
+/** Where the footer lines come from: drawn by the mod under the answer, written by the model and checked, or none. */
+export type FooterMode = 'draw' | 'check' | 'off';
+
+export interface ProjectEntry {
+  /** Stable id, kebab-case. */
+  id: string;
+  /** Names that address the project in keywords ("terminal" in "terminal devam"). */
+  names: string[];
+  /** Project folder, absolute. Optional: a project can live only in the person's notes. */
+  path?: string;
+}
+
+export interface Config {
+  version: number;
+  /** Interface language, or "auto" to follow the system. */
+  language: Lang | 'auto';
+  view: ViewLevel;
+  modules: {
+    /** Keyword detection and the context it adds. */
+    keywords: boolean;
+    /** Footer lines under each answer. */
+    footer: boolean;
+    /** Quota guard: wrap up and stop at the budget. */
+    quota: boolean;
+    /** Secret scanning of written files and of the memory folder. */
+    secrets: boolean;
+    /** The tool's entry in Claude Code's status line. */
+    status: boolean;
+    /** Desktop notifications for things that need the person (red items only). */
+    notifications: boolean;
+    /** Leave out Claude Code's "the user has not heard from you" reminders, so long work stays quiet. */
+    quietWork: boolean;
+  };
+  belt: RuleConfig;
+  memory: {
+    /** Memory folders: protected from deletion and shrinking, and reported in the footer when they are git repositories. */
+    dirs: string[];
+  };
+  footer: {
+    mode: FooterMode;
+    showFiveFrom: number;
+    showWeekFrom: number;
+  };
+  quota: {
+    fiveHourWrapUp: number;
+    fiveHourStop: number;
+    defaultWeeklyTarget: number;
+    defaultWeeklyWrapUp: number;
+    staleMinutes: number;
+    /** Resume autonomous work by itself one minute after the binding window resets. */
+    autoResume: boolean;
+  };
+  keywords: {
+    /** Extra phrases per language, added to the built-in ones. */
+    extra: Partial<Record<Lang, Partial<Record<KeywordKind, string[]>>>>;
+  };
+  projects: ProjectEntry[];
+  accessibility: {
+    /** Plain text: no box drawing, no emoji-only signals. */
+    plain: boolean;
+    highContrast: boolean;
+    reduceMotion: boolean;
+  };
+}
+
+export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
+  version: CONFIG_VERSION,
+  language: 'auto',
+  view: 'recommended',
+  modules: { keywords: true, footer: true, quota: true, secrets: true, status: true, notifications: true, quietWork: true },
+  belt: {
+    disabled: [],
+    verdicts: {},
+    protectedBranches: ['main', 'master', 'release/*'],
+    prOnlyRepos: [],
+    singleBranchRepos: [],
+    packs: { dockerVolumes: false },
+  },
+  memory: { dirs: [] },
+  footer: { mode: 'draw', showFiveFrom: 70, showWeekFrom: 85 },
+  quota: { fiveHourWrapUp: 95, fiveHourStop: 99, defaultWeeklyTarget: 99, defaultWeeklyWrapUp: 97, staleMinutes: 360, autoResume: true },
+  keywords: { extra: {} },
+  projects: [],
+  accessibility: { plain: false, highContrast: false, reduceMotion: false },
+}) as Config;
+
+export interface ConfigProblem {
+  /** Dotted path of the setting, e.g. "footer.mode". */
+  path: string;
+  /** What was wrong, in English: the interface translates by kind. */
+  kind: 'type' | 'range' | 'unknown-key' | 'weakened' | 'invalid-json' | 'newer-version';
+  detail: string;
+}
+
+export interface ParsedConfig {
+  config: Config;
+  problems: ConfigProblem[];
+}
+
+type Obj = Record<string, unknown>;
+
+function isObj(x: unknown): x is Obj {
+  return typeof x === 'object' && x !== null && !Array.isArray(x);
+}
+
+const VERDICTS = new Set<Verdict>(['allow', 'warn', 'ask', 'deny']);
+const RULE_SET = new Set<string>(RULE_IDS);
+const KEYWORD_KINDS = new Set<KeywordKind>(['continue', 'manual', 'chat', 'quota', 'wrapUp', 'stop', 'status', 'help']);
+const ID = /^[a-z0-9][a-z0-9-]{0,47}$/;
+
+/** Reads the settings file's text. Never throws: invalid JSON gives the defaults and one problem. */
+export function parseConfig(text: string | null): ParsedConfig {
+  if (text === null || text.trim() === '') return { config: cloneDefaults(), problems: [] };
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch (err) {
+    return { config: cloneDefaults(), problems: [{ path: '', kind: 'invalid-json', detail: (err as Error).message }] };
+  }
+  return normalizeConfig(raw);
+}
+
+export function cloneDefaults(): Config {
+  return structuredClone(DEFAULT_CONFIG) as Config;
+}
+
+/** Turns any value into a valid Config, keeping what is valid and reporting the rest. */
+export function normalizeConfig(raw: unknown): ParsedConfig {
+  const problems: ConfigProblem[] = [];
+  const c = cloneDefaults();
+  if (!isObj(raw)) {
+    problems.push({ path: '', kind: 'type', detail: 'the settings file must hold an object' });
+    return { config: c, problems };
+  }
+  const known = new Set(Object.keys(c));
+  for (const k of Object.keys(raw)) if (!known.has(k) && k !== '$schema') problems.push({ path: k, kind: 'unknown-key', detail: 'not a setting' });
+
+  if (typeof raw.version === 'number' && raw.version > CONFIG_VERSION)
+    problems.push({ path: 'version', kind: 'newer-version', detail: `written by a newer version (${raw.version})` });
+
+  if (raw.language !== undefined) {
+    if (raw.language === 'auto' || isLang(raw.language)) c.language = raw.language;
+    else problems.push({ path: 'language', kind: 'type', detail: 'expected "auto" or a language code' });
+  }
+  if (raw.view !== undefined) {
+    if (raw.view === 'simple' || raw.view === 'recommended' || raw.view === 'detailed') c.view = raw.view;
+    else problems.push({ path: 'view', kind: 'type', detail: 'expected simple, recommended or detailed' });
+  }
+  bools(raw.modules, c.modules, 'modules', problems);
+  bools(raw.accessibility, c.accessibility, 'accessibility', problems);
+
+  if (isObj(raw.footer)) {
+    const f = raw.footer;
+    if (f.mode !== undefined) {
+      if (f.mode === 'draw' || f.mode === 'check' || f.mode === 'off') c.footer.mode = f.mode;
+      else problems.push({ path: 'footer.mode', kind: 'type', detail: 'expected draw, check or off' });
+    }
+    c.footer.showFiveFrom = percent(f.showFiveFrom, c.footer.showFiveFrom, 'footer.showFiveFrom', problems);
+    c.footer.showWeekFrom = percent(f.showWeekFrom, c.footer.showWeekFrom, 'footer.showWeekFrom', problems);
+  } else if (raw.footer !== undefined) problems.push({ path: 'footer', kind: 'type', detail: 'expected an object' });
+
+  if (isObj(raw.quota)) {
+    const q = raw.quota;
+    for (const k of ['fiveHourWrapUp', 'fiveHourStop', 'defaultWeeklyTarget', 'defaultWeeklyWrapUp'] as const)
+      c.quota[k] = percent(q[k], c.quota[k], `quota.${k}`, problems);
+    if (q.staleMinutes !== undefined) {
+      if (typeof q.staleMinutes === 'number' && q.staleMinutes >= 5 && q.staleMinutes <= 1440) c.quota.staleMinutes = Math.round(q.staleMinutes);
+      else problems.push({ path: 'quota.staleMinutes', kind: 'range', detail: 'expected 5 to 1440' });
+    }
+    if (q.autoResume !== undefined) {
+      if (typeof q.autoResume === 'boolean') c.quota.autoResume = q.autoResume;
+      else problems.push({ path: 'quota.autoResume', kind: 'type', detail: 'expected true or false' });
+    }
+    if (c.quota.fiveHourWrapUp > c.quota.fiveHourStop) {
+      problems.push({ path: 'quota.fiveHourWrapUp', kind: 'range', detail: 'must not be above fiveHourStop' });
+      c.quota.fiveHourWrapUp = c.quota.fiveHourStop;
+    }
+    if (c.quota.defaultWeeklyWrapUp > c.quota.defaultWeeklyTarget) {
+      problems.push({ path: 'quota.defaultWeeklyWrapUp', kind: 'range', detail: 'must not be above defaultWeeklyTarget' });
+      c.quota.defaultWeeklyWrapUp = c.quota.defaultWeeklyTarget;
+    }
+  } else if (raw.quota !== undefined) problems.push({ path: 'quota', kind: 'type', detail: 'expected an object' });
+
+  if (isObj(raw.memory)) {
+    c.memory.dirs = strings(raw.memory.dirs, 'memory.dirs', problems);
+  } else if (raw.memory !== undefined) problems.push({ path: 'memory', kind: 'type', detail: 'expected an object' });
+
+  if (isObj(raw.belt)) normalizeBelt(raw.belt, c.belt, problems);
+  else if (raw.belt !== undefined) problems.push({ path: 'belt', kind: 'type', detail: 'expected an object' });
+
+  if (isObj(raw.keywords) && isObj(raw.keywords.extra)) {
+    for (const [lang, table] of Object.entries(raw.keywords.extra)) {
+      if (!isLang(lang) || !isObj(table)) {
+        problems.push({ path: `keywords.extra.${lang}`, kind: 'type', detail: 'expected a language code with a table of phrases' });
+        continue;
+      }
+      const out: Partial<Record<KeywordKind, string[]>> = {};
+      for (const [kind, list] of Object.entries(table)) {
+        if (!KEYWORD_KINDS.has(kind as KeywordKind)) {
+          problems.push({ path: `keywords.extra.${lang}.${kind}`, kind: 'unknown-key', detail: 'not a keyword kind' });
+          continue;
+        }
+        out[kind as KeywordKind] = strings(list, `keywords.extra.${lang}.${kind}`, problems).filter((s) => s.trim().length > 0 && s.length <= 40);
+      }
+      c.keywords.extra[lang] = out;
+    }
+  } else if (raw.keywords !== undefined) problems.push({ path: 'keywords', kind: 'type', detail: 'expected { extra: { <lang>: { <kind>: [phrases] } } }' });
+
+  if (Array.isArray(raw.projects)) {
+    const seen = new Set<string>();
+    raw.projects.forEach((p, i) => {
+      if (!isObj(p) || typeof p.id !== 'string' || !ID.test(p.id) || seen.has(p.id)) {
+        problems.push({ path: `projects.${i}`, kind: 'type', detail: 'each project needs a unique kebab-case id' });
+        return;
+      }
+      seen.add(p.id);
+      const names = strings(p.names, `projects.${i}.names`, problems).filter((n) => n.trim() && n.length <= 40);
+      const entry: ProjectEntry = { id: p.id, names };
+      if (typeof p.path === 'string' && p.path.trim()) entry.path = p.path;
+      c.projects.push(entry);
+    });
+  } else if (raw.projects !== undefined) problems.push({ path: 'projects', kind: 'type', detail: 'expected a list' });
+
+  return { config: c, problems };
+}
+
+function bools<T extends Record<string, boolean>>(src: unknown, dst: T, path: string, problems: ConfigProblem[]): void {
+  if (src === undefined) return;
+  if (!isObj(src)) {
+    problems.push({ path, kind: 'type', detail: 'expected an object' });
+    return;
+  }
+  for (const [k, v] of Object.entries(src)) {
+    if (!(k in dst)) problems.push({ path: `${path}.${k}`, kind: 'unknown-key', detail: 'not a setting' });
+    else if (typeof v !== 'boolean') problems.push({ path: `${path}.${k}`, kind: 'type', detail: 'expected true or false' });
+    else (dst as Record<string, boolean>)[k] = v;
+  }
+}
+
+function percent(v: unknown, fallback: number, path: string, problems: ConfigProblem[]): number {
+  if (v === undefined) return fallback;
+  if (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 100) return Math.round(v);
+  problems.push({ path, kind: 'range', detail: 'expected a number from 0 to 100' });
+  return fallback;
+}
+
+function strings(v: unknown, path: string, problems: ConfigProblem[]): string[] {
+  if (v === undefined) return [];
+  if (!Array.isArray(v) || v.some((x) => typeof x !== 'string')) {
+    problems.push({ path, kind: 'type', detail: 'expected a list of strings' });
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+  }
+  return [...v];
+}
+
+function normalizeBelt(src: Obj, dst: RuleConfig, problems: ConfigProblem[]): void {
+  if (src.disabled !== undefined) {
+    dst.disabled = strings(src.disabled, 'belt.disabled', problems).filter((id) => {
+      if (!RULE_SET.has(id)) {
+        problems.push({ path: 'belt.disabled', kind: 'unknown-key', detail: `no rule named ${id}` });
+        return false;
+      }
+      if (RULES[id as RuleId].locked) {
+        problems.push({ path: 'belt.disabled', kind: 'weakened', detail: `${id} protects the protection itself and cannot be switched off` });
+        return false;
+      }
+      return true;
+    }) as RuleId[];
+  }
+  if (src.verdicts !== undefined) {
+    if (!isObj(src.verdicts)) problems.push({ path: 'belt.verdicts', kind: 'type', detail: 'expected { <rule>: allow | warn | ask | deny }' });
+    else {
+      const out: Partial<Record<RuleId, Verdict>> = {};
+      for (const [id, v] of Object.entries(src.verdicts)) {
+        if (!RULE_SET.has(id)) problems.push({ path: `belt.verdicts.${id}`, kind: 'unknown-key', detail: 'no such rule' });
+        else if (typeof v !== 'string' || !VERDICTS.has(v as Verdict))
+          problems.push({ path: `belt.verdicts.${id}`, kind: 'type', detail: 'expected allow, warn, ask or deny' });
+        else if (RULES[id as RuleId].locked && VERDICT_ORDER[v as Verdict] < VERDICT_ORDER[RULES[id as RuleId].verdict])
+          problems.push({ path: `belt.verdicts.${id}`, kind: 'weakened', detail: `${id} can only be made stricter than ${RULES[id as RuleId].verdict}` });
+        else out[id as RuleId] = v as Verdict;
+      }
+      dst.verdicts = out;
+    }
+  }
+  for (const k of ['protectedBranches', 'prOnlyRepos', 'singleBranchRepos'] as const) {
+    if (src[k] !== undefined) dst[k] = strings(src[k], `belt.${k}`, problems).filter((s) => s.trim().length > 0);
+  }
+  if (src.packs !== undefined) {
+    if (!isObj(src.packs)) problems.push({ path: 'belt.packs', kind: 'type', detail: 'expected an object' });
+    else
+      for (const [k, v] of Object.entries(src.packs)) {
+        if (k !== 'dockerVolumes') problems.push({ path: `belt.packs.${k}`, kind: 'unknown-key', detail: 'no such pack' });
+        else if (typeof v !== 'boolean') problems.push({ path: `belt.packs.${k}`, kind: 'type', detail: 'expected true or false' });
+        else dst.packs = { ...dst.packs, dockerVolumes: v };
+      }
+  }
+}
+
+/** Writes a Config as the file's text: stable key order, two-space indent, trailing newline. */
+export function serializeConfig(c: Config): string {
+  return JSON.stringify(c, null, 2) + '\n';
+}
+
+/** Applies a change to one setting by dotted path and returns the new config plus what normalizing it reported. */
+export function setConfigValue(c: Config, path: string, value: unknown): ParsedConfig {
+  const next = structuredClone(c) as unknown as Obj;
+  const keys = path.split('.');
+  let cur: Obj = next;
+  for (const k of keys.slice(0, -1)) {
+    if (!isObj(cur[k])) cur[k] = {};
+    cur = cur[k] as Obj;
+  }
+  cur[keys[keys.length - 1]!] = value;
+  return normalizeConfig(next);
+}
