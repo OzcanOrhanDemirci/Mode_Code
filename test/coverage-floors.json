@@ -1,0 +1,420 @@
+{
+  "mean": 94,
+  "files": {
+    "src/app/context.ts": {
+      "lines": 74,
+      "branches": 92,
+      "functions": 60
+    },
+    "src/app/data.ts": {
+      "lines": 83,
+      "branches": 58,
+      "functions": 62
+    },
+    "src/app/doctor/checks.ts": {
+      "lines": 92,
+      "branches": 87,
+      "functions": 92
+    },
+    "src/app/doctor/doctor.ts": {
+      "lines": 90,
+      "branches": 78,
+      "functions": 88
+    },
+    "src/app/doctor/facts.ts": {
+      "lines": 89,
+      "branches": 64,
+      "functions": 80
+    },
+    "src/app/doctor/render.ts": {
+      "lines": 93,
+      "branches": 85,
+      "functions": 94
+    },
+    "src/app/doctor/repairs.ts": {
+      "lines": 91,
+      "branches": 70,
+      "functions": 89
+    },
+    "src/app/doctor/selfcheck.ts": {
+      "lines": 93,
+      "branches": 77,
+      "functions": 81
+    },
+    "src/app/doctor/types.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/app/health.ts": {
+      "lines": 94,
+      "branches": 90,
+      "functions": 87
+    },
+    "src/app/replay.ts": {
+      "lines": 93,
+      "branches": 65,
+      "functions": 94
+    },
+    "src/app/report.ts": {
+      "lines": 90,
+      "branches": 86,
+      "functions": 86
+    },
+    "src/cli/args.ts": {
+      "lines": 94,
+      "branches": 86,
+      "functions": 94
+    },
+    "src/cli/commands.ts": {
+      "lines": 75,
+      "branches": 32,
+      "functions": 65
+    },
+    "src/cli/doctor.ts": {
+      "lines": 84,
+      "branches": 52,
+      "functions": 75
+    },
+    "src/cli/main.tsx": {
+      "lines": 84,
+      "branches": 37,
+      "functions": 74
+    },
+    "src/cli/style.ts": {
+      "lines": 92,
+      "branches": 70,
+      "functions": 79
+    },
+    "src/core/app.ts": {
+      "lines": 94,
+      "branches": 42,
+      "functions": 94
+    },
+    "src/core/belt/check.ts": {
+      "lines": 89,
+      "branches": 75,
+      "functions": 81
+    },
+    "src/core/belt/evaluate.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/belt/git.ts": {
+      "lines": 91,
+      "branches": 67,
+      "functions": 94
+    },
+    "src/core/belt/protect.ts": {
+      "lines": 93,
+      "branches": 83,
+      "functions": 94
+    },
+    "src/core/belt/rules.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/belt/samples.ts": {
+      "lines": 94,
+      "branches": 87,
+      "functions": 79
+    },
+    "src/core/belt/types.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/config.ts": {
+      "lines": 92,
+      "branches": 80,
+      "functions": 88
+    },
+    "src/core/footer.ts": {
+      "lines": 87,
+      "branches": 80,
+      "functions": 74
+    },
+    "src/core/format.ts": {
+      "lines": 91,
+      "branches": 77,
+      "functions": 86
+    },
+    "src/core/guard.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/guidance.ts": {
+      "lines": 94,
+      "branches": 82,
+      "functions": 94
+    },
+    "src/core/history.ts": {
+      "lines": 94,
+      "branches": 88,
+      "functions": 94
+    },
+    "src/core/i18n/en-doctor.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/i18n/en-tui.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/i18n/en-ui.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/i18n/en.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/i18n/index.ts": {
+      "lines": 90,
+      "branches": 65,
+      "functions": 69
+    },
+    "src/core/i18n/tr-doctor.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/i18n/tr-tui.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/i18n/tr-ui.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/i18n/tr.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/keywords.ts": {
+      "lines": 94,
+      "branches": 90,
+      "functions": 94
+    },
+    "src/core/layout.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/paths.ts": {
+      "lines": 94,
+      "branches": 90,
+      "functions": 94
+    },
+    "src/core/quota.ts": {
+      "lines": 94,
+      "branches": 79,
+      "functions": 94
+    },
+    "src/core/secrets/scan.ts": {
+      "lines": 94,
+      "branches": 82,
+      "functions": 94
+    },
+    "src/core/selftest/suites.ts": {
+      "lines": 94,
+      "branches": 86,
+      "functions": 92
+    },
+    "src/core/selftest/types.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/session.ts": {
+      "lines": 90,
+      "branches": 69,
+      "functions": 86
+    },
+    "src/core/settings-view.ts": {
+      "lines": 81,
+      "branches": 62,
+      "functions": 94
+    },
+    "src/core/shell/analyze.ts": {
+      "lines": 91,
+      "branches": 81,
+      "functions": 83
+    },
+    "src/core/shell/bash.ts": {
+      "lines": 91,
+      "branches": 89,
+      "functions": 94
+    },
+    "src/core/shell/cmd.ts": {
+      "lines": 91,
+      "branches": 74,
+      "functions": 94
+    },
+    "src/core/shell/powershell.ts": {
+      "lines": 91,
+      "branches": 83,
+      "functions": 89
+    },
+    "src/core/shell/types.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/templates.ts": {
+      "lines": 94,
+      "branches": 71,
+      "functions": 94
+    },
+    "src/core/text.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/transcript.ts": {
+      "lines": 91,
+      "branches": 78,
+      "functions": 82
+    },
+    "src/core/version.ts": {
+      "lines": 94,
+      "branches": 84,
+      "functions": 94
+    },
+    "src/hook/main.ts": {
+      "lines": 92,
+      "branches": 46,
+      "functions": 87
+    },
+    "src/node/claude-env.ts": {
+      "lines": 85,
+      "branches": 59,
+      "functions": 73
+    },
+    "src/node/context.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 64
+    },
+    "src/node/env.ts": {
+      "lines": 88,
+      "branches": 62,
+      "functions": 94
+    },
+    "src/node/fsx.ts": {
+      "lines": 89,
+      "branches": 80,
+      "functions": 74
+    },
+    "src/node/git.ts": {
+      "lines": 94,
+      "branches": 82,
+      "functions": 94
+    },
+    "src/node/index-db.ts": {
+      "lines": 90,
+      "branches": 74,
+      "functions": 79
+    },
+    "src/node/install.ts": {
+      "lines": 91,
+      "branches": 61,
+      "functions": 94
+    },
+    "src/node/tail.ts": {
+      "lines": 94,
+      "branches": 42,
+      "functions": 94
+    },
+    "src/node/width.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/tui/app.tsx": {
+      "lines": 89,
+      "branches": 71,
+      "functions": 69
+    },
+    "src/tui/nav.ts": {
+      "lines": 94,
+      "branches": 79,
+      "functions": 75
+    },
+    "src/tui/run.tsx": {
+      "lines": 50,
+      "branches": 92,
+      "functions": 44
+    },
+    "src/tui/screens/claude.tsx": {
+      "lines": 82,
+      "branches": 42,
+      "functions": 57
+    },
+    "src/tui/screens/home.tsx": {
+      "lines": 85,
+      "branches": 40,
+      "functions": 72
+    },
+    "src/tui/screens/measure.tsx": {
+      "lines": 93,
+      "branches": 45,
+      "functions": 69
+    },
+    "src/tui/screens/security.tsx": {
+      "lines": 78,
+      "branches": 57,
+      "functions": 54
+    },
+    "src/tui/screens/settings.tsx": {
+      "lines": 78,
+      "branches": 54,
+      "functions": 38
+    },
+    "src/tui/screens/templates.tsx": {
+      "lines": 92,
+      "branches": 65,
+      "functions": 75
+    },
+    "src/tui/screens/work.tsx": {
+      "lines": 78,
+      "branches": 39,
+      "functions": 50
+    },
+    "src/tui/store.ts": {
+      "lines": 60,
+      "branches": 67,
+      "functions": 0
+    },
+    "src/tui/theme.ts": {
+      "lines": 92,
+      "branches": 60,
+      "functions": 94
+    },
+    "src/tui/tree.tsx": {
+      "lines": 94,
+      "branches": 79,
+      "functions": 90
+    },
+    "src/tui/ui.tsx": {
+      "lines": 93,
+      "branches": 79,
+      "functions": 57
+    },
+    "src/tui/widgets.tsx": {
+      "lines": 77,
+      "branches": 59,
+      "functions": 56
+    }
+  }
+}

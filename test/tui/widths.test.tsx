@@ -18,7 +18,7 @@ for (const lang of ['en', 'tr'] as Lang[]) {
   test(`every screen fits the terminal width (${lang})`, { timeout: 300_000 }, async () => {
     setLanguage(lang);
     const data = new FakeData(lang, { view: 'detailed' });
-    const addresses = allEntries(buildTree(data, lang, NOW), 'detailed', 3, 6).map((e) => e.address);
+    const addresses = allEntries(buildTree(data, lang, NOW), 'detailed', 3, 20).map((e) => e.address);
     assert.ok(addresses.length >= 30, `only ${addresses.length} screens`);
     const too: string[] = [];
     for (const columns of WIDTHS)
