@@ -25,3 +25,22 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - `terminal-code report` and Measure › What happened: the last day or week in a few lines.
 - A warning, for the person and for Claude, when another Claude Code session is working in the same folder; Home lists such folders.
 - After a quota reset, autonomous work resumes with a prompt that ends with your own continue keyword.
+- `terminal-code doctor` measures the machine, checks the installation and the protections, runs the built-in self-tests, compares the installed hook program with this build on the same samples, and offers safe repairs that back up, restore and check again (`--fix`, `--report`, `--quick`, `--self-check`, `--json`). The maintenance page shows the last check.
+- `terminal-code belt replay`: the belt run over your recent sessions, counting what it would have asked about or blocked, by rule. Nothing is run.
+- A test process with twelve layers, from invariants about the code to real Claude Code sessions, and `npm run verify` to run every layer that can run on a machine. See [docs/testing.md](docs/testing.md).
+
+### Changed
+
+- Package runners are read as the program they run: `npx wrangler deploy` is asked about like `wrangler deploy`.
+- Publishing and deploying with `--dry-run` are no longer asked about.
+- When an agent runs `doctor`, repairs that would put code into the protection are refused and left to the person.
+- Text widths are measured the way the terminal draws them (emoji and symbols such as 🛡 ⚪ ✅ ⛔ included), so no line is cut or wraps.
+
+### Fixed
+
+- Windows 8.3 short names of protected folders (`TERMIN~1`) were not recognised, and neither were protected folders that are links.
+- On macOS and Linux every recursive delete under the home folder was blocked, inside projects too.
+- Windows drops trailing dots and spaces from a name; a protected file spelled that way (`.claude./settings.json.`) was not recognised.
+- A command containing a word such as `__proto__` or `constructor` crashed the parser.
+- `install --json` and `uninstall --json` printed text before the JSON.
+- A path whose last name trims to `.` or `..` resolved differently the second time.

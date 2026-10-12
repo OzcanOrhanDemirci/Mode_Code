@@ -19,6 +19,7 @@
 - [Keywords](#keywords)
 - [The safety belt](#the-safety-belt)
 - [Privacy and security](#privacy-and-security)
+- [How it is tested](#how-it-is-tested)
 - [Limits](#limits)
 - [FAQ](#faq)
 - [Roadmap](#roadmap)
@@ -177,6 +178,18 @@ Details: [docs/safety-belt.md](docs/safety-belt.md).
 - **Removal:** `terminal-code uninstall` undoes exactly what the installation recorded. Commands that lower a protection refuse to run from inside a Claude Code session.
 
 Found a vulnerability? Please report it privately: see [SECURITY.md](SECURITY.md).
+
+## How it is tested
+
+A tool that stands between an agent and your machine has to earn trust with evidence. Twelve layers, from rules about the code itself to real Claude Code sessions, each saying what it proves and what it cannot ([docs/testing.md](docs/testing.md)). Measured on 2026-10-12:
+
+- **392 tests** on Windows, Linux and macOS, Node.js 22 and 24; mean line coverage **96%**, every file held to a floor that only goes up.
+- **False alarms count as bugs.** 197 everyday commands must pass without a single question on every platform. Over the author's last 30 days (36,423 tool calls) the belt would have asked 4.4 times a day.
+- **The tests are tested.** Mutation testing makes 602 small deliberate changes to the code that decides; the tests catch all 602. The maintenance check breaks a sandbox in 13 ways and must notice all 13 and repair what can be repaired.
+- **Inside the real engine.** The plugin is tested with Claude Code's own test kit, every night against the newest Claude Code release, and in live headless sessions.
+- **The tests found real bugs**, each fixed with a test that keeps it fixed: protected files reachable under Windows short names (`TERMIN~1`) or with a trailing dot, every recursive delete under the home folder blocked on macOS, a parser crash on `__proto__`.
+
+On your machine, `terminal-code doctor` runs the same checks: Node.js, Claude Code and its settings, the hooks and the plugin, Git Bash, PowerShell and zsh, the terminal, the file system, git and the tool's own data. It repairs what it safely can, backs up first, checks again, and says exactly what is left for you. `npm run verify` runs every layer that can run on a machine and prints one line per layer.
 
 ## Limits
 

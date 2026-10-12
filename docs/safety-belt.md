@@ -22,8 +22,11 @@ A protection never turns gray: if something is broken, the control center shows 
 
 - bash, PowerShell and cmd syntax, including quotes, escapes, here-documents, substitutions and script blocks;
 - wrappers are unwrapped (`sudo`, `env`, `nohup`, `xargs`, `bash -c`, `pwsh -Command`, encoded PowerShell) and interpreter code is read again;
+- package runners are read as the program they run: `npx wrangler deploy` is judged as `wrangler deploy`, and so are `pnpx`, `pnpm dlx`, `yarn dlx`, `bunx` and `bun x`;
+- a dry run is not the real thing: `--dry-run` and its spellings exempt publishing and deployment from the question;
 - git is read the way git reads it: global options (`-C`, `-c`, `--git-dir`), refspecs (`:branch` deletes it), and aliases (looked up in the repository);
 - paths are resolved the way the shell would (`~`, `$HOME`, `%USERPROFILE%`, `/c/...`), case-insensitively on Windows and macOS;
+- a protected place is recognised under every spelling of it: Windows 8.3 short names (`TERMIN~1`), the trailing dots and spaces Windows drops from a name (`.claude.`), and folders that are links (a dotfiles repository behind `~/.claude`, under either name);
 - a variable set once earlier in the same command, with a plain value, is filled in (`T=C:/tools/run.sh; $T` runs `run.sh`); a value set in a branch, a loop, after `||`, in a pipeline or more than once stays unknown;
 - code that is only known at run time (`eval` of a computed string, code built from variables) is **asked about**, never assumed safe. A program name whose value comes from outside the command (`$ADB devices`) is asked about only when its own arguments look risky (`rm`, `--force`, `-rf`, …): agents use such variables all the time for long tool paths.
 

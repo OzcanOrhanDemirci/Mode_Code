@@ -19,6 +19,7 @@
 - [Anahtar kelimeler](#anahtar-kelimeler)
 - [Emniyet kemeri](#emniyet-kemeri)
 - [Gizlilik ve güvenlik](#gizlilik-ve-güvenlik)
+- [Nasıl test ediliyor](#nasıl-test-ediliyor)
 - [Sınırlar](#sınırlar)
 - [Sık sorulanlar](#sık-sorulanlar)
 - [Yol haritası](#yol-haritası)
@@ -180,6 +181,18 @@ Ayrıntı: [docs/safety-belt.md](docs/safety-belt.md).
 - **Kaldırma:** `terminal-code uninstall` kurulumun kaydettiğini tam olarak geri alır. Bir korumayı azaltan komutlar bir Claude Code oturumunun içinden çalışmayı reddeder.
 
 Bir güvenlik açığı mı buldun? Lütfen gizli bildir: [SECURITY.md](SECURITY.md).
+
+## Nasıl test ediliyor
+
+Bir ajanla makinen arasında duran bir araç güveni kanıtla kazanmalı. Kodun kendisiyle ilgili kurallardan gerçek Claude Code oturumlarına kadar on iki katman var; her biri neyi kanıtladığını ve neyi kanıtlayamadığını söylüyor ([docs/testing.md](docs/testing.md), İngilizce). 2026-10-12 ölçümü:
+
+- Windows, Linux ve macOS'ta, Node.js 22 ve 24 ile **392 test**; ortalama satır kapsamı **%96**, her dosya yalnız yukarı giden bir tabana bağlı.
+- **Yanlış alarm da hata sayılır.** 197 günlük komut her platformda tek bir soru sorulmadan geçmek zorunda. Yazarın son 30 gününde (36.423 araç çağrısı) kemer günde 4,4 kez sorardı.
+- **Testlerin kendisi de test ediliyor.** Mutasyon testi karar veren koda 602 küçük, bilerek yapılmış değişiklik uygular; testler 602'sini de yakalıyor. Bakım denetimi bir deneme ortamını 13 şekilde bozar; 13'ünü de fark etmesi ve onarılabilecek olanları onarması gerekir.
+- **Gerçek motorun içinde.** Eklenti Claude Code'un kendi test takımıyla, her gece en yeni Claude Code sürümüne karşı ve gerçek başsız oturumlarda sınanıyor.
+- **Testler gerçek hatalar buldu**, her biri düzeltildi ve bir testle düzeltilmiş kalıyor: Windows kısa adlarıyla (`TERMIN~1`) ya da sonda bir noktayla erişilebilen korumalı dosyalar, macOS'ta ev klasörü altındaki her özyinelemeli silmenin engellenmesi, `__proto__` sözcüğünde ayrıştırıcının çökmesi.
+
+Kendi makinende `terminal-code doctor` aynı denetimleri yapar: Node.js, Claude Code ve ayarları, hook'lar ve eklenti, Git Bash, PowerShell ve zsh, terminal, dosya sistemi, git ve aracın kendi verisi. Güvenle onarabileceğini onarır, önce yedek alır, sonra yeniden denetler, sana kalanı tam olarak söyler. `npm run verify` bir makinede çalışabilen her katmanı koşar ve her katman için tek satır yazar.
 
 ## Sınırlar
 
