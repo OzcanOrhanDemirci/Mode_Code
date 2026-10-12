@@ -33,7 +33,14 @@ jobs:
       - run: npm run format:check
       # The build comes first: tests also run the shipped hook program and installer from dist/.
       - run: npm run build
-      - run: npm test
+      # One job also measures coverage, held to the per-file floors in test/coverage-floors.json.
+      - run: ${{ matrix.os == 'windows-latest' && matrix.node == '24.x' && 'npm run test:coverage' || 'npm test' }}
+      - if: ${{ always() && matrix.os == 'windows-latest' && matrix.node == '24.x' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/report.txt
+          if-no-files-found: ignore
 
   # macOS minutes are expensive on private repositories: there it runs on demand; on a public repository on every change.
   macos:

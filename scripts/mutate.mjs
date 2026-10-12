@@ -9,6 +9,7 @@
  * file and every survivor with its line, written to coverage/mutation.json and coverage/mutation.txt.
  *
  * Usage: node scripts/mutate.mjs [--workers N] [--only <file>] [--limit N]
+ * Exit: 1 when a full run leaves a survivor that test/mutation-equivalents.json does not explain.
  */
 import { spawn } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -286,3 +287,7 @@ const lines = [
 writeFileSync(join(root, 'coverage', 'mutation.txt'), lines.join('\n') + '\n');
 console.log(lines.slice(0, byFile.length + 4).join('\n'));
 console.log(`survivors: ${survivors.length} (coverage/mutation.txt)`);
+for (const s of survivors) console.log(`  ${s.file}:${s.line}  ${s.from} → ${s.to}   ${s.text}`);
+// A survivor is a finding: a test to write, or a change to explain in test/mutation-equivalents.json.
+// A partial run (--only, --limit) only reports.
+process.exit(survivors.length && !only && !limit ? 1 : 0);
