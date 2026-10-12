@@ -9,7 +9,14 @@
       "kind": "equivalent",
       "why": "one more turn reads missing parts as 0 on both sides"
     },
-    { "file": "src/core/version.ts", "from": "<", "to": "<=", "line": "return x < y ? -1 : 1", "kind": "equivalent", "why": "reached only when x !== y" },
+    {
+      "file": "src/core/version.ts",
+      "from": "<",
+      "to": "<=",
+      "line": "return x < y ? -1 : 1",
+      "kind": "equivalent",
+      "why": "reached only when x !== y"
+    },
     {
       "file": "src/core/version.ts",
       "from": "<",
@@ -18,7 +25,14 @@
       "kind": "equivalent",
       "why": "reached only when the pre-releases differ"
     },
-    { "file": "src/core/belt/protect.ts", "from": "<", "to": "<=", "line": "guard < 64", "kind": "equivalent", "why": "a loop guard: no path has 64 levels" },
+    {
+      "file": "src/core/belt/protect.ts",
+      "from": "<",
+      "to": "<=",
+      "line": "guard < 64",
+      "kind": "equivalent",
+      "why": "a loop guard: no path has 64 levels"
+    },
     {
       "file": "src/core/belt/protect.ts",
       "from": "<=",
@@ -186,25 +200,6 @@
       "line": "hint: s.scope === 'managed' ?",
       "kind": "not-agent-testable",
       "why": "as above"
-    },
-    {
-      "file": "src/app/doctor/checks.ts",
-      "from": "!==",
-      "to": "===",
-      "line": "p.version !== APP_VERSION && APP_VERSION !== 'dev'",
-      "kind": "dist-only",
-      "why": "a version comparison skipped when run from source; the shipped-bundle tests reach it"
-    },
-    { "file": "src/app/doctor/checks.ts", "from": "false", "to": "true", "line": "m('doc.claude.plugin.otherVersion'", "kind": "dist-only", "why": "as above" },
-    {
-      "file": "src/app/doctor/checks.ts",
-      "from": "!==",
-      "to": "===",
-      "line": "if (f.manifest.version !== APP_VERSION)",
-      "kind": "dist-only",
-      "why": "as above"
-    },
-    { "file": "src/app/doctor/checks.ts", "from": "true", "to": "false", "line": "m('doc.install.hook.older'", "kind": "dist-only", "why": "as above" },
-    { "file": "src/app/doctor/checks.ts", "from": "true", "to": "false", "line": "m('doc.install.hook.altered'", "kind": "dist-only", "why": "as above" }
+    }
   ]
 }

@@ -4,16 +4,16 @@
  * names a repair when a safe one exists, and otherwise says what the person can do. A check never guesses:
  * what could not be measured is reported as such.
  */
-import { APP_VERSION, MIN_CLAUDE_CODE_FOR_HOOKS, MIN_CLAUDE_CODE_FOR_MODS, PLUGIN_ID } from '../../core/app.js';
+import { MIN_CLAUDE_CODE_FOR_HOOKS, MIN_CLAUDE_CODE_FOR_MODS, PLUGIN_ID } from '../../core/app.js';
 import { caseInsensitive } from '../../core/paths.js';
 import { compareVersions } from '../../core/version.js';
+import { isBeltTool } from '../../core/belt/tools.js';
 import { BELT_MATCHER, HOOK_EVENTS } from '../../node/install.js';
 import type { CheckGroup, CheckResult, CheckStatus, Facts, Message, RepairId } from './types.js';
 
 export const MIN_NODE = '22.13.0';
 
 /** Tools the belt judges. A tool outside this list that runs commands or writes files is a gap. */
-export const BELT_TOOLS = ['Bash', 'PowerShell', 'Write', 'Edit', 'MultiEdit', 'NotebookEdit'] as const;
 
 type MessageKey = Message['key'];
 
@@ -132,8 +132,8 @@ const claudePlugin: Check = (f) => {
   const p = f.plugins.find((x) => x.id === PLUGIN_ID);
   if (!p) return result(id, 'claude', false, 'warn', m('doc.claude.plugin.missing', { id: PLUGIN_ID }), { repair: 'reinstall-plugin' });
   if (p.enabled === false || off) return result(id, 'claude', false, 'warn', m('doc.claude.plugin.disabled', { id: PLUGIN_ID }), { repair: 'enable-plugin' });
-  if (p.version && p.version !== APP_VERSION && APP_VERSION !== 'dev')
-    return result(id, 'claude', false, 'warn', m('doc.claude.plugin.otherVersion', { have: p.version, now: APP_VERSION }), { repair: 'restore-plugin-files' });
+  if (p.version && p.version !== f.appVersion && f.appVersion !== 'dev')
+    return result(id, 'claude', false, 'warn', m('doc.claude.plugin.otherVersion', { have: p.version, now: f.appVersion }), { repair: 'restore-plugin-files' });
   return result(id, 'claude', false, 'ok', m('doc.claude.plugin.ok', { id: PLUGIN_ID, v: p.version ?? '?' }));
 };
 
@@ -155,9 +155,16 @@ const installHookProgram: Check = (f) => {
   if (!h.shippedHash) return result(id, 'install', true, 'info', m('doc.install.hook.noBuild'));
   if (h.hash === h.shippedHash) return result(id, 'install', true, 'ok', m('doc.install.hook.ok', { hash: h.hash.slice(0, 12) }));
   // Run from the source tree: the build next to it is what the installed copy is compared with.
-  if (APP_VERSION === 'dev') return result(id, 'install', true, 'warn', m('doc.install.hook.notThisBuild'), { repair: 'restore-hook-program' });
-  if (f.manifest.version !== APP_VERSION)
-    return result(id, 'install', true, 'warn', m('doc.install.hook.older', { have: f.manifest.version, now: APP_VERSION }), { repair: 'restore-hook-program' });
+  if (f.appVersion === 'dev') return result(id, 'install', true, 'warn', m('doc.install.hook.notThisBuild'), { repair: 'restore-hook-program' });
+  if (f.manifest.version !== f.appVersion)
+    return result(id, 'install', true, 'warn', m('doc.install.hook.older', { have: f.manifest.version, now: f.appVersion }), {
+      repair: 'restore-hook-program',
+    });
+  // The same version, another program: the fingerprint taken at installation tells an earlier build of
+  // this version (as installed) from a program changed since. Installations before it was recorded cannot tell.
+  if (f.manifest.hookHash === h.hash)
+    return result(id, 'install', true, 'warn', m('doc.install.hook.otherBuild', { version: f.appVersion }), { repair: 'restore-hook-program' });
+  if (!f.manifest.hookHash) return result(id, 'install', true, 'fail', m('doc.install.hook.differs', { path: h.path }), { repair: 'restore-hook-program' });
   return result(id, 'install', true, 'fail', m('doc.install.hook.altered', { path: h.path }), { repair: 'restore-hook-program' });
 };
 
@@ -184,7 +191,16 @@ const installHooks: Check = (f) => {
         repair: 'restore-hooks',
       },
     );
-  if (weak.length) return result(id, 'install', true, 'fail', m('doc.install.hooks.changed'), { details, repair: 'restore-hooks' });
+  if (weak.length) {
+    // A matcher exactly as installed, blocking on failure, comes from an earlier build that checked fewer tools.
+    const recorded = (f.manifest.hooks.PreToolUse ?? []).map((g) => (g as { matcher?: unknown })?.matcher);
+    const older = weak.every((h) => h.onFailure === 'block' && h.matcher !== null && recorded.includes(h.matcher));
+    const have = new Set(weak.flatMap((h) => (h.matcher ?? '').split('|')));
+    const tools = BELT_MATCHER.split('|').filter((t) => !have.has(t));
+    if (older && tools.length)
+      return result(id, 'install', true, 'fail', m('doc.install.hooks.older', { tools: tools.join(', ') }), { details, repair: 'restore-hooks' });
+    return result(id, 'install', true, 'fail', m('doc.install.hooks.changed'), { details, repair: 'restore-hooks' });
+  }
   const dupes = HOOK_EVENTS.filter((ev) => user.filter((h) => h.event === ev).length > 1);
   const elsewhere = ours.filter((h) => h.scope !== 'user');
   if (dupes.length || elsewhere.length)
@@ -213,8 +229,8 @@ const installModSeen: Check = (f) => {
   const id = 'install.modSeen';
   if (!f.manifest) return result(id, 'install', false, 'skip', m('doc.notInstalled'));
   if (!f.modSeen) return result(id, 'install', false, 'info', m('doc.install.modSeen.never'));
-  if (f.modSeen.version !== APP_VERSION)
-    return result(id, 'install', false, 'info', m('doc.install.modSeen.other', { have: f.modSeen.version, now: APP_VERSION }));
+  if (f.modSeen.version !== f.appVersion)
+    return result(id, 'install', false, 'info', m('doc.install.modSeen.other', { have: f.modSeen.version, now: f.appVersion }));
   return result(id, 'install', false, 'ok', m('doc.install.modSeen.ok', { when: new Date(f.modSeen.at).toISOString().slice(0, 16).replace('T', ' ') }));
 };
 
@@ -450,7 +466,7 @@ const dataToolNames: Check = (f) => {
   const s = f.transcripts.shape;
   if (!s) return result(id, 'data', true, 'skip', m('doc.data.transcripts.none'));
   const risky = Object.entries(s.tools).filter(([, x]) => x.runsCommands || x.writesFiles);
-  const covered = (n: string) => (BELT_TOOLS as readonly string[]).includes(n);
+  const covered = isBeltTool;
   const gaps = risky.filter(([n]) => !covered(n) && !n.startsWith('mcp__')).map(([n]) => n);
   const mcp = risky.filter(([n]) => n.startsWith('mcp__')).map(([n]) => n);
   if (gaps.length) return result(id, 'data', true, 'fail', m('doc.data.toolNames.gap', { names: gaps.join(', ') }), { hint: m('doc.reportHint') });

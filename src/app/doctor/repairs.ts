@@ -17,7 +17,7 @@ import type { Config } from '../../core/config.js';
 import type { Layout } from '../../core/layout.js';
 import type { ClaudeRunner } from '../../node/claude-env.js';
 import { ensureDir, readText, writeAtomic, writeJsonAtomic } from '../../node/fsx.js';
-import { hookGroups, hookProgram, pluginInstallArgs, readManifest, withOurHooks, writeMarketplace, type Manifest } from '../../node/install.js';
+import { fileHash, hookGroups, hookProgram, pluginInstallArgs, readManifest, withOurHooks, writeMarketplace, type Manifest } from '../../node/install.js';
 import type { Facts, RepairId } from './types.js';
 
 export interface RepairEnv {
@@ -106,6 +106,10 @@ export const REPAIRS: Record<RepairId, RepairInfo> = {
       if (!existsSync(from)) return { id: 'restore-hook-program', ok: false, detail: `this build has no hook program (${from})` };
       ensureDir(join(e.layout.root, 'bin'));
       cpSync(from, hookProgram(e.layout));
+      // The manifest records the program now installed, so a later check tells it from a change.
+      const m = readManifest(e.layout);
+      const hookHash = fileHash(hookProgram(e.layout));
+      if (m && hookHash) writeJsonAtomic(e.layout.manifest, { ...m, hookHash } satisfies Manifest);
       return { id: 'restore-hook-program', ok: true, detail: `copied from ${from.replace(/\\/g, '/')}` };
     },
   },

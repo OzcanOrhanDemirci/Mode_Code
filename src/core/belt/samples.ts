@@ -11,7 +11,7 @@ import type { BeltContext, Verdict } from './types.js';
 
 export interface BeltSample {
   name: string;
-  tool: 'Bash' | 'PowerShell' | 'Write' | 'Edit' | 'Read';
+  tool: 'Bash' | 'PowerShell' | 'Monitor' | 'Write' | 'Edit' | 'Read';
   input: Record<string, string>;
   /** The expected verdict and the rules that must fire (none for allow). */
   verdict: Verdict;
@@ -55,6 +55,7 @@ export const BELT_SAMPLES: readonly BeltSample[] = [
   allow('write a scratch note', 'Write', { file_path: '{temp}/notes.txt', content: 'note' }),
   allow('edit a source file', 'Edit', { file_path: '{project}/src/app.ts', old_string: 'x = 1', new_string: 'x = 2' }),
   allow("read the tool's settings", 'Read', { file_path: '{data}/config.json' }),
+  allow('watch a log', 'Monitor', { command: 'tail -f {project}/dev.log | grep --line-buffered ERROR' }),
 
   // ── the tool's own protections ──
   { name: "write the tool's settings", tool: 'Write', input: { file_path: '{data}/config.json', content: '{}' }, verdict: 'deny', rules: ['self.tool-files'] },
@@ -73,6 +74,14 @@ export const BELT_SAMPLES: readonly BeltSample[] = [
     input: { file_path: '{claude}/settings.json', old_string: '"hooks"', new_string: '"x"' },
     verdict: 'deny',
     rules: ['self.claude-settings'],
+  },
+  // Monitor runs its script in the Bash tool's shell: the same command, the same answer.
+  {
+    name: 'a watch script that writes into the data folder',
+    tool: 'Monitor',
+    input: { command: 'echo x > {data}/config.json' },
+    verdict: 'deny',
+    rules: ['self.tool-files'],
   },
   {
     name: 'PowerShell write into the data folder',

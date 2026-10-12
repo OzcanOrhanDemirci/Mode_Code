@@ -36,6 +36,22 @@ test('the same refusal through a shell command, and through cd into the folder',
   expect(reached).toEqual([]);
 });
 
+test('a Monitor script is read like a Bash command: refused into the data folder, a log watch runs', async ($, on) => {
+  const w = world(on);
+  const reached = w.reached;
+  const a: any = await $.tool.call({ tool: 'Monitor', command: `echo x > ${DATA}/config.json`, description: 'kit', timeout_ms: 60000 } as any);
+  expect(String(a.deny ?? a.text)).toMatch(/self\.tool-files/);
+  expect(reached).toEqual([]);
+  const b: any = await $.tool.call({
+    tool: 'Monitor',
+    command: `tail -f ${PROJECT}/dev.log | grep --line-buffered ERROR`,
+    description: 'kit',
+    timeout_ms: 60000,
+  } as any);
+  expect(b.deny).toBeUndefined();
+  expect(reached).toEqual(['Monitor']);
+});
+
 test('an "ask" rule asks the person; "allow" lets this one call run and records the approval', async ($, on) => {
   const w = world(on, { answer: 'allow' });
   const reached = w.reached;

@@ -1,0 +1,9 @@
+{
+  "about": "Claude Code's built-in tools whose input carries a shell command or a file path, and that the belt does not check, each with the reason. scripts/typecheck-mod.mjs reads the tools from the installed Claude Code's own declarations: a new tool with such an input that is neither checked by the belt (src/core/belt/tools.ts) nor listed here fails the check, so a new way to run commands or write files is never missed silently.",
+  "reviewed": {
+    "Read": "reads a file; changes nothing",
+    "TaskStop": "its command field names the background task to stop; nothing is run",
+    "Artifact": "reads a local file to publish it; a download is saved in the session's scratchpad, elsewhere only after Claude Code asks the person",
+    "ArtifactData": "file_path names a local JSON file it reads and sends; nothing local is written"
+  }
+}

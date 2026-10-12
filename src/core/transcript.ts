@@ -5,6 +5,7 @@
  * `type`, `message.role`, `message.content` blocks, `timestamp` and `isMeta`.
  */
 import type { ToolUse } from './footer.js';
+import { isFileTool } from './belt/tools.js';
 
 type Row = Record<string, unknown>;
 
@@ -47,8 +48,6 @@ export function isHumanPrompt(row: Row): boolean {
   }
   return text;
 }
-
-const FILE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 
 /** The text of a tool result, whatever its shape (a string or a list of blocks). */
 function resultText(b: Row): string {
@@ -104,7 +103,7 @@ export function currentTurn(lines: readonly string[]): TurnInfo {
       if (seen.has(id)) continue;
       seen.add(id);
       if (didNotRun.has(id + '\u0000refused')) continue;
-      if (didNotRun.has(id + '\u0000failed') && FILE_TOOLS.has(b.name)) continue;
+      if (didNotRun.has(id + '\u0000failed') && isFileTool(b.name)) continue;
       uses.push({ name: b.name, input: (typeof b.input === 'object' && b.input !== null ? b.input : {}) as Record<string, unknown> });
     }
   }

@@ -11,11 +11,10 @@ import type { Config } from '../core/config.js';
 import type { Lang } from '../core/i18n/index.js';
 import type { Layout } from '../core/layout.js';
 import { evaluateToolCall } from '../core/belt/evaluate.js';
+import { isBeltTool } from '../core/belt/tools.js';
 import type { BeltContext, Verdict } from '../core/belt/types.js';
 import { beltContext } from '../node/context.js';
 import { readText } from '../node/fsx.js';
-
-const CHECKED = new Set(['Bash', 'PowerShell', 'Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 
 export interface ReplayResult {
   days: number;
@@ -102,7 +101,7 @@ export async function replay(opts: {
       const ts = Date.parse(row.timestamp ?? '');
       if (!(ts >= since)) continue;
       for (const b of row.message.content as { type?: string; name?: string; input?: Record<string, unknown> }[]) {
-        if (b?.type !== 'tool_use' || !b.name || !CHECKED.has(b.name)) continue;
+        if (b?.type !== 'tool_use' || !b.name || !isBeltTool(b.name)) continue;
         calls++;
         const d = await evaluateToolCall(b.name, b.input ?? {}, ctxFor(row.cwd ?? opts.claudeDir));
         if (d.verdict === 'allow') continue;

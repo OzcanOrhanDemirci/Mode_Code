@@ -12,7 +12,8 @@
  *   4. a settings file for the tool itself, created only when there is none.
  */
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, realpathSync, rmSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { cpSync, existsSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -33,7 +34,8 @@ import { claudeDir } from './env.js';
 import { claudeVersion, realClaude, type ClaudeRunner } from './claude-env.js';
 
 export const HOOK_EVENTS = ['PreToolUse', 'UserPromptSubmit', 'Stop', 'SessionStart'] as const;
-export const BELT_MATCHER = 'Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit';
+import { BELT_MATCHER } from '../core/belt/tools.js';
+export { BELT_MATCHER };
 
 export interface Manifest {
   v: 1;
@@ -44,6 +46,11 @@ export interface Manifest {
   dataDir: string;
   settingsFile: string;
   settingsBackup: string | null;
+  /**
+   * The sha256 of the hook program as installed, so the doctor can tell a program from another build of
+   * the same version (a reinstall fixes it) from one changed after installation. Absent before 0.1.0.
+   */
+  hookHash?: string;
   /** The exact hook groups added, per event, so removal takes out these and nothing else. */
   hooks: Record<string, unknown[]>;
   plugin: { id: string; installed: boolean; marketplaceDir: string };
@@ -93,6 +100,15 @@ export function stableNodePath(): string {
 
 export function hookProgram(l: Layout): string {
   return join(l.root, 'bin', 'hook.mjs');
+}
+
+/** The sha256 of a file, or undefined when it cannot be read. */
+export function fileHash(path: string): string | undefined {
+  try {
+    return createHash('sha256').update(readFileSync(path)).digest('hex');
+  } catch {
+    return undefined;
+  }
 }
 
 /** The hook groups the installer adds, for one data folder and one node binary. */
@@ -284,6 +300,7 @@ export function applyInstall(l: Layout, plan: InstallPlan, opts: { config?: Part
     if (!r.ok) throw new Error(r.detail);
     return r.detail;
   });
+  const hookHash = fileHash(hook);
   const manifest: Manifest = {
     v: 1,
     app: APP_ID,
@@ -293,6 +310,7 @@ export function applyInstall(l: Layout, plan: InstallPlan, opts: { config?: Part
     dataDir: l.root,
     settingsFile: plan.settingsFile,
     settingsBackup: backup,
+    ...(hookHash ? { hookHash } : {}),
     hooks: groups,
     plugin: { id: PLUGIN_ID, installed: pluginInstalled, marketplaceDir: l.marketplace },
     createdConfig,

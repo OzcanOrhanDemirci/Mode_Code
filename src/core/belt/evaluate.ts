@@ -6,9 +6,8 @@
 import { tIn } from '../i18n/index.js';
 import { checkCommand, checkFileTool } from './check.js';
 import { effectiveVerdict } from './rules.js';
+import { isFileTool, shellOf } from './tools.js';
 import { VERDICT_ORDER, type BeltContext, type BeltDecision, type Finding, type Verdict } from './types.js';
-
-const FILE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 
 function str(x: unknown): string | null {
   return typeof x === 'string' ? x : null;
@@ -17,12 +16,13 @@ function str(x: unknown): string | null {
 export async function evaluateToolCall(tool: string, input: Readonly<Record<string, unknown>>, ctx: BeltContext): Promise<BeltDecision> {
   let raw: Finding[] = [];
   let issues: string[] = [];
-  if (tool === 'Bash' || tool === 'PowerShell') {
+  const shell = shellOf(tool);
+  if (shell) {
     const command = str(input.command) ?? '';
-    const r = await checkCommand(command, tool === 'PowerShell' ? 'powershell' : 'bash', ctx);
+    const r = await checkCommand(command, shell, ctx);
     raw = r.findings;
     issues = r.issues;
-  } else if (FILE_TOOLS.has(tool)) {
+  } else if (isFileTool(tool)) {
     const path = str(input.file_path) ?? str(input.notebook_path) ?? '';
     if (path) {
       const edits: { oldText: string; newText: string }[] = [];

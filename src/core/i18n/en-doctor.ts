@@ -59,8 +59,12 @@ export const enDoctor = {
   'doc.install.hook.older': 'The hook program is from version {have}; this is {now}.',
   'doc.install.hook.notThisBuild': 'The hook program differs from the build next to this source tree.',
   'doc.install.hook.altered': 'The hook program was changed after installation: {path}.',
+  'doc.install.hook.otherBuild': 'The hook program comes from an earlier build of {version}, as installed; this build differs.',
+  'doc.install.hook.differs':
+    'The hook program differs from this build; this installation recorded no fingerprint to tell an earlier build from a change: {path}.',
   'doc.install.hooks.ok': 'The safety-net hooks are in place for all {n} events and block on failure.',
   'doc.install.hooks.missing': 'Safety-net hooks are missing for {events} ({n} of {of} in place).',
+  'doc.install.hooks.older': 'The safety-net hook comes from an earlier build and does not check: {tools}.',
   'doc.install.hooks.changed': 'The safety-net hook was changed: it no longer checks every changing tool, or no longer blocks when it fails.',
   'doc.install.hooks.duplicates': 'Extra copies of the safety-net hooks: {n}.',
   'doc.install.hooks.movedConfig': 'Installed into {recorded}, but Claude Code now reads {now}.',

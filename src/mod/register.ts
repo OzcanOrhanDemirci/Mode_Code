@@ -18,6 +18,7 @@ import { layout, sessionFile, eventsFile, type Layout } from '../core/layout.js'
 import { joinPath, pathKey, resolvePath, type PathAlias, type Platform } from '../core/paths.js';
 import { detectLanguage, tIn, setLanguage, type Lang } from '../core/i18n/index.js';
 import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
+import { isFileTool } from '../core/belt/tools.js';
 import type { BeltContext, BeltDecision, GitFacts } from '../core/belt/types.js';
 import { checkGuards } from '../core/guard.js';
 import { detectKeyword, type KeywordMatch } from '../core/keywords.js';
@@ -520,7 +521,7 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
 
   const result = await next(e);
   // The footer counts what ran: a refused call changed nothing, and neither did a file tool that failed.
-  const ran = result.deny === undefined && !(result.isError === true && /^(?:Write|Edit|MultiEdit|NotebookEdit)$/.test(tool));
+  const ran = result.deny === undefined && !(result.isError === true && isFileTool(tool));
   if (ran && e.agentId === undefined) c.turn.uses.push({ name: tool, input });
   if (d.verdict === 'warn' && result && result.deny === undefined) {
     await logEvent($, c, { kind: 'belt', tool, verdict: 'warn', rules });

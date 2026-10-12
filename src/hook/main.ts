@@ -10,6 +10,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
+import { isBeltTool } from '../core/belt/tools.js';
 import { parseModState, parseHookState, isApproved, applyKeyword } from '../core/session.js';
 import { sessionFile, eventsFile } from '../core/layout.js';
 import { maskSecrets } from '../core/secrets/scan.js';
@@ -30,7 +31,6 @@ import { readTail } from '../node/tail.js';
 
 type Input = Record<string, unknown>;
 
-const RISKY_TOOLS = /^(?:Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit)$/;
 /** A hook that is still running after this long answers for itself: deny for risky tools, pass otherwise. */
 const DEADLINE_MS = 8000;
 
@@ -206,13 +206,13 @@ async function main(): Promise<void> {
   if (event === 'PreToolUse') {
     const tool = str(input.tool_name) ?? '';
     const timer = setTimeout(() => {
-      if (RISKY_TOOLS.test(tool)) preToolDeny(tIn(lang, 'belt.failed', { error: `no answer in ${DEADLINE_MS / 1000} s` }));
+      if (isBeltTool(tool)) preToolDeny(tIn(lang, 'belt.failed', { error: `no answer in ${DEADLINE_MS / 1000} s` }));
       process.exit(0);
     }, DEADLINE_MS);
     try {
       await preToolUse(input, lang);
     } catch (err) {
-      if (RISKY_TOOLS.test(tool)) preToolDeny(tIn(lang, 'belt.failed', { error: (err as Error)?.message ?? String(err) }));
+      if (isBeltTool(tool)) preToolDeny(tIn(lang, 'belt.failed', { error: (err as Error)?.message ?? String(err) }));
     } finally {
       clearTimeout(timer);
     }

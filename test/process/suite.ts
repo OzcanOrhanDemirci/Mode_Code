@@ -6,6 +6,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { built, cli, world } from '../helpers/proc.js';
@@ -144,11 +145,17 @@ export function defineCliTests(mode: 'source' | 'dist'): void {
       const status = (id: string, j: Record<string, any> | null) => (j?.checks as { id: string; status: string }[]).find((c) => c.id === id)?.status;
       assert.equal(status('install.hooks', broken.json), 'fail');
       assert.equal(status('install.hookProgram', broken.json), dist ? 'fail' : 'warn');
+      const said = (id: string, j: Record<string, any> | null) =>
+        (j?.checks as { id: string; summary: { key: string } }[]).find((c) => c.id === id)?.summary.key;
+      // The installation recorded the program's fingerprint: a change since is called a change.
+      assert.equal(said('install.hookProgram', broken.json), dist ? 'doc.install.hook.altered' : 'doc.install.hook.notThisBuild');
       const fixed = cli(w, ['doctor', '--json', '--fix'], opt);
       const repairs = fixed.json?.repairs as { id: string; verified: boolean }[];
       assert.ok(repairs.some((r) => r.id === 'restore-hooks' && r.verified));
       assert.ok(repairs.some((r) => r.id === 'restore-hook-program' && r.verified));
       assert.equal(status('install.hooks', fixed.json), 'ok');
+      const manifest = JSON.parse(readFileSync(join(w.data, 'install', 'manifest.json'), 'utf8'));
+      assert.equal(manifest.hookHash, createHash('sha256').update(readFileSync(hook)).digest('hex'), 'the repair recorded the program it put back');
       const after = JSON.parse(readFileSync(join(w.claudeDir, 'settings.json'), 'utf8'));
       assert.equal(after.theme, 'dark', "the person's settings survived the repair");
       assert.ok(after.hooks.PreToolUse);

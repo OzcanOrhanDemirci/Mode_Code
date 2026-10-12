@@ -5,6 +5,7 @@
  * safety belt is separate and never depends on state, so it holds even when state cannot be read.
  */
 import { classifyTurn, type ClassifyEnv } from './footer.js';
+import { isBeltTool } from './belt/tools.js';
 import type { QuotaAssessment } from './quota.js';
 import type { ModSessionState } from './session.js';
 import { tIn, type Lang } from './i18n/index.js';
@@ -38,7 +39,7 @@ export function checkGuards(
   }
   if (quota && quota.usable) {
     if (quota.level !== 'ok' && HEAVY.test(tool)) return { kind: 'quota', reason: tIn(lang, 'guard.quota.heavy') };
-    if (quota.level === 'stop' && !QUIET.test(tool) && (tool === 'Bash' || tool === 'PowerShell' || /^(?:Write|Edit|MultiEdit|NotebookEdit)$/.test(tool))) {
+    if (quota.level === 'stop' && !QUIET.test(tool) && isBeltTool(tool)) {
       const acts = classifyTurn([{ name: tool, input }], env);
       const changes = acts.files + acts.settings + acts.shell + acts.external;
       if (changes > 0)

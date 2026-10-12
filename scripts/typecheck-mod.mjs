@@ -9,10 +9,10 @@
  * Usage: node scripts/typecheck-mod.mjs
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const env = { ...process.env };
@@ -83,6 +83,30 @@ try {
     process.exit(1);
   }
   console.log(`typecheck-mod: src/mod and ${tests.length} engine test files type-check against Claude Code ${version}`);
+
+  // ── every built-in tool that runs a command or takes a file path is checked by the belt or reviewed ──
+  const { tsImport } = await import('tsx/esm/api');
+  const { BELT_TOOLS } = await tsImport(pathToFileURL(join(root, 'src', 'core', 'belt', 'tools.ts')).href, import.meta.url);
+  const reviewed = JSON.parse(readFileSync(join(root, 'test', 'claude-code-tools.json'), 'utf8')).reviewed;
+  const declared = readFileSync(dts, 'utf8');
+  const takes = new Set();
+  const block = /^ {4}([A-Z][A-Za-z]+): \{\r?\n([\s\S]*?)^ {4}\}/gm;
+  for (let m = block.exec(declared); m; m = block.exec(declared)) if (/^ {6}(?:command|file_path|notebook_path)\??: string/m.test(m[2])) takes.add(m[1]);
+  if (!takes.has('Bash') || !takes.has('Write')) {
+    console.error(`typecheck-mod: could not read the tool inputs from Claude Code ${version}'s declarations (the layout changed); fix the reader`);
+    process.exit(1);
+  }
+  const unknown = [...takes].filter((t) => !BELT_TOOLS.includes(t) && !Object.hasOwn(reviewed, t));
+  if (unknown.length) {
+    console.error(
+      `typecheck-mod: Claude Code ${version} has tools that take a command or a file path the belt neither checks nor lists as reviewed: ${unknown.join(', ')}.\n` +
+        'Add each to src/core/belt/tools.ts, or with the reason to test/claude-code-tools.json.',
+    );
+    process.exit(1);
+  }
+  console.log(
+    `typecheck-mod: ${takes.size} built-in tools take a command or a file path: ${[...takes].filter((t) => BELT_TOOLS.includes(t)).length} checked by the belt, ${[...takes].filter((t) => Object.hasOwn(reviewed, t)).length} reviewed`,
+  );
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

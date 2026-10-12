@@ -151,6 +151,66 @@ machines.push(
   ],
 );
 
+// The hook program and the PreToolUse matcher after an update of the same version (found on the author's
+// machine): an earlier build as installed is told from a change since; without a recorded fingerprint, neither is claimed.
+const OLD_MATCHER = 'Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit';
+const withPre = (matcher: string, onFailure: 'block' | null = 'block') => h.hooks.map((x) => (x.event === 'PreToolUse' ? { ...x, matcher, onFailure } : x));
+// A released build, so the comparisons a source tree skips are made.
+const released = {
+  appVersion: '0.1.0',
+  manifest: { ...h.manifest!, version: '0.1.0' },
+  plugins: [{ id: 'terminal-code@terminal-code-local', enabled: true, version: '0.1.0', scope: 'user' as const }],
+  modSeen: { at: h.measuredAt, version: '0.1.0' },
+};
+machines.push(
+  [
+    'tour 4: an earlier build of this version, as installed',
+    healthyFacts({
+      ...released,
+      manifest: { ...released.manifest, hookHash: 'b'.repeat(64), hooks: { PreToolUse: [{ matcher: OLD_MATCHER, hooks: [] }] } },
+      hookProgram: { ...h.hookProgram, hash: 'b'.repeat(64) },
+      hooks: withPre(OLD_MATCHER),
+    }),
+  ],
+  [
+    'tour 5: an installation without a fingerprint, a matcher not as installed',
+    healthyFacts({
+      ...released,
+      manifest: { ...released.manifest, hooks: { PreToolUse: [{ matcher: OLD_MATCHER, hooks: [] }] } },
+      hookProgram: { ...h.hookProgram, hash: 'b'.repeat(64) },
+      hooks: withPre('Bash'),
+    }),
+  ],
+  [
+    'tour 6: a hook program changed after installation; an earlier matcher that no longer blocks on failure',
+    healthyFacts({
+      ...released,
+      manifest: { ...released.manifest, hookHash: 'c'.repeat(64), hooks: { PreToolUse: [{ matcher: OLD_MATCHER, hooks: [] }] } },
+      hookProgram: { ...h.hookProgram, hash: 'b'.repeat(64) },
+      hooks: withPre(OLD_MATCHER, null),
+    }),
+  ],
+  [
+    'tour 7: installed from an older version; the plugin and the last session from it too',
+    healthyFacts({
+      appVersion: '0.2.0',
+      manifest: { ...released.manifest },
+      hookProgram: { ...h.hookProgram, hash: 'b'.repeat(64) },
+      plugins: [{ id: 'terminal-code@terminal-code-local', enabled: true, version: '0.1.0', scope: 'user' }],
+      modSeen: { at: h.measuredAt, version: '0.1.0' },
+    }),
+  ],
+  [
+    'tour 8: two safety-net hooks, one from an earlier build and one changed: a change is not passed off as an earlier build',
+    healthyFacts({
+      ...released,
+      manifest: { ...released.manifest, hooks: { PreToolUse: [{ matcher: OLD_MATCHER, hooks: [] }] } },
+      hooks: [...withPre(OLD_MATCHER), { ...withPre('Bash').find((x) => x.event === 'PreToolUse')! }],
+    }),
+  ],
+  ['tour 9: a released build, healthy', healthyFacts(released)],
+);
+
 test('what the doctor concludes about each machine, check by check', () => {
   const lines: string[] = [];
   for (const [name, facts] of machines) {

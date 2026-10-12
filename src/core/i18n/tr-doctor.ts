@@ -61,8 +61,12 @@ export const trDoctor: Record<keyof typeof enDoctor, string> = {
   'doc.install.hook.older': 'Hook programı {have} sürümünden; bu sürüm {now}.',
   'doc.install.hook.notThisBuild': 'Hook programı, bu kaynak klasörünün yanındaki derlemeden farklı.',
   'doc.install.hook.altered': 'Hook programı kurulumdan sonra değiştirilmiş: {path}.',
+  'doc.install.hook.otherBuild': 'Hook programı {version} sürümünün kurulduğu andaki önceki bir derlemesinden; bu derleme farklı.',
+  'doc.install.hook.differs':
+    'Hook programı bu derlemeden farklı; bu kurulum, önceki bir derlemeyi sonradan yapılmış bir değişiklikten ayıracak parmak izini kaydetmemiş: {path}.',
   'doc.install.hooks.ok': "Güvenlik ağı hook'ları {n} olayın hepsinde yerinde ve hata olursa engelliyor.",
   'doc.install.hooks.missing': "Şu olaylarda güvenlik ağı hook'u eksik: {events} ({of} olaydan {n} tanesi yerinde).",
+  'doc.install.hooks.older': "Güvenlik ağı hook'u önceki bir derlemeden; şunları denetlemiyor: {tools}.",
   'doc.install.hooks.changed': "Güvenlik ağı hook'u değiştirilmiş: değişiklik yapan her aracı denetlemiyor ya da hata olunca engellemiyor.",
   'doc.install.hooks.duplicates': "Güvenlik ağı hook'larının {n} fazladan kopyası bulundu.",
   'doc.install.hooks.movedConfig': '{recorded} dosyasına kuruldu, ama Claude Code artık {now} dosyasını okuyor.',

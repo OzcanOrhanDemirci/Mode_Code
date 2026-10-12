@@ -9,6 +9,7 @@
  */
 import { analyzeCommand } from './shell/analyze.js';
 import { parseGit } from './belt/git.js';
+import { isFileTool, shellOf } from './belt/tools.js';
 import { resolvePath, isUnder, type PathEnv } from './paths.js';
 import { tIn, type Lang } from './i18n/index.js';
 
@@ -32,7 +33,6 @@ export interface ClassifyEnv extends PathEnv {
   ignore: string[];
 }
 
-const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 const MUTATING_GIT =
   /^(?:add|rm|mv|checkout|switch|reset|rebase|merge|tag|stash|cherry-pick|apply|am|revert|clean|restore|pull|init|clone|worktree|branch|config|remote|submodule|filter-branch|filter-repo|update-ref|notes)$/;
 /** Listing and showing forms of otherwise changing git subcommands: `git branch -a`, `git remote -v`, … */
@@ -145,7 +145,8 @@ export function classifyTurn(uses: readonly ToolUse[], env: ClassifyEnv): TurnAc
   const acts: TurnActs = { files: 0, memoryFiles: 0, settings: 0, git: 0, shell: 0, external: 0 };
   const seen = new Set<string>();
   for (const u of uses) {
-    if (WRITE_TOOLS.has(u.name)) {
+    const shell = shellOf(u.name);
+    if (isFileTool(u.name)) {
       const raw = String(u.input.file_path ?? u.input.notebook_path ?? '');
       if (!raw || ignored(raw, env)) continue;
       const p = resolvePath(raw, env);
@@ -155,8 +156,8 @@ export function classifyTurn(uses: readonly ToolUse[], env: ClassifyEnv): TurnAc
       if (SETTINGS_FILE.test(p)) acts.settings++;
       else if (env.memoryRoots.some((m) => isUnder(p, resolvePath(m, env), env.platform))) acts.memoryFiles++;
       else acts.files++;
-    } else if (u.name === 'Bash' || u.name === 'PowerShell') {
-      const r = shellChanges(String(u.input.command ?? ''), u.name === 'PowerShell' ? 'powershell' : 'bash', env);
+    } else if (shell) {
+      const r = shellChanges(String(u.input.command ?? ''), shell, env);
       if (r.git) acts.git++;
       if (r.other) acts.shell++;
     } else if (u.name.startsWith('mcp__') && /(?:send|create|update|delete|trash|share|reply|forward|label|mark|write|upload|publish|post)/i.test(u.name)) {

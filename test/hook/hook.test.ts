@@ -57,6 +57,26 @@ test('a write into the tool data folder is denied, with the reason in the person
   }
 });
 
+test('a Monitor script is read like a Bash command: a write into the data folder is denied, a log watch passes', () => {
+  const home = fresh();
+  try {
+    const call = (command: string) =>
+      run(
+        'PreToolUse',
+        { ...base(home), hook_event_name: 'PreToolUse', tool_name: 'Monitor', tool_use_id: 'toolu_m', tool_input: { command, timeout_ms: 60000 } },
+        home,
+      );
+    const denied = call(`echo x > "${join(home, 'config.json').replace(/\\/g, '/')}"`);
+    assert.equal(denied.status, 0, denied.stderr);
+    assert.equal(denied.out?.hookSpecificOutput?.permissionDecision, 'deny');
+    const watch = call('tail -f build.log | grep --line-buffered ERROR');
+    assert.equal(watch.status, 0, watch.stderr);
+    assert.equal(watch.out, null);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test('a plain read passes without a word', () => {
   const home = fresh();
   try {
