@@ -9,7 +9,7 @@
  * them. PowerShell spellings that could hide a name are decoded: backtick escapes, doubled quotes,
  * typographic quotes and dashes (PowerShell accepts ‘ ’ “ ” and – — ―).
  */
-import { MAX_DEPTH, type ParsedScript, type Redirect, type SimpleCommand, type Word } from './types.js';
+import { LEADING_OPERATOR, MAX_DEPTH, type ParsedScript, type Redirect, type SimpleCommand, type Word } from './types.js';
 
 const SINGLE_QUOTES = new Set(["'", '‘', '’', '‚', '‛']);
 const DOUBLE_QUOTES = new Set(['"', '“', '”', '„']);
@@ -67,7 +67,7 @@ class PsParser {
           argv: draft.argv,
           redirects: draft.redirects,
           heredocs: [],
-          raw: src.slice(draft.start, this.pos).trim(),
+          raw: src.slice(draft.start, this.pos).trim().replace(LEADING_OPERATOR, ''),
         };
         script.commands.push(cmd);
       }
@@ -239,7 +239,14 @@ class PsParser {
       }
       if (depth > 0) this.issues.push('unterminated-subexpression');
     }
-    script.commands.push({ dialect: 'powershell', assigns: [], argv, redirects: [], heredocs: [], raw: src.slice(start, this.pos).trim() });
+    script.commands.push({
+      dialect: 'powershell',
+      assigns: [],
+      argv,
+      redirects: [],
+      heredocs: [],
+      raw: src.slice(start, this.pos).trim().replace(LEADING_OPERATOR, ''),
+    });
   }
 
   private readWord(): Word {

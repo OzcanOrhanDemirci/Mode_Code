@@ -154,3 +154,10 @@ test('depth limit stops pathological nesting', () => {
   walk(s);
   assert.ok(issues.includes('too-deep'));
 });
+
+test('raw command text, shown in the belt reasons, leaves out the operator that joins it', () => {
+  assert.deepEqual(
+    parseBash('cd x && git status; ls | wc -l || echo').commands.map((c) => c.raw),
+    ['cd x', 'git status', 'ls', 'wc -l', 'echo'],
+  );
+});

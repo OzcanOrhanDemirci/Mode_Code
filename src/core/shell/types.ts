@@ -47,3 +47,6 @@ export interface ParsedScript {
 }
 
 export const MAX_DEPTH = 12;
+
+/** The operator that joined a command to the one before it (`&&`, `;`, `|`, …), cut from its raw text. */
+export const LEADING_OPERATOR = /^[;&|]+\s*/;

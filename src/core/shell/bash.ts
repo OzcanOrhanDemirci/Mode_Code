@@ -8,7 +8,7 @@
  * continuations). When it meets something it cannot follow it says so in `issues` instead of guessing;
  * the rules treat a non-empty `issues` list as "unverified".
  */
-import { MAX_DEPTH, type ParsedScript, type Redirect, type SimpleCommand, type Word } from './types.js';
+import { LEADING_OPERATOR, MAX_DEPTH, type ParsedScript, type Redirect, type SimpleCommand, type Word } from './types.js';
 
 // `time` is a reserved word in bash too, but it is left to the analyzer, which unwraps it with its options.
 const RESERVED = new Set(['if', 'then', 'else', 'elif', 'fi', 'do', 'done', 'while', 'until', '!', '{', '}', 'coproc', 'esac']);
@@ -122,7 +122,7 @@ class BashParser {
           argv: draft.argv,
           redirects: draft.redirects,
           heredocs: draft.heredocs,
-          raw: src.slice(draft.start, this.pos).trim(),
+          raw: src.slice(draft.start, this.pos).trim().replace(LEADING_OPERATOR, ''),
         };
         // cmd.heredocs is the draft's own array, so bodies read at the next newline land on the stored command.
         script.commands.push(cmd);
