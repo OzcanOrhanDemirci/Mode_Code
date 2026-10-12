@@ -13,6 +13,7 @@ export const en = {
   'belt.reason.inline': 'Inside code passed to an interpreter: {reason}',
   'belt.reason.deleteUnknown': 'Recursive delete whose target is only known at run time: {target}.',
   'belt.reason.deleteCritical': 'Deletes {target}, which is or contains {critical}.',
+  'belt.reason.deleteProtected': 'Deletes {target}, a protected folder.',
   'belt.reason.deleteMemory': 'Deletes a memory file: {target}.',
   'belt.reason.toolFiles': "Changes the safety tool's own files: {target}.",
   'belt.reason.claudeConfig': "Changes Claude Code's configuration: {target}.",

@@ -13,6 +13,7 @@ export const tr: Record<MessageKey, string> = {
   'belt.reason.inline': 'Yorumlayıcıya verilen kodun içinde: {reason}',
   'belt.reason.deleteUnknown': 'Hedefi ancak çalışırken belli olan özyinelemeli silme: {target}.',
   'belt.reason.deleteCritical': '{target} siliniyor; bu konum {critical} konumunun kendisi ya da onu içeriyor.',
+  'belt.reason.deleteProtected': '{target} siliniyor; bu korunan bir klasör.',
   'belt.reason.deleteMemory': 'Bir hafıza dosyası siliniyor: {target}.',
   'belt.reason.toolFiles': 'Koruma aracının kendi dosyaları değiştiriliyor: {target}.',
   'belt.reason.claudeConfig': "Claude Code'un yapılandırması değiştiriliyor: {target}.",

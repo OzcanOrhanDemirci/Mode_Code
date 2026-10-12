@@ -8,7 +8,7 @@
  */
 import { analyzeCommand, type Invocation, psNamed, splitParam } from '../shell/analyze.js';
 import type { Dialect, Word } from '../shell/types.js';
-import { isUnder, joinPath, resolvePath, type PathEnv } from '../paths.js';
+import { isUnder, joinPath, pathKey, resolvePath, type PathEnv } from '../paths.js';
 import { tIn, type MessageKey } from '../i18n/index.js';
 import { truncate } from '../text.js';
 import { MARKETPLACE_NAME, PLUGIN_NAME } from '../app.js';
@@ -139,7 +139,11 @@ function checkDelete(t: Target, recursive: boolean, s: Scope): void {
   const crit = hitsCritical(t.path, paths, ctx.platform);
   if (crit) {
     const isMemory = under(crit, paths.memoryDirs, ctx.platform);
-    add(s, isMemory ? 'self.memory-delete' : 'fs.delete-critical', 'belt.reason.deleteCritical', { target: show(t.path), critical: show(crit) });
+    const itself = pathKey(t.path, ctx.platform) === pathKey(crit, ctx.platform);
+    add(s, isMemory ? 'self.memory-delete' : 'fs.delete-critical', itself ? 'belt.reason.deleteProtected' : 'belt.reason.deleteCritical', {
+      target: show(t.path),
+      critical: show(crit),
+    });
     return;
   }
   const mem = under(t.path, paths.memoryDirs, ctx.platform);
