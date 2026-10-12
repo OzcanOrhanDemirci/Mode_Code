@@ -244,8 +244,11 @@ class FakeStdout extends EventEmitter {
   ) {
     super();
   }
+  /** Frames written so far: a key press waits for the frame it causes, however slow the machine. */
+  frames = 0;
   write(s: string) {
     this.last = s;
+    this.frames++;
     return true;
   }
 }
@@ -272,6 +275,22 @@ export const KEY = { down: '\u001B[B', up: '\u001B[A', right: '\u001B[C', left: 
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Waits until `done()` holds or `cap` ms pass, checking every 5 ms. */
+async function until(done: () => boolean, cap: number): Promise<boolean> {
+  const end = Date.now() + cap;
+  while (!done()) {
+    if (Date.now() > end) return false;
+    await wait(5);
+  }
+  return true;
+}
+
+/**
+ * How long a key may take to show. A fixed pause was too short on a loaded CI runner (two tests failed
+ * there with 40 ms); a key that changes nothing on the screen costs this much, so it stays modest.
+ */
+const FRAME_CAP_MS = 1500;
+
 export interface Screen {
   /** The screen now, colors removed. */
   text(): string;
@@ -293,20 +312,24 @@ export async function draw(data: DataSource, opts: { columns?: number; rows?: nu
       patchConsole: false,
     },
   );
+  await until(() => stdout.frames > 0, FRAME_CAP_MS);
   await wait(80);
   return {
     // eslint-disable-next-line no-control-regex
     text: () => stdout.last.replace(/\u001B\[[0-9;?]*[A-Za-z]/g, ''),
     async press(...keys: string[]) {
       for (const k of keys) {
+        const before = stdout.frames;
         stdin.send(k);
-        await wait(40);
+        // The frame the key causes, then a moment for the renders that follow from it (effects, data).
+        if (await until(() => stdout.frames > before, FRAME_CAP_MS)) await wait(25);
       }
     },
     async type(s: string) {
       for (const ch of s) {
+        const before = stdout.frames;
         stdin.send(ch);
-        await wait(15);
+        await until(() => stdout.frames > before, FRAME_CAP_MS);
       }
       await wait(30);
     },
