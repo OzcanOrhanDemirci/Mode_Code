@@ -9,8 +9,13 @@ import type { BeltContext } from './types.js';
 export interface ProtectedPaths {
   /** Deleting or moving one of these, or anything that contains one of them, is catastrophic. */
   critical: string[];
-  /** Operating system folders: everything inside them is critical too. */
+  /** Operating system folders: everything inside them is critical too, except what lies inside `ownRoots`. */
   systemDirs: string[];
+  /**
+   * The person's own places, which may lie inside an operating system folder (`/Users/ada` in `/Users`,
+   * `/private/tmp` in `/private`, a project in `/Volumes` or `/mnt`): inside them the ordinary rules apply.
+   */
+  ownRoots: string[];
   /** Claude Code's own configuration: user settings, global config, plugin registry, managed settings. */
   claudeConfig: string[];
   /** Claude Code configuration that a project legitimately changes now and then (asks instead of denying). */
@@ -208,6 +213,11 @@ export function protectedPaths(ctx: BeltContext): ProtectedPaths {
   return {
     critical: dedupe(critical, ctx.platform),
     systemDirs: system,
+    // A place counts as the person's own only when it is not itself an operating system folder (a session
+    // started in /usr does not make /usr a project whose insides may be deleted).
+    ownRoots: dedupe([home, project, ...tempDirs, ...(ctx.knownProjects ?? []).map((p) => resolvePath(p, env))], ctx.platform).filter(
+      (r) => !isRoot(r) && !system.some((d) => isUnder(d, r, ctx.platform)),
+    ),
     claudeConfig,
     claudeProjectConfig,
     toolDirs,
@@ -230,10 +240,16 @@ function dedupe(paths: string[], platform: Platform): string[] {
   });
 }
 
-/** The critical path that `target` is, contains, or null. A target inside a critical path is not itself critical. */
+/**
+ * The critical path that `target` is, contains, or null. A target inside a critical path is not itself
+ * critical; a target inside an operating system folder is, unless it lies strictly inside one of the
+ * person's own places (home, temporary folders, projects), where the ordinary rules decide.
+ */
 export function hitsCritical(target: string, paths: ProtectedPaths, platform: Platform): string | null {
   if (isRoot(target)) return target;
   for (const c of paths.critical) if (isUnder(c, target, platform)) return c;
+  const own = paths.ownRoots.some((r) => isUnder(target, r, platform) && pathKey(target, platform) !== pathKey(r, platform));
+  if (own) return null;
   for (const d of paths.systemDirs) if (isUnder(target, d, platform)) return d;
   return null;
 }
