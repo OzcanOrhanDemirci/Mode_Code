@@ -10,7 +10,7 @@
  * is a top-level function of this file, as the engine's validator requires.
  */
 import type { EngineInterface, EventName, Hook, On } from 'claude-code';
-import { APP_NAME, APP_VERSION, DATA_DIR_NAME } from '../core/app.js';
+import { APP_NAME, APP_VERSION, DATA_DIR_NAME, PLUGIN_NAME } from '../core/app.js';
 import { parseConfig, type Config } from '../core/config.js';
 import { layout, sessionFile, eventsFile, type Layout } from '../core/layout.js';
 import { joinPath, resolvePath, type Platform } from '../core/paths.js';
@@ -393,7 +393,9 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
 async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.submit'>): Out<'prompt.submit'> {
   const c = await ctxOf($);
   const kind = e.origin?.kind;
-  const human = kind === 'composer' || kind === 'bridge' || kind === 'sdk';
+  // The person's own prompts, and this plugin's resume prompt (which ends with their continue keyword).
+  const ours = kind === 'plugin' && (e.origin as { name?: string }).name === PLUGIN_NAME;
+  const human = kind === 'composer' || kind === 'bridge' || kind === 'sdk' || ours;
   if (human) {
     c.turn = { startedAt: await $.clock.now(), uses: [] };
     await refreshConfig($, c);
@@ -511,7 +513,7 @@ async function resume($: $): Promise<void> {
     }
   }
   const label = c.state.project ? (c.config.projects.find((p) => p.id === c.state.project)?.names[0] ?? c.state.project) : null;
-  await $.prompt.submit({ text: resumePrompt(label) });
+  await $.prompt.submit({ text: resumePrompt(label, c.lang) });
 }
 
 async function memoryStatusFor($: $, c: Ctx, cwd: string): Promise<MemoryStatus> {

@@ -15,4 +15,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Control center with seven categories, three columns, addresses, a go-to palette, filters, view levels, plain and high-contrast modes, settings edited in place.
 - Session index in SQLite: incremental, each API message counted once, secrets masked.
 - Commands: `status`, `doctor`, `install`, `uninstall`, `quota`, `tokens`, `sessions`, `belt`, `secrets`, `config`, each with versioned `--json` output.
-- Installer that shows every change, asks once, backs up the settings, records a manifest and self-tests; removal undoes exactly the manifest.
+- Installer that shows every change, asks once, backs up the settings, records a manifest and self-tests; removal undoes exactly the manifest. Running it again repairs an installation.
+- `terminal-code try`: one Claude Code session with everything loaded, without installing.
+- Quota history on the quota screen, from readings the plugin records.
+- Settings changed in the control center apply to running sessions at the next prompt.
+- After a quota reset, autonomous work resumes with a prompt that ends with your own continue keyword.

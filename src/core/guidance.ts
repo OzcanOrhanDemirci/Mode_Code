@@ -110,6 +110,15 @@ export function footerInstruction(lang: Lang, opts: { memory: boolean; showFiveF
   ].join('\n');
 }
 
-export function resumePrompt(project: string | null): string {
-  return project ? `${project} devam` : 'devam';
+/**
+ * The prompt that resumes autonomous work after a quota reset. It ends with the person's own continue
+ * keyword (in their language), so the keyword layer treats it exactly like their "continue".
+ */
+export function resumePrompt(project: string | null, lang: Lang): string {
+  const word = lang === 'tr' ? 'devam' : 'continue';
+  const lead =
+    lang === 'tr'
+      ? 'Kota penceresi sıfırlandı. Kaldığın yerden otonom çalışmaya devam et; önce devir notuna ve yarım kalan adıma bak.'
+      : 'The quota window reset. Resume the autonomous work where it stopped; check the handoff notes and the step that was left half done first.';
+  return `${lead}\n${project ? `${project} ${word}` : word}`;
 }
