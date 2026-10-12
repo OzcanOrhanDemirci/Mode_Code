@@ -356,8 +356,10 @@ export function App(props: AppProps) {
           </Box>
         ) : null}
         <Box width={mainW} height={bodyH} flexDirection="column" borderStyle={theme.border} borderColor={theme.accent} paddingX={1} overflow="hidden">
-          <Text bold>{selected.label}</Text>
-          {selected.description ? <Muted>{selected.description}</Muted> : null}
+          <Box flexDirection="column" flexShrink={0}>
+            <Text bold>{selected.label}</Text>
+            {selected.description ? <Muted>{selected.description}</Muted> : null}
+          </Box>
           <Box marginTop={1} flexDirection="column" overflow="hidden" flexGrow={1}>
             <Box flexDirection="column" flexShrink={0} marginTop={-scroll}>
               {selected.screen({ width: mainW - 4, height: bodyH - 5, open: true })}
@@ -433,8 +435,10 @@ function Preview({ node, width, height, theme, t }: { node: NavNode; width: numb
     const kids = node.children();
     return (
       <Box flexDirection="column" width={width}>
-        <Text bold>{node.label}</Text>
-        {node.description ? <Muted>{node.description}</Muted> : null}
+        <Box flexDirection="column" flexShrink={0}>
+          <Text bold>{node.label}</Text>
+          {node.description ? <Muted>{node.description}</Muted> : null}
+        </Box>
         <Box marginTop={1} flexDirection="column">
           {kids.slice(0, Math.max(1, height - 4)).map((k) => (
             <Text key={k.id} wrap="truncate-end">
@@ -451,8 +455,10 @@ function Preview({ node, width, height, theme, t }: { node: NavNode; width: numb
   }
   return (
     <Box flexDirection="column" width={width} height={height} overflow="hidden">
-      <Text bold>{node.label}</Text>
-      {node.description ? <Muted>{node.description}</Muted> : null}
+      <Box flexDirection="column" flexShrink={0}>
+        <Text bold>{node.label}</Text>
+        {node.description ? <Muted>{node.description}</Muted> : null}
+      </Box>
       <Box marginTop={1} flexDirection="column">
         <Box flexDirection="column" flexShrink={0}>
           {node.screen?.({ width, height: height - 3, open: false })}

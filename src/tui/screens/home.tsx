@@ -40,7 +40,6 @@ export function Overview({ width, height, open }: ScreenProps) {
           <Note kind="warn">{t('home.notInstalled')}</Note>
         ) : (
           <Box>
-            <Text>{theme.sym.shield} </Text>
             <StateMark state={belt.state} />
             <Text color={theme.muted}>
               {' · '}

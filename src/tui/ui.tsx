@@ -192,11 +192,13 @@ export function ListView({
   focused: boolean;
 }) {
   const { theme } = useEnv();
-  const h = Math.max(1, height);
+  // The "1-18 / 39" line takes a row of its own, so the rows never outgrow the height they were given.
+  const counter = items.length > Math.max(1, height);
+  const h = Math.max(1, counter ? height - 1 : height);
   const start = Math.max(0, Math.min(selected - Math.floor(h / 2), items.length - h));
   const visibleItems = items.slice(start, start + h);
   return (
-    <Box flexDirection="column" width={width}>
+    <Box flexDirection="column" width={width} flexShrink={0}>
       {visibleItems.map((it, i) => {
         const idx = start + i;
         const sel = idx === selected;
@@ -208,7 +210,7 @@ export function ListView({
         const right = it.right ? fitWidth(it.right, Math.min(rightMax, Math.ceil(inner * 0.45))) : '';
         const label = fitWidth(it.label, Math.max(1, inner - (right ? textWidth(right) + 2 : 0)));
         return (
-          <Box key={it.key} width={width}>
+          <Box key={it.key} width={width} flexShrink={0}>
             <Text inverse={sel && focused} bold={sel} {...(it.dim ? { color: theme.muted } : {})} wrap="truncate-end">
               {mark} {label}
             </Text>
@@ -221,7 +223,7 @@ export function ListView({
           </Box>
         );
       })}
-      {items.length > h ? (
+      {counter ? (
         <Text color={theme.muted}>
           {' '}
           {start + 1}-{Math.min(items.length, start + h)} / {items.length}
