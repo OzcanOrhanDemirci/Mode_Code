@@ -7,13 +7,14 @@
  *
  *   1. a harmless command runs, and the session's mod reports itself alive in the data folder;
  *   2. a write into the tool's own data folder is refused, and the file is never created;
- *   3. a keyword typed as the prompt reaches the mod, which logs it.
+ *   3. a keyword typed as the prompt reaches the mod, which logs it;
+ *   4. research mode refuses a write into the project, and the file is never created;
+ *   5. a research flow: the model writes a sourced report, calls flow_step, and code checks it and ends the flow.
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,7 +22,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 const fwd = (p) => p.replace(/\\/g, '/');
 if (!process.argv.includes('--yes')) {
-  console.log('test-live: opt-in. Runs three short headless Claude Code sessions (cheapest model, capped spend) with this build loaded. Run with --yes.');
+  console.log('test-live: opt-in. Runs five short headless Claude Code sessions (cheapest model, capped spend) with this build loaded. Run with --yes.');
   process.exit(0);
 }
 if (!existsSync(join(dist, 'hook.mjs'))) {
@@ -31,7 +32,10 @@ if (!existsSync(join(dist, 'hook.mjs'))) {
 
 const env = { ...process.env };
 for (const k of Object.keys(env)) if (k.startsWith('CLAUDE_CODE_') || k === 'CLAUDECODE') delete env[k];
-const work = mkdtempSync(join(tmpdir(), 'tc-live-'));
+// Outside the system's temporary folder: the restricted modes allow writes there, and on Windows Git Bash's
+// /tmp is that folder, so a project inside it could not show what research mode refuses.
+mkdirSync(join(root, '.tmp'), { recursive: true });
+const work = mkdtempSync(join(root, '.tmp', 'live-'));
 const project = join(work, 'project');
 const data = join(work, 'data');
 mkdirSync(project);
@@ -71,7 +75,7 @@ function session(prompt) {
     '--max-budget-usd',
     '0.25',
     '--allowedTools',
-    'Bash,Write,Read',
+    'Bash,Write,Read,Edit,Glob,Grep,mcp__terminal-code__flow_step',
     '--output-format',
     'stream-json',
     '--verbose',
@@ -125,7 +129,29 @@ try {
     /"kind":"keyword"/.test(logged) && /"keyword":"continue"/.test(logged),
     three.final ? '' : three.stderr.slice(0, 200),
   );
-  const cost = [one, two, three].reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
+  // Prompts carry no line breaks: on Windows the session starts through cmd.exe, which ends a command at one.
+  const four = session(
+    'Use the Write tool to write the text x to the file note.txt in the current folder. If it is refused, reply with the single word REFUSED and try nothing else. research',
+  );
+  const logged4 = readdirSync(join(data, 'events'))
+    .flatMap((m) => readdirSync(join(data, 'events', m)).map((f) => readFileSync(join(data, 'events', m, f), 'utf8')))
+    .join('\n');
+  check(
+    'research mode refuses a write into the project',
+    !existsSync(join(project, 'note.txt')) && /"kind":"mode","tool":"Write","verdict":"deny","mode":"research"/.test(logged4),
+    existsSync(join(project, 'note.txt')) ? 'the file was created' : (four.final?.result?.slice?.(0, 60) ?? ''),
+  );
+
+  writeFileSync(join(project, 'README.md'), '# Demo\n\nA tiny demo project.\nIt prints hello.\n');
+  const five = session('What does this project do? Answer from its files. flow research');
+  const flows = existsSync(join(data, 'flows')) ? readdirSync(join(data, 'flows')) : [];
+  const record = flows.length ? JSON.parse(readFileSync(join(data, 'flows', flows[0], 'flow.json'), 'utf8')) : null;
+  check(
+    'a research flow ends only after code checked the report, and keeps a copy',
+    record?.status === 'done' && record.steps[0].evidence?.kind === 'research' && existsSync(join(data, 'flows', flows[0], 'research.md')),
+    record ? `${record.status}, ${record.history.map((h) => h.event).join(' ')}` : (five.final?.result?.slice?.(0, 80) ?? five.stderr.slice(0, 200)),
+  );
+  const cost = [one, two, three, four, five].reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
   console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
 } finally {
   rmSync(work, { recursive: true, force: true });
