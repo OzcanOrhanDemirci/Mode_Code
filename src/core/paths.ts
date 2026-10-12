@@ -74,7 +74,11 @@ function windowsSlashForm(input: string): string {
 export function resolvePath(input: string, env: PathEnv): string {
   const win = isWindows(env.platform);
   let p = expandHome(input.trim(), env.home);
-  if (win) p = windowsSlashForm(p);
+  if (win) {
+    p = windowsSlashForm(p);
+    // Git Bash, the shell Claude Code runs on Windows, mounts /tmp on the user's temporary folder.
+    if (/^\/tmp(?=\/|$)/i.test(p)) p = windowsSlashForm(`${env.home}/AppData/Local/Temp${p.slice(4)}`);
+  }
   let { root, rest } = splitRoot(p);
   if (!root) {
     const base = win ? windowsSlashForm(env.cwd) : env.cwd;

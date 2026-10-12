@@ -33,6 +33,13 @@ test('Windows: rooted path without a drive uses the current drive; UNC stays UNC
   assert.equal(resolvePath('\\\\server\\share\\x\\..\\y', WIN), '//server/share/y');
 });
 
+test("Windows: /tmp is Git Bash's mount of the user's temporary folder", () => {
+  assert.equal(resolvePath('/tmp/claude/x', WIN), 'C:/Users/ada/AppData/Local/Temp/claude/x');
+  assert.equal(resolvePath('/tmp', WIN), 'C:/Users/ada/AppData/Local/Temp');
+  assert.equal(resolvePath('/tmpfiles/x', WIN), 'C:/tmpfiles/x');
+  assert.equal(resolvePath('/tmp/x', LINUX), '/tmp/x');
+});
+
 test('POSIX resolution', () => {
   assert.equal(resolvePath('~/.claude', LINUX), '/home/ada/.claude');
   assert.equal(resolvePath('../../../../..', LINUX), '/');

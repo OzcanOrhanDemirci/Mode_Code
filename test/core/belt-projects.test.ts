@@ -32,6 +32,12 @@ test('a session started in the home folder does not make the whole home folder a
   assert.equal(await verdict('rm -rf C:/Users/ada/notes/old', 'C:/Users/ada'), 'ask');
 });
 
+test("a memory folder in Temp is protected however Git Bash spells the path (/tmp is the user's Temp)", async () => {
+  const c = { ...ctx('C:/Users/ada'), memoryDirs: ['C:/Users/ada/AppData/Local/Temp/claude/e2e/mem'] };
+  const d = await evaluateToolCall('Bash', { command: 'cd /tmp/claude/e2e && rm -rf mem' }, c);
+  assert.equal(d.verdict, 'deny');
+});
+
 test('a registered project folder itself is not inside a project', async () => {
   assert.equal(await verdict('rm -rf C:/dev/app', 'C:/Users/ada'), 'ask');
 });

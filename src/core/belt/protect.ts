@@ -124,7 +124,7 @@ export function protectedPaths(ctx: BeltContext): ProtectedPaths {
     project,
   ];
   const tempDirs = [
-    // Resolved like the targets they are compared with: on Windows `/tmp` (Git Bash's temp) becomes C:/tmp.
+    // Resolved like the targets they are compared with: on Windows `/tmp` is Git Bash's mount of the user's Temp.
     ...['/tmp', '/var/tmp', '/private/tmp', '/private/var/folders'].map((p) => resolvePath(p, env)),
     joinPath(home, 'AppData/Local/Temp'),
     ...['TMPDIR', 'TEMP', 'TMP']
