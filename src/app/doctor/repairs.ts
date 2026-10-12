@@ -4,8 +4,10 @@
  * installer put there, backs up a file before changing it, and says what it did. Whether it worked is not
  * taken from the repair's word: the doctor measures again and runs the checks (see doctor.ts).
  *
- * A repair never weakens a protection. Repairs that change the person's own settings or install software
- * are refused when an agent runs the doctor; the person runs those themselves.
+ * A repair never weakens a protection. Repairs that change the person's own settings, install software,
+ * or put program code or a program into the protection (the hook program and the plugin files come from
+ * whatever build runs the doctor, Node.js from whatever runs it) are refused when an agent runs the doctor:
+ * an agent could otherwise build a weaker hook and have the doctor install it. The person runs those.
  */
 import { chmodSync, cpSync, existsSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -28,6 +30,8 @@ export interface RepairEnv {
   /** The settings as parsed, valid parts only (for rewriting a settings file with problems). */
   config: Config;
   now: number;
+  /** An agent runs the doctor: no new code or program goes into the protection. */
+  agent?: boolean;
 }
 
 export interface RepairOutcome {
@@ -67,6 +71,8 @@ function restoreHooks(e: RepairEnv, f: Facts, id: RepairId, forceNode: boolean):
     }
   }
   const recorded = f.hookNode?.exists && f.hookNode.version ? f.hookNode.path : null;
+  // Under an agent the hooks are only put back with the Node.js the person installed them with.
+  if (e.agent && (forceNode || !recorded)) return { id, ok: false, detail: 'refused: an agent runs the doctor, and the hooks would get another Node.js' };
   const node = (forceNode || !recorded ? e.node : recorded).replace(/\\/g, '/');
   const hook = hookProgram(e.layout).replace(/\\/g, '/');
   const groups = hookGroups(node, hook);
@@ -92,9 +98,9 @@ function removeFiles(id: RepairId, root: string, files: readonly string[]): Repa
 export const REPAIRS: Record<RepairId, RepairInfo> = {
   'restore-hooks': { personOnly: false, run: (e, f) => restoreHooks(e, f, 'restore-hooks', false) },
   'remove-duplicate-hooks': { personOnly: false, run: (e, f) => restoreHooks(e, f, 'remove-duplicate-hooks', false) },
-  'repoint-node': { personOnly: false, run: (e, f) => restoreHooks(e, f, 'repoint-node', true) },
+  'repoint-node': { personOnly: true, run: (e, f) => restoreHooks(e, f, 'repoint-node', true) },
   'restore-hook-program': {
-    personOnly: false,
+    personOnly: true,
     run: (e) => {
       const from = join(e.distDir, 'hook.mjs');
       if (!existsSync(from)) return { id: 'restore-hook-program', ok: false, detail: `this build has no hook program (${from})` };
@@ -104,7 +110,7 @@ export const REPAIRS: Record<RepairId, RepairInfo> = {
     },
   },
   'restore-plugin-files': {
-    personOnly: false,
+    personOnly: true,
     run: (e) => {
       if (!existsSync(join(e.distDir, 'plugin'))) return { id: 'restore-plugin-files', ok: false, detail: 'this build has no plugin files' };
       writeMarketplace(e.layout, e.distDir);

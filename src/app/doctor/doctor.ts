@@ -162,6 +162,7 @@ export async function repair(
     // The valid parts of the settings as they are on disk now (a settings file with problems is rewritten from them).
     config: parseConfig(readText(d.layout.config)).config,
     now: opts.now ?? Date.now(),
+    agent: underAgent(d.env),
   };
   const done: (RepairOutcome & { refused: boolean })[] = [];
   for (const p of plans) {

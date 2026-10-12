@@ -240,7 +240,33 @@ test('the plan: each repair once, in a safe order, notes only on request, the pe
   assert.ok(planRepairs(results, { agent: false, optional: true }).some((p) => p.id === 'prune-session-state'));
   const agent = planRepairs(results, { agent: true });
   assert.equal(agent.find((p) => p.id === 'reinstall-plugin')?.refused, true);
-  assert.equal(agent.find((p) => p.id === 'restore-hooks')?.refused, false, 'restoring a protection is never refused');
+  assert.equal(agent.find((p) => p.id === 'restore-hooks')?.refused, false, 'putting the hooks back is not refused');
+  // Code that comes from the build running the doctor never goes into the protection on an agent's say-so:
+  // an agent could build a weaker hook and have the doctor install it.
+  assert.equal(agent.find((p) => p.id === 'restore-hook-program')?.refused, true);
+  for (const id of ['restore-hook-program', 'restore-plugin-files', 'repoint-node', 'reinstall-plugin', 'enable-plugin', 'rewrite-config'] as const)
+    assert.equal(REPAIRS[id].personOnly, true, id);
+});
+
+test('under an agent the hooks go back only with the Node.js they were installed with', () => {
+  const s = sandbox();
+  try {
+    writeFileSync(`${s.env.claudeDir}/settings.json`, '{}');
+    const gone = REPAIRS['restore-hooks'].run(
+      { ...s.env, agent: true },
+      healthyFacts({ hookNode: { path: 'C:/gone/node.exe', exists: false, version: null } }),
+    );
+    assert.equal(gone.ok, false);
+    assert.match(gone.detail, /refused/);
+    assert.equal(readFileSync(`${s.env.claudeDir}/settings.json`, 'utf8'), '{}', 'nothing changed');
+    const recorded = REPAIRS['restore-hooks'].run(
+      { ...s.env, agent: true },
+      healthyFacts({ hookNode: { path: 'D:/node/node.exe', exists: true, version: '24.0.0' } }),
+    );
+    assert.equal(recorded.ok, true);
+  } finally {
+    s.done();
+  }
 });
 
 test('the plan: repointing Node.js rewrites the hooks, so the other hook repairs fold into it', () => {

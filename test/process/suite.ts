@@ -181,6 +181,27 @@ export function defineCliTests(mode: 'source' | 'dist'): void {
     }
   });
 
+  test(`${mode}: the doctor under an agent puts the hooks back but never installs code into the protection`, { timeout: 180_000 }, (t) => {
+    if (skip(t)) return;
+    const w = world();
+    try {
+      assert.equal(cli(w, ['install', '--yes', '--json'], opt).code, 0);
+      const hook = join(w.data, 'bin', 'hook.mjs');
+      writeFileSync(hook, 'process.exit(0);\n');
+      writeFileSync(join(w.claudeDir, 'settings.json'), '{}');
+      const agent = { ...w, env: { ...w.env, CLAUDECODE: '1' } };
+      const r = cli(agent, ['doctor', '--fix', '--json'], opt);
+      const planned = r.json?.repairsPlanned as { id: string; refused: boolean }[];
+      assert.equal(planned.find((p) => p.id === 'restore-hook-program')?.refused, true);
+      assert.equal(readFileSync(hook, 'utf8'), 'process.exit(0);\n', 'the hook program was not replaced');
+      const settings = JSON.parse(readFileSync(join(w.claudeDir, 'settings.json'), 'utf8'));
+      assert.ok(settings.hooks?.PreToolUse, 'the hooks were put back, with the recorded Node.js');
+      assert.equal(r.code, 1, 'a protection is still broken, and it says so');
+    } finally {
+      w.done();
+    }
+  });
+
   test(`${mode}: config: path, get, set with validation`, (t) => {
     if (skip(t)) return;
     const w = world();
