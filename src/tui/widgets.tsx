@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /** Interactive pieces used inside open screens: a list of links, a text field, a settings editor. */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Text } from 'ink';
 import type { MessageKey } from '../core/i18n/index.js';
 import { useEnv, useScreenKeys, useT, ListView, Muted, type ListItem } from './ui.js';

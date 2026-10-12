@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 /** The seven categories and their pages, built from the current data. */
-import React from 'react';
 import { homedir } from 'node:os';
 import { RULES, RULE_IDS } from '../core/belt/rules.js';
 import type { RuleId } from '../core/belt/types.js';
-import { ago, compact, percent, shortPath } from '../core/format.js';
+import { ago, percent, shortPath } from '../core/format.js';
 import { tIn, type Lang, type MessageKey } from '../core/i18n/index.js';
 import { healthCounts } from '../app/health.js';
 import type { NavNode } from './nav.js';

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /** Security: the protection's own health, the belt's rules and what they did, testing a command, secrets. */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Text } from 'ink';
 import { homedir } from 'node:os';
 import { RULES } from '../../core/belt/rules.js';

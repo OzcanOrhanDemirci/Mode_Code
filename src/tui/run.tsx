@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 /** Starts the control center: brings the session index up to date (with progress on the first run), then draws. */
-import React from 'react';
 import { render } from 'ink';
 import { join } from 'node:path';
 import { tIn } from '../core/i18n/index.js';

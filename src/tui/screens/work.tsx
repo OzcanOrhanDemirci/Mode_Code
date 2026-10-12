@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /** Projects and sessions: where work happened and what each session did. */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Text } from 'ink';
 import { homedir } from 'node:os';
 import { join } from 'node:path';

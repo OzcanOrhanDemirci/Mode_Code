@@ -3,7 +3,6 @@
  * Draws the control center into a fake terminal and drives it with keys. Ink runs in debug mode, so every
  * frame is written whole and the last write is the screen as a person would see it.
  */
-import React from 'react';
 import { render } from 'ink';
 import { EventEmitter } from 'node:events';
 import { App } from '../../src/tui/app.js';

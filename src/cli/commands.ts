@@ -45,7 +45,7 @@ function stateMark(ctx: AppContext, s: FeatureHealth['state']): string {
   return gray(`· ${word}`);
 }
 
-async function confirm(ctx: AppContext, question: string, word?: string): Promise<boolean> {
+async function confirm(question: string, word?: string): Promise<boolean> {
   if (!process.stdin.isTTY) return false;
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
@@ -74,8 +74,7 @@ async function choose(ctx: AppContext, question: string, options: string[]): Pro
   }
 }
 
-async function askText(ctx: AppContext, question: string): Promise<string> {
-  void ctx;
+async function askText(question: string): Promise<string> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
     return (await rl.question(`${bold(question)} `)).trim();
@@ -228,7 +227,7 @@ export async function cmdInstall(a: Args): Promise<number> {
     if (chosen.view !== 'simple') {
       if (!chosen.memory) {
         const suggestion = readClaudeEnv(ctx.cwd).memoryDir;
-        const m = await askText(ctx, T(ctx, 'install.ask.memory', { suggestion: shortPath(suggestion, homedir(), 70) }));
+        const m = await askText(T(ctx, 'install.ask.memory', { suggestion: shortPath(suggestion, homedir(), 70) }));
         const dir = m === '' ? suggestion : m === '-' ? null : m;
         if (dir) chosen.memory = { dirs: [dir] };
       }
@@ -242,7 +241,7 @@ export async function cmdInstall(a: Args): Promise<number> {
     if (chosen.footer) say(`  ${T(ctx, 'set.footerMode')}: ${T(ctx, `footer.mode.${chosen.footer.mode}` as MessageKey)}`);
     say();
   }
-  if (!flag(a, 'yes', 'y') && !(await confirm(ctx, T(ctx, 'install.confirm')))) {
+  if (!flag(a, 'yes', 'y') && !(await confirm(T(ctx, 'install.confirm')))) {
     say(T(ctx, 'cli.cancelled'));
     return 1;
   }
@@ -319,7 +318,7 @@ export async function cmdUninstall(a: Args): Promise<number> {
   say();
   const word = purge ? APP_NAME : undefined;
   if (!flag(a, 'yes', 'y') || purge) {
-    const ok = await confirm(ctx, purge ? T(ctx, 'uninstall.typeName', { name: APP_NAME }) : T(ctx, 'uninstall.confirm'), word);
+    const ok = await confirm(purge ? T(ctx, 'uninstall.typeName', { name: APP_NAME }) : T(ctx, 'uninstall.confirm'), word);
     if (!ok) {
       say(T(ctx, 'cli.cancelled'));
       return 1;

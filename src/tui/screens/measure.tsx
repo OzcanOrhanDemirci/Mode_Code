@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /** Measurement: quota, tokens, tools. Every number says where it comes from and how old it is. */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Text } from 'ink';
 import { homedir } from 'node:os';
 import { ago, compact, dateTime, integer, percent, shortPath, sparkline, until } from '../../core/format.js';

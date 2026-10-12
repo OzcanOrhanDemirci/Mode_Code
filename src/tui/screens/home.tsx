@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /** Home: what is happening now. Protection, quota, today, running sessions, and what happened while you were away. */
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { homedir } from 'node:os';
 import { ago, compact, percent, until, shortPath } from '../../core/format.js';

@@ -3,7 +3,6 @@
  * Claude Code: a read-only map of the person's setup, with explanations. Changes are made with Claude
  * Code's own commands (/permissions, /mcp, /plugin, /memory); each screen names the one to use.
  */
-import React from 'react';
 import { Box, Text } from 'ink';
 import { homedir } from 'node:os';
 import { compact, percent, shortPath } from '../../core/format.js';

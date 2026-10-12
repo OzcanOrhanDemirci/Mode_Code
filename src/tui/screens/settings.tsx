@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /** Settings: only the tool's own settings. Every change is saved at once; lowering a protection asks first. */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Text } from 'ink';
 import { homedir } from 'node:os';
 import { APP_NAME, APP_VERSION, REPO_URL } from '../../core/app.js';

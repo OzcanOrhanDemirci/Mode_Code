@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /** Building blocks every screen uses, so all screens look and behave the same. */
-import React, { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
 import { Box, Text } from 'ink';
 import type { Key } from 'ink';
 import type { Lang, MessageKey } from '../core/i18n/index.js';

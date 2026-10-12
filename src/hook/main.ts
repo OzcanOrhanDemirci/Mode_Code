@@ -14,7 +14,7 @@ import { parseModState, parseHookState, isApproved, applyKeyword } from '../core
 import { sessionFile, eventsFile } from '../core/layout.js';
 import { maskSecrets } from '../core/secrets/scan.js';
 import { tIn, setLanguage, type Lang } from '../core/i18n/index.js';
-import { detectKeyword, DEFAULT_KEYWORDS } from '../core/keywords.js';
+import { detectKeyword } from '../core/keywords.js';
 import { footerInstruction, keywordContext } from '../core/guidance.js';
 import { newModState } from '../core/session.js';
 import { assessQuota, weeklyTargetFrom, type QuotaReading } from '../core/quota.js';
