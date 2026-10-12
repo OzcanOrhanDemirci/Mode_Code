@@ -17,6 +17,9 @@ import { fold } from '../text.js';
 import { tIn, LANGUAGES, type Lang } from '../i18n/index.js';
 import { en } from '../i18n/en.js';
 import { compareVersions } from '../version.js';
+import { commandEffects, strongest } from '../shell/effects.js';
+import { checkMode, type ModeGuard } from '../guard.js';
+import { checkPlan, checkReport } from '../flow-checks.js';
 import { runSuite, type SuiteResult } from './types.js';
 
 export type { SuiteResult } from './types.js';
@@ -203,8 +206,66 @@ export function textSuite(): Promise<SuiteResult> {
   ]);
 }
 
+/** Modes and flows: what a restricted mode lets through, and the checks of a flow's report and plan. */
+export function modesSuite(): Promise<SuiteResult> {
+  const env = { platform: 'linux' as const, home: '/home/ada', cwd: '/home/ada/app', env: { TMPDIR: '/tmp' } };
+  const guard: ModeGuard = {
+    mode: 'research',
+    zones: { temp: ['/tmp'], work: ['/tmp/tc'], plan: [] },
+    env: env.env,
+    flowStep: null,
+    words: { code: 'code', free: 'free' },
+  };
+  const kinds: [string, string][] = [
+    ['git log --oneline | head', 'read'],
+    ['rg TODO src > /tmp/todo.txt', 'write'],
+    ['npm test', 'local'],
+    ['git push', 'outside'],
+    ['frobnicate', 'unknown'],
+    ["sed -i 's/a/b/' f", 'write'],
+    ['curl -X POST https://example.org', 'outside'],
+  ];
+  const guarded: [string, string, string][] = [
+    ['Bash', 'cat README.md', 'allow'],
+    ['Bash', 'echo x > notes.md', 'write'],
+    ['Bash', 'cd /tmp && npm init -y', 'allow'],
+    ['Write', '/tmp/tc/f/research.md', 'allow'],
+    ['Write', '/home/ada/app/src/a.ts', 'file'],
+  ];
+  const report = '## Findings\n\n- x [1]\n\n## Sources\n\n1. https://example.org\n';
+  const plan = '## Steps\n\n### 1. A\n\nAcceptance: works\n\n## Verification\n\n- `npm test`\n';
+  return runSuite('modes', [
+    ...kinds.map(([cmd, want]) => ({
+      name: `class of ${cmd}`,
+      run: (): [string, string] => [want, strongest(commandEffects(cmd, 'bash', env).effects)],
+    })),
+    ...guarded.map(([tool, arg, want]) => ({
+      name: `research mode: ${tool} ${arg}`,
+      run: (): [string, string] => [
+        want,
+        checkMode(tool, tool === 'Bash' ? { command: arg } : { file_path: arg, content: '' }, guard, env, 'en')?.what ?? 'allow',
+      ],
+    })),
+    {
+      name: 'a sourced report passes its check',
+      run: (): [string, string] => [
+        '',
+        checkReport(report)
+          .problems.map((p) => p.key)
+          .join(' '),
+      ],
+    },
+    {
+      name: 'an unsourced finding fails it',
+      run: (): [string, string] => ['flow.check.report.uncited', checkReport(report.replace(' [1]', '')).problems[0]?.key ?? ''],
+    },
+    { name: 'a plan with criteria and a command passes its check', run: (): [string, string] => ['npm test', checkPlan(plan).verification.join(' ')] },
+  ]);
+}
+
 export const SUITES = {
   belt: beltSuite,
+  modes: modesSuite,
   shell: shellSuite,
   paths: pathSuite,
   secrets: secretSuite,
