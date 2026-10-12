@@ -3,10 +3,10 @@
  * Per-session runtime state. The mod owns it (`<id>.mod.json`); the safety-net hook reads it and keeps
  * its own small file. Pure: shapes, defaults, parsing and the transitions keywords cause.
  */
-import type { KeywordMatch } from './keywords.js';
+import { isModeKeyword, MODE_KEYWORDS, type KeywordMatch } from './keywords.js';
+import { isWorkMode, type WorkMode } from './modes.js';
 
-/** What the session is doing. "free" is the default (no constraint); "chat" forbids project and memory writes. */
-export type WorkMode = 'free' | 'chat';
+export type { WorkMode } from './modes.js';
 
 /** How much the model may do before asking: default (Claude Code's own), manual (ask each step), autonomous. */
 export type Interaction = 'default' | 'manual' | 'autonomous';
@@ -26,7 +26,14 @@ export interface ModSessionState {
   /** The folder the session works in (resolved), to tell when two sessions work in the same place. */
   cwd?: string;
   modVersion: string;
+  /** The session's own mode (see modes.ts); a flow's step and Claude Code's plan mode may stand above it. */
   mode: WorkMode;
+  /** A mode the person gave for the current turn only; cleared at their next prompt. */
+  turnMode: WorkMode | null;
+  /** The flow this session works on, if any (its record is in the data folder's flows). */
+  flowId: string | null;
+  /** Claude Code's own plan mode as last seen in this session, and the plan file it named. */
+  nativePlan: { on: boolean; planFile: string | null; at: number } | null;
   interaction: Interaction;
   /** Project the last keyword named, if any. */
   project: string | null;
@@ -49,6 +56,9 @@ export interface HookSessionState {
   /** The hook ran in this session at least once (epoch ms of the last run). */
   lastRunAt: number;
   blocks: Record<string, number>;
+  /** Claude Code's permission mode as the hook last received it (`plan`, `default`, …), and when. */
+  permissionMode: string | null;
+  permissionModeAt: number;
 }
 
 export function newModState(sessionId: string, modVersion: string, now: number): ModSessionState {
@@ -58,6 +68,9 @@ export function newModState(sessionId: string, modVersion: string, now: number):
     aliveAt: now,
     modVersion,
     mode: 'free',
+    turnMode: null,
+    flowId: null,
+    nativePlan: null,
     interaction: 'default',
     project: null,
     weeklyTarget: null,
@@ -80,9 +93,17 @@ export function parseModState(text: string | null): ModSessionState | null {
     const o = JSON.parse(text) as unknown;
     if (!isObj(o) || o.v !== 1 || typeof o.sessionId !== 'string' || typeof o.aliveAt !== 'number') return null;
     const s = o as unknown as ModSessionState;
+    const plan = s.nativePlan as unknown;
     return {
       ...newModState(s.sessionId, String(s.modVersion ?? ''), s.aliveAt),
       ...s,
+      mode: isWorkMode(s.mode) ? s.mode : 'free',
+      turnMode: isWorkMode(s.turnMode) ? s.turnMode : null,
+      flowId: typeof s.flowId === 'string' ? s.flowId : null,
+      nativePlan:
+        isObj(plan) && typeof plan.on === 'boolean' && typeof plan.at === 'number'
+          ? { on: plan.on, planFile: typeof plan.planFile === 'string' ? plan.planFile : null, at: plan.at }
+          : null,
       approvals: Array.isArray(s.approvals) ? s.approvals.filter((a) => isObj(a) && typeof a.toolUseId === 'string') : [],
       blocks: isObj(s.blocks) ? (s.blocks as Record<string, number>) : {},
     };
@@ -92,12 +113,18 @@ export function parseModState(text: string | null): ModSessionState | null {
 }
 
 export function parseHookState(text: string | null, sessionId: string): HookSessionState {
-  const fresh: HookSessionState = { v: 1, sessionId, lastRunAt: 0, blocks: {} };
+  const fresh: HookSessionState = { v: 1, sessionId, lastRunAt: 0, blocks: {}, permissionMode: null, permissionModeAt: 0 };
   if (!text) return fresh;
   try {
     const o = JSON.parse(text) as unknown;
     if (!isObj(o) || o.v !== 1 || o.sessionId !== sessionId) return fresh;
-    return { ...fresh, lastRunAt: typeof o.lastRunAt === 'number' ? o.lastRunAt : 0, blocks: isObj(o.blocks) ? (o.blocks as Record<string, number>) : {} };
+    return {
+      ...fresh,
+      lastRunAt: typeof o.lastRunAt === 'number' ? o.lastRunAt : 0,
+      blocks: isObj(o.blocks) ? (o.blocks as Record<string, number>) : {},
+      permissionMode: typeof o.permissionMode === 'string' ? o.permissionMode : null,
+      permissionModeAt: typeof o.permissionModeAt === 'number' ? o.permissionModeAt : 0,
+    };
   } catch {
     return fresh;
   }
@@ -138,22 +165,29 @@ export function isApproved(s: ModSessionState | null, toolUseId: string | undefi
   return s.approvals.some((a) => a.toolUseId === toolUseId && now - a.at < APPROVAL_TTL_MS);
 }
 
-/** The state change a detected keyword causes. Pure; the caller persists it. */
-export function applyKeyword(s: ModSessionState, kw: KeywordMatch, weeklyTarget: number | null): ModSessionState {
+/**
+ * The state change a detected keyword causes. Pure; the caller persists it. A mode keyword while a flow runs
+ * changes only that turn, unless it is the whole message (then the caller pauses the flow).
+ */
+export function applyKeyword(s: ModSessionState, kw: KeywordMatch, weeklyTarget: number | null, ctx: { inFlow?: boolean } = {}): ModSessionState {
+  if (isModeKeyword(kw.kind)) {
+    const mode = MODE_KEYWORDS[kw.kind];
+    return ctx.inFlow && !kw.standalone ? { ...s, turnMode: mode } : { ...s, mode, turnMode: null };
+  }
   switch (kw.kind) {
     case 'continue':
     case 'manual': {
       const next: ModSessionState = {
         ...s,
         interaction: kw.kind === 'continue' ? 'autonomous' : 'manual',
-        mode: 'free',
+        // Continue leaves chat (the one mode that means "do not work"); research, plan and code stay.
+        mode: s.mode === 'chat' ? 'free' : s.mode,
+        turnMode: null,
         wrapUp: false,
         project: kw.project ?? s.project,
       };
       return kw.budget && weeklyTarget !== null ? { ...next, weeklyTarget, weeklyTargetSource: `${kw.budget.plus ? '+' : ''}${kw.budget.n}` } : next;
     }
-    case 'chat':
-      return { ...s, mode: 'chat' };
     case 'quota':
       return weeklyTarget === null
         ? s

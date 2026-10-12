@@ -7,7 +7,7 @@ import { APP_NAME, APP_VERSION, REPO_URL } from '../../core/app.js';
 import { LANGUAGES, type MessageKey } from '../../core/i18n/index.js';
 import { keywordTables } from '../../core/settings-view.js';
 import { ago, shortPath } from '../../core/format.js';
-import type { KeywordKind } from '../../core/keywords.js';
+import { KEYWORD_LISTS } from '../../core/keywords.js';
 import type { ScreenProps } from '../nav.js';
 import { Muted, Note, Row, Section, StateMark, useEnv, useScreenKeys, useT } from '../ui.js';
 import { SettingsEditor, TextField, type Field } from '../widgets.js';
@@ -277,8 +277,6 @@ export function Projects({ width, open }: ScreenProps) {
   );
 }
 
-const KINDS: KeywordKind[] = ['continue', 'manual', 'chat', 'quota', 'wrapUp', 'stop', 'status', 'help'];
-
 export function Keywords({ width }: ScreenProps) {
   const { data, theme, lang } = useEnv();
   const t = useT();
@@ -288,7 +286,7 @@ export function Keywords({ width }: ScreenProps) {
     <Box flexDirection="column" width={width}>
       <Muted>{t('kw.intro')}</Muted>
       <Box marginTop={1} flexDirection="column">
-        {KINDS.map((k) => (
+        {KEYWORD_LISTS.map((k) => (
           <Box key={k}>
             <Box width={16} flexShrink={0}>
               <Text bold>{t(`kw.kind.${k}` as MessageKey)}</Text>

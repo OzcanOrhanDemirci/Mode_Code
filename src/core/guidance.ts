@@ -4,11 +4,13 @@
  * person's words: they arrive as context beside the prompt. Written in English for the model (the answer
  * still follows the person's language), short, and each one says exactly what to do.
  */
-import type { KeywordMatch } from './keywords.js';
+import { MODE_KEYWORDS, type KeywordMatch } from './keywords.js';
 import type { QuotaAssessment } from './quota.js';
 import type { ModSessionState } from './session.js';
 import { APP_NAME } from './app.js';
-import { tIn, type Lang } from './i18n/index.js';
+import { currentStep, progress, type Flow, type FlowStepKind } from './flow.js';
+import type { WorkMode } from './modes.js';
+import { tIn, type Lang, type MessageKey } from './i18n/index.js';
 
 const P = `[${APP_NAME}]`;
 
@@ -22,8 +24,31 @@ export function quotaLine(q: QuotaAssessment): string {
   return `Quota: 5-hour ${pct(q.five?.used)}, weekly ${pct(q.week?.used)} (${target}).`;
 }
 
+/** What a mode allows, for the model: one sentence each. */
+const MODE_NOTE: Record<WorkMode, string> = {
+  free: 'free mode: no restriction beyond the safety belt and the project locks.',
+  chat: 'chat mode: conversation only. Do not change the project or the memory and do not commit. Reading, measuring and experiments in a temporary folder are fine.',
+  research:
+    'research mode: read, search the web, and write findings or reports only in the work folder{work} or a temporary folder. The project and the memory do not change and nothing is committed.',
+  plan: "plan mode: read and plan. Write the plan only in the work folder{work}, Claude Code's plan file or a temporary folder; the project does not change until a plan is approved.",
+  code: 'code mode: develop, test and commit; the safety belt and the project locks apply.',
+};
+
+export interface KeywordExtras {
+  /** The flows' work folder, for research and plan notes. */
+  workDir?: string;
+  /** Set when a flow is attached: a mode keyword then changes one turn, or (as the whole message) pauses the flow. */
+  flow?: { step: string; paused: boolean } | null;
+}
+
 /** Context for a detected keyword, or [] when the keyword needs none. */
-export function keywordContext(kw: KeywordMatch, state: ModSessionState, quota: QuotaAssessment, projectLabel: string | null): string[] {
+export function keywordContext(
+  kw: KeywordMatch,
+  state: ModSessionState,
+  quota: QuotaAssessment,
+  projectLabel: string | null,
+  extras: KeywordExtras = {},
+): string[] {
   const project = projectLabel ? ` for project "${projectLabel}"` : '';
   // Tie the note to words the model can see in the person's own message, so it reads as their shorthand, not as an instruction from nowhere.
   const said = `${P} The person's message ${kw.standalone ? 'is' : 'ends with'} "${kw.text}", a keyword they set up in ${APP_NAME}, their Claude Code companion.`;
@@ -45,10 +70,21 @@ export function keywordContext(kw: KeywordMatch, state: ModSessionState, quota: 
         `${said} Keyword "manual continue"${project}: work step by step. Before each step that changes something, say what you will do and wait for the person. ${quotaLine(quota)}${unknownProject}`,
       ];
     case 'chat':
-      return [
-        `${said} Keyword "chat": conversation only. Do not change the project or the memory and do not commit. Reading, measuring and experiments in a temporary folder are fine. ` +
-          `The safety layer enforces this until the person types "continue".`,
-      ];
+    case 'research':
+    case 'plan':
+    case 'code':
+    case 'free': {
+      const mode = MODE_KEYWORDS[kw.kind];
+      const note = MODE_NOTE[mode].replace('{work}', extras.workDir ? ` (${extras.workDir})` : '');
+      if (extras.flow && !extras.flow.paused)
+        return [`${said} Keyword "${kw.kind}": for this turn only, ${note} The flow stays at its ${extras.flow.step} step and goes on from the next message.`];
+      if (extras.flow?.paused)
+        return [
+          `${said} Keyword "${kw.kind}": the person switched to ${note} The flow is paused at its ${extras.flow.step} step: keep its draft as it is and work in the new mode. "continue" resumes the flow.`,
+        ];
+      const until = mode === 'chat' ? 'until the person types "continue" or picks another mode' : 'until the person picks another mode';
+      return [`${said} Keyword "${kw.kind}": ${note}${mode === 'free' || mode === 'code' ? '' : ` The safety layer enforces this ${until}.`}`];
+    }
     case 'quota':
       return state.weeklyTarget === null
         ? [`${said} Keyword "quota ${kw.plus ? '+' : ''}${kw.n}": no weekly reading yet, so a relative budget could not be set. Tell the person in one line.`]
@@ -126,4 +162,81 @@ export function resumePrompt(project: string | null, lang: Lang): string {
       ? 'Kota penceresi sıfırlandı. Kaldığın yerden otonom çalışmaya devam et; önce devir notuna ve yarım kalan adıma bak.'
       : 'The quota window reset. Resume the autonomous work where it stopped; check the handoff notes and the step that was left half done first.';
   return `${lead}\n${project ? `${project} ${word}` : word}`;
+}
+
+// ── flows ─────────────────────────────────────────────────────────────────────────────────────────────
+
+export function stepName(kind: FlowStepKind, lang: Lang): string {
+  return tIn(lang, `flow.step.name.${kind}` as MessageKey);
+}
+
+/** The steps of a flow on one line: "🔍 research ✓ ▶ [📐 plan] → ⏸ approval → 🔨 code". */
+export function stepsLine(f: Flow, lang: Lang): string {
+  return f.steps
+    .map((s, i) => {
+      const name = stepName(s.kind, lang);
+      const mark = s.status === 'done' ? `${name} ✓` : i === f.current ? `[${name}]` : name;
+      if (i === 0) return mark;
+      return `${s.kind === 'approve' || f.steps[i - 1]?.kind === 'approve' ? '→' : '▶'} ${mark}`;
+    })
+    .join(' ');
+}
+
+export interface StepTexts {
+  /** Where the checked copies are kept (the data folder), for the code step's guidance. */
+  copyDir: string;
+  /** Claude Code's plan mode is on: the plan goes into its plan file and is approved through ExitPlanMode. */
+  nativePlan: boolean;
+  /** What the person types to approve, in their language. */
+  approveWord: string;
+}
+
+/** What to do in the current step, in the person's language (the same words flow_step answers with). */
+export function stepGuidance(f: Flow, lang: Lang, t: StepTexts): string {
+  switch (currentStep(f)?.kind) {
+    case 'research':
+      return tIn(lang, 'flow.step.nextResearch', { path: f.reportPath, template: tIn(lang, 'flow.template.report') });
+    case 'plan':
+      return t.nativePlan
+        ? tIn(lang, 'flow.step.nextPlanNative', { template: tIn(lang, 'flow.template.plan') })
+        : tIn(lang, 'flow.step.nextPlan', { path: f.planPath, template: tIn(lang, 'flow.template.plan') });
+    case 'approve':
+      return tIn(lang, 'flow.step.waiting', { approve: t.approveWord });
+    case 'code':
+      return tIn(lang, 'flow.step.nextCode', { copy: `${t.copyDir}/plan.md`, commands: f.verification.map((c) => `\`${c}\``).join(', ') });
+    default:
+      return tIn(lang, 'flow.step.complete');
+  }
+}
+
+const FLOW_RULES =
+  "Steps run in order and none is skipped. Finish a step by calling the tool mcp__terminal-code__flow_step with its name (research, plan or code); code checks the step and says exactly what is missing. The approval is the person's alone; only the person pauses, resumes or cancels the flow.";
+
+/** Told to the model when the person starts a flow. */
+export function flowStartContext(f: Flow, lang: Lang, t: StepTexts): string {
+  const task = f.task ? `Task, in the person's words: "${f.task}".` : 'Task: the one under discussion; state it in one line at the top of the first document.';
+  return `${P} The person started a flow: ${stepsLine(f, lang)}. ${task} ${FLOW_RULES}\n${stepGuidance(f, lang, t)}`;
+}
+
+/** Told to the model on each prompt while a flow runs (short: the full rules came when it started). */
+export function flowTurnContext(f: Flow, lang: Lang, t: StepTexts): string {
+  const p = progress(f);
+  const step = currentStep(f);
+  const tail =
+    step?.kind === 'approve'
+      ? `The plan waits for the person's approval (they type "${t.approveWord}"); the project does not change before it.`
+      : `Finish it, then call mcp__terminal-code__flow_step with step "${step?.kind ?? ''}".`;
+  return `${P} A flow runs (${f.id}), step ${p.at}/${p.of}: ${stepsLine(f, lang)}. ${tail}`;
+}
+
+/** Told to the model when the person resumes a flow (also in a new session). */
+export function flowResumeContext(f: Flow, lang: Lang, t: StepTexts): string {
+  const task = f.task ? ` Task, in the person's words: "${f.task}".` : '';
+  return `${P} The person resumed the flow ${f.id}: ${stepsLine(f, lang)}.${task} ${FLOW_RULES} Read the drafts in ${f.workDir} first.\n${stepGuidance(f, lang, t)}`;
+}
+
+/** Told to the model when the person cancels the flow or approves its plan by typing. */
+export function flowNote(kind: 'canceled' | 'approved', f: Flow, lang: Lang, t: StepTexts): string {
+  if (kind === 'canceled') return `${P} The person canceled the flow ${f.id}. Stop its work and say in one line what was left where.`;
+  return `${P} The person approved the plan by typing. ${stepGuidance(f, lang, t)}`;
 }

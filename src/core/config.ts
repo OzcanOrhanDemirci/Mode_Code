@@ -8,7 +8,7 @@
 import { isLang, type Lang } from './i18n/index.js';
 import { RULE_IDS, RULES } from './belt/rules.js';
 import { VERDICT_ORDER, type RuleConfig, type RuleId, type Verdict } from './belt/types.js';
-import type { KeywordKind } from './keywords.js';
+import { KEYWORD_LISTS, type KeywordKind } from './keywords.js';
 
 export const CONFIG_VERSION = 1;
 
@@ -47,6 +47,8 @@ export interface Config {
     notifications: boolean;
     /** Leave out Claude Code's "the user has not heard from you" reminders, so long work stays quiet. */
     quietWork: boolean;
+    /** Modes (chat, research, plan, code) and mode flows, enforced by code. */
+    modes: boolean;
   };
   belt: RuleConfig;
   memory: {
@@ -69,9 +71,13 @@ export interface Config {
   };
   keywords: {
     /** Extra phrases per language, added to the built-in ones. */
-    extra: Partial<Record<Lang, Partial<Record<KeywordKind, string[]>>>>;
+    extra: Partial<Record<Lang, Partial<Record<KeywordKind | 'cancel', string[]>>>>;
   };
   projects: ProjectEntry[];
+  modes: {
+    /** Where flows keep their drafts (the report, the plan); null: a terminal-code folder in the temporary folder. */
+    workDir: string | null;
+  };
   accessibility: {
     /** Plain text: no box drawing, no emoji-only signals. */
     plain: boolean;
@@ -84,7 +90,7 @@ export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
   version: CONFIG_VERSION,
   language: 'auto',
   view: 'recommended',
-  modules: { keywords: true, footer: true, quota: true, secrets: true, status: true, notifications: true, quietWork: true },
+  modules: { keywords: true, footer: true, quota: true, secrets: true, status: true, notifications: true, quietWork: true, modes: true },
   belt: {
     disabled: [],
     verdicts: {},
@@ -98,6 +104,7 @@ export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
   quota: { fiveHourWrapUp: 95, fiveHourStop: 99, defaultWeeklyTarget: 99, defaultWeeklyWrapUp: 97, staleMinutes: 360, autoResume: true },
   keywords: { extra: {} },
   projects: [],
+  modes: { workDir: null },
   accessibility: { plain: false, highContrast: false, reduceMotion: false },
 }) as Config;
 
@@ -122,7 +129,7 @@ function isObj(x: unknown): x is Obj {
 
 const VERDICTS = new Set<Verdict>(['allow', 'warn', 'ask', 'deny']);
 const RULE_SET = new Set<string>(RULE_IDS);
-const KEYWORD_KINDS = new Set<KeywordKind>(['continue', 'manual', 'chat', 'quota', 'wrapUp', 'stop', 'status', 'help']);
+const KEYWORD_KINDS = new Set<string>(KEYWORD_LISTS);
 const ID = /^[a-z0-9][a-z0-9-]{0,47}$/;
 
 /** Reads the settings file's text. Never throws: invalid JSON gives the defaults and one problem. */
@@ -211,17 +218,25 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
         problems.push({ path: `keywords.extra.${lang}`, kind: 'type', detail: 'expected a language code with a table of phrases' });
         continue;
       }
-      const out: Partial<Record<KeywordKind, string[]>> = {};
+      const out: Partial<Record<KeywordKind | 'cancel', string[]>> = {};
       for (const [kind, list] of Object.entries(table)) {
-        if (!KEYWORD_KINDS.has(kind as KeywordKind)) {
+        if (!KEYWORD_KINDS.has(kind)) {
           problems.push({ path: `keywords.extra.${lang}.${kind}`, kind: 'unknown-key', detail: 'not a keyword kind' });
           continue;
         }
-        out[kind as KeywordKind] = strings(list, `keywords.extra.${lang}.${kind}`, problems).filter((s) => s.trim().length > 0 && s.length <= 40);
+        out[kind as KeywordKind | 'cancel'] = strings(list, `keywords.extra.${lang}.${kind}`, problems).filter((s) => s.trim().length > 0 && s.length <= 40);
       }
       c.keywords.extra[lang] = out;
     }
   } else if (raw.keywords !== undefined) problems.push({ path: 'keywords', kind: 'type', detail: 'expected { extra: { <lang>: { <kind>: [phrases] } } }' });
+
+  if (isObj(raw.modes)) {
+    for (const k of Object.keys(raw.modes)) if (k !== 'workDir') problems.push({ path: `modes.${k}`, kind: 'unknown-key', detail: 'not a setting' });
+    const w = raw.modes.workDir;
+    if (w === null || w === undefined) c.modes.workDir = null;
+    else if (typeof w === 'string' && w.trim()) c.modes.workDir = w.trim();
+    else problems.push({ path: 'modes.workDir', kind: 'type', detail: 'expected a folder path or null' });
+  } else if (raw.modes !== undefined) problems.push({ path: 'modes', kind: 'type', detail: 'expected an object' });
 
   if (Array.isArray(raw.projects)) {
     const seen = new Set<string>();

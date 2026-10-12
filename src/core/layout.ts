@@ -12,6 +12,7 @@
  *   index.db                         the control center (session index)
  *   install/manifest.json            the installer (every change it made, so removal undoes exactly that)
  *   state/doctor.json                the maintenance check (its last summary, which the control center shows)
+ *   flows/<id>/flow.json             the mod (a flow's record), with the checked report and approved plan beside it
  *   marketplace/                     the installer (the local plugin marketplace Claude Code reads)
  */
 import { joinPath } from './paths.js';
@@ -31,6 +32,7 @@ export interface Layout {
   marketplace: string;
   pluginDir: string;
   logsDir: string;
+  flowsDir: string;
 }
 
 export function layout(root: string): Layout {
@@ -49,6 +51,7 @@ export function layout(root: string): Layout {
     marketplace,
     pluginDir: joinPath(marketplace, 'plugins', APP_ID),
     logsDir: joinPath(root, 'logs'),
+    flowsDir: joinPath(root, 'flows'),
   };
 }
 
@@ -62,6 +65,11 @@ export function safeId(id: string | undefined | null): string | null {
 export function sessionFile(l: Layout, sessionId: string, writer: 'mod' | 'hook'): string | null {
   const id = safeId(sessionId);
   return id ? joinPath(l.sessionsDir, `${id}.${writer}.json`) : null;
+}
+
+/** A flow's folder in the data folder (its record and the checked copies), or null for an id of another shape. */
+export function flowDir(l: Layout, id: string): string | null {
+  return /^[a-z0-9][a-z0-9-]{0,80}$/.test(id) ? joinPath(l.flowsDir, id) : null;
 }
 
 /** The event file for a session and a writer, in the month the event happened (UTC). */

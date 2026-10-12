@@ -7,14 +7,16 @@
 import { mock } from 'claude-code/testing';
 
 export interface WorldOptions {
-  /** Answer to the belt's question: the label to pick, or 'nobody' when no one can be asked. */
-  answer?: 'allow' | 'block' | 'nobody';
+  /** Answer to a question: the first option, the second, the third, words typed under "Other", or 'nobody' when no one can be asked. */
+  answer?: 'allow' | 'block' | 'third' | 'nobody' | { typed: string };
   config?: Record<string, unknown>;
   now?: number;
   lang?: 'en' | 'tr';
   windows?: boolean;
   /** The session cannot say where it is: every $.session.cwd call fails. */
   cwdFails?: boolean;
+  /** What a tool beneath the plugin answers, by tool name (default: it ran). */
+  results?: Record<string, (e: any) => any>;
 }
 
 export const HOME = '/home/ada';
@@ -91,17 +93,27 @@ export function world(on: any, opts: WorldOptions = {}) {
   // Beneath every plugin: the tools themselves. $.ui.ask is a call of the AskUserQuestion tool, answered
   // here as the person would; every other tool just runs.
   const reached: string[] = [];
+  const calls: any[] = [];
   on('tool.call', (_$: any, e: any) => {
     if (e.tool === 'AskUserQuestion') {
       const q = e.questions?.[0];
       asked.push(String(q?.question ?? ''));
       if (opts.answer === 'nobody' || !opts.answer) return { deny: 'no one to ask' };
       const labels: string[] = (q?.options ?? []).map((o: any) => o.label);
-      const label = opts.answer === 'block' ? labels[1] : labels[0];
+      const a = opts.answer;
+      const label = typeof a === 'object' ? a.typed : a === 'block' ? labels[1] : a === 'third' ? labels[2] : labels[0];
       return { result: { questions: e.questions, answers: { [q?.question]: label } } };
     }
     reached.push(String(e.tool));
-    return { result: 'ran' };
+    calls.push(e);
+    const answer = opts.results?.[String(e.tool)];
+    return answer ? answer(e) : { result: 'ran' };
+  });
+  on('tool.list', () => ({ value: [{ name: 'Bash' }, { name: 'Read' }, { name: 'Write' }, { name: 'Edit' }] }));
+  const registered: any[] = [];
+  on('tool.register', (_$: any, e: any) => {
+    registered.push(e);
+    return { value: { tool: `mcp__terminal-code__${e.name}` } };
   });
   on('prompt.submit', (_$: any, e: any) => {
     submitted.push(e.text);
@@ -112,6 +124,8 @@ export function world(on: any, opts: WorldOptions = {}) {
     clock,
     files,
     reached,
+    calls,
+    registered,
     toasts,
     notes,
     asked,

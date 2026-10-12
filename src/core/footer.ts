@@ -9,6 +9,7 @@
  */
 import { analyzeCommand } from './shell/analyze.js';
 import { parseGit } from './belt/git.js';
+import { gitOnlyReads } from './shell/effects.js';
 import { isFileTool, shellOf } from './belt/tools.js';
 import { resolvePath, isUnder, type PathEnv } from './paths.js';
 import { tIn, type Lang } from './i18n/index.js';
@@ -35,32 +36,6 @@ export interface ClassifyEnv extends PathEnv {
 
 const MUTATING_GIT =
   /^(?:add|rm|mv|checkout|switch|reset|rebase|merge|tag|stash|cherry-pick|apply|am|revert|clean|restore|pull|init|clone|worktree|branch|config|remote|submodule|filter-branch|filter-repo|update-ref|notes)$/;
-/** Listing and showing forms of otherwise changing git subcommands: `git branch -a`, `git remote -v`, … */
-function gitOnlyReads(sub: string, args: readonly string[]): boolean {
-  const words = args.filter((a) => !a.startsWith('-'));
-  const flags = args.filter((a) => a.startsWith('-'));
-  switch (sub) {
-    // Without a name, or with a listing flag, these only list.
-    case 'branch':
-      return (
-        words.length === 0 || flags.some((f) => /^(?:-l|--list|-a|--all|-r|--remotes|--contains|--merged|--no-merged|--points-at|--show-current)$/.test(f))
-      );
-    case 'tag':
-      return words.length === 0 || flags.some((f) => /^(?:-l|--list|--contains|--merged|--no-merged|--points-at)$/.test(f));
-    case 'remote':
-      return words.length === 0 || ['show', 'get-url'].includes(words[0]!);
-    case 'config':
-      return flags.some((f) => /^(?:--get|--get-all|--get-regexp|--list|-l|--show-origin)$/.test(f)) || (words.length === 1 && !flags.length);
-    case 'stash':
-    case 'worktree':
-    case 'notes':
-      return ['list', 'show'].includes(words[0] ?? '');
-    case 'submodule':
-      return words.length === 0 || words[0] === 'status';
-    default:
-      return false;
-  }
-}
 const MUTATING_PROGRAMS = new Set([
   'rm',
   'mv',
@@ -101,6 +76,8 @@ const MUTATING_PROGRAMS = new Set([
 const VERBS = /^(?:i|install|add|rm|remove|uninstall|update|up|upgrade|link|unlink|publish|init|ci|dedupe|prune|reinstall|tap|untap|get)$/;
 const PACKAGE_MANAGERS = new Set(['npm', 'pnpm', 'yarn', 'bun', 'pip', 'pip3', 'winget', 'brew', 'choco', 'apt', 'apt-get', 'cargo', 'go', 'gem']);
 const NULLS = new Set(['/dev/null', 'nul', '$null']);
+/** MCP tools whose names say they act on something outside the machine. */
+export const OUTWARD_MCP = /(?:send|create|update|delete|trash|share|reply|forward|label|mark|write|upload|publish|post)/i;
 const SETTINGS_FILE = /[/][.]claude[/]settings([.]local)?[.]json$/i;
 
 function ignored(path: string, env: ClassifyEnv): boolean {
@@ -160,7 +137,7 @@ export function classifyTurn(uses: readonly ToolUse[], env: ClassifyEnv): TurnAc
       const r = shellChanges(String(u.input.command ?? ''), shell, env);
       if (r.git) acts.git++;
       if (r.other) acts.shell++;
-    } else if (u.name.startsWith('mcp__') && /(?:send|create|update|delete|trash|share|reply|forward|label|mark|write|upload|publish|post)/i.test(u.name)) {
+    } else if (u.name.startsWith('mcp__') && OUTWARD_MCP.test(u.name)) {
       acts.external++;
     }
   }

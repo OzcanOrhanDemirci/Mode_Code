@@ -7,11 +7,13 @@ import type { MessageKey } from './en.js';
 import { trUi } from './tr-ui.js';
 import { trTui } from './tr-tui.js';
 import { trDoctor } from './tr-doctor.js';
+import { trModes } from './tr-modes.js';
 
 export const tr: Record<MessageKey, string> = {
   ...trUi,
   ...trTui,
   ...trDoctor,
+  ...trModes,
   'belt.reason.inline': 'Yorumlayıcıya verilen kodun içinde: {reason}',
   'belt.reason.deleteUnknown': 'Hedefi ancak çalışırken belli olan özyinelemeli silme: {target}.',
   'belt.reason.deleteCritical': '{target} siliniyor; bu konum {critical} konumunun kendisi ya da onu içeriyor.',

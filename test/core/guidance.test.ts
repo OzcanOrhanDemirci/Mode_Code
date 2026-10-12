@@ -3,7 +3,22 @@
 // the person's own words, with the quota stated as measured.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { conflictContext, footerInstruction, keywordContext, quotaLine, resumePrompt, stopContext, wrapUpContext } from '../../src/core/guidance.js';
+import {
+  conflictContext,
+  flowNote,
+  flowResumeContext,
+  flowStartContext,
+  flowTurnContext,
+  footerInstruction,
+  keywordContext,
+  quotaLine,
+  resumePrompt,
+  stepGuidance,
+  stepsLine,
+  stopContext,
+  wrapUpContext,
+} from '../../src/core/guidance.js';
+import { startFlow } from '../../src/core/flow.js';
 import { detectKeyword, type KeywordMatch } from '../../src/core/keywords.js';
 import { assessQuota, DEFAULT_BUDGET, type QuotaAssessment } from '../../src/core/quota.js';
 import { newModState } from '../../src/core/session.js';
@@ -31,7 +46,11 @@ test('every keyword gets one instruction that quotes what the person typed', () 
   const cases: [string, RegExp][] = [
     ['app devam', /Keyword "continue" for project "app": work autonomously/],
     ['manuel app devam', /Keyword "manual continue" for project "app": work step by step/],
-    ['sohbet', /Keyword "chat": conversation only/],
+    ['sohbet', /Keyword "chat": chat mode: conversation only/],
+    ['araştırma', /Keyword "research": research mode: read, search the web/],
+    ['plan', /Keyword "plan": plan mode: read and plan/],
+    ['kod', /Keyword "code": code mode: develop, test and commit/],
+    ['serbest', /Keyword "free": free mode/],
     ['toparla', /Keyword "wrap up"/],
     ['dur', /Keyword "stop": stop now/],
     ['durum', /Keyword "status"/],
@@ -85,4 +104,40 @@ test('the resume prompt ends with the continue keyword, which the keyword layer 
       assert.equal(k?.kind, 'continue', `${lang} ${project}`);
       assert.equal(k?.project ?? null, project ? 'app' : null);
     }
+});
+
+test('mode keywords while a flow runs: one turn, or a pause when typed alone; the work folder is named', () => {
+  const turn = keywordContext(kw('Şunu bir kontrol et.\nsohbet'), state, q(), null, { flow: { step: '🔨 kod', paused: false } })[0]!;
+  assert.match(turn, /for this turn only, chat mode: .* The flow stays at its 🔨 kod step/);
+  const paused = keywordContext(kw('araştırma'), state, q(), null, { flow: { step: '📐 plan', paused: true }, workDir: '/tmp/tc/flows' })[0]!;
+  assert.match(paused, /switched to research mode: .*work folder \(\/tmp\/tc\/flows\).* The flow is paused at its 📐 plan step/);
+  assert.deepEqual(keywordContext(kw('akış'), state, q(), null), []);
+  assert.deepEqual(keywordContext(kw('onay'), state, q(), null), []);
+});
+
+test("flow guidance: the steps on one line, the rules, and the current step in the person's language", () => {
+  const f = startFlow({ id: 'f1', variant: 'full', task: 'Add sign-in', project: null, cwd: '/a', sessionId: 's', workDir: '/tmp/w', now: NOW });
+  const t = { copyDir: '/home/ada/.terminal-code/flows/f1', nativePlan: false, approveWord: 'onay' };
+  assert.equal(stepsLine(f, 'en'), '[🔍 research] ▶ 📐 plan → ⏸ approval → 🔨 code');
+  const s = flowStartContext(f, 'en', t);
+  assert.match(s, /started a flow: \[🔍 research\] ▶ 📐 plan → ⏸ approval → 🔨 code\. Task, in the person's words: "Add sign-in"\./);
+  assert.match(s, /none is skipped.*mcp__terminal-code__flow_step/);
+  assert.match(s, /write the report to \/tmp\/w\/f1\/research\.md/);
+  assert.match(s, /## Findings/);
+  assert.match(flowStartContext(f, 'tr', t), /## Bulgular/);
+  assert.match(flowTurnContext(f, 'en', t), /step 1\/4: .* call mcp__terminal-code__flow_step with step "research"/);
+  const plan = {
+    ...f,
+    current: 1,
+    steps: f.steps.map((x, i) => (i === 0 ? { ...x, status: 'done' as const } : i === 1 ? { ...x, status: 'active' as const } : x)),
+  };
+  assert.match(stepGuidance(plan, 'en', t), /write the plan to \/tmp\/w\/f1\/plan\.md/);
+  assert.match(stepGuidance(plan, 'en', { ...t, nativePlan: true }), /then call ExitPlanMode/);
+  assert.equal(stepsLine(plan, 'tr'), '🔍 araştırma ✓ ▶ [📐 plan] → ⏸ onay → 🔨 kod');
+  const waiting = { ...plan, current: 2, status: 'waiting' as const };
+  assert.match(flowTurnContext(waiting, 'en', t), /waits for the person's approval \(they type "onay"\)/);
+  const code = { ...plan, current: 3, verification: ['npm test', 'npm run lint'] };
+  assert.match(stepGuidance(code, 'en', t), /implement the approved plan \(\/home\/ada\/\.terminal-code\/flows\/f1\/plan\.md\).*`npm test`, `npm run lint`/);
+  assert.match(flowResumeContext(plan, 'en', t), /resumed the flow f1: .* Read the drafts in \/tmp\/w\/f1 first/);
+  assert.match(flowNote('canceled', f, 'en', t), /canceled the flow f1/);
 });

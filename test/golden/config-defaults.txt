@@ -9,7 +9,8 @@
     "secrets": true,
     "status": true,
     "notifications": true,
-    "quietWork": true
+    "quietWork": true,
+    "modes": true
   },
   "belt": {
     "disabled": [],
@@ -45,6 +46,9 @@
     "extra": {}
   },
   "projects": [],
+  "modes": {
+    "workDir": null
+  },
   "accessibility": {
     "plain": false,
     "highContrast": false,

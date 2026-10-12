@@ -17,7 +17,7 @@ import type { AppContext } from './context.js';
 
 export type HealthState = 'ok' | 'off' | 'gray' | 'red' | 'absent';
 
-export type FeatureId = 'belt' | 'selfProtection' | 'mod' | 'keywords' | 'quota' | 'footer' | 'quietWork' | 'memory' | 'index' | 'secrets';
+export type FeatureId = 'belt' | 'selfProtection' | 'mod' | 'keywords' | 'quota' | 'footer' | 'quietWork' | 'modes' | 'memory' | 'index' | 'secrets';
 
 export interface FeatureHealth {
   id: FeatureId;
@@ -117,6 +117,7 @@ export function checkHealth(ctx: AppContext, opts: { selfTest?: boolean; withPlu
   const footerOn = ctx.config.modules.footer && ctx.config.footer.mode !== 'off';
   f.push(feature('footer', footerOn, ctx.config.footer.mode === 'draw', ctx.config.footer.mode === 'check'));
   f.push(feature('quietWork', ctx.config.modules.quietWork, true, false));
+  f.push(feature('modes', ctx.config.modules.modes, true, false));
 
   // ── data ──
   const dirs = ctx.config.memory.dirs.map((d) => resolvePath(d, { platform, home: home(), cwd: ctx.cwd }));

@@ -11,10 +11,10 @@ import { fold } from './text.js';
 /** The built-in keyword phrases plus the person's own, per language. */
 export function keywordTables(c: Config): Record<Lang, KeywordTable> {
   const out = structuredClone(DEFAULT_KEYWORDS) as Record<Lang, KeywordTable>;
-  for (const [lang, extra] of Object.entries(c.keywords.extra) as [Lang, Partial<Record<KeywordKind, string[]>>][]) {
+  for (const [lang, extra] of Object.entries(c.keywords.extra) as [Lang, Partial<Record<KeywordKind | 'cancel', string[]>>][]) {
     const t = out[lang];
     if (!t || !extra) continue;
-    for (const [kind, list] of Object.entries(extra) as [KeywordKind, string[]][]) {
+    for (const [kind, list] of Object.entries(extra) as [KeywordKind | 'cancel', string[]][]) {
       for (const phrase of list ?? []) {
         const f = fold(phrase);
         if (f && !t[kind].includes(f)) t[kind].push(f);

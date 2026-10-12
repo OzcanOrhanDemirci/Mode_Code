@@ -4,8 +4,8 @@
 /** Footer lines per answer, keyed by a hash of the answer's text. */
 export type TerminalCodeFooters = Record<string, string[]>;
 
-/** What the prompt footer shows: mode labels at the right, quota at the end of the hint line. */
-export type TerminalCodeLabels = { modes: string[]; tail: string };
+/** What the prompt footer shows: mode labels at the right, quota at the end of the hint line; the line above the prompt. */
+export type TerminalCodeLabels = { modes: string[]; tail: string; band: string };
 
 declare module 'claude-code' {
   interface PluginState {

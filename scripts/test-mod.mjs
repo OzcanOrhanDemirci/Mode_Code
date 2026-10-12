@@ -74,8 +74,15 @@ const ALLOWED = new Set([
   'session.root',
   'state.get',
   'state.set',
+  // Flows: the flow_step tool is registered, and the code step runs the approved plan's verification
+  // commands through Claude Code's own shell tool (found with tool.list), so the belt and the permission
+  // rules judge them as any command; the band above the prompt is drawn from the surface's elements.
+  'tool.call',
+  'tool.list',
+  'tool.register',
   'ui.ask',
   'ui.notify',
+  'ui.resolve',
   'ui.toast',
 ]);
 const notes = (report.contents ?? []).flatMap((c) => c.notes ?? []);

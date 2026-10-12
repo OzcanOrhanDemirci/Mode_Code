@@ -13,6 +13,7 @@ import { tIn, type MessageKey } from '../i18n/index.js';
 import { truncate } from '../text.js';
 import { MARKETPLACE_NAME, PLUGIN_NAME } from '../app.js';
 import { scanSecrets } from '../secrets/scan.js';
+import { expandVars as expandVarsIn } from '../shell/vars.js';
 import { hitsCritical, protectedPaths, under, claudeDir, type ProtectedPaths } from './protect.js';
 import { isProtectedBranch, looksLikeUrl, parseGit, planPush, remoteMatches } from './git.js';
 import type { BeltContext, Finding, RuleId } from './types.js';
@@ -79,21 +80,7 @@ function show(p: string): string {
 
 /** Expands $NAME, ${NAME}, %NAME%, $env:NAME from the context; null when something stays unknown. */
 export function expandVars(text: string, ctx: BeltContext): string | null {
-  const lookup = (name: string): string | undefined => {
-    const n = name.toUpperCase();
-    if (n === 'HOME' || n === 'USERPROFILE') return ctx.home;
-    // Own keys only: $constructor is an unknown variable, not Object's constructor.
-    if (Object.hasOwn(ctx.env, name)) return ctx.env[name];
-    return Object.hasOwn(ctx.env, n) ? ctx.env[n] : undefined;
-  };
-  let unknown = false;
-  const out = text.replace(/\$\{env:(\w+)\}|\$env:(\w+)|\$\{(\w+)\}|\$(\w+)|%(\w+)%/gi, (whole, a, b, c, d, e) => {
-    const v = lookup(a ?? b ?? c ?? d ?? e);
-    if (v === undefined) unknown = true;
-    return v ?? whole;
-  });
-  if (unknown || /\$\(|`|…|\$\{|\$[0-9@*#?!-]/.test(out)) return null;
-  return out;
+  return expandVarsIn(text, ctx.home, ctx.env);
 }
 
 interface Target {

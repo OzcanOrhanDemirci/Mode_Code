@@ -15,7 +15,7 @@ import { parseModState, parseHookState, isApproved, applyKeyword } from '../core
 import { sessionFile, eventsFile } from '../core/layout.js';
 import { maskSecrets } from '../core/secrets/scan.js';
 import { tIn, setLanguage, type Lang } from '../core/i18n/index.js';
-import { detectKeyword } from '../core/keywords.js';
+import { detectKeyword, isModeKeyword } from '../core/keywords.js';
 import { footerInstruction, keywordContext } from '../core/guidance.js';
 import { newModState } from '../core/session.js';
 import { assessQuota, weeklyTargetFrom, type QuotaReading } from '../core/quota.js';
@@ -57,6 +57,7 @@ async function preToolUse(input: Input, lang: Lang): Promise<void> {
 
   const modFile = sessionFile(l, sessionId, 'mod');
   const mod = modFile ? parseModState(readText(modFile)) : null;
+  recordPermissionMode(l, sessionId, str(input.permission_mode), now);
   if (isApproved(mod, str(input.tool_use_id), now)) return; // the person approved this exact call when the mod asked
 
   const ctx = beltContext({ cwd, config, layout: l, lang });
@@ -102,16 +103,44 @@ async function preToolUse(input: Input, lang: Lang): Promise<void> {
   else if (!mod) out({ hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: text } });
 }
 
+/**
+ * Claude Code's permission mode, kept in the hook's own state file: the one exact source of whether its plan
+ * mode is on, which the plugin reads (Claude Code hands it to hooks, not to plugins). Written only on a change.
+ */
+function recordPermissionMode(l: ReturnType<typeof dataLayout>, sessionId: string, mode: string | undefined, now: number): void {
+  if (!mode || sessionId === SELF_TEST_SESSION) return;
+  const file = sessionFile(l, sessionId, 'hook');
+  if (!file) return;
+  const state = parseHookState(readText(file), sessionId);
+  if (state.permissionMode === mode) return;
+  try {
+    writeJsonAtomic(file, { ...state, permissionMode: mode, permissionModeAt: now });
+  } catch {
+    /* the plugin then relies on Claude Code's plan-mode notes alone */
+  }
+}
+
 function userPromptSubmit(input: Input): void {
   const l = dataLayout();
   const { config } = loadConfig(l);
-  if (!config.modules.keywords) return;
   const sessionId = str(input.session_id) ?? '';
+  recordPermissionMode(l, sessionId, str(input.permission_mode), Date.now());
+  if (!config.modules.keywords) return;
   const modFile = sessionFile(l, sessionId, 'mod');
   if (modFile && readText(modFile) !== null) return; // the mod handles keywords in this session
   const prompt = str(input.prompt) ?? '';
   const kw = detectKeyword(prompt, projectRefs(config), keywordTables(config));
   if (!kw) return;
+  // Modes and flows live in the plugin; without it nothing would enforce them, and the person must know.
+  if (isModeKeyword(kw.kind) || kw.kind === 'flow' || kw.kind === 'approve') {
+    out({
+      hookSpecificOutput: {
+        hookEventName: 'UserPromptSubmit',
+        additionalContext: `[terminal-code] The person's message ${kw.standalone ? 'is' : 'ends with'} "${kw.text}", a terminal-code keyword for modes and flows. They need the terminal-code plugin, which is not loaded in this session, so nothing enforces them here. Tell the person in one line (terminal-code doctor shows why the plugin is not loaded); the safety belt still runs.`,
+      },
+    });
+    return;
+  }
   const reading = readJson<QuotaReading>(l.quota);
   const budget = kw.kind === 'quota' ? { n: kw.n ?? 0, plus: kw.plus ?? false } : kw.budget;
   const state = applyKeyword(newModState(sessionId, APP_VERSION, Date.now()), kw, budget ? weeklyTargetFrom(budget, reading, Date.now()) : null);
