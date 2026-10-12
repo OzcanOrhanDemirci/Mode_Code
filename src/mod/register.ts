@@ -393,7 +393,8 @@ async function keywordTurn($: $, c: Ctx, text: string): Promise<string[]> {
   const kw: KeywordMatch | null = detectKeyword(text, projectRefs(c.config), keywordTables(c.config));
   if (!kw) return [];
   const now = await $.clock.now();
-  const target = kw.kind === 'quota' ? weeklyTargetFrom({ n: kw.n ?? 0, plus: kw.plus ?? false }, c.reading, now) : null;
+  const budget = kw.kind === 'quota' ? { n: kw.n ?? 0, plus: kw.plus ?? false } : kw.budget;
+  const target = budget ? weeklyTargetFrom(budget, c.reading, now) : null;
   c.state = applyKeyword(c.state, kw, target);
   if (kw.kind === 'continue' || kw.kind === 'manual') c.state = { ...c.state, resumeAt: null };
   if (kw.kind === 'stop' || kw.kind === 'wrapUp') {

@@ -7,7 +7,7 @@
 import { createInterface } from 'node:readline/promises';
 import { homedir } from 'node:os';
 import { APP_NAME, APP_VERSION, MIN_CLAUDE_CODE_FOR_HOOKS, REPO_URL } from '../core/app.js';
-import { serializeConfig, setConfigValue, type Config } from '../core/config.js';
+import { cloneDefaults, serializeConfig, setConfigValue, type Config } from '../core/config.js';
 import { evaluateToolCall } from '../core/belt/evaluate.js';
 import { RULES, RULE_IDS } from '../core/belt/rules.js';
 import { compact, percent, ago, until, dateTime, bar, shortPath, integer } from '../core/format.js';
@@ -17,6 +17,7 @@ import { beltContext } from '../node/context.js';
 import { writeAtomic } from '../node/fsx.js';
 import { applyInstall, applyUninstall, planInstall, readManifest, underAgent } from '../node/install.js';
 import { cacheHitRate } from '../node/index-db.js';
+import { readClaudeEnv } from '../node/claude-env.js';
 import { appContext, type AppContext } from '../app/context.js';
 import { loadEvents, loadQuota, openIndex, scanPaths } from '../app/data.js';
 import { checkHealth, healthCounts, type FeatureHealth } from '../app/health.js';
@@ -49,6 +50,33 @@ async function confirm(ctx: AppContext, question: string, word?: string): Promis
     const answer = (await rl.question(`${question} `)).trim();
     if (word) return answer === word;
     return /^(?:y|yes|e|evet)$/i.test(answer);
+  } finally {
+    rl.close();
+  }
+}
+
+/** Asks the person to pick one of a few options by number; Enter picks the first. */
+async function choose(ctx: AppContext, question: string, options: string[]): Promise<number> {
+  say(bold(question));
+  options.forEach((o, i) => say(`  ${cyan(String(i + 1))}  ${o}`));
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    for (;;) {
+      const answer = (await rl.question(`${T(ctx, 'install.ask.pick', { n: options.length })} `)).trim();
+      if (answer === '') return 0;
+      const n = parseInt(answer, 10);
+      if (n >= 1 && n <= options.length) return n - 1;
+    }
+  } finally {
+    rl.close();
+  }
+}
+
+async function askText(ctx: AppContext, question: string): Promise<string> {
+  void ctx;
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    return (await rl.question(`${bold(question)} `)).trim();
   } finally {
     rl.close();
   }
@@ -183,10 +211,6 @@ export async function cmdInstall(a: Args): Promise<number> {
     return 0;
   }
   say();
-  if (!flag(a, 'yes', 'y') && !(await confirm(ctx, T(ctx, 'install.confirm')))) {
-    say(T(ctx, 'cli.cancelled'));
-    return 1;
-  }
   const chosen: Partial<Config> = {};
   const lang = value(a, 'lang');
   if (lang === 'en' || lang === 'tr') chosen.language = lang;
@@ -194,6 +218,32 @@ export async function cmdInstall(a: Args): Promise<number> {
   if (view === 'simple' || view === 'recommended' || view === 'detailed') chosen.view = view;
   const mem = values(a, 'memory');
   if (mem.length) chosen.memory = { dirs: mem };
+  // First installation in a terminal: a few choices, then one confirmation for everything.
+  const firstTime = !plan.steps.find((s) => s.kind === 'config')?.done;
+  if (firstTime && !flag(a, 'yes', 'y') && process.stdin.isTTY && !chosen.view) {
+    const v = await choose(ctx, T(ctx, 'install.ask.view'), [T(ctx, 'install.ask.simple'), T(ctx, 'install.ask.recommended'), T(ctx, 'install.ask.detailed')]);
+    chosen.view = (['simple', 'recommended', 'detailed'] as const)[v];
+    if (chosen.view !== 'simple') {
+      if (!chosen.memory) {
+        const suggestion = readClaudeEnv(ctx.cwd).memoryDir;
+        const m = await askText(ctx, T(ctx, 'install.ask.memory', { suggestion: shortPath(suggestion, homedir(), 70) }));
+        const dir = m === '' ? suggestion : m === '-' ? null : m;
+        if (dir) chosen.memory = { dirs: [dir] };
+      }
+      const f = await choose(ctx, T(ctx, 'install.ask.footer'), [T(ctx, 'footer.mode.draw'), T(ctx, 'footer.mode.check'), T(ctx, 'footer.mode.off')]);
+      chosen.footer = { ...cloneDefaults().footer, mode: (['draw', 'check', 'off'] as const)[f]! };
+    }
+    say();
+    say(bold(T(ctx, 'install.summary')));
+    say(`  ${T(ctx, 'set.view')}: ${T(ctx, `view.${chosen.view ?? 'recommended'}` as MessageKey)}`);
+    if (chosen.memory) say(`  ${T(ctx, 'page.memory')}: ${chosen.memory.dirs.map((d) => shortPath(d, homedir(), 70)).join(', ')}`);
+    if (chosen.footer) say(`  ${T(ctx, 'set.footerMode')}: ${T(ctx, `footer.mode.${chosen.footer.mode}` as MessageKey)}`);
+    say();
+  }
+  if (!flag(a, 'yes', 'y') && !(await confirm(ctx, T(ctx, 'install.confirm')))) {
+    say(T(ctx, 'cli.cancelled'));
+    return 1;
+  }
   const r = applyInstall(ctx.layout, plan, { config: chosen });
   if (flag(a, 'json')) {
     json('install', { ok: r.ok, steps: r.steps, manifest: r.manifest });

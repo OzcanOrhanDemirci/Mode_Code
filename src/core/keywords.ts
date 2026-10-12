@@ -64,6 +64,8 @@ export interface KeywordMatch {
   /** For "kota N" / "kota +N". */
   n?: number;
   plus?: boolean;
+  /** A weekly budget given together with continue: "terminal devam kota 40". */
+  budget?: { n: number; plus: boolean };
   /** A known project one edit away from what was typed. */
   suggestion?: string;
   /** The phrase that matched, folded. */
@@ -132,6 +134,14 @@ export function detectKeyword(
 
     const quota = new RegExp(`^(?:${alt(t.quota)})\\s*(\\+?)\\s*(\\d{1,3})$`).exec(end);
     if (quota) return { ...base, kind: 'quota', plus: quota[1] === '+', n: parseInt(quota[2]!, 10) };
+
+    // "<project> devam kota 40": continue with a weekly budget in one line.
+    const combo = new RegExp(`^(.+?)\\s+(?:${alt(t.quota)})\\s*(\\+?)\\s*(\\d{1,3})$`).exec(end);
+    if (combo) {
+      const inner = detectKeyword(combo[1]!, projects, { [lang]: t });
+      if (inner && (inner.kind === 'continue' || inner.kind === 'manual'))
+        return { ...inner, text: end, standalone, budget: { n: parseInt(combo[3]!, 10), plus: combo[2] === '+' } };
+    }
 
     if (standalone && new RegExp(`^(?:${alt(t.stop)})$`).test(end)) return { ...base, kind: 'stop' };
     if (standalone && new RegExp(`^(?:${alt(t.wrapUp)})$`).test(end)) return { ...base, kind: 'wrapUp' };

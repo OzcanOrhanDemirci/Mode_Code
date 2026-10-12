@@ -118,9 +118,16 @@ export function isApproved(s: ModSessionState | null, toolUseId: string | undefi
 export function applyKeyword(s: ModSessionState, kw: KeywordMatch, weeklyTarget: number | null): ModSessionState {
   switch (kw.kind) {
     case 'continue':
-      return { ...s, interaction: 'autonomous', mode: 'free', wrapUp: false, project: kw.project ?? s.project };
-    case 'manual':
-      return { ...s, interaction: 'manual', mode: 'free', wrapUp: false, project: kw.project ?? s.project };
+    case 'manual': {
+      const next: ModSessionState = {
+        ...s,
+        interaction: kw.kind === 'continue' ? 'autonomous' : 'manual',
+        mode: 'free',
+        wrapUp: false,
+        project: kw.project ?? s.project,
+      };
+      return kw.budget && weeklyTarget !== null ? { ...next, weeklyTarget, weeklyTargetSource: `${kw.budget.plus ? '+' : ''}${kw.budget.n}` } : next;
+    }
     case 'chat':
       return { ...s, mode: 'chat' };
     case 'quota':

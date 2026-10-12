@@ -26,6 +26,16 @@ test('a keyword at the end of a message counts; inside a sentence it does not', 
   assert.equal(d('dur bakalım ne olacak'), null);
 });
 
+test('continue and a weekly budget in one line', () => {
+  const m = d('terminal devam kota 40');
+  assert.equal(m?.kind, 'continue');
+  assert.equal(m?.project, 'terminal_code');
+  assert.deepEqual(m?.budget, { n: 40, plus: false });
+  assert.deepEqual(d('Bunu bitir. araba devam kota +8')?.budget, { n: 8, plus: true });
+  assert.equal(d('kota 40')?.kind, 'quota');
+  assert.equal(d('bunu dene kota 40')?.kind, undefined); // a sentence before the budget is not a keyword
+});
+
 test('one typo away is a suggestion, not a match', () => {
   const m = d('chechlist devam');
   assert.equal(m?.kind, 'continue');

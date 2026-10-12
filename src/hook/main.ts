@@ -10,14 +10,14 @@
  */
 import { readFileSync } from 'node:fs';
 import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
-import { parseModState, parseHookState, isApproved } from '../core/session.js';
+import { parseModState, parseHookState, isApproved, applyKeyword } from '../core/session.js';
 import { sessionFile, eventsFile } from '../core/layout.js';
 import { maskSecrets } from '../core/secrets/scan.js';
 import { tIn, setLanguage, type Lang } from '../core/i18n/index.js';
 import { detectKeyword, DEFAULT_KEYWORDS } from '../core/keywords.js';
 import { footerInstruction, keywordContext } from '../core/guidance.js';
 import { newModState } from '../core/session.js';
-import { assessQuota, type QuotaReading } from '../core/quota.js';
+import { assessQuota, weeklyTargetFrom, type QuotaReading } from '../core/quota.js';
 import { buildFooter, checkFooter, classifyTurn } from '../core/footer.js';
 import { currentTurn } from '../core/transcript.js';
 import { keywordTables, projectRefs, budgetOf } from '../core/settings-view.js';
@@ -112,8 +112,9 @@ function userPromptSubmit(input: Input): void {
   const kw = detectKeyword(prompt, projectRefs(config), keywordTables(config));
   if (!kw) return;
   const reading = readJson<QuotaReading>(l.quota);
-  const quota = assessQuota(reading, budgetOf(config, null), Date.now());
-  const state = newModState(sessionId, APP_VERSION, Date.now());
+  const budget = kw.kind === 'quota' ? { n: kw.n ?? 0, plus: kw.plus ?? false } : kw.budget;
+  const state = applyKeyword(newModState(sessionId, APP_VERSION, Date.now()), kw, budget ? weeklyTargetFrom(budget, reading, Date.now()) : null);
+  const quota = assessQuota(reading, budgetOf(config, state), Date.now());
   const label = kw.project ? (config.projects.find((p) => p.id === kw.project)?.names[0] ?? kw.project) : null;
   const ctx = keywordContext(kw, state, quota, label);
   if (ctx.length) out({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: ctx.join('\n') } });
