@@ -235,6 +235,10 @@ export const enUi = {
   'help.status': 'What is installed and working, quota, today',
   'help.doctor': 'Check every feature and say how to fix what is broken',
   'help.install': 'Show every change, then install after you confirm',
+  'help.try': 'Start one Claude Code session with everything loaded, without installing',
+  'try.intro':
+    'Starting Claude Code with the plugin and the safety-net hooks loaded for this session only. Nothing is installed; when the session ends, nothing is left behind.',
+  'try.agent': 'This starts a new Claude Code session, so it runs only from your own terminal.',
   'help.uninstall': 'Remove exactly what the installation added',
   'help.quota': 'Quota windows and the budget',
   'help.tokens': 'Token use by day, model or folder',

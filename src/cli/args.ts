@@ -7,7 +7,7 @@ export interface Args {
 }
 
 /** Flags that never take a value, so `--json foo` keeps foo as a positional. */
-const BOOLEAN = new Set(['json', 'yes', 'y', 'dry-run', 'purge', 'help', 'h', 'version', 'v', 'no-color', 'plain', 'update', 'no-update', 'all']);
+const BOOLEAN = new Set(['json', 'yes', 'y', 'dry-run', 'purge', 'help', 'h', 'version', 'v', 'no-color', 'plain', 'update', 'no-update', 'all', 'print']);
 
 export function parseArgs(argv: readonly string[]): Args {
   const positionals: string[] = [];

@@ -225,6 +225,10 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'help.status': 'Neyin kurulu ve çalışır olduğu, kota, bugün',
   'help.doctor': 'Her özelliği denetle, bozuk olanın nasıl düzeleceğini söyle',
   'help.install': 'Her değişikliği göster, onaylarsan kur',
+  'help.try': 'Kurmadan, her şey yüklü tek bir Claude Code oturumu başlat',
+  'try.intro':
+    "Claude Code, eklenti ve güvenlik ağı hook'ları yalnız bu oturum için yüklenerek başlatılıyor. Hiçbir şey kurulmaz; oturum bitince geride bir şey kalmaz.",
+  'try.agent': 'Bu komut yeni bir Claude Code oturumu başlatır; bu yüzden yalnız kendi terminalinden çalışır.',
   'help.uninstall': 'Kurulumun eklediklerini tam olarak kaldır',
   'help.quota': 'Kota pencereleri ve bütçe',
   'help.tokens': 'Güne, modele ya da klasöre göre token kullanımı',

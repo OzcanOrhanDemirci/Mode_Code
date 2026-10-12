@@ -123,6 +123,16 @@ export function runClaude(
   return { status: r.status, stdout: r.stdout ?? '', stderr: r.stderr ?? '' };
 }
 
+/** Runs `claude` attached to this terminal and returns its exit code, or null when it cannot be started. */
+export function runClaudeInteractive(args: readonly string[]): number | null {
+  let r = spawnSync('claude', [...args], { stdio: 'inherit' });
+  if (r.error && process.platform === 'win32') {
+    const line = ['claude', ...args.map((a) => (/^[\w@./:=-]+$/.test(a) ? a : `"${a.replace(/"/g, '\\"')}"`))].join(' ');
+    r = spawnSync(line, { stdio: 'inherit', shell: true });
+  }
+  return r.error ? null : (r.status ?? 0);
+}
+
 let versionCache: string | null | undefined;
 
 /** The installed Claude Code version ("2.1.296"), or null when `claude` cannot be run. Cached per process. */

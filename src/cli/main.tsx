@@ -8,7 +8,20 @@ import { tIn } from '../core/i18n/index.js';
 import { appContext } from '../app/context.js';
 import { parseArgs, flag } from './args.js';
 import { setColor } from './style.js';
-import { cmdBelt, cmdConfig, cmdDoctor, cmdInstall, cmdQuota, cmdSecrets, cmdSessions, cmdStatus, cmdTokens, cmdUninstall, helpText } from './commands.js';
+import {
+  cmdBelt,
+  cmdConfig,
+  cmdDoctor,
+  cmdInstall,
+  cmdQuota,
+  cmdSecrets,
+  cmdSessions,
+  cmdStatus,
+  cmdTokens,
+  cmdTry,
+  cmdUninstall,
+  helpText,
+} from './commands.js';
 import { runControlCenter } from '../tui/run.js';
 
 const MIN_NODE = [22, 13];
@@ -47,6 +60,8 @@ async function main(argv: string[]): Promise<number> {
       return cmdDoctor(sub);
     case 'install':
       return cmdInstall(sub);
+    case 'try':
+      return cmdTry(sub);
     case 'uninstall':
       return cmdUninstall(sub);
     case 'quota':

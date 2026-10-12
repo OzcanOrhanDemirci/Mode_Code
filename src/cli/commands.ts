@@ -15,9 +15,11 @@ import { tIn, type Lang, type MessageKey } from '../core/i18n/index.js';
 import { maskSecrets } from '../core/secrets/scan.js';
 import { beltContext } from '../node/context.js';
 import { writeAtomic } from '../node/fsx.js';
-import { applyInstall, applyUninstall, planInstall, readManifest, underAgent } from '../node/install.js';
+import { applyInstall, applyUninstall, distDir, hookGroups, planInstall, readManifest, stableNodePath, underAgent } from '../node/install.js';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { cacheHitRate } from '../node/index-db.js';
-import { readClaudeEnv } from '../node/claude-env.js';
+import { readClaudeEnv, runClaudeInteractive } from '../node/claude-env.js';
 import { appContext, type AppContext } from '../app/context.js';
 import { loadEvents, loadQuota, openIndex, scanPaths } from '../app/data.js';
 import { checkHealth, healthCounts, type FeatureHealth } from '../app/health.js';
@@ -259,6 +261,39 @@ export async function cmdInstall(a: Args): Promise<number> {
   say(green(bold(T(ctx, 'install.done'))));
   say(T(ctx, 'install.next', { cmd: cyan(APP_NAME) }));
   return 0;
+}
+
+/**
+ * Starts one Claude Code session with the plugin and the safety-net hooks loaded from the built files,
+ * without installing anything: the hooks come from a settings file passed with --settings, the plugin from
+ * --plugin-dir. When the session ends, nothing is left in Claude Code's configuration.
+ */
+export async function cmdTry(a: Args): Promise<number> {
+  const ctx = appContext();
+  if (underAgent()) {
+    say(red(T(ctx, 'try.agent')));
+    return 1;
+  }
+  const dist = distDir();
+  const hook = join(dist, 'hook.mjs').replace(/\\/g, '/');
+  const plugin = join(dist, 'plugin');
+  if (!existsSync(hook) || !existsSync(join(plugin, '.claude-plugin', 'plugin.json'))) {
+    say(red(T(ctx, 'install.block.noBuild', { dir: dist })));
+    return 1;
+  }
+  const settingsPath = join(ctx.layout.stateDir, 'try-settings.json');
+  writeAtomic(settingsPath, JSON.stringify({ hooks: hookGroups(stableNodePath().replace(/\\/g, '/'), hook) }, null, 2) + '\n');
+  const args = ['--plugin-dir', plugin, '--settings', settingsPath, ...a.positionals];
+  say(T(ctx, 'try.intro'));
+  say(dim(`claude ${args.map((x) => (/\s/.test(x) ? `"${x}"` : x)).join(' ')}`));
+  if (flag(a, 'print')) return 0; // show the command, start nothing
+  say();
+  const status = runClaudeInteractive(args);
+  if (status === null) {
+    say(red(T(ctx, 'install.block.noClaude')));
+    return 1;
+  }
+  return status;
 }
 
 export async function cmdUninstall(a: Args): Promise<number> {
@@ -608,6 +643,7 @@ export function helpText(lang: Lang): string {
     `  ${c('doctor'.padEnd(28))}${L('help.doctor')}`,
     `  ${c('install [--dry-run]'.padEnd(28))}${L('help.install')}`,
     `  ${c('uninstall [--purge]'.padEnd(28))}${L('help.uninstall')}`,
+    `  ${c('try'.padEnd(28))}${L('help.try')}`,
     `  ${c('quota'.padEnd(28))}${L('help.quota')}`,
     `  ${c('tokens [--days N] [--by …]'.padEnd(28))}${L('help.tokens')}`,
     `  ${c('sessions [search]'.padEnd(28))}${L('help.sessions')}`,

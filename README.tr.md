@@ -66,6 +66,8 @@ cd terminal-code && npm ci && npm run build
 node dist/cli.mjs install
 ```
 
+Hiçbir şey kurmadan önce denemek için `node dist/cli.mjs try` çalıştır: her şey yüklü tek bir Claude Code oturumu başlatır ve geride bir şey bırakmaz.
+
 Kurulum önce yapacağı her değişikliği gösterir ve hiçbir şeyi değiştirmeden önce bir kez sorar. Sonra yeni bir Claude Code oturumu başlat; kontrol merkezini `node dist/cli.mjs` ile aç.
 
 Kaldırmak için: `node dist/cli.mjs uninstall` (ayarlarını ve geçmişini de silmek için `--purge` ekle). Kaldırma, kurulumun kaydettiğini tam olarak geri alır.
