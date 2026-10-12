@@ -21,7 +21,7 @@ import { assessQuota, weeklyTargetFrom, type QuotaReading } from '../core/quota.
 import { buildFooter, checkFooter, classifyTurn } from '../core/footer.js';
 import { currentTurn } from '../core/transcript.js';
 import { keywordTables, projectRefs, budgetOf } from '../core/settings-view.js';
-import { APP_VERSION } from '../core/app.js';
+import { APP_VERSION, SELF_TEST_SESSION } from '../core/app.js';
 import { dataLayout, processLanguage } from '../node/env.js';
 import { loadConfig, beltContext, classifyEnv, memoryDirs } from '../node/context.js';
 import { readText, readJson, writeJsonAtomic, appendLine } from '../node/fsx.js';
@@ -63,7 +63,8 @@ async function preToolUse(input: Input, lang: Lang): Promise<void> {
   const d = await evaluateToolCall(tool, toolInput, ctx);
   if (d.verdict === 'allow') return;
 
-  const hookFile = sessionFile(l, sessionId, 'hook');
+  // The self-test's samples are not real calls: no session state, no events.
+  const hookFile = sessionId === SELF_TEST_SESSION ? null : sessionFile(l, sessionId, 'hook');
   const state = parseHookState(hookFile ? readText(hookFile) : null, sessionId);
   let repeat = 0;
   if (d.verdict === 'deny') {
@@ -74,7 +75,7 @@ async function preToolUse(input: Input, lang: Lang): Promise<void> {
   try {
     if (hookFile) writeJsonAtomic(hookFile, state);
     // The mod logs what it decides; the hook logs only what reached it on its own.
-    if (!mod || d.verdict === 'deny')
+    if (sessionId !== SELF_TEST_SESSION && (!mod || d.verdict === 'deny'))
       appendLine(
         eventsFile(l, sessionId, 'hook', now),
         JSON.stringify({

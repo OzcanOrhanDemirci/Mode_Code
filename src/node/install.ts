@@ -15,7 +15,16 @@ import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, realpathSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { APP_ID, APP_VERSION, MARKETPLACE_NAME, MIN_CLAUDE_CODE_FOR_HOOKS, MIN_CLAUDE_CODE_FOR_MODS, PLUGIN_ID, PLUGIN_NAME } from '../core/app.js';
+import {
+  APP_ID,
+  APP_VERSION,
+  MARKETPLACE_NAME,
+  MIN_CLAUDE_CODE_FOR_HOOKS,
+  MIN_CLAUDE_CODE_FOR_MODS,
+  PLUGIN_ID,
+  PLUGIN_NAME,
+  SELF_TEST_SESSION,
+} from '../core/app.js';
 import { cloneDefaults, serializeConfig, type Config } from '../core/config.js';
 import { compareVersions } from '../core/version.js';
 import type { Layout } from '../core/layout.js';
@@ -219,7 +228,7 @@ export function selfTest(node: string, hook: string, l: Layout): { ok: boolean; 
     });
     return { status: r.status, out: (r.stdout ?? '').trim() };
   };
-  const base = { session_id: 'install-self-test', cwd: l.root, hook_event_name: 'PreToolUse', permission_mode: 'default' };
+  const base = { session_id: SELF_TEST_SESSION, cwd: l.root, hook_event_name: 'PreToolUse', permission_mode: 'default' };
   const read = run({ ...base, tool_name: 'Read', tool_use_id: 'self_test_read', tool_input: { file_path: l.config } });
   if (read.status !== 0 || read.out !== '') return { ok: false, detail: `read sample: exit ${read.status}, output ${read.out.slice(0, 200)}` };
   const write = run({ ...base, tool_name: 'Write', tool_use_id: 'self_test_write', tool_input: { file_path: join(l.root, 'self-test.txt'), content: 'x' } });

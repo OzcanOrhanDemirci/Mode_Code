@@ -38,3 +38,6 @@ export const REPO_URL = 'https://github.com/OzcanOrhanDemirci/terminal-code';
 
 /** Environment variable a person can set to force the interface language. */
 export const LANG_ENV = 'TERMINAL_CODE_LANG';
+
+/** The session id the installer's and the health check's self-test use: what it triggers is not recorded. */
+export const SELF_TEST_SESSION = 'install-self-test';
