@@ -80,6 +80,12 @@ export const en = {
   'footer.acts.git': 'git commit/push',
   'footer.acts.shell': '{n} changing shell commands',
   'footer.acts.external': '{n} external service actions',
+  'footer.acts.files.one': '1 file written',
+  'footer.acts.memory.one': '1 memory file',
+  'footer.acts.shell.one': '1 changing shell command',
+  'footer.acts.external.one': '1 external service action',
+  'belt.head.declined': '🛡 Declined when the safety belt asked:',
+  'belt.head.noOne': '🛡 Blocked: the safety belt needed a confirmation, and no one could be asked here (a headless run):',
   'footer.five': '5-hour quota',
   'footer.week': 'Weekly quota',
   'footer.problem.missing': 'the "{label}" line is missing',
@@ -103,8 +109,6 @@ export const en = {
   'belt.ask.allow': 'Allow once',
   'belt.ask.block': 'Block',
   'belt.ask.header': 'Safety belt',
-  'belt.ask.declined': 'The person declined this call when the safety belt asked.',
-  'belt.ask.noOne': 'The safety belt needed the person to confirm this call, and no one could be asked here (a headless run), so it was blocked.',
   'belt.failed':
     'The safety belt could not check this call ({error}), so it was blocked to be safe. Tell the person; the control center shows the error under Security.',
 

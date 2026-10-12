@@ -402,7 +402,10 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   if (d.verdict === 'ask') {
     const answer = await askPerson($, c, tool, d);
     await logEvent($, c, { kind: 'belt', tool, verdict: 'ask', answer, rules, reasons: d.findings.map((f) => maskSecrets(f.reason)) });
-    if (answer !== 'allow') return { deny: `${decisionText(d, ctx)}\n${tIn(c.lang, answer === 'none' ? 'belt.ask.noOne' : 'belt.ask.declined')}` };
+    if (answer !== 'allow') {
+      const reasons = d.findings.filter((f) => f.verdict === 'ask').map((f) => `• ${f.reason} [${f.rule}]`);
+      return { deny: [tIn(c.lang, answer === 'none' ? 'belt.head.noOne' : 'belt.head.declined'), ...reasons, tIn(c.lang, 'belt.tail.deny')].join('\n') };
+    }
     if (typeof tool_use_id === 'string') {
       c.state = addApproval(c.state, { toolUseId: tool_use_id, at: await $.clock.now(), rules });
       await saveState($, c);

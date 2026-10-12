@@ -130,7 +130,7 @@ test('in check mode the Stop hook sends wrong footer lines back once', () => {
     const stop = { ...base(home), transcript_path: transcript, hook_event_name: 'Stop', stop_hook_active: false };
     const wrong = run('Stop', { ...stop, last_assistant_message: 'Done.\n\nChanges made: No' }, home);
     assert.equal(wrong.out?.decision, 'block');
-    assert.match(wrong.out?.reason, /Changes made: Yes \(1 files written\)/);
+    assert.match(wrong.out?.reason, /Changes made: Yes \(1 file written\)/);
     assert.equal(run('Stop', { ...stop, last_assistant_message: 'Done.\n\nChanges made: Yes' }, home).out, null);
     assert.equal(run('Stop', { ...stop, stop_hook_active: true, last_assistant_message: 'Done.' }, home).out, null);
   } finally {

@@ -80,6 +80,12 @@ export const tr: Record<MessageKey, string> = {
   'footer.acts.git': 'git commit/push',
   'footer.acts.shell': '{n} değiştiren kabuk komutu',
   'footer.acts.external': '{n} dış servis işlemi',
+  'footer.acts.files.one': '1 dosya yazıldı',
+  'footer.acts.memory.one': 'hafızada 1 dosya',
+  'footer.acts.shell.one': '1 değiştiren kabuk komutu',
+  'footer.acts.external.one': '1 dış servis işlemi',
+  'belt.head.declined': '🛡 Emniyet kemeri sorduğunda reddedildi:',
+  'belt.head.noOne': '🛡 Engellendi: emniyet kemeri onay istedi ve burada sorulacak kimse yok (arayüzsüz çalışma):',
   'footer.five': '5 Saatlik Kota',
   'footer.week': 'Haftalık Kota',
   'footer.problem.missing': '"{label}" satırı yok',
@@ -100,8 +106,6 @@ export const tr: Record<MessageKey, string> = {
   'belt.ask.allow': 'Bu seferlik izin ver',
   'belt.ask.block': 'Engelle',
   'belt.ask.header': 'Emniyet kemeri',
-  'belt.ask.declined': 'Emniyet kemeri sorduğunda kullanıcı bu çağrıyı reddetti.',
-  'belt.ask.noOne': 'Emniyet kemeri bu çağrı için kullanıcının onayını istedi; burada sorulacak kimse yok (arayüzsüz çalışma), bu yüzden engellendi.',
   'belt.failed':
     'Emniyet kemeri bu çağrıyı denetleyemedi ({error}); güvenli olsun diye engellendi. Kullanıcıya söyle; hata, kontrol merkezinde Güvenlik altında görünür.',
 

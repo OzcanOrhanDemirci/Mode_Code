@@ -195,12 +195,14 @@ export function buildFooter(f: FooterFacts, lang: Lang): Footer {
   }
   const parts: string[] = [];
   const a = f.acts;
-  if (a.files) parts.push(tIn(lang, 'footer.acts.files', { n: a.files }));
-  if (a.memoryFiles) parts.push(tIn(lang, 'footer.acts.memory', { n: a.memoryFiles }));
+  const count = (key: 'footer.acts.files' | 'footer.acts.memory' | 'footer.acts.shell' | 'footer.acts.external', n: number) =>
+    tIn(lang, n === 1 ? (`${key}.one` as const) : key, { n });
+  if (a.files) parts.push(count('footer.acts.files', a.files));
+  if (a.memoryFiles) parts.push(count('footer.acts.memory', a.memoryFiles));
   if (a.settings) parts.push(tIn(lang, 'footer.acts.settings'));
   if (a.git) parts.push(tIn(lang, 'footer.acts.git'));
-  if (a.shell) parts.push(tIn(lang, 'footer.acts.shell', { n: a.shell }));
-  if (a.external) parts.push(tIn(lang, 'footer.acts.external', { n: a.external }));
+  if (a.shell) parts.push(count('footer.acts.shell', a.shell));
+  if (a.external) parts.push(count('footer.acts.external', a.external));
   const changedLabel = tIn(lang, 'footer.changed');
   lines.push(parts.length ? `${changedLabel}: ${yes} (${parts.join(', ')})` : `${changedLabel}: ${no}`);
   let five: number | null = null;
