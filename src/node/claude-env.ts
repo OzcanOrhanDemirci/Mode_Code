@@ -6,7 +6,7 @@
  */
 import { spawnSync } from 'node:child_process';
 import { readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { readText } from './fsx.js';
 import { claudeDir, managedSettingsFiles } from './env.js';
@@ -294,10 +294,14 @@ export interface ClaudeEnvOptions {
 /** Reads the setup as Claude Code would see it for a session started in `cwd`. */
 export function readClaudeEnv(cwd: string, opts: ClaudeEnvOptions = {}): ClaudeEnv {
   const dir = opts.dir ?? claudeDir();
+  // A session started in the home folder has the user's own .claude folder as its project folder: the
+  // same files, read once, as the user's (else every hook and setting there would count twice).
+  const fold = (p: string) => (process.platform === 'win32' || process.platform === 'darwin' ? resolve(p).toLowerCase() : resolve(p));
+  const homeIsProject = fold(join(cwd, '.claude')) === fold(dir);
   const settings: SettingsSource[] = [
     ...(opts.managed ?? managedSettingsFiles()).map((p) => readSettings('managed', p)),
     readSettings('user', join(dir, 'settings.json')),
-    readSettings('project', join(cwd, '.claude', 'settings.json')),
+    ...(homeIsProject ? [] : [readSettings('project', join(cwd, '.claude', 'settings.json'))]),
     readSettings('local', join(cwd, '.claude', 'settings.local.json')),
   ];
   const marker = opts.ourMarker ?? '.terminal-code';
@@ -334,15 +338,15 @@ export function readClaudeEnv(cwd: string, opts: ClaudeEnvOptions = {}): ClaudeE
     instructions: [
       instruction('user', join(dir, 'CLAUDE.md')),
       instruction('project', join(cwd, 'CLAUDE.md')),
-      instruction('project-dir', join(cwd, '.claude', 'CLAUDE.md')),
+      ...(homeIsProject ? [] : [instruction('project-dir', join(cwd, '.claude', 'CLAUDE.md'))]),
       instruction('local', join(cwd, 'CLAUDE.local.md')),
       instruction('memory-index', join(memoryDir, 'MEMORY.md'), { lines: 200, bytes: 25_000 }),
     ],
     memoryDir,
     memoryDirFromSetting: memSetting !== null,
-    skills: [...named(join(dir, 'skills'), 'user', 'skill'), ...named(join(cwd, '.claude', 'skills'), 'project', 'skill')],
-    agents: [...named(join(dir, 'agents'), 'user', 'md'), ...named(join(cwd, '.claude', 'agents'), 'project', 'md')],
-    commands: [...named(join(dir, 'commands'), 'user', 'md'), ...named(join(cwd, '.claude', 'commands'), 'project', 'md')],
+    skills: [...named(join(dir, 'skills'), 'user', 'skill'), ...(homeIsProject ? [] : named(join(cwd, '.claude', 'skills'), 'project', 'skill'))],
+    agents: [...named(join(dir, 'agents'), 'user', 'md'), ...(homeIsProject ? [] : named(join(cwd, '.claude', 'agents'), 'project', 'md'))],
+    commands: [...named(join(dir, 'commands'), 'user', 'md'), ...(homeIsProject ? [] : named(join(cwd, '.claude', 'commands'), 'project', 'md'))],
     hooksDisabledBy: settings.filter((s) => s.json?.disableAllHooks === true).map((s) => s.scope),
   };
 }
