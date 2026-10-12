@@ -82,7 +82,9 @@ export function expandVars(text: string, ctx: BeltContext): string | null {
   const lookup = (name: string): string | undefined => {
     const n = name.toUpperCase();
     if (n === 'HOME' || n === 'USERPROFILE') return ctx.home;
-    return ctx.env[name] ?? ctx.env[n];
+    // Own keys only: $constructor is an unknown variable, not Object's constructor.
+    if (Object.hasOwn(ctx.env, name)) return ctx.env[name];
+    return Object.hasOwn(ctx.env, n) ? ctx.env[n] : undefined;
   };
   let unknown = false;
   const out = text.replace(/\$\{env:(\w+)\}|\$env:(\w+)|\$\{(\w+)\}|\$(\w+)|%(\w+)%/gi, (whole, a, b, c, d, e) => {

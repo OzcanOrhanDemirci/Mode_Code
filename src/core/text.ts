@@ -59,38 +59,7 @@ export function truncate(text: string, max: number): string {
 export function format(template: string, params?: Readonly<Record<string, string | number>>): string {
   if (!params) return template;
   return template.replace(/\{(\w+)\}/g, (whole, key: string) => {
-    const v = params[key];
+    const v = Object.hasOwn(params, key) ? params[key] : undefined;
     return v === undefined ? whole : String(v);
   });
-}
-
-/** Columns a string takes in a terminal: wide characters (CJK, most emoji) count two, combining marks none. */
-export function textWidth(s: string): number {
-  // eslint-disable-next-line no-control-regex
-  const plain = s.replace(/\u001B\[[0-9;]*m/g, '');
-  let w = 0;
-  for (const ch of plain) {
-    const cp = ch.codePointAt(0)!;
-    if (cp === 0x200d || (cp >= 0xfe00 && cp <= 0xfe0f) || (cp >= 0x300 && cp <= 0x36f)) continue;
-    const wide =
-      cp >= 0x1100 &&
-      (cp <= 0x115f || (cp >= 0x2e80 && cp <= 0xa4cf) || (cp >= 0xac00 && cp <= 0xd7a3) || (cp >= 0xf900 && cp <= 0xfaff) || (cp >= 0x1f300 && cp <= 0x1faff));
-    w += wide ? 2 : 1;
-  }
-  return w;
-}
-
-/** Cuts text to at most `max` terminal columns, ending with an ellipsis when it was longer. */
-export function fitWidth(text: string, max: number): string {
-  if (max <= 0) return '';
-  if (textWidth(text) <= max) return text;
-  let out = '';
-  let w = 0;
-  for (const ch of text) {
-    const cw = textWidth(ch);
-    if (w + cw > max - 1) break;
-    out += ch;
-    w += cw;
-  }
-  return out.trimEnd() + '…';
 }

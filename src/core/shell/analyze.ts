@@ -262,7 +262,8 @@ function expand(cmd: SimpleCommand, argv: readonly Word[], via: string[], depth:
   }
   const first = argv[0]!;
   let program = programName(first.text);
-  if (cmd.dialect === 'powershell') program = PS_ALIASES[program] ?? program;
+  // Own keys only: a program named "constructor" or "__proto__" must not find Object's members.
+  if (cmd.dialect === 'powershell' && Object.hasOwn(PS_ALIASES, program)) program = PS_ALIASES[program]!;
   const rest = argv.slice(1);
   const at = (i: number) => rest[i]?.text;
 
@@ -377,7 +378,8 @@ function record(cmd: SimpleCommand, argv: readonly Word[], program: string, via:
     via,
     raw: cmd.raw,
   };
-  const flags = CODE_FLAGS[program.replace(/[0-9.]+$/, '')] ?? CODE_FLAGS[program];
+  const versionless = program.replace(/[0-9.]+$/, '');
+  const flags = Object.hasOwn(CODE_FLAGS, versionless) ? CODE_FLAGS[versionless] : Object.hasOwn(CODE_FLAGS, program) ? CODE_FLAGS[program] : undefined;
   if (flags) {
     const i = rest.findIndex((w) => flags.includes(w.text));
     if (i !== -1 && rest[i + 1]) inv.inlineCode = rest[i + 1]!.text;

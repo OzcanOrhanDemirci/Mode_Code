@@ -155,3 +155,13 @@ test('package runners run the program of the package they name', () => {
   assert.deepEqual(programs('yarn test'), ['yarn test']);
   assert.deepEqual(programs('npx'), ['npx']);
 });
+
+test('names every JavaScript object has are ordinary words to the parsers and the belt', async () => {
+  const { evaluateToolCall } = await import('../../src/core/belt/evaluate.js');
+  const { winCtx } = await import('../helpers/belt.js');
+  for (const w of ['__proto__', 'constructor', 'toString', 'hasOwnProperty', 'valueOf']) {
+    for (const d of ['bash', 'powershell'] as const) assert.deepEqual(runs(`${w} x`, d), [`${w.toLowerCase()} x`]);
+    for (const cmd of [`${w} x`, `echo $${w}`, `rm -rf $${w}/x`, `echo %${w}%`])
+      assert.ok(['allow', 'ask', 'warn', 'deny'].includes((await evaluateToolCall('Bash', { command: cmd }, winCtx())).verdict), cmd);
+  }
+});
