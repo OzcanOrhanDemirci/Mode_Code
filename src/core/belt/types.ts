@@ -95,6 +95,8 @@ export interface BeltContext {
   cwd: string;
   /** Project root of the session (CLAUDE_PROJECT_DIR), used to tell "inside the project" from "outside". */
   projectDir: string;
+  /** Folders the person registered as projects (config `projects[].path`, resolved): inside them is inside a project too. */
+  knownProjects?: string[];
   /** Environment values used to expand $NAME / %NAME% / $env:NAME in paths. */
   env: Readonly<Record<string, string | undefined>>;
   /** The tool's own data folder (resolved). */

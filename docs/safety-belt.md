@@ -24,7 +24,8 @@ A protection never turns gray: if something is broken, the control center shows 
 - wrappers are unwrapped (`sudo`, `env`, `nohup`, `xargs`, `bash -c`, `pwsh -Command`, encoded PowerShell) and interpreter code is read again;
 - git is read the way git reads it: global options (`-C`, `-c`, `--git-dir`), refspecs (`:branch` deletes it), and aliases (looked up in the repository);
 - paths are resolved the way the shell would (`~`, `$HOME`, `%USERPROFILE%`, `/c/...`), case-insensitively on Windows and macOS;
-- code that is only known at run time (a variable that holds a command, `eval` of a computed string) is **asked about**, never assumed safe.
+- a variable set once earlier in the same command, with a plain value, is filled in (`T=C:/tools/run.sh; $T` runs `run.sh`); a value set in a branch, a loop, after `||`, in a pipeline or more than once stays unknown;
+- code that is only known at run time (`eval` of a computed string, code built from variables) is **asked about**, never assumed safe. A program name whose value comes from outside the command (`$ADB devices`) is asked about only when its own arguments look risky (`rm`, `--force`, `-rf`, …): agents use such variables all the time for long tool paths.
 
 Permission rules in Claude Code match the command text; the belt reads the command. A rule like `Bash(git push --force*)` does not match `git -C . push --force`; the belt does.
 
@@ -33,7 +34,7 @@ Permission rules in Claude Code match the command text; the belt reads the comma
 Run `terminal-code belt rules` (or open Security › Safety belt rules) for the current list with your changes applied. Groups:
 
 - **git:** force-push (protected branches blocked, others asked), deleting remote branches, mirror pushes and pruning, pushing past pull requests, new branches in one-branch repositories, history rewrites, the hooks path, `--no-verify`, `git clean`, discarding uncommitted work, force-deleting branches.
-- **files and disks:** deleting or moving the home folder, a system folder, a drive root or anything that contains one; recursive deletes outside the project; deleting a `.git` folder; formatting or overwriting disks.
+- **files and disks:** deleting or moving the home folder, a system folder, a drive root or anything that contains one; recursive deletes outside the project (inside the folders you registered as projects counts as inside; a session started in the home folder does not make the whole home folder a project; temporary folders are free); deleting a `.git` folder; formatting or overwriting disks.
 - **self-protection (locked):** Claude Code's user and managed settings, turning hooks off, this tool's files, removing its plugin, nested sessions without hooks, deleting memory, shrinking memory a lot in one write, rewriting memory history.
 - **Claude Code configuration:** `claude plugin`, `claude mcp`, `claude config` changes.
 - **things that start by themselves:** scheduled tasks and services, startup folders, shell profiles, SSH keys and settings.

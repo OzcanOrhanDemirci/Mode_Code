@@ -32,6 +32,7 @@ export function beltContext(opts: { cwd: string; projectDir?: string | undefined
     home: home(),
     cwd: resolvePath(opts.cwd, { platform, home: homedir(), cwd: opts.cwd }),
     projectDir: resolvePath(opts.projectDir ?? env.CLAUDE_PROJECT_DIR ?? opts.cwd, { platform, home: homedir(), cwd: opts.cwd }),
+    knownProjects: opts.config.projects.flatMap((p) => (p.path ? [resolvePath(p.path, { platform, home: homedir(), cwd: opts.cwd })] : [])),
     env,
     dataDir: opts.layout.root,
     memoryDirs: memoryDirs(opts.config, opts.cwd),

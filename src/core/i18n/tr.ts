@@ -20,6 +20,7 @@ export const tr: Record<MessageKey, string> = {
   'belt.reason.deleteGitDir': 'Deponun geçmişi (.git) siliniyor: {target}.',
   'belt.reason.deleteInClaudeDir': "Claude Code'un klasörünün içinde silme: {target}.",
   'belt.reason.deleteOutside': 'Projenin ({project}) dışında özyinelemeli silme: {target}.',
+  'belt.reason.deleteOutsideProjects': 'Projelerinin dışında özyinelemeli silme: {target}.',
   'belt.reason.moveCritical': '{target} taşınıyor; bu konum {critical} konumunun kendisi ya da onu içeriyor.',
   'belt.reason.moveMemoryOut': 'Bir hafıza dosyası hafıza klasörünün dışına taşınıyor: {target}.',
   'belt.reason.memoryOverwrite': 'Bir hafıza dosyasının üstüne boyutu denetlenmeden yazılıyor: {target}.',

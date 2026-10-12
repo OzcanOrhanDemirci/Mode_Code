@@ -18,7 +18,7 @@ import { isProtectedBranch, looksLikeUrl, parseGit, planPush, remoteMatches } fr
 import type { BeltContext, Finding, RuleId } from './types.js';
 
 /** Issues that hide what runs: always worth asking about. */
-const STRONG_UNCERTAIN = new Set(['dynamic-program', 'eval-dynamic', 'encoded-command-undecodable', 'dynamic-shell-code', 'too-deep']);
+const STRONG_UNCERTAIN = new Set(['eval-dynamic', 'encoded-command-undecodable', 'dynamic-shell-code', 'too-deep']);
 /** Issues that mean the text did not parse cleanly: worth asking about when the command looks risky. */
 const WEAK_UNCERTAIN = new Set([
   'unterminated-quote',
@@ -36,8 +36,19 @@ const WEAK_UNCERTAIN = new Set([
 ]);
 
 /** Words whose presence makes an unverifiable command worth asking about. */
-const RISKY_SIGNAL =
-  /(?:^|[^\w-])(?:rm|rmdir|del|erase|rd|remove-item|ri|unlink|shred|rimraf|format|mkfs|dd|diskpart|git|docker|claude|schtasks|crontab|reg|set-content|out-file|clear-content|sed|mv|move|move-item|curl|wget|iex|invoke-expression|chmod|chown|npm|gh|kubectl|terraform|wrangler|firebase|truncate|robocopy|xcopy)(?=$|[^\w-])/i;
+const RISKY_WORDS =
+  'rm|rmdir|del|erase|rd|remove-item|ri|unlink|shred|rimraf|format|mkfs|dd|diskpart|git|docker|claude|schtasks|crontab|reg|set-content|out-file|clear-content|sed|mv|move|move-item|curl|wget|iex|invoke-expression|chmod|chown|npm|gh|kubectl|terraform|wrangler|firebase|truncate|robocopy|xcopy';
+const RISKY_SIGNAL = new RegExp(`(?:^|[^\\w-])(?:${RISKY_WORDS})(?=$|[^\\w-])`, 'i');
+/**
+ * A program name held in a variable whose value is not known here (set outside the command, or computed).
+ * Agents do this all the time for long tool paths, so it is asked about only when its own arguments hold a
+ * risky word standing as a word of its own (not a piece of a path such as `.claude/`) or a forcing flag.
+ * The other commands around it are checked on their own.
+ */
+const DYNAMIC_PROGRAM_RISK = new RegExp(
+  `(?:^|[\\s;&|(\`'"])(?:${RISKY_WORDS}|prune|purge|wipe)(?=$|[\\s;&|)\`'"])|(?:^|\\s)(?:-[a-z]*(?:rf|fr)[a-z]*|--force|-force|--hard|--delete)(?=$|[\\s=])`,
+  'i',
+);
 
 const NULL_TARGETS = new Set(['/dev/null', 'nul', '$null', 'nul:', '/dev/stdout', '/dev/stderr']);
 
@@ -155,8 +166,20 @@ function checkDelete(t: Target, recursive: boolean, s: Scope): void {
     add(s, 'fs.delete-outside-project', 'belt.reason.deleteInClaudeDir', { target: show(t.path) });
     return;
   }
-  if (recursive && !isUnder(t.path, project, ctx.platform))
-    add(s, 'fs.delete-outside-project', 'belt.reason.deleteOutside', { target: show(t.path), project: show(project) });
+  if (!recursive || insideAProject(t.path, project, ctx)) return;
+  if (homeIsProject(project, ctx)) add(s, 'fs.delete-outside-project', 'belt.reason.deleteOutsideProjects', { target: show(t.path) });
+  else add(s, 'fs.delete-outside-project', 'belt.reason.deleteOutside', { target: show(t.path), project: show(project) });
+}
+
+/** A session started in the home folder (or above it) has no project of its own: the home folder is not one. */
+function homeIsProject(project: string, ctx: BeltContext): boolean {
+  return isUnder(resolvePath(ctx.home, { platform: ctx.platform, home: ctx.home, cwd: ctx.cwd }), project, ctx.platform);
+}
+
+/** Inside the session's project, or strictly inside one of the folders the person registered as projects. */
+function insideAProject(path: string, project: string, ctx: BeltContext): boolean {
+  if (!homeIsProject(project, ctx) && isUnder(path, project, ctx.platform)) return true;
+  return (ctx.knownProjects ?? []).some((p) => isUnder(path, p, ctx.platform) && !isUnder(p, path, ctx.platform));
 }
 
 function checkMove(t: Target, s: Scope): void {
@@ -865,7 +888,8 @@ async function evaluateScript(command: string, dialect: Dialect, s: Scope, start
   checkDisableHooks(command, analysis.invocations, s);
   const strong = analysis.issues.filter((i) => STRONG_UNCERTAIN.has(i));
   const weak = RISKY_SIGNAL.test(command) ? analysis.issues.filter((i) => WEAK_UNCERTAIN.has(i)) : [];
-  const uncertain = [...strong, ...weak];
+  const dynamic = analysis.invocations.some((inv) => inv.programDynamic && DYNAMIC_PROGRAM_RISK.test(inv.args.join(' '))) ? ['dynamic-program'] : [];
+  const uncertain = [...strong, ...dynamic, ...weak];
   if (uncertain.length && !s.findings.some((f) => f.rule === 'meta.unverifiable')) {
     add(s, 'meta.unverifiable', 'belt.reason.unverifiable', { issues: uncertain.join(', ') });
   }

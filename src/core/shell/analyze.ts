@@ -116,19 +116,114 @@ export function programName(word: string): string {
 export function analyzeCommand(command: string, dialect: Dialect): Analysis {
   const out: Analysis = { invocations: [], issues: [] };
   const script = dialect === 'powershell' ? parsePowerShell(command) : dialect === 'cmd' ? parseCmd(command) : parseBash(command);
-  walk(script, [], 0, out);
+  walk(script, [], 0, out, dialect === 'bash' ? straightLineConstants(command, script) : null);
   out.issues = [...new Set(out.issues)];
   return out;
 }
 
-function walk(script: ParsedScript, via: string[], depth: number, out: Analysis): void {
+function walk(script: ParsedScript, via: string[], depth: number, out: Analysis, known: readonly ReadonlyMap<string, string>[] | null = null): void {
   for (const issue of script.issues) out.issues.push(issue);
   if (depth > MAX_DEPTH) {
     out.issues.push('too-deep');
     return;
   }
-  for (const cmd of script.commands) expand(cmd, cmd.argv, via, depth, out);
+  script.commands.forEach((cmd, i) => {
+    const k = known?.[i];
+    expand(cmd, k?.size ? substituteKnown(cmd.argv, k) : cmd.argv, via, depth, out);
+  });
   for (const n of script.nested) walk(n, via, depth + 1, out);
+}
+
+/** Anything that can make an assignment conditional, repeated, scoped or computed: then nothing is propagated. */
+const NOT_STRAIGHT =
+  /\b(?:if|case|while|until|for|select|function|read|mapfile|readarray|source|eval|trap|exec|unset)\b|\(\)\s*\{|(?:^|[;&|\n])\s*(?:\.\s|[({])/;
+const DECLARERS = new Set(['export', 'declare', 'typeset', 'local', 'readonly']);
+
+/** The words that assign in a command: `NAME=value` alone, or after export/declare/…; empty for anything else. */
+function assignmentsOf(cmd: SimpleCommand): string[] {
+  if (cmd.argv.length === 0) return cmd.assigns;
+  if (DECLARERS.has(cmd.argv[0]!.text)) return cmd.argv.slice(1).flatMap((w) => (w.text.includes('=') && !w.text.startsWith('-') ? [w.text] : []));
+  return [];
+}
+
+/**
+ * Per command, the values shell variables certainly hold when it runs, in a script that runs straight
+ * through: `S=C:/x; $S/run.sh` runs C:/x/run.sh. Agents write commands this way all the time, and an
+ * unknown program name or delete target would otherwise be asked about on every call. Conservative: only
+ * plain literal values of variables assigned exactly once, and only up to the first branch, loop, group,
+ * function, read or sourcing. An assignment holds for what follows it in the same `&&` chain, and for the
+ * rest of the script only when it is the first element of its list; nothing after a `||` and nothing in a
+ * pipeline or in the background counts; a use before the assignment sees the unknown outside value.
+ */
+export function straightLineConstants(command: string, script: ParsedScript): Map<string, string>[] {
+  const none = script.commands.map(() => new Map<string, string>());
+  // Values only flow forward: the commands before the first branch, loop, group, … are still certain.
+  const stop = command.search(NOT_STRAIGHT);
+  const count = new Map<string, number>();
+  for (const cmd of script.commands)
+    for (const a of assignmentsOf(cmd)) {
+      const name = /^([A-Za-z_]\w*)=/.exec(a)?.[1];
+      if (name) count.set(name, (count.get(name) ?? 0) + 1);
+    }
+  // Where each command sits in the text, and the operators between neighbours.
+  const spans: { at: number; end: number }[] = [];
+  let cursor = 0;
+  for (const cmd of script.commands) {
+    const at = command.indexOf(cmd.raw, cursor);
+    if (at === -1 || cmd.raw === '') return none;
+    // The parser's raw text may begin with the operator that joins it to the previous command.
+    const lead = /^[\s;&|]*/.exec(cmd.raw)![0].length;
+    spans.push({ at: at + lead, end: at + cmd.raw.length });
+    cursor = at + cmd.raw.length;
+  }
+  const joiner = (from: number, to: number): 'and' | 'or' | 'pipe' | 'seq' | 'lost' => {
+    const between = command.slice(from, to).replace(/#[^\n]*/g, '');
+    if (/[^\s;&|]/.test(between)) return 'lost';
+    if (between.includes('||')) return 'or';
+    if (between.includes('&&')) return 'and';
+    if (between.includes('|')) return 'pipe';
+    if (/&(?!&)/.test(between)) return 'lost';
+    return 'seq';
+  };
+  const result: Map<string, string>[] = [];
+  let settled = new Map<string, string>();
+  let chain = new Map<string, string>();
+  let afterOr = false;
+  let first = true;
+  for (let i = 0; i < script.commands.length; i++) {
+    const before = i === 0 ? (command.slice(0, spans[0]!.at).trim() ? 'lost' : 'seq') : joiner(spans[i - 1]!.end, spans[i]!.at);
+    const after = i + 1 < spans.length ? joiner(spans[i]!.end, spans[i + 1]!.at) : /&\s*$/.test(command.slice(spans[i]!.end)) ? 'lost' : 'seq';
+    if (before === 'lost' || (stop !== -1 && spans[i]!.end > stop)) return [...result, ...none.slice(i)];
+    if (before === 'seq') {
+      chain = new Map();
+      afterOr = false;
+      first = true;
+    } else if (before === 'or') afterOr = true;
+    const known = afterOr ? new Map(settled) : new Map([...settled, ...chain]);
+    result.push(known);
+    // In a pipeline or in the background the command runs in a subshell: its assignments do not stay.
+    const subshell = before === 'pipe' || after === 'pipe' || after === 'lost';
+    if (!subshell && !afterOr)
+      for (const a of assignmentsOf(script.commands[i]!)) {
+        const m = /^([A-Za-z_]\w*)=(.*)$/s.exec(a);
+        if (!m || count.get(m[1]!) !== 1) continue;
+        const value = m[2]!.replace(/\$\{(\w+)\}|\$(\w+)/g, (whole, x: string | undefined, y: string | undefined) => known.get((x ?? y)!) ?? whole);
+        // A value with spaces or wildcards is split and globbed where it is used unquoted: not one known word.
+        if (/[$`\s*?[\]]/.test(value)) continue;
+        (first ? settled : chain).set(m[1]!, value);
+      }
+    first = false;
+  }
+  return result;
+}
+
+/** The words with known variables filled in; a word is no longer dynamic once nothing unknown is left in it. */
+export function substituteKnown(words: readonly Word[], known: ReadonlyMap<string, string>): Word[] {
+  return words.map((w) => {
+    if (!w.dynamic) return w;
+    const text = w.text.replace(/\$\{(\w+)\}|\$(\w+)/g, (whole, a: string | undefined, b: string | undefined) => known.get((a ?? b)!) ?? whole);
+    return text === w.text ? w : { ...w, text, dynamic: /[$`]/.test(text) };
+  });
 }
 
 function texts(words: readonly Word[]): string[] {

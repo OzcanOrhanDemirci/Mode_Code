@@ -20,6 +20,7 @@ export const en = {
   'belt.reason.deleteGitDir': "Deletes the repository's history (.git): {target}.",
   'belt.reason.deleteInClaudeDir': "Deletes inside Claude Code's folder: {target}.",
   'belt.reason.deleteOutside': 'Recursive delete outside the project ({project}): {target}.',
+  'belt.reason.deleteOutsideProjects': 'Recursive delete outside your projects: {target}.',
   'belt.reason.moveCritical': 'Moves {target}, which is or contains {critical}.',
   'belt.reason.moveMemoryOut': 'Moves a memory file out of the memory folder: {target}.',
   'belt.reason.memoryOverwrite': 'Overwrites a memory file without checking its size: {target}.',
