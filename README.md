@@ -74,7 +74,7 @@ To remove it: `node dist/cli.mjs uninstall` (add `--purge` to delete its setting
 
 - **Node.js 22.13 or newer** (the session index uses Node's built-in SQLite).
 - **Claude Code 2.1.295 or newer** for the safety-net hook; **2.1.290 or newer** runs the in-process plugin. With an older Claude Code the hook alone runs the belt and the keywords.
-- Windows, macOS or Linux. Developed and tested on Windows 11.
+- Windows, macOS or Linux. Developed on Windows 11; the test suite passes on Windows and Linux (Node.js 22 and 24) and on macOS (Node.js 24).
 
 ## The control center
 

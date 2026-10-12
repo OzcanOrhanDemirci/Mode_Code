@@ -74,7 +74,7 @@ Kaldırmak için: `node dist/cli.mjs uninstall` (ayarlarını ve geçmişini de 
 
 - **Node.js 22.13 ya da sonrası** (oturum dizini Node'un yerleşik SQLite'ını kullanır).
 - Güvenlik ağı hook'u için **Claude Code 2.1.295 ya da sonrası**; süreç içi eklenti **2.1.290 ve sonrasında** çalışır. Daha eski bir Claude Code'da kemeri ve anahtar kelimeleri hook tek başına yürütür.
-- Windows, macOS ya da Linux. Windows 11'de geliştirildi ve sınandı.
+- Windows, macOS ya da Linux. Windows 11'de geliştirildi; testler Windows ve Linux'ta (Node.js 22 ve 24) ve macOS'ta (Node.js 24) geçiyor.
 
 ## Kontrol merkezi
 

@@ -194,6 +194,17 @@ async function ctxOf($: $): Promise<Ctx> {
   }
 }
 
+/** Settings changed in the control center take effect at the next prompt, without restarting the session. */
+async function refreshConfig($: $, c: Ctx): Promise<void> {
+  const text = await readFile($, c.layout.config);
+  const { config } = parseConfig(text);
+  if (JSON.stringify(config) === JSON.stringify(c.config)) return;
+  c.config = config;
+  c.lang = detectLanguage({ configured: config.language === 'auto' ? null : config.language, env: c.env });
+  setLanguage(c.lang);
+  await refreshStatus($, c);
+}
+
 async function saveState($: $, c: Ctx): Promise<void> {
   const path = sessionFile(c.layout, c.sessionId, 'mod');
   if (path) await $.fs.write(path, JSON.stringify(c.state, null, 2) + '\n');
@@ -383,7 +394,10 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   const c = await ctxOf($);
   const kind = e.origin?.kind;
   const human = kind === 'composer' || kind === 'bridge' || kind === 'sdk';
-  if (human) c.turn = { startedAt: await $.clock.now(), uses: [] };
+  if (human) {
+    c.turn = { startedAt: await $.clock.now(), uses: [] };
+    await refreshConfig($, c);
+  }
   const extra: string[] = [];
   if (human && c.config.modules.keywords) extra.push(...(await keywordTurn($, c, String(e.text ?? ''))));
   extra.push(...(await quotaContext($, c)));
