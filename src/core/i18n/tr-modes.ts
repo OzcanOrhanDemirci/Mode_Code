@@ -130,7 +130,7 @@ export const trModes: Record<keyof typeof enModes, string> = {
   'flow.step.doneResearch': 'Araştırma adımı bitti: {findings} ve {sources} denetlendi. Denetlenen rapor {copy} içinde saklanıyor.',
   'flow.step.donePlan': 'Plan denetlendi: kabul ölçütleriyle {steps}, {commands}.',
   'flow.step.nextPlan':
-    'Sırada 📐 plan: planı {path} dosyasına bu biçimde yaz, sonra flow_step aracını "plan" adımıyla çağır:\n\n{template}\nPlan onaylanmadan proje değişmez.',
+    'Sırada 📐 plan: planı {path} dosyasına bu biçimde yaz, sonra flow_step aracını "plan" adımıyla çağır. Claude Code\'un plan modu açıksa planı yalnız Claude Code\'un gösterdiği plan dosyasına yaz ve bunun yerine ExitPlanMode ile bitir; kullanıcı orada onaylar.\n\n{template}\nPlan onaylanmadan proje değişmez.',
   'flow.step.nextPlanNative':
     "Sırada 📐 plan: Claude Code'un plan modu açık; planı onun gösterdiği plan dosyasına bu biçimde yaz, sonra ExitPlanMode çağır; kullanıcı orada onaylar:\n\n{template}",
   'flow.step.nextResearch':

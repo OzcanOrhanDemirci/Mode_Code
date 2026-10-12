@@ -245,3 +245,19 @@ test('the flow_step tool is registered at the start of a session', async ($, on)
   expect(w.registered.map((r: any) => r.name)).toContain('flow_step');
   expect(w.registered[0].isDeferred).toBe(false);
 });
+
+test("a plan written to the flow's own file is found while Claude Code's plan mode is on (it may have been switched on later)", async ($, on) => {
+  const w = world(on);
+  on('prompt.attachment', (_$: any, e: any) => ({ text: e.text }));
+  await $.prompt.submit(typed('flow plan'));
+  await $.prompt.attachment({
+    type: 'plan_mode',
+    origin: { kind: 'engine' },
+    text: 'plan mode',
+    detail: { reminder: 'full', planFilePath: '/home/ada/.claude/plans/q.md', hasPlan: false },
+  } as any);
+  w.write(flowOf(w).planPath, PLAN);
+  const r: any = await $.tool.call({ tool: 'ExitPlanMode' } as any);
+  expect(r.deny).toBeUndefined();
+  expect(flowOf(w).approval.via).toBe('plan-mode');
+});

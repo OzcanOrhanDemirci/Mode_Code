@@ -591,15 +591,34 @@ function planPathOf(c: Ctx, f: Flow): string {
   return c.state.nativePlan?.on && c.state.nativePlan.planFile ? resolvePath(c.state.nativePlan.planFile, pathEnv(c, f.cwd)) : f.planPath;
 }
 
+type PlanCheck = Awaited<ReturnType<typeof checkPlanFile>> & { path: string };
+
+/**
+ * The plan of the plan step, checked: Claude Code's plan file while its plan mode is on, else the flow's own.
+ * A plan may have been written to either (plan mode can be switched on after the flow started), so when both
+ * exist the one that passes its check is taken; otherwise the first that exists, with what it lacks.
+ */
+async function findPlan($: $, c: Ctx, f: Flow): Promise<PlanCheck> {
+  const named = c.state.nativePlan?.planFile ? resolvePath(c.state.nativePlan.planFile, pathEnv(c, f.cwd)) : null;
+  const order = named && named !== f.planPath ? (c.state.nativePlan?.on ? [named, f.planPath] : [f.planPath, named]) : [f.planPath];
+  let found: PlanCheck | null = null;
+  for (const path of order) {
+    const check = { path, ...(await checkPlanFile($, c, path)) };
+    if (check.text !== null && !check.problems.length) return check;
+    if (!found && check.text !== null) found = check;
+  }
+  return found ?? { path: order[0]!, ...(await checkPlanFile($, c, order[0]!)) };
+}
+
 /** The person approved: the plan as it stands now passes its check, is kept, and its commands become the code step's. */
 async function approveNow(
   $: $,
   c: Ctx,
   f: Flow,
   via: 'dialog' | 'plan-mode' | 'keyword',
-  path = planPathOf(c, f),
+  checked?: PlanCheck,
 ): Promise<FlowResult | { ok: false; problems: CheckProblem[]; flow: Flow }> {
-  const check = await checkPlanFile($, c, path);
+  const check = checked ?? (await findPlan($, c, f));
   if (check.problems.length || check.text === null) return { ok: false, problems: check.problems, flow: f };
   const r = approvePlan(f, via, check.verification, await $.clock.now());
   if (r.ok) {
@@ -745,12 +764,11 @@ async function onFlowStep($: $, e: any): Promise<any> {
   }
 
   if (kind === 'plan' || kind === 'approve') {
-    const path = planPathOf(c, f);
-    const check = await checkPlanFile($, c, path);
+    const check = await findPlan($, c, f);
     if (check.problems.length || check.text === null) {
       await saveFlow($, c, noteRefusal(f, 'plan', check.problems.map((p) => p.key).join(', '), now));
       await flowEvent($, c, f, 'refused', { problems: check.problems.length });
-      return answer(problemsText(c, stepName('plan', c.lang), check.problems, path));
+      return answer(problemsText(c, stepName('plan', c.lang), check.problems, check.path));
     }
     let waiting = f;
     if (kind === 'plan') {
@@ -816,9 +834,8 @@ async function onExitPlanMode($: $, c: Ctx, e: In<'tool.call'>, next: Nx<'tool.c
     return {
       deny: `${tIn(c.lang, 'flow.step.notCurrent', { current: stepName('research', c.lang), asked: stepName('plan', c.lang) })}\n${stepGuidance(f, c.lang, stepTexts(c, f))}`,
     };
-  const path = planPathOf(c, f);
-  const check = await checkPlanFile($, c, path);
-  if (check.problems.length || check.text === null) return { deny: problemsText(c, stepName('plan', c.lang), check.problems, path) };
+  const check = await findPlan($, c, f);
+  if (check.problems.length || check.text === null) return { deny: problemsText(c, stepName('plan', c.lang), check.problems, check.path) };
   let waiting = f;
   const now = await $.clock.now();
   if (step.kind === 'plan') {
@@ -837,7 +854,7 @@ async function onExitPlanMode($: $, c: Ctx, e: In<'tool.call'>, next: Nx<'tool.c
     return r;
   }
   c.state = { ...c.state, nativePlan: { on: false, planFile: c.state.nativePlan?.planFile ?? null, at: await $.clock.now() } };
-  const approved = await approveNow($, c, waiting, 'plan-mode', path);
+  const approved = await approveNow($, c, waiting, 'plan-mode', check);
   if (!approved.ok) return r;
   return { ...r, context: [...(r.context ?? []), `${tIn(c.lang, 'flow.step.approved')}\n${stepGuidance(approved.flow, c.lang, stepTexts(c, approved.flow))}`] };
 }

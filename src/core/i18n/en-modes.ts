@@ -137,7 +137,7 @@ export const enModes = {
   'flow.step.doneResearch': 'The research step is done: {findings} and {sources} checked. The checked report is kept at {copy}.',
   'flow.step.donePlan': 'The plan is checked: {steps} with acceptance criteria, {commands}.',
   'flow.step.nextPlan':
-    'Next, 📐 plan: write the plan to {path} in this shape, then call flow_step with step "plan":\n\n{template}\nThe project does not change before the plan is approved.',
+    'Next, 📐 plan: write the plan to {path} in this shape, then call flow_step with step "plan". If Claude Code\'s plan mode is on, write it only to the plan file Claude Code names and finish with ExitPlanMode instead; the person approves it there.\n\n{template}\nThe project does not change before the plan is approved.',
   'flow.step.nextPlanNative':
     "Next, 📐 plan: Claude Code's plan mode is on, so write the plan to the plan file it names, in this shape, then call ExitPlanMode; the person approves it there:\n\n{template}",
   'flow.step.nextResearch':

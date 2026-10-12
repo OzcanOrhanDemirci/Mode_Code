@@ -195,6 +195,9 @@ function sessionStart(input: Input, lang: Lang): void {
   if (hookFile) {
     const state = parseHookState(readText(hookFile), sessionId);
     state.lastRunAt = Date.now();
+    // A session started in plan mode (--permission-mode plan) is known before its first prompt.
+    const mode = str(input.permission_mode);
+    if (mode && mode !== state.permissionMode) Object.assign(state, { permissionMode: mode, permissionModeAt: state.lastRunAt });
     try {
       writeJsonAtomic(hookFile, state);
     } catch {
