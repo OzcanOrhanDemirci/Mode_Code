@@ -100,7 +100,8 @@ export function secretSuite(): Promise<SuiteResult> {
   const tokens: [string, string][] = [
     ['github-token', 'ghp' + '_' + body(36)],
     ['anthropic-key', 'sk-' + 'ant-api03-' + body(90)],
-    ['aws-access-key-id', 'AK' + 'IA' + 'ABCDEFGHIJKLMNOP'],
+    // Joined, not added: the bundler folds 'AK' + 'IA' + … into one literal that would ship looking like a key.
+    ['aws-access-key-id', ['AK', 'IA', 'ABCDEFGHIJKLMNOP'].join('')],
     ['npm-token', 'npm' + '_' + body(36)],
   ];
   return runSuite('secrets', [

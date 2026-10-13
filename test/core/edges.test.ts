@@ -75,7 +75,7 @@ test('secrets: a generic value needs two kinds of character and enough randomnes
 
 test('secrets: a short secret shows no tail; overlapping matches are found once', () => {
   assert.doesNotMatch(maskSecrets('token=npm_' + 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8'), /npm_a1B2/);
-  const twelve = scanSecrets(`password = "Xk3p9Qz7Lm2R"`)[0];
+  const twelve = scanSecrets(`password = "${'Xk3p9Qz7' + 'Lm2R'}"`)[0];
   if (twelve) assert.match(twelve.masked, /•••\s\(12\)$/);
   const gh = 'ghp' + '_' + 'aB3dE5fG7hJ9kL2mN4pQ6rS8tU0vW1xYzA1b';
   const both = scanSecrets(`GITHUB_TOKEN="${gh}"`);
@@ -98,7 +98,7 @@ test('keywords: any of a project names counts; a four-letter name gets suggestio
 });
 
 test('secrets: exactly two kinds of character are enough for a random generic value', () => {
-  assert.equal(scanSecrets('password = "xk3p9qz7lm2rt8wv4hd6"').length, 1);
+  assert.equal(scanSecrets(`password = "${'xk3p9qz7' + 'lm2rt8wv4hd6'}"`).length, 1);
 });
 
 test('keywords: a typo is suggested only for names of four letters or more, one edit away', () => {

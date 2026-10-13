@@ -39,8 +39,8 @@ test('bars and sparklines have fixed widths and plain fallbacks', () => {
 });
 
 test('paths are shortened around the home folder and in the middle', () => {
-  assert.equal(shortPath('C:/Users/ozcan/dev/x', 'C:/Users/ozcan'), '~/dev/x');
-  assert.equal(shortPath('c:\\users\\ozcan\\dev', 'C:/Users/ozcan'), '~/dev');
+  assert.equal(shortPath('C:/Users/ada/dev/x', 'C:/Users/ada'), '~/dev/x');
+  assert.equal(shortPath('c:\\users\\ada\\dev', 'C:/Users/ada'), '~/dev');
   const long = shortPath('/very/long/path/that/goes/on/and/on/and/on/forever/file.ts', '/home/u', 30);
   assert.ok(long.length <= 30 && long.includes('…'));
 });

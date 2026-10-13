@@ -1,0 +1,5 @@
+# Findings gitleaks reports in this repository's history that are not secrets: made-up passwords in the
+# secret scanner's own tests, since assembled at run time (test/core/edges.test.ts). One per line, as
+# gitleaks prints them: commit:file:rule:line. docs/release.md says how the repository was audited.
+edbfe0badec00fdacbcc7b5ea4226949ca35d5bd:test/core/edges.test.ts:generic-api-key:78
+edbfe0badec00fdacbcc7b5ea4226949ca35d5bd:test/core/edges.test.ts:generic-api-key:101
