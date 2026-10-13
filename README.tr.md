@@ -208,9 +208,9 @@ Bir güvenlik açığı mı buldun? Lütfen gizli bildir: [SECURITY.md](SECURITY
 
 Bir ajanla makinen arasında duran bir araç güveni kanıtla kazanmalı. Kodun kendisiyle ilgili kurallardan gerçek Claude Code oturumlarına kadar on iki katman var; her biri neyi kanıtladığını ve neyi kanıtlayamadığını söylüyor ([docs/testing.md](docs/testing.md), İngilizce). 2026-10-13 ölçümü:
 
-- Windows, Linux ve macOS'ta, Node.js 22 ve 24 ile ve bir WSL2 dağıtımında **555 test**; koda dönüşen satırlarda ortalama satır kapsamı **%93,2**, her dosya bir tabana bağlı.
+- Windows, Linux ve macOS'ta, Node.js 22 ve 24 ile ve bir WSL2 dağıtımında **634 test**; koda dönüşen satırlarda ortalama satır kapsamı **%93,5**, her dosya bir tabana bağlı.
 - **Yanlış alarm da hata sayılır.** 197 günlük komut her platformda kemerden tek bir soru sorulmadan geçmek, 162 okuma komutu da sohbet, araştırma ve plan modunda çalışmak zorunda. Yazarın son 30 gününde (36.658 araç çağrısı) kemer günde 4,4 kez sorardı.
-- **Testlerin kendisi de test ediliyor.** Mutasyon testi karar veren koda, kemere, modlara ve tam otonoma, 1.463 küçük, bilerek yapılmış değişiklik uygular; testler 1.463'ünü de yakalıyor. Bakım denetimi bir deneme ortamını 13 şekilde bozar; 13'ünü de fark etmesi ve onarılabilecek olanları onarması gerekir.
+- **Testlerin kendisi de test ediliyor.** Mutasyon testi karar veren koda, kemere, modlara, tam otonoma ve hafızanın eşitlemesine 1.763 küçük, bilerek yapılmış değişiklik uygular; testler 1.763'ünü de yakalıyor. Bakım denetimi bir deneme ortamını 13 şekilde bozar; 13'ünü de fark etmesi ve onarılabilecek olanları onarması gerekir.
 - **Gerçek motorun içinde.** Eklenti Claude Code'un kendi test takımıyla, her gece en yeni Claude Code sürümüne karşı ve gerçek başsız oturumlarda sınanıyor.
 - **Testler gerçek hatalar buldu**, her biri düzeltildi ve bir testle düzeltilmiş kalıyor: Windows kısa adlarıyla (`TERMIN~1`) ya da sonda bir noktayla erişilebilen korumalı dosyalar, macOS'ta ev klasörü altındaki her özyinelemeli silmenin engellenmesi, `__proto__` sözcüğünde ayrıştırıcının çökmesi.
 

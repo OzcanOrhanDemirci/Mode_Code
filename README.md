@@ -205,9 +205,9 @@ Found a vulnerability? Please report it privately: see [SECURITY.md](SECURITY.md
 
 A tool that stands between an agent and your machine has to earn trust with evidence. Twelve layers, from rules about the code itself to real Claude Code sessions, each saying what it proves and what it cannot ([docs/testing.md](docs/testing.md)). Measured on 2026-10-13:
 
-- **555 tests** on Windows, Linux and macOS, Node.js 22 and 24, and in a WSL2 distribution; mean line coverage **93.2%** of the lines that compile to code, every file held to a floor.
+- **634 tests** on Windows, Linux and macOS, Node.js 22 and 24, and in a WSL2 distribution; mean line coverage **93.5%** of the lines that compile to code, every file held to a floor.
 - **False alarms count as bugs.** 197 everyday commands must pass the belt without a single question on every platform, and 162 reading commands must run in chat, research and plan mode. Over the author's last 30 days (36,658 tool calls) the belt would have asked 4.4 times a day.
-- **The tests are tested.** Mutation testing makes 1,463 small deliberate changes to the code that decides, the belt, the modes and full autonomy alike; the tests catch all 1,463. The maintenance check breaks a sandbox in 13 ways and must notice all 13 and repair what can be repaired.
+- **The tests are tested.** Mutation testing makes 1,763 small deliberate changes to the code that decides, the belt, the modes, full autonomy and the memory's sync alike; the tests catch all 1,763. The maintenance check breaks a sandbox in 13 ways and must notice all 13 and repair what can be repaired.
 - **Inside the real engine.** The plugin is tested with Claude Code's own test kit, every night against the newest Claude Code release, and in live headless sessions.
 - **The tests found real bugs**, each fixed with a test that keeps it fixed: protected files reachable under Windows short names (`TERMIN~1`) or with a trailing dot, every recursive delete under the home folder blocked on macOS, a parser crash on `__proto__`.
 
