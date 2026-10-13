@@ -35,6 +35,7 @@
 - **Modlar**, kodla uygulanır: 💬 sohbet, 🔍 araştırma, 📐 plan ve 🔨 kod. Sohbet, araştırma ve plan; geçici klasör, çalışma klasörü ya da plan dosyası dışında hiçbir şeyi değiştirmez: bir kabuk komutunun çalıştırdığı her program sınıflandırılır (yalnız okur, adı verilen dosyaları yazar, klasöründe bir şeyi değiştirir, dışarıya uzanır, bilinmiyor) ve sınıflandırılamayan reddedilir, nedeni söylenir. Claude Code'un kendi plan modu 📐 plana köprülenir.
 - **Akışlar.** Bir görevi `akış` ile bitir; 🔍 araştırma ▶ 📐 plan → ⏸ onay → 🔨 kod olarak yürür. Hiçbir adım atlanmaz ve her birini kod denetler: bulguları var olan kaynaklara dayanan bir rapor, kabul ölçütleri ve doğrulama komutları olan bir plan, bir iletişim kutusunda (ya da Claude Code'un plan penceresinde) senin onayın ve eklenti çalıştırdığında geçen doğrulama komutları. Akışlar duraklatılır, yeni bir oturumda sürer ve kontrol merkezinde görünür. Ayrıntı: [docs/modes.md](docs/modes.md) (İngilizce).
 - **Tam otonom.** Bir görevi `projem tam otonom kota +10` ile bitir; sen yokken sonuna kadar yürür: doğrulama komutları yalnız artan bir plan, her adım için geri dönebileceğin bir commit üzerinde bir kilometre taşı, her birinin bağımsız incelemesi (isteğini ve farkı gören, sohbeti asla görmeyen ayrı bir model çağrısı) ve ancak her doğrulama komutu geçtiğinde sayılan bir bitiş. Hiçbir şey sorulmaz: sana ait olanlar (korunan dallara push, birleştirme, sürüm, kemerin soracakları) birebir komutuyla kaydedilip koşunun raporunda bekler. Yalnız kodun önce ölçtüğü bir sınırın içinde başlar: Windows'ta, Windows'a geri dönüş yolu olmayan bir WSL2 dağıtımı; her yerde, Claude Code'un sıkı biçimdeki kum havuzu. Sen açana kadar kapalı. Ayrıntı: [docs/autonomy.md](docs/autonomy.md) (İngilizce).
+- **Hafıza ve devir notları.** `terminal-code memory setup`, Claude Code'un hafızasının nerede duracağını sorar: bu bilgisayarda, GitHub'ında özel bir depoda ya da ikisinde. İstersen git'i ve GitHub CLI'ı kurar, giriş yaptırır, özel depoyu adlandırıp açar, var olan hafızanı yanında getirir, her değişikliği gösterip bir kez sorar. Bundan sonra hafıza her oturum başında çekilir, onu değiştiren bir turdan sonra gönderilir; sır içeriyor gibi görünen dosya bekletilir. `devir` (ya da `handoff`) yazınca Claude o hafızaya bir devir notu yazar; notlar sıkıştırmadan önce ve oturum biterken de yazılır, sonraki oturum (bu bilgisayarda ya da başkasında) oradan sürer. Bir süre yokken, sabah raporu neler olduğunu söyler. Ayrıntı: [docs/memory.md](docs/memory.md) (İngilizce).
 - **Kota bekçisi.** Claude Code'un bildirdiği 5 saatlik ve haftalık pencereleri okur; bütçende işi toparlar, sınırda durdurur ve iş otonomsa pencere sıfırlandıktan bir dakika sonra kendiliğinden sürdürür.
 - **Alt satırlar.** Her cevabın altında: hafıza deposu itildi mi, bir şey değişti mi, gerektiğinde kota. Git'ten, turun araç çağrılarından ve ölçülen kotadan hesaplanır, asla tahmin edilmez.
 - **Sessiz uzun iş.** Claude Code'un "kullanıcı uzun süredir haber alamadı" hatırlatmalarını dışarıda bırakır; uzun otonom iş ekranını durum satırlarıyla doldurmaz.
@@ -167,20 +168,21 @@ Bütün komutlar: [docs/cli.md](docs/cli.md).
 
 Bir anahtar kelime ancak mesajın tamamıysa ya da mesajı bitiriyorsa sayılır; cümlenin içinde sıradan bir kelimedir. Büyük küçük harf ve aksan önemsenmez; `termınal devam` da çalışır. `dur` ve `toparla` yalnız mesajın tamamıysa sayılır, kazara tetiklenmez.
 
-| Anahtar    | Türkçe                                              | İngilizce                                           | Claude'a söylenen                                                                        |
-| ---------- | --------------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| devam      | `devam`, `terminal devam`                           | `continue`                                          | Otonom çalış; yalnız senin vermen gereken bir kararda dur                                |
-| manuel     | `manuel terminal devam`                             | `manual … continue`                                 | Adım adım; ne yapacağını söyle ve bekle                                                  |
-| sohbet     | `sohbet`                                            | `chat`                                              | Yalnız konuşma; "devam" diyene kadar proje ve hafızaya yazma reddedilir                  |
-| kota       | `kota 40`, `kota +8`                                | `quota 40`                                          | Haftalık bütçe: %40 ya da şu anki ölçümün 8 puan üstü                                    |
-| toparla    | `toparla`                                           | `wrap up`                                           | Adımı tutarlı bir yere getir, commit et, raporla, dur                                    |
-| dur        | `dur`                                               | `stop`                                              | Hemen dur; zamanlayıcıları ve ajanları durdur                                            |
-| durum      | `durum`                                             | `status`                                            | Durmadan nerede olduğunu söyle                                                           |
-| yardım     | `yardım`                                            | `help`                                              | Anahtar kelimeleri ve kuralları özetle                                                   |
-| modlar     | `araştırma`, `plan`, `kod`, `serbest`               | `research`, `plan`, `code`, `free`                  | Mod değiştir; bir akış sürerken, uzun bir mesajın sonunda yalnız o tur için              |
-| akış       | `akış`, `akış plan`, `akış araştırma`, `akış iptal` | `flow`, `flow plan`, `flow research`, `flow cancel` | Mesajdaki görevle bir akış başlat ya da akışı bitir                                      |
-| onay       | `onay`                                              | `approve`                                           | Onay bekleyen planı onayla (yalnız mesajın tamamıysa)                                    |
-| tam otonom | `terminal tam otonom kota +10`, `tam otonom iptal`  | `myproject full auto quota +10`, `full auto cancel` | Görevi sormadan sonuna kadar yürüt (bütçe gerekir; [docs/autonomy.md](docs/autonomy.md)) |
+| Anahtar    | Türkçe                                              | İngilizce                                           | Claude'a söylenen                                                                           |
+| ---------- | --------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| devam      | `devam`, `terminal devam`                           | `continue`                                          | Otonom çalış; yalnız senin vermen gereken bir kararda dur                                   |
+| manuel     | `manuel terminal devam`                             | `manual … continue`                                 | Adım adım; ne yapacağını söyle ve bekle                                                     |
+| sohbet     | `sohbet`                                            | `chat`                                              | Yalnız konuşma; "devam" diyene kadar proje ve hafızaya yazma reddedilir                     |
+| kota       | `kota 40`, `kota +8`                                | `quota 40`                                          | Haftalık bütçe: %40 ya da şu anki ölçümün 8 puan üstü                                       |
+| toparla    | `toparla`                                           | `wrap up`                                           | Adımı tutarlı bir yere getir, commit et, raporla, dur                                       |
+| dur        | `dur`                                               | `stop`                                              | Hemen dur; zamanlayıcıları ve ajanları durdur                                               |
+| durum      | `durum`                                             | `status`                                            | Durmadan nerede olduğunu söyle                                                              |
+| yardım     | `yardım`                                            | `help`                                              | Anahtar kelimeleri ve kuralları özetle                                                      |
+| modlar     | `araştırma`, `plan`, `kod`, `serbest`               | `research`, `plan`, `code`, `free`                  | Mod değiştir; bir akış sürerken, uzun bir mesajın sonunda yalnız o tur için                 |
+| akış       | `akış`, `akış plan`, `akış araştırma`, `akış iptal` | `flow`, `flow plan`, `flow research`, `flow cancel` | Mesajdaki görevle bir akış başlat ya da akışı bitir                                         |
+| onay       | `onay`                                              | `approve`                                           | Onay bekleyen planı onayla (yalnız mesajın tamamıysa)                                       |
+| tam otonom | `terminal tam otonom kota +10`, `tam otonom iptal`  | `myproject full auto quota +10`, `full auto cancel` | Görevi sormadan sonuna kadar yürüt (bütçe gerekir; [docs/autonomy.md](docs/autonomy.md))    |
+| devir      | `devir`, `terminal devir`                           | `handoff`, `myproject handoff`                      | Claude sonraki oturum için hafızana bir devir notu yazar ([docs/memory.md](docs/memory.md)) |
 
 Projelerine Ayarlar › Projeler ve anahtar kelimeler altından ad ver; kendi ifadelerini ayar dosyasına ekleyebilirsin. Ayrıntı: [docs/keywords.md](docs/keywords.md).
 
@@ -235,11 +237,10 @@ Kendi makinende `terminal-code doctor` aynı denetimleri yapar: Node.js, Claude 
 
 Sıradakiler, bu sırayla:
 
-- **Oturum devri:** `/clear` ve sıkıştırma öncesinde devir notu, sabah raporu. Oturum durumu sıkıştırmadan zaten sağ çıkıyor.
-- **Makineler arası eşitleme:** ayarlar ve geçmiş, yalnız ekleme, makine başına.
+- **Makineler arası eşitleme:** terminal-code'un kendi ayarları ve geçmişi, yalnız ekleme, makine başına. (Hafıza ve devir notları GitHub'ın üzerinden zaten taşınıyor.)
 - **Yayın:** nihai adla, kaynağı doğrulanabilir biçimde npm'de.
 
-Önceki yol haritasından tamamlananlar: bitti tanımıyla, WSL2'de tam otonom çalışma ([docs/autonomy.md](docs/autonomy.md)), modlar ve akışlar ([docs/modes.md](docs/modes.md)), kural şablonları (yedi tane), kota geçmişi, günlük ve haftalık rapor, bakım denetimi (`doctor`) ve [docs/testing.md](docs/testing.md) belgesinde anlatılan test süreci.
+Önceki yol haritasından tamamlananlar: devir notları ve sabah raporuyla hafızanın kurulumu ve eşitlenmesi ([docs/memory.md](docs/memory.md)), bitti tanımıyla, WSL2'de tam otonom çalışma ([docs/autonomy.md](docs/autonomy.md)), modlar ve akışlar ([docs/modes.md](docs/modes.md)), kural şablonları (yedi tane), kota geçmişi, günlük ve haftalık rapor, bakım denetimi (`doctor`) ve [docs/testing.md](docs/testing.md) belgesinde anlatılan test süreci.
 
 ## Katkı
 
