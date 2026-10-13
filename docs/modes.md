@@ -16,7 +16,7 @@ Chat, research and plan are the **restricted modes**. The safety belt and the pr
 
 "Outward actions" are tool calls that act on something outside the machine: MCP tools whose names say they send, create, update, delete, publish or post, and Claude Code tools that create worktrees or schedule work.
 
-The mode is shown beside Claude Code's own mode labels under the prompt (💬 chat, 🔍 research, 📐 plan, 🔨 code), with the flow's progress when a flow runs.
+The mode and the way of working are always in view: on the strip above the prompt, and beside Claude Code's own mode labels under it (💬 chat, 🔍 research, 📐 plan, 🔨 code, free; manual, autonomous, full auto), with the flow's progress when a flow runs. They are changed from the keyboard, the strip or a phone alike: see [Session controls](#session-controls).
 
 ### How a shell command is judged in a restricted mode
 
@@ -44,20 +44,55 @@ After a command runs, Claude Code itself reports whether it held the command rea
 
 ### Mode keywords
 
-Mode keywords follow the rules of every keyword ([keywords.md](keywords.md)): they count as the whole message or at its end, and matching ignores case, accents and Turkish keyboard variants.
+A mode keyword counts **only as the whole message**: `plan` switches to plan mode, "Bu bir plan." is a sentence. Plan, code, chat and research are everyday words, and a mode that changes by accident is worse than one more keystroke (decided with the author, 2026-10-13). Matching ignores case, accents and Turkish keyboard variants ([keywords.md](keywords.md)).
 
-- **Outside a flow** a mode keyword sets the session's mode until another mode keyword. `continue` / `devam` leaves chat, as before; it keeps research, plan and code.
-- **While a flow runs** the flow sets the mode. A mode keyword at the end of a longer message changes **only that turn**. A mode keyword as the **whole message** is an explicit choice: the flow is paused at its step and the session switches to that mode (`continue` resumes the flow).
+- **Outside a flow** a mode keyword sets the session's mode until another one. `continue` / `devam` leaves chat, as before; it keeps research, plan and code.
+- **While a flow runs** the flow sets the mode. A mode keyword is an explicit choice: the flow is paused at its step and the session switches to that mode (`continue` resumes the flow).
+
+## Session controls
+
+The mode and the **way of working** are what a person changes all the time, so they are always in view and change in one step, the same way from three places:
+
+| Where                                    | How                                                                                                                                                                    |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **The strip above the prompt**           | every control with its number, those in effect highlighted; click one (in a terminal that reports clicks), or ctrl+x tab to reach the strip, then the arrows and Enter |
+| **A slash command**                      | `/1` … `/9`, `/0`, `/devam`, `/kota`, `/akis` and their English names: from the keyboard, and from a phone, where clicking is awkward                                  |
+| **A keyword typed as the whole message** | `plan`, `otonom`, `manuel` …: as above                                                                                                                                 |
+
+| Command                | Does                                        | With text after it                                        |
+| ---------------------- | ------------------------------------------- | --------------------------------------------------------- |
+| `/1`                   | 💬 chat                                     | `/1 text`: switch, then send the text as your own message |
+| `/2`                   | 🔍 research                                 | the same                                                  |
+| `/3`                   | 📐 plan                                     | the same                                                  |
+| `/4`                   | 🔨 code                                     | the same                                                  |
+| `/5`                   | free                                        | the same                                                  |
+| `/6`                   | way of working: **manual**                  | the same                                                  |
+| `/7`                   | way of working: **autonomous**              | the same                                                  |
+| `/8`                   | way of working: **full auto** (asks)        | `/8 kota +10 the task`: no budget question                |
+| `/9`                   | a flow (asks which steps)                   | `/9 the task`: the flow last used in this folder          |
+| `/0`                   | where the session stands, and every command |                                                           |
+| `/devam` (`/continue`) | lists every project and folder to continue  | `/devam 3`, `/devam terminal`, `/devam 3 kota 29`         |
+| `/kota` (`/quota`)     | asks for a weekly budget                    | `/kota 70`, `/kota +5`                                    |
+
+- **Ways of working.** **Manual**: Claude does what the message asks, says what it did and what would come next, and waits; it asks when something needs your decision. A session starts manual, which is how Claude Code works by default. **Autonomous**: Claude goes on without asking between steps and stops only for a decision that is yours. **Full auto**: a run that works to its end without asking ([autonomy.md](autonomy.md)); it starts only where its checks pass, never on native Windows, where `/8` says so before asking anything.
+- **A plain digit is a message.** The strip's buttons have no digit shortcuts, so typing `3` sends "3" to Claude; `/3` is the command.
+- **The brake.** The mode, the way of working, the menu and the budget act at once, while Claude works too: switch to chat in the middle of a change and the next write is refused. A press on the strip puts a note into the conversation at once, which Claude reads at its next step.
+- **Values are asked when not given.** `/kota` asks for the budget (+5, +10, +20, or a number you type); `/9` asks which steps (research ▶ plan → approval → code, plan → approval → code, research only, research ▶ plan with no code) and then takes your next message as the task; `/8` runs its start checks, asks for a budget if none was given, and asks once more before anything starts. The order of a flow's steps is fixed: research comes before the plan, and the approval before any code, kept by code.
+- **Everything to continue.** `/devam` lists the registered projects first (★), then every folder Claude Code was used in, newest first, with how long ago; each row is pressable too. A folder that is not registered is continued under its own project key, so its handoff notes are found.
+- **The folder's last choice.** A new session (and the one after /clear) starts in the mode and way of working last used in the same folder, says so, and tells Claude with the first prompt. A full-autonomy run never comes back by itself: its way of working returns as autonomous.
+- **Each change is confirmed** in a line under the command ("Now: 📐 plan · autonomous"), or in a toast for a press, and Claude is told what changed in the same words a typed keyword gets.
+- **Separate from Claude Code's own modes.** Claude Code's permission modes (auto, accept edits, bypass permissions, its plan mode under shift+tab) stay Claude Code's and keep their labels. They work together: 📐 plan is bridged to Claude Code's plan mode, and full auto requires a permission mode that never stops to ask.
 
 ## Flows
 
-| Keyword (English / Turkish)        | Steps                                        |
-| ---------------------------------- | -------------------------------------------- |
-| `flow` / `akış`                    | 🔍 research ▶ 📐 plan → ⏸ approval → 🔨 code |
-| `flow plan` / `akış plan`          | 📐 plan → ⏸ approval → 🔨 code               |
-| `flow research` / `akış araştırma` | 🔍 research                                  |
+| Keyword (English / Turkish)                  | Steps                                        |
+| -------------------------------------------- | -------------------------------------------- |
+| `flow` / `akış`                              | 🔍 research ▶ 📐 plan → ⏸ approval → 🔨 code |
+| `flow plan` / `akış plan`                    | 📐 plan → ⏸ approval → 🔨 code               |
+| `flow research` / `akış araştırma`           | 🔍 research                                  |
+| `flow research plan` / `akış araştırma plan` | 🔍 research ▶ 📐 plan, no code               |
 
-Write the task and end the message with the keyword ("Add two-factor sign-in to the login page. flow"); a keyword alone starts the flow on the task under discussion.
+Write the task and end the message with the keyword ("Add two-factor sign-in to the login page. flow"); a keyword alone starts the flow on the task under discussion. `/9` does the same with a question instead of a keyword.
 
 The rules of a flow:
 
@@ -129,7 +164,7 @@ Where the plan is: the flow's work file, or, while Claude Code's plan mode is on
 | `continue` / `devam`, `<project> continue` | resumes a paused flow at its step; in a new session, `<project> continue` picks up that project's paused flow, and `continue` alone the flow of the folder |
 | `flow cancel` / `akış iptal`               | ends the flow; its record stays                                                                                                                            |
 | `status` / `durum`                         | Claude reports, with the flow's steps                                                                                                                      |
-| a mode keyword as the whole message        | pauses the flow and switches to that mode                                                                                                                  |
+| a mode keyword, `/1` … `/5`, or a press    | pauses the flow and switches to that mode                                                                                                                  |
 
 After a quota reset, autonomous work resumes by itself as before, except while a flow waits for approval: then the person is notified instead.
 
@@ -158,6 +193,8 @@ The record and the copies live in the tool's own folder, which the safety belt k
 - **Needs the plugin.** Modes and flows run in the plugin. Where the plugin is not loaded (an older Claude Code, plugins turned off by policy), the safety-net hook says so when a mode or flow keyword is typed; the safety belt runs either way.
 - **Claude Code's plan dialog needs an interactive session.** Headless sessions (`claude -p`) wait for `approve` / `onay` instead.
 - **A project inside a temporary folder is a temporary folder.** The restricted modes allow writes in temporary folders, and on Windows Git Bash's `/tmp` is the user's temporary folder, so a project kept there is writable in every mode.
+- **A command is a run of its own in a headless session.** In `claude -p`, `/2 <text>` switches the mode and ends the run: the text is sent only in an interactive session, the moment it is idle. Headless, send the command and the task as two messages (`--input-format stream-json`), as the live tests do.
+- **Clicks need a terminal that reports them.** Claude Code passes a click on the strip to the plugin where the terminal reports mouse clicks (its fullscreen layout); elsewhere, and on a phone, the slash commands and the keywords do the same.
 - **Plan mode's own questions stay.** In Claude Code's plan mode, a write outside its plan file asks the person first (Claude Code's rule, not this tool's); the guidance sends the plan to Claude Code's plan file there so that no such question comes up.
 
 ## Measured
@@ -172,6 +209,7 @@ All on the author's Windows 11 machine with Claude Code 2.1.296, 2026-10-13.
 | Mutation testing of the deciding code        | 483 of 483 changes caught in the classifier, modes, guard, flow and flow checks; 15 equivalents explained in `test/mutation-equivalents.json`                                                                                                             |
 | The flow_step tool's cost                    | 224 input tokens per request (the tool's name, description and schema in every request, mostly read from the prompt cache)                                                                                                                                |
 | Live, headless (`npm run test:live`)         | research mode refused a project write; a research flow ended only after its report passed the check (sources measured on disk)                                                                                                                            |
+| Live, headless, the controls (2026-10-13)    | `/3` alone set plan mode in the real engine and answered "Now: 📐 plan · manual"; `/2` then a task in one session: research mode refused the write. Windows, Claude Code 2.1.296, 15 of 15, $0.028                                                        |
 | Live, interactive (driven by hand)           | the plugin's approval dialog and Claude Code's plan dialog each approved a plan; the flow moved to its code step only after                                                                                                                               |
 
 ## Plan and status
@@ -180,7 +218,7 @@ The plan this page was written from (2026-10-12), kept as a checklist:
 
 - [x] Core: the five modes, what each allows, the effective mode (a turn's mode, the flow's step, Claude Code's plan mode, the session's mode).
 - [x] Core: the command classifier (five classes, the working folder followed through `cd`), and the mode guard for shell, file, MCP and Claude Code tools.
-- [x] Core: mode, flow and approval keywords in both languages; a mode keyword ending a message during a flow changes that turn only.
+- [x] Core: mode, flow and approval keywords in both languages. (2026-10-13: a mode keyword counts only as the whole message; the turn-only mode inside a flow went with it.)
 - [x] Core: the flow state machine (start, step done, approval, revision, pause, resume, cancel), its record, and the checks of the report and the plan.
 - [x] Plugin: the `flow_step` tool, the approval dialog, running the verification commands, Claude Code's plan dialog as an approval, plan-mode notes, labels and the approval line, flows across sessions and through compaction, quota resume that waits for approval.
 - [x] Safety-net hook: records Claude Code's permission mode; says when a mode keyword cannot be honoured because the plugin is not loaded.
