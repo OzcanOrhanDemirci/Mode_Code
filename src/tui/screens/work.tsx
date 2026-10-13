@@ -9,7 +9,7 @@ import { maskSecrets } from '../../core/secrets/scan.js';
 import { cacheHitRate, type SessionRow } from '../../node/index-db.js';
 import { repoStatus, git } from '../../node/git.js';
 import { readTail } from '../../node/tail.js';
-import { writeAtomic } from '../../node/fsx.js';
+import { readText, writeAtomic } from '../../node/fsx.js';
 import type { ScreenProps } from '../nav.js';
 import { Empty, Muted, Note, Row, Section, Table, useEnv, useScreenKeys, useT } from '../ui.js';
 import { LinkList, type Link } from '../widgets.js';
@@ -355,6 +355,41 @@ export function FlowsEmpty({ width }: ScreenProps) {
       <Muted wrap="wrap">{t('flows.empty')}</Muted>
       <Box marginTop={1}>
         <Note>{t('flows.howTo')}</Note>
+      </Box>
+    </Box>
+  );
+}
+
+/** Projects › Handoffs: one handoff note, as it is kept in the memory (docs/memory.md). */
+export function HandoffCard({ path, width }: ScreenProps & { path: string }) {
+  const { data, lang } = useEnv();
+  const t = useT();
+  const item = data.handoffs().find((h) => h.path === path);
+  const text = readText(path) ?? '';
+  const body = text.replace(/^---[\s\S]*?\n---\n+/, '');
+  return (
+    <Box flexDirection="column" width={width}>
+      {item ? (
+        <Section>
+          <Row label={t('handoff.project')}>{item.project}</Row>
+          <Row label={t('handoff.when')}>{`${dateTime(item.at, lang)}${item.machine ? ` · ${item.machine}` : ''}`}</Row>
+          <Row label={t('handoff.why')}>{t(`handoff.trigger.${item.trigger}` as MessageKey)}</Row>
+          <Row label={t('handoff.file')}>{shortPath(path, homedir(), width - 24)}</Row>
+        </Section>
+      ) : null}
+      <Text wrap="wrap">{body.split('\n').slice(0, 60).join('\n')}</Text>
+    </Box>
+  );
+}
+
+/** Projects › Handoffs before there is one: what a handoff note is and how one is written. */
+export function HandoffsEmpty({ width }: ScreenProps) {
+  const t = useT();
+  return (
+    <Box flexDirection="column" width={width}>
+      <Muted wrap="wrap">{t('handoff.empty')}</Muted>
+      <Box marginTop={1}>
+        <Note>{t('handoff.howTo')}</Note>
       </Box>
     </Box>
   );

@@ -24,7 +24,12 @@ export interface Env {
   flash(text: string, kind?: 'ok' | 'warn' | 'bad'): void;
   /** Bumps when data should be read again. */
   tick: number;
+  /** Leaves for something that talks in the terminal, and comes back at `back` (absent in tests and without a terminal). */
+  leave?: (action: LeaveAction, back: string) => void;
 }
+
+/** What the control center leaves the screen for. */
+export type LeaveAction = 'memory-setup';
 
 export const EnvContext = createContext<Env | null>(null);
 

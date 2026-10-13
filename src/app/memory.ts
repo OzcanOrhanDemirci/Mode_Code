@@ -7,7 +7,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import type { MemoryStore } from '../core/config.js';
-import type { Handoff } from '../core/handoff.js';
+import { nextOf, parseHandoff, type Handoff } from '../core/handoff.js';
 import { memorySyncFile } from '../core/layout.js';
 import { handoffRoot } from '../core/memory.js';
 import { newestRecord, parseSyncRecord, type SyncRecord } from '../core/memory-sync.js';
@@ -182,4 +182,42 @@ export function morningFacts(ctx: AppContext, since: number, until: number, opts
     memory,
     notes: pendingNoteRuns(ctx).length,
   };
+}
+
+export interface HandoffItem {
+  project: string;
+  path: string;
+  at: number;
+  trigger: string;
+  machine: string;
+  next: string;
+}
+
+/** Every project's handoff notes, newest first, read back (at most `limit`). */
+export function allHandoffs(ctx: Pick<AppContext, 'config' | 'layout'>, limit = 100): HandoffItem[] {
+  const root = handoffRoot(ctx.config.memory.store?.dir ?? null, ctx.layout.handoffsDir);
+  let projects: string[] = [];
+  try {
+    projects = readdirSync(root, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name);
+  } catch {
+    return [];
+  }
+  const all = projects.flatMap((p) => handoffsOf(ctx, p).map((h) => ({ project: p, ...h })));
+  all.sort((a, b) => (a.name < b.name ? 1 : a.name > b.name ? -1 : 0));
+  const out: HandoffItem[] = [];
+  for (const h of all.slice(0, limit)) {
+    const text = readText(h.path);
+    const note = text ? parseHandoff(text) : null;
+    if (note) out.push({ project: h.project, path: h.path, at: note.at, trigger: note.trigger, machine: note.machine, next: nextOf(note) });
+  }
+  return out;
+}
+
+/** The morning report of the last long gap while it is recent (12 hours after it ended); null otherwise. */
+export function recentMorning(ctx: AppContext, now: number, opts: { index?: boolean } = {}): { since: number; facts: MorningFacts } | null {
+  const a = parseActivity(readText(ctx.layout.activity));
+  if (!a.away || now - a.away.to > 12 * 3_600_000) return null;
+  return { since: a.away.from, facts: morningFacts(ctx, a.away.from, now, opts) };
 }

@@ -10,12 +10,25 @@ import type { NavNode, ScreenProps } from './nav.js';
 import type { DataSource } from './store.js';
 import { inboxEvents, Inbox, Overview } from './screens/home.js';
 import { Folders, Quota, ReportScreen, Tokens, Tools } from './screens/measure.js';
-import { FlowCard, FlowsEmpty, ProjectCard, RunCard, RunsEmpty, SessionCard, sessionLabel } from './screens/work.js';
+import { FlowCard, FlowsEmpty, HandoffCard, HandoffsEmpty, ProjectCard, RunCard, RunsEmpty, SessionCard, sessionLabel } from './screens/work.js';
 import { flowTitle, statusText } from '../core/flow-view.js';
 import { Events, Protection, RuleDetail, Secrets, TestCommand } from './screens/security.js';
 import { Extensions, Hooks, Instructions, Mcp, Permissions, Plugins, SettingsSources } from './screens/claude.js';
 import { Templates } from './screens/templates.js';
-import { About, Accessibility, Autonomy, FooterAndQuota, General, Keywords, Maintenance, Memory, Modules, Projects } from './screens/settings.js';
+import {
+  About,
+  Accessibility,
+  Autonomy,
+  FooterAndQuota,
+  General,
+  Keywords,
+  Maintenance,
+  Memory,
+  MemoryHandoffs,
+  MemoryStore,
+  Modules,
+  Projects,
+} from './screens/settings.js';
 
 const other = (lang: Lang): Lang => (lang === 'tr' ? 'en' : 'tr');
 
@@ -102,12 +115,32 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
       : { screen: (p: ScreenProps) => <RunsEmpty {...p} /> }),
   });
 
+  const handoffs = data.handoffs();
+  const handoffsNode = n('handoffs', 'page.handoffs', {
+    description: d('desc.handoffs'),
+    ...(handoffs.length ? { badge: { text: String(handoffs.length), state: 'info' as const } } : {}),
+    ...(handoffs.length
+      ? {
+          children: () =>
+            handoffs.map((h) => ({
+              id: h.path.split('/').slice(-2).join('-').replace(/\.md$/, ''),
+              label: `${h.project} · ${h.next.slice(0, 40) || h.trigger}`,
+              description: d('desc.handoff'),
+              badge: { text: ago(h.at, now, lang), state: 'info' as const },
+              keywords: [h.project, h.next],
+              screen: (p: ScreenProps) => <HandoffCard path={h.path} {...p} />,
+            })),
+        }
+      : { screen: (p: ScreenProps) => <HandoffsEmpty {...p} /> }),
+  });
+
   const projects = n('projects', 'cat.projects', {
     description: d('desc.projects'),
     ...(waiting ? { badge: { text: t('badge.waiting', { n: waiting }), state: 'gray' as const } } : {}),
     children: () => [
       flowsNode,
       runsNode,
+      handoffsNode,
       ...data.folders(90).map((f) => ({
         id: encodeURIComponent(f.cwd),
         label: shortPath(f.cwd, homedir(), 48),
@@ -214,7 +247,20 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
       n('general', 'page.general', { description: d('desc.general'), screen: (p) => <General {...p} /> }),
       n('modules', 'page.modules', { description: d('desc.modules'), screen: (p) => <Modules {...p} /> }),
       n('footer-quota', 'page.footerQuota', { description: d('desc.footerQuota'), minView: 'recommended', screen: (p) => <FooterAndQuota {...p} /> }),
-      n('memory', 'page.memory', { description: d('desc.memory'), screen: (p) => <Memory {...p} /> }),
+      n('memory', 'page.memory', {
+        description: d('desc.memory'),
+        badge: (() => {
+          const v = data.memory();
+          if (!v.store) return { text: t('mem.notSetUp'), state: 'gray' as const };
+          if (!v.inUse || v.last?.result.pull === 'conflict') return { text: t('health.state.red'), state: 'red' as const };
+          return { text: t(`msetup.place.${v.store.place}` as MessageKey), state: 'info' as const };
+        })(),
+        children: () => [
+          n('store', 'page.memoryStore', { description: d('desc.memoryStore'), screen: (p) => <MemoryStore {...p} /> }),
+          n('handoffs', 'page.memoryHandoffs', { description: d('desc.memoryHandoffs'), screen: (p) => <MemoryHandoffs {...p} /> }),
+          n('protected', 'page.memoryProtected', { description: d('desc.memoryProtected'), screen: (p) => <Memory {...p} /> }),
+        ],
+      }),
       n('projects', 'page.projects', { description: d('desc.projectsSet'), screen: (p) => <Projects {...p} /> }),
       n('autonomy', 'page.autonomy', { description: d('desc.autonomy'), screen: (p) => <Autonomy {...p} /> }),
       n('keywords', 'page.keywords', { description: d('desc.keywords'), screen: (p) => <Keywords {...p} /> }),

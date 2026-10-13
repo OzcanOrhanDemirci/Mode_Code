@@ -98,40 +98,42 @@ function syncLine(ctx: AppContext, r: SyncResult): string {
   return parts.join(' · ');
 }
 
+/** The setup in this terminal: refused under an agent or without a terminal; saves the choices when it went through. */
+export async function runMemorySetup(ctx: AppContext): Promise<number> {
+  // The setup changes Claude Code's settings and may create a repository: the person's own terminal only.
+  if (underAgent()) {
+    say(red(T(ctx, 'cli.agentRefused')));
+    return 1;
+  }
+  if (!process.stdin.isTTY) {
+    say(red(T(ctx, 'mcli.needsTerminal')));
+    return 2;
+  }
+  const out = await memorySetup(terminalIO(ctx), {
+    lang: ctx.lang,
+    platform,
+    home: home(),
+    cwd: ctx.cwd,
+    layout: ctx.layout,
+    claudeDir: claudeDir(),
+    config: ctx.config,
+    runner: nodeRunner,
+    has,
+    exists: existsSync,
+    now: Date.now,
+  });
+  if (out.ok && out.config) {
+    writeAtomic(ctx.layout.config, serializeConfig(out.config));
+    if (out.sync) writeJsonAtomic(memorySyncFile(ctx.layout, 'cli'), { at: Date.now(), trigger: 'setup', session: null, result: out.sync });
+  }
+  return out.ok ? 0 : 1;
+}
+
 export async function cmdMemory(a: Args): Promise<number> {
   const ctx = appContext();
   const sub = a.positionals[0] ?? 'status';
 
-  if (sub === 'setup') {
-    // The setup changes Claude Code's settings and may create a repository: the person's own terminal only.
-    if (underAgent()) {
-      say(red(T(ctx, 'cli.agentRefused')));
-      return 1;
-    }
-    if (!process.stdin.isTTY) {
-      say(red(T(ctx, 'mcli.needsTerminal')));
-      return 2;
-    }
-    const out = await memorySetup(terminalIO(ctx), {
-      lang: ctx.lang,
-      platform,
-      home: home(),
-      cwd: ctx.cwd,
-      layout: ctx.layout,
-      claudeDir: claudeDir(),
-      config: ctx.config,
-      runner: nodeRunner,
-      has,
-      exists: existsSync,
-      now: Date.now,
-    });
-    if (out.ok && out.config) {
-      writeAtomic(ctx.layout.config, serializeConfig(out.config));
-      if (out.sync) writeJsonAtomic(memorySyncFile(ctx.layout, 'cli'), { at: Date.now(), trigger: 'setup', session: null, result: out.sync });
-    }
-    return out.ok ? 0 : 1;
-  }
-
+  if (sub === 'setup') return runMemorySetup(ctx);
   if (sub === 'sync') {
     const r = await syncStore(ctx.config, { trigger: 'manual', session: null, lang: ctx.lang });
     if (!r) {

@@ -8,6 +8,7 @@ import { LANGUAGES, type MessageKey } from '../../core/i18n/index.js';
 import { keywordTables } from '../../core/settings-view.js';
 import { ago, shortPath } from '../../core/format.js';
 import { KEYWORD_LISTS } from '../../core/keywords.js';
+import { nextOf } from '../../core/handoff.js';
 import type { ScreenProps } from '../nav.js';
 import { Muted, Note, Row, Section, StateMark, useEnv, useScreenKeys, useT } from '../ui.js';
 import { SettingsEditor, TextField, type Field } from '../widgets.js';
@@ -213,6 +214,100 @@ function StringList({
   );
 }
 
+/** Where the memory lives (docs/memory.md): its place, whether Claude Code uses it, its sync; "s" opens the setup. */
+export function MemoryStore({ width, open }: ScreenProps) {
+  const { data, flash, theme, leave, lang, now } = useEnv();
+  const t = useT();
+  const v = data.memory();
+  useScreenKeys((input) => {
+    if (input !== 's') return false;
+    if (leave) leave('memory-setup', 'settings/memory/store');
+    else flash(t('mem.setupCli'), 'warn');
+    return true;
+  }, open);
+  const s = v.store;
+  const last = v.last;
+  return (
+    <Box flexDirection="column" width={width}>
+      <Muted>{t('mem.intro')}</Muted>
+      <Box marginTop={1} flexDirection="column">
+        <Row label={t('mem.place')}>{s ? t(`msetup.place.${s.place}` as MessageKey) : t('mem.notSetUp')}</Row>
+        {s ? <Row label={t('mcli.folder')}>{shortPath(s.dir, homedir(), width - 24)}</Row> : null}
+        {s && (s.repo || s.remote) ? <Row label="GitHub">{s.repo ?? s.remote ?? ''}</Row> : null}
+        <Row label={t('mcli.claude')} {...(s ? { color: v.inUse ? theme.ok : theme.bad } : {})}>
+          {s
+            ? v.inUse
+              ? `✓ ${t('mcli.inUse')}`
+              : `✗ ${t('mcli.notInUse', { dir: v.setting ? shortPath(v.setting, homedir(), 40) : t('mcli.perProject') })}`
+            : v.setting
+              ? shortPath(v.setting, homedir(), width - 24)
+              : t('mcli.perProject')}
+        </Row>
+        {s && v.local ? (
+          <Row label={t('mcli.local')}>
+            {[
+              v.local.isRepo ? t('mcli.local.repo') : t('mcli.local.noRepo'),
+              v.local.dirty ? t('mcli.local.dirty', { n: v.local.dirty }) : '',
+              v.local.ahead ? t('mcli.local.ahead', { n: v.local.ahead }) : '',
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </Row>
+        ) : null}
+        {s ? (
+          <Row label={t('mcli.sync')}>
+            {t(`mcli.sync.${s.sync}` as MessageKey)}
+            {last
+              ? ` · ${ago(last.at, now, lang)}: ${t(`mem.last.${last.result.pull === 'conflict' ? 'conflict' : last.result.held.length ? 'held' : 'ok'}` as MessageKey)}`
+              : ''}
+          </Row>
+        ) : null}
+        {v.handoff ? <Row label={t('mcli.handoff')}>{`${ago(v.handoff.note.at, now, lang)} · ${nextOf(v.handoff.note, width - 40)}`}</Row> : null}
+        {v.pendingNotes ? (
+          <Row label={t('mcli.notes')} color={theme.warn}>
+            {t('mcli.notes.pending', { n: v.pendingNotes, cmd: `${APP_NAME} memory notes` })}
+          </Row>
+        ) : null}
+      </Box>
+      <Box marginTop={1}>
+        <Note kind={s ? 'info' : 'warn'}>{t(s ? 'mem.changeKey' : 'mem.setupKey')}</Note>
+      </Box>
+    </Box>
+  );
+}
+
+/** Handoff notes and the morning report: when they are written and offered. */
+export function MemoryHandoffs({ width, open }: ScreenProps) {
+  const { data } = useEnv();
+  const t = useT();
+  const m = data.config().memory;
+  const b = (path: string, label: MessageKey, help: MessageKey, value: boolean): Field => ({
+    path,
+    label: t(label),
+    help: t(help),
+    value,
+    type: { kind: 'bool' },
+  });
+  const n = (path: string, label: MessageKey, help: MessageKey, value: number, min: number, max: number): Field => ({
+    path,
+    label: t(label),
+    help: t(help),
+    value,
+    type: { kind: 'number', min, max },
+  });
+  const fields: Field[] = [
+    b('memory.handoff.enabled', 'set.handoff.enabled', 'set.handoff.enabledHelp', m.handoff.enabled),
+    b('memory.handoff.onCompact', 'set.handoff.onCompact', 'set.handoff.onCompactHelp', m.handoff.onCompact),
+    b('memory.handoff.onEnd', 'set.handoff.onEnd', 'set.handoff.onEndHelp', m.handoff.onEnd),
+    n('memory.handoff.keep', 'set.handoff.keep', 'set.handoff.keepHelp', m.handoff.keep, 1, 500),
+    n('memory.handoff.maxAgeDays', 'set.handoff.maxAgeDays', 'set.handoff.maxAgeDaysHelp', m.handoff.maxAgeDays, 1, 365),
+    b('memory.morning.enabled', 'set.morning.enabled', 'set.morning.enabledHelp', m.morning.enabled),
+    n('memory.morning.afterHours', 'set.morning.afterHours', 'set.morning.afterHoursHelp', m.morning.afterHours, 1, 72),
+  ];
+  return <SettingsEditor fields={fields} open={open} width={width} />;
+}
+
+/** The folders the safety belt protects as memory (deletes refused, shrinking asked about). */
 export function Memory({ width, open }: ScreenProps) {
   const { data, flash } = useEnv();
   const t = useT();
@@ -232,7 +327,7 @@ export function Memory({ width, open }: ScreenProps) {
           addLabel={t('memory.addLabel')}
           onAdd={(v) => save([...dirs, v])}
           onRemove={(i) => save(dirs.filter((_, j) => j !== i))}
-          render={(s) => shortPath(s, homedir(), width - 4)}
+          render={(x) => shortPath(x, homedir(), width - 4)}
           emptyText={t('memory.none')}
         />
       </Box>

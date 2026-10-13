@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { Box, Text } from 'ink';
 import { homedir } from 'node:os';
-import { ago, compact, percent, until, shortPath } from '../../core/format.js';
+import { ago, compact, dateTime, percent, until, shortPath } from '../../core/format.js';
 import type { MessageKey } from '../../core/i18n/index.js';
 import { healthCounts } from '../../app/health.js';
 import type { ToolEvent } from '../../app/data.js';
@@ -57,8 +57,19 @@ export function Overview({ width, height, open }: ScreenProps) {
     right: `${shortPath(s.cwd, homedir(), 24)} · ${ago(s.lastTs, now, lang)}`,
     address: `sessions/${s.id}`,
   }));
+  // After a long gap: what happened while the person was away (the morning report, docs/memory.md).
+  const morning = data.morning();
   return (
     <Box flexDirection="column" width={width}>
+      {morning && morning.lines.length ? (
+        <Section title={t('morning.title', { since: dateTime(morning.since, lang) })}>
+          {morning.lines.slice(0, 8).map((l, i) => (
+            <Row key={i} label={l.label}>
+              {l.text}
+            </Row>
+          ))}
+        </Section>
+      ) : null}
       <Section title={t('home.protection')}>
         {belt.state === 'absent' ? (
           <Note kind="warn">{t('home.notInstalled')}</Note>

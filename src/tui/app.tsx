@@ -14,7 +14,7 @@ import { allEntries, CATEGORY_IDS, resolve, searchEntries, visible, type NavNode
 import type { DataSource } from './store.js';
 import { buildTree } from './tree.js';
 import { makeTheme, stateColor, type Theme } from './theme.js';
-import { dispatchKey, EnvContext, KeyHints, KeyScopeContext, ListView, Muted, type Env, type KeyScope, type ListItem } from './ui.js';
+import { dispatchKey, EnvContext, KeyHints, KeyScopeContext, ListView, Muted, type Env, type KeyScope, type LeaveAction, type ListItem } from './ui.js';
 
 export interface AppProps {
   data: DataSource;
@@ -24,6 +24,8 @@ export interface AppProps {
   /** Fixed clock for tests. */
   now?: () => number;
   size?: { columns: number; rows: number };
+  /** Leaves the control center for something that talks in the terminal (the memory setup), then comes back at `back`. */
+  onLeave?: (action: LeaveAction, back: string) => void;
 }
 
 interface Flash {
@@ -133,7 +135,23 @@ export function App(props: AppProps) {
     return () => clearInterval(h);
   }, []);
 
-  const env: Env = { data, theme, lang, now, go, flash: showFlash, tick };
+  const env: Env = {
+    data,
+    theme,
+    lang,
+    now,
+    go,
+    flash: showFlash,
+    tick,
+    ...(props.onLeave
+      ? {
+          leave: (action: LeaveAction, back: string) => {
+            props.onLeave!(action, back);
+            app.exit();
+          },
+        }
+      : {}),
+  };
 
   const move = (delta: number) => setSel((s) => ({ ...s, [listKey]: Math.max(0, Math.min(list.length - 1, index + delta)) }));
   const enter = () => {

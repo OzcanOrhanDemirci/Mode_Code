@@ -4,8 +4,9 @@
  * frame is written whole and the last write is the screen as a person would see it.
  */
 import { render } from 'ink';
+import type { HandoffItem, MemoryView } from '../../src/app/memory.js';
 import { EventEmitter } from 'node:events';
-import { App } from '../../src/tui/app.js';
+import { App, type AppProps } from '../../src/tui/app.js';
 import { cloneDefaults, setConfigValue, type Config, type ConfigProblem } from '../../src/core/config.js';
 import { layout } from '../../src/core/layout.js';
 import type { Lang } from '../../src/core/i18n/index.js';
@@ -259,6 +260,27 @@ export class FakeData implements DataSource {
   autonomyCheck() {
     return this.check;
   }
+  memoryState: MemoryView = {
+    store: null,
+    setting: null,
+    inUse: false,
+    last: null,
+    local: null,
+    project: 'app',
+    handoff: null,
+    pendingNotes: 0,
+  };
+  memory() {
+    return this.memoryState;
+  }
+  handoffList: HandoffItem[] = [];
+  handoffs() {
+    return this.handoffList;
+  }
+  morningReport: { since: number; lines: { label: string; text: string }[] } | null = null;
+  morning() {
+    return this.morningReport;
+  }
   lastSeen() {
     return this.seen;
   }
@@ -336,11 +358,21 @@ export interface Screen {
   close(): void;
 }
 
-export async function draw(data: DataSource, opts: { columns?: number; rows?: number; address?: string | null; plain?: boolean } = {}): Promise<Screen> {
+export async function draw(
+  data: DataSource,
+  opts: { columns?: number; rows?: number; address?: string | null; plain?: boolean; onLeave?: AppProps['onLeave'] } = {},
+): Promise<Screen> {
   const stdout = new FakeStdout(opts.columns ?? 110, opts.rows ?? 32);
   const stdin = new FakeStdin();
   const inst = render(
-    <App data={data} size={{ columns: stdout.columns, rows: stdout.rows }} address={opts.address ?? null} plain={opts.plain ?? false} now={() => NOW} />,
+    <App
+      data={data}
+      size={{ columns: stdout.columns, rows: stdout.rows }}
+      address={opts.address ?? null}
+      plain={opts.plain ?? false}
+      now={() => NOW}
+      {...(opts.onLeave ? { onLeave: opts.onLeave } : {})}
+    />,
     {
       stdout: stdout as unknown as NodeJS.WriteStream,
       stdin: stdin as unknown as NodeJS.ReadStream,

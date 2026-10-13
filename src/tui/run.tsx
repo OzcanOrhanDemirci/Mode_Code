@@ -8,6 +8,8 @@ import { SessionIndex } from '../node/index-db.js';
 import { claudeDir } from '../node/env.js';
 import { LiveData } from './store.js';
 import { App } from './app.js';
+import type { LeaveAction } from './ui.js';
+import { runMemorySetup } from '../cli/memory.js';
 
 export async function runControlCenter(opts: { address: string | null; plain: boolean }): Promise<number> {
   const ctx = appContext();
@@ -28,12 +30,26 @@ export async function runControlCenter(opts: { address: string | null; plain: bo
   } catch (err) {
     process.stderr.write(`${tIn(ctx.lang, 'tui.indexFailed', { error: (err as Error).message })}\n`);
   }
-  const data = new LiveData(ctx);
-  const instance = render(<App data={data} address={opts.address} plain={opts.plain} />, { alternateScreen: true, exitOnCtrlC: true, patchConsole: true });
-  try {
-    await instance.waitUntilExit();
-  } finally {
-    data.close();
+  // The control center can leave for something that talks in the terminal (the memory setup) and come back.
+  let address = opts.address;
+  for (;;) {
+    let leave: { action: LeaveAction; back: string } | null = null;
+    const data = new LiveData(appContext());
+    const instance = render(<App data={data} address={address} plain={opts.plain} onLeave={(action, back) => (leave = { action, back })} />, {
+      alternateScreen: true,
+      exitOnCtrlC: true,
+      patchConsole: true,
+    });
+    try {
+      await instance.waitUntilExit();
+    } finally {
+      data.close();
+    }
+    const left = leave as { action: LeaveAction; back: string } | null;
+    if (!left) return 0;
+    if (left.action === 'memory-setup') await runMemorySetup(appContext());
+    process.stdout.write(`\n${tIn(ctx.lang, 'tui.backSoon')}\n`);
+    await new Promise((r) => setTimeout(r, 1200));
+    address = left.back;
   }
-  return 0;
 }

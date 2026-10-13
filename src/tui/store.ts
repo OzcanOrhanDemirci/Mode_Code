@@ -25,6 +25,8 @@ import { flowFiles, loadFlows, type FlowFiles } from '../app/flows.js';
 import { autonomyCheck, loadRuns, runFiles, type RunFiles } from '../app/runs.js';
 import type { Run } from '../core/run.js';
 import type { GateResult } from '../core/run-gate.js';
+import { allHandoffs, memoryView, recentMorning, type HandoffItem, type MemoryView } from '../app/memory.js';
+import { morningLines } from '../core/morning.js';
 
 export interface Timed<T> {
   at: number;
@@ -72,6 +74,12 @@ export interface DataSource {
   runFiles(r: Run): RunFiles;
   /** The start checks of full autonomy that can be measured from here (see app/runs.ts). */
   autonomyCheck(): GateResult;
+  /** Where the memory lives and how it stands (docs/memory.md). */
+  memory(): MemoryView;
+  /** Every project's handoff notes, newest first. */
+  handoffs(): HandoffItem[];
+  /** The morning report of the last long gap while it is recent; null otherwise. */
+  morning(): { since: number; lines: { label: string; text: string }[] } | null;
   refresh(): void;
   close(): void;
 }
@@ -221,6 +229,18 @@ export class LiveData implements DataSource {
   }
   autonomyCheck(): GateResult {
     return this.memo('autonomyCheck', 30_000, () => autonomyCheck(this.ctx, this.cwd));
+  }
+  memory(): MemoryView {
+    return this.memo('memory', 5_000, () => memoryView(this.ctx, this.cwd));
+  }
+  handoffs(): HandoffItem[] {
+    return this.memo('handoffs', 5_000, () => allHandoffs(this.ctx));
+  }
+  morning(): { since: number; lines: { label: string; text: string }[] } | null {
+    return this.memo('morning', 30_000, () => {
+      const m = recentMorning(this.ctx, Date.now());
+      return m ? { since: m.since, lines: morningLines(m.facts, this.ctx.lang) } : null;
+    });
   }
   lastSeen(): number | null {
     const s = readJson<{ lastSeenAt?: number }>(this.ctx.layout.stateDir + '/ui.json');
