@@ -1,6 +1,6 @@
 node_modules/
-dist/
-coverage/
+/dist/
+/coverage/
 *.log
 *.tgz
 .DS_Store

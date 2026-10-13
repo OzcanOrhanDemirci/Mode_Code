@@ -1,6 +1,6 @@
-dist/
+/dist/
 node_modules/
-coverage/
+/coverage/
 LICENSE
 package-lock.json
 THIRD_PARTY_NOTICES.md
