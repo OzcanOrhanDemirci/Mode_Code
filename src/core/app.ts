@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Identity of the tool in one place. The public name is not final yet: every name a user sees, every
- * folder and every plugin id is derived from these constants, so a rename is a one-file change.
+ * Identity of the tool in one place. The public name is not final yet. Folders, the plugin's and the
+ * marketplace's ids are derived from these constants; the name also appears written out in messages,
+ * documents and tests, so a rename is made by `scripts/rename.ts`, which changes every spelling in one
+ * pass and records the old name in PREVIOUS_NAMES (docs/release.md, "Renaming").
  */
 
 declare const __TC_VERSION__: string | undefined;
@@ -11,6 +13,16 @@ export const APP_ID = 'terminal-code';
 
 /** Human name shown in the interface. */
 export const APP_NAME = 'terminal-code';
+
+/** False while the name is a working name: the about screen says so. scripts/rename.ts sets it. */
+export const NAME_IS_FINAL = false;
+
+/**
+ * Earlier names, newest first. An installation made under one of them is moved by the installer (its data
+ * kept, its hooks and plugin replaced), and what it wrote into a person's folders is still recognised.
+ * Only scripts/rename.ts writes this list.
+ */
+export const PREVIOUS_NAMES: readonly { readonly id: string; readonly name: string }[] = [];
 
 /** Version string, injected by the build; "dev" when running from source. */
 export const APP_VERSION: string = typeof __TC_VERSION__ === 'string' ? __TC_VERSION__ : 'dev';

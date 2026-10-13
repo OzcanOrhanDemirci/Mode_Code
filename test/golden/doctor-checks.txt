@@ -8,6 +8,7 @@ claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
 claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"dev"}
 install.manifest ok doc.install.ok {"v":"dev","when":"2026-10-11"}
+install.previous skip doc.install.previous.never
 install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
@@ -50,6 +51,7 @@ claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
 claude.plugin skip doc.notInstalled
 install.manifest info hint=doc.install.hint doc.install.none
+install.previous skip doc.install.previous.never
 install.hookProgram skip protection doc.notInstalled
 install.hooks skip protection doc.notInstalled
 install.pluginFiles skip doc.notInstalled
@@ -92,6 +94,7 @@ claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
 claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"dev"}
 install.manifest ok doc.install.ok {"v":"dev","when":"2026-10-11"}
+install.previous skip doc.install.previous.never
 install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
@@ -136,6 +139,7 @@ claude.settings fail protection hint=doc.claude.settings.hintBackup doc.claude.s
 claude.hooksOn ok protection doc.claude.hooksOn.ok
 claude.plugin info doc.claude.plugin.offInScope {"scope":"project","path":"C:/dev/app/.claude/settings.json"}
 install.manifest ok doc.install.ok {"v":"dev","when":"2026-10-11"}
+install.previous skip doc.install.previous.never
 install.hookProgram warn protection repair=restore-hook-program doc.install.hook.notThisBuild
 install.hooks fail protection repair=restore-hooks doc.install.hooks.missing {"events":"UserPromptSubmit, SessionStart","n":2,"of":4}
 install.pluginFiles warn repair=restore-plugin-files doc.install.pluginFiles.bad {"n":1}
@@ -186,6 +190,7 @@ claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
 claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"dev"}
 install.manifest ok doc.install.ok {"v":"dev","when":"2026-10-11"}
+install.previous skip doc.install.previous.never
 install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
@@ -228,6 +233,7 @@ claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
 claude.plugin warn repair=reinstall-plugin doc.claude.plugin.missing {"id":"terminal-code@terminal-code-local"}
 install.manifest ok doc.install.ok {"v":"dev","when":"2026-10-11"}
+install.previous skip doc.install.previous.never
 install.hookProgram fail protection repair=restore-hook-program doc.install.hook.missing {"path":"C:/Users/ada/.terminal-code/bin/hook.mjs"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles info doc.install.hook.noBuild
@@ -269,6 +275,7 @@ claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
 claude.plugin warn repair=enable-plugin doc.claude.plugin.disabled {"id":"terminal-code@terminal-code-local"}
 install.manifest ok doc.install.ok {"v":"dev","when":"2026-10-11"}
+install.previous skip doc.install.previous.never
 install.hookProgram info protection doc.install.hook.noBuild
 install.hooks fail protection repair=restore-hooks doc.install.hooks.changed
 install.pluginFiles ok doc.install.pluginFiles.ok
@@ -314,6 +321,7 @@ claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
 claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"older"}
 install.manifest warn doc.install.otherData {"recorded":"D:/elsewhere/.terminal-code","now":"C:/Users/ada/.terminal-code"}
+install.previous skip doc.install.previous.never
 install.hookProgram warn protection repair=restore-hook-program doc.install.hook.notThisBuild
 install.hooks warn repair=remove-duplicate-hooks doc.install.hooks.duplicates {"n":2}
     doc.line {"text":"UserPromptSubmit"}
@@ -360,6 +368,7 @@ claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
 claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"0.1.0"}
 install.manifest ok doc.install.ok {"v":"0.1.0","when":"2026-10-11"}
+install.previous skip doc.install.previous.never
 install.hookProgram warn protection repair=restore-hook-program doc.install.hook.otherBuild {"version":"0.1.0"}
 install.hooks fail protection repair=restore-hooks doc.install.hooks.older {"tools":"Monitor"}
 install.pluginFiles ok doc.install.pluginFiles.ok
@@ -402,6 +411,7 @@ claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
 claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"0.1.0"}
 install.manifest ok doc.install.ok {"v":"0.1.0","when":"2026-10-11"}
+install.previous skip doc.install.previous.never
 install.hookProgram fail protection repair=restore-hook-program doc.install.hook.differs {"path":"C:/Users/ada/.terminal-code/bin/hook.mjs"}
 install.hooks fail protection repair=restore-hooks doc.install.hooks.changed
 install.pluginFiles ok doc.install.pluginFiles.ok
@@ -444,6 +454,7 @@ claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
 claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"0.1.0"}
 install.manifest ok doc.install.ok {"v":"0.1.0","when":"2026-10-11"}
+install.previous skip doc.install.previous.never
 install.hookProgram fail protection repair=restore-hook-program doc.install.hook.altered {"path":"C:/Users/ada/.terminal-code/bin/hook.mjs"}
 install.hooks fail protection repair=restore-hooks doc.install.hooks.changed
 install.pluginFiles ok doc.install.pluginFiles.ok
@@ -486,6 +497,7 @@ claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
 claude.plugin warn repair=restore-plugin-files doc.claude.plugin.otherVersion {"have":"0.1.0","now":"0.2.0"}
 install.manifest ok doc.install.ok {"v":"0.1.0","when":"2026-10-11"}
+install.previous skip doc.install.previous.never
 install.hookProgram warn protection repair=restore-hook-program doc.install.hook.older {"have":"0.1.0","now":"0.2.0"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
@@ -528,6 +540,7 @@ claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
 claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"0.1.0"}
 install.manifest ok doc.install.ok {"v":"0.1.0","when":"2026-10-11"}
+install.previous skip doc.install.previous.never
 install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks fail protection repair=restore-hooks doc.install.hooks.changed
 install.pluginFiles ok doc.install.pluginFiles.ok
@@ -570,6 +583,7 @@ claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
 claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"0.1.0"}
 install.manifest ok doc.install.ok {"v":"0.1.0","when":"2026-10-11"}
+install.previous skip doc.install.previous.never
 install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok

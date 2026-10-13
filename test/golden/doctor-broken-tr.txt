@@ -54,7 +54,7 @@ Veri
 Öz-sınama
   ✓ 1 paketteki 30 yerleşik örneğin hepsi beklenen cevabı verdi.
 
-2.1 sn içinde 39 denetim: 28 tamam, 2 uyarı, 3 sorun.
+2.1 sn içinde 40 denetim: 28 tamam, 2 uyarı, 3 sorun.
 Sorunlardan 3 tanesi bir korumayı zayıflatıyor.
 
 3 sorun kendiliğinden onarılabilir:

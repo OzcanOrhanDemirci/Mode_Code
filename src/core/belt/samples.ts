@@ -6,7 +6,8 @@
  *   {home} {project} {data} {claude} {temp} {outside}
  * Every sample is harmless: the belt only reads tool calls, it never runs them.
  */
-import type { Platform } from '../paths.js';
+import { DATA_DIR_NAME } from '../app.js';
+import { firstShortName, type Platform } from '../paths.js';
 import type { BeltContext, Verdict } from './types.js';
 
 export interface BeltSample {
@@ -93,7 +94,7 @@ export const BELT_SAMPLES: readonly BeltSample[] = [
   {
     name: 'short name of the data folder',
     tool: 'Write',
-    input: { file_path: '{home}/TERMIN~1/config.json', content: '{}' },
+    input: { file_path: `{home}/${firstShortName(DATA_DIR_NAME)}/config.json`, content: '{}' },
     verdict: 'deny',
     rules: ['self.tool-files'],
     only: ['win32'],

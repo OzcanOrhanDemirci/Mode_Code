@@ -168,6 +168,17 @@ function shortBasis(s: string): string {
 }
 
 /**
+ * The first short name Windows gives `long` (`.terminal-code` → `TERMIN~1`), in the form couldBeShortName
+ * accepts: what samples and self-tests write for the data folder, whatever the tool is called.
+ */
+export function firstShortName(long: string): string {
+  const lastDot = long.lastIndexOf('.');
+  const hasExt = lastDot > 0 && lastDot < long.length - 1;
+  const ext = hasExt ? shortBasis(long.slice(lastDot + 1)).slice(0, 3) : '';
+  return `${shortBasis(hasExt ? long.slice(0, lastDot) : long).slice(0, 6)}~1${ext ? `.${ext}` : ''}`;
+}
+
+/**
  * Whether Windows could have given `long` the short name `short`. It keeps the first letters of the name
  * (dots, spaces and most punctuation dropped), then `~N`; after a few clashes it keeps two letters and four
  * hex digits of a hash. Lexical and generous on purpose: a false match only means a path is judged as the

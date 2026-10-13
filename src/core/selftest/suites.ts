@@ -5,7 +5,8 @@
  * person's machine, where another JavaScript engine version or another locale could change an answer.
  */
 import type { Platform } from '../paths.js';
-import { resolvePath, expandShortNames, isUnder } from '../paths.js';
+import { resolvePath, expandShortNames, firstShortName, isUnder } from '../paths.js';
+import { DATA_DIR_NAME } from '../app.js';
 import { evaluateToolCall } from '../belt/evaluate.js';
 import { fillSample, sampleContext, samplePlaces, samplesFor } from '../belt/samples.js';
 import { analyzeCommand } from '../shell/analyze.js';
@@ -86,7 +87,11 @@ export function pathSuite(): Promise<SuiteResult> {
     ['long path prefix', () => resolvePath('\\\\?\\C:\\x', win), 'C:/x'],
     ['macOS tilde', () => resolvePath('~/x', mac), '/Users/ada/x'],
     ['macOS case', () => String(isUnder('/USERS/ADA/x', '/Users/ada', 'darwin')), 'true'],
-    ['8.3 short name', () => expandShortNames('C:/Users/ada/TERMIN~1/x', ['C:/Users/ada/.terminal-code'], 'win32'), 'C:/Users/ada/.terminal-code/x'],
+    [
+      '8.3 short name',
+      () => expandShortNames(`C:/Users/ada/${firstShortName(DATA_DIR_NAME)}/x`, [`C:/Users/ada/${DATA_DIR_NAME}`], 'win32'),
+      `C:/Users/ada/${DATA_DIR_NAME}/x`,
+    ],
   ];
   return runSuite(
     'paths',

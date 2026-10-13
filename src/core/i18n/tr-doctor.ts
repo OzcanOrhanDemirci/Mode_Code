@@ -53,6 +53,12 @@ export const trDoctor: Record<keyof typeof enDoctor, string> = {
   // ── kurulum ──
   'doc.install.ok': '{v} sürümü {when} tarihinde kuruldu.',
   'doc.install.none': 'Henüz kurulmadı.',
+  'doc.install.previous.never': 'Bu aracın başka bir adı olmadı.',
+  'doc.install.previous.none': 'Bu aracın önceki bir adıyla ({names}) kurulmuş bir şey yok.',
+  'doc.install.previous.found':
+    "Bu aracın önceki adı {name} hâlâ {path} klasöründen kurulu (ayarlarında {hooks} hook'u var): emniyet kemeri bununkinin yanında çalışıyor.",
+  'doc.install.previous.hint': "{cmd} çalıştır: ayarlarını ve geçmişini getirir, hook'larını bunlarla değiştirir, eklentisini ve klasörünü kaldırır.",
+  'doc.install.previous.left': '{path}, bu aracın önceki adı {name} ile tutulanları barındırıyor; hiçbir parçası çalışmıyor. Gerek kalmayınca klasörü sil.',
   'doc.install.hint': 'Kurmak için "terminal-code install" komutunu çalıştır.',
   'doc.install.otherData': 'Kurulum kaydı başka bir veri klasörünü gösteriyor ({recorded}); bu çalıştırma {now} klasörünü kullanıyor.',
   'doc.install.hook.ok': 'Hook programı bu sürümle aynı (sha256 {hash}…).',

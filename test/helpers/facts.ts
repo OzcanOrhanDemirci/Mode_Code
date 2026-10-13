@@ -71,6 +71,8 @@ export function healthyFacts(over: Partial<Facts> = {}): Facts {
       plugin: { id: PLUGIN_ID, installed: true, marketplaceDir: `${DATA}/marketplace` },
       createdConfig: true,
     },
+    previous: null,
+    previousNames: [],
     hookProgram: { path: `${DATA}/bin/hook.mjs`, exists: true, hash: HASH, shippedHash: HASH },
     pluginFiles: { dir: `${DATA}/marketplace/plugins/terminal-code`, missing: [], different: [], shipped: true },
     modSeen: { at: NOW - 600_000, version: APP_VERSION },

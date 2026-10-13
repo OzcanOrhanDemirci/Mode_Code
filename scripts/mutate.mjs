@@ -81,6 +81,8 @@ const TARGETS = {
   // Sync across computers (docs/sync.md): how settings meet, and what never applies without the person.
   'src/core/sync.ts': ['test/core/sync.test.ts', 'test/properties/sync.test.ts'],
   'src/core/sync-export.ts': ['test/core/sync-export.test.ts'],
+  // A rename (docs/release.md): what of an installation under an earlier name is found, copied and pointed here.
+  'src/node/previous.ts': ['test/node/install-previous.test.ts'],
 };
 
 // ── finding mutation sites in TypeScript without a parser: code outside strings, comments and regexes ──

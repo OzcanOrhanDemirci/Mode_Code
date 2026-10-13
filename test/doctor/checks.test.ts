@@ -56,6 +56,27 @@ test('every check id is unique, and every message and hint exists in both langua
   }
 });
 
+test('an installation under an earlier name: running beside this one warns and says how to move it; its data alone is a note', () => {
+  const prev = { id: 'old-name', name: 'Old Name', root: 'C:/Users/ada/.old-name', installed: false, hooks: 0, plugin: false };
+  const quiet = [
+    [healthyFacts(), 'skip doc.install.previous.never'],
+    [healthyFacts({ previousNames: ['Old Name'] }), 'ok doc.install.previous.none'],
+    [healthyFacts({ previous: prev, previousNames: ['Old Name'] }), 'info doc.install.previous.left'],
+  ] as const;
+  for (const [f, want] of quiet) {
+    const r = check('install.previous', f);
+    assert.equal(brief(r), want);
+    assert.equal(r.protection, false, want);
+  }
+  assert.deepEqual(check('install.previous', quiet[1][0]).summary.params, { names: 'Old Name' });
+  for (const p of [{ installed: true }, { hooks: 2 }, { plugin: true }]) {
+    const r = check('install.previous', healthyFacts({ previous: { ...prev, ...p } }));
+    assert.equal(brief(r), 'warn doc.install.previous.found', JSON.stringify(p));
+    assert.equal(r.hint?.key, 'doc.install.previous.hint');
+    assert.equal(r.protection, false);
+  }
+});
+
 test('a check that throws is reported as a failure, not skipped', () => {
   const broken = healthyFacts({ settings: null as never });
   const results = runChecks(broken);

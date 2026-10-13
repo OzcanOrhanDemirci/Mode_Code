@@ -5,7 +5,7 @@
  * what could not be measured is reported as such.
  */
 import { syncProblem } from '../../core/memory-sync.js';
-import { MIN_CLAUDE_CODE_FOR_HOOKS, MIN_CLAUDE_CODE_FOR_MODS, PLUGIN_ID } from '../../core/app.js';
+import { APP_NAME, MIN_CLAUDE_CODE_FOR_HOOKS, MIN_CLAUDE_CODE_FOR_MODS, PLUGIN_ID } from '../../core/app.js';
 import { caseInsensitive } from '../../core/paths.js';
 import { compareVersions } from '../../core/version.js';
 import { isBeltTool } from '../../core/belt/tools.js';
@@ -146,6 +146,19 @@ const installManifest: Check = (f) => {
   if (f.manifest.dataDir.replace(/\\/g, '/').toLowerCase() !== f.dataDir.toLowerCase())
     return result(id, 'install', false, 'warn', m('doc.install.otherData', { recorded: f.manifest.dataDir, now: f.dataDir }));
   return result(id, 'install', false, 'ok', m('doc.install.ok', { v: f.manifest.version, when: new Date(f.manifest.installedAt).toISOString().slice(0, 10) }));
+};
+
+/** An installation under an earlier name still running beside this one, or its data left behind. */
+const installPrevious: Check = (f) => {
+  const id = 'install.previous';
+  const p = f.previous;
+  if (!p && !f.previousNames.length) return result(id, 'install', false, 'skip', m('doc.install.previous.never'));
+  if (!p) return result(id, 'install', false, 'ok', m('doc.install.previous.none', { names: f.previousNames.join(', ') }));
+  if (p.installed || p.hooks > 0 || p.plugin)
+    return result(id, 'install', false, 'warn', m('doc.install.previous.found', { name: p.name, path: p.root, hooks: p.hooks }), {
+      hint: m('doc.install.previous.hint', { cmd: `${APP_NAME} install` }),
+    });
+  return result(id, 'install', false, 'info', m('doc.install.previous.left', { name: p.name, path: p.root }));
 };
 
 const installHookProgram: Check = (f) => {
@@ -566,6 +579,7 @@ export const CHECKS: readonly Check[] = [
   claudeHooksOn,
   claudePlugin,
   installManifest,
+  installPrevious,
   installHookProgram,
   installHooks,
   installPluginFiles,

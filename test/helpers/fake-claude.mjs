@@ -3,6 +3,7 @@
 // (--version, plugin list/install/enable/uninstall, plugin marketplace remove) from a JSON state file
 // named by FAKE_CLAUDE_STATE, and records every call there. It never contacts anything.
 import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const file = process.env.FAKE_CLAUDE_STATE;
 const state = (() => {
@@ -19,7 +20,15 @@ let code = 0;
 if (a === '--version') process.stdout.write(`${state.version} (Claude Code)\n`);
 else if (a.startsWith('plugin list')) process.stdout.write(JSON.stringify(state.plugins) + '\n');
 else if (a.startsWith('plugin install')) {
-  const id = `${args[2]}@terminal-code-local`;
+  // The plugin is named by its marketplace, as Claude Code names it: the catalog in the folder after --marketplace.
+  const dir = args[args.indexOf('--marketplace') + 1];
+  let market = 'terminal-code-local';
+  try {
+    market = JSON.parse(readFileSync(join(dir, '.claude-plugin', 'marketplace.json'), 'utf8')).name ?? market;
+  } catch {
+    /* no catalog: the installer's own name */
+  }
+  const id = `${args[2]}@${market}`;
   state.plugins = [...state.plugins.filter((p) => p.id !== id), { id, enabled: true, version: state.pluginVersion ?? 'dev', scope: 'user' }];
   process.stdout.write(`Installed ${id}\n`);
 } else if (a.startsWith('plugin enable')) {

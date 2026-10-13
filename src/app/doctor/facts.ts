@@ -11,7 +11,7 @@ import { existsSync, readdirSync, readFileSync, renameSync, rmSync, statSync, st
 import { isBuiltin } from 'node:module';
 import { arch, release, tmpdir } from 'node:os';
 import { delimiter, dirname, join, relative } from 'node:path';
-import { APP_VERSION, PLUGIN_ID, SELF_TEST_SESSION } from '../../core/app.js';
+import { APP_VERSION, PLUGIN_ID, PREVIOUS_NAMES, SELF_TEST_SESSION } from '../../core/app.js';
 import { parseConfig, type Config, type ConfigProblem } from '../../core/config.js';
 import { evaluateToolCall } from '../../core/belt/evaluate.js';
 import { fillSample, samplesFor, type SamplePlaces } from '../../core/belt/samples.js';
@@ -23,6 +23,7 @@ import { transcriptShape } from '../../core/transcript.js';
 import type { Lang } from '../../core/i18n/index.js';
 import { readClaudeEnv, pluginsVia, type ClaudeRunner } from '../../node/claude-env.js';
 import { hookProgram, isOurHook, readManifest, underAgent } from '../../node/install.js';
+import { findPrevious, previousPlugin } from '../../node/previous.js';
 import { readJson, readText, realPathOf } from '../../node/fsx.js';
 import { beltContext, memoryDirs, protectedAliases } from '../../node/context.js';
 import { toolPath } from '../../node/env.js';
@@ -619,6 +620,8 @@ export async function gatherFacts(d0: DoctorEnv, now = Date.now()): Promise<Fact
   }
 
   const quotaRaw = readJson<{ windows?: unknown; measuredAt?: unknown }>(l.quota);
+  const plugins = wants(d, 'plugins') ? pluginsVia(d.claude) : null;
+  const prev = findPrevious(l);
   const hookExists = existsSync(hookFile);
   const shippedHook = join(d.distDir, 'hook.mjs');
   const node = hookNode?.exists ? hookNode.path : process.execPath;
@@ -638,8 +641,19 @@ export async function gatherFacts(d0: DoctorEnv, now = Date.now()): Promise<Fact
     claude: { installs: onPath('claude', d.env, d.platform), version: claudeVersion },
     settings: env.settings.map((s) => settingsFacts(s.scope, s.path)),
     hooks: env.hooks.map((h) => ({ ...h, ours: isOurHook({ command: h.command, args: h.args }, l.root) })),
-    plugins: wants(d, 'plugins') ? pluginsVia(d.claude) : null,
+    plugins,
     manifest,
+    previous: prev
+      ? {
+          id: prev.id,
+          name: prev.name,
+          root: prev.root,
+          installed: prev.manifest !== null,
+          hooks: env.hooks.filter((h) => isOurHook({ command: h.command, args: h.args }, prev.root)).length,
+          plugin: plugins ? plugins.some((p) => p.id === previousPlugin(prev).id) : null,
+        }
+      : null,
+    previousNames: PREVIOUS_NAMES.map((n) => n.name),
     hookProgram: { path: hookFile, exists: hookExists, hash: hookExists ? sha256(hookFile) : null, shippedHash: sha256(shippedHook) },
     pluginFiles: pluginFiles(d.distDir, l.pluginDir),
     modSeen: modSeen(l),

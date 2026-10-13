@@ -46,4 +46,4 @@ Veri
 Öz-sınama
   ✓ 1 paketteki 30 yerleşik örneğin hepsi beklenen cevabı verdi.
 
-2.1 sn içinde 39 denetim: 33 tamam, 0 uyarı, 0 sorun.
+2.1 sn içinde 40 denetim: 33 tamam, 0 uyarı, 0 sorun.

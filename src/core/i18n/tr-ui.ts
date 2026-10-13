@@ -93,6 +93,8 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'install.step.settings-hooks': 'Claude Code ayarlarına dört hook ekle (yedeği alınır)',
   'install.step.config': 'Aracın ayar dosyasını oluştur',
   'install.step.self-test': 'Emniyet kemerini iki zararsız örnekle sına',
+  'install.step.migrate': 'Aracın önceki adıyla yapılmış kurulumun tuttuklarını getir: ayarlar, geçmiş, notlar (önce kopyalanır)',
+  'install.step.retire-previous': 'Bu kurulum kendini sınadıktan sonra öncekini kaldır: eklentisi, pazarı, kopyalanan klasörü',
   'install.hookCommand': 'Hook komutu: {cmd}',
   'install.ask.view': 'Araç ne kadarını göstersin? (neyin korunduğunu asla değiştirmez)',
   'install.ask.simple': 'Sade: temel şeyler, başka soru yok',

@@ -10,6 +10,10 @@
  *   2. the plugin (the in-process mod) installed into Claude Code from that marketplace, user scope;
  *   3. the safety-net hooks added to the user settings file (exec form, absolute node, block on failure);
  *   4. a settings file for the tool itself, created only when there is none.
+ *
+ * An installation made under an earlier name of the tool (PREVIOUS_NAMES) is moved by the same command:
+ * its data is copied here, its hooks are swapped for these in the same write that adds them, and its
+ * plugin, marketplace and folder are removed only after this installation tested itself.
  */
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -29,6 +33,7 @@ import {
 import { cloneDefaults, serializeConfig, type Config } from '../core/config.js';
 import { compareVersions } from '../core/version.js';
 import type { Layout } from '../core/layout.js';
+import { copyPrevious, findPrevious, movedMemorySetting, previousPlugin, type PreviousInstall } from './previous.js';
 import { ensureDir, readJson, readText, writeAtomic, writeJsonAtomic } from './fsx.js';
 import { claudeDir } from './env.js';
 import { claudeVersion, realClaude, type ClaudeRunner } from './claude-env.js';
@@ -55,9 +60,11 @@ export interface Manifest {
   hooks: Record<string, unknown[]>;
   plugin: { id: string; installed: boolean; marketplaceDir: string };
   createdConfig: boolean;
+  /** The installation under an earlier name this one replaced: where it was, and whether its folder is gone. */
+  previous?: { id: string; root: string; removed: boolean };
 }
 
-export type StepKind = 'data-folder' | 'hook-program' | 'marketplace' | 'plugin' | 'settings-hooks' | 'config' | 'self-test';
+export type StepKind = 'migrate' | 'data-folder' | 'hook-program' | 'marketplace' | 'plugin' | 'settings-hooks' | 'config' | 'self-test' | 'retire-previous';
 
 export interface PlanStep {
   kind: StepKind;
@@ -77,6 +84,8 @@ export interface InstallPlan {
   node: string;
   settingsFile: string;
   hookCommand: { command: string; args: string[] };
+  /** An installation, or only the data, under an earlier name, which this installation takes over. */
+  previous: PreviousInstall | null;
 }
 
 /** Where the built programs are: next to this bundle in dist/, or in dist/ beside src/ when running from source. */
@@ -167,12 +176,23 @@ export function withoutOurHooks(settings: Record<string, unknown>, dataDir: stri
   return out;
 }
 
+/**
+ * Settings with an earlier installation's hooks taken out and, when its data is copied here, Claude Code's
+ * memory folder moved with it (movedMemorySetting). Pure.
+ */
+export function withoutPrevious(settings: Record<string, unknown>, prev: PreviousInstall | null, root: string): Record<string, unknown> {
+  return prev ? movedMemorySetting(withoutOurHooks(settings, prev.root), prev, root) : settings;
+}
+
 /** Running from inside a Claude Code session (an agent's shell) or without a person at a terminal. */
 export function underAgent(env: NodeJS.ProcessEnv = process.env): boolean {
   return env.CLAUDECODE === '1' || !!env.CLAUDE_CODE_ENTRYPOINT;
 }
 
-export function planInstall(l: Layout, opts: { node?: string; claude?: string | null; claudeDir?: string; env?: NodeJS.ProcessEnv } = {}): InstallPlan {
+export function planInstall(
+  l: Layout,
+  opts: { node?: string; claude?: string | null; claudeDir?: string; env?: NodeJS.ProcessEnv; previousNames?: readonly { id: string; name: string }[] } = {},
+): InstallPlan {
   const node = (opts.node ?? stableNodePath()).replace(/\\/g, '/');
   const settingsFile = join(opts.claudeDir ?? claudeDir(), 'settings.json');
   const hook = hookProgram(l).replace(/\\/g, '/');
@@ -184,7 +204,9 @@ export function planInstall(l: Layout, opts: { node?: string; claude?: string | 
     node,
     settingsFile,
     hookCommand: { command: node, args: [hook, '<Event>'] },
+    previous: findPrevious(l, opts.previousNames),
   };
+  const prev = plan.previous;
   const dist = distDir();
   if (!existsSync(join(dist, 'hook.mjs')) || !existsSync(join(dist, 'plugin', '.claude-plugin', 'plugin.json')))
     plan.blockers.push({ key: 'install.block.noBuild', params: { dir: dist } });
@@ -204,14 +226,16 @@ export function planInstall(l: Layout, opts: { node?: string; claude?: string | 
     plan.warnings.push({ key: 'install.warn.otherVersion', params: { have: manifest.version, now: APP_VERSION } });
 
   const groups = hookGroups(node, hook);
-  const current = JSON.stringify(withOurHooks(settings, groups, l.root));
+  const current = JSON.stringify(withOurHooks(withoutPrevious(settings, prev, l.root), groups, l.root));
+  if (prev?.copy) plan.steps.push({ kind: 'migrate', targets: [prev.root, l.root], done: false });
   plan.steps.push({ kind: 'data-folder', targets: [l.root], done: existsSync(l.root) });
   plan.steps.push({ kind: 'hook-program', targets: [hook], done: false });
   plan.steps.push({ kind: 'marketplace', targets: [l.marketplace], done: false });
   plan.steps.push({ kind: 'plugin', targets: [PLUGIN_ID], done: false });
   plan.steps.push({ kind: 'settings-hooks', targets: [settingsFile, ...HOOK_EVENTS], done: current === JSON.stringify(settings) });
-  plan.steps.push({ kind: 'config', targets: [l.config], done: existsSync(l.config) });
+  plan.steps.push({ kind: 'config', targets: [l.config], done: existsSync(l.config) || (!!prev?.copy && existsSync(join(prev.root, 'config.json'))) });
   plan.steps.push({ kind: 'self-test', targets: [hook], done: false });
+  if (prev) plan.steps.push({ kind: 'retire-previous', targets: [previousPlugin(prev).id, ...(prev.copy ? [prev.root] : [])], done: false });
   return plan;
 }
 
@@ -262,6 +286,12 @@ export function applyInstall(l: Layout, plan: InstallPlan, opts: { config?: Part
     }
   };
   let ok = true;
+  const prev = plan.previous;
+  if (prev?.copy)
+    ok &&= step('migrate', () => {
+      const r = copyPrevious(prev, l);
+      return `${r.files} files, ${r.paths} paths pointed here`;
+    });
   ok &&= step('data-folder', () => {
     for (const d of [l.root, l.stateDir, l.sessionsDir, l.eventsDir, l.installDir, l.backupsDir, join(l.root, 'bin')]) ensureDir(d);
   });
@@ -286,7 +316,8 @@ export function applyInstall(l: Layout, plan: InstallPlan, opts: { config?: Part
       backup = join(l.backupsDir, `settings.json.${Date.now()}`);
       writeAtomic(backup, text);
     }
-    writeAtomic(plan.settingsFile, JSON.stringify(withOurHooks(settings, groups, l.root), null, 2) + '\n');
+    // An earlier installation's hooks leave in the same write that adds these: never both, never neither.
+    writeAtomic(plan.settingsFile, JSON.stringify(withOurHooks(withoutPrevious(settings, prev, l.root), groups, l.root), null, 2) + '\n');
   });
   let createdConfig = false;
   ok &&= step('config', () => {
@@ -300,6 +331,21 @@ export function applyInstall(l: Layout, plan: InstallPlan, opts: { config?: Part
     if (!r.ok) throw new Error(r.detail);
     return r.detail;
   });
+  // Only once this installation works: the earlier plugin, its marketplace, and its folder when it was copied.
+  let removed = false;
+  if (prev)
+    ok &&= step('retire-previous', () => {
+      const old = previousPlugin(prev);
+      const r1 = claudeCli(runner, ['plugin', 'uninstall', old.id, '--scope', 'user']);
+      if (!r1.ok && !/not (?:installed|found)/i.test(r1.out)) throw new Error(r1.out.slice(0, 500) || `claude plugin uninstall ${old.id} failed`);
+      const r2 = claudeCli(runner, ['plugin', 'marketplace', 'remove', old.marketplace]);
+      if (!r2.ok && !/not found|no marketplace/i.test(r2.out))
+        throw new Error(r2.out.slice(0, 500) || `claude plugin marketplace remove ${old.marketplace} failed`);
+      if (!prev.copy) return `${old.id} removed; ${prev.root} left as it is`;
+      rmSync(prev.root, { recursive: true, force: true, maxRetries: 3 });
+      removed = true;
+      return `${old.id} and ${prev.root} removed`;
+    });
   const hookHash = fileHash(hook);
   const manifest: Manifest = {
     v: 1,
@@ -314,6 +360,7 @@ export function applyInstall(l: Layout, plan: InstallPlan, opts: { config?: Part
     hooks: groups,
     plugin: { id: PLUGIN_ID, installed: pluginInstalled, marketplaceDir: l.marketplace },
     createdConfig,
+    ...(prev ? { previous: { id: prev.id, root: prev.root, removed } } : {}),
   };
   try {
     writeJsonAtomic(l.manifest, manifest);

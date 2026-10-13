@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Box, Text } from 'ink';
 import { homedir } from 'node:os';
-import { APP_NAME, APP_VERSION, REPO_URL } from '../../core/app.js';
+import { APP_NAME, APP_VERSION, NAME_IS_FINAL, REPO_URL } from '../../core/app.js';
 import { LANGUAGES, type MessageKey } from '../../core/i18n/index.js';
 import { keywordTables } from '../../core/settings-view.js';
 import { ago, shortPath } from '../../core/format.js';
@@ -597,7 +597,7 @@ export function About({ width }: ScreenProps) {
         <Row label={t('about.license')}>Apache-2.0</Row>
         <Row label={t('about.source')}>{REPO_URL}</Row>
         <Row label={t('about.privacy')}>{t('about.privacyText')}</Row>
-        <Row label={t('about.name')}>{t('about.nameText')}</Row>
+        {NAME_IS_FINAL ? null : <Row label={t('about.name')}>{t('about.nameText')}</Row>}
       </Box>
       <Box marginTop={1}>
         <Text color={theme.muted} wrap="wrap">

@@ -98,6 +98,8 @@ export const enUi = {
   'install.step.settings-hooks': 'Add four hooks to your Claude Code settings (a backup is kept)',
   'install.step.config': 'Create the settings file of the tool',
   'install.step.self-test': 'Test the safety belt with two harmless samples',
+  'install.step.migrate': "Bring over what the installation under the tool's earlier name kept: settings, history, notes (copied first)",
+  'install.step.retire-previous': 'Once this installation has tested itself, remove the earlier one: its plugin, its marketplace, its copied folder',
   'install.hookCommand': 'Hook command: {cmd}',
   'install.ask.view': 'How much should the tool show? (it never changes what is protected)',
   'install.ask.simple': 'Simple: the essentials, no more questions',

@@ -320,4 +320,8 @@ test("a store terminal-code set up says so in its README; another's does not", (
   assert.equal(managedByUs('# Claude Code memory\nkept by hand\n'), false, 'the heading alone');
   assert.equal(managedByUs('# Notes\nIt is managed with terminal-code\n'), false, 'the sentence alone');
   assert.equal(managedByUs(' # Claude Code memory\nIt is managed with terminal-code\n'), false);
+  // Set up under an earlier name of the tool: still ours after a rename.
+  const old = '# Claude Code memory\n\nIt is managed with old-name and kept in sync.\n';
+  assert.equal(managedByUs(old), false);
+  assert.equal(managedByUs(old, ['terminal-code', 'old-name']), true);
 });

@@ -7,6 +7,7 @@ import {
   couldBeShortName,
   expandHome,
   expandShortNames,
+  firstShortName,
   isShortNameSegment,
   isRoot,
   isUnder,
@@ -90,6 +91,17 @@ test('8.3 short names: the forms Windows generates, and nothing else', () => {
 
 test('8.3 short names: which long names a short name can stand for (forms measured on Windows 11)', () => {
   assert.equal(couldBeShortName('TERMIN~1', '.terminal-code'), true);
+  // The first short name, as samples write it for the data folder: what couldBeShortName accepts.
+  for (const [long, short] of [
+    ['.terminal-code', 'TERMIN~1'],
+    ['.claude', 'CLAUDE~1'],
+    ['.ab', 'AB~1'],
+    ['settings.json', 'SETTIN~1.JSO'],
+    ['çağrı-öğe', 'ARE~1'], // Windows writes AR-E~1: punctuation is kept there, dropped here, both are accepted
+  ] as const) {
+    assert.equal(firstShortName(long), short, long);
+    assert.equal(couldBeShortName(firstShortName(long), long), true, long);
+  }
   assert.equal(couldBeShortName('CLAUDE~1', '.claude'), true);
   assert.equal(couldBeShortName('CLAUDE~1.JSO', '.claude.json'), true);
   assert.equal(couldBeShortName('ADA~1.LOV', 'ada.lovelace'), true);

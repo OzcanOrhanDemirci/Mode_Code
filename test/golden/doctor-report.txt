@@ -1,7 +1,7 @@
 ## Problem report for terminal-code
 
 - terminal-code dev · Node.js 24.15.0 · win32 x64 10.0.26200 · Claude Code 2.1.295
-- 28 ok · 4 notes · 2 warnings · 3 problems · 2 skipped
+- 28 ok · 4 notes · 2 warnings · 3 problems · 3 skipped
 
 | check | status | result |
 | --- | --- | --- |

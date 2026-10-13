@@ -46,4 +46,4 @@ Data
 Self-tests
   ✓ All 30 built-in samples of 1 suites gave the expected answer.
 
-39 checks in 2.1 s: 33 ok, 0 warnings, 0 problems.
+40 checks in 2.1 s: 33 ok, 0 warnings, 0 problems.

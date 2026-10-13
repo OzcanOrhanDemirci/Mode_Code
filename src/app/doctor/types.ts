@@ -104,6 +104,13 @@ export interface Facts {
   plugins: PluginInfo[] | null;
 
   manifest: Manifest | null;
+  /**
+   * An installation under an earlier name of the tool, beside this data folder: whether its manifest is
+   * there, how many hooks in Claude Code's settings still run from its folder, whether its plugin is listed.
+   */
+  previous: { id: string; name: string; root: string; installed: boolean; hooks: number; plugin: boolean | null } | null;
+  /** The tool's earlier names (PREVIOUS_NAMES), newest first. */
+  previousNames: string[];
   /** The hook program in the data folder and the one this build ships, as sha256 hashes. */
   hookProgram: { path: string; exists: boolean; hash: string | null; shippedHash: string | null };
   /** Plugin files in the local marketplace against the ones this build ships: missing and different. */

@@ -5,7 +5,7 @@
  * .gitignore). Pure: names, paths, checks and texts; the git work is in memory-sync.ts, the disk and the
  * network in the node layer.
  */
-import { APP_NAME } from './app.js';
+import { APP_NAME, PREVIOUS_NAMES } from './app.js';
 import type { Config } from './config.js';
 import { tIn, type Lang } from './i18n/index.js';
 import { joinPath } from './paths.js';
@@ -118,9 +118,12 @@ export function storeReadme(place: 'local' | 'github' | 'both'): string {
   ].join('\n');
 }
 
-/** A store's README says terminal-code set the folder up (storeReadme): it is terminal-code's to keep in sync. */
-export function managedByUs(readme: string | null): boolean {
-  return readme !== null && /^# Claude Code memory\r?\n/.test(readme) && readme.includes('It is managed with terminal-code');
+/**
+ * A store's README says terminal-code set the folder up (storeReadme), under this name or an earlier one:
+ * it is terminal-code's to keep in sync.
+ */
+export function managedByUs(readme: string | null, names: readonly string[] = [APP_NAME, ...PREVIOUS_NAMES.map((p) => p.name)]): boolean {
+  return readme !== null && /^# Claude Code memory\r?\n/.test(readme) && names.some((n) => readme.includes(`It is managed with ${n}`));
 }
 
 /** The README of the handoffs folder: what Claude should know when it finds the folder. */

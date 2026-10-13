@@ -51,6 +51,13 @@ export const enDoctor = {
   // ── installation ──
   'doc.install.ok': 'Installed version {v} on {when}.',
   'doc.install.none': 'Not installed yet.',
+  'doc.install.previous.never': 'This tool has had no other name.',
+  'doc.install.previous.none': 'Nothing installed under an earlier name of this tool ({names}).',
+  'doc.install.previous.found':
+    '{name}, the earlier name of this tool, is still installed from {path} ({hooks} of its hooks in your settings): its safety belt runs beside this one.',
+  'doc.install.previous.hint': 'Run {cmd}: it brings its settings and history over, swaps its hooks for these and removes its plugin and folder.',
+  'doc.install.previous.left':
+    '{path} holds what {name}, the earlier name of this tool, kept; nothing of it runs. Delete the folder when you no longer need it.',
   'doc.install.hint': 'Run "terminal-code install" to install it.',
   'doc.install.otherData': 'The installation record names another data folder ({recorded}); this run uses {now}.',
   'doc.install.hook.ok': 'The hook program matches this version (sha256 {hash}…).',
