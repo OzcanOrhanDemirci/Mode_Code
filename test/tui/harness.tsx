@@ -299,6 +299,9 @@ async function until(done: () => boolean, cap: number): Promise<boolean> {
  */
 const FRAME_CAP_MS = 1500;
 
+/** How long the screen at a start address may take to open; a screen that never opens fails the test. */
+const START_CAP_MS = 10_000;
+
 export interface Screen {
   /** The screen now, colors removed. */
   text(): string;
@@ -321,6 +324,12 @@ export async function draw(data: DataSource, opts: { columns?: number; rows?: nu
     },
   );
   await until(() => stdout.frames > 0, FRAME_CAP_MS);
+  // The start address is applied after the first frame, so the screen asked for comes a frame later. On a
+  // loaded CI runner that frame once came after the pause below, and a test read the home screen instead
+  // and passed: the screen it meant to check never drew (seen as coverage falling on one run in two). The
+  // footer names the address once it is open.
+  if (opts.address && !(await until(() => stdout.last.includes(`: ${opts.address}`), START_CAP_MS)))
+    throw new Error(`the screen at ${opts.address} did not open within ${START_CAP_MS} ms`);
   await wait(80);
   return {
     // eslint-disable-next-line no-control-regex
