@@ -16,7 +16,7 @@ import { assessQuota } from '../core/quota.js';
 import { readText } from '../node/fsx.js';
 import { git } from '../node/git.js';
 import { readClaudeEnv, type ClaudeEnv } from '../node/claude-env.js';
-import { readManifest } from '../node/install.js';
+import { isOurHook, readManifest } from '../node/install.js';
 
 /** Every run on record, the most recently changed first. */
 export function loadRuns(ctx: Pick<AppContext, 'layout'>): Run[] {
@@ -124,8 +124,9 @@ export function autonomyCheck(ctx: Pick<AppContext, 'layout' | 'config'>, cwd: s
     const s = p.replace(/\\/g, '/').replace(/\/+$/, '');
     return plat === 'linux' ? s : s.toLowerCase();
   };
-  const hookInstalled =
-    !!readManifest(ctx.layout) && claude.hooks.some((h) => h.ours && h.event === 'Stop') && claude.hooks.some((h) => h.ours && h.event === 'PreToolUse');
+  // Ours by the program it runs from this data folder (wherever TERMINAL_CODE_HOME puts it), as the doctor reads it.
+  const ours = (event: string) => claude.hooks.some((h) => h.event === event && isOurHook({ command: h.command, args: h.args }, ctx.layout.root));
+  const hookInstalled = !!readManifest(ctx.layout) && ours('Stop') && ours('PreToolUse');
   const g = checkGate({
     enabled: ctx.config.autonomy.enabled,
     budget: {

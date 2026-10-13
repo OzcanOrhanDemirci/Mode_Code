@@ -128,6 +128,24 @@ test("the checks from the person's terminal: what a session measures reads as me
       claude: strict,
     });
     assert.equal(after.checks.find((c) => c.id === 'wsl')!.ok, true);
+    // Installed: a manifest, and hook entries that run the hook program of this data folder (wherever it is),
+    // read as the doctor reads them; entries of another program do not count.
+    mkdirSync(join(l.root, 'install'), { recursive: true });
+    writeFileSync(l.manifest, JSON.stringify({ v: 1, app: 'terminal-code', version: 'dev', hooks: {} }));
+    const program = (event: string): HookEntry => ({
+      ...hook(event),
+      command: '/usr/bin/node',
+      args: [join(l.root, 'bin', 'hook.mjs').replace(/\\/g, '/'), event],
+      ours: false,
+    });
+    const installed = autonomyCheck({ layout: l, config }, root, {
+      platform: 'darwin',
+      env: {},
+      claude: { ...strict, hooks: [program('Stop'), program('PreToolUse')] },
+    });
+    assert.equal(installed.checks.find((c) => c.id === 'hook')!.ok, true);
+    const other = autonomyCheck({ layout: l, config }, root, { platform: 'darwin', env: {}, claude: { ...strict, hooks: [hook('Stop'), hook('PreToolUse')] } });
+    assert.equal(other.checks.find((c) => c.id === 'hook')!.key, 'auto.cli.hookMissing');
     // Native Windows: the platform says why, and the sandbox checks do not apply.
     const win = autonomyCheck({ layout: l, config }, root, { platform: 'win32', env: {}, claude: strict });
     assert.equal(win.checks.find((c) => c.id === 'platform')!.key, 'auto.gate.platform.windows');
