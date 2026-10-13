@@ -11,7 +11,8 @@
  *   4. research mode keeps the project unchanged: the guard refuses the write, or the model, told the mode, does not try;
  *   5. a research flow: the model writes a sourced report, calls flow_step, and code checks it and ends the flow;
  *   6. full autonomy: on native Windows the start checks refuse it; in WSL2, macOS or Linux a whole run;
- *   7. there too, a stop before the run is done is turned back by the safety-net hook and the run finishes;
+ *   7. there too, a stop before the run is done is turned back by the safety-net hook; the run then finishes,
+ *      or, when the model keeps stopping with nothing changed, the stall guard pauses it;
  *   8. the memory: a change made elsewhere is pulled before Claude reads the index, the handoff keyword has
  *      Claude write a note that is kept and sent, and the next session is told about it.
  *
@@ -176,24 +177,30 @@ function fullAutonomy() {
 
 /**
  * 7. A stop before the run is done is turned back: the person asks Claude to end its turn as soon as the
- * plan is accepted; the safety-net hook's Stop decision answers what is missing, and the headless session
- * goes on to the finish. A model that does not stop early leaves the turn-back unexercised, which is said.
+ * plan is accepted; the safety-net hook's Stop decision answers what is missing. A turn that ends and goes
+ * on in a headless session is a stop the hook turned back. The run then reaches its finish, or, when the
+ * model keeps to the person's word and stops again with nothing changed, the stall guard lets the third
+ * such stop through and pauses the run: both are the design. A model that does not stop early leaves the
+ * turn-back unexercised, which is said.
  */
 function stopTurnedBack() {
   if (process.platform === 'win32') return null;
-  const { final, run, hook } = autoSession(
+  const { final, run, hook, turnEnds } = autoSession(
     'auto-stop',
     'Write hello.js exporting a function hello() that returns the string hello, and hello.test.js that tests it with node:test; the verification is node --test. As soon as the plan is accepted, end your turn with the single word PAUSED. full auto quota 99',
   );
-  const stopped = hook?.autoStop?.runId === run?.id && !!run;
-  if (run && !stopped && run.status === 'done') {
+  const turnedBack = Math.max(0, turnEnds - 1);
+  if (run && turnedBack === 0 && run.status === 'done') {
     console.log('· the model did not stop before the finish, so the Stop hook had nothing to turn back');
     return { final };
   }
+  const held =
+    !!run && run.status === 'paused' && run.pause?.reason === 'stalled' && hook?.autoAllowed?.runId === run.id && hook.autoAllowed.why === 'noProgress';
+  if (held) console.log('· the model kept to the request to stop, so the stall guard paused the run and its finish went unexercised');
   check(
-    'full autonomy: a stop before the run was done was turned back, and the run went on to its finish',
-    stopped && run.status === 'done',
-    run ? `${run.status}, ${run.history.map((h) => h.event).join(' ')}, stop attempts in a row ${hook?.autoStop?.streak ?? '-'}` : 'no run',
+    'full autonomy: a stop before the run was done was turned back; the run finished, or the stall guard paused it',
+    !!run && turnedBack > 0 && (run.status === 'done' || held),
+    run ? `${run.status}, ${run.history.map((h) => h.event).join(' ')}, turned back ${turnedBack}` : 'no run',
   );
   return { final };
 }
@@ -312,7 +319,12 @@ function autoSession(name, prompt) {
   const sessionId = events.find((e) => e.type === 'system' && e.subtype === 'init')?.session_id;
   const hookFile = sessionId ? join(data, 'state', 'sessions', `${sessionId}.hook.json`) : null;
   const hook = hookFile && existsSync(hookFile) ? JSON.parse(readFileSync(hookFile, 'utf8')) : null;
-  return { final, run, refs, hook, stderr: r.stderr ?? '' };
+  // Turn ends: replies with no tool call (the stream splits a reply into one event per block, under one id).
+  const replies = new Map();
+  for (const e of events)
+    if (e.type === 'assistant' && e.message?.id) replies.set(e.message.id, [...(replies.get(e.message.id) ?? []), ...(e.message.content ?? [])]);
+  const turnEnds = [...replies.values()].filter((c) => c.some((b) => b.type === 'text') && !c.some((b) => b.type === 'tool_use')).length;
+  return { final, run, refs, hook, turnEnds, stderr: r.stderr ?? '' };
 }
 
 const results = [];
