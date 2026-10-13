@@ -65,6 +65,12 @@ const layers = [
     },
   },
   {
+    name: 'L12 package',
+    cmd: node,
+    args: ['scripts/test-package.mjs'],
+    counts: (o) => ([...o.matchAll(/^test-package: (.*)$/gm)].pop()?.[1] ?? '').trim(),
+  },
+  {
     name: 'doctor self-check',
     cmd: node,
     args: ['dist/cli.mjs', 'doctor', '--self-check', '--json'],

@@ -2,7 +2,8 @@
 /**
  * The command line, end to end, as separate processes: install with a stand-in `claude`, check, repair,
  * every --json contract, uninstall. Defined once and run twice: against the TypeScript source
- * (test/process) and against the shipped bundle (test/dist), so what is tested is what ships.
+ * (test/process) and against the shipped bundle (test/dist), so what is tested is what ships; and by
+ * scripts/test-package.mjs a third time, against the copy npm installed from the package's tarball.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,10 +11,10 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { built, cli, ROOT, world } from '../helpers/proc.js';
+import { built, bundleCli, cli, ROOT, world } from '../helpers/proc.js';
 
-export function defineCliTests(mode: 'source' | 'dist'): void {
-  const dist = mode === 'dist';
+export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
+  const dist = mode !== 'source';
   const skip = (t: { skip(msg: string): void }) => {
     if (!built()) {
       t.skip('needs the build: npm run build');
@@ -373,12 +374,7 @@ export function defineCliTests(mode: 'source' | 'dist'): void {
       assert.match(piped.out, /No terminal to confirm in/);
       const agent = spawnSync(
         process.execPath,
-        [
-          ...(opt.dist ? [join(ROOT, 'dist', 'cli.mjs')] : ['--import', import.meta.resolve('tsx'), join(ROOT, 'src', 'cli', 'main.tsx')]),
-          'autonomy',
-          'enable',
-          '--yes',
-        ],
+        [...(opt.dist ? [bundleCli()] : ['--import', import.meta.resolve('tsx'), join(ROOT, 'src', 'cli', 'main.tsx')]), 'autonomy', 'enable', '--yes'],
         {
           cwd: w.root,
           env: { ...w.env, CLAUDECODE: '1', TSX_TSCONFIG_PATH: join(ROOT, 'tsconfig.json') },
@@ -465,7 +461,7 @@ export function defineCliTests(mode: 'source' | 'dist'): void {
       const set = spawnSync(
         process.execPath,
         [
-          ...(opt.dist ? [join(ROOT, 'dist', 'cli.mjs')] : ['--import', import.meta.resolve('tsx'), join(ROOT, 'src', 'cli', 'main.tsx')]),
+          ...(opt.dist ? [bundleCli()] : ['--import', import.meta.resolve('tsx'), join(ROOT, 'src', 'cli', 'main.tsx')]),
           'config',
           'set',
           'autonomy.maxHours',

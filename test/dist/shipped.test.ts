@@ -1,25 +1,33 @@
 // SPDX-License-Identifier: Apache-2.0
-// What the package ships (package.json "files"), read as a stranger would read it after `npm install`.
+// What the package ships (package.json "files"), read as a stranger would read it after `npm install`; run by
+// scripts/test-package.mjs, every file of the copy npm installed from the tarball.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, relative } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { scanSecrets } from '../../src/core/secrets/scan.js';
-import { built, ROOT } from '../helpers/proc.js';
+import { built, PACKAGE_CLI, ROOT } from '../helpers/proc.js';
+
+/** The installed package's folder, or this checkout. */
+const BASE = PACKAGE_CLI ? dirname(dirname(PACKAGE_CLI)) : ROOT;
 
 function shipped(): string[] {
-  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { files: string[] };
-  const out: string[] = [join(ROOT, 'package.json')];
+  const out: string[] = [];
   const walk = (p: string) => {
     if (statSync(p).isDirectory()) for (const e of readdirSync(p)) walk(join(p, e));
     else out.push(p);
   };
-  for (const f of pkg.files) walk(join(ROOT, f));
+  if (PACKAGE_CLI) walk(BASE);
+  else {
+    const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { files: string[] };
+    out.push(join(ROOT, 'package.json'));
+    for (const f of pkg.files) walk(join(ROOT, f));
+  }
   return out;
 }
 
-const rel = (p: string) => relative(ROOT, p).replace(/\\/g, '/');
+const rel = (p: string) => relative(BASE, p).replace(/\\/g, '/');
 
 test('nothing the package ships looks like a secret: a sample assembled in the source stays assembled in the bundle', (t) => {
   if (!built()) return t.skip('needs the build: npm run build');

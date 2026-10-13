@@ -12,6 +12,15 @@ import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+/**
+ * The installed package's dist/cli.mjs, when scripts/test-package.mjs runs the bundle suites (test/dist)
+ * against what npm installed from the tarball; null otherwise, and they run against the build in dist/.
+ */
+export const PACKAGE_CLI: string | null = process.env.TC_PACKAGE_CLI || null;
+
+/** The bundle the "dist" suites run: the installed package's, or the build's. */
+export const bundleCli = (): string => PACKAGE_CLI ?? join(ROOT, 'dist', 'cli.mjs');
 const FAKE = join(ROOT, 'test', 'helpers', 'fake-claude.mjs');
 
 export interface World {
@@ -95,10 +104,10 @@ export interface Ran {
   json: Record<string, any> | null;
 }
 
-/** Runs `terminal-code <args>`: from source, or with `dist` the built bundle the package ships. */
+/** Runs `terminal-code <args>`: from source, or with `dist` the bundle the package ships (bundleCli). */
 export function cli(w: World, args: string[], opts: { dist?: boolean; input?: string; cwd?: string; timeoutMs?: number } = {}): Ran {
   // tsx by its full address: the child runs in the temporary folder, where a bare "tsx" would not resolve.
-  const entry = opts.dist ? [join(ROOT, 'dist', 'cli.mjs')] : ['--import', import.meta.resolve('tsx'), join(ROOT, 'src', 'cli', 'main.tsx')];
+  const entry = opts.dist ? [bundleCli()] : ['--import', import.meta.resolve('tsx'), join(ROOT, 'src', 'cli', 'main.tsx')];
   const r = spawnSync(process.execPath, [...entry, ...args], {
     cwd: opts.cwd ?? w.root,
     // And with the project's tsconfig.json, which tsx would not find from there: without it the sources
