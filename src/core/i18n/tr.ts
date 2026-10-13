@@ -9,6 +9,7 @@ import { trTui } from './tr-tui.js';
 import { trDoctor } from './tr-doctor.js';
 import { trModes } from './tr-modes.js';
 import { trAuto } from './tr-auto.js';
+import { trMemory } from './tr-memory.js';
 
 export const tr: Record<MessageKey, string> = {
   ...trUi,
@@ -16,6 +17,7 @@ export const tr: Record<MessageKey, string> = {
   ...trDoctor,
   ...trModes,
   ...trAuto,
+  ...trMemory,
   'belt.reason.inline': 'Yorumlayıcıya verilen kodun içinde: {reason}',
   'belt.reason.deleteUnknown': 'Hedefi ancak çalışırken belli olan özyinelemeli silme: {target}.',
   'belt.reason.deleteCritical': '{target} siliniyor; bu konum {critical} konumunun kendisi ya da onu içeriyor.',

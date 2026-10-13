@@ -124,9 +124,9 @@ test('the conveniences: off when switched off, the memory folder states, the tra
     assert.equal(s.state('secrets', s.ctx({ modules: { ...cloneDefaults().modules, secrets: false } })), 'off');
     assert.equal(s.state('modes', s.ctx({ modules: { ...cloneDefaults().modules, modes: false } })), 'off');
     assert.equal(s.state('memory'), 'off health.memory.none');
-    assert.equal(s.state('memory', s.ctx({ memory: { dirs: [join(s.sb.root, 'nope')] } })), 'gray health.memory.missing');
+    assert.equal(s.state('memory', s.ctx({ memory: { ...cloneDefaults().memory, dirs: [join(s.sb.root, 'nope')] } })), 'gray health.memory.missing');
     mkdirSync(join(s.sb.root, 'notes'));
-    assert.equal(s.state('memory', s.ctx({ memory: { dirs: [join(s.sb.root, 'notes')] } })), 'ok health.memory.noGit');
+    assert.equal(s.state('memory', s.ctx({ memory: { ...cloneDefaults().memory, dirs: [join(s.sb.root, 'notes')] } })), 'ok health.memory.noGit');
     assert.equal(s.state('index'), 'gray health.index.noTranscripts');
     mkdirSync(join(s.sb.claudeDir, 'projects'));
     assert.equal(s.state('index'), 'ok');

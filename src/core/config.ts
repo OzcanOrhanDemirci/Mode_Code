@@ -32,6 +32,25 @@ export interface ProjectEntry {
   verify?: string[];
 }
 
+/** Where Claude Code's memory lives (docs/memory.md): this computer only, your GitHub only, or both. */
+export type MemoryPlace = 'local' | 'github' | 'both';
+
+export const MEMORY_PLACES: readonly MemoryPlace[] = ['local', 'github', 'both'];
+
+export interface MemoryStore {
+  place: MemoryPlace;
+  /** The folder Claude Code reads and writes (its autoMemoryDirectory), absolute. */
+  dir: string;
+  /** The git remote it is kept in sync with: required for github and both, null for local. */
+  remote: string | null;
+  /** The GitHub repository as owner/name, when it is one. */
+  repo: string | null;
+  /** The folder has a git history (always with a remote; for local, when git was there at setup). */
+  git: boolean;
+  /** auto: pull when a session starts, commit and push after a turn that changed it; manual: status only. */
+  sync: 'auto' | 'manual';
+}
+
 export interface Config {
   version: number;
   /** Interface language, or "auto" to follow the system. */
@@ -59,6 +78,22 @@ export interface Config {
   memory: {
     /** Memory folders: protected from deletion and shrinking, and reported in the footer when they are git repositories. */
     dirs: string[];
+    /** Where the memory lives and how it is kept in sync; null until `terminal-code memory setup` ran. */
+    store: MemoryStore | null;
+    /** Handoff notes: written on the keyword, before a compaction, at the end of a session; taken over by the next. */
+    handoff: {
+      enabled: boolean;
+      /** Write one from the compaction's summary before Claude Code compacts. */
+      onCompact: boolean;
+      /** Write one from what code measured on /clear and at the end of a session, when none was written since the last change. */
+      onEnd: boolean;
+      /** Notes kept per project in the folder (older ones stay in the git history). */
+      keep: number;
+      /** Notes older than this are not offered to a new session. */
+      maxAgeDays: number;
+    };
+    /** The morning report: told in one line on the first prompt after a while away. */
+    morning: { enabled: boolean; afterHours: number };
   };
   footer: {
     mode: FooterMode;
@@ -114,7 +149,12 @@ export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
     singleBranchRepos: [],
     packs: { dockerVolumes: false },
   },
-  memory: { dirs: [] },
+  memory: {
+    dirs: [],
+    store: null,
+    handoff: { enabled: true, onCompact: true, onEnd: true, keep: 20, maxAgeDays: 14 },
+    morning: { enabled: true, afterHours: 6 },
+  },
   footer: { mode: 'draw', showFiveFrom: 70, showWeekFrom: 85 },
   quota: { fiveHourWrapUp: 95, fiveHourStop: 99, defaultWeeklyTarget: 99, defaultWeeklyWrapUp: 97, staleMinutes: 360, autoResume: true },
   keywords: { extra: {} },
@@ -221,9 +261,8 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
     }
   } else if (raw.quota !== undefined) problems.push({ path: 'quota', kind: 'type', detail: 'expected an object' });
 
-  if (isObj(raw.memory)) {
-    c.memory.dirs = strings(raw.memory.dirs, 'memory.dirs', problems);
-  } else if (raw.memory !== undefined) problems.push({ path: 'memory', kind: 'type', detail: 'expected an object' });
+  if (isObj(raw.memory)) normalizeMemory(raw.memory, c.memory, problems);
+  else if (raw.memory !== undefined) problems.push({ path: 'memory', kind: 'type', detail: 'expected an object' });
 
   if (isObj(raw.belt)) normalizeBelt(raw.belt, c.belt, problems);
   else if (raw.belt !== undefined) problems.push({ path: 'belt', kind: 'type', detail: 'expected an object' });
@@ -300,6 +339,86 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
   } else if (raw.projects !== undefined) problems.push({ path: 'projects', kind: 'type', detail: 'expected a list' });
 
   return { config: c, problems };
+}
+
+function normalizeMemory(src: Obj, dst: Config['memory'], problems: ConfigProblem[]): void {
+  for (const k of Object.keys(src))
+    if (!['dirs', 'store', 'handoff', 'morning'].includes(k)) problems.push({ path: `memory.${k}`, kind: 'unknown-key', detail: 'not a setting' });
+  dst.dirs = strings(src.dirs, 'memory.dirs', problems);
+  if (src.store !== undefined && src.store !== null) dst.store = memoryStore(src.store, problems);
+  if (isObj(src.handoff)) {
+    const h = src.handoff;
+    for (const k of Object.keys(h))
+      if (!['enabled', 'onCompact', 'onEnd', 'keep', 'maxAgeDays'].includes(k))
+        problems.push({ path: `memory.handoff.${k}`, kind: 'unknown-key', detail: 'not a setting' });
+    for (const k of ['enabled', 'onCompact', 'onEnd'] as const)
+      if (h[k] !== undefined) {
+        if (typeof h[k] === 'boolean') dst.handoff[k] = h[k];
+        else problems.push({ path: `memory.handoff.${k}`, kind: 'type', detail: 'expected true or false' });
+      }
+    dst.handoff.keep = whole(h.keep, dst.handoff.keep, 1, 500, 'memory.handoff.keep', problems);
+    dst.handoff.maxAgeDays = whole(h.maxAgeDays, dst.handoff.maxAgeDays, 1, 365, 'memory.handoff.maxAgeDays', problems);
+  } else if (src.handoff !== undefined) problems.push({ path: 'memory.handoff', kind: 'type', detail: 'expected an object' });
+  if (isObj(src.morning)) {
+    const m = src.morning;
+    for (const k of Object.keys(m))
+      if (k !== 'enabled' && k !== 'afterHours') problems.push({ path: `memory.morning.${k}`, kind: 'unknown-key', detail: 'not a setting' });
+    if (m.enabled !== undefined) {
+      if (typeof m.enabled === 'boolean') dst.morning.enabled = m.enabled;
+      else problems.push({ path: 'memory.morning.enabled', kind: 'type', detail: 'expected true or false' });
+    }
+    dst.morning.afterHours = whole(m.afterHours, dst.morning.afterHours, 1, 72, 'memory.morning.afterHours', problems);
+  } else if (src.morning !== undefined) problems.push({ path: 'memory.morning', kind: 'type', detail: 'expected an object' });
+}
+
+/** GitHub's owner/name: an account of up to 39 letters, digits and hyphens; a name of up to 100 letters, digits, dots, hyphens and underscores. */
+export const GITHUB_REPO = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9._-]{1,100}$/;
+
+/** The memory store, or null when it cannot be one (reported): a place, a folder, and a remote where the place needs one. */
+function memoryStore(v: unknown, problems: ConfigProblem[]): MemoryStore | null {
+  if (!isObj(v)) {
+    problems.push({ path: 'memory.store', kind: 'type', detail: 'expected an object or null' });
+    return null;
+  }
+  for (const k of Object.keys(v))
+    if (!['place', 'dir', 'remote', 'repo', 'git', 'sync'].includes(k))
+      problems.push({ path: `memory.store.${k}`, kind: 'unknown-key', detail: 'not a setting' });
+  if (typeof v.place !== 'string' || !MEMORY_PLACES.includes(v.place as MemoryPlace)) {
+    problems.push({ path: 'memory.store.place', kind: 'type', detail: 'expected local, github or both' });
+    return null;
+  }
+  if (typeof v.dir !== 'string' || !v.dir.trim()) {
+    problems.push({ path: 'memory.store.dir', kind: 'type', detail: 'expected a folder path' });
+    return null;
+  }
+  const place = v.place as MemoryPlace;
+  const remote = typeof v.remote === 'string' && v.remote.trim() ? v.remote.trim() : null;
+  if (v.remote !== undefined && v.remote !== null && remote === null)
+    problems.push({ path: 'memory.store.remote', kind: 'type', detail: 'expected a git remote or null' });
+  if (place !== 'local' && remote === null) {
+    problems.push({ path: 'memory.store.remote', kind: 'range', detail: `the place ${place} needs a remote` });
+    return null;
+  }
+  const repo = typeof v.repo === 'string' && GITHUB_REPO.test(v.repo) ? v.repo : null;
+  if (v.repo !== undefined && v.repo !== null && repo === null)
+    problems.push({ path: 'memory.store.repo', kind: 'type', detail: 'expected owner/name or null' });
+  let sync: MemoryStore['sync'] = 'auto';
+  if (v.sync !== undefined) {
+    if (v.sync === 'auto' || v.sync === 'manual') sync = v.sync;
+    else problems.push({ path: 'memory.store.sync', kind: 'type', detail: 'expected auto or manual' });
+  }
+  if (v.git !== undefined && typeof v.git !== 'boolean') problems.push({ path: 'memory.store.git', kind: 'type', detail: 'expected true or false' });
+  // A remote needs a git history; a local folder has one only when the file says so.
+  const git = place !== 'local' || v.git === true;
+  return { place, dir: v.dir.trim(), remote: place === 'local' ? null : remote, repo, git, sync };
+}
+
+/** A whole number within a range, or the fallback (reported). */
+function whole(v: unknown, fallback: number, min: number, max: number, path: string, problems: ConfigProblem[]): number {
+  if (v === undefined) return fallback;
+  if (typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max) return Math.round(v);
+  problems.push({ path, kind: 'range', detail: `expected ${min} to ${max}` });
+  return fallback;
 }
 
 function bools<T extends Record<string, boolean>>(src: unknown, dst: T, path: string, problems: ConfigProblem[]): void {

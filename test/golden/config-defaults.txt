@@ -27,7 +27,19 @@
     }
   },
   "memory": {
-    "dirs": []
+    "dirs": [],
+    "store": null,
+    "handoff": {
+      "enabled": true,
+      "onCompact": true,
+      "onEnd": true,
+      "keep": 20,
+      "maxAgeDays": 14
+    },
+    "morning": {
+      "enabled": true,
+      "afterHours": 6
+    }
   },
   "footer": {
     "mode": "draw",

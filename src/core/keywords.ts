@@ -12,7 +12,22 @@ import { editDistance, fold } from './text.js';
 import type { Lang } from './i18n/index.js';
 
 export type KeywordKind =
-  'continue' | 'manual' | 'chat' | 'quota' | 'wrapUp' | 'stop' | 'status' | 'help' | 'research' | 'plan' | 'code' | 'free' | 'flow' | 'approve' | 'fullAuto';
+  | 'continue'
+  | 'manual'
+  | 'chat'
+  | 'quota'
+  | 'wrapUp'
+  | 'stop'
+  | 'status'
+  | 'help'
+  | 'research'
+  | 'plan'
+  | 'code'
+  | 'free'
+  | 'flow'
+  | 'approve'
+  | 'fullAuto'
+  | 'handoff';
 
 /** The phrase lists of a language: one per keyword kind, and the word that cancels a flow ("flow cancel"). */
 export type KeywordTable = Record<KeywordKind | 'cancel', string[]>;
@@ -35,6 +50,7 @@ export const KEYWORD_LISTS: readonly (KeywordKind | 'cancel')[] = [
   'cancel',
   'approve',
   'fullAuto',
+  'handoff',
 ];
 
 /** The keywords that set a mode, and the mode each sets. */
@@ -67,6 +83,7 @@ export const DEFAULT_KEYWORDS: Record<Lang, KeywordTable> = {
     cancel: ['iptal'],
     approve: ['onay', 'onayla', 'onayliyorum'],
     fullAuto: ['tam otonom'],
+    handoff: ['devir', 'devir notu', 'devret'],
   },
   en: {
     continue: ['continue'],
@@ -85,6 +102,7 @@ export const DEFAULT_KEYWORDS: Record<Lang, KeywordTable> = {
     cancel: ['cancel'],
     approve: ['approve', 'approved'],
     fullAuto: ['full auto', 'full autonomy'],
+    handoff: ['handoff', 'hand off'],
   },
 };
 
@@ -239,6 +257,14 @@ export function detectKeyword(
       if (!cont[1]) return { ...base, kind: 'continue' };
       const named = named_(cont[1], projects);
       if (named) return { ...base, kind: 'continue', projectText: cont[1], ...named };
+    }
+
+    // "<project> handoff": a handoff note now (docs/memory.md).
+    const handoff = t.handoff.length ? new RegExp(`^(?:(.{1,40}?)\\s+)?(?:${alt(t.handoff)})$`).exec(end) : null;
+    if (handoff) {
+      if (!handoff[1]) return { ...base, kind: 'handoff' };
+      const named = named_(handoff[1], projects);
+      if (named) return { ...base, kind: 'handoff', projectText: handoff[1], ...named };
     }
 
     const help = new RegExp(`^(?:(.{1,40}?)\\s+)?(?:${alt(t.help)})$`).exec(end);

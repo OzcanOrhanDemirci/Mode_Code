@@ -243,6 +243,8 @@ export function applyKeyword(s: ModSessionState, kw: KeywordMatch, weeklyTarget:
         : { ...s, weeklyTarget, weeklyTargetSource: `${kw.plus ? '+' : ''}${kw.n}`, interaction: kw.standalone ? s.interaction : 'autonomous' };
     case 'wrapUp':
       return { ...s, wrapUp: true, resumeAt: null };
+    case 'handoff':
+      return { ...s, project: kw.project ?? s.project };
     case 'stop':
       return { ...s, wrapUp: true, interaction: 'default', resumeAt: null };
     default:

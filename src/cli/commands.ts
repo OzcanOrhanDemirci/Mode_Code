@@ -173,7 +173,7 @@ export async function cmdInstall(a: Args): Promise<number> {
     const view = value(a, 'view');
     if (view === 'simple' || view === 'recommended' || view === 'detailed') chosen.view = view;
     const mem = values(a, 'memory');
-    if (mem.length) chosen.memory = { dirs: mem };
+    if (mem.length) chosen.memory = { ...cloneDefaults().memory, dirs: mem };
     const r = applyInstall(ctx.layout, plan, { config: chosen });
     json('install', { ok: r.ok, steps: r.steps, manifest: r.manifest });
     return r.ok ? 0 : 1;
@@ -204,7 +204,7 @@ export async function cmdInstall(a: Args): Promise<number> {
   const view = value(a, 'view');
   if (view === 'simple' || view === 'recommended' || view === 'detailed') chosen.view = view;
   const mem = values(a, 'memory');
-  if (mem.length) chosen.memory = { dirs: mem };
+  if (mem.length) chosen.memory = { ...cloneDefaults().memory, dirs: mem };
   // First installation in a terminal: a few choices, then one confirmation for everything.
   const firstTime = !plan.steps.find((s) => s.kind === 'config')?.done;
   if (firstTime && !flag(a, 'yes', 'y') && process.stdin.isTTY && !chosen.view) {
@@ -215,7 +215,7 @@ export async function cmdInstall(a: Args): Promise<number> {
         const suggestion = readClaudeEnv(ctx.cwd).memoryDir;
         const m = await askText(T(ctx, 'install.ask.memory', { suggestion: shortPath(suggestion, homedir(), 70) }));
         const dir = m === '' ? suggestion : m === '-' ? null : m;
-        if (dir) chosen.memory = { dirs: [dir] };
+        if (dir) chosen.memory = { ...cloneDefaults().memory, dirs: [dir] };
       }
       const f = await choose(ctx, T(ctx, 'install.ask.footer'), [T(ctx, 'footer.mode.draw'), T(ctx, 'footer.mode.check'), T(ctx, 'footer.mode.off')]);
       chosen.footer = { ...cloneDefaults().footer, mode: (['draw', 'check', 'off'] as const)[f]! };

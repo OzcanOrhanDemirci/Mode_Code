@@ -1,0 +1,235 @@
+// SPDX-License-Identifier: Apache-2.0
+/**
+ * The memory store's sync on real repositories in a temporary folder (docs/memory.md): a bare repository
+ * stands for GitHub, two clones for two computers. Commits, pulls, pushes, a push rejected and retried, a
+ * conflict undone, a secret held back, a store inside a larger repository, an unreachable remote.
+ */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { classifyGitError, syncMemory, type SyncInput } from '../../src/core/memory-sync.js';
+import { commitMessage } from '../../src/core/memory.js';
+import { scanSecrets } from '../../src/core/secrets/scan.js';
+import { nodeRunner, stepsFor } from '../../src/node/memory.js';
+import { readText } from '../../src/node/fsx.js';
+
+const hasGit = spawnSync('git', ['--version']).status === 0;
+// The person's own git settings (core.autocrlf on Windows, signing, hooks) stay out: every git here, the
+// sync's own included, reads an empty global file and no system one.
+const globalConfig = join(mkdtempSync(join(tmpdir(), 'tc-gitcfg-')), 'gitconfig');
+writeFileSync(globalConfig, '');
+process.env.GIT_CONFIG_GLOBAL = globalConfig;
+process.env.GIT_CONFIG_NOSYSTEM = '1';
+const ENV = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
+
+const run = (cwd: string, ...args: string[]) => {
+  const r = spawnSync('git', args, { cwd, encoding: 'utf8', env: ENV });
+  if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr}`);
+  return r.stdout.trim();
+};
+
+/** A bare "GitHub" with one first commit, and a clone of it as one computer's store. */
+function world() {
+  const root = mkdtempSync(join(tmpdir(), 'tc-memsync-'));
+  const remote = join(root, 'github.git');
+  run(root, 'init', '--bare', '-q', '-b', 'main', remote);
+  const seed = join(root, 'seed');
+  run(root, 'clone', '-q', remote, seed);
+  identity(seed);
+  run(seed, 'checkout', '-q', '-B', 'main');
+  writeFileSync(join(seed, 'MEMORY.md'), '# Memory\n- [one](one.md) — first note\n');
+  run(seed, 'add', '.');
+  run(seed, 'commit', '-q', '-m', 'start');
+  run(seed, 'push', '-q', '-u', 'origin', 'main');
+  const clone = (name: string) => {
+    const dir = join(root, name);
+    run(root, 'clone', '-q', remote, dir);
+    identity(dir);
+    return dir;
+  };
+  return { root, remote, clone, done: () => rmSync(root, { recursive: true, force: true }) };
+}
+
+function identity(dir: string) {
+  run(dir, 'config', 'user.email', 'test@example.com');
+  run(dir, 'config', 'user.name', 'Test');
+  run(dir, 'config', 'commit.gpgsign', 'false');
+}
+
+const input = (dir: string, trigger: 'start' | 'turn' | 'manual', remote = true): SyncInput => ({
+  dir,
+  remote,
+  steps: stepsFor(trigger),
+  message: (c) => commitMessage(c, 'abcdef1234', 'en'),
+  readFile: async (p) => readText(p),
+  secrets: (t) => scanSecrets(t).length,
+});
+
+test('a change here is committed and sent; the other computer brings it in at its next start', { skip: !hasGit && 'git is not installed' }, async () => {
+  const w = world();
+  try {
+    const a = w.clone('a');
+    const b = w.clone('b');
+    writeFileSync(join(a, 'one.md'), 'Prefers pnpm.\n');
+    writeFileSync(join(a, 'MEMORY.md'), '# Memory\n- [one](one.md) — package manager\n');
+    const turn = await syncMemory(nodeRunner, input(a, 'turn'));
+    assert.deepEqual(
+      [turn.repo, turn.commit, turn.committed, turn.pull, turn.push, turn.ahead, turn.behind, turn.held],
+      [true, 'ok', 2, 'skipped', 'ok', 0, 0, []],
+    );
+    assert.equal(run(a, 'log', '-1', '--format=%s'), 'memory: 1 added, 1 changed (session abcdef12)');
+    const start = await syncMemory(nodeRunner, input(b, 'start'));
+    assert.deepEqual([start.commit, start.pull, start.push, start.ahead, start.behind], ['none', 'ok', 'none', 0, 0]);
+    assert.equal(readFileSync(join(b, 'one.md'), 'utf8'), 'Prefers pnpm.\n');
+    // Nothing changed: nothing to do, nothing reported.
+    const idle = await syncMemory(nodeRunner, input(b, 'turn'));
+    assert.deepEqual([idle.commit, idle.push, idle.detail], ['none', 'none', '']);
+  } finally {
+    w.done();
+  }
+});
+
+test('a push the remote rejects (it moved on) is pulled once and sent again', { skip: !hasGit && 'git is not installed' }, async () => {
+  const w = world();
+  try {
+    const a = w.clone('a');
+    const b = w.clone('b');
+    writeFileSync(join(a, 'a.md'), 'from a\n');
+    await syncMemory(nodeRunner, input(a, 'turn'));
+    writeFileSync(join(b, 'b.md'), 'from b\n');
+    // b has not pulled: its push is rejected, then joined with a's change and sent.
+    const r = await syncMemory(nodeRunner, input(b, 'turn'));
+    assert.deepEqual([r.commit, r.push, r.ahead, r.behind], ['ok', 'ok', 0, 0]);
+    assert.ok(existsSync(join(b, 'a.md')));
+    run(a, 'pull', '-q');
+    assert.ok(existsSync(join(a, 'b.md')));
+  } finally {
+    w.done();
+  }
+});
+
+test('a conflict is undone and reported: the files stay as they were, nothing is forced', { skip: !hasGit && 'git is not installed' }, async () => {
+  const w = world();
+  try {
+    const a = w.clone('a');
+    const b = w.clone('b');
+    writeFileSync(join(a, 'MEMORY.md'), '# Memory\n- written on a\n');
+    await syncMemory(nodeRunner, input(a, 'turn'));
+    writeFileSync(join(b, 'MEMORY.md'), '# Memory\n- written on b\n');
+    const r = await syncMemory(nodeRunner, input(b, 'start'));
+    assert.equal(r.commit, 'ok');
+    assert.equal(r.pull, 'conflict');
+    assert.deepEqual(r.conflicts, ['MEMORY.md']);
+    assert.equal(r.push, 'skipped');
+    assert.match(r.detail, /could not join the changes in MEMORY\.md/);
+    assert.equal(readFileSync(join(b, 'MEMORY.md'), 'utf8'), '# Memory\n- written on b\n');
+    assert.equal(run(b, 'status', '--porcelain'), '', 'no rebase left half done, nothing staged');
+    assert.equal(r.ahead, 1);
+    // The remote still has a's version: nothing was forced over it.
+    assert.match(run(w.root, '--git-dir', w.remote, 'show', 'main:MEMORY.md'), /written on a/);
+  } finally {
+    w.done();
+  }
+});
+
+test('a file that looks like it holds a secret is held back; the rest goes', { skip: !hasGit && 'git is not installed' }, async () => {
+  const w = world();
+  try {
+    const a = w.clone('a');
+    writeFileSync(join(a, 'ok.md'), 'Uses Node 24.\n');
+    writeFileSync(join(a, 'token.md'), `The deploy token is ghp_${'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8'}\n`);
+    const r = await syncMemory(nodeRunner, input(a, 'turn'));
+    assert.deepEqual([r.commit, r.committed, r.push], ['ok', 1, 'ok']);
+    assert.deepEqual(r.held, [{ path: 'token.md', reason: 'secret' }]);
+    assert.equal(run(w.root, '--git-dir', w.remote, 'ls-tree', '--name-only', 'main').split('\n').includes('token.md'), false);
+    // Only the held file left: nothing to commit, and it is said.
+    const again = await syncMemory(nodeRunner, input(a, 'turn'));
+    assert.deepEqual([again.commit, again.held.map((h) => h.path)], ['held', ['token.md']]);
+    // A file too large for a note is held back too.
+    writeFileSync(join(a, 'big.md'), 'x'.repeat(1_000_001));
+    const big = await syncMemory(nodeRunner, input(a, 'turn'));
+    assert.deepEqual(
+      big.held.map((h) => h.reason),
+      ['large', 'secret'],
+    );
+  } finally {
+    w.done();
+  }
+});
+
+test('a store inside a larger repository commits only its own files, by paths from the top', { skip: !hasGit && 'git is not installed' }, async () => {
+  const w = world();
+  try {
+    const a = w.clone('a');
+    const store = join(a, 'memory notes');
+    mkdirSync(join(store, 'handoffs', 'app'), { recursive: true });
+    writeFileSync(join(store, 'handoffs', 'app', 'n1.md'), 'handoff\n');
+    writeFileSync(join(store, 'MEMORY.md'), '# Index\n');
+    writeFileSync(join(a, 'tools.js'), 'console.log(1)\n');
+    const r = await syncMemory(nodeRunner, input(store, 'turn'));
+    assert.deepEqual([r.commit, r.committed, r.push], ['ok', 2, 'ok']);
+    assert.equal(run(a, 'status', '--porcelain'), '?? tools.js', 'the rest of the repository is left as it was');
+    assert.deepEqual(run(a, 'show', '--name-only', '--format=', 'HEAD').split('\n').sort(), ['memory notes/MEMORY.md', 'memory notes/handoffs/app/n1.md']);
+  } finally {
+    w.done();
+  }
+});
+
+test('local only: commits with no remote to pull from or push to; a plain folder is no repository', { skip: !hasGit && 'git is not installed' }, async () => {
+  const root = mkdtempSync(join(tmpdir(), 'tc-memlocal-'));
+  try {
+    const dir = join(root, 'memory');
+    mkdirSync(dir);
+    const plain = await syncMemory(nodeRunner, input(dir, 'start', false));
+    assert.deepEqual([plain.repo, plain.commit, plain.pull, plain.push], [false, 'skipped', 'skipped', 'skipped']);
+    run(dir, 'init', '-q', '-b', 'main');
+    identity(dir);
+    writeFileSync(join(dir, 'MEMORY.md'), '# Memory\n');
+    const r = await syncMemory(nodeRunner, input(dir, 'start', false));
+    assert.deepEqual([r.repo, r.commit, r.committed, r.pull, r.push, r.ahead], [true, 'ok', 1, 'skipped', 'skipped', null]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test(
+  'a remote that cannot be reached leaves the commit here and says so; the first push sets the upstream',
+  { skip: !hasGit && 'git is not installed' },
+  async () => {
+    const root = mkdtempSync(join(tmpdir(), 'tc-memoff-'));
+    try {
+      const dir = join(root, 'memory');
+      mkdirSync(dir);
+      run(dir, 'init', '-q', '-b', 'main');
+      identity(dir);
+      run(dir, 'remote', 'add', 'origin', join(root, 'missing.git'));
+      writeFileSync(join(dir, 'MEMORY.md'), '# Memory\n');
+      const r = await syncMemory(nodeRunner, input(dir, 'start'));
+      assert.equal(r.commit, 'ok');
+      assert.equal(r.pull, 'none', 'no upstream and nothing to follow');
+      assert.notEqual(r.push, 'ok');
+      assert.ok(r.detail.length > 0);
+      // The remote appears (an empty repository on GitHub): the first push sends everything and sets the upstream.
+      run(root, 'init', '--bare', '-q', '-b', 'main', join(root, 'missing.git'));
+      const again = await syncMemory(nodeRunner, input(dir, 'turn'));
+      assert.deepEqual([again.commit, again.push, again.ahead, again.behind], ['none', 'ok', 0, 0]);
+      assert.equal(run(dir, 'rev-parse', '--abbrev-ref', '@{upstream}'), 'origin/main');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  },
+);
+
+test("git's failures are sorted by what the person can do", () => {
+  assert.equal(classifyGitError("fatal: unable to access 'https://github.com/a/b.git/': Could not resolve host: github.com"), 'offline');
+  assert.equal(classifyGitError('fatal: Authentication failed for https://github.com/a/b.git'), 'auth');
+  assert.equal(classifyGitError('ERROR: Repository not found.\nfatal: Could not read from remote repository.'), 'auth');
+  assert.equal(classifyGitError(' ! [rejected]        main -> main (fetch first)'), 'rejected');
+  assert.equal(classifyGitError("fatal: Unable to create '/m/.git/index.lock': File exists."), 'busy');
+  assert.equal(classifyGitError('Author identity unknown\n*** Please tell me who you are.'), 'identity');
+  assert.equal(classifyGitError('operation timed out: git push'), 'offline');
+  assert.equal(classifyGitError('fatal: something else'), 'failed');
+});
