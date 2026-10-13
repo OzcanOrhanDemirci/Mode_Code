@@ -292,9 +292,13 @@ test('the memory store: not set up, missing, not used by Claude Code, without gi
       ...over,
     },
   });
-  const at = (over: object) => brief(check('data.memoryStore', healthyFacts({ memoryStore: { ...store, ...over } })));
-  assert.equal(brief(check('data.memoryStore', healthyFacts())), 'ok doc.memory.ok');
-  assert.equal(brief(check('data.memoryStore', healthyFacts({ memoryStore: null }))), 'info doc.memory.none');
+  const at = (over: object | null) => {
+    const r = check('data.memoryStore', healthyFacts({ memoryStore: over && { ...store, ...over } }));
+    assert.equal(r.protection, false, 'the memory store is not one of the protections');
+    return brief(r);
+  };
+  assert.equal(at({}), 'ok doc.memory.ok');
+  assert.equal(at(null), 'info doc.memory.none');
   assert.equal(at({ exists: false }), 'fail doc.memory.missing');
   assert.equal(at({ inUse: false, setting: 'C:/elsewhere' }), 'warn doc.memory.elsewhere');
   assert.equal(at({ inUse: false, setting: null }), 'warn doc.memory.perProject');
