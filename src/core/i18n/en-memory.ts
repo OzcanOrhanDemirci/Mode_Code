@@ -181,7 +181,7 @@ export const enMemory = {
   'mcli.setupHint': 'Choose where it lives (this computer, your GitHub, or both): {cmd}',
 
   // ── the maintenance check ──
-  'doc.memory.diverged': 'The memory here and on GitHub have both moved, so the last sync brought nothing in.',
+  'doc.memory.diverged': 'The memory here and on GitHub had both moved at the last sync ({when}), so it brought nothing in.',
   'doc.memory.divergedHint': 'Join them yourself in the memory folder (git pull), then terminal-code memory sync.',
   'doc.memory.outside': 'Claude Code keeps its memory in {dir}, set up outside terminal-code; terminal-code does not keep it in sync.',
   'doc.memory.adoptHint': 'terminal-code memory setup can look after it, also only bringing in changes while you commit and push yourself.',
@@ -193,9 +193,9 @@ export const enMemory = {
   'doc.memory.perProject': 'Claude Code keeps its memory in one folder per project (its default), not in the folder set up for it.',
   'doc.memory.noGit': 'The memory folder {dir} should have a git history but has none.',
   'doc.memory.noOrigin': 'The memory folder has no remote to sync with ({remote} was set up).',
-  'doc.memory.conflict': 'The last sync could not join changes made here and elsewhere: {files}. Nothing was forced.',
-  'doc.memory.auth': 'GitHub refused the sign-in at the last sync: {detail}',
-  'doc.memory.held': 'Held back from the last sync, they look like they hold a secret: {files}.',
+  'doc.memory.conflict': 'The last sync ({when}) could not join changes made here and elsewhere: {files}. Nothing was forced.',
+  'doc.memory.auth': 'GitHub refused the sign-in at the last sync ({when}): {detail}',
+  'doc.memory.held': 'Held back from the last sync ({when}), they look like they hold a secret: {files}.',
   'doc.memory.ok': 'Where the memory lives: {place} · {dir}. Claude Code uses it.',
 
   // ── the control center ──

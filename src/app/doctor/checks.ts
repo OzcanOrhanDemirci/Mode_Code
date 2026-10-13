@@ -315,12 +315,14 @@ const dataMemoryStore: Check = (f) => {
   if (s.git && !s.isRepo) return result(id, 'data', false, 'warn', m('doc.memory.noGit', { dir: s.dir }), { hint: m('doc.memory.setupHint') });
   if (s.remote && !s.hasOrigin) return result(id, 'data', false, 'warn', m('doc.memory.noOrigin', { remote: s.remote }), { hint: m('doc.memory.setupHint') });
   const r = s.last?.result;
-  if (r?.pull === 'diverged') return result(id, 'data', false, 'warn', m('doc.memory.diverged'), { hint: m('doc.memory.divergedHint') });
+  // When the last sync was: a problem it had may be one an update since has fixed (a time, translated by render.ts).
+  const when = `@at:${s.last?.at ?? 0}`;
+  if (r?.pull === 'diverged') return result(id, 'data', false, 'warn', m('doc.memory.diverged', { when }), { hint: m('doc.memory.divergedHint') });
   if (r?.pull === 'conflict')
-    return result(id, 'data', false, 'warn', m('doc.memory.conflict', { files: r.conflicts.join(', ') }), { hint: m('doc.memory.syncHint') });
+    return result(id, 'data', false, 'warn', m('doc.memory.conflict', { when, files: r.conflicts.join(', ') }), { hint: m('doc.memory.syncHint') });
   if (r && (r.push === 'auth' || r.pull === 'auth'))
-    return result(id, 'data', false, 'warn', m('doc.memory.auth', { detail: r.detail }), { hint: m('doc.memory.syncHint') });
-  if (r?.held.length) return result(id, 'data', false, 'info', m('doc.memory.held', { files: r.held.map((h) => h.path).join(', ') }));
+    return result(id, 'data', false, 'warn', m('doc.memory.auth', { when, detail: r.detail }), { hint: m('doc.memory.syncHint') });
+  if (r?.held.length) return result(id, 'data', false, 'info', m('doc.memory.held', { when, files: r.held.map((h) => h.path).join(', ') }));
   return result(id, 'data', false, 'ok', m('doc.memory.ok', { place: `@msetup.place.${s.place}`, dir: s.dir }));
 };
 

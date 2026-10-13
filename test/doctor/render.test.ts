@@ -111,3 +111,13 @@ test('parameters: home written as ~, the user name hidden, "@key" values transla
     'Write x: bu sürüm "engelle" diyor, kurulu hook "izin" diyor.',
   );
 });
+
+test('a time parameter ("@at:<ms>") is a local date and time in the person\'s language; no name is hidden in it', () => {
+  // The diverged memory the doctor showed at 21:34 had been the 19:55 sync's, from before the fix (2026-10-13).
+  const at = new Date(2026, 9, 13, 19, 55).getTime();
+  const tr = say('tr', { key: 'doc.memory.diverged', params: { when: `@at:${at}` } }, HOME);
+  assert.match(tr, /^Son eşitlemede \(13\.10\.2026 19:55\) buradaki hafıza/);
+  assert.match(say('en', { key: 'doc.memory.diverged', params: { when: `@at:${at}` } }, HOME), /at the last sync \(10\/13\/2026,? 07:55 PM\)/);
+  assert.match(say('en', { key: 'doc.memory.diverged', params: { when: '@at:0' } }, HOME), /\(\?\)/, 'no record time: a question mark, not 1970');
+  assert.deepEqual(maskParams({ when: `@at:${at}` }, HOME, 'at'), { when: `@at:${at}` });
+});

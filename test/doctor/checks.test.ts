@@ -347,6 +347,12 @@ test('the memory store: not set up, missing, not used by Claude Code, without gi
   assert.equal(at({ hasOrigin: false }), 'warn doc.memory.noOrigin');
   assert.equal(at({ last: last({ pull: 'conflict', conflicts: ['MEMORY.md'] }) }), 'warn doc.memory.conflict');
   assert.equal(at({ last: last({ pull: 'diverged' }) }), 'warn doc.memory.diverged');
+  // Each problem says when that sync was: one from before an update may be fixed already (2026-10-13).
+  const when = (over: object) =>
+    check('data.memoryStore', healthyFacts({ memoryStore: { ...store, last: { ...last(over), at: 5 } } as never, memorySetting: 'C:/dev/notes/memory' }))
+      .summary.params?.when;
+  for (const over of [{ pull: 'diverged' }, { pull: 'conflict', conflicts: ['a'] }, { push: 'auth' }, { held: [{ path: 'k.md', reason: 'secret' }] }])
+    assert.equal(when(over), '@at:5', JSON.stringify(over));
   assert.equal(at({ last: last({ push: 'auth', detail: 'denied' }) }), 'warn doc.memory.auth');
   assert.equal(at({ last: last({ pull: 'auth' }) }), 'warn doc.memory.auth');
   assert.equal(at({ last: last({ held: [{ path: 'k.md', reason: 'secret' }] }) }), 'info doc.memory.held');

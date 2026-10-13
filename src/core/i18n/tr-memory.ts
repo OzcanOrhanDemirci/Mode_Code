@@ -176,7 +176,7 @@ export const trMemory: Record<keyof typeof enMemory, string> = {
   'mcli.noHistory': 'Hafıza klasörünün eşitlenecek bir git geçmişi yok: terminal-code memory setup bir geçmiş ekler.',
   'mcli.setupHint': "Nerede duracağını seç (bu bilgisayar, GitHub'ın ya da ikisi): {cmd}",
 
-  'doc.memory.diverged': "Buradaki hafıza da GitHub'daki de ilerlemiş, bu yüzden son eşitleme hiçbir şey almadı.",
+  'doc.memory.diverged': "Son eşitlemede ({when}) buradaki hafıza da GitHub'daki de ilerlemişti, bu yüzden hiçbir şey almadı.",
   'doc.memory.divergedHint': 'Hafıza klasöründe onları sen birleştir (git pull), sonra terminal-code memory sync.',
   'doc.memory.outside': 'Claude Code hafızasını terminal-code dışında kurulmuş {dir} klasöründe tutuyor; terminal-code onu eşitlemiyor.',
   'doc.memory.adoptHint': 'terminal-code memory setup ona bakabilir; sen kaydedip gönderirken yalnız değişiklikleri almak da olur.',
@@ -188,9 +188,9 @@ export const trMemory: Record<keyof typeof enMemory, string> = {
   'doc.memory.perProject': 'Claude Code hafızasını kurulan klasörde değil, her proje için ayrı bir klasörde (varsayılanı) tutuyor.',
   'doc.memory.noGit': '{dir} hafıza klasörünün bir git geçmişi olmalıydı ama yok.',
   'doc.memory.noOrigin': 'Hafıza klasörünün eşitleneceği bir uzak deposu yok ({remote} kurulmuştu).',
-  'doc.memory.conflict': 'Son eşitleme burada ve başka yerde yapılan değişiklikleri birleştiremedi: {files}. Hiçbir şey zorlanmadı.',
-  'doc.memory.auth': 'Son eşitlemede GitHub girişi kabul etmedi: {detail}',
-  'doc.memory.held': 'Sır içeriyor gibi göründükleri için son eşitlemede bekletildi: {files}.',
+  'doc.memory.conflict': 'Son eşitleme ({when}) burada ve başka yerde yapılan değişiklikleri birleştiremedi: {files}. Hiçbir şey zorlanmadı.',
+  'doc.memory.auth': 'Son eşitlemede ({when}) GitHub girişi kabul etmedi: {detail}',
+  'doc.memory.held': 'Sır içeriyor gibi göründükleri için son eşitlemede ({when}) bekletildi: {files}.',
   'doc.memory.ok': 'Hafızanın yeri: {place} · {dir}. Claude Code onu kullanıyor.',
 
   'tui.backSoon': 'Kontrol merkezine dönülüyor…',

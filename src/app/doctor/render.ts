@@ -5,6 +5,7 @@
  */
 import { APP_NAME, APP_VERSION, REPO_URL } from '../../core/app.js';
 import { tIn, type Lang, type MessageKey } from '../../core/i18n/index.js';
+import { dateTime } from '../../core/format.js';
 import type { Tally } from './checks.js';
 import type { RepairReport, PlannedRepair, DoctorRun } from './doctor.js';
 import type { SelfCheckReport } from './selfcheck.js';
@@ -28,7 +29,8 @@ export function maskParams(params: Message['params'], home: string, user?: strin
   const h = home.replace(/\\/g, '/');
   const out: Record<string, string | number> = {};
   for (const [k, v] of Object.entries(params)) {
-    if (typeof v !== 'string') {
+    // A time ("@at:<epoch ms>") holds no name and no path: a user called "at" must not turn it into one.
+    if (typeof v !== 'string' || /^@at:\d+$/.test(v)) {
       out[k] = v;
       continue;
     }
@@ -40,12 +42,19 @@ export function maskParams(params: Message['params'], home: string, user?: strin
   return out;
 }
 
-/** A message in the person's language. A parameter written "@key" is itself a message, translated too. */
+/**
+ * A message in the person's language. A parameter written "@key" is itself a message, translated too; one
+ * written "@at:<epoch ms>" is a local date and time, as the person's language writes it.
+ */
 export function say(lang: Lang, msg: Message, home: string, user?: string): string {
   const params = maskParams(msg.params, home, user);
-  const translated = params
-    ? Object.fromEntries(Object.entries(params).map(([k, v]) => [k, typeof v === 'string' && /^@[\w.-]+$/.test(v) ? tIn(lang, v.slice(1) as MessageKey) : v]))
-    : params;
+  const word = (v: string | number): string | number => {
+    if (typeof v !== 'string') return v;
+    const at = /^@at:(\d+)$/.exec(v);
+    if (at) return Number(at[1]) > 0 ? dateTime(Number(at[1]), lang) : '?';
+    return /^@[\w.-]+$/.test(v) ? tIn(lang, v.slice(1) as MessageKey) : v;
+  };
+  const translated = params ? Object.fromEntries(Object.entries(params).map(([k, v]) => [k, word(v)])) : params;
   return tIn(lang, msg.key, translated);
 }
 
