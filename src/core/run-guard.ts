@@ -195,10 +195,46 @@ const GH_READS: Record<string, RegExp> = {
   help: /^$|./,
 };
 
+/** The words of a command line that are not options, with the values of the options that take one left out. */
+function positional(args: readonly string[], valueFlags: ReadonlySet<string>): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i]!;
+    if (a === '--') {
+      out.push(...args.slice(i + 1));
+      break;
+    }
+    if (a.startsWith('-')) {
+      if (valueFlags.has(a)) i++;
+      continue;
+    }
+    out.push(a);
+  }
+  return out;
+}
+
+/** gh's global options that take a value (`gh -R owner/repo pr merge 1`). */
+const GH_VALUE_FLAGS = new Set(['-R', '--repo', '--hostname']);
+/** docker's and podman's global options that take a value (`docker -H host push image`). */
+const DOCKER_VALUE_FLAGS = new Set([
+  '-H',
+  '--host',
+  '--context',
+  '-c',
+  '--config',
+  '-l',
+  '--log-level',
+  '--tlscacert',
+  '--tlscert',
+  '--tlskey',
+  '--url',
+  '--connection',
+]);
+
 function ghVerdict(inv: Invocation): AutoVerdict {
-  const words = inv.args.filter((a) => !a.startsWith('-'));
-  const [group = '', sub = ''] = words;
-  if (!group || inv.args[0] === '--version' || inv.args[0] === '--help') return ALLOW;
+  const [group = '', sub = ''] = positional(inv.args, GH_VALUE_FLAGS);
+  // Options alone (--version, --help) only print.
+  if (!group) return ALLOW;
   if (group === 'api') {
     const method = inv.args.findIndex((a) => a === '-X' || a === '--method');
     const m =
@@ -234,16 +270,39 @@ function gitVerdict(inv: Invocation, e: AutoEnv): AutoVerdict {
 }
 
 const PUBLISHERS = /^(?:docker|podman)$/;
+const CD = new Set(['cd', 'pushd', 'chdir', 'set-location', 'sl', 'push-location']);
 
 function shellVerdict(tool: string, input: Readonly<Record<string, unknown>>, dialect: 'bash' | 'powershell', e: AutoEnv): AutoVerdict {
   if (input.dangerouslyDisableSandbox === true) return refuse('sandbox-escape', tool);
   const command = String(input.command ?? input.script ?? '');
   if (named(command)) return refuse('fence-read', command);
   const a = analyzeCommand(command, dialect);
+  // The folder each program runs in, followed through cd: `cd ~ && cat .npmrc` reads the home folder's.
+  let cwd: string | null = e.cwd;
   for (const inv of a.invocations) {
+    if (CD.has(inv.program)) {
+      const k = inv.args.findIndex((x) => !x.startsWith('-'));
+      cwd =
+        k === -1
+          ? e.home
+          : inv.dynamic[k]
+            ? null
+            : cwd === null && !/^(?:[\\/~]|[A-Za-z]:)/.test(inv.args[k]!)
+              ? null
+              : resolvePath(inv.args[k]!, { ...e, cwd: cwd ?? e.cwd });
+      // Nothing of a run works inside a credential folder.
+      if (cwd !== null && under(cwd, e.credentials, e)) return refuse('fence-read', inv.raw);
+      continue;
+    }
     for (const [i, arg] of inv.args.entries()) {
-      if (inv.dynamic[i] || !/[/\\~]/.test(arg)) continue;
-      if (under(resolvePath(arg.replace(/^--?[\w-]+=/, ''), e), e.credentials, e)) return refuse('fence-read', arg);
+      const text = arg.replace(/^--?[\w-]+=/, '');
+      if (!text || text.startsWith('-')) continue;
+      // A value known only at run time is placed by the part written out: `~/.aws/$PROFILE` is in ~/.aws.
+      const fixed = inv.dynamic[i] ? text.split(/[$`]/)[0]! : text;
+      if (inv.dynamic[i] && !/[\\/]/.test(fixed)) continue;
+      // Where the folder is not known (cd to a value known only at run time), only absolute paths can be placed.
+      if (cwd === null && !/^(?:[\\/~]|[A-Za-z]:)/.test(fixed)) continue;
+      if (under(resolvePath(fixed, { ...e, cwd: cwd ?? e.cwd }), e.credentials, e)) return refuse('fence-read', arg);
     }
     if (inv.program === 'git') {
       const v = gitVerdict(inv, e);
@@ -253,7 +312,8 @@ function shellVerdict(tool: string, input: Readonly<Record<string, unknown>>, di
       const v = ghVerdict(inv);
       if (v.kind !== 'allow') return v;
     }
-    if (PUBLISHERS.test(inv.program) && inv.args.find((x) => !x.startsWith('-')) === 'push') return defer('publish', inv.raw, 'pushes an image to a registry');
+    if (PUBLISHERS.test(inv.program) && positional(inv.args, DOCKER_VALUE_FLAGS)[0] === 'push')
+      return defer('publish', inv.raw, 'pushes an image to a registry');
   }
   if (e.memoryDirs.length) {
     const fx = commandEffects(command, dialect, { ...e, env: e.env });

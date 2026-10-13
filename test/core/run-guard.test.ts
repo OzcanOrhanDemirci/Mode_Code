@@ -142,3 +142,35 @@ test("credential paths cover the home folder and Claude Code's own credentials",
   for (const x of ['/home/ada/.ssh', '/home/ada/.aws', '/home/ada/.config/gh', '/home/ada/.netrc', '/home/ada/.npmrc', '/custom/claude/.credentials.json'])
     assert.ok(p.includes(x), x);
 });
+
+test('options that take a value are not the subcommand; cd is followed; a refusal says what it refused', () => {
+  assert.equal(kind(bash('gh -R ada/api pr merge 3')), 'defer:merge');
+  assert.equal(kind(bash('gh --repo ada/api pr view 3')), 'allow');
+  assert.equal(kind(bash('gh api -X GET repos/o/r/pulls')), 'allow');
+  assert.equal(kind(bash('gh')), 'allow');
+  assert.equal(kind(bash('docker -H tcp://host:2375 push img:1')), 'defer:publish');
+  assert.equal(kind(bash('docker --context prod image ls')), 'allow');
+  assert.equal(kind(bash('cd ~ && cat .npmrc')), 'refuse:fence-read');
+  assert.equal(kind(bash('cd /home/ada/api && cat .npmrc')), 'allow');
+  assert.equal(kind(bash('cd "$DIR" && cat .npmrc')), 'allow', 'an unknown folder: only absolute paths can be placed');
+  assert.equal(kind(bash('cd "$DIR" && cat /home/ada/.npmrc')), 'refuse:fence-read');
+  const glob = checkAutonomy('Glob', { pattern: '**/.ssh/*' }, E);
+  assert.deepEqual(glob, { kind: 'refuse', why: 'fence-read', detail: '**/.ssh/*' });
+});
+
+test('what is written out of a run-time value places it; cd with options, alone and up', () => {
+  assert.equal(kind(bash('cat ~/.aws/$PROFILE')), 'refuse:fence-read');
+  assert.equal(kind(bash('cat ~/.aws/profile-')), 'refuse:fence-read');
+  assert.equal(kind(bash('cat $OUT/report.txt')), 'allow');
+  assert.equal(kind(bash('cat "$OUT"')), 'allow');
+  assert.equal(kind(bash('cd -P ~ && cat .npmrc')), 'refuse:fence-read');
+  assert.equal(kind(bash('cd && cat .npmrc')), 'refuse:fence-read', 'cd alone goes home');
+  assert.equal(kind(bash('cd .. && cat .npmrc')), 'refuse:fence-read', 'from /home/ada/api, up is home');
+  assert.equal(kind(bash('gh -R ada/api -- pr merge 1')), 'defer:merge');
+});
+
+test('nothing works inside a credential folder', () => {
+  assert.equal(kind(bash('cd ~ && cd .aws && ls -l')), 'refuse:fence-read');
+  assert.equal(kind(bash('cd /home/ada/.config/gh')), 'refuse:fence-read');
+  assert.equal(kind(bash('cd /home/ada/.config && ls')), 'allow');
+});
