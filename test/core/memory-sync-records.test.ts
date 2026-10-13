@@ -15,13 +15,23 @@ const result = (over: Partial<SyncResult> = {}): SyncResult => ({
   conflicts: [],
   ahead: 0,
   behind: 0,
+  pulled: [],
+  index: null,
   detail: '',
   ...over,
 });
 
 test('a record reads back; a torn or foreign file is none', () => {
-  const r = { at: 5, trigger: 'turn', session: 's1', result: result({ held: [{ path: 'a.md', reason: 'secret' }], conflicts: ['M.md'] }) };
+  const r = {
+    at: 5,
+    trigger: 'turn',
+    session: 's1',
+    result: result({ held: [{ path: 'a.md', reason: 'secret' }], conflicts: ['M.md'], pulled: ['MEMORY.md'] }),
+  };
   assert.deepEqual(parseSyncRecord(JSON.stringify(r)), r);
+  // The index's lines stay with the session that pulled them; the record keeps which files came in.
+  const lines = parseSyncRecord(JSON.stringify({ ...r, result: { ...r.result, index: { removed: [], added: ['- x'] } } }))!;
+  assert.deepEqual([lines.result.pulled, lines.result.index], [['MEMORY.md'], null]);
   for (const t of [
     null,
     '',
@@ -46,6 +56,7 @@ test('a record reads back; a torn or foreign file is none', () => {
         push: 'ok',
         held: [{ x: 1 }, { path: 'b.md', reason: 'large' }],
         conflicts: [1, 'c.md'],
+        pulled: [2, 'd.md'],
         committed: 'two',
         ahead: 'x',
         behind: null,
@@ -65,8 +76,9 @@ test('a record reads back; a torn or foreign file is none', () => {
       loose.result.detail,
       loose.result.conflicts,
       loose.result.held.length,
+      loose.result.pulled,
     ],
-    ['manual', null, 0, null, null, false, '', ['c.md'], 1],
+    ['manual', null, 0, null, null, false, '', ['c.md'], 1, ['d.md']],
   );
   for (const trigger of ['start', 'turn', 'manual', 'setup']) assert.equal(parseSyncRecord(JSON.stringify({ ...r, trigger }))?.trigger, trigger);
 });

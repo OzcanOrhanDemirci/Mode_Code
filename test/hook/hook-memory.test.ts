@@ -134,3 +134,46 @@ test('the handoff keyword without the plugin says plainly that nothing writes th
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test(
+  'without the plugin: what the first prompt pulls in from another computer is told to Claude, whose index is older',
+  { skip: !hasGit && 'git is not installed' },
+  () => {
+    const s = setup();
+    try {
+      const remote = join(s.tmp, 'github.git');
+      git(s.tmp, 'init', '-q', '--bare', remote);
+      rmSync(s.store, { recursive: true, force: true });
+      git(s.tmp, 'clone', '-q', remote, s.store);
+      writeFileSync(join(s.store, 'MEMORY.md'), '# Memory\n');
+      git(s.store, 'add', '-A');
+      git(s.store, 'commit', '-q', '-m', 'start');
+      git(s.store, 'push', '-q', '-u', 'origin', 'HEAD');
+      const other = join(s.tmp, 'other');
+      git(s.tmp, 'clone', '-q', remote, other);
+      writeFileSync(join(other, 'MEMORY.md'), '# Memory\n- The codename is PELICAN.\n');
+      git(other, 'commit', '-q', '-am', 'from the other computer');
+      git(other, 'push', '-q');
+      const fwd = (p: string) => p.replace(/\\/g, '/');
+      writeFileSync(
+        join(s.home, 'config.json'),
+        JSON.stringify({
+          language: 'en',
+          memory: { store: { place: 'both', dir: fwd(s.store), remote: fwd(remote), git: true }, handoff: { enabled: false } },
+        }),
+      );
+      const first = run('UserPromptSubmit', { ...s.base, hook_event_name: 'UserPromptSubmit', prompt: 'What is the codename?' }, s.home);
+      const context: string = first?.hookSpecificOutput?.additionalContext ?? '';
+      assert.match(
+        context,
+        /brought up to date with changes made elsewhere: MEMORY\.md\. The index \(MEMORY\.md\) in your context may have been loaded before that/,
+      );
+      assert.match(context, /\n\+ - The codename is PELICAN\.\n/);
+      assert.equal(readFileSync(join(s.store, 'MEMORY.md'), 'utf8'), '# Memory\n- The codename is PELICAN.\n');
+      const record = JSON.parse(readFileSync(join(s.home, 'state', 'memory-sync.hook.json'), 'utf8'));
+      assert.deepEqual(record.result.pulled, ['MEMORY.md']);
+    } finally {
+      s.done();
+    }
+  },
+);

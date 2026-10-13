@@ -211,3 +211,49 @@ test('the morning line after a long gap, and approved run notes handed to the ne
   expect(again.context.join('\n')).not.toMatch(/approved notes/);
   expect(Object.keys(w.json(`${DATA}/state/notes-delivered.json`))).toEqual(['r2']);
 });
+
+test("what the start's pull brought in is told with the first prompt, which waits for it; once", async ($, on) => {
+  const STORE = '/home/ada/claude-memory';
+  const calls: string[] = [];
+  let release: () => void = () => {};
+  const pulled = new Promise<void>((r) => (release = r));
+  const git = repoGit((args, dir) => {
+    if (dir !== STORE) return undefined;
+    const a = args.join(' ');
+    calls.push(a);
+    if (a === 'rev-parse --show-toplevel') return { exitCode: 0, stdout: `${STORE}\n` };
+    if (args[0] === 'status') return { exitCode: 0, stdout: '' };
+    if (a === 'rev-parse --verify --quiet HEAD') return { exitCode: 0, stdout: 'abc\n' };
+    if (a === 'rev-parse --abbrev-ref --symbolic-full-name @{upstream}') return { exitCode: 0, stdout: 'origin/main\n' };
+    // The pull takes its time: the prompt comes in while it runs.
+    if (args[0] === 'pull') return pulled.then(() => ({ exitCode: 0, stdout: '' }));
+    if (a === 'diff --name-only --no-renames --relative -z abc HEAD -- .') return { exitCode: 0, stdout: 'MEMORY.md\0pnpm.md\0' };
+    if (a.startsWith('diff --unified=0')) return { exitCode: 0, stdout: '@@ -1,0 +2 @@\n+- [pnpm](pnpm.md) — the package manager\n' };
+    if (a === 'rev-list --count @{upstream}..HEAD') return { exitCode: 0, stdout: '0\n' };
+    if (args[0] === 'rev-list') return { exitCode: 0, stdout: '0\t0\n' };
+    return { exitCode: 1, stdout: '', stderr: `unexpected git ${a}` };
+  });
+  world(on, {
+    config: { memory: { store: { place: 'both', dir: STORE, remote: 'https://github.com/ada/claude-memory.git' }, handoff: { enabled: false } } },
+    git,
+  });
+  on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }));
+  const started = $.session.start({ source: 'startup', cwd: PROJECT } as any);
+  const prompt = $.prompt.submit(typed('Which package manager?'));
+  let answered = false;
+  void prompt.then(() => (answered = true));
+  for (let i = 0; i < 50; i++) await Promise.resolve();
+  expect(answered).toBe(false);
+  release();
+  await started;
+  const r: any = await prompt;
+  const context = r.context.join('\n');
+  expect(context).toMatch(
+    /The memory was brought up to date with changes made elsewhere: MEMORY\.md, pnpm\.md\. The index \(MEMORY\.md\) in your context may have been loaded before that/,
+  );
+  expect(context).toMatch(/\n\+ - \[pnpm\]\(pnpm\.md\) — the package manager\n/);
+  expect(context).toMatch(/A file read earlier in this session may have changed/);
+  const again: any = await $.prompt.submit(typed('And the next step?'));
+  expect((again.context ?? []).join('\n')).not.toMatch(/brought up to date/);
+  expect(calls.filter((c) => c.startsWith('pull')).length).toBe(1);
+});

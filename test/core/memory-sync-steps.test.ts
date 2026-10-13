@@ -323,3 +323,47 @@ test('the counts after a sync, a remote that hangs, the first problem kept as th
   assert.deepEqual([l.pull, l.push, l.ahead], ['skipped', 'skipped', null]);
   assert.ok(!local.calls.some((c) => c.includes('@{upstream}')));
 });
+
+test('what the pulls brought in: the files and the index lines, counted from where the store stood before them', async () => {
+  const head = 'rev-parse --verify --quiet HEAD';
+  const names = 'diff --name-only --no-renames --relative -z abc HEAD -- .';
+  const lines = 'diff --unified=0 --no-color --no-ext-diff --relative abc HEAD -- MEMORY.md';
+  const answered = (over: Record<string, Answer> = {}) =>
+    fake(base({ [head]: { stdout: 'abc\n' }, [names]: { stdout: 'MEMORY.md\0a.md\0' }, [lines]: { stdout: '@@ -1 +1 @@\n-old\n+new\n' }, ...over }));
+  const r = await syncMemory(answered().runner, input());
+  assert.deepEqual([r.pulled, r.index], [['MEMORY.md', 'a.md'], { removed: ['old'], added: ['new'] }]);
+  // Only other files: the index is not asked about.
+  const o = answered({ [names]: { stdout: 'a.md\0' } });
+  const ro = await syncMemory(o.runner, input());
+  assert.deepEqual([ro.pulled, ro.index], [['a.md'], null]);
+  assert.ok(!o.calls.includes(lines));
+  // git cannot list them: nothing; it cannot show the index's change: the files without the lines.
+  const nl = await syncMemory(answered({ [names]: { exitCode: 128 } }).runner, input());
+  assert.deepEqual([nl.pulled, nl.index], [[], null]);
+  const nd = await syncMemory(answered({ [lines]: { exitCode: 128 } }).runner, input());
+  assert.deepEqual([nd.pulled, nd.index], [['MEMORY.md', 'a.md'], null]);
+  // Nothing came in (a pull that failed, a turn that does not pull, no remote, no history yet): nothing is asked.
+  for (const [over, inp] of [
+    [{ 'pull --rebase --autostash --quiet': { exitCode: 1, stderr: 'fatal: bad' } }, input()],
+    [{}, input({ steps: { commit: true, pull: false, push: true } })],
+    [{}, input({ remote: false })],
+    [{ [head]: { exitCode: 1 } }, input()],
+  ] as const) {
+    const a = answered(over);
+    const x = await syncMemory(a.runner, inp);
+    assert.deepEqual([x.pulled, x.index], [[], null]);
+    assert.ok(!a.calls.includes(names));
+  }
+  assert.ok(!answered().calls.length, 'nothing is run before the sync');
+  const local = answered();
+  await syncMemory(local.runner, input({ remote: false }));
+  assert.ok(!local.calls.includes(head), 'a store without a remote is not asked where it stood');
+  // A push the remote turned away pulls once: what that pull brings in counts too.
+  let tries = 0;
+  const rejected = fake((args) => {
+    if (args.join(' ') === 'push --quiet') return ++tries === 1 ? { exitCode: 1, stderr: ' ! [rejected] main -> main (fetch first)' } : {};
+    return base({ 'rev-list --count @{upstream}..HEAD': { stdout: '1\n' }, [head]: { stdout: 'abc\n' }, [names]: { stdout: 'b.md\0' } })(args);
+  });
+  const p = await syncMemory(rejected.runner, input({ steps: { commit: true, pull: false, push: true } }));
+  assert.deepEqual([p.push, p.pulled], ['ok', ['b.md']]);
+});

@@ -134,7 +134,7 @@ export const trMemory: Record<keyof typeof enMemory, string> = {
   'mcli.sync.auto': 'kendiliğinden',
   'mcli.sync.manual': 'elle (terminal-code memory sync)',
   'mcli.sync.committed': '{n} dosya kaydedildi',
-  'mcli.sync.pulled': "GitHub'daki değişiklikler alındı",
+  'mcli.sync.pulled': "GitHub'dan {n} dosya alındı",
   'mcli.sync.pushed': "GitHub'a gönderildi",
   'mcli.sync.nothing': 'yapılacak bir şey yok',
   'mcli.problem.conflict': 'bir çekme seni bekliyor: {files} hem burada hem başka yerde değişti; hiçbir şey zorlanmadı',

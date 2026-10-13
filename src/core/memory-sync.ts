@@ -6,7 +6,7 @@
  * run the same steps. Nothing is ever forced: a conflict is undone and reported, a rejected push is
  * retried once after a pull, an unreachable remote is left for the next time.
  */
-import { changeCounts, isDeletion, parsePorcelainZ, type StoreChange } from './memory.js';
+import { changeCounts, indexChange, INDEX_FILE, isDeletion, parsePorcelainZ, type Pulled, type StoreChange } from './memory.js';
 
 /** Runs a program; resolves with its exit code and output, rejects when it cannot start or times out. */
 export interface Runner {
@@ -52,6 +52,9 @@ export interface SyncResult {
   /** Commits not yet on the remote, and on the remote not yet here (as of the last fetch); null without an upstream. */
   ahead: number | null;
   behind: number | null;
+  /** Files the pulls brought in, by their paths in the store, and the lines they changed in the index. */
+  pulled: string[];
+  index: Pulled['index'];
   /** The first line of what went wrong, for the person. */
   detail: string;
 }
@@ -114,6 +117,8 @@ export async function syncMemory(r: Runner, input: SyncInput): Promise<SyncResul
     conflicts: [],
     ahead: null,
     behind: null,
+    pulled: [],
+    index: null,
     detail: '',
   };
   const git = async (args: readonly string[], timeoutMs = 15_000) => {
@@ -140,16 +145,20 @@ export async function syncMemory(r: Runner, input: SyncInput): Promise<SyncResul
 
   if (input.steps.commit) await commitStep(git, input, top.out.trim(), res, note);
 
+  // Where the store stood before anything came in: what the pulls bring is told to Claude (its index may predate it).
+  const head = input.remote ? await git(['rev-parse', '--verify', '--quiet', 'HEAD']) : null;
+  const came = { in: false };
   let upstream = input.remote ? await upstreamOf(git) : null;
   if (input.remote && input.steps.pull) {
     if (upstream === null) upstream = await adoptUpstream(git);
     if (upstream === null) res.pull = 'none';
-    else res.pull = await pullStep(git, res, note);
+    else res.pull = await pullStep(git, res, note, came);
   }
   if (input.remote && input.steps.push && res.pull !== 'conflict') {
-    res.push = await pushStep(git, upstream, res, note);
+    res.push = await pushStep(git, upstream, res, note, came);
     if (res.push === 'ok' && upstream === null) upstream = await upstreamOf(git);
   }
+  if (head?.ok && came.in) await broughtIn(git, head.out.trim(), res);
   if (upstream !== null) {
     const counts = await git(['rev-list', '--left-right', '--count', '@{upstream}...HEAD']);
     const m = /^(\d+)\s+(\d+)/.exec(counts.out.trim());
@@ -238,9 +247,12 @@ async function adoptUpstream(git: Git): Promise<string | null> {
   return set.ok ? `origin/${name}` : null;
 }
 
-async function pullStep(git: Git, res: SyncResult, note: (s: string) => void): Promise<PullOutcome> {
+async function pullStep(git: Git, res: SyncResult, note: (s: string) => void, came: { in: boolean }): Promise<PullOutcome> {
   const pull = await git(['pull', '--rebase', '--autostash', '--quiet'], 60_000);
-  if (pull.ok) return 'ok';
+  if (pull.ok) {
+    came.in = true;
+    return 'ok';
+  }
   const conflicted = await git(['diff', '--name-only', '--diff-filter=U']);
   const files = conflicted.ok
     ? conflicted.out
@@ -262,7 +274,17 @@ async function pullStep(git: Git, res: SyncResult, note: (s: string) => void): P
   return k === 'offline' || k === 'auth' || k === 'busy' ? k : 'failed';
 }
 
-async function pushStep(git: Git, upstream: string | null, res: SyncResult, note: (s: string) => void): Promise<PushOutcome> {
+/** What the pulls brought in since `from`: the files (store-relative, renames as a removal and an addition), and the index's lines. */
+async function broughtIn(git: Git, from: string, res: SyncResult): Promise<void> {
+  const names = await git(['diff', '--name-only', '--no-renames', '--relative', '-z', from, 'HEAD', '--', '.']);
+  if (!names.ok) return;
+  res.pulled = names.out.split('\0').filter(Boolean);
+  if (!res.pulled.includes(INDEX_FILE)) return;
+  const diff = await git(['diff', '--unified=0', '--no-color', '--no-ext-diff', '--relative', from, 'HEAD', '--', INDEX_FILE]);
+  if (diff.ok) res.index = indexChange(diff.out);
+}
+
+async function pushStep(git: Git, upstream: string | null, res: SyncResult, note: (s: string) => void, came: { in: boolean }): Promise<PushOutcome> {
   if (upstream !== null) {
     const ahead = await git(['rev-list', '--count', '@{upstream}..HEAD']);
     if (ahead.ok && ahead.out.trim() === '0') return 'none';
@@ -275,7 +297,7 @@ async function pushStep(git: Git, upstream: string | null, res: SyncResult, note
   let push = await git(args, 60_000);
   if (!push.ok && classifyGitError(push.err) === 'rejected') {
     // The remote moved on since the pull: bring that in once, then try once more.
-    const again = await pullStep(git, res, note);
+    const again = await pullStep(git, res, note, came);
     if (again === 'conflict') return 'rejected';
     if (again === 'ok') push = await git(args, 60_000);
   }
@@ -315,6 +337,9 @@ export function parseSyncRecord(text: string | null): SyncRecord | null {
         conflicts: Array.isArray(r.conflicts) ? r.conflicts.filter((c): c is string => typeof c === 'string') : [],
         ahead: typeof r.ahead === 'number' ? r.ahead : null,
         behind: typeof r.behind === 'number' ? r.behind : null,
+        // Which files came in is the person's to see; the index's lines were for the session that pulled them.
+        pulled: Array.isArray(r.pulled) ? r.pulled.filter((f): f is string => typeof f === 'string') : [],
+        index: null,
         detail: typeof r.detail === 'string' ? r.detail : '',
       },
     };

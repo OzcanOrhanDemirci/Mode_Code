@@ -5,12 +5,18 @@
  * .gitignore). Pure: names, paths, checks and texts; the git work is in memory-sync.ts, the disk and the
  * network in the node layer.
  */
+import { APP_NAME } from './app.js';
 import { tIn, type Lang } from './i18n/index.js';
 import { joinPath } from './paths.js';
+import { maskSecrets } from './secrets/scan.js';
+import { truncate } from './text.js';
 
 /** Folders terminal-code keeps inside the store. */
 export const HANDOFF_DIR = 'handoffs';
 export const PROJECTS_DIR = 'projects';
+
+/** The index Claude Code loads into every session, at the store's top. */
+export const INDEX_FILE = 'MEMORY.md';
 
 /** GitHub's limits for a repository's name. */
 export const REPO_NAME_MAX = 100;
@@ -86,7 +92,7 @@ export function projectKey(p: { id?: string | null; remote?: string | null; fold
 /** Where things are inside a store. */
 export function storePaths(dir: string): { index: string; readme: string; gitignore: string; handoffs: string; projects: string } {
   return {
-    index: joinPath(dir, 'MEMORY.md'),
+    index: joinPath(dir, INDEX_FILE),
     readme: joinPath(dir, 'README.md'),
     gitignore: joinPath(dir, '.gitignore'),
     handoffs: joinPath(dir, HANDOFF_DIR),
@@ -193,4 +199,58 @@ export function changeCounts(changes: readonly StoreChange[]): { added: number; 
 /** Where handoff notes are kept: in the memory store when there is one, else in terminal-code's own folder. */
 export function handoffRoot(storeDir: string | null, fallback: string): string {
   return storeDir ? joinPath(storeDir, HANDOFF_DIR) : fallback;
+}
+
+/** What a sync brought in from the remote: the files, by their paths in the store, and the index's changed lines. */
+export interface Pulled {
+  files: string[];
+  /** The lines removed from and added to the index, or null when it did not change or its change could not be read. */
+  index: { removed: string[]; added: string[] } | null;
+}
+
+/** The lines a diff of the index (git diff --unified=0) removes and adds; blank lines are left out. */
+export function indexChange(diff: string): { removed: string[]; added: string[] } {
+  const removed: string[] = [];
+  const added: string[] = [];
+  let body = false;
+  for (const raw of diff.split('\n')) {
+    const line = raw.replace(/\r$/, '');
+    // The file's header (---, +++) comes before the first hunk.
+    if (line.startsWith('@@')) body = true;
+    else if (body && line.slice(1).trim()) {
+      if (line.startsWith('-')) removed.push(line.slice(1));
+      else if (line.startsWith('+')) added.push(line.slice(1));
+    }
+  }
+  return { removed, added };
+}
+
+/** Two syncs before the next prompt: their files joined; two changes to the index are not joined line by line. */
+export function mergePulled(a: Pulled | null, b: Pulled): Pulled {
+  if (!a) return b;
+  const both = a.files.includes(INDEX_FILE) && b.files.includes(INDEX_FILE);
+  return { files: [...new Set([...a.files, ...b.files])], index: both ? null : (a.index ?? b.index) };
+}
+
+/** Index lines shown to Claude at most; past that it is asked to read the file again. */
+export const PULLED_LINES = 30;
+
+/**
+ * Told to Claude with the next prompt when a sync brought in changes made elsewhere. Claude Code loads the
+ * index as a session starts, and the pull at the start can land after that (measured), so its copy may be old.
+ */
+export function pulledContext(p: Pulled, dir: string): string | null {
+  if (!p.files.length) return null;
+  const shown = p.files.slice(0, 8).join(', ') + (p.files.length > 8 ? ` and ${p.files.length - 8} more` : '');
+  const parts = [`[${APP_NAME}] The memory was brought up to date with changes made elsewhere: ${shown}.`];
+  if (p.files.includes(INDEX_FILE)) {
+    const lines = p.index ? [...p.index.removed.map((l) => `- ${l}`), ...p.index.added.map((l) => `+ ${l}`)] : [];
+    parts.push(
+      lines.length && lines.length <= PULLED_LINES
+        ? `The index (${INDEX_FILE}) in your context may have been loaded before that; these lines changed in it (- removed, + added):\n${lines.map((l) => maskSecrets(truncate(l, 300))).join('\n')}\n`
+        : `The index (${INDEX_FILE}) in your context may have been loaded before that: read ${joinPath(dir, INDEX_FILE)} again before relying on it.`,
+    );
+  }
+  if (p.files.some((f) => f !== INDEX_FILE)) parts.push('A file read earlier in this session may have changed: read it again when you need it.');
+  return parts.join(' ');
 }

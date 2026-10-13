@@ -88,7 +88,7 @@ function syncLine(ctx: AppContext, r: SyncResult): string {
   const problem = syncProblem(r);
   const parts: string[] = [];
   if (r.commit === 'ok') parts.push(T(ctx, 'mcli.sync.committed', { n: r.committed }));
-  if (r.pull === 'ok') parts.push(T(ctx, 'mcli.sync.pulled'));
+  if (r.pulled.length) parts.push(T(ctx, 'mcli.sync.pulled', { n: r.pulled.length }));
   if (r.push === 'ok') parts.push(T(ctx, 'mcli.sync.pushed'));
   if (!parts.length && !problem) parts.push(T(ctx, 'mcli.sync.nothing'));
   if (problem)

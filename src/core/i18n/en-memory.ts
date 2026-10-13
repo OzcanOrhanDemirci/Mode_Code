@@ -138,7 +138,7 @@ export const enMemory = {
   'mcli.sync.auto': 'by itself',
   'mcli.sync.manual': 'by hand (terminal-code memory sync)',
   'mcli.sync.committed': '{n} file(s) recorded',
-  'mcli.sync.pulled': 'changes from GitHub brought in',
+  'mcli.sync.pulled': '{n} file(s) brought in from GitHub',
   'mcli.sync.pushed': 'sent to GitHub',
   'mcli.sync.nothing': 'nothing to do',
   'mcli.problem.conflict': 'a pull needs you: {files} changed here and elsewhere; nothing was forced',

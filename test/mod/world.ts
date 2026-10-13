@@ -22,7 +22,10 @@ export interface WorldOptions {
   /** More environment variables (WSL_DISTRO_NAME, …). */
   env?: Record<string, string>;
   /** Answers a git call before the defaults do (its arguments after -C <dir> and --no-pager, and that dir); undefined falls through. */
-  git?: (args: string[], dir?: string) => { exitCode: number; stdout: string; stderr?: string } | undefined;
+  git?: (
+    args: string[],
+    dir?: string,
+  ) => { exitCode: number; stdout: string; stderr?: string } | Promise<{ exitCode: number; stdout: string; stderr?: string }> | undefined;
   /** Claude Code's merged settings, as $.settings.read answers them. */
   settings?: Record<string, unknown>;
   /** What an independent review's model call answers (default: a clean PASS). */
@@ -99,14 +102,15 @@ export function world(on: any, opts: WorldOptions = {}) {
     if ([...files.keys()].some((p) => p.startsWith(path.replace(/\/+$/, '') + '/'))) return { value: { kind: 'dir', size: 0, mtimeMs: 0, isLink: false } };
     return { deny: 'ENOENT' };
   });
-  on('process.run', (_$: any, e: any) => {
+  on('process.run', async (_$: any, e: any) => {
     const [cmd, ...rest] = e.argv as string[];
     if (cmd === 'uname') return { value: { exitCode: 0, stdout: 'Linux\n', stderr: '' } };
     if (cmd === 'git') {
       // Past `-C <dir>` and `--no-pager`, whichever of them the caller put first.
       let args = rest[0] === '-C' ? rest.slice(2) : rest;
       if (args[0] === '--no-pager') args = args.slice(1);
-      const own = opts.git?.(args, rest[0] === '-C' ? rest[1] : undefined);
+      // An answer may take its time (a pull still running when the prompt comes in).
+      const own = await opts.git?.(args, rest[0] === '-C' ? rest[1] : undefined);
       if (own) return { value: { stderr: '', ...own } };
       const a = rest.join(' ');
       if (a.includes('symbolic-ref')) return { value: { exitCode: 0, stdout: 'feature\n', stderr: '' } };

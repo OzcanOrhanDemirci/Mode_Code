@@ -35,6 +35,8 @@ import { readTail } from '../node/tail.js';
 import { handoffLine, isFresh } from '../core/handoff.js';
 import { memorySyncFile } from '../core/layout.js';
 import { syncStore, type SyncTrigger } from '../node/memory.js';
+import { pulledContext } from '../core/memory.js';
+import type { SyncResult } from '../core/memory-sync.js';
 import { newestHandoffAt, projectKeyAt, pruneHandoffs } from '../node/handoffs.js';
 
 type Input = Record<string, unknown>;
@@ -148,7 +150,7 @@ function recordPrompt(l: ReturnType<typeof dataLayout>, sessionId: string, mode:
 
 /**
  * The memory store's sync from the hook, for sessions the plugin is not loaded in (it syncs itself where it
- * is): its record goes to the hook's own file. Never throws.
+ * is): its record goes to the hook's own file. Never throws; the result, or null.
  */
 async function hookSync(
   l: ReturnType<typeof dataLayout>,
@@ -156,14 +158,16 @@ async function hookSync(
   trigger: SyncTrigger,
   sessionId: string,
   lang: Lang,
-): Promise<void> {
+): Promise<SyncResult | null> {
   const s = config.memory.store;
-  if (!s || !s.git || s.sync !== 'auto') return;
+  if (!s || !s.git || s.sync !== 'auto') return null;
   try {
     const r = await syncStore(config, { trigger, session: sessionId || null, lang });
     if (r) writeJsonAtomic(memorySyncFile(l, 'hook'), { at: Date.now(), trigger, session: sessionId || null, result: r });
+    return r;
   } catch {
     /* the next prompt or session tries again */
+    return null;
   }
 }
 
@@ -177,7 +181,10 @@ async function userPromptSubmit(input: Input, lang: Lang): Promise<void> {
   const notes: string[] = [];
   // Without the plugin, the session's first prompt brings the memory in and offers the waiting handoff note.
   if (previousPrompt === 0) {
-    await hookSync(l, config, 'start', sessionId, lang);
+    // Claude Code has loaded the index by now: what the pull brought in is told with this prompt.
+    const r = await hookSync(l, config, 'start', sessionId, lang);
+    const pulled = r && config.memory.store ? pulledContext({ files: r.pulled, index: r.index }, config.memory.store.dir) : null;
+    if (pulled) notes.push(pulled);
     if (config.memory.handoff.enabled) {
       try {
         const h = newestHandoffAt(config, l, projectKeyAt(config, str(input.cwd) ?? process.cwd()));

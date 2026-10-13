@@ -13,8 +13,8 @@
  *   6. full autonomy: on native Windows the start checks refuse it; in WSL2, macOS or Linux a whole run;
  *   7. there too, a stop before the run is done is turned back by the safety-net hook; the run then finishes,
  *      or, when the model keeps stopping with nothing changed, the stall guard pauses it;
- *   8. the memory: a change made elsewhere is pulled before Claude reads the index, the handoff keyword has
- *      Claude write a note that is kept and sent, and the next session is told about it.
+ *   8. the memory: a change made elsewhere is pulled at the start and reaches Claude before it answers, the
+ *      handoff keyword has Claude write a note that is kept and sent, and the next session is told about it.
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
  *        add --keep to leave the sessions' folders and the full-autonomy sessions' streams in place
@@ -207,8 +207,9 @@ function stopTurnedBack() {
 
 /**
  * 8. The memory (docs/memory.md), on every platform: a store kept in sync with a "GitHub" (a bare repository
- * here). A change made on another computer is pulled before Claude reads the index; the handoff keyword
- * has Claude write a note through the handoff tool, kept in the store and sent; the next session is told.
+ * here). A change made on another computer is pulled at the start and reaches Claude before it answers (Claude
+ * Code may load the index before the pull lands: what came in is told with the first prompt); the handoff
+ * keyword has Claude write a note through the handoff tool, kept in the store and sent; the next session is told.
  */
 function memoryCases() {
   const gitIn = (dir, ...a) =>
@@ -245,7 +246,7 @@ function memoryCases() {
 
   const asked = session('What is the project codename in your memory index? Reply with the codename only.', memSettings, tools);
   check(
-    'memory: a change made elsewhere was pulled before Claude read the index',
+    'memory: a change made elsewhere was pulled at the start and reached Claude before it answered',
     /PELICAN/i.test(asked.final?.result ?? ''),
     String(asked.final?.result ?? asked.stderr).slice(0, 80),
   );

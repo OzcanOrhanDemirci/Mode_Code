@@ -76,7 +76,7 @@ import { buildFooter, classifyTurn, type ClassifyEnv, type MemoryStatus, type To
 import { keywordTables, projectRefs, budgetOf, beltConfigOf } from '../core/settings-view.js';
 import { maskSecrets, scanSecrets } from '../core/secrets/scan.js';
 import { newestRecord, parseSyncRecord, syncMemory, syncProblem, type Runner, type SyncResult } from '../core/memory-sync.js';
-import { commitMessage, handoffRoot, projectKey } from '../core/memory.js';
+import { commitMessage, handoffRoot, mergePulled, projectKey, pulledContext, type Pulled } from '../core/memory.js';
 import {
   compactionSummary,
   composeHandoff,
@@ -188,6 +188,10 @@ interface Ctx {
   memSyncing: boolean;
   /** Sync problems already told to the person in this session. */
   memWarned: Set<string>;
+  /** The sync at the session's start while it runs: the first prompt waits for it. */
+  memStart: Promise<unknown> | null;
+  /** What syncs brought in from elsewhere since the last prompt, told to Claude with the next one. */
+  memPulled: Pulled | null;
 }
 
 /**
@@ -358,6 +362,8 @@ async function load($: $): Promise<Ctx> {
     changedAt: 0,
     memSyncing: false,
     memWarned: new Set(),
+    memStart: null,
+    memPulled: null,
   };
 }
 
@@ -2647,8 +2653,10 @@ async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.st
     const waiting = await runToResume($, c, null, cwd);
     if (waiting && waiting.status === 'paused') $.ui.toast(tIn(c.lang, 'auto.toast.found', { cont: tIn(c.lang, 'kw.kind.continue') }), { timeoutMs: 10_000 });
   }
-  // What changed in the memory elsewhere comes in before Claude reads its index (docs/memory.md).
-  await memorySync($, c, 'start');
+  // What changed in the memory elsewhere comes in as the session starts (docs/memory.md). Claude Code may have
+  // loaded the index already: what came in is told with the first prompt, which waits for this.
+  c.memStart = memorySync($, c, 'start');
+  await c.memStart;
   return r;
 }
 
@@ -2759,6 +2767,7 @@ async function memorySync($: $, c: Ctx, trigger: 'start' | 'turn'): Promise<Sync
       readFile: (p) => readFile($, p),
       secrets: (t) => scanSecrets(t).length,
     });
+    if (r.pulled.length) c.memPulled = mergePulled(c.memPulled, { files: r.pulled, index: r.index });
     try {
       await $.fs.write(memorySyncFile(c.layout, 'mod'), JSON.stringify({ at: await $.clock.now(), trigger, session: c.sessionId, result: r }, null, 2) + '\n');
     } catch {
@@ -3046,6 +3055,14 @@ async function memoryPromptContext($: $, c: Ctx, kw: KeywordMatch | null): Promi
       if (line) $.ui.toast(line, { timeoutMs: 15_000 });
     }
   }
+  if (c.memStart) {
+    await c.memStart;
+    c.memStart = null;
+  }
+  const store = c.config.memory.store;
+  const pulled = c.memPulled && store ? pulledContext(c.memPulled, store.dir) : null;
+  c.memPulled = null;
+  if (pulled) out.push(pulled);
   const first = c.prompts === 1;
   if (kw?.kind === 'continue' || (first && c.config.memory.handoff.enabled)) {
     const h = await waitingHandoff($, c);

@@ -9,6 +9,10 @@ import { cloneDefaults, GITHUB_REPO, normalizeConfig, parseConfig } from '../../
 import {
   changeCounts,
   commitMessage,
+  indexChange,
+  mergePulled,
+  PULLED_LINES,
+  pulledContext,
   githubRemote,
   githubRepoOf,
   HANDOFF_README,
@@ -235,4 +239,60 @@ test('"handoff" / "devir" at the end of a message, with or without a project; in
 test("git's shortest entry, a one-letter name, is read", () => {
   assert.deepEqual(parsePorcelainZ('?? a\0'), [{ status: '??', path: 'a' }]);
   assert.deepEqual(parsePorcelainZ('?? \0'), []);
+});
+
+test("what a pull brought in: the index's changed lines read from git's diff, joined across syncs, told to Claude", () => {
+  const diff = [
+    'diff --git a/MEMORY.md b/MEMORY.md',
+    'index 1..2 100644',
+    '--- a/MEMORY.md',
+    '+++ b/MEMORY.md',
+    '@@ -2 +2,2 @@ # Memory',
+    '-- Old line.',
+    '+- New line.\r',
+    '+',
+    '+++ starts with pluses',
+    '\\ No newline at end of file',
+    '@@ -9,0 +11 @@',
+    '+- Another.',
+  ].join('\n');
+  assert.deepEqual(indexChange(diff), { removed: ['- Old line.'], added: ['- New line.', '++ starts with pluses', '- Another.'] });
+  assert.deepEqual(indexChange(''), { removed: [], added: [] });
+  assert.deepEqual(indexChange('--- a/MEMORY.md\n+++ b/MEMORY.md'), { removed: [], added: [] }, 'the header is not a change');
+
+  const one = { files: ['MEMORY.md', 'a.md'], index: { removed: [], added: ['- One.'] } };
+  assert.equal(mergePulled(null, one), one);
+  assert.deepEqual(mergePulled(one, { files: ['a.md', 'b.md'], index: null }), { files: ['MEMORY.md', 'a.md', 'b.md'], index: one.index });
+  assert.deepEqual(mergePulled({ files: ['b.md'], index: null }, one), { files: ['b.md', 'MEMORY.md', 'a.md'], index: one.index });
+  assert.deepEqual(mergePulled(one, { files: ['MEMORY.md'], index: { removed: [], added: ['- Two.'] } }), { files: ['MEMORY.md', 'a.md'], index: null });
+
+  assert.equal(pulledContext({ files: [], index: null }, '/m'), null);
+  const told = pulledContext({ files: ['MEMORY.md'], index: { removed: ['- Old.'], added: ['- The codename is PELICAN.'] } }, '/m')!;
+  assert.equal(
+    told,
+    '[terminal-code] The memory was brought up to date with changes made elsewhere: MEMORY.md. The index (MEMORY.md) in your context may have been loaded before that; these lines changed in it (- removed, + added):\n- - Old.\n+ - The codename is PELICAN.\n',
+  );
+  const other = pulledContext({ files: ['a.md'], index: null }, '/m')!;
+  assert.equal(
+    other,
+    '[terminal-code] The memory was brought up to date with changes made elsewhere: a.md. A file read earlier in this session may have changed: read it again when you need it.',
+  );
+  // The index changed but its lines are unknown, blank only, or too many: Claude is asked to read it again.
+  const reread = /read \/m\/MEMORY\.md again before relying on it\./;
+  assert.match(pulledContext({ files: ['MEMORY.md'], index: null }, '/m')!, reread);
+  assert.match(pulledContext({ files: ['MEMORY.md'], index: { removed: [], added: [] } }, '/m')!, reread);
+  const many = (n: number) => pulledContext({ files: ['MEMORY.md'], index: { removed: [], added: Array.from({ length: n }, (_, i) => `- ${i}`) } }, '/m')!;
+  assert.doesNotMatch(many(PULLED_LINES), reread);
+  assert.ok(many(PULLED_LINES).includes(`+ - ${PULLED_LINES - 1}`));
+  assert.match(many(PULLED_LINES + 1), reread);
+  // Both: the lines, then the other files.
+  assert.match(pulledContext({ files: ['MEMORY.md', 'a.md'], index: { removed: [], added: ['- x'] } }, '/m')!, /\+ - x\n A file read earlier/);
+  // Long lists and long lines are cut; a secret in a line is masked.
+  const files = Array.from({ length: 10 }, (_, i) => `n${i}.md`);
+  assert.match(pulledContext({ files, index: null }, '/m')!, /: n0\.md, n1\.md, n2\.md, n3\.md, n4\.md, n5\.md, n6\.md, n7\.md and 2 more\./);
+  assert.match(pulledContext({ files: Array.from({ length: 8 }, (_, i) => `n${i}.md`), index: null }, '/m')!, /n7\.md\. A file/);
+  const long = pulledContext({ files: ['MEMORY.md'], index: { removed: [], added: ['x'.repeat(400)] } }, '/m')!;
+  assert.ok(!long.includes('x'.repeat(300)) && long.includes('x'.repeat(290)));
+  const key = 'ghp_' + 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8';
+  assert.ok(!pulledContext({ files: ['MEMORY.md'], index: { removed: [], added: [`- token ${key}`] } }, '/m')!.includes(key));
 });

@@ -84,9 +84,16 @@ test('a change here is committed and sent; the other computer brings it in at it
     const start = await syncMemory(nodeRunner, input(b, 'start'));
     assert.deepEqual([start.commit, start.pull, start.push, start.ahead, start.behind], ['none', 'ok', 'none', 0, 0]);
     assert.equal(readFileSync(join(b, 'one.md'), 'utf8'), 'Prefers pnpm.\n');
+    // What came in, for Claude, whose index may predate it.
+    assert.deepEqual(
+      [[...start.pulled].sort(), start.index],
+      [['MEMORY.md', 'one.md'], { removed: ['- [one](one.md) — first note'], added: ['- [one](one.md) — package manager'] }],
+    );
     // Nothing changed: nothing to do, nothing reported.
     const idle = await syncMemory(nodeRunner, input(b, 'turn'));
-    assert.deepEqual([idle.commit, idle.push, idle.detail], ['none', 'none', '']);
+    assert.deepEqual([idle.commit, idle.push, idle.detail, idle.pulled], ['none', 'none', '', []]);
+    const again = await syncMemory(nodeRunner, input(b, 'start'));
+    assert.deepEqual([again.pull, again.pulled, again.index], ['ok', [], null], 'a pull that brings nothing tells nothing');
   } finally {
     w.done();
   }
@@ -102,7 +109,7 @@ test('a push the remote rejects (it moved on) is pulled once and sent again', { 
     writeFileSync(join(b, 'b.md'), 'from b\n');
     // b has not pulled: its push is rejected, then joined with a's change and sent.
     const r = await syncMemory(nodeRunner, input(b, 'turn'));
-    assert.deepEqual([r.commit, r.push, r.ahead, r.behind], ['ok', 'ok', 0, 0]);
+    assert.deepEqual([r.commit, r.push, r.ahead, r.behind, r.pulled, r.index], ['ok', 'ok', 0, 0, ['a.md'], null]);
     assert.ok(existsSync(join(b, 'a.md')));
     run(a, 'pull', '-q');
     assert.ok(existsSync(join(a, 'b.md')));
@@ -173,6 +180,15 @@ test('a store inside a larger repository commits only its own files, by paths fr
     assert.deepEqual([r.commit, r.committed, r.push], ['ok', 2, 'ok']);
     assert.equal(run(a, 'status', '--porcelain'), '?? tools.js', 'the rest of the repository is left as it was');
     assert.deepEqual(run(a, 'show', '--name-only', '--format=', 'HEAD').split('\n').sort(), ['memory notes/MEMORY.md', 'memory notes/handoffs/app/n1.md']);
+    // What another computer changes comes in by the store's own paths; the rest of the repository is not the memory's.
+    const c = w.clone('c');
+    writeFileSync(join(c, 'memory notes', 'MEMORY.md'), '# Index\n- Uses pnpm.\n');
+    writeFileSync(join(c, 'build.js'), 'console.log(2)\n');
+    run(c, 'add', '-A');
+    run(c, 'commit', '-q', '-m', 'from c');
+    run(c, 'push', '-q');
+    const start = await syncMemory(nodeRunner, input(store, 'start'));
+    assert.deepEqual([start.pull, start.pulled, start.index], ['ok', ['MEMORY.md'], { removed: [], added: ['- Uses pnpm.'] }]);
   } finally {
     w.done();
   }
