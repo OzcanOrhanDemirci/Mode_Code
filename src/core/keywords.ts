@@ -12,7 +12,7 @@ import { editDistance, fold } from './text.js';
 import type { Lang } from './i18n/index.js';
 
 export type KeywordKind =
-  'continue' | 'manual' | 'chat' | 'quota' | 'wrapUp' | 'stop' | 'status' | 'help' | 'research' | 'plan' | 'code' | 'free' | 'flow' | 'approve';
+  'continue' | 'manual' | 'chat' | 'quota' | 'wrapUp' | 'stop' | 'status' | 'help' | 'research' | 'plan' | 'code' | 'free' | 'flow' | 'approve' | 'fullAuto';
 
 /** The phrase lists of a language: one per keyword kind, and the word that cancels a flow ("flow cancel"). */
 export type KeywordTable = Record<KeywordKind | 'cancel', string[]>;
@@ -34,6 +34,7 @@ export const KEYWORD_LISTS: readonly (KeywordKind | 'cancel')[] = [
   'flow',
   'cancel',
   'approve',
+  'fullAuto',
 ];
 
 /** The keywords that set a mode, and the mode each sets. */
@@ -65,6 +66,7 @@ export const DEFAULT_KEYWORDS: Record<Lang, KeywordTable> = {
     flow: ['akis'],
     cancel: ['iptal'],
     approve: ['onay', 'onayla', 'onayliyorum'],
+    fullAuto: ['tam otonom'],
   },
   en: {
     continue: ['continue'],
@@ -82,6 +84,7 @@ export const DEFAULT_KEYWORDS: Record<Lang, KeywordTable> = {
     flow: ['flow'],
     cancel: ['cancel'],
     approve: ['approve', 'approved'],
+    fullAuto: ['full auto', 'full autonomy'],
   },
 };
 
@@ -107,6 +110,8 @@ export interface KeywordMatch {
   suggestion?: string;
   /** For "flow": which flow starts, or "cancel". */
   flow?: FlowVariant;
+  /** For "full auto": a run starts (or resumes), or the run is canceled ("full auto cancel"). */
+  auto?: 'start' | 'cancel';
   /** The phrase that matched, folded. */
   text: string;
   /** True when the keyword was the whole message. */
@@ -196,7 +201,7 @@ export function detectKeyword(
     const combo = new RegExp(`^(.+?)\\s+(?:${alt(t.quota)})\\s*(\\+?)\\s*(\\d{1,3})$`).exec(end);
     if (combo) {
       const inner = detectKeyword(combo[1]!, projects, { [lang]: t });
-      if (inner && (inner.kind === 'continue' || inner.kind === 'manual'))
+      if (inner && (inner.kind === 'continue' || inner.kind === 'manual' || (inner.kind === 'fullAuto' && inner.auto === 'start')))
         return { ...inner, text: end, standalone, budget: { n: parseInt(combo[3]!, 10), plus: combo[2] === '+' } };
     }
 
@@ -212,6 +217,15 @@ export function detectKeyword(
       const variant: FlowVariant | null =
         rest === undefined ? 'full' : listHas(t.plan, rest) ? 'plan' : listHas(t.research, rest) ? 'research' : listHas(t.cancel, rest) ? 'cancel' : null;
       if (variant) return { ...base, kind: 'flow', flow: variant };
+    }
+
+    // "<project> full auto", "full auto cancel": a full-autonomy run (docs/autonomy.md).
+    const auto = t.fullAuto.length ? new RegExp(`^(?:(.{1,40}?)\\s+)?(?:${alt(t.fullAuto)})(?:\\s+(.+))?$`).exec(end) : null;
+    if (auto && (auto[2] === undefined || listHas(t.cancel, auto[2]))) {
+      const kind = { ...base, kind: 'fullAuto' as const, auto: auto[2] === undefined ? ('start' as const) : ('cancel' as const) };
+      if (!auto[1]) return kind;
+      const named = named_(auto[1], projects);
+      if (named) return { ...kind, projectText: auto[1], ...named };
     }
 
     for (const kind of Object.keys(MODE_KEYWORDS) as ModeKeyword[])

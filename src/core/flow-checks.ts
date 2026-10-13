@@ -70,6 +70,15 @@ function find(secs: readonly Section[], names: readonly string[]): Section | nul
   return secs.find((s) => names.some((n) => s.name === n || s.name.startsWith(`${n} `))) ?? null;
 }
 
+/**
+ * The text under the first heading that has one of the names (folded, as `nameOf` gives them), trimmed;
+ * null when there is no such heading. Headings inside fenced code do not count.
+ */
+export function sectionText(markdown: string, names: readonly string[]): string | null {
+  const s = find(sections(markdown.replace(/\r/g, '').split('\n')), names);
+  return s ? s.lines.join('\n').trim() : null;
+}
+
 interface Item {
   /** The number of an ordered item (`3.` or `3)`), or null for a bullet. */
   n: number | null;

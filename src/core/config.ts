@@ -25,6 +25,11 @@ export interface ProjectEntry {
   names: string[];
   /** Project folder, absolute. Optional: a project can live only in the person's notes. */
   path?: string;
+  /**
+   * The person's own definition of done for the project: commands a full-autonomy run must pass at its
+   * finish, which a run's plan can add to but never drop (docs/autonomy.md).
+   */
+  verify?: string[];
 }
 
 export interface Config {
@@ -78,6 +83,16 @@ export interface Config {
     /** Where flows keep their drafts (the report, the plan); null: a terminal-code folder in the temporary folder. */
     workDir: string | null;
   };
+  /** Full autonomy (docs/autonomy.md). Off until the person turns it on in their own terminal. */
+  autonomy: {
+    enabled: boolean;
+    /** Running hours after which a run pauses. */
+    maxHours: number;
+    /** Minutes without a milestone after which the run is warned, and twice that after which it pauses. */
+    stallMinutes: number;
+    /** The model of the independent reviews; null: the session's own model. */
+    reviewModel: string | null;
+  };
   accessibility: {
     /** Plain text: no box drawing, no emoji-only signals. */
     plain: boolean;
@@ -105,6 +120,7 @@ export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
   keywords: { extra: {} },
   projects: [],
   modes: { workDir: null },
+  autonomy: { enabled: false, maxHours: 12, stallMinutes: 90, reviewModel: null },
   accessibility: { plain: false, highContrast: false, reduceMotion: false },
 }) as Config;
 
@@ -238,6 +254,30 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
     else problems.push({ path: 'modes.workDir', kind: 'type', detail: 'expected a folder path or null' });
   } else if (raw.modes !== undefined) problems.push({ path: 'modes', kind: 'type', detail: 'expected an object' });
 
+  if (isObj(raw.autonomy)) {
+    const a = raw.autonomy;
+    for (const k of Object.keys(a))
+      if (!['enabled', 'maxHours', 'stallMinutes', 'reviewModel'].includes(k))
+        problems.push({ path: `autonomy.${k}`, kind: 'unknown-key', detail: 'not a setting' });
+    if (a.enabled !== undefined) {
+      if (typeof a.enabled === 'boolean') c.autonomy.enabled = a.enabled;
+      else problems.push({ path: 'autonomy.enabled', kind: 'type', detail: 'expected true or false' });
+    }
+    if (a.maxHours !== undefined) {
+      if (typeof a.maxHours === 'number' && a.maxHours >= 1 && a.maxHours <= 72) c.autonomy.maxHours = Math.round(a.maxHours);
+      else problems.push({ path: 'autonomy.maxHours', kind: 'range', detail: 'expected 1 to 72' });
+    }
+    if (a.stallMinutes !== undefined) {
+      if (typeof a.stallMinutes === 'number' && a.stallMinutes >= 10 && a.stallMinutes <= 720) c.autonomy.stallMinutes = Math.round(a.stallMinutes);
+      else problems.push({ path: 'autonomy.stallMinutes', kind: 'range', detail: 'expected 10 to 720' });
+    }
+    if (a.reviewModel !== undefined) {
+      if (a.reviewModel === null) c.autonomy.reviewModel = null;
+      else if (typeof a.reviewModel === 'string' && /^[A-Za-z0-9._:[\]-]{1,80}$/.test(a.reviewModel.trim())) c.autonomy.reviewModel = a.reviewModel.trim();
+      else problems.push({ path: 'autonomy.reviewModel', kind: 'type', detail: 'expected a model name or null' });
+    }
+  } else if (raw.autonomy !== undefined) problems.push({ path: 'autonomy', kind: 'type', detail: 'expected an object' });
+
   if (Array.isArray(raw.projects)) {
     const seen = new Set<string>();
     raw.projects.forEach((p, i) => {
@@ -249,6 +289,12 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
       const names = strings(p.names, `projects.${i}.names`, problems).filter((n) => n.trim() && n.length <= 40);
       const entry: ProjectEntry = { id: p.id, names };
       if (typeof p.path === 'string' && p.path.trim()) entry.path = p.path;
+      if (p.verify !== undefined) {
+        const verify = strings(p.verify, `projects.${i}.verify`, problems)
+          .map((v) => v.trim())
+          .filter(Boolean);
+        if (verify.length) entry.verify = [...new Set(verify)];
+      }
       c.projects.push(entry);
     });
   } else if (raw.projects !== undefined) problems.push({ path: 'projects', kind: 'type', detail: 'expected a list' });

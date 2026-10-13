@@ -49,6 +49,12 @@
   "modes": {
     "workDir": null
   },
+  "autonomy": {
+    "enabled": false,
+    "maxHours": 12,
+    "stallMinutes": 90,
+    "reviewModel": null
+  },
   "accessibility": {
     "plain": false,
     "highContrast": false,

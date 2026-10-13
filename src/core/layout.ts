@@ -13,6 +13,7 @@
  *   install/manifest.json            the installer (every change it made, so removal undoes exactly that)
  *   state/doctor.json                the maintenance check (its last summary, which the control center shows)
  *   flows/<id>/flow.json             the mod (a flow's record), with the checked report and approved plan beside it
+ *   runs/<id>/run.json               the mod (a full-autonomy run's record), with the accepted plan and the report beside it
  *   marketplace/                     the installer (the local plugin marketplace Claude Code reads)
  */
 import { joinPath } from './paths.js';
@@ -33,6 +34,7 @@ export interface Layout {
   pluginDir: string;
   logsDir: string;
   flowsDir: string;
+  runsDir: string;
 }
 
 export function layout(root: string): Layout {
@@ -52,6 +54,7 @@ export function layout(root: string): Layout {
     pluginDir: joinPath(marketplace, 'plugins', APP_ID),
     logsDir: joinPath(root, 'logs'),
     flowsDir: joinPath(root, 'flows'),
+    runsDir: joinPath(root, 'runs'),
   };
 }
 
@@ -70,6 +73,11 @@ export function sessionFile(l: Layout, sessionId: string, writer: 'mod' | 'hook'
 /** A flow's folder in the data folder (its record and the checked copies), or null for an id of another shape. */
 export function flowDir(l: Layout, id: string): string | null {
   return /^[a-z0-9][a-z0-9-]{0,80}$/.test(id) ? joinPath(l.flowsDir, id) : null;
+}
+
+/** A full-autonomy run's folder in the data folder (its record, the accepted plan, the report), or null for an id of another shape. */
+export function runDir(l: Layout, id: string): string | null {
+  return /^[a-z0-9][a-z0-9-]{0,80}$/.test(id) ? joinPath(l.runsDir, id) : null;
 }
 
 /** The event file for a session and a writer, in the month the event happened (UTC). */

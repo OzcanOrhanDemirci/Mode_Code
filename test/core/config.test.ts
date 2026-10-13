@@ -70,3 +70,22 @@ test('setConfigValue changes one setting and round-trips through the file text',
   assert.deepEqual(parseConfig(serializeConfig(r.config)).config, r.config);
   assert.equal(DEFAULT_CONFIG.footer.mode, 'draw'); // the defaults are never mutated
 });
+
+test('full autonomy is off by default; its settings keep their ranges; a project carries its own definition of done', () => {
+  assert.deepEqual(parseConfig(null).config.autonomy, { enabled: false, maxHours: 12, stallMinutes: 90, reviewModel: null });
+  const { config, problems } = parseConfig(
+    JSON.stringify({
+      autonomy: { enabled: true, maxHours: 100, stallMinutes: 5, reviewModel: 'claude-opus-5-5[1m]', turbo: true },
+      projects: [{ id: 'api', names: ['api'], path: '/home/ada/api', verify: ['npm run check', ' npm run check ', '', 'npm test'] }],
+    }),
+  );
+  assert.deepEqual(config.autonomy, { enabled: true, maxHours: 12, stallMinutes: 90, reviewModel: 'claude-opus-5-5[1m]' });
+  assert.deepEqual(
+    problems.map((p) => p.path),
+    ['autonomy.turbo', 'autonomy.maxHours', 'autonomy.stallMinutes'],
+  );
+  assert.deepEqual(config.projects[0]!.verify, ['npm run check', 'npm test']);
+  assert.equal(parseConfig(JSON.stringify({ autonomy: { enabled: 'yes', reviewModel: 'a model; rm' } })).problems.length, 2);
+  assert.equal(parseConfig(JSON.stringify({ autonomy: { reviewModel: null } })).config.autonomy.reviewModel, null);
+  assert.equal(parseConfig(JSON.stringify({ autonomy: 1 })).problems[0]!.path, 'autonomy');
+});

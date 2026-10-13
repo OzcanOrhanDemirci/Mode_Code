@@ -11,7 +11,7 @@ import {
   parseModState,
   sameFolderSessions,
 } from '../../src/core/session.js';
-import type { KeywordMatch } from '../../src/core/keywords.js';
+import { detectKeyword, type KeywordMatch } from '../../src/core/keywords.js';
 
 const s0 = newModState('abc', '1.0.0', 1000);
 const kw = (k: Partial<KeywordMatch> & Pick<KeywordMatch, 'kind'>): KeywordMatch => ({ lang: 'tr', text: '', standalone: true, ...k });
@@ -74,4 +74,41 @@ test('state files that are missing, torn or foreign parse to nothing', () => {
   assert.equal(parseModState('{"v":2,"sessionId":"abc","aliveAt":1}'), null);
   assert.deepEqual(parseModState(JSON.stringify(s0)), s0);
   assert.equal(parseHookState('{"v":1,"sessionId":"other","lastRunAt":5,"blocks":{}}', 'abc').lastRunAt, 0);
+});
+
+test('full autonomy: the keyword names the project and the budget; the run itself sets the interaction', () => {
+  const s0 = newModState('s1', 'dev', 0);
+  const kw = detectKeyword('Hız sınırı ekle. terminal tam otonom kota +10', [{ id: 'terminal', names: ['terminal'] }])!;
+  const s = applyKeyword({ ...s0, wrapUp: true, resumeAt: 5 }, kw, 51);
+  assert.deepEqual([s.interaction, s.project, s.weeklyTarget, s.weeklyTargetSource, s.wrapUp, s.resumeAt], ['default', 'terminal', 51, '+10', false, null]);
+  const cancel = applyKeyword({ ...s0, interaction: 'full', runId: 'r1' }, detectKeyword('tam otonom iptal')!, null);
+  assert.equal(cancel.interaction, 'default');
+  assert.equal(applyKeyword({ ...s0, interaction: 'manual' }, detectKeyword('tam otonom iptal')!, null).interaction, 'manual');
+  // The interaction and the run survive the state file; an unknown interaction does not.
+  const back = parseModState(JSON.stringify({ ...s0, interaction: 'full', runId: 'r1' }))!;
+  assert.deepEqual([back.interaction, back.runId], ['full', 'r1']);
+  assert.equal(parseModState(JSON.stringify({ ...s0, interaction: 'turbo' }))!.interaction, 'default');
+});
+
+test("the hook state keeps a run's stop counter and the last stop it let through", () => {
+  const h = parseHookState(
+    JSON.stringify({
+      v: 1,
+      sessionId: 's1',
+      lastRunAt: 1,
+      blocks: {},
+      autoStop: { runId: 'r1', fingerprint: 'f', streak: 2 },
+      autoAllowed: { runId: 'r1', why: 'noProgress', at: 9 },
+    }),
+    's1',
+  );
+  assert.deepEqual(
+    [h.autoStop, h.autoAllowed],
+    [
+      { runId: 'r1', fingerprint: 'f', streak: 2 },
+      { runId: 'r1', why: 'noProgress', at: 9 },
+    ],
+  );
+  const torn = parseHookState(JSON.stringify({ v: 1, sessionId: 's1', autoStop: { streak: 'x' }, autoAllowed: { runId: 1 } }), 's1');
+  assert.deepEqual([torn.autoStop, torn.autoAllowed], [null, null]);
 });

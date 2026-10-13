@@ -8,8 +8,13 @@ import { isWorkMode, type WorkMode } from './modes.js';
 
 export type { WorkMode } from './modes.js';
 
-/** How much the model may do before asking: default (Claude Code's own), manual (ask each step), autonomous. */
-export type Interaction = 'default' | 'manual' | 'autonomous';
+/**
+ * How much the model may do before asking: default (Claude Code's own), manual (ask each step), autonomous,
+ * full (a full-autonomy run: nothing is asked, what needs the person is deferred; docs/autonomy.md).
+ */
+export type Interaction = 'default' | 'manual' | 'autonomous' | 'full';
+
+const INTERACTIONS = new Set<Interaction>(['default', 'manual', 'autonomous', 'full']);
 
 export interface Approval {
   /** The tool_use_id the person approved; never reusable for another call. */
@@ -32,6 +37,8 @@ export interface ModSessionState {
   turnMode: WorkMode | null;
   /** The flow this session works on, if any (its record is in the data folder's flows). */
   flowId: string | null;
+  /** The full-autonomy run this session works on, if any (its record is in the data folder's runs). */
+  runId: string | null;
   /** Claude Code's own plan mode as last seen in this session, and the plan file it named. */
   nativePlan: { on: boolean; planFile: string | null; at: number } | null;
   interaction: Interaction;
@@ -59,6 +66,10 @@ export interface HookSessionState {
   /** Claude Code's permission mode as the hook last received it (`plan`, `default`, …), and when. */
   permissionMode: string | null;
   permissionModeAt: number;
+  /** A full-autonomy run's attempts to stop: what had changed at the last one, and how many in a row did not change it. */
+  autoStop: { runId: string | null; fingerprint: string | null; streak: number } | null;
+  /** The last stop of a run the hook let through, and why (the plugin pauses the run accordingly). */
+  autoAllowed: { runId: string; why: string; at: number } | null;
 }
 
 export function newModState(sessionId: string, modVersion: string, now: number): ModSessionState {
@@ -70,6 +81,7 @@ export function newModState(sessionId: string, modVersion: string, now: number):
     mode: 'free',
     turnMode: null,
     flowId: null,
+    runId: null,
     nativePlan: null,
     interaction: 'default',
     project: null,
@@ -100,6 +112,8 @@ export function parseModState(text: string | null): ModSessionState | null {
       mode: isWorkMode(s.mode) ? s.mode : 'free',
       turnMode: isWorkMode(s.turnMode) ? s.turnMode : null,
       flowId: typeof s.flowId === 'string' ? s.flowId : null,
+      runId: typeof s.runId === 'string' ? s.runId : null,
+      interaction: INTERACTIONS.has(s.interaction) ? s.interaction : 'default',
       nativePlan:
         isObj(plan) && typeof plan.on === 'boolean' && typeof plan.at === 'number'
           ? { on: plan.on, planFile: typeof plan.planFile === 'string' ? plan.planFile : null, at: plan.at }
@@ -113,7 +127,7 @@ export function parseModState(text: string | null): ModSessionState | null {
 }
 
 export function parseHookState(text: string | null, sessionId: string): HookSessionState {
-  const fresh: HookSessionState = { v: 1, sessionId, lastRunAt: 0, blocks: {}, permissionMode: null, permissionModeAt: 0 };
+  const fresh: HookSessionState = { v: 1, sessionId, lastRunAt: 0, blocks: {}, permissionMode: null, permissionModeAt: 0, autoStop: null, autoAllowed: null };
   if (!text) return fresh;
   try {
     const o = JSON.parse(text) as unknown;
@@ -124,6 +138,18 @@ export function parseHookState(text: string | null, sessionId: string): HookSess
       blocks: isObj(o.blocks) ? (o.blocks as Record<string, number>) : {},
       permissionMode: typeof o.permissionMode === 'string' ? o.permissionMode : null,
       permissionModeAt: typeof o.permissionModeAt === 'number' ? o.permissionModeAt : 0,
+      autoStop:
+        isObj(o.autoStop) && typeof o.autoStop.streak === 'number'
+          ? {
+              runId: typeof o.autoStop.runId === 'string' ? o.autoStop.runId : null,
+              fingerprint: typeof o.autoStop.fingerprint === 'string' ? o.autoStop.fingerprint : null,
+              streak: o.autoStop.streak,
+            }
+          : null,
+      autoAllowed:
+        isObj(o.autoAllowed) && typeof o.autoAllowed.runId === 'string' && typeof o.autoAllowed.why === 'string' && typeof o.autoAllowed.at === 'number'
+          ? { runId: o.autoAllowed.runId, why: o.autoAllowed.why, at: o.autoAllowed.at }
+          : null,
     };
   } catch {
     return fresh;
@@ -186,6 +212,13 @@ export function applyKeyword(s: ModSessionState, kw: KeywordMatch, weeklyTarget:
         wrapUp: false,
         project: kw.project ?? s.project,
       };
+      return kw.budget && weeklyTarget !== null ? { ...next, weeklyTarget, weeklyTargetSource: `${kw.budget.plus ? '+' : ''}${kw.budget.n}` } : next;
+    }
+    case 'fullAuto': {
+      // Full autonomy needs an explicit budget; the plugin starts the run only after its checks pass, and
+      // only then sets the interaction (see run-gate.ts). Here: the project and the budget the person named.
+      if (kw.auto === 'cancel') return { ...s, interaction: s.interaction === 'full' ? 'default' : s.interaction };
+      const next: ModSessionState = { ...s, project: kw.project ?? s.project, wrapUp: false, resumeAt: null };
       return kw.budget && weeklyTarget !== null ? { ...next, weeklyTarget, weeklyTargetSource: `${kw.budget.plus ? '+' : ''}${kw.budget.n}` } : next;
     }
     case 'quota':

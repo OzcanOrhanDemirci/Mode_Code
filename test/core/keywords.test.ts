@@ -126,3 +126,27 @@ test('the new words are reserved for projects too', () => {
   const r = reservedWords();
   for (const w of ['akis', 'onay', 'plan', 'kod', 'arastirma', 'serbest', 'flow', 'approve', 'research', 'iptal']) assert.ok(r.has(w), w);
 });
+
+test('full autonomy: a task ending with the keyword and a budget, in both languages and the spellings people type', () => {
+  const tr = d("Herkese açık API'ye hız sınırı ekle. terminal tam otonom kota +10");
+  assert.deepEqual([tr?.kind, tr?.auto, tr?.project, tr?.budget], ['fullAuto', 'start', 'terminal_code', { n: 10, plus: true }]);
+  assert.equal(messageWithoutKeyword("Herkese açık API'ye hız sınırı ekle. terminal tam otonom kota +10"), "Herkese açık API'ye hız sınırı ekle.");
+  const en = d('Add rate limiting. terminal full auto quota 60');
+  assert.deepEqual([en?.kind, en?.auto, en?.project, en?.budget], ['fullAuto', 'start', 'terminal_code', { n: 60, plus: false }]);
+  assert.equal(d('TAM OTONOM')?.kind, 'fullAuto');
+  assert.equal(d('termınal tam otonom')?.project, 'terminal_code');
+  assert.equal(d('full autonomy')?.kind, 'fullAuto');
+  assert.equal(d('full auto')?.budget, undefined, 'without a budget: a resume, or a refusal that asks for one');
+});
+
+test('full autonomy: cancel, and the sentences that only contain the words', () => {
+  const c = d('tam otonom iptal');
+  assert.deepEqual([c?.kind, c?.auto], ['fullAuto', 'cancel']);
+  assert.equal(d('full auto cancel')?.auto, 'cancel');
+  assert.equal(d('Bunu tam otonom yapalım mı'), null);
+  assert.equal(d('bitirene kadar tam otonom'), null, 'two words before it that are not a project');
+  assert.equal(d('tam otonom kota'), null);
+  assert.equal(d('tam otonom iptal kota 10')?.budget, undefined);
+  assert.notEqual(d('tam otonom iptal kota 10')?.kind, 'fullAuto');
+  assert.ok(reservedWords().has('tam otonom'));
+});
