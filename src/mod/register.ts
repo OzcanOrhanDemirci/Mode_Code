@@ -107,7 +107,7 @@ import {
 } from '../core/run.js';
 import { checkGate, gateOpen, type GateFacts, type GateResult, type WslFacts } from '../core/run-gate.js';
 import { checkAutonomy, credentialPaths, type AutoEnv } from '../core/run-guard.js';
-import { diffSignals, parseReview, REVIEW_SYSTEM, reviewPrompt } from '../core/run-review.js';
+import { diffSignals, parseReview, REVIEW_SYSTEM, reviewManifests, reviewPrompt } from '../core/run-review.js';
 import { checkDraft, composeReport, durationText } from '../core/run-report.js';
 import { pauseFor, type StopAllow } from '../core/run-stop.js';
 import {
@@ -775,6 +775,8 @@ async function askApproval($: $, c: Ctx, f: Flow, steps: number, verification: r
 /** One verification command's outcome, and what the model reads when it failed. */
 interface CommandRun {
   results: { command: string; ok: boolean; seconds: number }[];
+  /** What each command printed, by the index of its result (for the final review; not kept in the record). */
+  outputs: string[];
   /** The first failure in words, or null when every command exited with 0. */
   failure: string | null;
   seconds: number;
@@ -786,7 +788,13 @@ async function runCommands($: $, c: Ctx, commands: readonly string[]): Promise<C
   const shell = tools.has('Bash') ? 'Bash' : tools.has('PowerShell') ? 'PowerShell' : null;
   const started = await $.clock.now();
   const results: CommandRun['results'] = [];
-  const done = async (failure: string | null): Promise<CommandRun> => ({ results, failure, seconds: Math.round(((await $.clock.now()) - started) / 1000) });
+  const outputs: string[] = [];
+  const done = async (failure: string | null): Promise<CommandRun> => ({
+    results,
+    outputs,
+    failure,
+    seconds: Math.round(((await $.clock.now()) - started) / 1000),
+  });
   for (const [i, command] of commands.entries()) {
     if (!shell) return done(tIn(c.lang, 'flow.step.codeRefused', { command, reason: 'no shell tool' }));
     const at = await $.clock.now();
@@ -809,6 +817,7 @@ async function runCommands($: $, c: Ctx, commands: readonly string[]): Promise<C
       return done(tIn(c.lang, 'flow.step.codeFailed', { command, code, tail }));
     }
     results.push({ command, ok: true, seconds });
+    outputs.push(String(r.text ?? r.result ?? ''));
   }
   return done(null);
 }
@@ -1459,11 +1468,27 @@ async function completeStart($: $, c: Ctx): Promise<string> {
 }
 
 /** An independent review: a model call with none of the session's conversation. */
-async function reviewRun($: $, c: Ctx, r: Run, step: RunStep | null, from: string, to: string): Promise<Review> {
+async function reviewRun(
+  $: $,
+  c: Ctx,
+  r: Run,
+  step: RunStep | null,
+  from: string,
+  to: string,
+  verification: { command: string; ok: boolean; output: string }[] | null,
+): Promise<Review> {
   const range = `${from}..${to}`;
   const commits = await gitIn($, r.cwd, ['log', '--oneline', '--no-decorate', range]);
   const stat = await gitIn($, r.cwd, ['diff', '--stat', range]);
   const diff = await gitIn($, r.cwd, ['diff', '--no-color', '--no-ext-diff', range], 60_000);
+  // The project beyond the diff, as it is at the reviewed commit: what exists, and how it builds and runs.
+  const tree = await gitIn($, r.cwd, ['ls-tree', '-r', '--name-only', to]);
+  const files = tree.ok ? tree.out.split('\n').filter(Boolean) : [];
+  const manifests: { path: string; text: string }[] = [];
+  for (const path of reviewManifests(files)) {
+    const shown = await gitIn($, r.cwd, ['show', `${to}:${path}`]);
+    if (shown.ok) manifests.push({ path, text: shown.out });
+  }
   const signals = diffSignals(diff.out);
   const earlier = r.milestones.filter((m) => m.review.verdict === 'concerns').flatMap((m) => m.review.findings.map((f) => `step ${m.n}: ${f}`));
   const prompt = reviewPrompt({
@@ -1475,6 +1500,9 @@ async function reviewRun($: $, c: Ctx, r: Run, step: RunStep | null, from: strin
     diff: diff.out,
     signals,
     earlier: step ? [] : earlier,
+    files,
+    manifests,
+    verification,
   });
   let model: string;
   try {
@@ -1652,7 +1680,7 @@ async function onAutoTool($: $, e: any): Promise<any> {
     const prev = r.milestones.at(-1)?.commit ?? r.start.commit;
     if (facts.head === prev) return refused(r, 'no commit', tIn(c.lang, 'auto.tool.noCommit', { commit: prev.slice(0, 12) }));
     const counted = await gitIn($, r.cwd, ['rev-list', '--count', `${prev}..${facts.head}`]);
-    const review = await reviewRun($, c, r, next, prev, facts.head);
+    const review = await reviewRun($, c, r, next, prev, facts.head, null);
     if (review.verdict === 'fail') {
       await saveRun($, c, runRefusal(r, `milestone ${n}: review failed`, now), false);
       await runEvent($, c, r, 'refused', { milestone: n, review: 'fail' });
@@ -1707,7 +1735,15 @@ async function onAutoTool($: $, e: any): Promise<any> {
     const ran = await runCommands($, c, r.plan.verification);
     if (ran.failure !== null)
       return refused(r, 'verification', [tIn(c.lang, 'auto.tool.finishVerification'), ran.failure, tIn(c.lang, 'auto.tool.finishTail')].join('\n'));
-    const review = await reviewRun($, c, r, null, r.start.commit, facts.head);
+    const review = await reviewRun(
+      $,
+      c,
+      r,
+      null,
+      r.start.commit,
+      facts.head,
+      ran.results.map((x, i) => ({ command: x.command, ok: x.ok, output: ran.outputs[i] ?? '' })),
+    );
     if (review.verdict === 'fail')
       return refused(
         r,

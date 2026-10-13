@@ -49,7 +49,7 @@ export function autoStartContext(r: Run, required: readonly string[]): string {
     : '';
   return (
     `${P} The person started full autonomy (run ${r.id}, weekly budget ${r.budget.weeklyTarget}%). ${task} ${RULES}\n` +
-    `First phase, plan: read what you need, then write the plan at ${r.planPath} in this form (numbered steps, each with an Acceptance line, and a Verification section with the commands that prove the work), and call ${AUTO_TOOL} with action "plan". The project does not change until the plan is accepted.${req}\n` +
+    `First phase, plan: read what you need, then write the plan at ${r.planPath} in this form (numbered steps, each with an Acceptance line, and a Verification section with the commands that prove the work), and call ${AUTO_TOOL} with action "plan". Each step changes the project and ends on a commit of its own; running the verification is not a step (code runs the Verification commands at the finish). The project does not change until the plan is accepted.${req}\n` +
     PLAN_FORM
   );
 }

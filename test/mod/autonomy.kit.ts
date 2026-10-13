@@ -62,6 +62,8 @@ function repo() {
     if (args[0] === 'log') return { exitCode: 0, stdout: `${st.head.slice(0, 7)} feat: a step\n` };
     if (args[0] === 'diff' && args[1] === '--stat') return { exitCode: 0, stdout: ' src/limiter.ts | 3 +++\n' };
     if (args[0] === 'diff') return { exitCode: 0, stdout: 'diff --git a/src/limiter.ts b/src/limiter.ts\n+export const limit = 100;\n' };
+    if (args[0] === 'ls-tree') return { exitCode: 0, stdout: 'package.json\nsrc/limiter.ts\n' };
+    if (args[0] === 'show' && String(args[1]).endsWith(':package.json')) return { exitCode: 0, stdout: '{ "name": "app", "type": "module" }\n' };
     return undefined;
   };
   return {
@@ -208,6 +210,10 @@ test('a whole run: start, plan, milestones on commits with reviews, what waits f
   expect(asked.system).toMatch(/You did not write this change and you have not seen the conversation/);
   expect(asked.prompt).toMatch(/## Under review: step 1\. The limiter/);
   expect(asked.prompt).toMatch(/\+export const limit = 100;/);
+  // And the project beyond the diff at that commit: what exists, and how it builds.
+  expect(asked.prompt).toMatch(/## The project at the reviewed commit\nTracked files \(2\):\npackage\.json\nsrc\/limiter\.ts\n/);
+  expect(asked.prompt).toMatch(/### package\.json\n```\n\{ "name": "app", "type": "module" \}\n```/);
+  expect(asked.prompt).toMatch(/\(Code runs them at the finish; they have not run for this step\.\)/);
 
   // What waits for the person: refused as deferred, recorded, and the run goes on.
   const push: any = await $.tool.call({ tool: 'Bash', command: 'git push origin main' } as any);
@@ -235,6 +241,9 @@ test('a whole run: start, plan, milestones on commits with reviews, what waits f
   expect(String(done.result)).toMatch(/The run is done: 2 steps with milestones, 2 verification commands passed, final review PASS/);
   expect(w.calls.filter((c: any) => c.tool === 'Bash').map((c: any) => c.command)).toEqual(expect.arrayContaining(['npm test', 'npm run check']));
   expect(w.reviews.at(-1).prompt).toMatch(/## Under review: the whole run, every step, against the request/);
+  expect(w.reviews.at(-1).prompt).toMatch(
+    /## Verification, run by code just before this review\n- `npm test`: passed \(exit 0\)\n```\nran\n```\n- `npm run check`: passed/,
+  );
   expect(w.reviews.at(-1).prompt).toMatch(/## Findings of earlier reviews\n- step 1: no test for the reset window/);
   const final = w.json(`${DATA}/runs/${x.id}/run.json`);
   expect([final.status, final.finish.verification.length, final.finish.review.verdict]).toEqual(['done', 2, 'pass']);
