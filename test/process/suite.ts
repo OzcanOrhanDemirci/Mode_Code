@@ -181,6 +181,8 @@ export function defineCliTests(mode: 'source' | 'dist'): void {
       const i = cli(agent, ['install', '--dry-run', '--json'], opt);
       assert.ok(i.json?.plan.blockers.some((b: { key: string }) => b.key === 'install.block.agent'));
       assert.equal(cli(agent, ['config', 'set', 'belt.disabled', '["git.clean"]'], opt).code, 1);
+      // Where the shared place is decides whose settings come in: the person's, never an agent's.
+      assert.equal(cli(agent, ['config', 'set', 'sync.dir', '"/elsewhere"'], opt).code, 1);
       assert.equal(cli(agent, ['uninstall', '--yes'], opt).code, 1);
       // Plain settings are fine from anywhere.
       assert.equal(cli(agent, ['config', 'set', 'view', '"detailed"'], opt).code, 0);
