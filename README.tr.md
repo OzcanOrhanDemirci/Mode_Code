@@ -7,7 +7,11 @@
 [![Lisans: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 ![Node.js 22.13 ve sonrası](https://img.shields.io/badge/node-%E2%89%A522.13-brightgreen.svg)
 
+<!-- name:temporary -->
+
 > **Ad geçici.** İlk herkese açık sürümden önce değişecek; [marka politikası](TRADEMARK.md) nihai adı da kapsıyor.
+
+<!-- /name:temporary -->
 
 ## İçindekiler
 

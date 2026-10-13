@@ -50,6 +50,8 @@
     "test:mod": "node scripts/typecheck-mod.mjs && node scripts/test-mod.mjs",
     "test:live": "node scripts/test-live.mjs",
     "test:package": "node scripts/test-package.mjs",
+    "test:rename": "node scripts/rename-rehearsal.mjs",
+    "rename": "node --import tsx scripts/rename.ts",
     "test:mutation": "node scripts/mutate.mjs",
     "verify": "node scripts/verify.mjs",
     "start": "node dist/cli.mjs"

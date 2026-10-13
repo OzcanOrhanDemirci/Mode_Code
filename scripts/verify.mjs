@@ -5,7 +5,7 @@
  * says "skipped" and why; it never counts as passed.
  *
  * Usage: node scripts/verify.mjs [--fast] [--live]
- *   --fast   leaves out mutation testing (about a minute)
+ *   --fast   leaves out mutation testing (about a minute) and the renamed copy's tests in the rename rehearsal
  *   --live   adds the live sessions (uses a little of the person's quota)
  */
 import { spawn } from 'node:child_process';
@@ -69,6 +69,12 @@ const layers = [
     cmd: node,
     args: ['scripts/test-package.mjs'],
     counts: (o) => ([...o.matchAll(/^test-package: (.*)$/gm)].pop()?.[1] ?? '').trim(),
+  },
+  {
+    name: 'L13 rename rehearsal',
+    cmd: node,
+    args: ['scripts/rename-rehearsal.mjs', ...(fast ? ['--no-tests'] : [])],
+    counts: (o) => (/^rename-rehearsal: (.*)$/m.exec(o)?.[1] ?? '').trim(),
   },
   {
     name: 'doctor self-check',

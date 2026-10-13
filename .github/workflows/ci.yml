@@ -46,6 +46,20 @@ jobs:
             coverage/coverage.txt
           if-no-files-found: ignore
 
+  # A rename, rehearsed: today's build installed, a renamed copy built, tested and installed over it (docs/release.md).
+  rename:
+    name: rename rehearsal · ubuntu-latest · Node 24.x
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:rename
+
   # Secrets in any commit, read by a tool that is not ours (the project's own scanner checks what ships).
   secrets:
     name: secrets in history · gitleaks

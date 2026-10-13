@@ -7,7 +7,11 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 ![Node.js 22.13 or newer](https://img.shields.io/badge/node-%E2%89%A522.13-brightgreen.svg)
 
+<!-- name:temporary -->
+
 > **The name is temporary.** It will change before the first public release; the [trademark policy](TRADEMARK.md) already covers the final name.
+
+<!-- /name:temporary -->
 
 ## Contents
 
