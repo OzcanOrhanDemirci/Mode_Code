@@ -27,6 +27,7 @@ import {
 } from './commands.js';
 import { runControlCenter } from '../tui/run.js';
 import { cmdDoctor } from './doctor.js';
+import { cmdMemory, cmdMorning } from './memory.js';
 
 const MIN_NODE = [22, 13];
 
@@ -84,6 +85,10 @@ async function main(argv: string[]): Promise<number> {
       return cmdFlow(sub);
     case 'autonomy':
       return cmdAutonomy(sub);
+    case 'memory':
+      return cmdMemory(sub);
+    case 'morning':
+      return cmdMorning(sub);
     case 'belt':
       return cmdBelt(sub);
     case 'secrets':

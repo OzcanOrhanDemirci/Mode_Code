@@ -21,8 +21,8 @@ export interface WorldOptions {
   results?: Record<string, (e: any) => any>;
   /** More environment variables (WSL_DISTRO_NAME, …). */
   env?: Record<string, string>;
-  /** Answers a git call before the defaults do (its arguments after -C <dir> --no-pager); undefined falls through. */
-  git?: (args: string[]) => { exitCode: number; stdout: string; stderr?: string } | undefined;
+  /** Answers a git call before the defaults do (its arguments after -C <dir> and --no-pager, and that dir); undefined falls through. */
+  git?: (args: string[], dir?: string) => { exitCode: number; stdout: string; stderr?: string } | undefined;
   /** Claude Code's merged settings, as $.settings.read answers them. */
   settings?: Record<string, unknown>;
   /** What an independent review's model call answers (default: a clean PASS). */
@@ -77,10 +77,20 @@ export function world(on: any, opts: WorldOptions = {}) {
   });
   on('fs.list', (_$: any, e: any) => {
     const dir = norm(e.path).replace(/\/+$/, '');
-    const entries = [...files.entries()]
-      .filter(([p]) => p.startsWith(dir + '/') && !p.slice(dir.length + 1).includes('/'))
+    const inside = [...files.entries()].filter(([p]) => p.startsWith(dir + '/'));
+    const entries = inside
+      .filter(([p]) => !p.slice(dir.length + 1).includes('/'))
       .map(([p, f]) => ({ name: p.slice(dir.length + 1), kind: 'file', size: f.text.length, mtimeMs: f.mtimeMs }));
-    return { value: entries };
+    // Folders exist where files are kept below them, as on a disk.
+    const dirs = [
+      ...new Set(
+        inside
+          .map(([p]) => p.slice(dir.length + 1))
+          .filter((r) => r.includes('/'))
+          .map((r) => r.split('/')[0]!),
+      ),
+    ];
+    return { value: [...entries, ...dirs.map((name) => ({ name, kind: 'dir', size: 0, mtimeMs: 0 }))] };
   });
   on('fs.stat', (_$: any, e: any) => {
     const path = norm(e.path);
@@ -93,7 +103,10 @@ export function world(on: any, opts: WorldOptions = {}) {
     const [cmd, ...rest] = e.argv as string[];
     if (cmd === 'uname') return { value: { exitCode: 0, stdout: 'Linux\n', stderr: '' } };
     if (cmd === 'git') {
-      const own = opts.git?.(rest.slice(rest[0] === '-C' ? 3 : 0));
+      // Past `-C <dir>` and `--no-pager`, whichever of them the caller put first.
+      let args = rest[0] === '-C' ? rest.slice(2) : rest;
+      if (args[0] === '--no-pager') args = args.slice(1);
+      const own = opts.git?.(args, rest[0] === '-C' ? rest[1] : undefined);
       if (own) return { value: { stderr: '', ...own } };
       const a = rest.join(' ');
       if (a.includes('symbolic-ref')) return { value: { exitCode: 0, stdout: 'feature\n', stderr: '' } };

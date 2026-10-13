@@ -164,7 +164,7 @@ test('without the plugin a mode or flow keyword says plainly that nothing enforc
     const r = run('UserPromptSubmit', { ...base(home), hook_event_name: 'UserPromptSubmit', prompt: 'akış', permission_mode: 'plan' }, home);
     assert.match(
       r.out?.hookSpecificOutput?.additionalContext ?? '',
-      /need the terminal-code plugin, which is not loaded in this session, so nothing enforces them here/,
+      /need the terminal-code plugin, which is not loaded in this session, so nothing does them here/,
     );
     const state = JSON.parse(readFileSync(join(home, 'state', 'sessions', 'test-session.hook.json'), 'utf8'));
     assert.equal(state.permissionMode, 'plan');

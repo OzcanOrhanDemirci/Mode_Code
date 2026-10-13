@@ -155,3 +155,32 @@ export function toDeliver(d: NoteDecisions): string[] {
 export function notesContext(items: readonly { id: string; path: string }[]): string {
   return `[${APP_NAME}] The person approved notes that full-autonomy runs left for the memory: ${items.map((i) => `${i.path} (run ${i.id})`).join('; ')}. Read them and merge what is still true into the memory by its own rules (the index, one note per file), then say so in one line.`;
 }
+
+/**
+ * When the person last typed (state/activity.json, written by the plugin), and the last gap long enough for
+ * a morning report: from the prompt before it to the prompt after it.
+ */
+export interface Activity {
+  lastPromptAt: number | null;
+  away: { from: number; to: number } | null;
+}
+
+export function parseActivity(text: string | null): Activity {
+  const none: Activity = { lastPromptAt: null, away: null };
+  if (!text) return none;
+  try {
+    const o = JSON.parse(text) as Record<string, unknown>;
+    const away = o.away as Record<string, unknown> | null | undefined;
+    return {
+      lastPromptAt: typeof o.lastPromptAt === 'number' ? o.lastPromptAt : null,
+      away: away && typeof away.from === 'number' && typeof away.to === 'number' && away.from <= away.to ? { from: away.from, to: away.to } : null,
+    };
+  } catch {
+    return none;
+  }
+}
+
+/** The activity after a prompt at `now`: a gap of at least `afterHours` becomes the new away window. */
+export function nextActivity(a: Activity, now: number, afterHours: number): Activity {
+  return { lastPromptAt: now, away: awayLong(a.lastPromptAt, now, afterHours) ? { from: a.lastPromptAt!, to: now } : a.away };
+}

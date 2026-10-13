@@ -1056,6 +1056,8 @@ export function helpText(lang: Lang): string {
     `  ${c('report [--week]'.padEnd(28))}${L('help.report')}`,
     `  ${c('flow [show <id>] [--all]'.padEnd(28))}${L('help.flow')}`,
     `  ${c('autonomy [check|show|…]'.padEnd(28))}${L('help.autonomy')}`,
+    `  ${c('memory [setup|sync|…]'.padEnd(28))}${L('help.memory')}`,
+    `  ${c('morning [--hours N]'.padEnd(28))}${L('help.morning')}`,
     `  ${c('template list|apply|remove'.padEnd(28))}${L('help.template')}`,
     `  ${c('belt rules|events|test|replay'.padEnd(28))}${L('help.belt')}`,
     `  ${c('secrets [path…]'.padEnd(28))}${L('help.secrets')}`,

@@ -14,7 +14,7 @@ import { atom, read, update } from 'claude-code';
 import type { TerminalCodeFooters, TerminalCodeLabels } from './contract.js';
 import { APP_NAME, APP_VERSION, DATA_DIR_NAME, PLUGIN_NAME } from '../core/app.js';
 import { parseConfig, type Config } from '../core/config.js';
-import { layout, sessionFile, eventsFile, flowDir, runDir, type Layout } from '../core/layout.js';
+import { layout, sessionFile, eventsFile, flowDir, memorySyncFile, runDir, type Layout } from '../core/layout.js';
 import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform } from '../core/paths.js';
 import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '../core/i18n/index.js';
 import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
@@ -74,7 +74,26 @@ import { commandEffects, hidingIssues, strongest } from '../core/shell/effects.j
 import { assessQuota, fromModRateLimits, weeklyTargetFrom, type QuotaAssessment, type QuotaReading } from '../core/quota.js';
 import { buildFooter, classifyTurn, type ClassifyEnv, type MemoryStatus, type ToolUse } from '../core/footer.js';
 import { keywordTables, projectRefs, budgetOf, beltConfigOf } from '../core/settings-view.js';
-import { maskSecrets } from '../core/secrets/scan.js';
+import { maskSecrets, scanSecrets } from '../core/secrets/scan.js';
+import { newestRecord, parseSyncRecord, syncMemory, syncProblem, type Runner, type SyncResult } from '../core/memory-sync.js';
+import { commitMessage, handoffRoot, projectKey } from '../core/memory.js';
+import {
+  compactionSummary,
+  composeHandoff,
+  handoffAskContext,
+  handoffFull,
+  handoffLine,
+  handoffName,
+  isFresh,
+  newestName,
+  parseHandoff,
+  partProblems,
+  type Handoff,
+  type HandoffFacts,
+  type HandoffParts,
+  type HandoffTrigger,
+} from '../core/handoff.js';
+import { morningSummary, nextActivity, notesContext, parseActivity, parseNoteDecisions, toDeliver, type MorningFacts } from '../core/morning.js';
 import {
   acceptMilestone,
   acceptPlan,
@@ -157,6 +176,18 @@ interface Ctx {
   pendingStart: PendingStart | null;
   /** The plugin's own sandbox probe while it runs: the one command a paused run's guard lets through. */
   probing: string | null;
+  // ── memory (docs/memory.md) ──
+  /** When this session's context was loaded: the commits of the session are counted from here. */
+  startedAt: number;
+  /** The person's prompts in this session, and the last one (for a handoff note). */
+  prompts: number;
+  lastPrompt: string | null;
+  /** When this session last wrote a handoff note, and last changed something (files, shell). */
+  handoffAt: number;
+  changedAt: number;
+  memSyncing: boolean;
+  /** Sync problems already told to the person in this session. */
+  memWarned: Set<string>;
 }
 
 /**
@@ -203,6 +234,8 @@ async function readEnv($: $): Promise<Record<string, string | undefined>> {
     LC_ALL,
     LC_MESSAGES,
     WSL_DISTRO_NAME,
+    COMPUTERNAME,
+    HOSTNAME,
   ] = await Promise.all([
     $.env.get('HOME'),
     $.env.get('USERPROFILE'),
@@ -224,6 +257,8 @@ async function readEnv($: $): Promise<Record<string, string | undefined>> {
     $.env.get('LC_ALL'),
     $.env.get('LC_MESSAGES'),
     $.env.get('WSL_DISTRO_NAME'),
+    $.env.get('COMPUTERNAME'),
+    $.env.get('HOSTNAME'),
   ]);
   return {
     HOME,
@@ -246,6 +281,8 @@ async function readEnv($: $): Promise<Record<string, string | undefined>> {
     LC_ALL,
     LC_MESSAGES,
     WSL_DISTRO_NAME,
+    COMPUTERNAME,
+    HOSTNAME,
   };
 }
 
@@ -314,6 +351,13 @@ async function load($: $): Promise<Ctx> {
     stallWarnedAt: 0,
     pendingStart: null,
     probing: null,
+    startedAt: now,
+    prompts: 0,
+    lastPrompt: null,
+    handoffAt: 0,
+    changedAt: 0,
+    memSyncing: false,
+    memWarned: new Set(),
   };
 }
 
@@ -1304,6 +1348,8 @@ async function pauseAuto($: $, c: Ctx, reason: PauseReason, detail = ''): Promis
   if (!r.ok || r.run === c.run) return;
   await saveRun($, c, r.run);
   await writeReport($, c, r.run);
+  // A pause at the session's end is in that session's own handoff note.
+  if (reason !== 'session') await runHandoff($, c, r.run);
   await runEvent($, c, r.run, 'pause', { reason, detail });
   const words = tIn(c.lang, `auto.pause.${reason}` as MessageKey);
   $.ui.toast(tIn(c.lang, 'auto.toast.paused', { reason: words, cont: tIn(c.lang, 'kw.kind.continue') }), { timeoutMs: 10_000 });
@@ -1754,6 +1800,7 @@ async function onAutoTool($: $, e: any): Promise<any> {
     if (!done.ok) return refused(r, done.error, tIn(c.lang, 'auto.tool.finishTail'));
     await saveRun($, c, done.run);
     const report = await writeReport($, c, done.run);
+    await runHandoff($, c, done.run);
     await runEvent($, c, done.run, 'finish', { review: review.verdict, commands: ran.results.length });
     $.ui.toast(tIn(c.lang, 'auto.toast.done'), { timeoutMs: 10_000 });
     await autoNotify($, c, 'auto.notify.done', done.run);
@@ -1780,6 +1827,7 @@ async function onAutoTool($: $, e: any): Promise<any> {
     if (!res.ok) return refused(r, res.error, tIn(c.lang, 'auto.tool.noBlocker'));
     await saveRun($, c, res.run);
     const report = await writeReport($, c, res.run);
+    await runHandoff($, c, res.run);
     await runEvent($, c, res.run, 'stuck', { blockers: res.run.blockers.length });
     $.ui.toast(tIn(c.lang, 'auto.toast.stuck'), { timeoutMs: 10_000 });
     await autoNotify($, c, 'auto.notify.stuck', res.run);
@@ -2151,6 +2199,8 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
     c.turn = { startedAt: await $.clock.now(), uses: [] };
     // A start asked for at an earlier prompt and never taken up lapses: each prompt asks anew.
     c.pendingStart = null;
+    c.prompts++;
+    if (kind !== 'plugin') c.lastPrompt = maskSecrets(String(e.text ?? '')).slice(0, 2000);
     await refreshConfig($, c);
     await syncPermissionMode($, c);
     // A mode given for one turn ends with it.
@@ -2169,6 +2219,19 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   if (human && running && !flowSaid && c.config.modules.modes) extra.push(flowTurnContext(running, c.lang, stepTexts(c, running)));
   const run = autoRunning(c);
   if (human && run && !flowSaid) extra.push(autoTurnContext(run));
+  if (human) {
+    try {
+      const kw = c.config.modules.keywords ? detectKeyword(String(e.text ?? ''), projectRefs(c.config), keywordTables(c.config)) : null;
+      // Wrapping up includes the handoff note: the tool is there, and Claude is told to write it.
+      if (kw?.kind === 'wrapUp' && c.config.memory.handoff.enabled) {
+        await registerHandoffTool($);
+        extra.push(handoffAskContext(true));
+      }
+      extra.push(...(await memoryPromptContext($, c, kw)));
+    } catch {
+      /* the memory's notes are a help, never a reason for a prompt not to go through */
+    }
+  }
   if (human) await refreshStatus($, c);
   extra.push(...(await quotaContext($, c)));
   return extra.length ? next({ ...e, context: [...(e.context ?? []), ...extra] }) : next(e);
@@ -2219,6 +2282,16 @@ async function keywordTurn($: $, c: Ctx, text: string): Promise<{ context: strin
   if (kw.kind === 'flow') return { context: await flowKeyword($, c, kw, text), flow: true };
   if (kw.kind === 'approve') return { context: await approveKeyword($, c), flow: true };
   if (kw.kind === 'fullAuto') return { context: await autoKeyword($, c, kw, text), flow: true };
+  // "<project> handoff": Claude writes the note's four parts through the handoff tool (docs/memory.md).
+  if (kw.kind === 'handoff') {
+    if (!c.config.memory.handoff.enabled) {
+      $.ui.toast(tIn(c.lang, 'mod.handoff.off'));
+      return { context: [], flow: false };
+    }
+    await registerHandoffTool($);
+    $.ui.toast(tIn(c.lang, 'kw.toast', { kind: tIn(c.lang, 'kw.kind.handoff'), project: kw.project ? ` · ${kw.project}` : '' }));
+    return { context: [handoffAskContext(false)], flow: false };
+  }
 
   const label = kw.project ? (c.config.projects.find((p) => p.id === kw.project)?.names[0] ?? kw.project) : null;
   const kindLabel = tIn(c.lang, `kw.kind.${kw.kind}` as MessageKey);
@@ -2484,6 +2557,14 @@ async function onTurnComplete($: $, e: In<'turn.complete'>, next: Nx<'turn.compl
   const result = await next(e);
   if (e.agentId !== undefined || e.reason !== 'answer') return result;
   const c = await ctxOf($);
+  try {
+    const cwdNow = await $.session.cwd();
+    const acts = classifyTurn(c.turn.uses, classifyEnvFor(c, cwdNow));
+    if (acts.files + acts.shell + acts.settings > 0) c.changedAt = await $.clock.now();
+    await memorySync($, c, 'turn');
+  } catch {
+    /* the next turn or session syncs again */
+  }
   if (c.pendingStart) {
     // The model answered without taking the run's first step: nothing started, and the person is told.
     c.pendingStart = null;
@@ -2566,6 +2647,8 @@ async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.st
     const waiting = await runToResume($, c, null, cwd);
     if (waiting && waiting.status === 'paused') $.ui.toast(tIn(c.lang, 'auto.toast.found', { cont: tIn(c.lang, 'kw.kind.continue') }), { timeoutMs: 10_000 });
   }
+  // What changed in the memory elsewhere comes in before Claude reads its index (docs/memory.md).
+  await memorySync($, c, 'start');
   return r;
 }
 
@@ -2595,6 +2678,8 @@ async function onSessionEnd($: $, e: In<'session.end'>, next: Nx<'session.end'>)
       if (p.ok) await saveFlow($, c, p.flow);
     }
     if (autoRunning(c)) await pauseAuto($, c, 'session', String(e.reason ?? 'ended'));
+    // The work of a session that changed something is handed off, even without a note asked for (docs/memory.md).
+    if (e.reason !== 'resume') await endHandoff($, c, e.reason === 'clear' ? 'clear' : 'end');
   } catch {
     /* the flow and the run stay as they were; "continue" in the next session takes them over */
   }
@@ -2639,6 +2724,341 @@ async function refuseToolCall($: $, e: any, next: any): Promise<any> {
   return { deny: tIn(lang, 'belt.failed', { error: next.error?.kind ?? 'error' }) };
 }
 
+// ── memory: its sync, handoff notes, the morning line (docs/memory.md) ─────────────────────────────
+
+/** Claude Code's own process runner, as the sync's Runner. */
+function modRunner($: $): Runner {
+  return {
+    async run(argv, o) {
+      const r = await $.process.run([...argv], { cwd: o.cwd, timeoutMs: o.timeoutMs, env: o.env });
+      return { exitCode: r.exitCode, stdout: r.stdout, stderr: r.stderr };
+    },
+  };
+}
+
+/**
+ * One sync of the memory store: at a session's start all three steps, after a turn only when the store
+ * changed or holds commits not yet sent. Its record is kept, and a problem is told to the person once.
+ */
+async function memorySync($: $, c: Ctx, trigger: 'start' | 'turn'): Promise<SyncResult | null> {
+  const s = c.config.memory.store;
+  if (!s || !s.git || s.sync !== 'auto' || c.memSyncing) return null;
+  c.memSyncing = true;
+  try {
+    if (trigger === 'turn') {
+      // One cheap look first: nothing changed in the store and nothing waits to be sent, nothing to do.
+      const st = await gitIn($, s.dir, ['status', '--porcelain=v1', '--branch', '--', '.'], 10_000);
+      const lines = st.out.split('\n').filter(Boolean);
+      if (st.ok && lines.length <= 1 && !/\[ahead \d+/.test(lines[0] ?? '')) return null;
+    }
+    const r = await syncMemory(modRunner($), {
+      dir: s.dir,
+      remote: s.place !== 'local',
+      steps: { commit: true, pull: trigger === 'start', push: true },
+      message: (counts) => commitMessage(counts, c.sessionId, c.lang),
+      readFile: (p) => readFile($, p),
+      secrets: (t) => scanSecrets(t).length,
+    });
+    try {
+      await $.fs.write(memorySyncFile(c.layout, 'mod'), JSON.stringify({ at: await $.clock.now(), trigger, session: c.sessionId, result: r }, null, 2) + '\n');
+    } catch {
+      /* the record is for the person's eyes; the sync itself happened */
+    }
+    await logEvent($, c, {
+      kind: 'memory',
+      action: 'sync',
+      trigger,
+      commit: r.commit,
+      pull: r.pull,
+      push: r.push,
+      held: r.held.length,
+      conflicts: r.conflicts.length,
+    });
+    const problem = syncProblem(r);
+    if (problem && problem !== 'offline' && !c.memWarned.has(problem)) {
+      c.memWarned.add(problem);
+      const files = (problem === 'held' ? r.held.map((h) => h.path) : r.conflicts).slice(0, 4).join(', ');
+      $.ui.toast(tIn(c.lang, `mod.memory.${problem}` as MessageKey, { files, detail: r.detail.slice(0, 120) }), { timeoutMs: 12_000 });
+    }
+    return r;
+  } catch {
+    return null;
+  } finally {
+    c.memSyncing = false;
+  }
+}
+
+/** The project a note belongs to: the one the person named in this session, else the folder's (settings id, origin, name). */
+async function projectOfSession($: $, c: Ctx): Promise<{ key: string; folder: string }> {
+  const cwd = await $.session.cwd();
+  const env = pathEnv(c, cwd);
+  const top = await gitIn($, cwd, ['rev-parse', '--show-toplevel'], 5000);
+  const folder = top.ok && top.out ? resolvePath(top.out, env) : env.cwd;
+  const registered = c.config.projects.find((p) => p.path && pathKey(resolvePath(p.path, env), c.platform) === pathKey(folder, c.platform));
+  const remote = top.ok ? await gitIn($, folder, ['config', '--get', 'remote.origin.url'], 5000) : null;
+  return { key: projectKey({ id: c.state.project ?? registered?.id ?? null, remote: remote?.ok ? remote.out : null, folder }), folder };
+}
+
+/** What code measures for a handoff note. */
+async function handoffFacts($: $, c: Ctx, trigger: HandoffTrigger): Promise<HandoffFacts> {
+  const p = await projectOfSession($, c);
+  const at = await $.clock.now();
+  const isRepo = (await gitIn($, p.folder, ['rev-parse', '--is-inside-work-tree'], 5000)).out === 'true';
+  const branch = isRepo ? await gitIn($, p.folder, ['symbolic-ref', '--quiet', '--short', 'HEAD'], 5000) : null;
+  const head = isRepo ? await gitIn($, p.folder, ['rev-parse', 'HEAD'], 5000) : null;
+  const log = isRepo ? await gitIn($, p.folder, ['log', `--since=${new Date(c.startedAt).toISOString()}`, '--format=%h %s', '-n', '40'], 10_000) : null;
+  const status = isRepo ? await gitIn($, p.folder, ['status', '--porcelain=v1'], 10_000) : null;
+  const q = await quotaNow($, c);
+  let report: string | null = null;
+  if (c.run) {
+    const dir = runDir(c.layout, c.run.id);
+    report = dir ? joinPath(dir, 'report.md') : null;
+  }
+  return {
+    project: p.key,
+    cwd: p.folder,
+    machine: c.env.COMPUTERNAME || c.env.HOSTNAME || c.env.WSL_DISTRO_NAME || '',
+    session: c.sessionId,
+    at,
+    trigger,
+    branch: branch?.ok && branch.out ? branch.out : null,
+    head: head?.ok && head.out ? head.out : null,
+    commits: log?.ok ? log.out.split('\n').filter(Boolean) : [],
+    // The output comes trimmed, so the first line may have lost its leading status column: read the name after the status.
+    uncommitted: status?.ok
+      ? status.out
+          .split('\n')
+          .map((l) => /^[ MADRCUT?!]{1,2} (.+)$/.exec(l)?.[1] ?? '')
+          .filter(Boolean)
+      : [],
+    flow: c.flow && isOpen(c.flow) ? `${c.flow.id}: ${stepName(currentStep(c.flow)?.kind ?? 'research', c.lang)} (${c.flow.status})` : null,
+    run: c.run ? { id: c.run.id, status: c.run.status, report } : null,
+    quota: q.usable ? { five: q.five?.used ?? null, week: q.week?.used ?? null } : null,
+    request: c.lastPrompt,
+  };
+}
+
+/** Writes a handoff note into the memory (or terminal-code's folder without one); its path, or null when turned off. */
+async function writeHandoff($: $, c: Ctx, trigger: HandoffTrigger, body: { parts?: HandoffParts; summary?: string }): Promise<string | null> {
+  if (!c.config.memory.handoff.enabled) return null;
+  const f = await handoffFacts($, c, trigger);
+  const path = joinPath(handoffRoot(c.config.memory.store?.dir ?? null, c.layout.handoffsDir), f.project, handoffName(f.at, c.sessionId));
+  try {
+    await $.fs.write(path, composeHandoff(f, body));
+  } catch {
+    return null;
+  }
+  c.handoffAt = f.at;
+  await logEvent($, c, { kind: 'handoff', trigger, project: f.project });
+  return path;
+}
+
+/** The newest handoff note of the session's project that this session did not write, read back. */
+async function waitingHandoff($: $, c: Ctx): Promise<{ path: string; text: string; note: Handoff } | null> {
+  if (!c.config.memory.handoff.enabled) return null;
+  const p = await projectOfSession($, c);
+  const dir = joinPath(handoffRoot(c.config.memory.store?.dir ?? null, c.layout.handoffsDir), p.key);
+  let names: string[] = [];
+  try {
+    names = (await $.fs.list(dir)).map((e) => e.name);
+  } catch {
+    return null;
+  }
+  const name = newestName(names);
+  if (!name) return null;
+  const path = joinPath(dir, name);
+  const text = await readFile($, path);
+  const note = text ? parseHandoff(text) : null;
+  if (!text || !note || note.session === c.sessionId || !isFresh(note, await $.clock.now(), c.config.memory.handoff.maxAgeDays)) return null;
+  return { path, text, note };
+}
+
+const HANDOFF_TOOL_DEF = {
+  name: 'handoff',
+  description:
+    'Writes a handoff note for this project (terminal-code): where the work stands, kept in the memory for the next session. Each part a few lines, in the language the person writes in.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      summary: { type: 'string', description: 'What was done in this session.' },
+      open: { type: 'string', description: 'What is still open or unfinished.' },
+      decisions: { type: 'string', description: 'What was decided, and why.' },
+      next: { type: 'string', description: 'The next step, concrete enough to start on.' },
+    },
+    required: ['summary', 'open', 'decisions', 'next'],
+    additionalProperties: false,
+  },
+  isDeferred: false,
+} as const;
+
+async function registerHandoffTool($: $): Promise<void> {
+  try {
+    await $.tool.register(HANDOFF_TOOL_DEF);
+  } catch {
+    /* the keyword then has no tool to write with; Claude says so */
+  }
+}
+
+/** The handoff tool: code checks Claude's four parts, adds what it measured, keeps the note and syncs it. */
+async function onHandoffTool($: $, e: any): Promise<any> {
+  const c = await ctxOf($);
+  if (e.agentId !== undefined) return { result: tIn(c.lang, 'mod.handoff.agent') };
+  const problems = partProblems(e as Record<string, unknown>, (t) => scanSecrets(t).length);
+  if (problems.length)
+    return {
+      result: [
+        tIn(c.lang, 'mod.handoff.refused'),
+        ...problems.map((p) => `• ${tIn(c.lang, `mod.handoff.part.${p.kind}` as MessageKey, { part: p.part })}`),
+      ].join('\n'),
+    };
+  const parts: HandoffParts = { summary: String(e.summary), open: String(e.open), decisions: String(e.decisions), next: String(e.next) };
+  const path = await writeHandoff($, c, c.state.wrapUp ? 'wrapUp' : 'keyword', { parts });
+  if (!path) return { result: tIn(c.lang, 'mod.handoff.off') };
+  const r = await memorySync($, c, 'turn');
+  const synced = c.config.memory.store
+    ? r && r.push === 'ok'
+      ? 'mod.handoff.sent'
+      : r && r.commit === 'ok'
+        ? 'mod.handoff.recorded'
+        : 'mod.handoff.kept'
+    : 'mod.handoff.local';
+  $.ui.toast(tIn(c.lang, 'mod.handoff.toast'), { timeoutMs: 6000 });
+  return { result: `${tIn(c.lang, 'mod.handoff.written', { path })} ${tIn(c.lang, synced as MessageKey)}` };
+}
+
+/** A note from what code measured when a session ends or clears, if it changed something since the last note. */
+async function endHandoff($: $, c: Ctx, trigger: 'clear' | 'end'): Promise<void> {
+  if (!c.config.memory.handoff.onEnd || c.changedAt === 0 || c.handoffAt >= c.changedAt) return;
+  const path = await writeHandoff($, c, trigger, {});
+  if (path) await memorySync($, c, 'turn');
+}
+
+/** A compaction's summary kept as a handoff note, when the conversation was compacted (not only computed ahead). */
+async function compactHandoff($: $, trigger: string, r: unknown): Promise<void> {
+  try {
+    const c = await ctxOf($);
+    if (!c.config.memory.handoff.onCompact || (trigger !== 'manual' && trigger !== 'auto')) return;
+    const messages = (r as { messages?: readonly { role: string; text: string }[] } | null)?.messages;
+    if (!messages?.length) return;
+    const summary = compactionSummary(messages);
+    if (!summary) return;
+    const path = await writeHandoff($, c, 'compact', { summary });
+    if (path) await memorySync($, c, 'turn');
+  } catch {
+    /* the compaction stands; the note is a help */
+  }
+}
+
+/** A note from a full-autonomy run's state when it pauses or ends. */
+async function runHandoff($: $, c: Ctx, r: Run): Promise<void> {
+  const report = runDir(c.layout, r.id);
+  const summary = `${r.task}\n\nFull-autonomy run ${r.id}: ${r.status}${r.pause ? ` (${r.pause.reason})` : ''}, ${runProgress(r).done}/${runProgress(r).of} milestones.${report ? ` Report: ${joinPath(report, 'report.md')}` : ''}`;
+  const path = await writeHandoff($, c, 'run', { summary });
+  if (path) await memorySync($, c, 'turn');
+}
+
+/** The run notes the person approved and no session has merged yet. */
+async function notesToDeliver($: $, c: Ctx): Promise<{ id: string; path: string }[]> {
+  const decided = parseNoteDecisions(await readFile($, c.layout.notes));
+  let delivered: Record<string, number> = {};
+  try {
+    delivered = JSON.parse((await readFile($, c.layout.notesDelivered)) ?? '{}') as Record<string, number>;
+  } catch {
+    delivered = {};
+  }
+  const out: { id: string; path: string }[] = [];
+  for (const id of toDeliver(decided)) {
+    if (Object.hasOwn(delivered, id)) continue;
+    const dir = runDir(c.layout, id);
+    const run = dir ? parseRun(await readFile($, joinPath(dir, 'run.json'))) : null;
+    if (run) out.push({ id, path: run.notesPath });
+  }
+  if (out.length) {
+    const now = await $.clock.now();
+    for (const o of out) delivered[o.id] = now;
+    try {
+      await $.fs.write(c.layout.notesDelivered, JSON.stringify(delivered, null, 2) + '\n');
+    } catch {
+      /* delivered again next time: harmless */
+    }
+  }
+  return out;
+}
+
+/** The morning line after a long gap: what ended, what waits for the person (a short version of `terminal-code morning`). */
+async function morningLineFor($: $, c: Ctx, from: number, now: number): Promise<string | null> {
+  const runs: MorningFacts['runs'] = [];
+  let notes = 0;
+  const decided = parseNoteDecisions(await readFile($, c.layout.notes));
+  try {
+    const names = (await $.fs.list(c.layout.runsDir)).filter((e) => e.kind === 'dir').map((e) => e.name);
+    for (const n of names.sort().reverse().slice(0, 60)) {
+      const dir = runDir(c.layout, n);
+      const r = dir ? parseRun(await readFile($, joinPath(dir, 'run.json'))) : null;
+      if (!r) continue;
+      if (r.updatedAt >= from && r.status !== 'active')
+        runs.push({ id: r.id, task: r.task, status: r.status, reason: r.pause?.reason ?? null, report: null, deferred: r.deferred.length });
+      if (isTerminal(r) && !Object.hasOwn(decided, r.id) && (await $.fs.exists(r.notesPath).catch(() => false))) notes++;
+    }
+  } catch {
+    /* no runs */
+  }
+  const flows: MorningFacts['flows'] = [];
+  try {
+    for (const e of (await $.fs.list(c.layout.flowsDir)).filter((x) => x.kind === 'dir').slice(-40)) {
+      const dir = flowDir(c.layout, e.name);
+      const f = dir ? parseFlow(await readFile($, joinPath(dir, 'flow.json'))) : null;
+      if (f && f.status === 'waiting') flows.push({ id: f.id, title: f.task.split('\n')[0] ?? f.id });
+    }
+  } catch {
+    /* no flows */
+  }
+  const s = c.config.memory.store;
+  let memory: MorningFacts['memory'] = null;
+  if (s) {
+    const last = newestRecord(
+      await Promise.all((['mod', 'hook', 'cli'] as const).map(async (w) => parseSyncRecord(await readFile($, memorySyncFile(c.layout, w))))),
+    );
+    const r = last && last.at >= from ? last.result : null;
+    memory = { place: s.place, ahead: last?.result.ahead ?? null, conflicts: r?.conflicts ?? [], held: r?.held.map((h) => h.path) ?? [], error: null };
+  }
+  return morningSummary({ since: from, now, runs, flows, sessions: [], handoffs: [], belt: null, quota: null, memory, notes }, c.lang);
+}
+
+/**
+ * What the memory adds to a prompt of the person's: the morning line after a long gap (a notice), on the
+ * session's first prompt the waiting handoff in one line and approved run notes, on "continue" the whole note.
+ */
+async function memoryPromptContext($: $, c: Ctx, kw: KeywordMatch | null): Promise<string[]> {
+  const out: string[] = [];
+  const now = await $.clock.now();
+  // The gap since the last prompt (any session): the morning line.
+  if (c.config.memory.morning.enabled) {
+    const before = parseActivity(await readFile($, c.layout.activity));
+    const after = nextActivity(before, now, c.config.memory.morning.afterHours);
+    try {
+      await $.fs.write(c.layout.activity, JSON.stringify(after) + '\n');
+    } catch {
+      /* the gap is measured again next time */
+    }
+    if (after.away && after.away !== before.away) {
+      const line = await morningLineFor($, c, after.away.from, now);
+      if (line) $.ui.toast(line, { timeoutMs: 15_000 });
+    }
+  }
+  const first = c.prompts === 1;
+  if (kw?.kind === 'continue' || (first && c.config.memory.handoff.enabled)) {
+    const h = await waitingHandoff($, c);
+    if (h && kw?.kind === 'continue') out.push(handoffFull(h.text, h.path));
+    else if (h && first) out.push(handoffLine(h.note, h.path));
+  }
+  if (first) {
+    const notes = await notesToDeliver($, c);
+    if (notes.length) out.push(notesContext(notes));
+  }
+  return out;
+}
+
 export function register(on: On): void {
   on('session.start', onSessionStart);
   on('tool.call', onToolCall).catch(refuseToolCall);
@@ -2658,6 +3078,7 @@ export function register(on: On): void {
   });
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${FLOW_TOOL.name}` }, onFlowStep);
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${AUTO_TOOL.name}` }, onAutoTool);
+  on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${HANDOFF_TOOL_DEF.name}` }, onHandoffTool);
   // Claude Code's own permission questions: during a run they are answered "deferred" instead of waiting.
   // A failure leaves Claude Code's verdict as it was (a question nobody answers, never a call let through).
   on('tool.check', onToolCheck).catch(($, e, next) => next(e));
@@ -2665,9 +3086,12 @@ export function register(on: On): void {
   on('session.compact', async ($, e, next) => {
     if (e.agentId !== undefined) return next(e);
     const text = await sessionStateText($);
-    if (!text) return next(e);
-    const r = await next({ ...e, instructions: [e.instructions, `Keep this in the summary, word for word: ${text}`].filter(Boolean).join('\n') });
-    await restateSession($, text);
+    const r = text
+      ? await next({ ...e, instructions: [e.instructions, `Keep this in the summary, word for word: ${text}`].filter(Boolean).join('\n') })
+      : await next(e);
+    if (text) await restateSession($, text);
+    // The compaction's own summary is the handoff note (docs/memory.md): no extra model call.
+    await compactHandoff($, e.trigger, r);
     return r;
   });
   // After /clear the conversation goes on under a new session id with a fresh state; a running flow pauses.

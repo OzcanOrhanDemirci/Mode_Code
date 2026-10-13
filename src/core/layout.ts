@@ -15,6 +15,12 @@
  *   flows/<id>/flow.json             the mod (a flow's record), with the checked report and approved plan beside it
  *   runs/<id>/run.json               the mod (a full-autonomy run's record), with the accepted plan and the report beside it
  *   marketplace/                     the installer (the local plugin marketplace Claude Code reads)
+ *   memory/<name>/                   the memory setup (the working copy of a memory kept on GitHub only)
+ *   handoffs/<project>/              the mod (handoff notes, when no memory store is set up)
+ *   state/memory-sync.<who>.json     one writer each (mod, hook, cli): the last sync of the memory store
+ *   state/activity.json              the mod (when the person last typed: the morning report's gap)
+ *   state/notes.json                 the command line (the person's decisions on notes from runs)
+ *   state/notes-delivered.json       the mod (approved notes handed to a session)
  */
 import { joinPath } from './paths.js';
 import { APP_ID } from './app.js';
@@ -35,6 +41,11 @@ export interface Layout {
   logsDir: string;
   flowsDir: string;
   runsDir: string;
+  memoryDir: string;
+  handoffsDir: string;
+  activity: string;
+  notes: string;
+  notesDelivered: string;
 }
 
 export function layout(root: string): Layout {
@@ -55,7 +66,17 @@ export function layout(root: string): Layout {
     logsDir: joinPath(root, 'logs'),
     flowsDir: joinPath(root, 'flows'),
     runsDir: joinPath(root, 'runs'),
+    memoryDir: joinPath(root, 'memory'),
+    handoffsDir: joinPath(root, 'handoffs'),
+    activity: joinPath(root, 'state', 'activity.json'),
+    notes: joinPath(root, 'state', 'notes.json'),
+    notesDelivered: joinPath(root, 'state', 'notes-delivered.json'),
   };
+}
+
+/** The last sync of the memory store, one file per writer. */
+export function memorySyncFile(l: Layout, writer: 'mod' | 'hook' | 'cli'): string {
+  return joinPath(l.stateDir, `memory-sync.${writer}.json`);
 }
 
 /** Session ids come from Claude Code; anything outside this shape is never used in a file name. */

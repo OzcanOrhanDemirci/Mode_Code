@@ -189,3 +189,8 @@ export function changeCounts(changes: readonly StoreChange[]): { added: number; 
   }
   return { added, changed, removed };
 }
+
+/** Where handoff notes are kept: in the memory store when there is one, else in terminal-code's own folder. */
+export function handoffRoot(storeDir: string | null, fallback: string): string {
+  return storeDir ? joinPath(storeDir, HANDOFF_DIR) : fallback;
+}

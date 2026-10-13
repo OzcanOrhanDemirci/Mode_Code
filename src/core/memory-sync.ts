@@ -68,6 +68,8 @@ export interface SyncInput {
   readFile: (path: string) => Promise<string | null>;
   /** How many secrets the scanner finds in a text. */
   secrets: (text: string) => number;
+  /** How to run git: its name on the PATH (the default), or the full path the setup found it at. */
+  gitCommand?: string;
 }
 
 /** Sorts a failed git call by what the person can do about it. */
@@ -116,7 +118,7 @@ export async function syncMemory(r: Runner, input: SyncInput): Promise<SyncResul
   };
   const git = async (args: readonly string[], timeoutMs = 15_000) => {
     try {
-      const out = await r.run(['git', '-C', input.dir, ...args], { cwd: input.dir, timeoutMs, env: { ...GIT_ENV } });
+      const out = await r.run([input.gitCommand ?? 'git', '-C', input.dir, ...args], { cwd: input.dir, timeoutMs, env: { ...GIT_ENV } });
       return { ok: out.exitCode === 0, out: out.stdout, err: out.stderr };
     } catch (err) {
       const text = String((err as Error)?.message ?? err);
@@ -281,4 +283,59 @@ async function pushStep(git: Git, upstream: string | null, res: SyncResult, note
   note(push.err || push.out);
   const k = classifyGitError(push.err + push.out);
   return k === 'identity' ? 'failed' : k;
+}
+
+/** The last sync a writer made, kept in its own file (layout.memorySyncFile). */
+export interface SyncRecord {
+  at: number;
+  trigger: 'start' | 'turn' | 'manual' | 'setup';
+  session: string | null;
+  result: SyncResult;
+}
+
+/** A sync record read back; null when it is missing or not one. */
+export function parseSyncRecord(text: string | null): SyncRecord | null {
+  if (!text) return null;
+  try {
+    const o = JSON.parse(text) as Partial<SyncRecord>;
+    if (typeof o.at !== 'number' || typeof o.result !== 'object' || o.result === null) return null;
+    const r = o.result as Partial<SyncResult>;
+    if (typeof r.commit !== 'string' || typeof r.pull !== 'string' || typeof r.push !== 'string') return null;
+    return {
+      at: o.at,
+      trigger: o.trigger === 'start' || o.trigger === 'turn' || o.trigger === 'manual' || o.trigger === 'setup' ? o.trigger : 'manual',
+      session: typeof o.session === 'string' ? o.session : null,
+      result: {
+        repo: r.repo === true,
+        commit: r.commit,
+        committed: typeof r.committed === 'number' ? r.committed : 0,
+        held: Array.isArray(r.held) ? r.held.filter((h) => h && typeof h.path === 'string') : [],
+        pull: r.pull,
+        push: r.push,
+        conflicts: Array.isArray(r.conflicts) ? r.conflicts.filter((c): c is string => typeof c === 'string') : [],
+        ahead: typeof r.ahead === 'number' ? r.ahead : null,
+        behind: typeof r.behind === 'number' ? r.behind : null,
+        detail: typeof r.detail === 'string' ? r.detail : '',
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** The newest of several writers' records. */
+export function newestRecord(records: readonly (SyncRecord | null)[]): SyncRecord | null {
+  return records.reduce<SyncRecord | null>((a, b) => (b && (!a || b.at > a.at) ? b : a), null);
+}
+
+/** What went wrong in a sync, for the person: the step that failed, or null when every step is fine. */
+export function syncProblem(r: SyncResult): 'conflict' | 'held' | 'offline' | 'auth' | 'rejected' | 'identity' | 'failed' | null {
+  if (r.pull === 'conflict') return 'conflict';
+  if (r.commit === 'identity') return 'identity';
+  for (const o of [r.pull, r.push, r.commit]) if (o === 'auth') return 'auth';
+  if (r.push === 'rejected') return 'rejected';
+  for (const o of [r.pull, r.push]) if (o === 'offline') return 'offline';
+  for (const o of [r.pull, r.push, r.commit]) if (o === 'failed') return 'failed';
+  if (r.held.length) return 'held';
+  return null;
 }

@@ -32,6 +32,10 @@ import { loadConfig, beltContext, classifyEnv, memoryDirs } from '../node/contex
 import { readText, readJson, writeJsonAtomic, appendLine } from '../node/fsx.js';
 import { git, memoryStatus } from '../node/git.js';
 import { readTail } from '../node/tail.js';
+import { handoffLine, isFresh } from '../core/handoff.js';
+import { memorySyncFile } from '../core/layout.js';
+import { syncStore, type SyncTrigger } from '../node/memory.js';
+import { newestHandoffAt, projectKeyAt, pruneHandoffs } from '../node/handoffs.js';
 
 type Input = Record<string, unknown>;
 
@@ -128,10 +132,10 @@ function recordPermissionMode(l: ReturnType<typeof dataLayout>, sessionId: strin
  * Each of the person's prompts, with the permission mode it came with: a full-autonomy start reads both to
  * know the mode is this prompt's (the plugin's own prompt hook runs before this one, so it cannot).
  */
-function recordPrompt(l: ReturnType<typeof dataLayout>, sessionId: string, mode: string | undefined, now: number): void {
-  if (sessionId === SELF_TEST_SESSION) return;
+function recordPrompt(l: ReturnType<typeof dataLayout>, sessionId: string, mode: string | undefined, now: number): number {
+  if (sessionId === SELF_TEST_SESSION) return 0;
   const file = sessionFile(l, sessionId, 'hook');
-  if (!file) return;
+  if (!file) return 0;
   const state = parseHookState(readText(file), sessionId);
   const changed = !!mode && mode !== state.permissionMode;
   try {
@@ -139,36 +143,71 @@ function recordPrompt(l: ReturnType<typeof dataLayout>, sessionId: string, mode:
   } catch {
     /* a full-autonomy start then finds no record of this prompt and does not start */
   }
+  return state.promptAt;
 }
 
-function userPromptSubmit(input: Input): void {
+/**
+ * The memory store's sync from the hook, for sessions the plugin is not loaded in (it syncs itself where it
+ * is): its record goes to the hook's own file. Never throws.
+ */
+async function hookSync(
+  l: ReturnType<typeof dataLayout>,
+  config: ReturnType<typeof loadConfig>['config'],
+  trigger: SyncTrigger,
+  sessionId: string,
+  lang: Lang,
+): Promise<void> {
+  const s = config.memory.store;
+  if (!s || !s.git || s.sync !== 'auto') return;
+  try {
+    const r = await syncStore(config, { trigger, session: sessionId || null, lang });
+    if (r) writeJsonAtomic(memorySyncFile(l, 'hook'), { at: Date.now(), trigger, session: sessionId || null, result: r });
+  } catch {
+    /* the next prompt or session tries again */
+  }
+}
+
+async function userPromptSubmit(input: Input, lang: Lang): Promise<void> {
   const l = dataLayout();
   const { config } = loadConfig(l);
   const sessionId = str(input.session_id) ?? '';
-  recordPrompt(l, sessionId, str(input.permission_mode), Date.now());
-  if (!config.modules.keywords) return;
+  const previousPrompt = recordPrompt(l, sessionId, str(input.permission_mode), Date.now());
   const modFile = sessionFile(l, sessionId, 'mod');
-  if (modFile && readText(modFile) !== null) return; // the mod handles keywords in this session
+  if (modFile && readText(modFile) !== null) return; // the mod handles keywords and the memory in this session
+  const notes: string[] = [];
+  // Without the plugin, the session's first prompt brings the memory in and offers the waiting handoff note.
+  if (previousPrompt === 0) {
+    await hookSync(l, config, 'start', sessionId, lang);
+    if (config.memory.handoff.enabled) {
+      try {
+        const h = newestHandoffAt(config, l, projectKeyAt(config, str(input.cwd) ?? process.cwd()));
+        if (h && h.note.session !== sessionId && isFresh(h.note, Date.now(), config.memory.handoff.maxAgeDays)) notes.push(handoffLine(h.note, h.path));
+      } catch {
+        /* a help, not a condition */
+      }
+    }
+  }
+  const say = () => {
+    if (notes.length) out({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: notes.join('\n') } });
+  };
+  if (!config.modules.keywords) return say();
   const prompt = str(input.prompt) ?? '';
   const kw = detectKeyword(prompt, projectRefs(config), keywordTables(config));
-  if (!kw) return;
-  // Modes, flows and full autonomy live in the plugin; without it nothing would enforce them, and the person must know.
-  if (isModeKeyword(kw.kind) || kw.kind === 'flow' || kw.kind === 'approve' || kw.kind === 'fullAuto') {
-    out({
-      hookSpecificOutput: {
-        hookEventName: 'UserPromptSubmit',
-        additionalContext: `[terminal-code] The person's message ${kw.standalone ? 'is' : 'ends with'} "${kw.text}", a terminal-code keyword for modes, flows or full autonomy. They need the terminal-code plugin, which is not loaded in this session, so nothing enforces them here. Tell the person in one line (terminal-code doctor shows why the plugin is not loaded); the safety belt still runs.`,
-      },
-    });
-    return;
+  if (!kw) return say();
+  // Modes, flows, full autonomy and handoff notes live in the plugin; without it nothing would do them, and the person must know.
+  if (isModeKeyword(kw.kind) || kw.kind === 'flow' || kw.kind === 'approve' || kw.kind === 'fullAuto' || kw.kind === 'handoff') {
+    notes.push(
+      `[terminal-code] The person's message ${kw.standalone ? 'is' : 'ends with'} "${kw.text}", a terminal-code keyword for modes, flows, full autonomy or handoff notes. They need the terminal-code plugin, which is not loaded in this session, so nothing does them here. Tell the person in one line (terminal-code doctor shows why the plugin is not loaded); the safety belt still runs.`,
+    );
+    return say();
   }
   const reading = readJson<QuotaReading>(l.quota);
   const budget = kw.kind === 'quota' ? { n: kw.n ?? 0, plus: kw.plus ?? false } : kw.budget;
   const state = applyKeyword(newModState(sessionId, APP_VERSION, Date.now()), kw, budget ? weeklyTargetFrom(budget, reading, Date.now()) : null);
   const quota = assessQuota(reading, budgetOf(config, state), Date.now());
   const label = kw.project ? (config.projects.find((p) => p.id === kw.project)?.names[0] ?? kw.project) : null;
-  const ctx = keywordContext(kw, state, quota, label);
-  if (ctx.length) out({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: ctx.join('\n') } });
+  notes.push(...keywordContext(kw, state, quota, label));
+  say();
 }
 
 /**
@@ -226,9 +265,13 @@ function autonomyStop(input: Input, l: ReturnType<typeof dataLayout>, config: Re
   return `${first}\n${tIn(lang, 'auto.stop.tail', { streak: d.streak, max: STALL_STOPS })}`;
 }
 
-function stop(input: Input, lang: Lang): void {
+async function stop(input: Input, lang: Lang): Promise<void> {
   const l = dataLayout();
   const { config } = loadConfig(l);
+  // Without the plugin, a turn that changed the memory is recorded and sent here (docs/memory.md).
+  const sid = str(input.session_id) ?? '';
+  const modPath = sessionFile(l, sid, 'mod');
+  if (!(modPath && readText(modPath) !== null)) await hookSync(l, config, 'turn', sid, lang);
   const auto = autonomyStop(input, l, config, lang);
   if (auto) {
     // Feedback that keeps the run going, not an error: the run works as designed (docs/autonomy.md).
@@ -273,6 +316,12 @@ function sessionStart(input: Input, lang: Lang): void {
   const l = dataLayout();
   const { config } = loadConfig(l);
   const sessionId = str(input.session_id) ?? '';
+  // Handoff notes past the kept number leave the folder (the plugin cannot delete files; git keeps them).
+  try {
+    pruneHandoffs(config, l);
+  } catch {
+    /* tried again at the next start */
+  }
   const hookFile = sessionFile(l, sessionId, 'hook');
   if (hookFile) {
     const state = parseHookState(readText(hookFile), sessionId);
@@ -333,8 +382,8 @@ async function main(): Promise<void> {
     return;
   }
   try {
-    if (event === 'UserPromptSubmit') userPromptSubmit(input);
-    else if (event === 'Stop') stop(input, lang);
+    if (event === 'UserPromptSubmit') await userPromptSubmit(input, lang);
+    else if (event === 'Stop') await stop(input, lang);
     else if (event === 'SessionStart') sessionStart(input, lang);
   } catch {
     /* outside the belt a failure passes silently: these features are conveniences, not protection */
