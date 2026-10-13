@@ -16,6 +16,7 @@ Kurulum
       → Güvenlik ağı hook'larını Claude Code ayarlarına geri koy
   ✓ Eklenti dosyaları bu sürümle aynı.
   ✓ Eklenti en son 2026-10-12 11:50 (UTC) zamanında bir oturumdan haber verdi.
+  · Tam otonom kapalı (terminal-code autonomy enable ile açılır).
 Koruma
   ✗ Kurulu hook, 30 örnekten 1 tanesine bu sürümden farklı cevap verdi.
       Write ~/TERMIN~1/config.json: bu sürüm "engelle" diyor, kurulu hook "izin" diyor.
@@ -51,7 +52,7 @@ Veri
 Öz-sınama
   ✓ 1 paketteki 30 yerleşik örneğin hepsi beklenen cevabı verdi.
 
-2.1 sn içinde 36 denetim: 27 tamam, 2 uyarı, 3 sorun.
+2.1 sn içinde 37 denetim: 27 tamam, 2 uyarı, 3 sorun.
 Sorunlardan 3 tanesi bir korumayı zayıflatıyor.
 
 3 sorun kendiliğinden onarılabilir:

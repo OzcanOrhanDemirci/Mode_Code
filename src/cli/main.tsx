@@ -23,6 +23,7 @@ import {
   cmdUninstall,
   helpText,
   cmdFlow,
+  cmdAutonomy,
 } from './commands.js';
 import { runControlCenter } from '../tui/run.js';
 import { cmdDoctor } from './doctor.js';
@@ -81,6 +82,8 @@ async function main(argv: string[]): Promise<number> {
     case 'flow':
     case 'flows':
       return cmdFlow(sub);
+    case 'autonomy':
+      return cmdAutonomy(sub);
     case 'belt':
       return cmdBelt(sub);
     case 'secrets':

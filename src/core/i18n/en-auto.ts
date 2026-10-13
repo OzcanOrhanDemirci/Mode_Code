@@ -230,4 +230,70 @@ export const enAuto = {
   'auto.phase.plan': 'plan',
   'auto.phase.work': 'work',
   'auto.phase.finish': 'finish',
+
+  // ── the command line ──
+  'help.autonomy': 'Full autonomy: runs, their reports, the start checks, on and off',
+  'auto.cli.atStart': 'Measured when a run starts, in its session.',
+  'auto.cli.hookMissing': 'The safety-net hook is not installed: run terminal-code install (or terminal-code doctor --fix).',
+  'auto.cli.warnTitle': 'Full autonomy: what turning it on means',
+  'auto.cli.warnBody':
+    'A run takes one task to its end while nobody is at the keyboard. Claude does not ask you anything during it.\n' +
+    'It starts only with a budget ("<task>. <project> full auto quota +10") and only inside a boundary code measures first:\n' +
+    "WSL2 with no road back to Windows, or Linux and macOS, with Claude Code's sandbox in its strict form.\n" +
+    'What needs you (pushes to protected branches, merges, releases, publishing, what the safety belt would ask) waits,\n' +
+    "recorded with its exact command, and is listed in the run's report. Every milestone is a commit you can return to.\n" +
+    'A run stops when its definition of done passes, when it is stuck, when nothing changes, at its time limit or budget,\n' +
+    "or when you type stop. The boundary is the operating system's; the safety belt and the fence are accident preventers.\n" +
+    'Read docs/autonomy.md before the first run.',
+  'auto.cli.needsYes': 'No terminal to confirm in: run it in your own terminal, or add --yes.',
+  'auto.cli.confirm': 'Turn full autonomy on?',
+  'auto.cli.unchanged': 'Nothing changed.',
+  'auto.cli.enabled': 'Full autonomy is on. A run starts with "<task>. <project> full auto quota +N".',
+  'auto.cli.disabled': 'Full autonomy is off; a run that is going on pauses at its next step.',
+  'auto.cli.checkOk': 'Nothing measured here stands in the way; the rest is measured when a run starts.',
+  'auto.cli.checkFailed': '{n} check(s) failed: a run would not start here.',
+  'auto.cli.notFound': 'No run has the id {id}.',
+  'auto.cli.noPoint': 'The run has no point {n} to return to (0 is where it started, then each milestone).',
+  'auto.cli.rollbackKeep': 'A new branch at that point, your branch left as it is:',
+  'auto.cli.rollbackMove': 'Or move the current branch back to it (what came after it leaves the branch):',
+  'auto.cli.noReport': 'This run has no report yet (it is written when the run ends or pauses).',
+  'auto.cli.budget': 'Budget',
+  'auto.cli.fileReport': 'Report',
+  'auto.cli.filePlan': 'Accepted plan',
+  'auto.cli.fileDrafts': 'Drafts',
+  'auto.cli.fileNotes': 'Memory notes',
+  'auto.cli.isOn': 'Full autonomy is on.',
+  'auto.cli.isOff': 'Full autonomy is off (terminal-code autonomy enable, in your own terminal).',
+  'auto.cli.none': 'No run yet.',
+  'auto.cli.where': 'Where',
+  'doc.autonomy.off': 'Full autonomy is off (terminal-code autonomy enable turns it on).',
+  'doc.autonomy.ready': 'Full autonomy is on, and nothing measured here stands in the way of a run.',
+  'doc.autonomy.notReady': 'Full autonomy is on, but {n} start check(s) would fail here:',
+
+  // ── the control center ──
+  'home.runs': 'Full-autonomy runs',
+  'page.runs': 'Runs',
+  'desc.runs': 'Full-autonomy runs: each with its phases, milestones, reviews, what waits for you and its report.',
+  'desc.run': 'A full-autonomy run.',
+  'badge.running': '{n} running',
+  'run.missing': 'This run is no longer on record.',
+  'run.rollbackHint': 'Back to a milestone: terminal-code autonomy rollback {id} <n>',
+  'runs.empty': 'No full-autonomy run yet. A run takes one task to its end while nobody is at the keyboard, inside a boundary code measures first.',
+  'runs.howTo': 'Turn it on under Settings › Autonomy, then end a message with "<project> full auto quota +10" (see docs/autonomy.md).',
+  'page.autonomy': 'Autonomy',
+  'desc.autonomy': 'Full autonomy: on or off, its limits, and the start checks measured from here.',
+  'set.autonomy.enabled': 'Full autonomy',
+  'set.autonomy.enabledHelp': 'Runs that take one task to its end without asking you. Off until you turn it on; Claude cannot turn it on.',
+  'set.autonomy.confirm': 'Press Enter again to turn it on.',
+  'set.autonomy.maxHours': 'Time limit (hours)',
+  'set.autonomy.maxHoursHelp': 'Running hours after which a run pauses with its report.',
+  'set.autonomy.stallMinutes': 'Stall time (minutes)',
+  'set.autonomy.stallMinutesHelp': 'Minutes without a milestone after which Claude is told; twice as long and the run pauses as stalled.',
+  'set.autonomy.check': 'Start checks, measured from here',
+  'set.autonomy.note': "The rest (the budget, the live sandbox probe, the session's permission mode) is measured when a run starts.",
+  'event.run.start': 'Full-autonomy run started: {run}',
+  'event.run.finish': 'Full-autonomy run done: {run}',
+  'event.run.stuck': 'Full-autonomy run stuck: {run}',
+  'event.run.cancel': 'Full-autonomy run canceled: {run}',
+  'event.run.pause': 'Full-autonomy run paused ({reason}): {run}',
 } as const;

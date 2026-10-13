@@ -240,6 +240,59 @@ export function Memory({ width, open }: ScreenProps) {
   );
 }
 
+/** Full autonomy: off until the person turns it on here (after reading what it means), its limits, the checks from here. */
+export function Autonomy({ width, open }: ScreenProps) {
+  const { data, theme } = useEnv();
+  const t = useT();
+  const a = data.config().autonomy;
+  const fields: Field[] = [
+    {
+      path: 'autonomy.enabled',
+      label: t('set.autonomy.enabled'),
+      help: t('set.autonomy.enabledHelp'),
+      value: a.enabled,
+      type: { kind: 'bool' },
+      confirmOn: { value: true, text: `${t('auto.cli.warnBody').replace(/\n/g, ' ')} ${t('set.autonomy.confirm')}` },
+    },
+    {
+      path: 'autonomy.maxHours',
+      label: t('set.autonomy.maxHours'),
+      help: t('set.autonomy.maxHoursHelp'),
+      value: a.maxHours,
+      type: { kind: 'number', min: 1, max: 72 },
+    },
+    {
+      path: 'autonomy.stallMinutes',
+      label: t('set.autonomy.stallMinutes'),
+      help: t('set.autonomy.stallMinutesHelp'),
+      value: a.stallMinutes,
+      type: { kind: 'number', min: 10, max: 720 },
+    },
+  ];
+  const g = data.autonomyCheck();
+  return (
+    <Box flexDirection="column" width={width}>
+      <SettingsEditor fields={fields} open={open} width={width} />
+      <Section title={t('set.autonomy.check')}>
+        {g.checks.map((c) => (
+          <Box key={c.id}>
+            <Box width={3} flexShrink={0}>
+              <Text color={c.ok === true ? theme.ok : c.ok === false ? theme.bad : theme.muted}>{c.ok === true ? '✓' : c.ok === false ? '✗' : '·'}</Text>
+            </Box>
+            <Box width={20} flexShrink={0}>
+              <Text>{t(`auto.gate.name.${c.id}` as MessageKey)}</Text>
+            </Box>
+            <Text wrap="truncate-end" {...(c.ok === null ? { color: theme.muted } : {})}>
+              {t(c.key, c.params)}
+            </Text>
+          </Box>
+        ))}
+      </Section>
+      <Muted wrap="wrap">{t('set.autonomy.note')}</Muted>
+    </Box>
+  );
+}
+
 export function Projects({ width, open }: ScreenProps) {
   const { data, flash } = useEnv();
   const t = useT();

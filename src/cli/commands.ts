@@ -32,6 +32,9 @@ import { stepName, stepsLine } from '../core/guidance.js';
 import { claudeDir as claudeDirOf } from '../node/env.js';
 import { appliedTemplates, repoKey, TEMPLATES, templateById, withTemplates } from '../core/templates.js';
 import { git } from '../node/git.js';
+import { autonomyCheck, findRun, loadRuns, runFiles } from '../app/runs.js';
+import { activeTime, nextStep as nextRunStep, progress as runProgress, type Run } from '../core/run.js';
+import { durationText, rollbackCommands } from '../core/run-report.js';
 import { flag, intValue, value, values, type Args } from './args.js';
 import { bold, dim, green, red, yellow, gray, cyan, table } from './style.js';
 
@@ -791,9 +794,195 @@ export async function cmdSecrets(a: Args): Promise<number> {
   return 1;
 }
 
+// ── full autonomy ──
+
+function runTitle(r: Run, width: number): string {
+  const first = (r.task || r.id).split('\n')[0]!;
+  return first.length > width ? `${first.slice(0, Math.max(1, width - 1))}…` : first;
+}
+
+function runStatusText(ctx: AppContext, r: Run): string {
+  if (r.status === 'paused' && r.pause) return T(ctx, 'auto.report.statusPaused', { reason: T(ctx, `auto.pause.${r.pause.reason}` as MessageKey) });
+  return T(ctx, `auto.status.${r.status}` as MessageKey);
+}
+
+function runWhere(ctx: AppContext, r: Run): string {
+  const p = runProgress(r);
+  if (r.phase === 'plan' || !r.plan) return T(ctx, 'auto.phase.plan');
+  return nextRunStep(r) ? `${p.done}/${p.of} ${T(ctx, 'auto.phase.work')}` : T(ctx, 'auto.phase.finish');
+}
+
+/** The warning the person reads before turning full autonomy on. */
+function autonomyWarning(ctx: AppContext): string[] {
+  return [
+    bold(T(ctx, 'auto.cli.warnTitle')),
+    '',
+    ...T(ctx, 'auto.cli.warnBody')
+      .split('\n')
+      .map((l) => `  ${l}`),
+    '',
+  ];
+}
+
+export async function cmdAutonomy(a: Args): Promise<number> {
+  const ctx = appContext();
+  const sub = a.positionals[0] ?? 'list';
+  const runs = loadRuns(ctx);
+  const pick = (): Run | null => (a.positionals[1] ? findRun(runs, a.positionals[1]) : (runs[0] ?? null));
+  if (sub === 'enable' || sub === 'disable') {
+    const on = sub === 'enable';
+    // Turning it on lowers no protection but changes what a session may do unasked: the person's call only.
+    if (on && underAgent()) {
+      say(red(T(ctx, 'cli.agentRefused')));
+      return 1;
+    }
+    if (on && !flag(a, 'yes', 'y')) {
+      for (const l of autonomyWarning(ctx)) say(l);
+      if (!process.stdin.isTTY) {
+        say(red(T(ctx, 'auto.cli.needsYes')));
+        return 2;
+      }
+      if (!(await confirm(T(ctx, 'auto.cli.confirm')))) {
+        say(T(ctx, 'auto.cli.unchanged'));
+        return 1;
+      }
+    }
+    const r = setConfigValue(ctx.config, 'autonomy.enabled', on);
+    writeAtomic(ctx.layout.config, serializeConfig(r.config));
+    say(green(T(ctx, on ? 'auto.cli.enabled' : 'auto.cli.disabled')));
+    return 0;
+  }
+  if (sub === 'check') {
+    const g = autonomyCheck(ctx, process.cwd());
+    if (flag(a, 'json')) {
+      json('autonomy.check', { ok: g.ok, checks: g.checks.map((c) => ({ id: c.id, ok: c.ok, text: T(ctx, c.key, c.params) })) });
+      return g.ok ? 0 : 1;
+    }
+    for (const c of g.checks) {
+      const mark = c.ok === true ? green('✓') : c.ok === false ? red('✗') : gray('·');
+      say(`  ${mark} ${T(ctx, `auto.gate.name.${c.id}` as MessageKey).padEnd(20)}${c.ok === null ? dim(T(ctx, c.key, c.params)) : T(ctx, c.key, c.params)}`);
+    }
+    say();
+    say(g.ok ? green(T(ctx, 'auto.cli.checkOk')) : red(T(ctx, 'auto.cli.checkFailed', { n: g.checks.filter((c) => c.ok === false).length })));
+    return g.ok ? 0 : 1;
+  }
+  if (sub === 'show' || sub === 'report' || sub === 'rollback') {
+    const r = pick();
+    if (!r) {
+      process.stderr.write(T(ctx, 'auto.cli.notFound', { id: a.positionals[1] ?? '' }) + '\n');
+      return 1;
+    }
+    const files = runFiles(ctx, r);
+    if (sub === 'rollback') {
+      const n = Number(a.positionals[2] ?? 0);
+      const back = Number.isInteger(n) ? rollbackCommands(r, n) : null;
+      if (!back) {
+        process.stderr.write(T(ctx, 'auto.cli.noPoint', { n: a.positionals[2] ?? '' }) + '\n');
+        return 1;
+      }
+      if (flag(a, 'json')) {
+        json('autonomy.rollback', { run: r.id, point: n, ...back });
+        return 0;
+      }
+      say(T(ctx, 'auto.cli.rollbackKeep'));
+      say(`  ${cyan(back.keep)}`);
+      say(T(ctx, 'auto.cli.rollbackMove'));
+      say(`  ${cyan(back.move)}`);
+      return 0;
+    }
+    if (sub === 'report') {
+      const text = files.report ? readText(files.report) : null;
+      if (flag(a, 'json')) {
+        json('autonomy.report', { run: r.id, path: files.report, report: text });
+        return text === null ? 1 : 0;
+      }
+      if (text === null) {
+        say(T(ctx, 'auto.cli.noReport'));
+        return 1;
+      }
+      say(text.trimEnd());
+      return 0;
+    }
+    if (flag(a, 'json')) {
+      json('autonomy.run', { run: r, files });
+      return 0;
+    }
+    const now = Date.now();
+    say(bold(runTitle(r, 100)) + dim(`  ${r.id}`));
+    say(`  ${T(ctx, 'auto.report.status').padEnd(18)}${runStatusText(ctx, r)} · ${runWhere(ctx, r)}`);
+    say(`  ${T(ctx, 'auto.report.folder').padEnd(18)}${shortPath(r.cwd, homedir(), 70)}`);
+    say(`  ${T(ctx, 'auto.report.time').padEnd(18)}${durationText(activeTime(r, now), ctx.lang)} · ${ago(r.updatedAt, now, ctx.lang)}`);
+    say(`  ${T(ctx, 'auto.cli.budget').padEnd(18)}${r.budget.weeklyTarget}% (${r.budget.source})`);
+    if (r.plan) {
+      say();
+      for (const s of r.plan.steps) {
+        const m = r.milestones.find((x) => x.n === s.n);
+        const mark = m ? green('✓') : nextRunStep(r)?.n === s.n ? yellow('▶') : gray('·');
+        say(
+          `  ${mark} ${String(s.n).padStart(2)}. ${s.title}${m ? dim(`  ${m.commit.slice(0, 12)} · ${T(ctx, `auto.verdict.${m.review.verdict}` as MessageKey)}`) : ''}`,
+        );
+      }
+    }
+    if (r.deferred.length) {
+      say();
+      say(`  ${T(ctx, 'auto.report.deferred')}`);
+      for (const d of r.deferred) say(`    ${yellow(T(ctx, `auto.defer.${d.kind}` as MessageKey))} ${cyan(d.what)}${d.count > 1 ? dim(` ×${d.count}`) : ''}`);
+    }
+    if (r.blockers.length) {
+      say();
+      say(`  ${T(ctx, 'auto.report.blockers')}`);
+      for (const b of r.blockers) say(`    ${T(ctx, `auto.blocker.${b.kind}` as MessageKey)}: ${b.text}`);
+    }
+    say();
+    const rows: [MessageKey, string | null][] = [
+      ['auto.cli.fileReport', files.report],
+      ['auto.cli.filePlan', files.plan],
+      ['auto.cli.fileDrafts', files.drafts],
+      ['auto.cli.fileNotes', files.notes],
+    ];
+    for (const [k, p] of rows) if (p) say(`  ${T(ctx, k).padEnd(18)}${p}`);
+    return 0;
+  }
+  if (sub !== 'list') {
+    process.stderr.write(T(ctx, 'cli.unknownCommand', { cmd: `autonomy ${sub}` }) + '\n');
+    return 2;
+  }
+  const shown = flag(a, 'all')
+    ? runs
+    : runs.filter((r) => r.status === 'active' || r.status === 'paused').concat(runs.filter((r) => r.status !== 'active' && r.status !== 'paused').slice(0, 5));
+  if (flag(a, 'json')) {
+    json('autonomy', { enabled: ctx.config.autonomy.enabled, runs: shown });
+    return 0;
+  }
+  say(T(ctx, ctx.config.autonomy.enabled ? 'auto.cli.isOn' : 'auto.cli.isOff'));
+  if (!shown.length) {
+    say(T(ctx, 'auto.cli.none'));
+    return 0;
+  }
+  const now = Date.now();
+  say(
+    table(
+      [
+        [T(ctx, 'sessions.when'), T(ctx, 'auto.report.status'), T(ctx, 'auto.cli.where'), T(ctx, 'auto.report.deferred'), T(ctx, 'auto.report.task'), 'id'],
+        ...shown.map((r) => [
+          ago(r.updatedAt, now, ctx.lang),
+          r.status === 'paused' || r.status === 'stuck' ? yellow(runStatusText(ctx, r)) : runStatusText(ctx, r),
+          runWhere(ctx, r),
+          r.deferred.length ? yellow(String(r.deferred.length)) : '0',
+          runTitle(r, 40),
+          dim(r.id),
+        ]),
+      ],
+      [],
+    ),
+  );
+  return 0;
+}
+
 // ── config ──
 
-const PROTECTIVE = /^(?:belt|memory|modules\.(?:quota|secrets))(?:\.|$)/;
+/** Settings an agent's shell may not change: they lower a protection or widen what a session does unasked. */
+const PROTECTIVE = /^(?:belt|memory|modules\.(?:quota|secrets)|autonomy|projects)(?:\.|$)/;
 
 export async function cmdConfig(a: Args): Promise<number> {
   const ctx = appContext();
@@ -866,6 +1055,7 @@ export function helpText(lang: Lang): string {
     `  ${c('sessions [search]'.padEnd(28))}${L('help.sessions')}`,
     `  ${c('report [--week]'.padEnd(28))}${L('help.report')}`,
     `  ${c('flow [show <id>] [--all]'.padEnd(28))}${L('help.flow')}`,
+    `  ${c('autonomy [check|show|…]'.padEnd(28))}${L('help.autonomy')}`,
     `  ${c('template list|apply|remove'.padEnd(28))}${L('help.template')}`,
     `  ${c('belt rules|events|test|replay'.padEnd(28))}${L('help.belt')}`,
     `  ${c('secrets [path…]'.padEnd(28))}${L('help.secrets')}`,

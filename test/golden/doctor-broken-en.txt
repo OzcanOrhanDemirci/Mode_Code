@@ -16,6 +16,7 @@ Installation
       → Put the safety-net hooks back into the Claude Code settings
   ✓ The plugin files match this version.
   ✓ The plugin last reported in from a session at 2026-10-12 11:50 (UTC).
+  · Full autonomy is off (terminal-code autonomy enable turns it on).
 Protection
   ✗ The installed hook answered 1 of 30 samples differently from this version.
       Write ~/TERMIN~1/config.json: this version says block, the installed hook says allow.
@@ -51,7 +52,7 @@ Data
 Self-tests
   ✓ All 30 built-in samples of 1 suites gave the expected answer.
 
-36 checks in 2.1 s: 27 ok, 2 warnings, 3 problems.
+37 checks in 2.1 s: 27 ok, 2 warnings, 3 problems.
 Problems that weaken a protection: 3.
 
 Problems that can be repaired automatically: 3.

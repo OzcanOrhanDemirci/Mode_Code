@@ -12,6 +12,7 @@ install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
+install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
@@ -51,6 +52,7 @@ install.hookProgram skip protection doc.notInstalled
 install.hooks skip protection doc.notInstalled
 install.pluginFiles skip doc.notInstalled
 install.modSeen skip doc.notInstalled
+install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
@@ -90,6 +92,7 @@ install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
+install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames skip protection doc.windowsOnly
@@ -132,6 +135,7 @@ install.hooks fail protection repair=restore-hooks doc.install.hooks.missing {"e
 install.pluginFiles warn repair=restore-plugin-files doc.install.pluginFiles.bad {"n":1}
     doc.line {"text":"hooks/register.js"}
 install.modSeen info doc.install.modSeen.never
+install.autonomy info doc.autonomy.off
 protect.agreement fail protection repair=restore-hook-program doc.protect.agreement.differ {"n":2,"of":30}
     doc.protect.agreement.diff {"call":"Write C:/x","mine":"@verdict.deny","theirs":"@verdict.allow"}
 protect.links info protection doc.protect.links.some {"n":1}
@@ -178,6 +182,7 @@ install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
+install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames skip protection doc.windowsOnly
@@ -217,6 +222,7 @@ install.hookProgram fail protection repair=restore-hook-program doc.install.hook
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles info doc.install.hook.noBuild
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
+install.autonomy info doc.autonomy.off
 protect.agreement skip protection doc.protect.agreement.notRun
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.none
@@ -255,6 +261,7 @@ install.hookProgram info protection doc.install.hook.noBuild
 install.hooks fail protection repair=restore-hooks doc.install.hooks.changed
 install.pluginFiles ok doc.install.pluginFiles.ok
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
+install.autonomy info doc.autonomy.off
 protect.agreement warn protection doc.protect.agreement.error {"error":"spawn failed"}
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
@@ -299,6 +306,7 @@ install.hooks warn repair=remove-duplicate-hooks doc.install.hooks.duplicates {"
     doc.line {"text":"project: PreToolUse"}
 install.pluginFiles ok doc.install.pluginFiles.ok
 install.modSeen info doc.install.modSeen.other {"have":"older","now":"dev"}
+install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames skip protection doc.windowsOnly
@@ -340,6 +348,7 @@ install.hookProgram warn protection repair=restore-hook-program doc.install.hook
 install.hooks fail protection repair=restore-hooks doc.install.hooks.older {"tools":"Monitor"}
 install.pluginFiles ok doc.install.pluginFiles.ok
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
+install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
@@ -379,6 +388,7 @@ install.hookProgram fail protection repair=restore-hook-program doc.install.hook
 install.hooks fail protection repair=restore-hooks doc.install.hooks.changed
 install.pluginFiles ok doc.install.pluginFiles.ok
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
+install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
@@ -418,6 +428,7 @@ install.hookProgram fail protection repair=restore-hook-program doc.install.hook
 install.hooks fail protection repair=restore-hooks doc.install.hooks.changed
 install.pluginFiles ok doc.install.pluginFiles.ok
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
+install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
@@ -457,6 +468,7 @@ install.hookProgram warn protection repair=restore-hook-program doc.install.hook
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
 install.modSeen info doc.install.modSeen.other {"have":"0.1.0","now":"0.2.0"}
+install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
@@ -496,6 +508,7 @@ install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks fail protection repair=restore-hooks doc.install.hooks.changed
 install.pluginFiles ok doc.install.pluginFiles.ok
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
+install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
@@ -535,6 +548,7 @@ install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
+install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}

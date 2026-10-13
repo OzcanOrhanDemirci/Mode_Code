@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { draw, FakeData, KEY, NOW, SESSION } from './harness.js';
 import { newModState } from '../../src/core/session.js';
 import { completeStep, startFlow } from '../../src/core/flow.js';
+import { acceptMilestone, acceptPlan, addDeferred, pauseRun, startRun } from '../../src/core/run.js';
 
 test('the first screen lists the seven categories and shows protection and quota at the top', async () => {
   const s = await draw(new FakeData());
@@ -229,5 +230,87 @@ test('Projects › Flows says how to start one when there is none', async () => 
     assert.match(s.text(), /"akış plan"/);
   } finally {
     s.close();
+  }
+});
+
+test('full autonomy: turning it on shows what it means and needs a second Enter; the checks from here are listed', async () => {
+  const data = new FakeData();
+  const s = await draw(data, { address: 'settings/autonomy' });
+  try {
+    assert.match(s.text(), /Start checks, measured from here/);
+    assert.match(s.text(), /✗\s+Platform\s+Native Windows runs commands without a sandbox/);
+    await s.press(KEY.enter);
+    assert.equal(data.saved.length, 0, 'not yet');
+    // The warning wraps over several lines of the pane: read it as one text.
+    const flat = s
+      .text()
+      .replace(/[│╭╮╰╯─]/g, '')
+      .replace(/\s+/g, ' ');
+    assert.match(flat, /A run takes one task to its end while nobody is at the keyboard/);
+    assert.match(flat, /Press Enter again to turn it on\./);
+    await s.press(KEY.enter);
+    assert.deepEqual(data.saved, [{ path: 'autonomy.enabled', value: true }]);
+  } finally {
+    s.close();
+  }
+});
+
+test('full autonomy: Projects › Runs lists each run, its card the milestones, what waits for the person and the way back', async () => {
+  const data = new FakeData('en');
+  let r = startRun({
+    id: '20261013-1210-rate-limit',
+    task: 'Add rate limiting to the API',
+    project: null,
+    cwd: 'C:/work/api',
+    sessionId: 's',
+    workDir: 'C:/tmp/w/runs',
+    budget: { weeklyTarget: 52, source: '+10' },
+    start: { commit: 'a'.repeat(40), branch: 'main' },
+    now: NOW - 3_600_000,
+  });
+  const plan = acceptPlan(
+    r,
+    {
+      steps: [
+        { n: 1, title: 'Limiter', acceptance: 'tests' },
+        { n: 2, title: 'Wire it in', acceptance: '429' },
+      ],
+      verification: ['npm test'],
+    },
+    [],
+    NOW - 3_000_000,
+  );
+  assert.ok(plan.ok);
+  const review = { verdict: 'concerns' as const, findings: ['reset not tested'], model: 'opus', at: NOW, signals: { deletedTests: 0, skipMarkers: 0 } };
+  const m = acceptMilestone(plan.run, { n: 1, at: NOW - 600_000, commit: 'b'.repeat(40), ref: 'x', commits: 2, review, note: '' }, NOW - 600_000);
+  assert.ok(m.ok);
+  const d = addDeferred(m.run, { kind: 'push', tool: 'Bash', what: 'git push origin main', reason: 'pushes to the protected branch main' }, NOW - 300_000);
+  assert.ok(d.ok);
+  r = pauseRun(d.run, 'quota', NOW - 60_000).run;
+  data.runList = [r];
+  const home = await draw(data, { address: 'home/overview' });
+  try {
+    assert.match(home.text(), /Full-autonomy runs/);
+    assert.match(home.text(), /⏸ Add rate limiting to the API/);
+  } finally {
+    home.close();
+  }
+  const card = await draw(data, { address: 'projects/runs/20261013-1210-rate-limit' });
+  try {
+    const t = card.text();
+    assert.match(t, /Projects › Runs › ⏸ Add rate limiting to the API/);
+    assert.match(t, /paused \(quota budget\) · 1\/2/);
+    assert.match(t, /✓\s+1\. Limiter\s+bbbbbbbbbbbb · CONCERNS/);
+    assert.match(t, /▶\s+2\. Wire it in/);
+    assert.match(t, /push git push origin main/);
+    assert.match(t, /terminal-code autonomy rollback 20261013-1210-rate-limit <n>/);
+  } finally {
+    card.close();
+  }
+  const empty = await draw(new FakeData('tr'), { address: 'projects/runs' });
+  try {
+    assert.match(empty.text(), /Henüz tam otonom koşu yok/);
+  } finally {
+    empty.close();
   }
 });

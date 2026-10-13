@@ -40,6 +40,17 @@ export function Overview({ width, height, open }: ScreenProps) {
     right: `${statusText(f.status, lang)} · ${ago(f.updatedAt, now, lang)}`,
     address: `projects/flows/${f.id}`,
   }));
+  // Full-autonomy runs still open: running first, then paused ones waiting for the person.
+  const runLinks: Link[] = data
+    .runs()
+    .filter((r) => r.status === 'active' || r.status === 'paused')
+    .sort((a, b) => Number(b.status === 'active') - Number(a.status === 'active'))
+    .map((r) => ({
+      key: r.id,
+      label: `${r.status === 'paused' ? '⏸ ' : '🤖 '}${(r.task || r.id).split('\n')[0]!.slice(0, 50)}`,
+      right: `${t(`auto.status.${r.status}` as MessageKey)} · ${ago(r.updatedAt, now, lang)}`,
+      address: `projects/runs/${r.id}`,
+    }));
   const links: Link[] = live.map((s) => ({
     key: s.id,
     label: `${s.title ?? s.firstPrompt ?? s.id.slice(0, 8)}`,
@@ -104,6 +115,11 @@ export function Overview({ width, height, open }: ScreenProps) {
           <LinkList items={flowLinks} height={Math.min(4, flowLinks.length)} width={width} open={false} />
         </Section>
       ) : null}
+      {runLinks.length ? (
+        <Section title={t('home.runs')}>
+          <LinkList items={runLinks} height={Math.min(3, runLinks.length)} width={width} open={false} />
+        </Section>
+      ) : null}
       <Section title={t('home.live')}>
         {sameFolderGroups(data.modStates(), now).map((g) => (
           <Note key={g.folder} kind="warn">
@@ -138,7 +154,9 @@ export function inboxEvents(events: ToolEvent[], lastSeen: number | null): ToolE
         e.kind === 'quota' ||
         e.kind === 'resume' ||
         // A flow that now waits for the person, or has ended.
-        (e.kind === 'flow' && (e.status === 'waiting' || e.status === 'done') && (e.action === 'done' || e.action === 'resume'))),
+        (e.kind === 'flow' && (e.status === 'waiting' || e.status === 'done') && (e.action === 'done' || e.action === 'resume')) ||
+        // A full-autonomy run that ended or paused while the person was away.
+        (e.kind === 'run' && (e.action === 'finish' || e.action === 'stuck' || e.action === 'pause' || e.action === 'cancel'))),
   );
 }
 
@@ -181,6 +199,10 @@ export function eventTitle(e: ToolEvent, t: (k: MessageKey, p?: Record<string, s
   if (e.kind === 'keyword') return t('event.keyword', { keyword: e.keyword ?? '?' });
   if (e.kind === 'mode') return t('event.mode', { mode: t(`mode.name.${e.mode ?? 'chat'}` as MessageKey), tool: e.tool ?? '?' });
   if (e.kind === 'modeDisagree') return t('event.modeDisagree');
+  if (e.kind === 'run') {
+    if (e.action === 'pause') return t('event.run.pause', { run: e.run ?? '?', reason: t(`auto.pause.${e.reason ?? 'person'}` as MessageKey) });
+    return t(`event.run.${e.action === 'finish' || e.action === 'stuck' || e.action === 'cancel' ? e.action : 'start'}` as MessageKey, { run: e.run ?? '?' });
+  }
   if (e.kind === 'flow') {
     if (e.status === 'waiting') return t('event.flow.waiting', { flow: e.flow ?? '?' });
     if (e.status === 'done') return t('event.flow.complete', { flow: e.flow ?? '?' });

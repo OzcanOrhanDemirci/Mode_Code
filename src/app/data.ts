@@ -78,6 +78,10 @@ export interface ToolEvent {
   flow?: string;
   step?: string | null;
   status?: string;
+  /** Full-autonomy events ("run"): the run, and why it paused or what waited for the person. */
+  run?: string;
+  reason?: string;
+  defer?: string;
   /** Quota readings ("reading" events). */
   five?: number | null;
   week?: number | null;

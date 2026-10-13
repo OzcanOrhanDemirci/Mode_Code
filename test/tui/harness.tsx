@@ -18,6 +18,8 @@ import type { ModSessionState } from '../../src/core/session.js';
 import { buildReport } from '../../src/app/report.js';
 import type { DoctorSummary } from '../../src/app/doctor/doctor.js';
 import type { Flow } from '../../src/core/flow.js';
+import type { Run } from '../../src/core/run.js';
+import type { GateResult } from '../../src/core/run-gate.js';
 
 export const NOW = Date.parse('2026-10-12T09:00:00Z');
 
@@ -232,6 +234,23 @@ export class FakeData implements DataSource {
   }
   flowFiles(f: Flow) {
     return { report: f.reportPath, plan: null, checkedReport: `${this.layout.flowsDir}/${f.id}/research.md`, approvedPlan: null };
+  }
+  runList: Run[] = [];
+  runs() {
+    return this.runList;
+  }
+  runFiles(r: Run) {
+    return {
+      record: `${this.layout.runsDir}/${r.id}/run.json`,
+      plan: null,
+      report: `${this.layout.runsDir}/${r.id}/report.md`,
+      drafts: r.workDir,
+      notes: null,
+    };
+  }
+  check: GateResult = { ok: false, checks: [{ id: 'platform', ok: false, key: 'auto.gate.platform.windows' }] };
+  autonomyCheck() {
+    return this.check;
   }
   lastSeen() {
     return this.seen;

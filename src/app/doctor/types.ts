@@ -12,6 +12,7 @@ import type { ConfigProblem } from '../../core/config.js';
 import type { Manifest } from '../../node/install.js';
 import type { HookEntry, PluginInfo, SettingsScope } from '../../node/claude-env.js';
 import type { SuiteResult } from '../../core/selftest/types.js';
+import type { GateCheck } from '../../core/run-gate.js';
 
 export type CheckStatus = 'ok' | 'info' | 'warn' | 'fail' | 'skip';
 
@@ -142,4 +143,6 @@ export interface Facts {
   selftest: SuiteResult[] | null;
   /** The installed hook program run on the self-test samples: how many it answered as this build does. */
   hookAgreement: { samples: number; agreed: number; differences: { call: string; mine: string; theirs: string }[]; error: string | null } | null;
+  /** Full autonomy: whether it is on, and the start checks measurable from here (app/runs.ts). */
+  autonomy: { enabled: boolean; checks: GateCheck[] };
 }

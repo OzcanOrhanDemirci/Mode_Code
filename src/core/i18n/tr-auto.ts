@@ -232,4 +232,71 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.phase.plan': 'plan',
   'auto.phase.work': 'çalışma',
   'auto.phase.finish': 'bitiş',
+
+  // ── komut satırı ──
+  'help.autonomy': 'Tam otonom: koşular, raporları, başlangıç denetimleri, açma ve kapama',
+  'auto.cli.atStart': 'Koşu başlarken, kendi oturumunda ölçülür.',
+  'auto.cli.hookMissing': "Güvenlik ağı hook'u kurulu değil: terminal-code install (ya da terminal-code doctor --fix) çalıştır.",
+  'auto.cli.warnTitle': 'Tam otonom: açmak ne demek',
+  'auto.cli.warnBody':
+    'Bir koşu, klavyenin başında kimse yokken tek bir görevi sonuna kadar götürür. Claude koşu sırasında sana hiçbir şey sormaz.\n' +
+    'Yalnız bir bütçeyle başlar ("<görev>. <proje> tam otonom kota +10") ve yalnız kodun önce ölçtüğü bir sınırın içinde:\n' +
+    "Windows'a geri dönüş yolu olmayan WSL2, ya da Claude Code'un kum havuzu sıkı biçimdeyken Linux ve macOS.\n" +
+    'Sana ait olanlar (korunan dallara push, birleştirme, sürüm, yayın, emniyet kemerinin soracakları) bekler;\n' +
+    "birebir komutuyla kaydedilir ve koşunun raporunda listelenir. Her kilometre taşı geri dönebileceğin bir commit'tir.\n" +
+    'Koşu bitti tanımı geçince, tıkanınca, hiçbir şey değişmeyince, süre ya da bütçe sınırında, ya da sen dur yazınca durur.\n' +
+    'Sınır işletim sisteminindir; emniyet kemeri ve çit kaza önleyicidir.\n' +
+    'İlk koşudan önce docs/autonomy.md dosyasını oku.',
+  'auto.cli.needsYes': 'Onaylanacak bir terminal yok: kendi terminalinde çalıştır ya da --yes ekle.',
+  'auto.cli.confirm': 'Tam otonom açılsın mı?',
+  'auto.cli.unchanged': 'Hiçbir şey değişmedi.',
+  'auto.cli.enabled': 'Tam otonom açık. Bir koşu "<görev>. <proje> tam otonom kota +N" ile başlar.',
+  'auto.cli.disabled': 'Tam otonom kapalı; süren bir koşu bir sonraki adımında duraklar.',
+  'auto.cli.checkOk': 'Burada ölçülenlerden hiçbiri engel değil; kalanı koşu başlarken ölçülür.',
+  'auto.cli.checkFailed': '{n} denetim geçmedi: burada bir koşu başlamaz.',
+  'auto.cli.notFound': '{id} kimlikli bir koşu yok.',
+  'auto.cli.noPoint': 'Koşunun dönülecek {n}. noktası yok (0 başladığı yer, sonra her kilometre taşı).',
+  'auto.cli.rollbackKeep': 'O noktada yeni bir dal; senin dalın olduğu gibi kalır:',
+  'auto.cli.rollbackMove': 'Ya da şu anki dalı ona geri taşı (sonrasında gelenler daldan çıkar):',
+  'auto.cli.noReport': 'Bu koşunun henüz raporu yok (koşu bitince ya da duraklayınca yazılır).',
+  'auto.cli.budget': 'Bütçe',
+  'auto.cli.fileReport': 'Rapor',
+  'auto.cli.filePlan': 'Kabul edilen plan',
+  'auto.cli.fileDrafts': 'Taslaklar',
+  'auto.cli.fileNotes': 'Hafıza notları',
+  'auto.cli.isOn': 'Tam otonom açık.',
+  'auto.cli.isOff': 'Tam otonom kapalı (kendi terminalinde: terminal-code autonomy enable).',
+  'auto.cli.none': 'Henüz koşu yok.',
+  'auto.cli.where': 'Nerede',
+  'doc.autonomy.off': 'Tam otonom kapalı (terminal-code autonomy enable ile açılır).',
+  'doc.autonomy.ready': 'Tam otonom açık ve burada ölçülenlerden hiçbiri bir koşuya engel değil.',
+  'doc.autonomy.notReady': 'Tam otonom açık ama burada {n} başlangıç denetimi geçmez:',
+
+  // ── kontrol merkezi ──
+  'home.runs': 'Tam otonom koşular',
+  'page.runs': 'Koşular',
+  'desc.runs': 'Tam otonom koşular: her birinin aşamaları, kilometre taşları, incelemeleri, seni bekleyenler ve raporu.',
+  'desc.run': 'Bir tam otonom koşu.',
+  'badge.running': '{n} çalışıyor',
+  'run.missing': 'Bu koşu artık kayıtta yok.',
+  'run.rollbackHint': 'Bir kilometre taşına dönüş: terminal-code autonomy rollback {id} <n>',
+  'runs.empty':
+    'Henüz tam otonom koşu yok. Bir koşu, klavyenin başında kimse yokken tek bir görevi sonuna kadar götürür; kodun önce ölçtüğü bir sınırın içinde.',
+  'runs.howTo': 'Ayarlar › Otonomi altında aç, sonra bir mesajı "<proje> tam otonom kota +10" ile bitir (docs/autonomy.md).',
+  'page.autonomy': 'Otonomi',
+  'desc.autonomy': 'Tam otonom: açık ya da kapalı, sınırları ve buradan ölçülen başlangıç denetimleri.',
+  'set.autonomy.enabled': 'Tam otonom',
+  'set.autonomy.enabledHelp': 'Sana sormadan tek bir görevi sonuna kadar götüren koşular. Sen açana kadar kapalı; Claude açamaz.',
+  'set.autonomy.confirm': "Açmak için Enter'a bir kez daha bas.",
+  'set.autonomy.maxHours': 'Süre sınırı (saat)',
+  'set.autonomy.maxHoursHelp': 'Bir koşunun raporuyla duraklayacağı çalışma saati.',
+  'set.autonomy.stallMinutes': 'Takılma süresi (dakika)',
+  'set.autonomy.stallMinutesHelp': 'Kilometre taşı gelmeyen bu kadar dakikadan sonra Claude uyarılır; iki katında koşu takıldı diye duraklar.',
+  'set.autonomy.check': 'Buradan ölçülen başlangıç denetimleri',
+  'set.autonomy.note': 'Gerisi (bütçe, canlı kum havuzu sınaması, oturumun izin modu) koşu başlarken ölçülür.',
+  'event.run.start': 'Tam otonom koşu başladı: {run}',
+  'event.run.finish': 'Tam otonom koşu bitti: {run}',
+  'event.run.stuck': 'Tam otonom koşu tıkandı: {run}',
+  'event.run.cancel': 'Tam otonom koşu iptal edildi: {run}',
+  'event.run.pause': 'Tam otonom koşu duraklatıldı ({reason}): {run}',
 };

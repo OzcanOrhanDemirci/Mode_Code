@@ -28,6 +28,7 @@ import { beltContext, memoryDirs, protectedAliases } from '../../node/context.js
 import { toolPath } from '../../node/env.js';
 import { readTail } from '../../node/tail.js';
 import type { Facts, ProgramRun, SettingsFileFacts } from './types.js';
+import { autonomyCheck } from '../runs.js';
 
 export interface DoctorEnv {
   layout: Layout;
@@ -626,5 +627,9 @@ export async function gatherFacts(d0: DoctorEnv, now = Date.now()): Promise<Fact
     transcripts: wants(d, 'transcripts') ? transcriptFacts(d.claudeDir, now) : { files: 0, shape: null, badSessionIds: [] },
     selftest: await runAllSuites(),
     hookAgreement: !wants(d, 'agreement') || !hookExists || !realPathOf(node) ? null : await hookAgreement(d, node, hookFile),
+    autonomy: {
+      enabled: d.config.autonomy.enabled,
+      checks: d.config.autonomy.enabled ? autonomyCheck({ layout: l, config: d.config }, d.cwd, { platform: d.platform, env: d.env, claude: env }).checks : [],
+    },
   };
 }

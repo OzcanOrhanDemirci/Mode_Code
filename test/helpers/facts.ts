@@ -118,6 +118,7 @@ export function healthyFacts(over: Partial<Facts> = {}): Facts {
     },
     selftest: [{ suite: 'belt', passed: 30, failed: 0, failures: [], ms: 3 }],
     hookAgreement: { samples: 30, agreed: 30, differences: [], error: null },
+    autonomy: { enabled: false, checks: [] },
     ...over,
   };
 }

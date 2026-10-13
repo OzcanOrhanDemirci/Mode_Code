@@ -101,6 +101,8 @@ export interface Field {
   type: FieldKind;
   /** Turning this off or down lowers a protection: confirm first and say so. */
   protective?: boolean;
+  /** Changing to this value asks for a second Enter first, with this text shown (what it means). */
+  confirmOn?: { value: unknown; text: string };
 }
 
 /** Edits settings in place: ↑↓ choose, Enter changes (twice for anything that lowers a protection), numbers are typed. */
@@ -120,7 +122,8 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
     }
     return f.value;
   };
-  const lowers = (f: Field, v: unknown) => !!f.protective && (v === false || (typeof v === 'number' && typeof f.value === 'number' && v < f.value));
+  const lowers = (f: Field, v: unknown) =>
+    (!!f.protective && (v === false || (typeof v === 'number' && typeof f.value === 'number' && v < f.value))) || (!!f.confirmOn && f.confirmOn.value === v);
   const save = (path: string, value: unknown) => {
     const problems = env.data.setConfig(path, value);
     setPending(null);
@@ -212,7 +215,7 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
           <Muted>{cur.help}</Muted>
           {pending && pending.path === cur.path ? (
             <Text color={env.theme.warn} wrap="wrap">
-              {t('set.confirmLower', { value: String(pending.value) })}
+              {cur.confirmOn && cur.confirmOn.value === pending.value ? cur.confirmOn.text : t('set.confirmLower', { value: String(pending.value) })}
             </Text>
           ) : null}
           {open ? <Muted>{t(cur.type.kind === 'number' ? 'set.hintNumber' : 'set.hint')}</Muted> : null}

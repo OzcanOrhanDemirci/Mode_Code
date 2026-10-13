@@ -10,12 +10,12 @@ import type { NavNode, ScreenProps } from './nav.js';
 import type { DataSource } from './store.js';
 import { inboxEvents, Inbox, Overview } from './screens/home.js';
 import { Folders, Quota, ReportScreen, Tokens, Tools } from './screens/measure.js';
-import { FlowCard, FlowsEmpty, ProjectCard, SessionCard, sessionLabel } from './screens/work.js';
+import { FlowCard, FlowsEmpty, ProjectCard, RunCard, RunsEmpty, SessionCard, sessionLabel } from './screens/work.js';
 import { flowTitle, statusText } from '../core/flow-view.js';
 import { Events, Protection, RuleDetail, Secrets, TestCommand } from './screens/security.js';
 import { Extensions, Hooks, Instructions, Mcp, Permissions, Plugins, SettingsSources } from './screens/claude.js';
 import { Templates } from './screens/templates.js';
-import { About, Accessibility, FooterAndQuota, General, Keywords, Maintenance, Memory, Modules, Projects } from './screens/settings.js';
+import { About, Accessibility, Autonomy, FooterAndQuota, General, Keywords, Maintenance, Memory, Modules, Projects } from './screens/settings.js';
 
 const other = (lang: Lang): Lang => (lang === 'tr' ? 'en' : 'tr');
 
@@ -76,11 +76,38 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
       : { screen: (p: ScreenProps) => <FlowsEmpty {...p} /> }),
   });
 
+  const runs = data.runs();
+  const runsNode = n('runs', 'page.runs', {
+    description: d('desc.runs'),
+    ...(runs.some((r) => r.status === 'active')
+      ? { badge: { text: t('badge.running', { n: runs.filter((r) => r.status === 'active').length }), state: 'info' as const } }
+      : runs.length
+        ? { badge: { text: String(runs.length), state: 'info' as const } }
+        : {}),
+    ...(runs.length
+      ? {
+          children: () =>
+            runs.map((r) => ({
+              id: r.id,
+              label: `${r.status === 'paused' || r.status === 'stuck' ? '⏸ ' : ''}${(r.task || r.id).split('\n')[0]!.slice(0, 48)}`,
+              description: d('desc.run'),
+              badge: {
+                text: tIn(lang, `auto.status.${r.status}` as MessageKey),
+                state: r.status === 'stuck' ? ('red' as const) : r.status === 'paused' ? ('gray' as const) : ('info' as const),
+              },
+              keywords: [r.id, r.task],
+              screen: (p: ScreenProps) => <RunCard id={r.id} {...p} />,
+            })),
+        }
+      : { screen: (p: ScreenProps) => <RunsEmpty {...p} /> }),
+  });
+
   const projects = n('projects', 'cat.projects', {
     description: d('desc.projects'),
     ...(waiting ? { badge: { text: t('badge.waiting', { n: waiting }), state: 'gray' as const } } : {}),
     children: () => [
       flowsNode,
+      runsNode,
       ...data.folders(90).map((f) => ({
         id: encodeURIComponent(f.cwd),
         label: shortPath(f.cwd, homedir(), 48),
@@ -189,6 +216,7 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
       n('footer-quota', 'page.footerQuota', { description: d('desc.footerQuota'), minView: 'recommended', screen: (p) => <FooterAndQuota {...p} /> }),
       n('memory', 'page.memory', { description: d('desc.memory'), screen: (p) => <Memory {...p} /> }),
       n('projects', 'page.projects', { description: d('desc.projectsSet'), screen: (p) => <Projects {...p} /> }),
+      n('autonomy', 'page.autonomy', { description: d('desc.autonomy'), screen: (p) => <Autonomy {...p} /> }),
       n('keywords', 'page.keywords', { description: d('desc.keywords'), screen: (p) => <Keywords {...p} /> }),
       n('accessibility', 'page.accessibility', { description: d('desc.accessibility'), screen: (p) => <Accessibility {...p} /> }),
       n('maintenance', 'page.maintenance', { description: d('desc.maintenance'), screen: (p) => <Maintenance {...p} /> }),

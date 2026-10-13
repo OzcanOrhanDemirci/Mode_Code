@@ -22,6 +22,9 @@ import { loadSummary, type DoctorSummary } from '../app/doctor/doctor.js';
 import type { ModSessionState } from '../core/session.js';
 import type { Flow } from '../core/flow.js';
 import { flowFiles, loadFlows, type FlowFiles } from '../app/flows.js';
+import { autonomyCheck, loadRuns, runFiles, type RunFiles } from '../app/runs.js';
+import type { Run } from '../core/run.js';
+import type { GateResult } from '../core/run-gate.js';
 
 export interface Timed<T> {
   at: number;
@@ -63,6 +66,12 @@ export interface DataSource {
   flows(): Flow[];
   /** Where a flow's drafts and checked copies are. */
   flowFiles(f: Flow): FlowFiles;
+  /** Every full-autonomy run on record, the most recently changed first. */
+  runs(): Run[];
+  /** Where a run's record, accepted plan, report and drafts are. */
+  runFiles(r: Run): RunFiles;
+  /** The start checks of full autonomy that can be measured from here (see app/runs.ts). */
+  autonomyCheck(): GateResult;
   refresh(): void;
   close(): void;
 }
@@ -203,6 +212,15 @@ export class LiveData implements DataSource {
   }
   flowFiles(f: Flow): FlowFiles {
     return flowFiles(this.ctx, f);
+  }
+  runs(): Run[] {
+    return this.memo('runs', 3_000, () => loadRuns(this.ctx));
+  }
+  runFiles(r: Run): RunFiles {
+    return runFiles(this.ctx, r);
+  }
+  autonomyCheck(): GateResult {
+    return this.memo('autonomyCheck', 30_000, () => autonomyCheck(this.ctx, this.cwd));
   }
   lastSeen(): number | null {
     const s = readJson<{ lastSeenAt?: number }>(this.ctx.layout.stateDir + '/ui.json');
