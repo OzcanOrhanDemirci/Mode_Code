@@ -52,7 +52,7 @@ import {
   type StripView,
 } from '../core/controls.js';
 import { ago, percent, shortPath } from '../core/format.js';
-import { centerProgram, commandLine, LAUNCH_ENV, OPENS, terminalLaunch } from '../core/launch.js';
+import { centerProgram, commandLine, LAUNCH_ENV, OPENS, terminalLaunch, windowsAppsDir, windowsTerminalProgram } from '../core/launch.js';
 import { fold } from '../core/text.js';
 import {
   conflictContext,
@@ -3582,7 +3582,14 @@ async function openCenter($: $, c: Ctx): Promise<{ ok: true; opens: 'tab' | 'win
   const cmd = commandLine(program, c.platform);
   const env = await launchEnv($);
   const cwd = c.state.cwd ?? (await $.session.cwd());
-  const launch = terminalLaunch({ platform: c.platform, env, program, cwd, title: APP_NAME });
+  // Windows Terminal by its alias's full path: Claude Code refuses to find it by name in a session opened in
+  // the home folder. The folder is listed, not checked: a check follows the link, which Windows refuses.
+  let wt: string | undefined;
+  if (c.platform === 'win32' && env.WT_SESSION) {
+    const apps = windowsAppsDir(c.env.LOCALAPPDATA);
+    wt = windowsTerminalProgram(apps, apps === null ? [] : await $.fs.list(apps).catch(() => []));
+  }
+  const launch = terminalLaunch({ platform: c.platform, env, program, cwd, title: APP_NAME, wt });
   if (!launch) {
     await logEvent($, c, { kind: 'center', via: null, ok: false });
     return { ok: false, text: tIn(lang, 'ctl.center.noTerminal', { cmd }) };
@@ -3594,7 +3601,7 @@ async function openCenter($: $, c: Ctx): Promise<{ ok: true; opens: 'tab' | 'win
   } catch (err) {
     reason = `${launch.via}: ${String((err as Error)?.message ?? err).slice(0, 160)}`;
   }
-  await logEvent($, c, { kind: 'center', via: launch.via, ok: reason === null });
+  await logEvent($, c, { kind: 'center', via: launch.via, ok: reason === null, ...(reason === null ? {} : { reason }) });
   return reason === null ? { ok: true, opens: OPENS[launch.via] } : { ok: false, text: tIn(lang, 'ctl.center.failed', { reason, cmd }) };
 }
 

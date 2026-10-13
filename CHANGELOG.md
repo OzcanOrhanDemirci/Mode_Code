@@ -61,6 +61,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Fixed
 
+- `/0` did not open the control center in Windows Terminal in a session started in the home folder: Claude Code refuses to find a program by name in Windows' app alias folder when the session's folder contains it. Windows Terminal is now run by its alias's full path (a link only; a program copied there is not taken), and a failed `/0` keeps its reason in the event log. Found by the author's first `/0` in a real session.
 - The doctor said Claude Code keeps one memory per project when its memory folder was set outside terminal-code; it says where the memory is now.
 - The memory setup gave a folder inside a larger repository, chosen for this computer only, a git history of its own inside the other; it is used as it is now.
 - The README said nothing leaves your machine; the memory and sync go to a private repository of yours when you set them up so, and it says that now.

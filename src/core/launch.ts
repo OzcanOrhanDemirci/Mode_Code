@@ -47,6 +47,8 @@ export interface LaunchInput {
   /** The folder it opens in, absolute. */
   cwd: string;
   title: string;
+  /** Windows Terminal's program, as `windowsTerminalProgram` names it; `wt.exe` when not given. */
+  wt?: string;
 }
 
 export interface Launch {
@@ -56,6 +58,33 @@ export interface Launch {
 }
 
 const set = (v: string | undefined) => typeof v === 'string' && v !== '';
+
+/** The separator a Windows path is written in: `/` only when it has no `\`. */
+const sepOf = (p: string) => (p.includes('/') && !p.includes('\\') ? '/' : '\\');
+
+/**
+ * The folder where Windows keeps the aliases of the apps it installs from packages, Windows Terminal's
+ * `wt.exe` among them: `%LOCALAPPDATA%\Microsoft\WindowsApps`, in the separators the variable is written in.
+ * Null when the variable is not set.
+ */
+export function windowsAppsDir(localAppData: string | undefined): string | null {
+  if (!set(localAppData)) return null;
+  return [localAppData!.replace(/[\\/]+$/, ''), 'Microsoft', 'WindowsApps'].join(sepOf(localAppData!));
+}
+
+/**
+ * The program to run Windows Terminal by: its alias, by the full path, when the alias folder holds one;
+ * `wt.exe` otherwise. Claude Code looks a bare name up itself and refuses what it finds in the alias folder
+ * whenever the session's folder contains that folder, as a session opened in the home folder does ("not found
+ * or is in an unsafe location (current directory)"; read in 2.1.296's process runner, and met by `/0` in
+ * such a session); a full path is run as given. The folder is under the home folder, where the session may
+ * write, so only a link is taken: the aliases Windows installs are links, which copying a program there does
+ * not make.
+ */
+export function windowsTerminalProgram(appsDir: string | null, entries: readonly { name: string; isLink: boolean }[]): string {
+  if (appsDir === null || !entries.some((e) => e.isLink && e.name.toLowerCase() === 'wt.exe')) return 'wt.exe';
+  return `${appsDir}${sepOf(appsDir)}wt.exe`;
+}
 
 /** One word for a POSIX shell: in single quotes, a quote inside closed, escaped and reopened. */
 export function shQuote(s: string): string {
@@ -110,7 +139,7 @@ export function terminalLaunch(input: LaunchInput): Launch | null {
   if (platform !== 'win32' && set(env.TMUX)) return { via: 'tmux', argv: ['tmux', 'new-window', '-n', title, '-c', cwd, shellLine(input)] };
   if (platform === 'win32') {
     if (set(env.WT_SESSION))
-      return { via: 'windows-terminal', argv: ['wt.exe', '-w', '0', 'new-tab', '--title', wtArg(title), '-d', wtArg(cwd), ...program.map(wtArg)] };
+      return { via: 'windows-terminal', argv: [input.wt ?? 'wt.exe', '-w', '0', 'new-tab', '--title', wtArg(title), '-d', wtArg(cwd), ...program.map(wtArg)] };
     // Any other console: a window of the system's default terminal, started by PowerShell from an encoded
     // command, so neither cmd's nor the runtime's quoting rules touch the paths.
     const args = program.slice(1).map((a) => psQuote(`"${a}"`));

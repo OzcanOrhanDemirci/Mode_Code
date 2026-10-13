@@ -79,11 +79,13 @@ The mode and the **way of working** are what a person changes all the time, so t
 
   | The session runs in               | `/0` opens                                                    | Measured              |
   | --------------------------------- | ------------------------------------------------------------- | --------------------- |
-  | Windows Terminal (`WT_SESSION`)   | a new tab of the same window (`wt -w 0 new-tab`)              | yes, on Windows 11    |
-  | another Windows console           | a window of the default terminal (PowerShell `Start-Process`) | yes, on Windows 11    |
+  | Windows Terminal (`WT_SESSION`)   | a new tab of the same window (`wt -w 0 new-tab`)              | by hand, Windows 11   |
+  | another Windows console           | a window of the default terminal (PowerShell `Start-Process`) | by hand, Windows 11   |
   | tmux, any platform but Windows    | a new window of the same tmux                                 | yes, tmux 3.4 in WSL2 |
   | iTerm2 / any other macOS terminal | a tab of iTerm2 / a Terminal window (AppleScript)             | not yet on a Mac      |
   | WezTerm, Konsole, GNOME Terminal  | a new tab, by each one's own command                          | not yet               |
+
+  Windows Terminal is run by its alias's full path (`%LOCALAPPDATA%\Microsoft\WindowsApps\wt.exe`), not by its name: Claude Code looks a name up itself and refuses what it finds in that folder whenever the session's folder contains it, as a session opened in the home folder does ("not found or is in an unsafe location", Claude Code 2.1.296). The folder is under the home folder, so only a link is taken there, which is what Windows' aliases are; with no alias, the name goes to Claude Code. "By hand" above is the same command run outside Claude Code; the first `/0` in a real session, opened at home, failed this way, and a failed `/0` keeps its reason in the event log.
 
   Nothing opens where the person would not see it (a session over SSH outside tmux, inside WSL outside tmux, a Linux session with no display, a terminal not listed): the row then says the command to type, the menu follows. From the phone (Remote Control) `/0` says where the session stands and lists every command, since a tab opened on the computer cannot be seen there.
 

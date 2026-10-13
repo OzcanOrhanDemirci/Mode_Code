@@ -156,7 +156,35 @@ test('/0 that cannot open says why and how to open it by hand, then the menu', a
     'The control center did not open (windows-terminal: boom). Open it yourself: & "C:/Program Files/nodejs/node.exe" "C:/dev/tc/dist/cli.mjs"',
   );
   expect(failed.text).toMatch(/\n\nNow: free · manual/);
-  expect(w.events().filter((e: any) => e.kind === 'center')).toEqual([expect.objectContaining({ via: 'windows-terminal', ok: false })]);
+  // The reason is kept in the log too: a toast is cut to the width of the screen.
+  expect(w.events().filter((e: any) => e.kind === 'center')).toEqual([
+    expect.objectContaining({ via: 'windows-terminal', ok: false, reason: 'windows-terminal: boom' }),
+  ]);
+});
+
+const APPS = 'C:/Users/ada/AppData/Local/Microsoft/WindowsApps';
+
+test('/0 runs Windows Terminal by its alias, by the full path: Claude Code will not look it up by name in a session opened at home', async ($, on) => {
+  // As Claude Code 2.1.296 does: a bare name found in the alias folder, under the session's folder, is refused.
+  const refusedByName = (argv: string[]) =>
+    argv[0] === `${APPS}/wt.exe` ? { exitCode: 0 } : argv[0] === 'wt.exe' ? { exitCode: 1, stderr: 'not found or is in an unsafe location' } : undefined;
+  const w = world(on, { windows: true, startedAtHome: true, env: { WT_SESSION: 'x', LOCALAPPDATA: 'C:/Users/ada/AppData/Local' }, programs: refusedByName });
+  installed(w);
+  w.link(`${APPS}/wt.exe`);
+  w.link(`${APPS}/winget.exe`);
+  const r = await runFrom($, '0', { kind: 'composer' });
+  expect(r.text.split('\n')[0]).toBe('The control center opened in a new tab.');
+  expect(w.ran).toEqual([
+    [`${APPS}/wt.exe`, '-w', '0', 'new-tab', '--title', 'terminal-code', '-d', WIN.HOME, 'C:/Program Files/nodejs/node.exe', 'C:/dev/tc/dist/cli.mjs'],
+  ]);
+});
+
+test('/0 does not run a program copied into the alias folder: only a link is an alias; the name goes to Claude Code', async ($, on) => {
+  const w = world(on, { windows: true, startedAtHome: true, env: { WT_SESSION: 'x', LOCALAPPDATA: 'C:/Users/ada/AppData/Local' }, programs: opensTab });
+  installed(w);
+  w.write(`${APPS}/wt.exe`, 'MZ');
+  await runFrom($, '0', { kind: 'composer' });
+  expect(w.ran.map((argv) => argv[0])).toEqual(['wt.exe']);
 });
 
 test('/0 with no record of the installation, or a program that is gone, names the repair and runs nothing', async ($, on) => {

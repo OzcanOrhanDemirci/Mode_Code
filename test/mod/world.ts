@@ -74,6 +74,8 @@ export function world(on: any, opts: WorldOptions = {}) {
     ...(opts.env ?? {}),
   });
   const write = (path: string, text: string) => files.set(norm(path), { text, mtimeMs: clock.now() });
+  /** Links that cannot be followed, as Windows keeps an app's alias: listed as links, there to nothing else. */
+  const links = new Set<string>();
   if (opts.config) write(`${at.DATA}/config.json`, JSON.stringify(opts.config));
   on('session.cwd', () => {
     if (opts.cwdFails) throw new Error('the session is gone');
@@ -91,7 +93,10 @@ export function world(on: any, opts: WorldOptions = {}) {
     const inside = [...files.entries()].filter(([p]) => p.startsWith(dir + '/'));
     const entries = inside
       .filter(([p]) => !p.slice(dir.length + 1).includes('/'))
-      .map(([p, f]) => ({ name: p.slice(dir.length + 1), kind: 'file', size: f.text.length, mtimeMs: f.mtimeMs }));
+      .map(([p, f]) => ({ name: p.slice(dir.length + 1), kind: 'file', size: f.text.length, mtimeMs: f.mtimeMs, isLink: false }));
+    const linked = [...links]
+      .filter((p) => p.startsWith(dir + '/') && !p.slice(dir.length + 1).includes('/'))
+      .map((p) => ({ name: p.slice(dir.length + 1), kind: 'other', size: 0, mtimeMs: 0, isLink: true }));
     // Folders exist where files are kept below them, as on a disk.
     const dirs = [
       ...new Set(
@@ -101,7 +106,7 @@ export function world(on: any, opts: WorldOptions = {}) {
           .map((r) => r.split('/')[0]!),
       ),
     ];
-    return { value: [...entries, ...dirs.map((name) => ({ name, kind: 'dir', size: 0, mtimeMs: 0 }))] };
+    return { value: [...entries, ...linked, ...dirs.map((name) => ({ name, kind: 'dir', size: 0, mtimeMs: 0, isLink: false }))] };
   });
   on('fs.stat', (_$: any, e: any) => {
     const path = norm(e.path);
@@ -216,6 +221,7 @@ export function world(on: any, opts: WorldOptions = {}) {
       return t ? JSON.parse(t) : null;
     },
     write,
+    link: (path: string) => links.add(norm(path)),
     modState: () => {
       const t = files.get(norm(`${at.DATA}/state/sessions/${SESSION}.mod.json`))?.text;
       return t ? JSON.parse(t) : null;

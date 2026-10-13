@@ -17,6 +17,8 @@ import {
   psQuote,
   shQuote,
   terminalLaunch,
+  windowsAppsDir,
+  windowsTerminalProgram,
   type LaunchInput,
 } from '../../src/core/launch.js';
 
@@ -52,6 +54,41 @@ test('Windows Terminal: a new tab in the window the session runs in, the folder 
   const odd = terminalLaunch(win({ WT_SESSION: 'x' }, { cwd: 'C:/a;b', title: 't;1', program: ['C:/n;ode.exe', 'C:/c;li.mjs'] }))!;
   assert.deepEqual(odd.argv.slice(4), ['--title', 't\\;1', '-d', 'C:/a\\;b', 'C:/n\\;ode.exe', 'C:/c\\;li.mjs']);
   assert.equal(OPENS['windows-terminal'], 'tab');
+  // The program the plugin found goes first, as it is.
+  const alias = 'C:\\Users\\ada\\AppData\\Local\\Microsoft\\WindowsApps\\wt.exe';
+  assert.deepEqual(terminalLaunch(win({ WT_SESSION: 'x' }, { wt: alias }))!.argv.slice(0, 4), [alias, '-w', '0', 'new-tab']);
+  // Outside Windows Terminal it is not asked for.
+  assert.equal(terminalLaunch(win({}, { wt: alias }))!.argv[0], 'powershell.exe');
+});
+
+test("Windows Terminal's program: its alias by the full path when the alias folder holds it as a link, wt.exe otherwise", () => {
+  const dir = windowsAppsDir('C:\\Users\\ada\\AppData\\Local');
+  assert.equal(dir, 'C:\\Users\\ada\\AppData\\Local\\Microsoft\\WindowsApps');
+  const entries = [
+    { name: 'winget.exe', isLink: true },
+    { name: 'wt.exe', isLink: true },
+  ];
+  assert.equal(windowsTerminalProgram(dir, entries), 'C:\\Users\\ada\\AppData\\Local\\Microsoft\\WindowsApps\\wt.exe');
+  // Windows names are case-blind.
+  assert.equal(windowsTerminalProgram(dir, [{ name: 'WT.EXE', isLink: true }]), `${dir}\\wt.exe`);
+  // A program copied there is not an alias; no alias, no folder, no list: the name, for Claude Code to look up.
+  assert.equal(windowsTerminalProgram(dir, [{ name: 'wt.exe', isLink: false }]), 'wt.exe');
+  assert.equal(windowsTerminalProgram(dir, [{ name: 'winget.exe', isLink: true }]), 'wt.exe');
+  assert.equal(windowsTerminalProgram(dir, [{ name: 'wt.exe.lnk', isLink: true }]), 'wt.exe');
+  assert.equal(windowsTerminalProgram(dir, []), 'wt.exe');
+  assert.equal(windowsTerminalProgram(null, entries), 'wt.exe');
+});
+
+test('the alias folder: under the variable, in the separators it is written in, never with a doubled one', () => {
+  assert.equal(windowsAppsDir('C:\\Users\\ada\\AppData\\Local\\'), 'C:\\Users\\ada\\AppData\\Local\\Microsoft\\WindowsApps');
+  assert.equal(windowsAppsDir('C:/Users/ada/AppData/Local'), 'C:/Users/ada/AppData/Local/Microsoft/WindowsApps');
+  assert.equal(windowsAppsDir('C:/Users/ada/AppData/Local//'), 'C:/Users/ada/AppData/Local/Microsoft/WindowsApps');
+  assert.equal(windowsAppsDir('D:\\Profiles/ada\\Local'), 'D:\\Profiles/ada\\Local\\Microsoft\\WindowsApps');
+  assert.equal(windowsAppsDir('L'), 'L\\Microsoft\\WindowsApps');
+  assert.equal(windowsAppsDir(''), null);
+  assert.equal(windowsAppsDir(undefined), null);
+  assert.equal(windowsTerminalProgram('C:/A/Microsoft/WindowsApps', [{ name: 'wt.exe', isLink: true }]), 'C:/A/Microsoft/WindowsApps/wt.exe');
+  assert.equal(windowsTerminalProgram('W', [{ name: 'wt.exe', isLink: true }]), 'W\\wt.exe');
 });
 
 test('any other Windows console: PowerShell starts the program in a window of its own, from an encoded command', () => {
