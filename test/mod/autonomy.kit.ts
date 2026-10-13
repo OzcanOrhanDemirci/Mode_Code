@@ -36,13 +36,14 @@ const DRAFT = '# Rate limiting\n\n## Summary\n\nAdded a token bucket and wired i
 
 /** A git work tree in memory: commits move HEAD, edits make the status dirty. */
 function repo() {
-  const st = { head: 'a'.repeat(40), status: '', refs: new Map<string, string>(), n: 0 };
+  const st = { head: 'a'.repeat(40), status: '', untracked: [] as string[], refs: new Map<string, string>(), n: 0 };
   const git = (args: string[]) => {
     const a = args.join(' ');
     if (a === 'rev-parse --show-toplevel') return { exitCode: 0, stdout: `${PROJECT}\n` };
     if (a === 'rev-parse HEAD') return { exitCode: 0, stdout: `${st.head}\n` };
     if (a === 'symbolic-ref --quiet --short HEAD') return { exitCode: 0, stdout: 'run/limits\n' };
     if (args[0] === 'status') return { exitCode: 0, stdout: st.status };
+    if (args[0] === 'ls-files') return { exitCode: 0, stdout: st.untracked.join('\n') };
     if (args[0] === 'update-ref') {
       st.refs.set(args[1]!, args[2]!);
       return { exitCode: 0, stdout: '' };
@@ -309,4 +310,28 @@ test('a stop the safety-net hook let through for no progress pauses the run and 
   // Paused by code: nothing more changes until the person resumes it.
   const edit: any = await $.tool.call({ tool: 'Write', file_path: `${PROJECT}/a.ts`, content: 'x' } as any);
   expect(edit.deny).toMatch(/no measurable progress; the run is paused/);
+});
+
+test("files the run left untracked hold back a milestone; the person's own untracked files do not", async ($, on) => {
+  const { w, g, run } = ready(on);
+  g.st.untracked = ['notes-of-the-person.txt'];
+  await $.prompt.submit(typed('Add rate limiting. app full auto quota +10'));
+  w.write(run().planPath, PLAN);
+  await $.tool.call(auto('plan'));
+  g.commit();
+  g.st.untracked = ['notes-of-the-person.txt', 'src/limiter.ts'];
+  const held: any = await $.tool.call(auto('milestone', { step: 1 }));
+  expect(String(held.result)).toMatch(/The run left 1 new file\(s\) untracked: src\/limiter\.ts\. Commit them/);
+  g.st.untracked = ['notes-of-the-person.txt'];
+  const ok: any = await $.tool.call(auto('milestone', { step: 1 }));
+  expect(String(ok.result)).toMatch(/Milestone 1\/2 accepted/);
+});
+
+test('a plan whose verification would wait for the person is refused: it could never pass', async ($, on) => {
+  const { w, run } = ready(on);
+  await $.prompt.submit(typed('Add rate limiting. app full auto quota +10'));
+  w.write(run().planPath, PLAN.replace('- `npm test`', '- `npm test`\n- `git push origin main`'));
+  const r: any = await $.tool.call(auto('plan'));
+  expect(String(r.result)).toMatch(/The verification command `git push origin main` could not run during the run \(pushes to the protected branch main\)/);
+  expect(run().phase).toBe('plan');
 });

@@ -156,8 +156,9 @@ export function autonomyCheck(ctx: Pick<AppContext, 'layout' | 'config'>, cwd: s
   const checks: GateCheck[] = g.checks.map((c) =>
     SESSION_ONLY.includes(c.id) && c.ok !== null
       ? { id: c.id, ok: null, key: 'auto.cli.atStart' }
-      : c.id === 'hook' && c.ok === false
-        ? { ...c, key: 'auto.cli.hookMissing' }
+      : c.id === 'hook'
+        ? // From the terminal the hook is known to be installed, not to have run in a session.
+          { ...c, key: c.ok ? 'auto.cli.hookInstalled' : 'auto.cli.hookMissing' }
         : c,
   );
   return { ok: checks.every((c) => c.ok !== false), checks };

@@ -153,6 +153,8 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.tool.planRefused': 'Plan henüz denetimden geçmiyor:',
   'auto.tool.planRefusedTail': '{path} dosyasını düzelt ve bu aracı yeniden "plan" eylemiyle çağır.',
   'auto.tool.planDropped': 'Gözden geçirilen bir plan doğrulama komutu çıkaramaz; eksik: {commands}.',
+  'auto.tool.planWaits': '`{command}` doğrulama komutu koşu sırasında çalışamaz ({reason}): yalnız derleyen, test eden ya da denetleyen bir komut seç.',
+  'auto.tool.untracked': "Koşu {n} yeni dosyayı izlenmeden bıraktı: {files}. Commit'le (git add) ya da işin parçası değilse .gitignore'a ekle.",
   'auto.tool.planStepsDropped': 'Gözden geçirilen plan, kilometre taşı olan {n} adımı korumalı.',
   'auto.tool.planAccepted': 'Plan kabul edildi: {steps}, {commands}.',
   'auto.tool.planRevised': 'Plan gözden geçirildi ({n}): {steps}, {commands}.',
@@ -237,6 +239,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'help.autonomy': 'Tam otonom: koşular, raporları, başlangıç denetimleri, açma ve kapama',
   'auto.cli.atStart': 'Koşu başlarken, kendi oturumunda ölçülür.',
   'auto.cli.hookMissing': "Güvenlik ağı hook'u kurulu değil: terminal-code install (ya da terminal-code doctor --fix) çalıştır.",
+  'auto.cli.hookInstalled': "Güvenlik ağı hook'u kurulu; koşu, kendi oturumunda çalıştığını denetler.",
   'auto.cli.warnTitle': 'Tam otonom: açmak ne demek',
   'auto.cli.warnBody':
     'Bir koşu, klavyenin başında kimse yokken tek bir görevi sonuna kadar götürür. Claude koşu sırasında sana hiçbir şey sormaz.\n' +

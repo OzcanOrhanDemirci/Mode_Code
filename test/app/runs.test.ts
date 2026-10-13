@@ -143,7 +143,7 @@ test("the checks from the person's terminal: what a session measures reads as me
       env: {},
       claude: { ...strict, hooks: [program('Stop'), program('PreToolUse')] },
     });
-    assert.equal(installed.checks.find((c) => c.id === 'hook')!.ok, true);
+    assert.deepEqual([installed.checks.find((c) => c.id === 'hook')!.ok, installed.checks.find((c) => c.id === 'hook')!.key], [true, 'auto.cli.hookInstalled']);
     const other = autonomyCheck({ layout: l, config }, root, { platform: 'darwin', env: {}, claude: { ...strict, hooks: [hook('Stop'), hook('PreToolUse')] } });
     assert.equal(other.checks.find((c) => c.id === 'hook')!.key, 'auto.cli.hookMissing');
     // Native Windows: the platform says why, and the sandbox checks do not apply.

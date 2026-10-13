@@ -152,6 +152,8 @@ export const enAuto = {
   'auto.tool.planRefused': 'The plan does not pass its check yet:',
   'auto.tool.planRefusedTail': 'Fix {path} and call this tool with action "plan" again.',
   'auto.tool.planDropped': 'A revised plan cannot drop verification commands; missing: {commands}.',
+  'auto.tool.planWaits': 'The verification command `{command}` could not run during the run ({reason}): choose a command that only builds, tests or checks.',
+  'auto.tool.untracked': 'The run left {n} new file(s) untracked: {files}. Commit them (git add), or add them to .gitignore if they are not part of the work.',
   'auto.tool.planStepsDropped': 'A revised plan must keep the {n} step(s) that already have a milestone.',
   'auto.tool.planAccepted': 'Plan accepted: {steps}, {commands}.',
   'auto.tool.planRevised': 'Plan revised ({n}): {steps}, {commands}.',
@@ -235,6 +237,7 @@ export const enAuto = {
   'help.autonomy': 'Full autonomy: runs, their reports, the start checks, on and off',
   'auto.cli.atStart': 'Measured when a run starts, in its session.',
   'auto.cli.hookMissing': 'The safety-net hook is not installed: run terminal-code install (or terminal-code doctor --fix).',
+  'auto.cli.hookInstalled': 'The safety-net hook is installed; a run checks that it ran in its session.',
   'auto.cli.warnTitle': 'Full autonomy: what turning it on means',
   'auto.cli.warnBody':
     'A run takes one task to its end while nobody is at the keyboard. Claude does not ask you anything during it.\n' +

@@ -87,6 +87,7 @@ import {
   isTerminal,
   lastProgressAt,
   markStuck,
+  newUntracked,
   nextStep,
   noteRefusal as runRefusal,
   parseRun,
@@ -1025,20 +1026,24 @@ interface ProjectFacts {
   branch: string | null;
   /** Tracked files with uncommitted changes. */
   tracked: number;
+  /** Untracked files that are not ignored. */
+  untracked: string[];
   error: string;
 }
 
 async function projectFacts($: $, c: Ctx, dir: string): Promise<ProjectFacts> {
   const top = await gitIn($, dir, ['rev-parse', '--show-toplevel']);
-  if (!top.ok || !top.out) return { topLevel: null, head: null, branch: null, tracked: 0, error: top.err };
+  if (!top.ok || !top.out) return { topLevel: null, head: null, branch: null, tracked: 0, untracked: [], error: top.err };
   const head = await gitIn($, dir, ['rev-parse', 'HEAD']);
   const branch = await gitIn($, dir, ['symbolic-ref', '--quiet', '--short', 'HEAD']);
   const st = await gitIn($, dir, ['status', '--porcelain=v1', '--untracked-files=no']);
+  const others = await gitIn($, dir, ['ls-files', '--others', '--exclude-standard']);
   return {
     topLevel: resolvePath(top.out, pathEnv(c, dir)),
     head: head.ok && head.out ? head.out : null,
     branch: branch.ok && branch.out ? branch.out : null,
     tracked: st.ok ? st.out.split('\n').filter(Boolean).length : 0,
+    untracked: others.ok ? others.out.split('\n').filter(Boolean) : [],
     error: head.ok ? (st.ok ? '' : st.err) : head.err,
   };
 }
@@ -1322,7 +1327,7 @@ async function autoKeyword($: $, c: Ctx, kw: KeywordMatch, text: string): Promis
     sessionId: c.sessionId,
     workDir: runWorkRoot(c, cwd),
     budget: { weeklyTarget: target, source },
-    start: { commit: project.head, branch: project.branch },
+    start: { commit: project.head, branch: project.branch, untracked: project.untracked },
     now,
   });
   await gitIn($, project.topLevel, ['update-ref', rollbackRef(id, 0), project.head]);
@@ -1487,6 +1492,19 @@ async function onAutoTool($: $, e: any): Promise<any> {
       );
     const parsed = checkPlan(check.text);
     const required = requiredFor(c, r.cwd, r.project);
+    // A verification command the run itself may not run (it would wait for the person) could never pass.
+    const here = await $.session.cwd();
+    const waits: string[] = [];
+    for (const command of [...new Set([...check.verification, ...required])]) {
+      const v = checkAutonomy('Bash', { command }, await autoEnvFor($, c, r, here, command));
+      if (v.kind !== 'allow') waits.push(`• ${tIn(c.lang, 'auto.tool.planWaits', { command, reason: v.kind === 'defer' ? v.reason : v.why })}`);
+    }
+    if (waits.length)
+      return refused(
+        r,
+        'verification waits',
+        [tIn(c.lang, 'auto.tool.planRefused'), ...waits, tIn(c.lang, 'auto.tool.planRefusedTail', { path: r.planPath })].join('\n'),
+      );
     const res = acceptPlan(
       r,
       { steps: parsed.steps.map((s) => ({ n: s.n, title: s.title, acceptance: s.acceptance ?? '' })), verification: check.verification },
@@ -1538,6 +1556,8 @@ async function onAutoTool($: $, e: any): Promise<any> {
     const facts = await projectFacts($, c, r.cwd);
     if (!facts.head) return answer(tIn(c.lang, 'auto.tool.git', { cwd: r.cwd, detail: facts.error }));
     if (facts.tracked > 0) return refused(r, 'dirty', tIn(c.lang, 'auto.tool.dirty', { n: facts.tracked }));
+    const fresh = newUntracked(r, facts.untracked);
+    if (fresh.length) return refused(r, 'untracked', tIn(c.lang, 'auto.tool.untracked', { n: fresh.length, files: fresh.slice(0, 10).join(', ') }));
     const prev = r.milestones.at(-1)?.commit ?? r.start.commit;
     if (facts.head === prev) return refused(r, 'no commit', tIn(c.lang, 'auto.tool.noCommit', { commit: prev.slice(0, 12) }));
     const counted = await gitIn($, r.cwd, ['rev-list', '--count', `${prev}..${facts.head}`]);
@@ -1583,6 +1603,8 @@ async function onAutoTool($: $, e: any): Promise<any> {
     const facts = await projectFacts($, c, r.cwd);
     if (!facts.head) return answer(tIn(c.lang, 'auto.tool.git', { cwd: r.cwd, detail: facts.error }));
     if (facts.tracked > 0) return refused(r, 'dirty', tIn(c.lang, 'auto.tool.finishDirty', { n: facts.tracked }));
+    const left = newUntracked(r, facts.untracked);
+    if (left.length) return refused(r, 'untracked', tIn(c.lang, 'auto.tool.untracked', { n: left.length, files: left.slice(0, 10).join(', ') }));
     const draft = await readFile($, r.reportPath);
     const problems = checkDraft(draft, 'done', r.reportPath);
     if (problems.length)

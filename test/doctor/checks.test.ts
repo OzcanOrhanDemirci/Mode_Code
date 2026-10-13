@@ -391,6 +391,7 @@ test('full autonomy: off is a note; on, the start checks that would fail here ar
     autonomy: { enabled: true, checks: [{ id: 'platform', ok: true, key: 'auto.gate.platform.ok', params: { platform: 'linux' } }] },
   });
   assert.equal(brief(check('install.autonomy', ready)), 'ok doc.autonomy.ready');
+  assert.equal(check('install.autonomy', ready).protection, false);
   const notReady = check(
     'install.autonomy',
     healthyFacts({

@@ -89,3 +89,18 @@ test('full autonomy is off by default; its settings keep their ranges; a project
   assert.equal(parseConfig(JSON.stringify({ autonomy: { reviewModel: null } })).config.autonomy.reviewModel, null);
   assert.equal(parseConfig(JSON.stringify({ autonomy: 1 })).problems[0]!.path, 'autonomy');
 });
+
+test('full autonomy limits: both ends of each range are accepted', () => {
+  for (const [maxHours, stallMinutes] of [
+    [1, 10],
+    [72, 720],
+  ])
+    assert.deepEqual(parseConfig(JSON.stringify({ autonomy: { maxHours, stallMinutes } })).config.autonomy, {
+      enabled: false,
+      maxHours,
+      stallMinutes,
+      reviewModel: null,
+    });
+  assert.equal(parseConfig(JSON.stringify({ autonomy: { maxHours: 73 } })).problems[0]!.path, 'autonomy.maxHours');
+  assert.equal(parseConfig(JSON.stringify({ autonomy: { stallMinutes: 9 } })).problems[0]!.path, 'autonomy.stallMinutes');
+});

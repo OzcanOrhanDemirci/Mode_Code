@@ -110,8 +110,11 @@ export interface Run {
   pause: { reason: PauseReason; at: number; detail: string } | null;
   /** The weekly quota target the run works within (absolute), and how the person gave it ("+10", "60"). */
   budget: { weeklyTarget: number; source: string };
-  /** The commit the run started from, and the branch it was on. */
-  start: { commit: string; branch: string | null; ref: string };
+  /**
+   * The commit the run started from, the branch it was on, and the untracked files that were already there
+   * (the person's own: a milestone asks only about files the run left untracked).
+   */
+  start: { commit: string; branch: string | null; ref: string; untracked: string[] };
   /** Where Claude writes its drafts: the plan, the report, the notes. */
   workDir: string;
   planPath: string;
@@ -179,8 +182,14 @@ export interface StartRunInput {
   sessionId: string;
   workDir: string;
   budget: { weeklyTarget: number; source: string };
-  start: { commit: string; branch: string | null };
+  start: { commit: string; branch: string | null; untracked?: readonly string[] };
   now: number;
+}
+
+/** Untracked files the run added since its start: they belong in a commit, or in .gitignore, before a milestone. */
+export function newUntracked(r: Run, untracked: readonly string[]): string[] {
+  const before = new Set(r.start.untracked);
+  return untracked.filter((f) => !before.has(f));
 }
 
 export function startRun(i: StartRunInput): Run {
@@ -199,7 +208,7 @@ export function startRun(i: StartRunInput): Run {
     phase: 'plan',
     pause: null,
     budget: { ...i.budget },
-    start: { ...i.start, ref: rollbackRef(i.id, 0) },
+    start: { commit: i.start.commit, branch: i.start.branch, ref: rollbackRef(i.id, 0), untracked: [...(i.start.untracked ?? [])].slice(0, 1000) },
     workDir: dir,
     planPath: `${dir}/plan.md`,
     reportPath: `${dir}/report.md`,
@@ -461,7 +470,12 @@ export function parseRun(text: string | null): Run | null {
     phase: o.phase as RunPhase,
     pause,
     budget: { weeklyTarget: num(o.budget.weeklyTarget, 0), source: str(o.budget.source) },
-    start: { commit: str(o.start.commit), branch: typeof o.start.branch === 'string' ? o.start.branch : null, ref: str(o.start.ref) },
+    start: {
+      commit: str(o.start.commit),
+      branch: typeof o.start.branch === 'string' ? o.start.branch : null,
+      ref: str(o.start.ref),
+      untracked: strs(o.start.untracked),
+    },
     workDir: str(o.workDir),
     planPath: str(o.planPath),
     reportPath: str(o.reportPath),

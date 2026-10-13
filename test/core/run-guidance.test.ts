@@ -67,6 +67,9 @@ test('each prompt, a resume, a compaction and a stall say where the run stands',
   assert.match(autoTurnContext(w), /phase work, 0\/1 milestones; next: step 1 \(Limiter\)/);
   assert.match(autoResumeContext(w), /resumed\. The person's request, word for word: "Add rate limiting/);
   assert.match(autoStateText(w), /a full-autonomy run runs \(r1, the person's request: "Add rate limiting/);
-  assert.match(autoStateText(ok(pauseRun(w, 'quota', 2))), /is paused/);
+  const paused = autoStateText(ok(pauseRun(w, 'quota', 2)));
+  assert.match(paused, /is paused/);
+  assert.match(paused, /until then the session works as they ask/);
+  assert.doesNotMatch(paused, /never ask the person/);
   assert.match(autoStallContext(w, 95), /no milestone for 95 minutes/);
 });

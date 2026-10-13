@@ -15,6 +15,7 @@ import {
   lastProgressAt,
   markStuck,
   nextStep,
+  newUntracked,
   noteRefusal,
   parseRun,
   pauseRun,
@@ -321,4 +322,22 @@ test('parsing keeps what is valid and drops what is not, entry by entry', () => 
     parseRun(JSON.stringify({ ...f, finish: { ...f.finish, verification: [{ command: 'x', ok: 'yes', seconds: 1 }] } }))!.finish!.verification[0]!.ok,
     false,
   );
+});
+
+test("untracked files: those of the start are the person's; the run answers only for the new ones", () => {
+  const r = startRun({
+    id: 'u',
+    task: 't',
+    project: null,
+    cwd: '/p',
+    sessionId: 's',
+    workDir: '/w',
+    budget: { weeklyTarget: 50, source: '50' },
+    start: { commit: 'c', branch: null, untracked: ['mine.txt'] },
+    now: T,
+  });
+  assert.deepEqual(r.start.untracked, ['mine.txt']);
+  assert.deepEqual(newUntracked(r, ['mine.txt', 'src/new.ts']), ['src/new.ts']);
+  assert.deepEqual(newUntracked(start(), ['x']), ['x']);
+  assert.deepEqual(parseRun(JSON.stringify(r))!.start.untracked, ['mine.txt']);
 });

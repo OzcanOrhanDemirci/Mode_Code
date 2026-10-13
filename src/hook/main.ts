@@ -164,7 +164,12 @@ function autonomyStop(input: Input, l: ReturnType<typeof dataLayout>, config: Re
   const modFile = sessionFile(l, sessionId, 'mod');
   const mod = modFile ? parseModState(readText(modFile)) : null;
   const dir = mod?.runId ? runDir(l, mod.runId) : null;
-  const run = dir ? parseRun(readText(join(dir, 'run.json'))) : null;
+  let run = dir ? parseRun(readText(join(dir, 'run.json'))) : null;
+  if (dir && !run) {
+    // The plugin may be writing the record this very moment: read it once more before taking it as gone.
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+    run = parseRun(readText(join(dir, 'run.json')));
+  }
   if (!run) return null;
   const hookFile = sessionFile(l, sessionId, 'hook');
   const state = parseHookState(hookFile ? readText(hookFile) : null, sessionId);

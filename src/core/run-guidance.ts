@@ -88,7 +88,11 @@ export function autoResumeContext(r: Run): string {
 
 /** The run's state for the compaction note: the request word for word, and where the run stands. */
 export function autoStateText(r: Run): string {
-  return `a full-autonomy run ${r.status === 'paused' ? 'is paused' : 'runs'} (${r.id}${r.task ? `, the person's request: "${r.task.slice(0, 1500)}"` : ''}): ${where(r)}; never ask the person, defer what needs them, call ${AUTO_TOOL} for every phase`;
+  const task = r.task ? `, the person's request: "${r.task.slice(0, 1500)}"` : '';
+  // A paused run waits for the person; meanwhile the session works as they ask.
+  if (r.status === 'paused')
+    return `a full-autonomy run is paused (${r.id}${task}); the person resumes it with "continue", and until then the session works as they ask`;
+  return `a full-autonomy run runs (${r.id}${task}): ${where(r)}; never ask the person, defer what needs them, call ${AUTO_TOOL} for every phase`;
 }
 
 /** Told to the model when no milestone came for the stall time: the second span ends the run. */
