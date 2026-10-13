@@ -59,22 +59,34 @@ The mode and the **way of working** are what a person changes all the time, so t
 | **A slash command**                      | `/1` … `/9`, `/0`, `/devam`, `/kota`, `/akis` and their English names: from the keyboard, and from a phone, where clicking is awkward                                  |
 | **A keyword typed as the whole message** | `plan`, `otonom`, `manuel` …: as above                                                                                                                                 |
 
-| Command                | Does                                        | With text after it                                        |
-| ---------------------- | ------------------------------------------- | --------------------------------------------------------- |
-| `/1`                   | 💬 chat                                     | `/1 text`: switch, then send the text as your own message |
-| `/2`                   | 🔍 research                                 | the same                                                  |
-| `/3`                   | 📐 plan                                     | the same                                                  |
-| `/4`                   | 🔨 code                                     | the same                                                  |
-| `/5`                   | free                                        | the same                                                  |
-| `/6`                   | way of working: **manual**                  | the same                                                  |
-| `/7`                   | way of working: **autonomous**              | the same                                                  |
-| `/8`                   | way of working: **full auto** (asks)        | `/8 kota +10 the task`: no budget question                |
-| `/9`                   | a flow (asks which steps)                   | `/9 the task`: the flow last used in this folder          |
-| `/0`                   | where the session stands, and every command |                                                           |
-| `/devam` (`/continue`) | lists every project and folder to continue  | `/devam 3`, `/devam terminal`, `/devam 3 kota 29`         |
-| `/kota` (`/quota`)     | asks for a weekly budget                    | `/kota 70`, `/kota +5`                                    |
+| Command                | Does                                       | With text after it                                        |
+| ---------------------- | ------------------------------------------ | --------------------------------------------------------- |
+| `/1`                   | 💬 chat                                    | `/1 text`: switch, then send the text as your own message |
+| `/2`                   | 🔍 research                                | the same                                                  |
+| `/3`                   | 📐 plan                                    | the same                                                  |
+| `/4`                   | 🔨 code                                    | the same                                                  |
+| `/5`                   | free                                       | the same                                                  |
+| `/6`                   | way of working: **manual**                 | the same                                                  |
+| `/7`                   | way of working: **autonomous**             | the same                                                  |
+| `/8`                   | way of working: **full auto** (asks)       | `/8 kota +10 the task`: no budget question                |
+| `/9`                   | a flow (asks which steps)                  | `/9 the task`: the flow last used in this folder          |
+| `/0`                   | opens the control center in a new tab      |                                                           |
+| `/devam` (`/continue`) | lists every project and folder to continue | `/devam 3`, `/devam terminal`, `/devam 3 kota 29`         |
+| `/kota` (`/quota`)     | asks for a weekly budget                   | `/kota 70`, `/kota +5`                                    |
 
 - **Ways of working.** **Manual**: Claude does what the message asks, says what it did and what would come next, and waits; it asks when something needs your decision. A session starts manual, which is how Claude Code works by default. **Autonomous**: Claude goes on without asking between steps and stops only for a decision that is yours. **Full auto**: a run that works to its end without asking ([autonomy.md](autonomy.md)); it starts only where its checks pass, never on native Windows, where `/8` says so before asking anything.
+- **The control center beside the session.** `/0` (or `0` on the strip) opens the control center in a new tab of the terminal the session runs in, in the session's folder, and says where the session stands. It opens the command-line program the installation recorded (`doctor` checks the record and `doctor --fix` writes it), and it asks the terminal by the variables the terminal sets for the programs it runs:
+
+  | The session runs in               | `/0` opens                                                    | Measured              |
+  | --------------------------------- | ------------------------------------------------------------- | --------------------- |
+  | Windows Terminal (`WT_SESSION`)   | a new tab of the same window (`wt -w 0 new-tab`)              | yes, on Windows 11    |
+  | another Windows console           | a window of the default terminal (PowerShell `Start-Process`) | yes, on Windows 11    |
+  | tmux, any platform but Windows    | a new window of the same tmux                                 | yes, tmux 3.4 in WSL2 |
+  | iTerm2 / any other macOS terminal | a tab of iTerm2 / a Terminal window (AppleScript)             | not yet on a Mac      |
+  | WezTerm, Konsole, GNOME Terminal  | a new tab, by each one's own command                          | not yet               |
+
+  Nothing opens where the person would not see it (a session over SSH outside tmux, inside WSL outside tmux, a Linux session with no display, a terminal not listed): the row then says the command to type, the menu follows. From the phone (Remote Control) `/0` says where the session stands and lists every command, since a tab opened on the computer cannot be seen there.
+
 - **A plain digit is a message.** The strip's buttons have no digit shortcuts, so typing `3` sends "3" to Claude; `/3` is the command.
 - **The brake.** The mode, the way of working, the menu and the budget act at once, while Claude works too: switch to chat in the middle of a change and the next write is refused. A press on the strip puts a note into the conversation at once, which Claude reads at its next step.
 - **Values are asked when not given.** `/kota` asks for the budget (+5, +10, +20, or a number you type); `/9` asks which steps (research ▶ plan → approval → code, plan → approval → code, research only, research ▶ plan with no code) and then takes your next message as the task; `/8` runs its start checks, asks for a budget if none was given, and asks once more before anything starts. The order of a flow's steps is fixed: research comes before the plan, and the approval before any code, kept by code.
