@@ -2782,6 +2782,7 @@ async function memorySync($: $, c: Ctx, trigger: 'start' | 'turn'): Promise<Sync
       push: r.push,
       held: r.held.length,
       conflicts: r.conflicts.length,
+      pulled: r.pulled.length,
     });
     const problem = syncProblem(r);
     if (problem && problem !== 'offline' && !c.memWarned.has(problem)) {

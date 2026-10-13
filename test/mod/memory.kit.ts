@@ -233,7 +233,7 @@ test("what the start's pull brought in is told with the first prompt, which wait
     if (args[0] === 'rev-list') return { exitCode: 0, stdout: '0\t0\n' };
     return { exitCode: 1, stdout: '', stderr: `unexpected git ${a}` };
   });
-  world(on, {
+  const w = world(on, {
     config: { memory: { store: { place: 'both', dir: STORE, remote: 'https://github.com/ada/claude-memory.git' }, handoff: { enabled: false } } },
     git,
   });
@@ -256,4 +256,5 @@ test("what the start's pull brought in is told with the first prompt, which wait
   const again: any = await $.prompt.submit(typed('And the next step?'));
   expect((again.context ?? []).join('\n')).not.toMatch(/brought up to date/);
   expect(calls.filter((c) => c.startsWith('pull')).length).toBe(1);
+  expect(w.events().some((e: any) => e.kind === 'memory' && e.trigger === 'start' && e.pulled === 2)).toBe(true);
 });
