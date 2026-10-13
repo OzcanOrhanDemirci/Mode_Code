@@ -8,7 +8,7 @@
 import { isLang, type Lang } from './i18n/index.js';
 import { RULE_IDS, RULES } from './belt/rules.js';
 import { VERDICT_ORDER, type RuleConfig, type RuleId, type Verdict } from './belt/types.js';
-import { KEYWORD_LISTS, type KeywordKind } from './keywords.js';
+import { KEYWORD_LISTS, type KeywordList } from './keywords.js';
 
 export const CONFIG_VERSION = 1;
 
@@ -146,7 +146,7 @@ export interface Config {
   };
   keywords: {
     /** Extra phrases per language, added to the built-in ones. */
-    extra: Partial<Record<Lang, Partial<Record<KeywordKind | 'cancel', string[]>>>>;
+    extra: Partial<Record<Lang, Partial<Record<KeywordList, string[]>>>>;
   };
   projects: ProjectEntry[];
   modes: {
@@ -311,13 +311,13 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
         problems.push({ path: `keywords.extra.${lang}`, kind: 'type', detail: 'expected a language code with a table of phrases' });
         continue;
       }
-      const out: Partial<Record<KeywordKind | 'cancel', string[]>> = {};
+      const out: Partial<Record<KeywordList, string[]>> = {};
       for (const [kind, list] of Object.entries(table)) {
         if (!KEYWORD_KINDS.has(kind)) {
           problems.push({ path: `keywords.extra.${lang}.${kind}`, kind: 'unknown-key', detail: 'not a keyword kind' });
           continue;
         }
-        out[kind as KeywordKind | 'cancel'] = strings(list, `keywords.extra.${lang}.${kind}`, problems).filter((s) => s.trim().length > 0 && s.length <= 40);
+        out[kind as KeywordList] = strings(list, `keywords.extra.${lang}.${kind}`, problems).filter((s) => s.trim().length > 0 && s.length <= 40);
       }
       c.keywords.extra[lang] = out;
     }

@@ -110,9 +110,9 @@ test('keywords: a typo is suggested only for names of four letters or more, one 
   assert.equal(detectKeyword('termnl devam', projects)?.suggestion, undefined, 'two edits away');
   assert.equal(detectKeyword('apq devam', projects)?.suggestion, undefined, 'short names are not guessed');
   assert.equal(detectKeyword('terminal-code devam', projects)?.project, 'terminal-code', 'the id itself names the project');
-  // A budget with continue or manual, but not with another keyword.
+  // A budget with continue or manual; after anything else it is a budget for the task in front of it.
   assert.equal(detectKeyword('manuel terminal devam kota 40', projects)?.budget?.n, 40);
-  assert.equal(detectKeyword('sohbet kota 40', projects)?.kind, undefined);
+  assert.deepEqual([detectKeyword('sohbet kota 40', projects)?.kind, detectKeyword('sohbet kota 40', projects)?.budget], ['quota', undefined]);
   // Several words before "devam" are a sentence; a single unknown word may be a project not registered yet.
   assert.equal(detectKeyword('bu işe devam', projects), null);
   assert.deepEqual([detectKeyword('testlere devam', projects)?.kind, detectKeyword('testlere devam', projects)?.project], ['continue', null]);

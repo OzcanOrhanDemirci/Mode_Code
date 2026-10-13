@@ -225,7 +225,6 @@ export const trModes: Record<keyof typeof enModes, string> = {
   'flow.toast.notWaiting': 'Onay bekleyen bir plan yok',
   'flow.toast.held': 'Bu akış başka bir oturumda açık',
   'flow.toast.running': 'Burada zaten bir akış sürüyor ({step}). Bitirmek için: {cancel}',
-  'flow.toast.turnMode': 'Yalnız bu tur: {mode} (akış {step} adımında kalıyor)',
   'flow.notify.waiting': 'Bir plan onayını bekliyor: {task}',
   'flow.band.waiting': '⏸ Plan onayını bekliyor: {path}. Onaylamak için "{approve}" yaz ya da neyin değişeceğini söyle.',
 };

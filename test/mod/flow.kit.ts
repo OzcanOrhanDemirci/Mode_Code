@@ -166,7 +166,7 @@ test('pausing in the dialog pauses the flow at the approval', async ($, on) => {
   expect(flowOf(w).status).toBe('paused');
 });
 
-test('stop pauses the flow, continue resumes it at its step; a mode keyword alone pauses it, at a message end it changes one turn', async ($, on) => {
+test('stop pauses the flow, continue resumes it at its step; a mode keyword alone pauses it, at a message end it is a word', async ($, on) => {
   const w = world(on);
   await $.prompt.submit(typed('flow'));
   await $.prompt.submit(typed('stop'));
@@ -177,11 +177,9 @@ test('stop pauses the flow, continue resumes it at its step; a mode keyword alon
   expect(back.context.join('\n')).toMatch(/The person resumed the flow/);
   expect(flowOf(w).status).toBe('active');
 
-  // One turn in code mode: the project may change this turn, and the flow stays where it is.
+  // A mode word at the end of a longer message is a word (2026-10-13): the flow and its step's mode stay.
   const turn: any = await $.prompt.submit(typed('Fix the typo in the README.\ncode'));
-  expect(turn.context.join('\n')).toMatch(/for this turn only, code mode/);
-  expect(((await $.tool.call({ tool: 'Write', file_path: '/home/ada/dev/app/README.md', content: 'x' } as any)) as any).deny).toBeUndefined();
-  await $.prompt.submit(typed('next question'));
+  expect(turn.context.join('\n')).not.toMatch(/code mode/);
   expect(((await $.tool.call({ tool: 'Write', file_path: '/home/ada/dev/app/README.md', content: 'x' } as any)) as any).deny).toMatch(/research mode/);
 
   // "chat" alone: the flow pauses and chat mode holds.

@@ -148,6 +148,12 @@ export function world(on: any, opts: WorldOptions = {}) {
   });
   on('tool.list', () => ({ value: [{ name: 'Bash' }, { name: 'Read' }, { name: 'Write' }, { name: 'Edit' }] }));
   const registered: any[] = [];
+  // The slash commands the plugin declares, as Claude Code takes them.
+  const commands: any[] = [];
+  on('command.register', (_$: any, e: any) => {
+    commands.push(e);
+    return { value: { command: e.name } };
+  });
   on('tool.register', (_$: any, e: any) => {
     registered.push(e);
     return { value: { tool: `mcp__terminal-code__${e.name}` } };
@@ -186,6 +192,7 @@ export function world(on: any, opts: WorldOptions = {}) {
     reached,
     calls,
     registered,
+    commands,
     reviews,
     toasts,
     notes,

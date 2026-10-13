@@ -11,6 +11,7 @@ import { trModes } from './tr-modes.js';
 import { trAuto } from './tr-auto.js';
 import { trMemory } from './tr-memory.js';
 import { trSync } from './tr-sync.js';
+import { trControls } from './tr-controls.js';
 
 export const tr: Record<MessageKey, string> = {
   ...trUi,
@@ -20,6 +21,7 @@ export const tr: Record<MessageKey, string> = {
   ...trAuto,
   ...trMemory,
   ...trSync,
+  ...trControls,
   'belt.reason.inline': 'Yorumlayıcıya verilen kodun içinde: {reason}',
   'belt.reason.deleteUnknown': 'Hedefi ancak çalışırken belli olan özyinelemeli silme: {target}.',
   'belt.reason.deleteCritical': '{target} siliniyor; bu konum {critical} konumunun kendisi ya da onu içeriyor.',
@@ -125,6 +127,8 @@ export const tr: Record<MessageKey, string> = {
   'kw.toast.unknownProject': 'Anahtar kelime: {kind} · "{text}" kayıtlı bir proje değil',
   'kw.kind.continue': 'devam',
   'kw.kind.manual': 'manuel',
+  'kw.kind.manualStyle': 'manuel',
+  'kw.kind.autonomous': 'otonom',
   'kw.kind.chat': 'sohbet',
   'kw.kind.quota': 'kota',
   'kw.kind.wrapUp': 'toparla',
@@ -135,6 +139,7 @@ export const tr: Record<MessageKey, string> = {
   'status.chat': '💬 sohbet',
   'status.autonomous': 'otonom',
   'status.manual': 'manuel',
+  'status.free': 'serbest',
   'status.wrapUp': 'toparlanıyor',
   'status.five': '5s %{n}',
   'status.week': 'hafta %{n}',

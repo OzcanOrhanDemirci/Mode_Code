@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   conflictContext,
+  continueFolderContext,
   flowNote,
   flowResumeContext,
   flowStartContext,
@@ -12,6 +13,7 @@ import {
   footerInstruction,
   keywordContext,
   quotaLine,
+  restoredContext,
   resumePrompt,
   stepGuidance,
   stepsLine,
@@ -106,9 +108,7 @@ test('the resume prompt ends with the continue keyword, which the keyword layer 
     }
 });
 
-test('mode keywords while a flow runs: one turn, or a pause when typed alone; the work folder is named', () => {
-  const turn = keywordContext(kw('Şunu bir kontrol et.\nsohbet'), state, q(), null, { flow: { step: '🔨 kod', paused: false } })[0]!;
-  assert.match(turn, /for this turn only, chat mode: .* The flow stays at its 🔨 kod step/);
+test('a mode keyword while a flow runs pauses the flow at its step; the work folder is named', () => {
   const paused = keywordContext(kw('araştırma'), state, q(), null, { flow: { step: '📐 plan', paused: true }, workDir: '/tmp/tc/flows' })[0]!;
   assert.match(paused, /switched to research mode: .*work folder \(\/tmp\/tc\/flows\).* The flow is paused at its 📐 plan step/);
   assert.deepEqual(keywordContext(kw('akış'), state, q(), null), []);
@@ -140,4 +140,39 @@ test("flow guidance: the steps on one line, the rules, and the current step in t
   assert.match(stepGuidance(code, 'en', t), /implement the approved plan \(\/home\/ada\/\.terminal-code\/flows\/f1\/plan\.md\).*`npm test`, `npm run lint`/);
   assert.match(flowResumeContext(plan, 'en', t), /resumed the flow f1: .* Read the drafts in \/tmp\/w\/f1 first/);
   assert.match(flowNote('canceled', f, 'en', t), /canceled the flow f1/);
+});
+
+test('the way of working: manual and autonomous alone, each said in the words the person used', () => {
+  const manual = keywordContext(kw('manuel'), state, q(), null)[0]!;
+  assert.match(manual, /message is "manuel"/);
+  assert.match(manual, /The way of working is now manual: work step by step\. Do what the message asks, say what you did and what would come next, and wait/);
+  const auto = keywordContext(kw('otonom'), state, q(), null)[0]!;
+  assert.match(auto, /The way of working is now autonomous: go on without asking for approval between steps.* The mode stays as it is\./);
+  assert.match(keywordContext(kw('manuel app devam'), state, q(), null)[0]!, /Keyword "manual continue": work step by step/);
+});
+
+test('a command and a press are named as such, not as typed words', () => {
+  const plan = { ...kw('plan'), via: 'command' as const, text: '/3' };
+  assert.match(keywordContext(plan, state, q(), null)[0]!, /^\[terminal-code\] The person ran "\/3", a command of terminal-code/);
+  const press = { ...kw('plan'), via: 'strip' as const, text: 'plan' };
+  assert.match(keywordContext(press, state, q(), null)[0]!, /chose "plan" on terminal-code's mode strip above the prompt/);
+});
+
+test("the folder's last choice, told with the first prompt; a folder to continue that is not registered", () => {
+  const r = restoredContext('plan', 'autonomous', '/tmp/w');
+  assert.match(
+    r,
+    /starts as the person last left this folder.*plan mode: read and plan.*work folder \(\/tmp\/w\).* And work autonomously: go on without asking/,
+  );
+  assert.match(r, /They change either with \/1 to \/8/);
+  assert.match(restoredContext('chat', 'manual', '/tmp/w'), /chat mode: conversation only.* And work manually: work step by step/);
+  assert.match(restoredContext('code', 'default', '/w'), /And work manually/);
+  assert.equal(
+    continueFolderContext('/home/ada/dev/notes', false),
+    "[terminal-code] The project to continue is the folder /home/ada/dev/notes: not this session's folder, so work there.",
+  );
+  assert.equal(
+    continueFolderContext('/home/ada/dev/app', true),
+    "[terminal-code] The project to continue is the folder /home/ada/dev/app, this session's own folder.",
+  );
 });

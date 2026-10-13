@@ -10,6 +10,7 @@ import { enModes } from './en-modes.js';
 import { enAuto } from './en-auto.js';
 import { enMemory } from './en-memory.js';
 import { enSync } from './en-sync.js';
+import { enControls } from './en-controls.js';
 
 export const en = {
   ...enUi,
@@ -19,6 +20,7 @@ export const en = {
   ...enAuto,
   ...enMemory,
   ...enSync,
+  ...enControls,
   // ── safety belt: reasons (one per situation; {placeholders} are filled in) ──
   'belt.reason.inline': 'Inside code passed to an interpreter: {reason}',
   'belt.reason.deleteUnknown': 'Recursive delete whose target is only known at run time: {target}.',
@@ -129,6 +131,8 @@ export const en = {
   'kw.toast.unknownProject': 'Keyword: {kind} · "{text}" is not a registered project',
   'kw.kind.continue': 'continue',
   'kw.kind.manual': 'manual',
+  'kw.kind.manualStyle': 'manual',
+  'kw.kind.autonomous': 'autonomous',
   'kw.kind.chat': 'chat',
   'kw.kind.quota': 'quota',
   'kw.kind.wrapUp': 'wrap up',
@@ -140,6 +144,7 @@ export const en = {
   'status.chat': '💬 chat',
   'status.autonomous': 'autonomous',
   'status.manual': 'manual',
+  'status.free': 'free',
   'status.wrapUp': 'wrapping up',
   'status.five': '5h {n}%',
   'status.week': 'week {n}%',

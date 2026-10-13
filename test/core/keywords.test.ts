@@ -33,7 +33,12 @@ test('continue and a weekly budget in one line', () => {
   assert.deepEqual(m?.budget, { n: 40, plus: false });
   assert.deepEqual(d('Bunu bitir. araba devam kota +8')?.budget, { n: 8, plus: true });
   assert.equal(d('kota 40')?.kind, 'quota');
-  assert.equal(d('bunu dene kota 40')?.kind, undefined); // a sentence before the budget is not a keyword
+  // A budget at the end of a task counts, the task in front of it (decided with the person, 2026-10-13).
+  assert.deepEqual(
+    [d('bunu dene kota 40')?.kind, d('bunu dene kota 40')?.n, d('bunu dene kota 40')?.plus, d('bunu dene kota 40')?.standalone],
+    ['quota', 40, false, false],
+  );
+  assert.deepEqual([d('bunu dene kota +5')?.n, d('bunu dene kota +5')?.plus, d('bunu dene kota +5')?.text], [5, true, 'kota +5']);
 });
 
 test('one typo away is a suggestion, not a match', () => {
@@ -80,18 +85,41 @@ test('notifications are never keywords, and keywords are reserved', () => {
   for (const w of ['dur', 'devam', 'kota', 'sohbet', 'stop', 'continue']) assert.ok(r.has(w), w);
 });
 
-test('mode keywords: the whole message or its end, in both languages', () => {
+test('mode keywords: the whole message only, in both languages; everyday words in a sentence stay words', () => {
   assert.equal(d('araştırma')?.kind, 'research');
   assert.equal(d('Araştır')?.kind, 'research');
   assert.equal(d('plan')?.kind, 'plan');
+  assert.equal(d('Plan.')?.kind, 'plan');
   assert.equal(d('kod')?.kind, 'code');
   assert.equal(d('serbest')?.kind, 'free');
+  assert.equal(d('sohbet')?.kind, 'chat');
   assert.equal(d('research')?.kind, 'research');
   assert.equal(d('code')?.kind, 'code');
-  assert.equal(d('Girişe iki aşamalı doğrulama nasıl eklenir?\nplan')?.kind, 'plan');
-  assert.equal(d('Girişe iki aşamalı doğrulama nasıl eklenir?\nplan')?.standalone, false);
-  assert.equal(d('bunun için bir plan'), null); // the last sentence must be the keyword alone
-  assert.equal(d('bu hatanın nedenini araştır'), null);
+  assert.equal(d('plan')?.standalone, true);
+  // Decided with the person: at the end of a longer message the word is a word (2026-10-13).
+  for (const t of [
+    'Girişe iki aşamalı doğrulama nasıl eklenir?\nplan',
+    'Ama sohbet edelim. sohbet.',
+    'Mesela bunlara internetten bakarsın araştırma',
+    'Bu şekilde yapılabilir mi sohbet',
+    'bunun için bir plan',
+    'Bu dosyada hatalı bir kod',
+  ])
+    assert.equal(d(t), null, t);
+});
+
+test('the way of working: "manuel" and "otonom" alone, in both languages; with a project "manuel" still continues it', () => {
+  assert.equal(d('manuel')?.kind, 'manualStyle');
+  assert.equal(d('Manual')?.kind, 'manualStyle');
+  assert.equal(d('otonom')?.kind, 'autonomous');
+  assert.equal(d('OTONOM')?.kind, 'autonomous');
+  assert.equal(d('autonomous')?.kind, 'autonomous');
+  assert.equal(d('auto')?.kind, 'autonomous');
+  assert.equal(d('Şimdi otonom'), null);
+  assert.equal(d('Bunu da yap. otonom'), null);
+  assert.equal(d('manuel terminal devam')?.kind, 'manual');
+  assert.equal(d('Task. terminal devam kota 29')?.budget?.n, 29, 'a keyword that carries a task still ends the message');
+  assert.equal(d('bla bla bla kota 29')?.kind, 'quota');
 });
 
 test('flow keywords: start the full flow, the plan flow, the research flow, or cancel', () => {
@@ -103,6 +131,12 @@ test('flow keywords: start the full flow, the plan flow, the research flow, or c
   assert.equal(d('flow')?.flow, 'full');
   assert.equal(d('flow plan')?.flow, 'plan');
   assert.equal(d('flow cancel')?.flow, 'cancel');
+  assert.equal(d('akış araştırma plan')?.flow, 'researchPlan');
+  assert.equal(d('Bunu incele. akış araştır planla')?.flow, 'researchPlan');
+  assert.equal(d('flow research plan')?.flow, 'researchPlan');
+  assert.equal(d('akış plan araştırma'), null, 'the order is fixed: research comes before the plan');
+  assert.equal(d('akış araştırma kod'), null, 'research, then something that is not the plan');
+  assert.equal(d('akış kod plan'), null, 'the plan, after something that is not research');
   assert.equal(d('akış nasıl çalışıyor'), null);
   assert.equal(d('akış kod'), null); // no such flow
 });

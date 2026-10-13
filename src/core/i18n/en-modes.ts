@@ -235,7 +235,6 @@ export const enModes = {
   'flow.toast.notWaiting': 'No plan is waiting for approval',
   'flow.toast.held': 'That flow is open in another session',
   'flow.toast.running': 'A flow is already running here ({step}). To end it: {cancel}',
-  'flow.toast.turnMode': 'This turn only: {mode} (the flow stays at {step})',
   'flow.notify.waiting': 'A plan waits for your approval: {task}',
   'flow.band.waiting': '⏸ The plan waits for your approval: {path}. Type "{approve}" to approve, or say what to change.',
 } as const;

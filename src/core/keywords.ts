@@ -4,7 +4,10 @@
  *
  * Rules (from the working rules the tool was designed around):
  *  · a keyword counts only when it is the whole message or ends it; inside a sentence it is just a word;
- *  · "stop" and "wrap up" count only as the whole message, so they never fire by accident;
+ *  · "stop" and "wrap up" count only as the whole message, so they never fire by accident; so do the words
+ *    that switch the mode or the way of working ("plan", "otonom"): they are everyday words, and "Bu bir
+ *    plan." must not switch modes (decided with the person, 2026-10-13). Keywords that carry a task with
+ *    them ("… devam", "… kota 40", "… akış", "… tam otonom kota +10") still end a longer message;
  *  · matching ignores case, diacritics and keyboard variants (ı/i, İ, ş/s …), and a project name that is
  *    one typo away is offered as a suggestion, never silently taken.
  */
@@ -14,6 +17,8 @@ import type { Lang } from './i18n/index.js';
 export type KeywordKind =
   | 'continue'
   | 'manual'
+  | 'manualStyle'
+  | 'autonomous'
   | 'chat'
   | 'quota'
   | 'wrapUp'
@@ -29,13 +34,20 @@ export type KeywordKind =
   | 'fullAuto'
   | 'handoff';
 
-/** The phrase lists of a language: one per keyword kind, and the word that cancels a flow ("flow cancel"). */
-export type KeywordTable = Record<KeywordKind | 'cancel', string[]>;
+/**
+ * The phrase lists of a language: one per keyword kind, and the word that cancels a flow ("flow cancel").
+ * Working manually alone ("manuel") is the manual list's word on its own: it has no list of its own.
+ */
+export type KeywordTable = Record<KeywordList, string[]>;
+
+/** The lists a keyword table holds. */
+export type KeywordList = Exclude<KeywordKind, 'manualStyle'> | 'cancel';
 
 /** Every list a keyword table holds, in the order settings show them. */
-export const KEYWORD_LISTS: readonly (KeywordKind | 'cancel')[] = [
+export const KEYWORD_LISTS: readonly KeywordList[] = [
   'continue',
   'manual',
+  'autonomous',
   'chat',
   'quota',
   'wrapUp',
@@ -61,14 +73,26 @@ export function isModeKeyword(kind: KeywordKind): kind is ModeKeyword {
   return Object.hasOwn(MODE_KEYWORDS, kind);
 }
 
-/** Which flow a flow keyword starts, or that it cancels the running one. */
-export type FlowVariant = 'full' | 'plan' | 'research' | 'cancel';
+/** The keywords that set the way of working alone, and the interaction each sets. */
+export const STYLE_KEYWORDS = { manualStyle: 'manual', autonomous: 'autonomous' } as const;
+export type StyleKeyword = keyof typeof STYLE_KEYWORDS;
+
+export function isStyleKeyword(kind: KeywordKind): kind is StyleKeyword {
+  return Object.hasOwn(STYLE_KEYWORDS, kind);
+}
+
+/**
+ * Which flow a flow keyword starts, or that it cancels the running one: research ▶ plan → approval → code
+ * (full), plan → approval → code (plan), research alone (research), research ▶ plan with no code (researchPlan).
+ */
+export type FlowVariant = 'full' | 'plan' | 'research' | 'researchPlan' | 'cancel';
 
 /** Default phrases per language, already folded. People can extend them in the settings. */
 export const DEFAULT_KEYWORDS: Record<Lang, KeywordTable> = {
   tr: {
     continue: ['devam', 'devam et', 'devam edelim'],
     manual: ['manuel'],
+    autonomous: ['otonom'],
     chat: ['sohbet'],
     quota: ['kota'],
     wrapUp: ['toparla', 'toparlayalim'],
@@ -88,6 +112,7 @@ export const DEFAULT_KEYWORDS: Record<Lang, KeywordTable> = {
   en: {
     continue: ['continue'],
     manual: ['manual'],
+    autonomous: ['autonomous', 'auto'],
     chat: ['chat'],
     quota: ['quota'],
     wrapUp: ['wrap up', 'wrap-up'],
@@ -134,6 +159,8 @@ export interface KeywordMatch {
   text: string;
   /** True when the keyword was the whole message. */
   standalone: boolean;
+  /** How the person gave it: typed (the default), a slash command such as "/3", or a press on the mode strip. */
+  via?: 'command' | 'strip';
 }
 
 /** Words a project may not be named, because they are keywords themselves. */
@@ -221,6 +248,8 @@ export function detectKeyword(
       const inner = detectKeyword(combo[1]!, projects, { [lang]: t });
       if (inner && (inner.kind === 'continue' || inner.kind === 'manual' || (inner.kind === 'fullAuto' && inner.auto === 'start')))
         return { ...inner, text: end, standalone, budget: { n: parseInt(combo[3]!, 10), plus: combo[2] === '+' } };
+      // "… bunu da yap kota 29": a budget for the task in front of it (decided with the person, 2026-10-13).
+      return { ...base, text: end.slice(combo[1]!.length).trim(), standalone: false, kind: 'quota', plus: combo[2] === '+', n: parseInt(combo[3]!, 10) };
     }
 
     if (standalone && new RegExp(`^(?:${alt(t.stop)})$`).test(end)) return { ...base, kind: 'stop' };
@@ -233,7 +262,17 @@ export function detectKeyword(
     if (flow) {
       const rest = flow[1];
       const variant: FlowVariant | null =
-        rest === undefined ? 'full' : listHas(t.plan, rest) ? 'plan' : listHas(t.research, rest) ? 'research' : listHas(t.cancel, rest) ? 'cancel' : null;
+        rest === undefined
+          ? 'full'
+          : listHas(t.plan, rest)
+            ? 'plan'
+            : listHas(t.research, rest)
+              ? 'research'
+              : listHas(t.cancel, rest)
+                ? 'cancel'
+                : researchThenPlan(t, rest)
+                  ? 'researchPlan'
+                  : null;
       if (variant) return { ...base, kind: 'flow', flow: variant };
     }
 
@@ -246,8 +285,13 @@ export function detectKeyword(
       if (named) return { ...kind, projectText: auto[1], ...named };
     }
 
-    for (const kind of Object.keys(MODE_KEYWORDS) as ModeKeyword[])
-      if (t[kind].length && new RegExp(`^(?:${alt(t[kind])})$`).test(end)) return { ...base, kind };
+    // The mode and the way of working: the whole message only.
+    if (standalone) {
+      for (const kind of Object.keys(MODE_KEYWORDS) as ModeKeyword[])
+        if (t[kind].length && new RegExp(`^(?:${alt(t[kind])})$`).test(end)) return { ...base, kind };
+      if (t.manual.length && new RegExp(`^(?:${alt(t.manual)})$`).test(end)) return { ...base, kind: 'manualStyle' };
+      if (t.autonomous?.length && new RegExp(`^(?:${alt(t.autonomous)})$`).test(end)) return { ...base, kind: 'autonomous' };
+    }
 
     const manual = new RegExp(`^(?:${alt(t.manual)})\\s+(.{1,40}?)\\s+(?:${alt(t.continue)})$`).exec(end);
     if (manual) return { ...base, kind: 'manual', projectText: manual[1]!, ...resolveProject(manual[1]!, projects) };
@@ -275,6 +319,13 @@ export function detectKeyword(
     }
   }
   return null;
+}
+
+/** "araştırma plan", "research plan": the flow that researches, plans, and stops before any code. */
+function researchThenPlan(t: KeywordTable, rest: string): boolean {
+  const words = rest.split(' ');
+  for (let i = 1; i < words.length; i++) if (listHas(t.research, words.slice(0, i).join(' ')) && listHas(t.plan, words.slice(i).join(' '))) return true;
+  return false;
 }
 
 /**

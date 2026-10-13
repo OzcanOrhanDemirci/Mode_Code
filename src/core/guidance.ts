@@ -24,6 +24,10 @@ export function quotaLine(q: QuotaAssessment): string {
   return `Quota: 5-hour ${pct(q.five?.used)}, weekly ${pct(q.week?.used)} (${target}).`;
 }
 
+/** Working manually, as the person defined it: do the step, report, wait; ask when a decision is theirs. */
+const MANUAL_NOTE =
+  'work step by step. Do what the message asks, say what you did and what would come next, and wait for the person before going further; when something needs their decision, ask.';
+
 /** What a mode allows, for the model: one sentence each. */
 const MODE_NOTE: Record<WorkMode, string> = {
   free: 'free mode: no restriction beyond the safety belt and the project locks.',
@@ -37,7 +41,7 @@ const MODE_NOTE: Record<WorkMode, string> = {
 export interface KeywordExtras {
   /** The flows' work folder, for research and plan notes. */
   workDir?: string;
-  /** Set when a flow is attached: a mode keyword then changes one turn, or (as the whole message) pauses the flow. */
+  /** Set when a flow is attached: a mode keyword (always the whole message) pauses the flow at this step. */
   flow?: { step: string; paused: boolean } | null;
 }
 
@@ -51,7 +55,12 @@ export function keywordContext(
 ): string[] {
   const project = projectLabel ? ` for project "${projectLabel}"` : '';
   // Tie the note to words the model can see in the person's own message, so it reads as their shorthand, not as an instruction from nowhere.
-  const said = `${P} The person's message ${kw.standalone ? 'is' : 'ends with'} "${kw.text}", a keyword they set up in ${APP_NAME}, their Claude Code companion.`;
+  const said =
+    kw.via === 'command'
+      ? `${P} The person ran "${kw.text}", a command of ${APP_NAME}, their Claude Code companion.`
+      : kw.via === 'strip'
+        ? `${P} The person chose "${kw.text}" on ${APP_NAME}'s mode strip above the prompt (${APP_NAME} is their Claude Code companion).`
+        : `${P} The person's message ${kw.standalone ? 'is' : 'ends with'} "${kw.text}", a keyword they set up in ${APP_NAME}, their Claude Code companion.`;
   const unknownProject =
     kw.project === null && kw.projectText
       ? kw.suggestion
@@ -66,8 +75,12 @@ export function keywordContext(
           `skip such a step if later work does not depend on it, and list your autonomous decisions in the final report. ${quotaLine(quota)}${unknownProject}`,
       ];
     case 'manual':
+      return [`${said} Keyword "manual continue"${project}: ${MANUAL_NOTE} ${quotaLine(quota)}${unknownProject}`];
+    case 'manualStyle':
+      return [`${said} The way of working is now manual: ${MANUAL_NOTE}`];
+    case 'autonomous':
       return [
-        `${said} Keyword "manual continue"${project}: work step by step. Before each step that changes something, say what you will do and wait for the person. ${quotaLine(quota)}${unknownProject}`,
+        `${said} The way of working is now autonomous: go on without asking for approval between steps, and stop only for a decision the person must make (irreversible or outward-facing steps, a direction with no single right answer, a project lock). The mode stays as it is.`,
       ];
     case 'chat':
     case 'research':
@@ -76,8 +89,6 @@ export function keywordContext(
     case 'free': {
       const mode = MODE_KEYWORDS[kw.kind];
       const note = MODE_NOTE[mode].replace('{work}', extras.workDir ? ` (${extras.workDir})` : '');
-      if (extras.flow && !extras.flow.paused)
-        return [`${said} Keyword "${kw.kind}": for this turn only, ${note} The flow stays at its ${extras.flow.step} step and goes on from the next message.`];
       if (extras.flow?.paused)
         return [
           `${said} Keyword "${kw.kind}": the person switched to ${note} The flow is paused at its ${extras.flow.step} step: keep its draft as it is and work in the new mode. "continue" resumes the flow.`,
@@ -111,6 +122,24 @@ export function keywordContext(
     default:
       return [];
   }
+}
+
+/**
+ * Told with the first prompt when the session took up the mode and the way of working the person last
+ * used in this folder (the strip shows them): what they allow, and how the person changes them.
+ */
+export function restoredContext(mode: WorkMode, interaction: 'default' | 'manual' | 'autonomous', workDir: string): string {
+  const note = MODE_NOTE[mode].replace('{work}', ` (${workDir})`);
+  const style =
+    interaction === 'autonomous'
+      ? 'work autonomously: go on without asking between steps and stop only for a decision the person must make'
+      : `work manually: ${MANUAL_NOTE.charAt(0).toLowerCase()}${MANUAL_NOTE.slice(1)}`;
+  return `${P} This session starts as the person last left this folder, as the mode strip above the prompt shows: ${note} And ${style} They change either with /1 to /8, a press on the strip, or the keyword typed as the whole message.`;
+}
+
+/** Told with the person's prompt when they chose a folder to continue that is not a registered project. */
+export function continueFolderContext(folder: string, here: boolean): string {
+  return `${P} The project to continue is the folder ${folder}${here ? ", this session's own folder" : ": not this session's folder, so work there"}.`;
 }
 
 export function wrapUpContext(q: QuotaAssessment): string {

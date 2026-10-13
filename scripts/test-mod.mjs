@@ -9,7 +9,7 @@
  * Exit: 0 passed · 1 failed · 0 with "skipped" when Claude Code is not installed (nothing to run against).
  */
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -93,10 +93,19 @@ const ALLOWED = new Set([
   'session.messages',
   'session.model',
   'settings.read',
+  // The controls (docs/modes.md, "Controls"): the slash commands /0 to /9, /devam, /kota and /akis are
+  // registered and answered; a press on the strip above the prompt runs the same command.
+  'command.register',
+  'command.run',
 ]);
 const notes = (report.contents ?? []).flatMap((c) => c.notes ?? []);
 const callsNote = notes.find((n) => / calls: /.test(n)) ?? '';
-const calls = [...callsNote.matchAll(/\$\.([a-z]+\.[a-zA-Z]+)/g)].map((m) => m[1]);
+// The validator cuts a long list ("$.tool.re… [+96 chars]"): only whole names count from it, and the
+// bundle itself is read too, so a call past the cut is still seen.
+const listed = [...callsNote.matchAll(/\$\.([a-z]+\.[a-zA-Z]+)(?![a-zA-Z…])/g)].map((m) => m[1]);
+const source = readFileSync(join(plugin, 'hooks', 'register.js'), 'utf8');
+const read = [...source.matchAll(/\$\.([a-z]+\.[a-zA-Z]+)\s*\(/g)].map((m) => m[1]);
+const calls = [...new Set([...listed, ...read])];
 const unexpected = calls.filter((c) => !ALLOWED.has(c));
 if (!calls.length || unexpected.length) {
   console.error(`test-mod: the mod calls ${unexpected.length ? `something not reviewed: ${unexpected.join(', ')}` : 'nothing the validator could list'}`);

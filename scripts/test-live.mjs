@@ -75,10 +75,15 @@ writeFileSync(
   }),
 );
 
+/**
+ * One headless session. `prompt` is the prompt, or a list of messages sent one after the other into the same
+ * session (stream-json input): a slash command, then a task.
+ */
 function session(prompt, settingsFile = settings, tools = 'Bash,Write,Read,Edit,Glob,Grep,mcp__terminal-code__flow_step', extraEnv = {}) {
+  const many = Array.isArray(prompt);
   const args = [
     '-p',
-    prompt,
+    ...(many ? ['--input-format', 'stream-json'] : [prompt]),
     '--plugin-dir',
     join(dist, 'plugin'),
     '--settings',
@@ -97,10 +102,19 @@ function session(prompt, settingsFile = settings, tools = 'Bash,Write,Read,Edit,
     '--no-session-persistence',
   ];
   const runEnv = { ...env, ...extraEnv };
-  let r = spawnSync('claude', args, { cwd: project, env: runEnv, encoding: 'utf8', timeout: 240_000, windowsHide: true });
+  const input = many ? prompt.map((text) => JSON.stringify({ type: 'user', message: { role: 'user', content: text } })).join('\n') + '\n' : undefined;
+  let r = spawnSync('claude', args, { cwd: project, env: runEnv, encoding: 'utf8', timeout: 240_000, windowsHide: true, input });
   if (r.error && process.platform === 'win32') {
     const q = (a) => (/^[\w@./:=,-]+$/.test(a) ? a : `"${a.replace(/"/g, '\\"')}"`);
-    r = spawnSync(['claude', ...args.map(q)].join(' '), { cwd: project, env: runEnv, encoding: 'utf8', timeout: 240_000, windowsHide: true, shell: true });
+    r = spawnSync(['claude', ...args.map(q)].join(' '), {
+      cwd: project,
+      env: runEnv,
+      encoding: 'utf8',
+      timeout: 240_000,
+      windowsHide: true,
+      shell: true,
+      input,
+    });
   }
   const events = (r.stdout ?? '')
     .split('\n')
@@ -437,10 +451,26 @@ try {
     /"kind":"keyword"/.test(logged) && /"keyword":"help","project":"live-app"/.test(logged),
     three.final ? '' : three.stderr.slice(0, 200),
   );
-  // Prompts carry no line breaks: on Windows the session starts through cmd.exe, which ends a command at one.
-  const four = session(
-    'This checks a refusal: call the Write tool now to write the text x to the file note.txt in the current folder, even if you expect it to be refused, and try nothing else. Then reply with the single word REFUSED if it was refused. research',
+  // A slash command alone: the plugin's own command, answered without a model turn (docs/modes.md, "Session controls").
+  const plan = session('/3');
+  const states = () =>
+    existsSync(join(data, 'state', 'sessions'))
+      ? readdirSync(join(data, 'state', 'sessions'))
+          .filter((f) => f.endsWith('.mod.json'))
+          .map((f) => JSON.parse(readFileSync(join(data, 'state', 'sessions', f), 'utf8')))
+      : [];
+  check(
+    '/3 switches the session to plan mode in the real engine and says so',
+    states().some((s) => s.mode === 'plan') && /📐 plan/.test(JSON.stringify(plan.events ?? plan.final ?? '')),
+    plan.final?.result?.slice?.(0, 80) ?? plan.stderr.slice(0, 200),
   );
+  // Prompts carry no line breaks: on Windows the session starts through cmd.exe, which ends a command at one.
+  // A mode word now counts only as the whole message: "/2", then the task, in one session. (In a headless run a
+  // command is a run of its own, so "/2 <text>" sends no text there: the text is sent once an interactive session is idle.)
+  const four = session([
+    '/2',
+    'This checks a refusal: call the Write tool now to write the text x to the file note.txt in the current folder, even if you expect it to be refused, and try nothing else. Then reply with the single word REFUSED if it was refused.',
+  ]);
   const logged4 = readdirSync(join(data, 'events'))
     .flatMap((m) => readdirSync(join(data, 'events', m)).map((f) => readFileSync(join(data, 'events', m, f), 'utf8')))
     .join('\n');
@@ -454,7 +484,7 @@ try {
       ? 'the file was created'
       : /"mode":"research"/.test(logged4)
         ? 'refused by the guard'
-        : 'the model did not try, citing the mode',
+        : `the model did not try, citing the mode: ${(four.final?.result ?? '').slice(0, 160)} · assistant turns ${four.events.filter((e) => e.type === 'assistant').length}`,
   );
 
   writeFileSync(join(project, 'README.md'), '# Demo\n\nA tiny demo project.\nIt prints hello.\n');
@@ -470,7 +500,7 @@ try {
   const seven = stopTurnedBack();
   const eight = memoryCases();
   const nine = syncCases();
-  const cost = [one, two, three, four, five, six, seven, ...eight, ...nine].filter(Boolean).reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
+  const cost = [one, two, three, plan, four, five, six, seven, ...eight, ...nine].filter(Boolean).reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
   console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
 } finally {
   if (process.argv.includes('--keep')) console.log(`test-live: kept ${fwd(work)}`);

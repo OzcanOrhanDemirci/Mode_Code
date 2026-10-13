@@ -25,7 +25,38 @@ import type { BeltContext, BeltDecision, GitFacts } from '../core/belt/types.js'
 import { checkGuards, type ModeGuard } from '../core/guard.js';
 import { detectKeyword, isModeKeyword, messageWithoutKeyword, MODE_KEYWORDS, type KeywordMatch } from '../core/keywords.js';
 import {
+  actionKeyword,
+  CHOICE_LINE,
+  choicesText,
+  commandNamed,
+  COMMANDS,
+  continueChoices,
+  continuePhrase,
+  controlsLine,
+  FLOW_PRESETS,
+  flowPhrase,
+  flowPresetLine,
+  fullAutoPhrase,
+  lastChoice,
+  menuText,
+  parseBudget,
+  pickChoice,
+  splitBudget,
+  stripRows,
+  styleOf,
+  type Budget,
+  type ContinueChoice,
+  type ControlAction,
+  type StartableVariant,
+  type StripItem,
+  type StripView,
+} from '../core/controls.js';
+import { ago, percent, shortPath } from '../core/format.js';
+import { fold } from '../core/text.js';
+import {
   conflictContext,
+  continueFolderContext,
+  restoredContext,
   flowNote,
   flowResumeContext,
   flowStartContext,
@@ -215,6 +246,17 @@ interface Ctx {
   memStart: Promise<unknown> | null;
   /** What syncs brought in from elsewhere since the last prompt, told to Claude with the next one. */
   memPulled: Pulled | null;
+  // ── the controls (docs/modes.md, "Controls") ──
+  /** The session had no record of its own when it was loaded: a new session, or the one after /clear. */
+  fresh: boolean;
+  /** The session took up the person's last choice in this folder: the model is told with the first prompt. */
+  restored: boolean;
+  /** A flow or a full-autonomy run asked for by `/9` or `/8` without a task: the person's next message is its task. */
+  armed: { kind: 'flow'; variant: StartableVariant } | { kind: 'fullAuto'; budget: Budget } | null;
+  /** A folder chosen with `/devam` that is not a registered project: the "continue" just submitted is about it. */
+  pendingContinue: { key: string; folder: string; label: string } | null;
+  /** The text this plugin last sent as the person's (sendAsPerson): already applied, so not again if it comes back. */
+  selfSent: string | null;
 }
 
 /**
@@ -236,7 +278,7 @@ let ctxPromise: Promise<Ctx> | null = null;
 
 /** Session state the drawings read (kept by Claude Code across reloads of this module). */
 const footersAtom = atom({ plugin: 'terminal-code', key: 'footers' } as const, {} as TerminalCodeFooters);
-const labelsAtom = atom({ plugin: 'terminal-code', key: 'labels' } as const, { modes: [], tail: '', band: '' } as TerminalCodeLabels);
+const labelsAtom = atom({ plugin: 'terminal-code', key: 'labels' } as const, { modes: [], tail: '', band: '', strip: null } as TerminalCodeLabels);
 
 /** Environment variables the belt may need to expand in paths; the API reads them one literal name at a time. */
 async function readEnv($: $): Promise<Record<string, string | undefined>> {
@@ -390,6 +432,11 @@ async function load($: $): Promise<Ctx> {
     memWarned: new Set(),
     memStart: null,
     memPulled: null,
+    fresh: !(previous && previous.sessionId === sessionId),
+    restored: false,
+    armed: null,
+    pendingContinue: null,
+    selfSent: null,
     local,
     syncPending: merged.pending,
     syncSaid: new Set(),
@@ -2008,16 +2055,17 @@ async function autoTurnEnded($: $, c: Ctx): Promise<void> {
  * Code's own), and the quota dim at the end of the hint line. Drawn by render hooks, so no notice prefix.
  */
 async function refreshStatus($: $, c: Ctx): Promise<void> {
+  const strip = c.config.modules.modes ? { ...viewOf(c), lang: c.lang } : null;
   if (!c.config.modules.status) {
-    await update($, labelsAtom, () => ({ modes: [], tail: '', band: '' }));
+    await update($, labelsAtom, () => ({ modes: [], tail: '', band: '', strip }));
     return;
   }
   const q = await quotaNow($, c);
   const modes: string[] = [];
   let band = '';
   if (c.config.modules.modes) {
-    const mode = modeNow(c);
-    if (mode !== 'free') modes.push(tIn(c.lang, `status.${mode}` as MessageKey));
+    // The mode and the way of working are always in view, the defaults too (the person, 2026-10-13).
+    modes.push(tIn(c.lang, `status.${modeNow(c)}` as MessageKey));
     if (c.flow) {
       const p = progress(c.flow);
       modes.push(c.flow.status === 'paused' ? tIn(c.lang, 'status.flowPaused') : tIn(c.lang, 'status.flow', { at: p.at, of: p.of }));
@@ -2035,8 +2083,8 @@ async function refreshStatus($: $, c: Ctx): Promise<void> {
             ? tIn(c.lang, 'status.auto', { at: `${p.done}/${p.of}` })
             : tIn(c.lang, 'status.autoFinish'),
     );
-  } else if (c.state.interaction === 'autonomous') modes.push(tIn(c.lang, 'status.autonomous'));
-  else if (c.state.interaction === 'manual') modes.push(tIn(c.lang, 'status.manual'));
+  } else if (c.config.modules.modes || c.state.interaction !== 'default')
+    modes.push(tIn(c.lang, c.state.interaction === 'autonomous' ? 'status.autonomous' : 'status.manual'));
   if (c.state.wrapUp) modes.push(tIn(c.lang, 'status.wrapUp'));
   if (c.state.resumeAt) {
     const d = new Date(c.state.resumeAt);
@@ -2050,7 +2098,7 @@ async function refreshStatus($: $, c: Ctx): Promise<void> {
         ? tIn(c.lang, 'status.weekTarget', { n: Math.round(q.week.used), target: c.state.weeklyTarget })
         : tIn(c.lang, 'status.week', { n: Math.round(q.week.used) }),
     );
-  await update($, labelsAtom, () => ({ modes, tail: quota.length ? `🛡 ${quota.join(' · ')}` : '🛡', band }));
+  await update($, labelsAtom, () => ({ modes, tail: quota.length ? `🛡 ${quota.join(' · ')}` : '🛡', band, strip }));
 }
 
 /**
@@ -2252,11 +2300,29 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
     extra.push(...(await sameFolderNotes($, c)));
   }
   let flowSaid = false;
-  if (human && c.config.modules.keywords) {
-    const said = await keywordTurn($, c, String(e.text ?? ''));
+  // The first prompt after the session took up the folder's last choice: the model is told what it is.
+  if (human && c.restored) {
+    c.restored = false;
+    const cwd = await $.session.cwd();
+    extra.push(restoredContext(c.state.mode, c.state.interaction === 'autonomous' ? 'autonomous' : 'manual', workRoot(c, cwd)));
+  }
+  let typed = String(e.text ?? '');
+  // `/9` or `/8` without a task: the person's next own message is the task, unless it is a keyword itself.
+  if (human && kind !== 'plugin' && c.armed) {
+    const a = c.armed;
+    c.armed = null;
+    if (!detectKeyword(typed, projectRefs(c.config), keywordTables(c.config)))
+      typed = `${typed}\n\n${a.kind === 'flow' ? flowPhrase(a.variant, c.lang) : fullAutoPhrase(a.budget, c.lang)}`;
+  }
+  // A text this plugin sent for the person was applied when it was sent (sendAsPerson).
+  const applied = ours && c.selfSent !== null && typed === c.selfSent;
+  if (ours) c.selfSent = null;
+  if (human && !applied && (c.config.modules.keywords || typed !== String(e.text ?? ''))) {
+    const said = await keywordTurn($, c, typed);
     extra.push(...said.context);
     flowSaid = said.flow;
   }
+  if (human) c.pendingContinue = null;
   // While a flow runs, every prompt carries where it stands (short), unless a flow keyword just said more.
   const running = flowRunning(c);
   if (human && running && !flowSaid && c.config.modules.modes) extra.push(flowTurnContext(running, c.lang, stepTexts(c, running)));
@@ -2296,6 +2362,19 @@ async function syncPermissionMode($: $, c: Ctx): Promise<void> {
 async function keywordTurn($: $, c: Ctx, text: string): Promise<{ context: string[]; flow: boolean }> {
   const kw: KeywordMatch | null = detectKeyword(text, projectRefs(c.config), keywordTables(c.config));
   if (!kw) return { context: [], flow: false };
+  return applyKeywordTurn($, c, kw, text);
+}
+
+/**
+ * Applies a keyword to the session and returns the context it adds: one typed, or one a slash command or a
+ * press on the strip stands for (see actionKeyword), so all three do exactly the same.
+ */
+async function applyKeywordTurn($: $, c: Ctx, given: KeywordMatch, text: string): Promise<{ context: string[]; flow: boolean }> {
+  let kw = given;
+  // "continue" just after `/devam` chose a folder that is not a registered project: that folder's work.
+  const folder = kw.kind === 'continue' && kw.project === undefined ? c.pendingContinue : null;
+  c.pendingContinue = null;
+  if (folder) kw = { ...kw, project: folder.key };
   const modes = c.config.modules.modes;
   if (!modes && (isModeKeyword(kw.kind) || kw.kind === 'flow' || kw.kind === 'approve')) return { context: [], flow: false };
   const now = await $.clock.now();
@@ -2308,7 +2387,7 @@ async function keywordTurn($: $, c: Ctx, text: string): Promise<{ context: strin
     pausedFor = stepName(currentStep(running)!.kind, c.lang);
     await pauseAttached($, c, 'mode');
   }
-  c.state = applyKeyword(c.state, kw, target, { inFlow: !!running });
+  c.state = applyKeyword(c.state, kw, target);
   // While a run is attached the session's interaction is the run's; "full auto cancel" lets it go.
   if (c.run && !(kw.kind === 'fullAuto' && kw.auto === 'cancel')) c.state = { ...c.state, interaction: 'full' };
   if (kw.kind === 'continue' || kw.kind === 'manual') c.state = { ...c.state, resumeAt: null };
@@ -2336,16 +2415,10 @@ async function keywordTurn($: $, c: Ctx, text: string): Promise<{ context: strin
     return { context: [handoffAskContext(false)], flow: false };
   }
 
-  const label = kw.project ? (c.config.projects.find((p) => p.id === kw.project)?.names[0] ?? kw.project) : null;
+  const label = kw.project ? (c.config.projects.find((p) => p.id === kw.project)?.names[0] ?? folder?.label ?? kw.project) : null;
   const kindLabel = tIn(c.lang, `kw.kind.${kw.kind}` as MessageKey);
-  if (running && isModeKeyword(kw.kind) && !kw.standalone)
-    $.ui.toast(
-      tIn(c.lang, 'flow.toast.turnMode', {
-        mode: tIn(c.lang, `mode.name.${MODE_KEYWORDS[kw.kind]}` as MessageKey),
-        step: stepName(currentStep(running)!.kind, c.lang),
-      }),
-    );
-  else
+  // A command's own output row says what changed; a typed keyword is confirmed by a toast.
+  if (!kw.via)
     $.ui.toast(
       kw.project === null && kw.projectText
         ? tIn(c.lang, 'kw.toast.unknownProject', { kind: kindLabel, text: kw.projectText })
@@ -2356,6 +2429,7 @@ async function keywordTurn($: $, c: Ctx, text: string): Promise<{ context: strin
     workDir: workRoot(c, cwd),
     flow: running && isModeKeyword(kw.kind) ? { step: pausedFor ?? stepName(currentStep(running)!.kind, c.lang), paused: pausedFor !== null } : null,
   });
+  if (folder) context.push(continueFolderContext(folder.folder, pathKey(folder.folder, c.platform) === pathKey(resolvePath(cwd, pathEnv(c, cwd)), c.platform)));
   // "Continue" resumes a paused full-autonomy run first (the attached one, or the project's or this folder's).
   if (kw.kind === 'continue') {
     const resumed = await autoResume($, c, kw.project ?? c.state.project, cwd);
@@ -2663,10 +2737,17 @@ const FLOW_TOOL = {
 async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.start'>): Out<'session.start'> {
   ctxPromise = null;
   const c = await ctxOf($);
+  // What changed in the memory elsewhere comes in as the session starts (docs/memory.md), then the sync across
+  // computers (docs/sync.md). Both start first, so that a prompt typed at once finds them and waits: Claude Code
+  // may have loaded the index already, and what came in is told with that first prompt.
+  c.memStart = memorySync($, c, 'start');
+  c.sharedStart = c.memStart.then(() => sharedSync($, c, 'start'));
+  if (c.fresh && c.config.modules.modes) await restoreLast($, c);
   await saveState($, c);
   if (c.state.resumeAt) await scheduleResume($, c);
   await refreshStatus($, c);
   const r = await next(e);
+  const commands = registerCommands($, c);
   if (c.config.modules.modes) {
     try {
       await $.tool.register(FLOW_TOOL);
@@ -2691,12 +2772,9 @@ async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.st
     const waiting = await runToResume($, c, null, cwd);
     if (waiting && waiting.status === 'paused') $.ui.toast(tIn(c.lang, 'auto.toast.found', { cont: tIn(c.lang, 'kw.kind.continue') }), { timeoutMs: 10_000 });
   }
-  // What changed in the memory elsewhere comes in as the session starts (docs/memory.md). Claude Code may have
-  // loaded the index already: what came in is told with the first prompt, which waits for this.
-  c.memStart = memorySync($, c, 'start');
+  // The session's start waits for the memory's pull; the sync across computers goes on while the person types.
   await c.memStart;
-  // Sync across computers goes on while the person types; the first prompt waits for it (docs/sync.md).
-  c.sharedStart = sharedSync($, c, 'start');
+  await commands;
   return r;
 }
 
@@ -3247,6 +3325,341 @@ async function memoryPromptContext($: $, c: Ctx, kw: KeywordMatch | null): Promi
   return out;
 }
 
+// ── the session's controls: the strip above the prompt and the slash commands (docs/modes.md, "Controls") ──
+
+/** What the strip, the menu and the confirmations show: the mode in effect, the way of working, the flow's place. */
+function viewOf(c: Ctx): StripView {
+  const f = flowRunning(c);
+  const p = f ? progress(f) : null;
+  return { mode: modeNow(c), style: styleOf(c.state.interaction, !!c.run), flow: p ? `${p.at}/${p.of}` : null, fullAutoHere: c.platform !== 'win32' };
+}
+
+const COMMAND_HINT: Record<ControlAction['kind'], MessageKey | null> = {
+  mode: 'ctl.hint.text',
+  style: 'ctl.hint.text',
+  fullAuto: 'ctl.hint.fullAuto',
+  flow: 'ctl.hint.flow',
+  menu: null,
+  continue: 'ctl.hint.continue',
+  quota: 'ctl.hint.quota',
+};
+
+function commandDescription(a: ControlAction, lang: Lang): string {
+  if (a.kind === 'mode') return tIn(lang, `ctl.desc.mode.${a.mode}` as MessageKey);
+  if (a.kind === 'style') return tIn(lang, `ctl.desc.style.${a.style}` as MessageKey);
+  return tIn(lang, `ctl.desc.${a.kind}` as MessageKey);
+}
+
+/** The slash commands, in the person's language. The mode, the way of working, the menu and the budget act at once, mid-turn too: the brake. */
+async function registerCommands($: $, c: Ctx): Promise<void> {
+  // All asked at once, while the start's hook runs: a call made after it returned would not count.
+  await Promise.all(
+    COMMANDS.map((cmd) => {
+      const hint = COMMAND_HINT[cmd.action.kind];
+      const now = cmd.action.kind === 'mode' || cmd.action.kind === 'style' || cmd.action.kind === 'menu' || cmd.action.kind === 'quota';
+      return $.command
+        .register({
+          name: cmd.name,
+          description: commandDescription(cmd.action, c.lang),
+          ...(hint ? { argumentHint: tIn(c.lang, hint) } : {}),
+          ...(now ? { immediate: true as const } : {}),
+        })
+        .catch(() => undefined); // a name Claude Code keeps for itself: the digits and the other words still work
+    }),
+  );
+}
+
+/**
+ * `text` as the person's message, sent on their behalf ("/2 look into it", "/devam 3"): its keywords are applied
+ * here, now, as if typed (the plugin's own prompt hook may not see a prompt it submitted), and the notes they
+ * add are answered for the command's row; then the text goes as the person's own words. Claude Code refuses a
+ * prompt submitted from the command's hook itself (it would wait on the turn the hook holds), so it goes from
+ * a timer the moment the command is done; if the plugin's prompt hook does see it, it is not applied twice.
+ */
+async function sendAsPerson($: $, c: Ctx, text: string): Promise<string[]> {
+  const notes: string[] = [];
+  const said = await keywordTurn($, c, text);
+  notes.push(...said.context);
+  // "Continue" brings the project's handoff note in full, as it does when typed (memoryPromptContext).
+  const kw = detectKeyword(text, projectRefs(c.config), keywordTables(c.config));
+  if (kw?.kind === 'continue') {
+    const h = await waitingHandoff($, c);
+    if (h) notes.push(handoffFull(h.text, h.path));
+  }
+  await refreshStatus($, c);
+  c.selfSent = text;
+  $.clock.after(1, () => {
+    $.prompt.submit({ text, asUser: true }).catch((err: unknown) => $.ui.toast(`${APP_NAME}: ${String((err as Error)?.message ?? err).slice(0, 300)}`));
+  });
+  return notes;
+}
+
+/**
+ * A press on the strip or on a row of `/devam`'s list: the same control a slash command runs. Its line shows
+ * as a toast; its notes for the model go into the conversation at once (read from the running turn's next
+ * request too: a press while Claude works is the brake), as rows the person does not see as typed.
+ */
+async function press($: $, name: string, args = ''): Promise<void> {
+  try {
+    const r = await control($, name, args, 'strip');
+    if (r.context?.length) await $.session.append({ message: { type: 'user', content: [{ type: 'text', text: r.context.join('\n\n') }] } });
+    $.ui.toast(name === '0' ? r.text.split('\n')[0]! : r.text, { timeoutMs: 8000 });
+  } catch {
+    /* a press that cannot act shows nothing; the slash command says why */
+  }
+}
+
+/** Asks the person to pick one of 2-4 options (or type under "Other"); null when they dismissed it or nobody can be asked. */
+async function askOptions($: $, question: string, options: readonly string[]): Promise<string | null> {
+  try {
+    const answer = (await $.ui.ask(question, [...options])).trim();
+    return answer || null;
+  } catch {
+    return null;
+  }
+}
+
+function percentText(n: number | null, lang: Lang): string {
+  return n === null ? '?' : percent(n, lang);
+}
+
+function budgetText(b: Budget, lang: Lang): string {
+  return b.plus ? `+${b.n}` : percent(b.n, lang);
+}
+
+/** Every project and folder the person may want to continue (see continueChoices). */
+async function continueChoicesOf($: $, c: Ctx): Promise<ContinueChoice[]> {
+  const cwd = await $.session.cwd();
+  const env = pathEnv(c, cwd);
+  const cdir = claudeDirOf(c, cwd);
+  const global = c.env.CLAUDE_CONFIG_DIR ? joinPath(cdir, '.claude.json') : joinPath(c.home, '.claude.json');
+  let known: string[] = [];
+  try {
+    known = Object.keys((JSON.parse((await readFile($, global)) ?? '{}') as { projects?: Record<string, unknown> }).projects ?? {});
+  } catch {
+    known = [];
+  }
+  // When work last happened in each: Claude Code keeps one folder of transcripts per project, named after its path.
+  let dirs: { name: string; mtimeMs: number }[] = [];
+  try {
+    dirs = await $.fs.list(joinPath(cdir, 'projects'));
+  } catch {
+    dirs = [];
+  }
+  const touched = new Map(dirs.map((d) => [d.name, d.mtimeMs]));
+  const folders = known.map((p) => ({ path: resolvePath(p, env), at: touched.get(p.replace(/[^A-Za-z0-9]/g, '-')) ?? 0 }));
+  // And the folders this tool's sessions worked in.
+  for (const s of await sessionStates($, c)) if (s.cwd) folders.push({ path: s.cwd, at: s.aliveAt });
+  return continueChoices({ projects: c.config.projects, folders, platform: c.platform });
+}
+
+/** The records of this computer's `limit` most recent sessions, newest first. */
+async function sessionStates($: $, c: Ctx, limit = 200): Promise<ModSessionState[]> {
+  let entries: { name: string; mtimeMs: number }[] = [];
+  try {
+    entries = (await $.fs.list(c.layout.sessionsDir)).filter((x) => x.name.endsWith('.mod.json')).sort((a, b) => b.mtimeMs - a.mtimeMs);
+  } catch {
+    return [];
+  }
+  const out: ModSessionState[] = [];
+  for (const x of entries.slice(0, limit)) {
+    const s = parseModState(await readFile($, joinPath(c.layout.sessionsDir, x.name)));
+    if (s) out.push(s);
+  }
+  return out;
+}
+
+/** Continues `ch`: a registered project by its name, any other folder by its project key, both as the person's "devam". */
+async function continueWith($: $, c: Ctx, ch: ContinueChoice, budget: Budget | null): Promise<{ text: string; context: string[] }> {
+  const reg = ch.project ? c.config.projects.find((p) => p.id === ch.project) : undefined;
+  let notes: string[] = [];
+  if (reg) notes = await sendAsPerson($, c, continuePhrase(reg.names[0] ?? reg.id, budget, c.lang));
+  else if (ch.folder) {
+    const top = await gitIn($, ch.folder, ['rev-parse', '--show-toplevel'], 5000);
+    const folder = top.ok && top.out ? resolvePath(top.out, pathEnv(c, ch.folder)) : ch.folder;
+    const remote = top.ok ? await gitIn($, folder, ['config', '--get', 'remote.origin.url'], 5000) : null;
+    c.pendingContinue = { key: projectKey({ id: null, remote: remote?.ok ? remote.out : null, folder }), folder, label: ch.label };
+    notes = await sendAsPerson($, c, continuePhrase(null, budget, c.lang));
+  }
+  return { text: tIn(c.lang, 'ctl.continue.started', { label: ch.label }), context: notes };
+}
+
+/** The flow last started in this folder: `/9 <task>` starts the same kind again. */
+async function lastFlowVariant($: $, c: Ctx): Promise<StartableVariant | null> {
+  const cwd = await $.session.cwd();
+  const here = pathKey(resolvePath(cwd, pathEnv(c, cwd)), c.platform);
+  let dirs: { name: string }[] = [];
+  try {
+    dirs = await $.fs.list(c.layout.flowsDir);
+  } catch {
+    return null;
+  }
+  for (const d of [...dirs].sort((a, b) => b.name.localeCompare(a.name, 'en')).slice(0, 50)) {
+    const f = parseFlow(await readFile($, joinPath(c.layout.flowsDir, d.name, 'flow.json')));
+    if (f && pathKey(f.cwd, c.platform) === here) return f.variant;
+  }
+  return null;
+}
+
+/** A command this plugin ran itself ($.command.run) came from a press; anything else, from the person's slash command. */
+function viaOf(e: In<'command.run'>): 'command' | 'strip' {
+  const o = e.origin as { kind?: string; name?: string } | undefined;
+  return o?.kind === 'plugin' && o.name === PLUGIN_NAME ? 'strip' : 'command';
+}
+
+async function onCommand($: $, e: In<'command.run'>, next: Nx<'command.run'>): Out<'command.run'> {
+  if (!commandNamed(e.command)) return next(e);
+  return control($, e.command, String(e.args ?? ''), viaOf(e));
+}
+
+/**
+ * A control, by its command's name: what `/3` and a press on the strip both do. Answers the line to show and
+ * the notes for the model.
+ */
+async function control($: $, name: string, given: string, via: 'command' | 'strip'): Promise<{ text: string; context?: string[] }> {
+  const action = commandNamed(name)!;
+  const c = await ctxOf($);
+  const args = given.trim();
+  const lang = c.lang;
+  const say = (text: string, context?: string[]) => ({ text, ...(context?.length ? { context } : {}) });
+  if (!c.config.modules.modes && (action.kind === 'mode' || action.kind === 'style' || action.kind === 'flow' || action.kind === 'fullAuto'))
+    return say(tIn(lang, 'ctl.modesOff'));
+  const letRunGo = `${tIn(lang, 'kw.kind.fullAuto')} ${tIn(lang, 'flow.word.cancel')}`;
+  switch (action.kind) {
+    case 'mode':
+    case 'style': {
+      if (action.kind === 'style' && c.run) return say(tIn(lang, 'ctl.runAttached', { cancel: letRunGo }));
+      const kw = actionKeyword(action, lang, via);
+      const said = await applyKeywordTurn($, c, kw, kw.text);
+      await refreshStatus($, c);
+      const sent = args ? await sendAsPerson($, c, args) : [];
+      return say(tIn(lang, 'ctl.done', { controls: controlsLine(viewOf(c), lang) }), [...said.context, ...sent]);
+    }
+    case 'menu':
+      return say(menuText(viewOf(c), lang, (await quotaTail($)).replace(/^🛡\s*/, '') || '—'));
+    case 'quota': {
+      const q = await quotaNow($, c);
+      const week = q.usable && q.week ? Math.round(q.week.used) : null;
+      let budget = args ? parseBudget(args) : null;
+      if (args && !budget) return say(tIn(lang, 'ctl.quota.bad'));
+      if (!budget) {
+        const answer = await askOptions($, tIn(lang, 'ctl.quota.ask', { week: percentText(week, lang) }), ['+5', '+10', '+20']);
+        if (answer === null) return say(tIn(lang, 'ctl.cancelled'));
+        budget = parseBudget(answer);
+        if (!budget) return say(tIn(lang, 'ctl.quota.bad'));
+      }
+      if (budget.plus && week === null) return say(tIn(lang, 'ctl.quota.noReading'));
+      if (!budget.plus && week !== null && week >= budget.n) return say(tIn(lang, 'ctl.quota.past', { week, target: budget.n }));
+      const kw: KeywordMatch = {
+        kind: 'quota',
+        lang,
+        n: budget.n,
+        plus: budget.plus,
+        text: `/${name} ${budgetText(budget, lang)}`,
+        standalone: true,
+        via,
+      };
+      const said = await applyKeywordTurn($, c, kw, kw.text);
+      await refreshStatus($, c);
+      return say(tIn(lang, 'ctl.quota.set', { target: c.state.weeklyTarget ?? budget.n }), said.context);
+    }
+    case 'continue': {
+      const { budget, rest } = splitBudget(args);
+      const choices = await continueChoicesOf($, c);
+      if (!choices.length) return say(tIn(lang, 'ctl.continue.empty'));
+      const now = await $.clock.now();
+      if (!rest)
+        return say(
+          choicesText(
+            choices,
+            lang,
+            (p) => shortPath(p, c.home, 60),
+            (at) => ago(at, now, lang),
+          ),
+        );
+      const picked = pickChoice(choices, rest, (ch) => {
+        const p = ch.project ? c.config.projects.find((x) => x.id === ch.project) : undefined;
+        return p ? [...p.names, p.id] : [ch.label];
+      });
+      if (!picked.choice)
+        return say(
+          picked.matches.length
+            ? tIn(lang, 'ctl.continue.ambiguous', { text: rest, list: picked.matches.map((m) => `${m.n} ${m.label}`).join(', ') })
+            : tIn(lang, 'ctl.continue.none', { text: rest }),
+        );
+      const went = await continueWith($, c, picked.choice, budget);
+      return say(went.text, went.context);
+    }
+    case 'flow': {
+      const running = flowRunning(c);
+      if (running)
+        return say(tIn(lang, 'ctl.flow.running', { steps: stepsLine(running, lang), cancel: `${tIn(lang, 'kw.kind.flow')} ${tIn(lang, 'flow.word.cancel')}` }));
+      if (args) {
+        const variant = (await lastFlowVariant($, c)) ?? 'full';
+        return say(flowPresetLine(variant, lang), await sendAsPerson($, c, `${args}\n\n${flowPhrase(variant, lang)}`));
+      }
+      const lines = FLOW_PRESETS.map((v) => flowPresetLine(v, lang));
+      const answer = await askOptions($, tIn(lang, 'ctl.flow.ask'), lines);
+      if (answer === null) return say(tIn(lang, 'ctl.cancelled'));
+      const i = lines.findIndex((l) => fold(l) === fold(answer));
+      // Typed under "Other": that is the task, for the whole flow.
+      if (i < 0) {
+        return say(lines[0]!, await sendAsPerson($, c, `${answer}\n\n${flowPhrase('full', lang)}`));
+      }
+      c.armed = { kind: 'flow', variant: FLOW_PRESETS[i]! };
+      return say(tIn(lang, 'ctl.flow.armed', { steps: lines[i]! }));
+    }
+    case 'fullAuto': {
+      if (c.run) return say(tIn(lang, 'ctl.done', { controls: controlsLine(viewOf(c), lang) }));
+      const { budget: given, rest } = splitBudget(args);
+      // What can be measured now: on native Windows this says why at once, before any question.
+      const pre = await autoGate($, c, { explicit: true, target: 100, source: '+1' }, null, null);
+      const failed = pre.result.checks.filter((k) => k.ok === false && k.id !== 'budget');
+      if (failed.length)
+        return say(
+          [tIn(lang, 'ctl.auto.refused'), ...failed.map((k) => `- ${tIn(lang, `auto.gate.name.${k.id}` as MessageKey)}: ${tIn(lang, k.key, k.params)}`)].join(
+            '\n',
+          ),
+        );
+      let budget = given;
+      if (!budget) {
+        const q = await quotaNow($, c);
+        const answer = await askOptions($, tIn(lang, 'ctl.auto.budgetAsk', { week: percentText(q.usable && q.week ? Math.round(q.week.used) : null, lang) }), [
+          '+5',
+          '+10',
+          '+20',
+        ]);
+        if (answer === null) return say(tIn(lang, 'ctl.cancelled'));
+        budget = parseBudget(answer);
+        if (!budget) return say(tIn(lang, 'ctl.quota.bad'));
+      }
+      const start = tIn(lang, 'ctl.auto.start');
+      const yes = await askOptions($, tIn(lang, 'ctl.auto.confirm', { budget: budgetText(budget, lang) }), [start, tIn(lang, 'ctl.auto.cancel')]);
+      if (yes === null || fold(yes) !== fold(start)) return say(tIn(lang, 'ctl.cancelled'));
+      if (rest) {
+        return say(
+          tIn(lang, 'ctl.auto.starting', { budget: budgetText(budget, lang) }),
+          await sendAsPerson($, c, `${rest}\n\n${fullAutoPhrase(budget, lang)}`),
+        );
+      }
+      c.armed = { kind: 'fullAuto', budget };
+      return say(tIn(lang, 'ctl.auto.armed', { budget: budgetText(budget, lang) }));
+    }
+  }
+}
+
+/** On a fresh session, the mode and way of working the person last used in this folder (see lastChoice). */
+async function restoreLast($: $, c: Ctx): Promise<void> {
+  if (!c.state.cwd) return;
+  // The 40 newest records are plenty to find the last session in this folder, and keep the start quick.
+  const last = lastChoice(await sessionStates($, c, 40), c.state.cwd, c.platform, c.sessionId);
+  if (!last || (last.mode === 'free' && last.interaction !== 'autonomous')) return;
+  c.state = { ...c.state, mode: last.mode, interaction: last.interaction };
+  c.restored = true;
+  await saveState($, c);
+  $.ui.toast(tIn(c.lang, 'ctl.restored', { controls: controlsLine(viewOf(c), c.lang) }), { timeoutMs: 8000 });
+}
+
 export function register(on: On): void {
   on('session.start', onSessionStart);
   on('tool.call', onToolCall).catch(refuseToolCall);
@@ -3284,14 +3697,56 @@ export function register(on: On): void {
   });
   // After /clear the conversation goes on under a new session id with a fresh state; a running flow pauses.
   on('session.end', onSessionEnd);
-  // While a plan waits for approval, one line above the prompt says so and how to approve.
+  // The slash commands of the controls: /0 to /9, /devam, /kota, /akis and their English names.
+  on('command.run', onCommand);
+  // Above the prompt: the strip with the mode and the way of working, always in view and pressable; and while a
+  // plan waits for approval, a line that says so and how to approve. A question of Claude Code's own goes first.
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const band = await bandText($);
-    if (!band || e.props.hasSurvey) return next(e);
-    const { Box, Text } = $.ui.resolve(e);
-    const tree = h(Box, null, h(Text, null, band));
+    if (e.props.hasSurvey) return next(e);
+    const labels = await read($, labelsAtom);
+    const strip = labels.strip;
+    if (!strip && !labels.band) return next(e);
+    const { Box, Text, Button } = $.ui.resolve(e);
+    const props = e.props as { bodyColumns?: number };
+    const columns = Number(props.bodyColumns ?? e.viewport?.columns ?? 80);
+    const onPress = (id: string) => () => press($, id);
+    const item = (it: StripItem) =>
+      h(
+        Button,
+        { key: `strip-${it.id}`, plain: true, onPress: onPress(it.id), ...(it.active ? { variant: 'primary' } : {}) },
+        h(Text, { bold: it.active, inverse: it.active, dimColor: it.dim && !it.active }, it.label),
+      );
+    const rows = strip ? stripRows(strip as StripView, strip.lang as Lang, columns) : [];
+    const lines = rows.map((row, r) =>
+      h(
+        Box,
+        { key: `strip-row-${r}`, flexDirection: 'row' },
+        ...row.flatMap((seg, i) => [
+          ...(i ? [h(Text, { key: `gap-${r}-${i}` }, '  ')] : []),
+          ...(seg.title ? [h(Text, { key: `title-${r}-${i}`, dimColor: true }, `${seg.title} `)] : []),
+          ...seg.items.flatMap((it, j) => [...(j ? [h(Text, { key: `sp-${it.id}` }, ' ')] : []), item(it)]),
+        ]),
+      ),
+    );
+    if (labels.band) lines.push(h(Text, { key: 'band' }, labels.band));
+    const tree = h(Box, { flexDirection: 'column' }, ...lines);
     return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
   });
+  // The list `/devam` printed: each row pressable, as `/devam <n>` is.
+  for (const command of ['devam', 'continue'])
+    on('ui.render', { component: 'CommandOutput', props: { command } }, async ($, e, next) => {
+      const text = String((e.props as { text?: unknown }).text ?? '');
+      if (!text.split('\n').some((l) => CHOICE_LINE.test(l))) return next(e);
+      const { Box, Text, Button } = $.ui.resolve(e);
+      const rows = text.split('\n').map((l, i) => {
+        const m = CHOICE_LINE.exec(l);
+        if (!m) return h(Text, { key: `l-${i}`, dimColor: i > 0 }, l);
+        const run = () => press($, command, m[1]!);
+        return h(Button, { key: `choice-${m[1]}`, plain: true, onPress: run }, h(Text, null, l));
+      });
+      const tree = h(Box, { flexDirection: 'column' }, ...rows);
+      return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
+    });
   // The footer lines, as part of the answer's drawing (every surface, the phone included).
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
     const lines = await footerFor($, e.props.text, e.props.isSummary === true);

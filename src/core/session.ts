@@ -3,7 +3,7 @@
  * Per-session runtime state. The mod owns it (`<id>.mod.json`); the safety-net hook reads it and keeps
  * its own small file. Pure: shapes, defaults, parsing and the transitions keywords cause.
  */
-import { isModeKeyword, MODE_KEYWORDS, type KeywordMatch } from './keywords.js';
+import { isModeKeyword, isStyleKeyword, MODE_KEYWORDS, STYLE_KEYWORDS, type KeywordMatch } from './keywords.js';
 import { isWorkMode, type WorkMode } from './modes.js';
 
 export type { WorkMode } from './modes.js';
@@ -208,14 +208,13 @@ export function isApproved(s: ModSessionState | null, toolUseId: string | undefi
 }
 
 /**
- * The state change a detected keyword causes. Pure; the caller persists it. A mode keyword while a flow runs
- * changes only that turn, unless it is the whole message (then the caller pauses the flow).
+ * The state change a detected keyword causes. Pure; the caller persists it. A mode keyword is the whole
+ * message, so it changes the mode for good (while a flow runs, the caller pauses the flow).
  */
-export function applyKeyword(s: ModSessionState, kw: KeywordMatch, weeklyTarget: number | null, ctx: { inFlow?: boolean } = {}): ModSessionState {
-  if (isModeKeyword(kw.kind)) {
-    const mode = MODE_KEYWORDS[kw.kind];
-    return ctx.inFlow && !kw.standalone ? { ...s, turnMode: mode } : { ...s, mode, turnMode: null };
-  }
+export function applyKeyword(s: ModSessionState, kw: KeywordMatch, weeklyTarget: number | null): ModSessionState {
+  if (isModeKeyword(kw.kind)) return { ...s, mode: MODE_KEYWORDS[kw.kind], turnMode: null };
+  // The way of working alone: nothing else changes (no project, no resume, the mode stays).
+  if (isStyleKeyword(kw.kind)) return { ...s, interaction: STYLE_KEYWORDS[kw.kind], resumeAt: null };
   switch (kw.kind) {
     case 'continue':
     case 'manual': {

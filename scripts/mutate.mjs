@@ -83,6 +83,8 @@ const TARGETS = {
   'src/core/sync-export.ts': ['test/core/sync-export.test.ts'],
   // A rename (docs/release.md): what of an installation under an earlier name is found, copied and pointed here.
   'src/node/previous.ts': ['test/node/install-previous.test.ts'],
+  // The session's controls (docs/modes.md, "Session controls"): commands, budgets, what to continue, the strip.
+  'src/core/controls.ts': ['test/core/controls.test.ts', 'test/core/keywords.test.ts'],
 };
 
 // ── finding mutation sites in TypeScript without a parser: code outside strings, comments and regexes ──

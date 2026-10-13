@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: Apache-2.0
+/** Oturumun kontrolleri: istemin üstündeki şerit, `/` komutları, sordukları. */
+import type { enControls } from './en-controls.js';
+
+export const trControls: Record<keyof typeof enControls, string> = {
+  // ── şerit ──
+  'ctl.strip.mode': 'Mod',
+  'ctl.strip.style': 'Çalışma',
+  'ctl.strip.freeShort': 'S',
+  'ctl.strip.flow': 'akış',
+  'ctl.strip.flowAt': 'akış {at}',
+  'ctl.strip.menu': 'menü',
+  'ctl.style.manual': 'manuel',
+  'ctl.style.autonomous': 'otonom',
+  'ctl.style.full': 'tam otonom',
+  'ctl.style.short.manual': 'M',
+  'ctl.style.short.autonomous': 'O',
+  'ctl.style.short.full': 'T',
+  // ── menü ve onay satırları ──
+  'ctl.menu.now': 'Şu an: {controls} · {quota}',
+  'ctl.menu.other': 'Diğer',
+  'ctl.menu.hint':
+    '"/2 metin" modu değiştirir ve metni gönderir. Mesajın tamamı olarak "plan" ya da "otonom" yazmak da olur. İstemin üstündeki şeritte: tıkla ya da ctrl+x tab, sonra oklar ve Enter.',
+  'ctl.done': 'Şimdi: {controls}',
+  'ctl.cancelled': 'Hiçbir şey değişmedi.',
+  'ctl.modesOff': 'Modlar ayarlarda kapalı (Ayarlar › Özellikler).',
+  'ctl.restored': 'Bu klasörde son seçimin: {controls}',
+  'ctl.runAttached': 'Bu oturuma bağlı bir tam otonom koşu var: önce "{cancel}" ile bırak.',
+  // ── / menüsündeki açıklamalar ──
+  'ctl.desc.mode.chat': 'Mod: 💬 sohbet. Yalnız konuşma: proje ve hafıza değişmez',
+  'ctl.desc.mode.research': 'Mod: 🔍 araştırma. Okur ve arar; yalnız rapor yazar',
+  'ctl.desc.mode.plan': 'Mod: 📐 plan. Okur ve planlar; yalnız planı yazar',
+  'ctl.desc.mode.code': 'Mod: 🔨 kod. Geliştirir, test eder, commit eder',
+  'ctl.desc.mode.free': 'Mod: serbest. Yalnız emniyet kemeri geçerli',
+  'ctl.desc.style.manual': 'Çalışma: manuel. Bir adım yapar, sonra seni bekler',
+  'ctl.desc.style.autonomous': 'Çalışma: otonom. Sormadan ilerler; senin kararında durur',
+  'ctl.desc.fullAuto': 'Çalışma: tam otonom. Hiç sormadan sonuna kadar (WSL2, macOS, Linux)',
+  'ctl.desc.flow': 'Akış: araştırma ▶ plan → onay → kod, adımları kod denetler',
+  'ctl.desc.menu': 'Oturumun durumu ve bütün komutlar',
+  'ctl.desc.continue': 'Bir projeye ya da klasöre devam: verilmezse hepsini listeler',
+  'ctl.desc.quota': 'Haftalık bütçe: bir sayı (70) ya da şimdinin üstüne puan (+5)',
+  'ctl.hint.text': '[metin]',
+  'ctl.hint.fullAuto': '[kota +N] [görev]',
+  'ctl.hint.flow': '[görev]',
+  'ctl.hint.continue': '[numara ya da ad] [kota N]',
+  'ctl.hint.quota': '[N ya da +N]',
+  // ── akışlar ──
+  'ctl.flow.researchOnly': 'yalnız {research}',
+  'ctl.flow.noCode': '{steps}, kod yok',
+  'ctl.flow.ask': 'Hangi akış? Adımlar bu sırayla koşar ve her birini kod denetler.',
+  'ctl.flow.armed': 'Akış hazır: {steps}. Sonraki mesajın görevi olacak.',
+  'ctl.flow.running': 'Zaten süren bir akış var: {steps}. "{cancel}" onu bitirir.',
+  // ── tam otonom ──
+  'ctl.auto.refused': 'Tam otonom burada başlayamaz:',
+  'ctl.auto.budgetAsk': 'Tam otonom bir haftalık bütçe ister. Hafta şu an {week}. Ne kadarını kullanabilir?',
+  'ctl.auto.confirm': '{budget} bütçeyle tam otonom başlasın mı? Hiç sormadan sonuna kadar çalışır; seni bekleyen işler raporunda kalır.',
+  'ctl.auto.start': 'Başlat',
+  'ctl.auto.cancel': 'Vazgeç',
+  'ctl.auto.armed': 'Tam otonom hazır, bütçe {budget}. Sonraki mesajın görevi olacak.',
+  'ctl.auto.starting': 'Tam otonom, bütçe {budget}: son başlangıç denetimleri görevle birlikte koşar.',
+  'ctl.auto.notHere': "Tam otonom yalnız bir WSL2 dağıtımında ya da macOS ve Linux'ta Claude Code'un sandbox'ı içinde çalışır (docs/autonomy.md).",
+  // ── kota ──
+  'ctl.quota.ask': 'Haftalık bütçe? Hafta şu an {week}.',
+  'ctl.quota.set': 'Haftalık bütçe: %{target}.',
+  'ctl.quota.bad': 'Bütçe 0 ile 100 arası bir sayı ya da +N olur: "/kota 70", "/kota +5".',
+  'ctl.quota.past': 'Hafta zaten %{week}, %{target} geçildi. Daha büyük bir sayı ya da şimdinin üstüne puan ver: /kota +5.',
+  'ctl.quota.noReading': 'Henüz kota ölçümü yok, bu yüzden şimdinin üstüne bütçe (+N) verilemez. Sayı olur: /kota 70.',
+  // ── devam ──
+  'ctl.continue.title': 'Devam edilecekler ({n}): ★ önce kayıtlı projeler, sonra Claude Code kullanılan bütün klasörler, en yeni önce.',
+  'ctl.continue.hint': '/devam ve numarası ya da adıyla seç; bütçeyle: /devam 3 kota 29.',
+  'ctl.continue.ask': 'Hangi proje ya da klasör?',
+  'ctl.continue.other': 'Listeden numarasını ya da adını yaz',
+  'ctl.continue.none': '"{text}" adında bir şey yok. /devam hepsini listeler.',
+  'ctl.continue.ambiguous': '"{text}" birden fazlasına uyuyor: {list}. Numarasını kullan.',
+  'ctl.continue.empty': 'Henüz devam edilecek bir şey yok: kayıtlı proje yok, Claude Code hiçbir klasörde kullanılmamış.',
+  'ctl.continue.started': '{label} ile devam',
+};

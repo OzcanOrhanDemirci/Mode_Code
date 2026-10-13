@@ -47,15 +47,19 @@ test('temporary folders from the environment, resolved once each; Git Bash /tmp 
   assert.deepEqual(tempZones({ TEMP: 'D:/t' }, { platform: 'win32', home: 'C:/Users/a', cwd: 'C:/' }), ['D:/t', 'C:/Users/a/AppData/Local/Temp']);
 });
 
-test('mode keywords change the session: alone or at the end outside a flow; one turn inside one unless alone', () => {
+test('mode keywords change the session only as the whole message; the way of working alone changes nothing else', () => {
   const s = newModState('s', '1', 0);
   const kw = (t: string) => detectKeyword(t)!;
   assert.equal(applyKeyword(s, kw('research'), null).mode, 'research');
-  assert.equal(applyKeyword(s, kw('Look into it.\nresearch'), null).mode, 'research');
-  const turn = applyKeyword(s, kw('Look into it.\nresearch'), null, { inFlow: true });
-  assert.deepEqual([turn.mode, turn.turnMode], ['free', 'research']);
-  const alone = applyKeyword(s, kw('research'), null, { inFlow: true });
-  assert.deepEqual([alone.mode, alone.turnMode], ['research', null]);
+  assert.equal(detectKeyword('Look into it.\nresearch'), null, 'at the end of a longer message it is a word');
+  assert.deepEqual(
+    [applyKeyword({ ...s, turnMode: 'code' }, kw('plan'), null).mode, applyKeyword({ ...s, turnMode: 'code' }, kw('plan'), null).turnMode],
+    ['plan', null],
+  );
+  const auto = applyKeyword({ ...s, mode: 'plan', project: 'x', resumeAt: 5 }, kw('otonom'), null);
+  assert.deepEqual([auto.interaction, auto.mode, auto.project, auto.resumeAt], ['autonomous', 'plan', 'x', null]);
+  const manual = applyKeyword({ ...s, interaction: 'autonomous', mode: 'chat' }, kw('manuel'), null);
+  assert.deepEqual([manual.interaction, manual.mode], ['manual', 'chat']);
   // Continue leaves chat only.
   assert.equal(applyKeyword({ ...s, mode: 'chat' }, kw('devam'), null).mode, 'free');
   assert.equal(applyKeyword({ ...s, mode: 'plan', turnMode: 'code' }, kw('devam'), null).mode, 'plan');

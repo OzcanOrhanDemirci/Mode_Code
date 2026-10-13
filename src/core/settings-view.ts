@@ -2,7 +2,7 @@
 /** Derived views of the settings that several layers need in the same shape. Pure. */
 import type { Config } from './config.js';
 import type { RuleConfig } from './belt/types.js';
-import { DEFAULT_KEYWORDS, type KeywordKind, type KeywordTable, type ProjectRef } from './keywords.js';
+import { DEFAULT_KEYWORDS, type KeywordList, type KeywordTable, type ProjectRef } from './keywords.js';
 import type { Lang } from './i18n/index.js';
 import type { QuotaBudget } from './quota.js';
 import type { ModSessionState } from './session.js';
@@ -11,10 +11,10 @@ import { fold } from './text.js';
 /** The built-in keyword phrases plus the person's own, per language. */
 export function keywordTables(c: Config): Record<Lang, KeywordTable> {
   const out = structuredClone(DEFAULT_KEYWORDS) as Record<Lang, KeywordTable>;
-  for (const [lang, extra] of Object.entries(c.keywords.extra) as [Lang, Partial<Record<KeywordKind | 'cancel', string[]>>][]) {
+  for (const [lang, extra] of Object.entries(c.keywords.extra) as [Lang, Partial<Record<KeywordList, string[]>>][]) {
     const t = out[lang];
     if (!t || !extra) continue;
-    for (const [kind, list] of Object.entries(extra) as [KeywordKind | 'cancel', string[]][]) {
+    for (const [kind, list] of Object.entries(extra) as [KeywordList, string[]][]) {
       for (const phrase of list ?? []) {
         const f = fold(phrase);
         if (f && !t[kind].includes(f)) t[kind].push(f);

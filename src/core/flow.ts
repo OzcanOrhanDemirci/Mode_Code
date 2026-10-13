@@ -21,6 +21,7 @@ export const FLOW_STEPS: Record<StartableFlow, readonly FlowStepKind[]> = {
   full: ['research', 'plan', 'approve', 'code'],
   plan: ['plan', 'approve', 'code'],
   research: ['research'],
+  researchPlan: ['research', 'plan'],
 };
 
 /** What a step's check found, set when the step is done; the interface words it in each language. */
@@ -266,7 +267,7 @@ export function parseFlow(text: string | null): Flow | null {
   const steps = o.steps.filter((s): s is FlowStep => isObj(s) && KINDS.has(s.kind as FlowStepKind));
   if (!steps.length || steps.length !== o.steps.length) return null;
   const current = typeof o.current === 'number' && o.current >= 0 && o.current <= steps.length ? o.current : 0;
-  const variant = o.variant === 'plan' || o.variant === 'research' ? o.variant : 'full';
+  const variant = o.variant === 'plan' || o.variant === 'research' || o.variant === 'researchPlan' ? o.variant : 'full';
   const str = (x: unknown, d = '') => (typeof x === 'string' ? x : d);
   const num = (x: unknown, d = 0) => (typeof x === 'number' && Number.isFinite(x) ? x : d);
   return {
