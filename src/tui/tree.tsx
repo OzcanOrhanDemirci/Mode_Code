@@ -252,7 +252,8 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
         badge: (() => {
           const v = data.memory();
           if (!v.store) return { text: t('mem.notSetUp'), state: 'gray' as const };
-          if (!v.inUse || v.last?.result.pull === 'conflict') return { text: t('health.state.red'), state: 'red' as const };
+          if (!v.inUse || v.last?.result.pull === 'conflict' || v.last?.result.pull === 'diverged')
+            return { text: t('health.state.red'), state: 'red' as const };
           return { text: t(`msetup.place.${v.store.place}` as MessageKey), state: 'info' as const };
         })(),
         children: () => [

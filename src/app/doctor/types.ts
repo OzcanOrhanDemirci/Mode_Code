@@ -114,6 +114,8 @@ export interface Facts {
   aliases: PathAlias[];
   shortNames: { long: string; short: string; recognised: boolean }[];
   memoryDirs: { path: string; exists: boolean; isRepo: boolean }[];
+  /** Claude Code's autoMemoryDirectory, set up or not by terminal-code; null when it keeps one memory per project. */
+  memorySetting: string | null;
   /** The memory store (docs/memory.md): its settings, its folder, Claude Code's setting, its last sync. */
   memoryStore: {
     place: string;

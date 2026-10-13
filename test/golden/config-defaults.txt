@@ -71,5 +71,6 @@
     "plain": false,
     "highContrast": false,
     "reduceMotion": false
-  }
+  },
+  "sync": null
 }

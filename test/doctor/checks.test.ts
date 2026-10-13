@@ -292,13 +292,16 @@ test('the memory store: not set up, missing, not used by Claude Code, without gi
       ...over,
     },
   });
-  const at = (over: object | null) => {
-    const r = check('data.memoryStore', healthyFacts({ memoryStore: over && { ...store, ...over } }));
+  const at = (over: object | null, setting: string | null = 'C:/dev/notes/memory') => {
+    const r = check('data.memoryStore', healthyFacts({ memoryStore: over && { ...store, ...over }, memorySetting: setting }));
     assert.equal(r.protection, false, 'the memory store is not one of the protections');
     return brief(r);
   };
   assert.equal(at({}), 'ok doc.memory.ok');
-  assert.equal(at(null), 'info doc.memory.none');
+  assert.equal(at(null, null), 'info doc.memory.none');
+  // A memory Claude Code keeps somewhere terminal-code did not set up is said as it is (not "one per project").
+  assert.equal(at(null), 'info doc.memory.outside');
+  assert.equal(check('data.memoryStore', healthyFacts({ memoryStore: null })).hint?.key, 'doc.memory.adoptHint');
   assert.equal(at({ exists: false }), 'fail doc.memory.missing');
   assert.equal(at({ inUse: false, setting: 'C:/elsewhere' }), 'warn doc.memory.elsewhere');
   assert.equal(at({ inUse: false, setting: null }), 'warn doc.memory.perProject');
@@ -306,6 +309,7 @@ test('the memory store: not set up, missing, not used by Claude Code, without gi
   assert.equal(at({ isRepo: false, git: false, remote: null }), 'ok doc.memory.ok', 'a local folder kept without git is fine');
   assert.equal(at({ hasOrigin: false }), 'warn doc.memory.noOrigin');
   assert.equal(at({ last: last({ pull: 'conflict', conflicts: ['MEMORY.md'] }) }), 'warn doc.memory.conflict');
+  assert.equal(at({ last: last({ pull: 'diverged' }) }), 'warn doc.memory.diverged');
   assert.equal(at({ last: last({ push: 'auth', detail: 'denied' }) }), 'warn doc.memory.auth');
   assert.equal(at({ last: last({ pull: 'auth' }) }), 'warn doc.memory.auth');
   assert.equal(at({ last: last({ held: [{ path: 'k.md', reason: 'secret' }] }) }), 'info doc.memory.held');

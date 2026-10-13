@@ -225,6 +225,7 @@ test('this computer and GitHub: a new private repository, the notes sent there; 
       repo: 'ada/claude-memory',
       git: true,
       sync: 'auto',
+      handoffs: true,
     });
     assert.deepEqual(m.repos.get('ada/claude-memory'), { private: true });
     assert.deepEqual(m.remoteFiles('ada/claude-memory').sort(), [
@@ -439,6 +440,106 @@ test('saying no to the list changes nothing', { skip }, async () => {
     assert.ok(!existsSync(join(m.home, 'claude-memory')));
     assert.ok(!existsSync(join(m.claudeDir, 'settings.json')));
     assert.equal(s.said.at(-1), 'Nothing was changed.');
+  } finally {
+    m.done();
+  }
+});
+
+test(
+  'a memory its owner keeps in a repository of their own: only bringing in, nothing added to it, handoff notes kept with terminal-code',
+  { skip },
+  async () => {
+    const m = machine();
+    try {
+      // The person's repository holds more than the memory: the memory is one folder of it.
+      m.addRepo('ada/notes', { private: true });
+      const seed = `${m.root}/seed`;
+      git(m.root, 'clone', '--quiet', 'https://github.com/ada/notes.git', seed);
+      mkdirSync(join(seed, 'hafiza'));
+      mkdirSync(join(seed, 'tools'));
+      writeFileSync(join(seed, 'hafiza', 'MEMORY.md'), '# Memory\n- first\n');
+      writeFileSync(join(seed, 'tools', 'run.js'), 'console.log(1)\n');
+      git(seed, 'add', '-A');
+      git(seed, 'commit', '--quiet', '-m', 'start');
+      git(seed, 'push', '--quiet', 'origin', 'HEAD:main');
+      const clone = `${m.home}/claude_memory`;
+      git(m.root, 'clone', '--quiet', 'https://github.com/ada/notes.git', clone);
+      const dir = `${clone}/hafiza`;
+      writeFileSync(join(m.claudeDir, 'settings.json'), JSON.stringify({ autoMemoryDirectory: dir }));
+      // Another computer sent a note since; this one has a file of its own not committed yet.
+      writeFileSync(join(seed, 'hafiza', 'MEMORY.md'), '# Memory\n- first\n- from the other computer\n');
+      git(seed, 'commit', '--quiet', '-am', 'from the other computer');
+      git(seed, 'push', '--quiet', 'origin', 'HEAD:main');
+      writeFileSync(join(clone, 'tools', 'draft.txt'), 'mine\n');
+      const before = git(clone, 'rev-list', '--count', 'HEAD');
+
+      const s = scripted([
+        [/Where should your memory live/, 2],
+        [/Folder for the memory/, ''],
+        [/already has a git history of its own/, ''],
+        [/Where should handoff notes go/, ''],
+        [/Protect the memory folder/, false],
+        [/Go ahead/, true],
+      ]);
+      const r = await memorySetup(s.io, m.env());
+      assert.equal(r.ok, true, s.said.join('\n'));
+      assert.deepEqual(r.store, {
+        place: 'both',
+        dir,
+        remote: 'https://github.com/ada/notes.git',
+        repo: 'ada/notes',
+        git: true,
+        sync: 'pull',
+        handoffs: false,
+      });
+      assert.equal(r.sync?.pull, 'ok');
+      // Brought in by a fast-forward; nothing of the person's committed, added or sent.
+      assert.equal(readFileSync(join(dir, 'MEMORY.md'), 'utf8').replace(/\r\n/g, '\n'), '# Memory\n- first\n- from the other computer\n');
+      assert.equal(git(clone, 'rev-list', '--count', 'HEAD'), String(Number(before) + 1));
+      assert.equal(git(clone, 'log', '-1', '--format=%s'), 'from the other computer');
+      for (const f of ['README.md', '.gitignore', 'handoffs']) assert.ok(!existsSync(join(dir, f)), f);
+      assert.equal(readFileSync(join(clone, 'tools', 'draft.txt'), 'utf8'), 'mine\n');
+      assert.ok(!m.ghCalls.some((c) => c[1] === 'create'));
+      // The plan said so, and Claude Code's setting was already this folder.
+      const plan = s.said.join('\n');
+      assert.match(plan, /only bring in changes when a session starts \(a fast-forward\); recording and sending stay yours/);
+      assert.match(plan, /keep handoff notes with terminal-code, not in the folder/);
+      assert.doesNotMatch(plan, /add a README/);
+      assert.equal(r.plan?.writeSetting, false);
+      assert.equal(s.left(), 0);
+    } finally {
+      m.done();
+    }
+  },
+);
+
+test('this computer only, a folder inside a larger repository: used as it is, never given a history of its own; git left to the person', { skip }, async () => {
+  const m = machine();
+  try {
+    const work = `${m.home}/work`;
+    mkdirSync(join(work, 'notes'), { recursive: true });
+    git(work, 'init', '--quiet');
+    writeFileSync(join(work, 'notes', 'MEMORY.md'), '# Memory\n');
+    git(work, 'add', '-A');
+    git(work, 'commit', '--quiet', '-m', 'start');
+    const s = scripted([
+      [/Where should your memory live/, 0],
+      [/Folder for the memory/, `${work}/notes`],
+      [/already has a git history of its own/, ''],
+      [/Where should handoff notes go/, 0],
+      [/Protect the memory folder/, false],
+      [/Go ahead/, true],
+    ]);
+    const r = await memorySetup(s.io, m.env());
+    assert.equal(r.ok, true, s.said.join('\n'));
+    assert.deepEqual([r.store?.place, r.store?.sync, r.store?.handoffs, r.store?.git, r.plan?.adopt], ['local', 'manual', true, true, true]);
+    assert.ok(!existsSync(join(work, 'notes', '.git')), 'no history of its own inside the larger one');
+    assert.ok(existsSync(join(work, 'notes', 'handoffs', 'README.md')), 'the notes go into the folder, so their folder is there');
+    for (const f of ['README.md', '.gitignore']) assert.ok(!existsSync(join(work, 'notes', f)), f);
+    assert.equal(git(work, 'rev-list', '--count', 'HEAD'), '1', 'nothing committed: git is the person’s');
+    assert.equal(r.sync, null);
+    // Offered here: recording after each turn, or leaving git alone (bringing in needs a remote).
+    assert.match(s.said.join('\n'), /leave its git to you/);
   } finally {
     m.done();
   }

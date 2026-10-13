@@ -77,6 +77,7 @@ export function healthyFacts(over: Partial<Facts> = {}): Facts {
     aliases: [],
     shortNames: [{ long: DATA, short: 'C:/Users/ada/TERMIN~1', recognised: true }],
     memoryDirs: [{ path: 'C:/dev/notes/memory', exists: true, isRepo: true }],
+    memorySetting: 'C:/dev/notes/memory',
     memoryStore: {
       place: 'both',
       dir: 'C:/dev/notes/memory',

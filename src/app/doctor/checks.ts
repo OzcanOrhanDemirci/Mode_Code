@@ -279,6 +279,8 @@ const protectMemory: Check = (f) => {
 const dataMemoryStore: Check = (f) => {
   const id = 'data.memoryStore';
   const s = f.memoryStore;
+  // A memory set up outside terminal-code is said as it is, not as the default it is not.
+  if (!s && f.memorySetting) return result(id, 'data', false, 'info', m('doc.memory.outside', { dir: f.memorySetting }), { hint: m('doc.memory.adoptHint') });
   if (!s) return result(id, 'data', false, 'info', m('doc.memory.none'), { hint: m('doc.memory.setupHint') });
   if (!s.exists) return result(id, 'data', false, 'fail', m('doc.memory.missing', { dir: s.dir }), { hint: m('doc.memory.setupHint') });
   if (!s.inUse)
@@ -288,6 +290,7 @@ const dataMemoryStore: Check = (f) => {
   if (s.git && !s.isRepo) return result(id, 'data', false, 'warn', m('doc.memory.noGit', { dir: s.dir }), { hint: m('doc.memory.setupHint') });
   if (s.remote && !s.hasOrigin) return result(id, 'data', false, 'warn', m('doc.memory.noOrigin', { remote: s.remote }), { hint: m('doc.memory.setupHint') });
   const r = s.last?.result;
+  if (r?.pull === 'diverged') return result(id, 'data', false, 'warn', m('doc.memory.diverged'), { hint: m('doc.memory.divergedHint') });
   if (r?.pull === 'conflict')
     return result(id, 'data', false, 'warn', m('doc.memory.conflict', { files: r.conflicts.join(', ') }), { hint: m('doc.memory.syncHint') });
   if (r && (r.push === 'auth' || r.pull === 'auth'))

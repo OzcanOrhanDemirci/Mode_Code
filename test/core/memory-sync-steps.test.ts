@@ -7,7 +7,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_NOTE_BYTES, syncMemory, type Runner, type SyncInput } from '../../src/core/memory-sync.js';
+import { lastSeen, looksOnly, MAX_NOTE_BYTES, parseSeen, syncMemory, syncPlan, type Runner, type SyncInput } from '../../src/core/memory-sync.js';
 
 type Answer = { exitCode?: number; stdout?: string; stderr?: string } | Error;
 type Script = (args: string[]) => Answer | undefined;
@@ -324,46 +324,182 @@ test('the counts after a sync, a remote that hangs, the first problem kept as th
   assert.ok(!local.calls.some((c) => c.includes('@{upstream}')));
 });
 
-test('what the pulls brought in: the files and the index lines, counted from where the store stood before them', async () => {
+test('what the pulls brought in: the files and the index lines, from where the store stood before them to where they left it', async () => {
   const head = 'rev-parse --verify --quiet HEAD';
-  const names = 'diff --name-only --no-renames --relative -z abc HEAD -- .';
-  const lines = 'diff --unified=0 --no-color --no-ext-diff --relative abc HEAD -- MEMORY.md';
-  const answered = (over: Record<string, Answer> = {}) =>
-    fake(base({ [head]: { stdout: 'abc\n' }, [names]: { stdout: 'MEMORY.md\0a.md\0' }, [lines]: { stdout: '@@ -1 +1 @@\n-old\n+new\n' }, ...over }));
+  const pull = 'pull --rebase --autostash --quiet';
+  const names = 'diff --name-only --no-renames --relative -z abc def -- .';
+  const lines = 'diff --unified=0 --no-color --no-ext-diff --relative abc def -- MEMORY.md';
+  /** HEAD is abc until a pull goes through, def after. */
+  const answered = (over: Record<string, Answer> = {}) => {
+    let moved = false;
+    const a = fake((args) => {
+      const k = args.join(' ');
+      if (k in over) {
+        if (k === pull && !(over[k] instanceof Error) && !(over[k] as { exitCode?: number }).exitCode) moved = true;
+        return over[k];
+      }
+      if (k === pull) moved = true;
+      if (k === head) return { stdout: moved ? 'def\n' : 'abc\n' };
+      return base({ [names]: { stdout: 'MEMORY.md\0a.md\0' }, [lines]: { stdout: '@@ -1 +1 @@\n-old\n+new\n' } })(args);
+    });
+    return a;
+  };
   const r = await syncMemory(answered().runner, input());
-  assert.deepEqual([r.pulled, r.index], [['MEMORY.md', 'a.md'], { removed: ['old'], added: ['new'] }]);
+  assert.deepEqual([r.pulled, r.index, r.head], [['MEMORY.md', 'a.md'], { removed: ['old'], added: ['new'] }, 'def']);
   // Only other files: the index is not asked about.
   const o = answered({ [names]: { stdout: 'a.md\0' } });
   const ro = await syncMemory(o.runner, input());
   assert.deepEqual([ro.pulled, ro.index], [['a.md'], null]);
   assert.ok(!o.calls.includes(lines));
-  // git cannot list them: nothing; it cannot show the index's change: the files without the lines.
+  // git cannot list them, or lists none: nothing; it cannot show the index's change: the files without the lines.
   const nl = await syncMemory(answered({ [names]: { exitCode: 128 } }).runner, input());
   assert.deepEqual([nl.pulled, nl.index], [[], null]);
+  const empty = await syncMemory(answered({ [names]: { stdout: '' } }).runner, input());
+  assert.deepEqual([empty.pulled, empty.index], [[], null]);
   const nd = await syncMemory(answered({ [lines]: { exitCode: 128 } }).runner, input());
   assert.deepEqual([nd.pulled, nd.index], [['MEMORY.md', 'a.md'], null]);
-  // Nothing came in (a pull that failed, a turn that does not pull, no remote, no history yet): nothing is asked.
+  // Nothing came in (a pull that failed, a turn that does not pull, no remote): nothing is asked.
   for (const [over, inp] of [
-    [{ 'pull --rebase --autostash --quiet': { exitCode: 1, stderr: 'fatal: bad' } }, input()],
+    [{ [pull]: { exitCode: 1, stderr: 'fatal: bad' } }, input()],
     [{}, input({ steps: { commit: true, pull: false, push: true } })],
     [{}, input({ remote: false })],
-    [{ [head]: { exitCode: 1 } }, input()],
   ] as const) {
     const a = answered(over);
     const x = await syncMemory(a.runner, inp);
     assert.deepEqual([x.pulled, x.index], [[], null]);
-    assert.ok(!a.calls.includes(names));
+    assert.ok(!a.calls.some((c) => c.startsWith('diff --name-only --no-renames')));
   }
-  assert.ok(!answered().calls.length, 'nothing is run before the sync');
-  const local = answered();
-  await syncMemory(local.runner, input({ remote: false }));
-  assert.ok(!local.calls.includes(head), 'a store without a remote is not asked where it stood');
+  // A pull that went through but left HEAD where it was brought nothing.
+  const still = fake(base({ [head]: { stdout: 'abc\n' } }));
+  assert.deepEqual((await syncMemory(still.runner, input())).pulled, []);
+  assert.ok(!still.calls.some((c) => c.startsWith('diff --name-only --no-renames')));
+  // No history yet: no head, nothing to compare.
+  const none = fake(base({ [head]: { exitCode: 1 } }));
+  const n = await syncMemory(none.runner, input());
+  assert.deepEqual([n.head, n.pulled], [null, []]);
   // A push the remote turned away pulls once: what that pull brings in counts too.
   let tries = 0;
+  let moved = false;
   const rejected = fake((args) => {
-    if (args.join(' ') === 'push --quiet') return ++tries === 1 ? { exitCode: 1, stderr: ' ! [rejected] main -> main (fetch first)' } : {};
-    return base({ 'rev-list --count @{upstream}..HEAD': { stdout: '1\n' }, [head]: { stdout: 'abc\n' }, [names]: { stdout: 'b.md\0' } })(args);
+    const k = args.join(' ');
+    if (k === 'push --quiet') return ++tries === 1 ? { exitCode: 1, stderr: ' ! [rejected] main -> main (fetch first)' } : {};
+    if (k === pull) moved = true;
+    if (k === head) return { stdout: moved ? 'def\n' : 'abc\n' };
+    return base({ 'rev-list --count @{upstream}..HEAD': { stdout: '1\n' }, [names]: { stdout: 'b.md\0' } })(args);
   });
   const p = await syncMemory(rejected.runner, input({ steps: { commit: true, pull: false, push: true } }));
   assert.deepEqual([p.push, p.pulled], ['ok', ['b.md']]);
+});
+
+test('what arrived by another hand since this computer last saw the store is reported too, apart from what this sync committed', async () => {
+  const head = 'rev-parse --verify --quiet HEAD';
+  const commit = 'commit --quiet -m msg --only -- :(top,literal)a.md';
+  const st = 'status --porcelain=v1 -z --untracked-files=all -- .';
+  // The person's own hook pulled after the last session (old → abc); this sync commits a.md (abc → c0m), then pulls (c0m → def).
+  const answered = (over: Record<string, Answer> = {}) => {
+    let at = 'abc';
+    return fake((args) => {
+      const k = args.join(' ');
+      if (k in over) return over[k];
+      if (k === head) return { stdout: `${at}\n` };
+      if (k === st) return { stdout: at === 'abc' ? '?? a.md\0' : '' };
+      if (k === 'add -A -- :(top,literal)a.md') return {};
+      if (k === commit) {
+        at = 'c0m';
+        return {};
+      }
+      if (k === 'pull --rebase --autostash --quiet') {
+        at = 'def';
+        return {};
+      }
+      if (k === 'merge-base --is-ancestor old abc') return {};
+      if (k === 'diff --name-only --no-renames --relative -z old abc -- .') return { stdout: 'MEMORY.md\0' };
+      if (k === 'diff --unified=0 --no-color --no-ext-diff --relative old abc -- MEMORY.md') return { stdout: '@@ -1,0 +2 @@\n+- From the other computer.\n' };
+      if (k === 'diff --name-only --no-renames --relative -z c0m def -- .') return { stdout: 'b.md\0' };
+      return base()(args);
+    });
+  };
+  const r = await syncMemory(answered().runner, input({ since: 'old' }));
+  assert.deepEqual([r.pulled, r.index, r.commit, r.head], [['MEMORY.md', 'b.md'], { removed: [], added: ['- From the other computer.'] }, 'ok', 'def']);
+  // Where it was last seen is where it stands: only this sync's pull counts.
+  const same = answered();
+  const s = await syncMemory(same.runner, input({ since: 'abc' }));
+  assert.deepEqual(s.pulled, ['b.md']);
+  assert.ok(!same.calls.some((c) => c.startsWith('merge-base')));
+  // A history rewritten since (the last seen commit is no ancestor): what it was cannot be told, only this pull.
+  const rewritten = answered({ 'merge-base --is-ancestor old abc': { exitCode: 1 } });
+  assert.deepEqual((await syncMemory(rewritten.runner, input({ since: 'old' }))).pulled, ['b.md']);
+  // A look without any step reports what arrived since, and where it stands.
+  const look = answered();
+  const l = await syncMemory(look.runner, input({ since: 'old', steps: { commit: false, pull: false, push: false } }));
+  assert.deepEqual([l.pulled, l.head, l.commit, l.pull, l.push], [['MEMORY.md'], 'abc', 'skipped', 'skipped', 'skipped']);
+  assert.ok(!look.calls.some((c) => c.startsWith('pull') || c.startsWith('push') || c.startsWith('commit')));
+  // Blank or missing: no comparison.
+  for (const since of ['', '  ', null, undefined]) assert.deepEqual((await syncMemory(answered().runner, input({ since }))).pulled, ['b.md'], String(since));
+});
+
+test('only a fast-forward, for a store its owner commits: nothing of theirs is committed, rebased or sent', async () => {
+  const ff = 'pull --ff-only --quiet';
+  const run = async (answer: Answer) => {
+    const a = fake(base({ [ff]: answer }));
+    const r = await syncMemory(a.runner, input({ pullMode: 'ff-only', steps: { commit: false, pull: true, push: false } }));
+    assert.ok(
+      !a.calls.some((c) => c.startsWith('pull --rebase') || c.startsWith('commit') || c.startsWith('push') || c.startsWith('rebase')),
+      a.calls.join('|'),
+    );
+    return r;
+  };
+  assert.equal((await run({})).pull, 'ok');
+  const diverged = await run({ exitCode: 128, stderr: "hint: Diverging branches can't be fast-forwarded\nfatal: Not possible to fast-forward, aborting." });
+  assert.deepEqual([diverged.pull, diverged.detail], ['diverged', "Diverging branches can't be fast-forwarded"]);
+  assert.equal((await run({ exitCode: 128, stderr: 'fatal: Not possible to fast-forward, aborting.' })).pull, 'diverged');
+  const dirty = await run({
+    exitCode: 1,
+    stderr:
+      'error: Your local changes to the following files would be overwritten by merge:\n\tMEMORY.md\n\tnotes/a b.md\nPlease commit your changes or stash them before you merge.\nAborting\n',
+  });
+  assert.deepEqual([dirty.pull, dirty.conflicts], ['conflict', ['MEMORY.md', 'notes/a b.md']]);
+  const untracked = await run({
+    exitCode: 1,
+    stderr:
+      'error: The following untracked working tree files would be overwritten by merge:\n\tnew.md\nPlease move or remove them before you merge.\nAborting',
+  });
+  assert.deepEqual([untracked.pull, untracked.conflicts], ['conflict', ['new.md']]);
+  assert.equal((await run({ exitCode: 1, stderr: 'fatal: unable to access: Could not resolve host: github.com' })).pull, 'offline');
+  assert.equal((await run({ exitCode: 1, stderr: 'remote: Repository not found.' })).pull, 'auth');
+  assert.equal((await run({ exitCode: 128, stderr: "fatal: Unable to create '/m/.git/index.lock': File exists." })).pull, 'busy');
+  assert.equal((await run({ exitCode: 1, stderr: 'fatal: something else' })).pull, 'failed');
+  assert.equal((await run(new Error('timed out after 60000 ms'))).pull, 'offline');
+  // A pull that could not join is not followed by a push, even when one was asked for.
+  const both = fake(base({ [ff]: { exitCode: 128, stderr: 'fatal: Not possible to fast-forward, aborting.' } }));
+  const b = await syncMemory(both.runner, input({ pullMode: 'ff-only' }));
+  assert.deepEqual([b.pull, b.push], ['diverged', 'skipped']);
+});
+
+test("each mode's steps for each trigger; the seen records and their newest", () => {
+  const plan = (m: 'auto' | 'pull' | 'manual', t: 'start' | 'turn' | 'manual') => {
+    const p = syncPlan(m, t);
+    return `${+p.steps.commit}${+p.steps.pull}${+p.steps.push} ${p.pullMode}${looksOnly(p) ? ' look' : ''}`;
+  };
+  assert.deepEqual(
+    (['auto', 'pull', 'manual'] as const).map((m) => (['start', 'turn', 'manual'] as const).map((t) => plan(m, t))),
+    [
+      ['111 rebase', '101 rebase', '111 rebase'],
+      ['010 ff-only', '000 ff-only look', '010 ff-only'],
+      ['000 rebase look', '000 rebase look', '111 rebase'],
+    ],
+  );
+  assert.equal(parseSeen('{"head":"abcdef1","at":5}')?.head, 'abcdef1');
+  for (const t of [null, '', 'x', '{"head":"zz","at":5}', '{"head":"abcdef1"}', '{"head":"abc","at":5}', '{"head":"abcdef1","at":"5"}'])
+    assert.equal(parseSeen(t), null, String(t));
+  assert.equal(lastSeen([{ head: 'aaaaaaa', at: 1 }, null, { head: 'bbbbbbb', at: 3 }, { head: 'ccccccc', at: 2 }]), 'bbbbbbb');
+  assert.equal(lastSeen([null, null]), null);
+  assert.equal(
+    lastSeen([
+      { head: 'aaaaaaa', at: 2 },
+      { head: 'bbbbbbb', at: 2 },
+    ]),
+    'aaaaaaa',
+    'the first of equals stays',
+  );
 });

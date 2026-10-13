@@ -628,6 +628,7 @@ export async function gatherFacts(d0: DoctorEnv, now = Date.now()): Promise<Fact
       const r = exists ? runProgram('git', ['-C', p, 'rev-parse', '--is-inside-work-tree'], { timeoutMs: 4000 }) : null;
       return { path: p, exists, isRepo: !!r?.ok && r.out === 'true' };
     }),
+    memorySetting: readMemorySetting(d.claudeDir),
     memoryStore: memoryStoreFacts(d),
     gitBash,
     powershell,

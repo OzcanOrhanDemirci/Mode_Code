@@ -11,7 +11,6 @@ import { serializeConfig } from '../core/config.js';
 import { dateTime, shortPath } from '../core/format.js';
 import { nextOf } from '../core/handoff.js';
 import { tIn, type MessageKey } from '../core/i18n/index.js';
-import { memorySyncFile } from '../core/layout.js';
 import { syncProblem, type SyncResult } from '../core/memory-sync.js';
 import { morningLines } from '../core/morning.js';
 import { appContext, type AppContext } from '../app/context.js';
@@ -19,9 +18,9 @@ import { memorySetup, type SetupIO } from '../app/memory-setup.js';
 import { decideNotes, handoffsOf, memoryView, morningFacts, morningWindow, newestHandoff, pendingNoteRuns, projectKeyFor } from '../app/memory.js';
 import { findRun, loadRuns } from '../app/runs.js';
 import { claudeDir, home, platform } from '../node/env.js';
-import { readText, writeAtomic, writeJsonAtomic } from '../node/fsx.js';
+import { readText, writeAtomic } from '../node/fsx.js';
 import { underAgent } from '../node/install.js';
-import { nodeRunner, syncStore } from '../node/memory.js';
+import { nodeRunner, recordSync, seenSince, syncStore } from '../node/memory.js';
 import { flag, intValue, value, type Args } from './args.js';
 import { bold, cyan, dim, gray, green, red, yellow } from './style.js';
 
@@ -124,7 +123,7 @@ export async function runMemorySetup(ctx: AppContext): Promise<number> {
   });
   if (out.ok && out.config) {
     writeAtomic(ctx.layout.config, serializeConfig(out.config));
-    if (out.sync) writeJsonAtomic(memorySyncFile(ctx.layout, 'cli'), { at: Date.now(), trigger: 'setup', session: null, result: out.sync });
+    if (out.sync) recordSync(ctx.layout, 'cli', 'setup', null, out.sync);
   }
   return out.ok ? 0 : 1;
 }
@@ -135,13 +134,13 @@ export async function cmdMemory(a: Args): Promise<number> {
 
   if (sub === 'setup') return runMemorySetup(ctx);
   if (sub === 'sync') {
-    const r = await syncStore(ctx.config, { trigger: 'manual', session: null, lang: ctx.lang });
+    const r = await syncStore(ctx.config, { trigger: 'manual', session: null, lang: ctx.lang, since: seenSince(ctx.layout) });
     if (!r) {
       if (flag(a, 'json')) json('memory.sync', { ok: false, reason: ctx.config.memory.store ? 'no-history' : 'not-set-up' });
       else say(yellow(T(ctx, ctx.config.memory.store ? 'mcli.noHistory' : 'mcli.notSetUp')));
       return 1;
     }
-    writeJsonAtomic(memorySyncFile(ctx.layout, 'cli'), { at: Date.now(), trigger: 'manual', session: null, result: r });
+    recordSync(ctx.layout, 'cli', 'manual', null, r);
     const problem = syncProblem(r);
     if (flag(a, 'json')) json('memory.sync', { ok: problem === null || problem === 'offline', problem, result: r });
     else say(`${problem && problem !== 'offline' ? red('✗') : green('✓')} ${syncLine(ctx, r)}`);

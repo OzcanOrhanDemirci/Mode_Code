@@ -18,6 +18,7 @@
  *   memory/<name>/                   the memory setup (the working copy of a memory kept on GitHub only)
  *   handoffs/<project>/              the mod (handoff notes, when no memory store is set up)
  *   state/memory-sync.<who>.json     one writer each (mod, hook, cli): the last sync of the memory store
+ *   state/memory-seen.<who>.json     one writer each: the commit the memory store was last seen at
  *   state/activity.json              the mod (when the person last typed: the morning report's gap)
  *   state/notes.json                 the command line (the person's decisions on notes from runs)
  *   state/notes-delivered.json       the mod (approved notes handed to a session)
@@ -77,6 +78,11 @@ export function layout(root: string): Layout {
 /** The last sync of the memory store, one file per writer. */
 export function memorySyncFile(l: Layout, writer: 'mod' | 'hook' | 'cli'): string {
   return joinPath(l.stateDir, `memory-sync.${writer}.json`);
+}
+
+/** Where a writer last saw the memory store (a commit): what arrived since is told to Claude. */
+export function memorySeenFile(l: Layout, writer: 'mod' | 'hook' | 'cli'): string {
+  return joinPath(l.stateDir, `memory-seen.${writer}.json`);
 }
 
 /** Session ids come from Claude Code; anything outside this shape is never used in a file name. */

@@ -14,7 +14,7 @@ import { atom, read, update } from 'claude-code';
 import type { TerminalCodeFooters, TerminalCodeLabels } from './contract.js';
 import { APP_NAME, APP_VERSION, DATA_DIR_NAME, PLUGIN_NAME } from '../core/app.js';
 import { parseConfig, type Config } from '../core/config.js';
-import { layout, sessionFile, eventsFile, flowDir, memorySyncFile, runDir, type Layout } from '../core/layout.js';
+import { layout, sessionFile, eventsFile, flowDir, memorySeenFile, memorySyncFile, runDir, type Layout } from '../core/layout.js';
 import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform } from '../core/paths.js';
 import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '../core/i18n/index.js';
 import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
@@ -75,7 +75,18 @@ import { assessQuota, fromModRateLimits, weeklyTargetFrom, type QuotaAssessment,
 import { buildFooter, classifyTurn, type ClassifyEnv, type MemoryStatus, type ToolUse } from '../core/footer.js';
 import { keywordTables, projectRefs, budgetOf, beltConfigOf } from '../core/settings-view.js';
 import { maskSecrets, scanSecrets } from '../core/secrets/scan.js';
-import { newestRecord, parseSyncRecord, syncMemory, syncProblem, type Runner, type SyncResult } from '../core/memory-sync.js';
+import {
+  lastSeen,
+  looksOnly,
+  newestRecord,
+  parseSeen,
+  parseSyncRecord,
+  syncMemory,
+  syncPlan,
+  syncProblem,
+  type Runner,
+  type SyncResult,
+} from '../core/memory-sync.js';
 import { commitMessage, handoffRoot, mergePulled, projectKey, pulledContext, type Pulled } from '../core/memory.js';
 import {
   compactionSummary,
@@ -2750,26 +2761,40 @@ function modRunner($: $): Runner {
  */
 async function memorySync($: $, c: Ctx, trigger: 'start' | 'turn'): Promise<SyncResult | null> {
   const s = c.config.memory.store;
-  if (!s || !s.git || s.sync !== 'auto' || c.memSyncing) return null;
+  if (!s || !s.git || c.memSyncing) return null;
   c.memSyncing = true;
   try {
+    const plan = syncPlan(s.sync, trigger);
     if (trigger === 'turn') {
+      // A store its owner commits: only where it stands is noted, so the next session reports what arrives after.
+      if (looksOnly(plan)) {
+        await memoryLook($, c, s.dir);
+        return null;
+      }
       // One cheap look first: nothing changed in the store and nothing waits to be sent, nothing to do.
       const st = await gitIn($, s.dir, ['status', '--porcelain=v1', '--branch', '--', '.'], 10_000);
       const lines = st.out.split('\n').filter(Boolean);
-      if (st.ok && lines.length <= 1 && !/\[ahead \d+/.test(lines[0] ?? '')) return null;
+      if (st.ok && lines.length <= 1 && !/\[ahead \d+/.test(lines[0] ?? '')) {
+        await memoryLook($, c, s.dir);
+        return null;
+      }
     }
+    const seen = await Promise.all((['mod', 'hook', 'cli'] as const).map(async (w) => parseSeen(await readFile($, memorySeenFile(c.layout, w)))));
     const r = await syncMemory(modRunner($), {
       dir: s.dir,
       remote: s.place !== 'local',
-      steps: { commit: true, pull: trigger === 'start', push: true },
+      steps: plan.steps,
+      pullMode: plan.pullMode,
+      since: lastSeen(seen),
       message: (counts) => commitMessage(counts, c.sessionId, c.lang),
       readFile: (p) => readFile($, p),
       secrets: (t) => scanSecrets(t).length,
     });
     if (r.pulled.length) c.memPulled = mergePulled(c.memPulled, { files: r.pulled, index: r.index });
     try {
-      await $.fs.write(memorySyncFile(c.layout, 'mod'), JSON.stringify({ at: await $.clock.now(), trigger, session: c.sessionId, result: r }, null, 2) + '\n');
+      const at = await $.clock.now();
+      await $.fs.write(memorySyncFile(c.layout, 'mod'), JSON.stringify({ at, trigger, session: c.sessionId, result: r }, null, 2) + '\n');
+      if (r.head) await $.fs.write(memorySeenFile(c.layout, 'mod'), JSON.stringify({ head: r.head, at }) + '\n');
     } catch {
       /* the record is for the person's eyes; the sync itself happened */
     }
@@ -2795,6 +2820,19 @@ async function memorySync($: $, c: Ctx, trigger: 'start' | 'turn'): Promise<Sync
     return null;
   } finally {
     c.memSyncing = false;
+  }
+}
+
+/** Where the memory store stands now becomes where this session last saw it (a commit; written only when it moved). */
+async function memoryLook($: $, c: Ctx, dir: string): Promise<void> {
+  const head = await gitIn($, dir, ['rev-parse', '--verify', '--quiet', 'HEAD'], 5000);
+  if (!head.ok || !/^[0-9a-f]{7,64}$/.test(head.out)) return;
+  const file = memorySeenFile(c.layout, 'mod');
+  if (parseSeen(await readFile($, file))?.head === head.out) return;
+  try {
+    await $.fs.write(file, JSON.stringify({ head: head.out, at: await $.clock.now() }) + '\n');
+  } catch {
+    /* looked at again after the next turn */
   }
 }
 
@@ -2852,7 +2890,7 @@ async function handoffFacts($: $, c: Ctx, trigger: HandoffTrigger): Promise<Hand
 async function writeHandoff($: $, c: Ctx, trigger: HandoffTrigger, body: { parts?: HandoffParts; summary?: string }): Promise<string | null> {
   if (!c.config.memory.handoff.enabled) return null;
   const f = await handoffFacts($, c, trigger);
-  const path = joinPath(handoffRoot(c.config.memory.store?.dir ?? null, c.layout.handoffsDir), f.project, handoffName(f.at, c.sessionId));
+  const path = joinPath(handoffRoot(c.config, c.layout.handoffsDir), f.project, handoffName(f.at, c.sessionId));
   try {
     await $.fs.write(path, composeHandoff(f, body));
   } catch {
@@ -2867,7 +2905,7 @@ async function writeHandoff($: $, c: Ctx, trigger: HandoffTrigger, body: { parts
 async function waitingHandoff($: $, c: Ctx): Promise<{ path: string; text: string; note: Handoff } | null> {
   if (!c.config.memory.handoff.enabled) return null;
   const p = await projectOfSession($, c);
-  const dir = joinPath(handoffRoot(c.config.memory.store?.dir ?? null, c.layout.handoffsDir), p.key);
+  const dir = joinPath(handoffRoot(c.config, c.layout.handoffsDir), p.key);
   let names: string[] = [];
   try {
     names = (await $.fs.list(dir)).map((e) => e.name);

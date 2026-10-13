@@ -177,3 +177,65 @@ test(
     }
   },
 );
+
+test(
+  'without the plugin, a memory its owner commits: the first prompt brings in a fast-forward and tells what arrived since the last session, even by the owner’s own pull; a turn commits nothing',
+  { skip: !hasGit && 'git is not installed' },
+  () => {
+    const s = setup();
+    try {
+      const remote = join(s.tmp, 'github.git');
+      git(s.tmp, 'init', '-q', '--bare', remote);
+      rmSync(s.store, { recursive: true, force: true });
+      git(s.tmp, 'clone', '-q', remote, s.store);
+      writeFileSync(join(s.store, 'MEMORY.md'), '# Memory\n');
+      git(s.store, 'add', '-A');
+      git(s.store, 'commit', '-q', '-m', 'start');
+      git(s.store, 'push', '-q', '-u', 'origin', 'HEAD');
+      const fwd = (p: string) => p.replace(/\\/g, '/');
+      writeFileSync(
+        join(s.home, 'config.json'),
+        JSON.stringify({
+          language: 'en',
+          memory: { store: { place: 'both', dir: fwd(s.store), remote: fwd(remote), git: true, sync: 'pull', handoffs: false }, handoff: { enabled: false } },
+        }),
+      );
+      // The last session saw the store at its first commit.
+      mkdirSync(join(s.home, 'state'), { recursive: true });
+      writeFileSync(join(s.home, 'state', 'memory-seen.hook.json'), JSON.stringify({ head: git(s.store, 'rev-parse', 'HEAD'), at: 1 }));
+      const other = join(s.tmp, 'other');
+      git(s.tmp, 'clone', '-q', remote, other);
+      writeFileSync(join(other, 'MEMORY.md'), '# Memory\n- Pulled by the owner.\n');
+      git(other, 'commit', '-q', '-am', 'one');
+      git(other, 'push', '-q');
+      // The owner's own hook pulls that one…
+      git(s.store, 'pull', '-q', '--ff-only');
+      // …and another arrives on GitHub for this session's pull.
+      writeFileSync(join(other, 'pnpm.md'), 'Uses pnpm.\n');
+      git(other, 'add', '-A');
+      git(other, 'commit', '-q', '-m', 'two');
+      git(other, 'push', '-q');
+      const commits = git(s.store, 'rev-list', '--count', 'HEAD');
+
+      const first = run('UserPromptSubmit', { ...s.base, hook_event_name: 'UserPromptSubmit', prompt: 'What do you know?' }, s.home);
+      const context: string = first?.hookSpecificOutput?.additionalContext ?? '';
+      assert.match(context, /changes made elsewhere: MEMORY\.md, pnpm\.md\./);
+      assert.match(context, /\n\+ - Pulled by the owner\.\n/);
+      assert.ok(existsSync(join(s.store, 'pnpm.md')), 'brought in by a fast-forward');
+      assert.equal(git(s.store, 'rev-list', '--count', 'HEAD'), String(Number(commits) + 1));
+      const seen = JSON.parse(readFileSync(join(s.home, 'state', 'memory-seen.hook.json'), 'utf8'));
+      assert.equal(seen.head, git(s.store, 'rev-parse', 'HEAD'));
+      // A turn that changed the memory: nothing is committed, only where it stands is noted.
+      writeFileSync(join(s.store, 'new.md'), 'Claude wrote this.\n');
+      git(s.store, 'add', 'new.md');
+      git(s.store, 'commit', '-q', '-m', 'the owner commits');
+      run('Stop', { ...s.base, hook_event_name: 'Stop', stop_hook_active: false, last_assistant_message: 'Done.' }, s.home);
+      assert.equal(git(s.store, 'log', '-1', '--format=%s'), 'the owner commits');
+      assert.equal(git(s.store, 'status', '--porcelain'), '');
+      assert.equal(JSON.parse(readFileSync(join(s.home, 'state', 'memory-seen.hook.json'), 'utf8')).head, git(s.store, 'rev-parse', 'HEAD'));
+      assert.ok(!git(remote.replace(/\\/g, '/'), 'log', '--format=%s', '--all').includes('the owner commits'), 'nothing is sent');
+    } finally {
+      s.done();
+    }
+  },
+);

@@ -6,6 +6,7 @@
  * network in the node layer.
  */
 import { APP_NAME } from './app.js';
+import type { Config } from './config.js';
 import { tIn, type Lang } from './i18n/index.js';
 import { joinPath } from './paths.js';
 import { maskSecrets } from './secrets/scan.js';
@@ -117,6 +118,11 @@ export function storeReadme(place: 'local' | 'github' | 'both'): string {
   ].join('\n');
 }
 
+/** A store's README says terminal-code set the folder up (storeReadme): it is terminal-code's to keep in sync. */
+export function managedByUs(readme: string | null): boolean {
+  return readme !== null && /^# Claude Code memory\r?\n/.test(readme) && readme.includes('It is managed with terminal-code');
+}
+
 /** The README of the handoffs folder: what Claude should know when it finds the folder. */
 export const HANDOFF_README = [
   '# Handoff notes',
@@ -196,9 +202,15 @@ export function changeCounts(changes: readonly StoreChange[]): { added: number; 
   return { added, changed, removed };
 }
 
-/** Where handoff notes are kept: in the memory store when there is one, else in terminal-code's own folder. */
-export function handoffRoot(storeDir: string | null, fallback: string): string {
-  return storeDir ? joinPath(storeDir, HANDOFF_DIR) : fallback;
+/**
+ * Where handoff notes are kept: in the memory store when it keeps them, else in the sync's shared place when
+ * it takes them (docs/sync.md), else in terminal-code's own folder.
+ */
+export function handoffRoot(config: Pick<Config, 'memory' | 'sync'>, fallback: string): string {
+  const store = config.memory.store;
+  if (store && store.handoffs) return joinPath(store.dir, HANDOFF_DIR);
+  if (config.sync && config.sync.handoffs) return joinPath(config.sync.dir, HANDOFF_DIR);
+  return fallback;
 }
 
 /** What a sync brought in from the remote: the files, by their paths in the store, and the index's changed lines. */

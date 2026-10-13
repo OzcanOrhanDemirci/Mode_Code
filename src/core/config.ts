@@ -47,8 +47,43 @@ export interface MemoryStore {
   repo: string | null;
   /** The folder has a git history (always with a remote; for local, when git was there at setup). */
   git: boolean;
-  /** auto: pull when a session starts, commit and push after a turn that changed it; manual: status only. */
-  sync: 'auto' | 'manual';
+  /**
+   * auto: pull when a session starts, commit and push after a turn that changed it. pull: only bring in
+   * changes that need no merge when a session starts; the person commits and pushes. manual: status only.
+   */
+  sync: MemorySyncMode;
+  /** Handoff notes are kept in the store (else with terminal-code: in the sync's shared place, or its data folder). */
+  handoffs: boolean;
+}
+
+export type MemorySyncMode = 'auto' | 'pull' | 'manual';
+
+export const MEMORY_SYNC_MODES: readonly MemorySyncMode[] = ['auto', 'pull', 'manual'];
+
+/** Where the shared copy of terminal-code's settings and history lives (docs/sync.md). */
+export type SyncPlace = 'github' | 'folder';
+
+export const SYNC_PLACES: readonly SyncPlace[] = ['github', 'folder'];
+
+/** A computer's id in the shared place: its folder name under machines/. */
+export const MACHINE_ID = /^[a-z0-9][a-z0-9-]{0,47}$/;
+
+export interface SyncSetting {
+  place: SyncPlace;
+  /** The shared place on this computer, absolute: a folder in a git work tree (github), or the synced folder itself. */
+  dir: string;
+  /** github: the remote the work tree is kept in sync with. */
+  remote: string | null;
+  /** github: the repository as owner/name. */
+  repo: string | null;
+  /** This computer: its folder under machines/ and the name the others show. */
+  machine: { id: string; name: string };
+  /** How often a session sends after its turns, in minutes. */
+  everyMinutes: number;
+  /** Months of history each computer keeps in the shared place. */
+  keepMonths: number;
+  /** Handoff notes go into the shared place (when the memory store does not keep them). */
+  handoffs: boolean;
 }
 
 export interface Config {
@@ -134,6 +169,8 @@ export interface Config {
     highContrast: boolean;
     reduceMotion: boolean;
   };
+  /** Sync across computers (docs/sync.md); null until `terminal-code sync setup` ran. This computer's own. */
+  sync: SyncSetting | null;
 }
 
 export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
@@ -162,6 +199,7 @@ export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
   modes: { workDir: null },
   autonomy: { enabled: false, maxHours: 12, stallMinutes: 90, reviewModel: null },
   accessibility: { plain: false, highContrast: false, reduceMotion: false },
+  sync: null,
 }) as Config;
 
 export interface ConfigProblem {
@@ -317,6 +355,8 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
     }
   } else if (raw.autonomy !== undefined) problems.push({ path: 'autonomy', kind: 'type', detail: 'expected an object' });
 
+  if (raw.sync !== undefined && raw.sync !== null) c.sync = syncSetting(raw.sync, problems);
+
   if (Array.isArray(raw.projects)) {
     const seen = new Set<string>();
     raw.projects.forEach((p, i) => {
@@ -381,7 +421,7 @@ function memoryStore(v: unknown, problems: ConfigProblem[]): MemoryStore | null 
     return null;
   }
   for (const k of Object.keys(v))
-    if (!['place', 'dir', 'remote', 'repo', 'git', 'sync'].includes(k))
+    if (!['place', 'dir', 'remote', 'repo', 'git', 'sync', 'handoffs'].includes(k))
       problems.push({ path: `memory.store.${k}`, kind: 'unknown-key', detail: 'not a setting' });
   if (typeof v.place !== 'string' || !MEMORY_PLACES.includes(v.place as MemoryPlace)) {
     problems.push({ path: 'memory.store.place', kind: 'type', detail: 'expected local, github or both' });
@@ -404,13 +444,65 @@ function memoryStore(v: unknown, problems: ConfigProblem[]): MemoryStore | null 
     problems.push({ path: 'memory.store.repo', kind: 'type', detail: 'expected owner/name or null' });
   let sync: MemoryStore['sync'] = 'auto';
   if (v.sync !== undefined) {
-    if (v.sync === 'auto' || v.sync === 'manual') sync = v.sync;
-    else problems.push({ path: 'memory.store.sync', kind: 'type', detail: 'expected auto or manual' });
+    if (MEMORY_SYNC_MODES.includes(v.sync as MemorySyncMode)) sync = v.sync as MemorySyncMode;
+    else problems.push({ path: 'memory.store.sync', kind: 'type', detail: 'expected auto, pull or manual' });
+  }
+  let handoffs = true;
+  if (v.handoffs !== undefined) {
+    if (typeof v.handoffs === 'boolean') handoffs = v.handoffs;
+    else problems.push({ path: 'memory.store.handoffs', kind: 'type', detail: 'expected true or false' });
   }
   if (v.git !== undefined && typeof v.git !== 'boolean') problems.push({ path: 'memory.store.git', kind: 'type', detail: 'expected true or false' });
   // A remote needs a git history; a local folder has one only when the file says so.
   const git = place !== 'local' || v.git === true;
-  return { place, dir: v.dir.trim(), remote: place === 'local' ? null : remote, repo, git, sync };
+  return { place, dir: v.dir.trim(), remote: place === 'local' ? null : remote, repo, git, sync, handoffs };
+}
+
+/** The sync setting, or null when it cannot be one (reported): a place, a folder, a remote for github, this computer. */
+function syncSetting(v: unknown, problems: ConfigProblem[]): SyncSetting | null {
+  if (!isObj(v)) {
+    problems.push({ path: 'sync', kind: 'type', detail: 'expected an object or null' });
+    return null;
+  }
+  for (const k of Object.keys(v))
+    if (!['place', 'dir', 'remote', 'repo', 'machine', 'everyMinutes', 'keepMonths', 'handoffs'].includes(k))
+      problems.push({ path: `sync.${k}`, kind: 'unknown-key', detail: 'not a setting' });
+  if (typeof v.place !== 'string' || !SYNC_PLACES.includes(v.place as SyncPlace)) {
+    problems.push({ path: 'sync.place', kind: 'type', detail: 'expected github or folder' });
+    return null;
+  }
+  if (typeof v.dir !== 'string' || !v.dir.trim()) {
+    problems.push({ path: 'sync.dir', kind: 'type', detail: 'expected a folder path' });
+    return null;
+  }
+  const m = v.machine;
+  if (!isObj(m) || typeof m.id !== 'string' || !MACHINE_ID.test(m.id) || typeof m.name !== 'string' || !m.name.trim() || m.name.length > 60) {
+    problems.push({ path: 'sync.machine', kind: 'type', detail: 'expected { id: kebab-case, name: up to 60 characters }' });
+    return null;
+  }
+  const place = v.place as SyncPlace;
+  const remote = typeof v.remote === 'string' && v.remote.trim() ? v.remote.trim() : null;
+  if (place === 'github' && remote === null) {
+    problems.push({ path: 'sync.remote', kind: 'range', detail: 'github needs a remote' });
+    return null;
+  }
+  const repo = typeof v.repo === 'string' && GITHUB_REPO.test(v.repo) ? v.repo : null;
+  if (v.repo !== undefined && v.repo !== null && repo === null) problems.push({ path: 'sync.repo', kind: 'type', detail: 'expected owner/name or null' });
+  let handoffs = true;
+  if (v.handoffs !== undefined) {
+    if (typeof v.handoffs === 'boolean') handoffs = v.handoffs;
+    else problems.push({ path: 'sync.handoffs', kind: 'type', detail: 'expected true or false' });
+  }
+  return {
+    place,
+    dir: v.dir.trim(),
+    remote: place === 'github' ? remote : null,
+    repo: place === 'github' ? repo : null,
+    machine: { id: m.id, name: m.name.trim() },
+    everyMinutes: whole(v.everyMinutes, 30, 5, 1440, 'sync.everyMinutes', problems),
+    keepMonths: whole(v.keepMonths, 3, 1, 24, 'sync.keepMonths', problems),
+    handoffs,
+  };
 }
 
 /** A whole number within a range, or the fallback (reported). */

@@ -158,7 +158,7 @@ test('after a turn the store is synced: a quick look first, then commit and send
   // Nothing changed since: one look, nothing more.
   calls.length = 0;
   await $.turn.complete({ answer: 'Ok.', durationMs: 5, isAborted: false, turnId: 't2', reason: 'answer' } as any);
-  expect(calls).toEqual(['status --porcelain=v1 --branch -- .']);
+  expect(calls).toEqual(['status --porcelain=v1 --branch -- .', 'rev-parse --verify --quiet HEAD']);
   // A secret in a note: held back, said once.
   dirty = true;
   w.write(`${STORE}/notes.md`, `token ghp_${'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8'}\n`);
@@ -216,6 +216,7 @@ test("what the start's pull brought in is told with the first prompt, which wait
   const STORE = '/home/ada/claude-memory';
   const calls: string[] = [];
   let release: () => void = () => {};
+  let moved = false;
   const pulled = new Promise<void>((r) => (release = r));
   const git = repoGit((args, dir) => {
     if (dir !== STORE) return undefined;
@@ -223,11 +224,15 @@ test("what the start's pull brought in is told with the first prompt, which wait
     calls.push(a);
     if (a === 'rev-parse --show-toplevel') return { exitCode: 0, stdout: `${STORE}\n` };
     if (args[0] === 'status') return { exitCode: 0, stdout: '' };
-    if (a === 'rev-parse --verify --quiet HEAD') return { exitCode: 0, stdout: 'abc\n' };
+    if (a === 'rev-parse --verify --quiet HEAD') return { exitCode: 0, stdout: `${moved ? 'def' : 'abc'}\n` };
     if (a === 'rev-parse --abbrev-ref --symbolic-full-name @{upstream}') return { exitCode: 0, stdout: 'origin/main\n' };
     // The pull takes its time: the prompt comes in while it runs.
-    if (args[0] === 'pull') return pulled.then(() => ({ exitCode: 0, stdout: '' }));
-    if (a === 'diff --name-only --no-renames --relative -z abc HEAD -- .') return { exitCode: 0, stdout: 'MEMORY.md\0pnpm.md\0' };
+    if (args[0] === 'pull')
+      return pulled.then(() => {
+        moved = true;
+        return { exitCode: 0, stdout: '' };
+      });
+    if (a === 'diff --name-only --no-renames --relative -z abc def -- .') return { exitCode: 0, stdout: 'MEMORY.md\0pnpm.md\0' };
     if (a.startsWith('diff --unified=0')) return { exitCode: 0, stdout: '@@ -1,0 +2 @@\n+- [pnpm](pnpm.md) — the package manager\n' };
     if (a === 'rev-list --count @{upstream}..HEAD') return { exitCode: 0, stdout: '0\n' };
     if (args[0] === 'rev-list') return { exitCode: 0, stdout: '0\t0\n' };
@@ -257,4 +262,54 @@ test("what the start's pull brought in is told with the first prompt, which wait
   expect((again.context ?? []).join('\n')).not.toMatch(/brought up to date/);
   expect(calls.filter((c) => c.startsWith('pull')).length).toBe(1);
   expect(w.events().some((e: any) => e.kind === 'memory' && e.trigger === 'start' && e.pulled === 2)).toBe(true);
+});
+
+test('a memory its owner commits: a fast-forward at the start, what arrived since the last session told, nothing committed after a turn', async ($, on) => {
+  const STORE = '/home/ada/notes/hafiza';
+  const calls: string[] = [];
+  let head = 'bbbbbbb';
+  const git = repoGit((args, dir) => {
+    if (dir !== STORE) return undefined;
+    const a = args.join(' ');
+    calls.push(a);
+    if (a === 'rev-parse --show-toplevel') return { exitCode: 0, stdout: '/home/ada/notes\n' };
+    if (a === 'rev-parse --verify --quiet HEAD') return { exitCode: 0, stdout: `${head}\n` };
+    if (a === 'rev-parse --abbrev-ref --symbolic-full-name @{upstream}') return { exitCode: 0, stdout: 'origin/main\n' };
+    if (a === 'pull --ff-only --quiet') {
+      head = 'ccccccc';
+      return { exitCode: 0, stdout: '' };
+    }
+    // aaaaaaa: where the last session left it; bbbbbbb: the owner's own pull since; ccccccc: this pull.
+    if (a === 'merge-base --is-ancestor aaaaaaa bbbbbbb') return { exitCode: 0, stdout: '' };
+    if (a === 'diff --name-only --no-renames --relative -z aaaaaaa bbbbbbb -- .') return { exitCode: 0, stdout: 'a.md\0' };
+    if (a === 'diff --name-only --no-renames --relative -z bbbbbbb ccccccc -- .') return { exitCode: 0, stdout: 'b.md\0' };
+    if (args[0] === 'rev-list') return { exitCode: 0, stdout: '0\t0\n' };
+    return { exitCode: 1, stdout: '', stderr: `unexpected git ${a}` };
+  });
+  const w = world(on, {
+    config: {
+      memory: {
+        store: { place: 'both', dir: STORE, remote: 'https://github.com/ada/notes.git', sync: 'pull', handoffs: false },
+        handoff: { enabled: false },
+      },
+    },
+    git,
+  });
+  w.write(`${DATA}/state/memory-seen.hook.json`, JSON.stringify({ head: 'aaaaaaa', at: 5 }));
+  on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }));
+  on('turn.complete', (_$: any, e: any) => ({ text: e.answer }));
+  await $.session.start({ source: 'startup', cwd: PROJECT } as any);
+  const r: any = await $.prompt.submit(typed('Where were we?'));
+  expect(r.context.join('\n')).toMatch(/changes made elsewhere: a\.md, b\.md\. A file read earlier/);
+  expect(calls.some((c) => c.startsWith('commit') || c.startsWith('push') || c.startsWith('pull --rebase') || c.startsWith('status'))).toBe(false);
+  expect(w.json(`${DATA}/state/memory-seen.mod.json`).head).toBe('ccccccc');
+  // After a turn: one look at where it stands, nothing else.
+  calls.length = 0;
+  head = 'ddddddd';
+  await $.turn.complete({ answer: 'Noted.', durationMs: 5, isAborted: false, turnId: 't1', reason: 'answer' } as any);
+  expect(calls).toEqual(['rev-parse --verify --quiet HEAD']);
+  expect(w.json(`${DATA}/state/memory-seen.mod.json`).head).toBe('ddddddd');
+  calls.length = 0;
+  await $.turn.complete({ answer: 'Ok.', durationMs: 5, isAborted: false, turnId: 't2', reason: 'answer' } as any);
+  expect(calls).toEqual(['rev-parse --verify --quiet HEAD']);
 });

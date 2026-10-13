@@ -116,7 +116,7 @@ export function perProjectMemories(claudeDir: string): { slug: string; dir: stri
 }
 
 /** The files terminal-code adds to a store, each only when it is missing: a README, a .gitignore, the handoffs folder's README. */
-export function scaffoldStore(dir: string, place: MemoryPlace): string[] {
+export function scaffoldStore(dir: string, place: MemoryPlace, what: { readme: boolean; handoffs: boolean } = { readme: true, handoffs: true }): string[] {
   const p = storePaths(dir);
   ensureDir(dir);
   const written: string[] = [];
@@ -125,9 +125,11 @@ export function scaffoldStore(dir: string, place: MemoryPlace): string[] {
     writeAtomic(path, text);
     written.push(path);
   };
-  add(p.readme, storeReadme(place));
-  add(p.gitignore, STORE_GITIGNORE);
-  add(join(p.handoffs, 'README.md'), HANDOFF_README);
+  if (what.readme) {
+    add(p.readme, storeReadme(place));
+    add(p.gitignore, STORE_GITIGNORE);
+  }
+  if (what.handoffs) add(join(p.handoffs, 'README.md'), HANDOFF_README);
   return written;
 }
 

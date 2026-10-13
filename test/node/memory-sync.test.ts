@@ -249,3 +249,69 @@ test("git's failures are sorted by what the person can do", () => {
   assert.equal(classifyGitError('operation timed out: git push'), 'offline');
   assert.equal(classifyGitError('fatal: something else'), 'failed');
 });
+
+test(
+  'only bringing in, on real repositories: a fast-forward; both sides moved or a local edit in the way leave everything as it was',
+  { skip: !hasGit && 'git is not installed' },
+  async () => {
+    const w = world();
+    try {
+      const a = w.clone('a');
+      const b = w.clone('b');
+      const pullOnly = (dir: string): SyncInput => ({ ...input(dir, 'start'), steps: { commit: false, pull: true, push: false }, pullMode: 'ff-only' });
+      writeFileSync(join(a, 'MEMORY.md'), '# Memory\n- [one](one.md) — from a\n');
+      run(a, 'commit', '-q', '-am', 'from a');
+      run(a, 'push', '-q');
+      const ff = await syncMemory(nodeRunner, pullOnly(b));
+      assert.deepEqual([ff.pull, ff.commit, ff.push, ff.pulled, ff.index?.added], ['ok', 'skipped', 'skipped', ['MEMORY.md'], ['- [one](one.md) — from a']]);
+      assert.equal(ff.head, run(b, 'rev-parse', 'HEAD'));
+      // b's owner commits something of their own, a sends another change: a fast-forward cannot join them.
+      writeFileSync(join(b, 'mine.md'), 'mine\n');
+      run(b, 'add', 'mine.md');
+      run(b, 'commit', '-q', '-m', 'mine');
+      const mine = run(b, 'rev-parse', 'HEAD');
+      writeFileSync(join(a, 'two.md'), 'two\n');
+      run(a, 'add', 'two.md');
+      run(a, 'commit', '-q', '-m', 'two');
+      run(a, 'push', '-q');
+      const diverged = await syncMemory(nodeRunner, pullOnly(b));
+      assert.deepEqual([diverged.pull, diverged.pulled], ['diverged', []]);
+      assert.equal(run(b, 'rev-parse', 'HEAD'), mine, 'nothing rebased or merged');
+      assert.ok(!existsSync(join(b, 'two.md')));
+      // A fresh clone with an edit of its own in the way of what comes in.
+      const c = w.clone('c');
+      run(c, 'reset', '-q', '--hard', 'HEAD~2');
+      writeFileSync(join(c, 'MEMORY.md'), '# Memory\n- edited here, not committed\n');
+      const blocked = await syncMemory(nodeRunner, pullOnly(c));
+      assert.deepEqual([blocked.pull, blocked.conflicts], ['conflict', ['MEMORY.md']]);
+      assert.equal(readFileSync(join(c, 'MEMORY.md'), 'utf8'), '# Memory\n- edited here, not committed\n');
+    } finally {
+      w.done();
+    }
+  },
+);
+
+test(
+  'what the owner brought in by hand since this computer last saw the store is reported at the next look',
+  { skip: !hasGit && 'git is not installed' },
+  async () => {
+    const w = world();
+    try {
+      const a = w.clone('a');
+      const b = w.clone('b');
+      const seen = run(b, 'rev-parse', 'HEAD');
+      writeFileSync(join(a, 'MEMORY.md'), '# Memory\n- [one](one.md) — first note\n- [two](two.md) — from a\n');
+      run(a, 'commit', '-q', '-am', 'from a');
+      run(a, 'push', '-q');
+      // b's owner pulls with their own hook; the next session's look tells what arrived since `seen`.
+      run(b, 'pull', '-q', '--ff-only');
+      const look = await syncMemory(nodeRunner, { ...input(b, 'start'), steps: { commit: false, pull: false, push: false }, since: seen });
+      assert.deepEqual([look.pulled, look.index], [['MEMORY.md'], { removed: [], added: ['- [two](two.md) — from a'] }]);
+      // Seen where it stands: nothing more to tell.
+      const again = await syncMemory(nodeRunner, { ...input(b, 'start'), steps: { commit: false, pull: false, push: false }, since: look.head });
+      assert.deepEqual(again.pulled, []);
+    } finally {
+      w.done();
+    }
+  },
+);

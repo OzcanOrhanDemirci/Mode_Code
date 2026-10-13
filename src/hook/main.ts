@@ -33,8 +33,8 @@ import { readText, readJson, writeJsonAtomic, appendLine } from '../node/fsx.js'
 import { git, memoryStatus } from '../node/git.js';
 import { readTail } from '../node/tail.js';
 import { handoffLine, isFresh } from '../core/handoff.js';
-import { memorySyncFile } from '../core/layout.js';
-import { syncStore, type SyncTrigger } from '../node/memory.js';
+import { lookStore, recordSync, seenSince, syncStore, type SyncTrigger } from '../node/memory.js';
+import { looksOnly, syncPlan } from '../core/memory-sync.js';
 import { pulledContext } from '../core/memory.js';
 import type { SyncResult } from '../core/memory-sync.js';
 import { newestHandoffAt, projectKeyAt, pruneHandoffs } from '../node/handoffs.js';
@@ -160,10 +160,17 @@ async function hookSync(
   lang: Lang,
 ): Promise<SyncResult | null> {
   const s = config.memory.store;
-  if (!s || !s.git || s.sync !== 'auto') return null;
+  if (!s || !s.git) return null;
   try {
-    const r = await syncStore(config, { trigger, session: sessionId || null, lang });
-    if (r) writeJsonAtomic(memorySyncFile(l, 'hook'), { at: Date.now(), trigger, session: sessionId || null, result: r });
+    // A turn's end in a store its owner commits: only where it stands is noted.
+    if (looksOnly(syncPlan(s.sync, trigger))) {
+      if (trigger === 'turn') {
+        lookStore(l, s.dir, 'hook');
+        return null;
+      }
+    }
+    const r = await syncStore(config, { trigger, session: sessionId || null, lang, since: seenSince(l) });
+    if (r) recordSync(l, 'hook', trigger, sessionId || null, r);
     return r;
   } catch {
     /* the next prompt or session tries again */

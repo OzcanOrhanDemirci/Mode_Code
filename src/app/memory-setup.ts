@@ -6,11 +6,11 @@
  * through a Runner (git, the GitHub CLI), the interactive ones (installers, signing in) in the person's
  * terminal. Nothing is created or written before the person has said yes to the whole list.
  */
-import type { Config, MemoryPlace, MemoryStore } from '../core/config.js';
+import type { Config, MemoryPlace, MemoryStore, MemorySyncMode } from '../core/config.js';
 import { setConfigValue } from '../core/config.js';
 import { tIn, type Lang, type MessageKey } from '../core/i18n/index.js';
 import type { Layout } from '../core/layout.js';
-import { commitMessage, githubRemote, githubRepoOf, repoNameProblems, suggestRepoName } from '../core/memory.js';
+import { commitMessage, githubRemote, githubRepoOf, managedByUs, repoNameProblems, suggestRepoName } from '../core/memory.js';
 import { syncMemory, type Runner, type SyncResult } from '../core/memory-sync.js';
 import { expandHome, joinPath, pathKey, resolvePath, type Platform } from '../core/paths.js';
 import { scanSecrets } from '../core/secrets/scan.js';
@@ -59,8 +59,12 @@ export interface SetupPlan {
   createRepo: boolean;
   /** The remote has notes already and the folder is new: clone it. */
   clone: boolean;
-  /** The folder is already a clone of the remote: use it as it is. */
+  /** The folder is already a clone of the remote, or already in a git history: use it as it is. */
   adopt: boolean;
+  /** How terminal-code keeps it in sync (asked when the folder is someone's own git history). */
+  mode: MemorySyncMode;
+  /** Handoff notes are kept in the folder. */
+  handoffs: boolean;
   setupGit: boolean;
   identity: { name: string; email: string } | null;
   bringFrom: string | null;
@@ -249,6 +253,22 @@ export async function memorySetup(io: SetupIO, env: SetupEnv): Promise<SetupOutc
     }
   }
 
+  // A folder already in a git history (a repository of the person's, perhaps a larger one) is used as it is.
+  const tree = dir && gitTool && folderFacts(dir).exists ? await run(env.runner, [gitTool.command, '-C', dir, 'rev-parse', '--show-toplevel'], dir) : null;
+  if (place === 'local' && tree?.ok && tree.out.trim()) adopt = true;
+
+  // ── 5b · a memory someone already keeps in git: how terminal-code looks after it (a GitHub-only working copy is terminal-code's own) ──
+  let mode: MemorySyncMode = 'auto';
+  let handoffs = true;
+  if (adopt && place !== 'github') {
+    const ours = managedByUs(readText(joinPath(dir, 'README.md')));
+    const modes: MemorySyncMode[] = place === 'local' ? ['auto', 'manual'] : ['auto', 'pull', 'manual'];
+    const labels = modes.map((m) => T(`msetup.mode.${m}${place === 'local' && m === 'auto' ? 'Local' : ''}` as MessageKey));
+    const def = ours ? 0 : 1;
+    mode = modes[await io.choose(T(ours ? 'msetup.ask.modeOurs' : 'msetup.ask.mode', { dir }), labels, def)]!;
+    if (mode !== 'auto') handoffs = (await io.choose(T('msetup.ask.handoffs'), [T('msetup.handoffs.store'), T('msetup.handoffs.tool')], 1)) === 0;
+  }
+
   // ── 6 · what to bring along ──
   let bringFrom: string | null = null;
   if (current && !same(current, dir) && (currentFacts?.files ?? 0) > 0) {
@@ -263,7 +283,7 @@ export async function memorySetup(io: SetupIO, env: SetupEnv): Promise<SetupOutc
 
   // ── 8 · identity: a commit needs a name and an address; GitHub's private one when signed in ──
   let identity: SetupPlan['identity'] = null;
-  if (gitTool) {
+  if (gitTool && mode === 'auto') {
     const name = await run(env.runner, [gitTool.command, 'config', '--get', 'user.name'], dir && folderFacts(dir).exists ? dir : env.cwd);
     const email = await run(env.runner, [gitTool.command, 'config', '--get', 'user.email'], dir && folderFacts(dir).exists ? dir : env.cwd);
     if (!name.out.trim() || !email.out.trim())
@@ -281,6 +301,8 @@ export async function memorySetup(io: SetupIO, env: SetupEnv): Promise<SetupOutc
     createRepo,
     clone,
     adopt,
+    mode,
+    handoffs,
     setupGit: !!(ghTool && login && place !== 'local'),
     identity,
     bringFrom,
@@ -311,11 +333,15 @@ export function describePlan(p: SetupPlan, lang: Lang): string[] {
     out.push(T('msetup.plan.folder', { dir: p.dir }));
     if (p.git) out.push(T(p.remote ? 'msetup.plan.gitRemote' : 'msetup.plan.gitLocal', { remote: p.repo ?? p.remote ?? '' }));
   }
+  if (p.adopt) out.push(T(`msetup.plan.mode.${p.mode}` as MessageKey));
   if (p.identity) out.push(T('msetup.plan.identity', { name: p.identity.name, email: p.identity.email }));
-  out.push(T('msetup.plan.scaffold'));
+  if (!p.adopt) out.push(T('msetup.plan.scaffold'));
+  else if (p.handoffs) out.push(T('msetup.plan.scaffoldHandoffs'));
+  if (!p.handoffs) out.push(T('msetup.plan.handoffsTool'));
   if (p.bringFrom) out.push(T('msetup.plan.bring', { from: p.bringFrom }));
   if (p.projects.length) out.push(T('msetup.plan.projects', { n: p.projects.length }));
-  if (p.git) out.push(T(p.remote ? 'msetup.plan.commitPush' : 'msetup.plan.commit'));
+  if (p.git && p.mode === 'auto') out.push(T(p.remote ? 'msetup.plan.commitPush' : 'msetup.plan.commit'));
+  else if (p.git && p.mode === 'pull' && p.remote) out.push(T('msetup.plan.pullOnly'));
   if (p.writeSetting) out.push(T('msetup.plan.setting', { dir: p.dir }));
   if (p.protect) out.push(T('msetup.plan.protect'));
   out.push(T('msetup.plan.save'));
@@ -379,8 +405,14 @@ export async function applyPlan(io: SetupIO, env: SetupEnv, p: SetupPlan): Promi
     }
     ok(T('msetup.plan.identity', { name: p.identity.name, email: p.identity.email }));
   }
-  scaffoldStore(p.dir, p.place);
-  ok(T('msetup.plan.scaffold'));
+  // A folder of the person's own gets nothing it did not ask for: at most the handoffs folder, when notes go there.
+  if (!p.adopt) {
+    scaffoldStore(p.dir, p.place, { readme: true, handoffs: p.handoffs });
+    ok(T('msetup.plan.scaffold'));
+  } else if (p.handoffs) {
+    scaffoldStore(p.dir, p.place, { readme: false, handoffs: true });
+    ok(T('msetup.plan.scaffoldHandoffs'));
+  }
   if (p.bringFrom) {
     const r = copyNotes(p.bringFrom, p.dir);
     ok(T('msetup.apply.brought', { n: r.copied, from: p.bringFrom }));
@@ -392,7 +424,7 @@ export async function applyPlan(io: SetupIO, env: SetupEnv, p: SetupPlan): Promi
   }
 
   let sync: SyncResult | null = null;
-  if (p.git) {
+  if (p.git && p.mode === 'auto') {
     sync = await syncMemory(env.runner, {
       dir: p.dir,
       remote: !!p.remote,
@@ -406,6 +438,20 @@ export async function applyPlan(io: SetupIO, env: SetupEnv, p: SetupPlan): Promi
     if (p.remote && sync.push !== 'ok' && sync.push !== 'none') return fail(T('msetup.plan.commitPush'), sync.detail || sync.push);
     ok(T(p.remote ? 'msetup.plan.commitPush' : 'msetup.plan.commit'));
     if (sync.held.length) io.say(`    ${T('msetup.apply.held', { files: sync.held.map((h) => h.path).join(', ') })}`);
+  } else if (p.git && p.mode === 'pull' && p.remote) {
+    // Only a fast-forward: nothing of the person's is committed, rebased or sent. One that cannot be made is said, not fatal.
+    sync = await syncMemory(env.runner, {
+      dir: p.dir,
+      remote: true,
+      steps: { commit: false, pull: true, push: false },
+      pullMode: 'ff-only',
+      message: (counts) => commitMessage(counts, null, env.lang),
+      readFile: async (path) => readText(path),
+      secrets: (text) => scanSecrets(text).length,
+      gitCommand: git,
+    });
+    if (sync.pull === 'ok' || sync.pull === 'none') ok(T('msetup.plan.pullOnly'));
+    else io.say(`  · ${T('msetup.apply.pullLater', { detail: sync.detail || sync.pull })}`);
   }
 
   if (p.writeSetting) {
@@ -414,7 +460,7 @@ export async function applyPlan(io: SetupIO, env: SetupEnv, p: SetupPlan): Promi
     ok(T('msetup.plan.setting', { dir: p.dir }) + (w.backup ? ` (${T('msetup.apply.backup', { file: w.backup })})` : ''));
   }
 
-  const store: MemoryStore = { place: p.place, dir: p.dir, remote: p.remote, repo: p.repo, git: p.git, sync: env.config.memory.store?.sync ?? 'auto' };
+  const store: MemoryStore = { place: p.place, dir: p.dir, remote: p.remote, repo: p.repo, git: p.git, sync: p.mode, handoffs: p.handoffs };
   let next = setConfigValue(env.config, 'memory.store', store).config;
   if (p.protect && !next.memory.dirs.some((d) => pathKey(d, env.platform) === pathKey(p.dir, env.platform)))
     next = setConfigValue(next, 'memory.dirs', [...next.memory.dirs, p.dir]).config;

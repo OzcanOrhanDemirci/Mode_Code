@@ -25,7 +25,7 @@ export function projectKeyAt(config: Config, cwd: string, named: string | null =
 }
 
 export function handoffDir(config: Config, l: Layout, key: string): string {
-  return join(handoffRoot(config.memory.store?.dir ?? null, l.handoffsDir), key).replace(/\\/g, '/');
+  return join(handoffRoot(config, l.handoffsDir), key).replace(/\\/g, '/');
 }
 
 /** A project's notes, oldest first. */
@@ -53,7 +53,7 @@ export function newestHandoffAt(config: Config, l: Layout, key: string): { path:
 
 /** Removes every project's notes past the newest `keep` from the folder; how many went. */
 export function pruneHandoffs(config: Config, l: Layout): number {
-  const root = handoffRoot(config.memory.store?.dir ?? null, l.handoffsDir);
+  const root = handoffRoot(config, l.handoffsDir);
   let projects: string[] = [];
   try {
     projects = readdirSync(root, { withFileTypes: true })

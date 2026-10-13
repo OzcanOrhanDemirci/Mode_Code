@@ -53,6 +53,7 @@ test('the store setting: a place, a folder, and a remote where the place needs o
     repo: 'ada/claude-memory',
     git: true,
     sync: 'auto',
+    handoffs: true,
   });
   // GitHub needs a remote: without one the store is not taken, and it is said.
   const noRemote = store({ place: 'github', remote: null });
@@ -84,9 +85,22 @@ test('the store setting: a place, a folder, and a remote where the place needs o
   assert.equal(wrongRemote.config.memory.store, null, 'a remote of the wrong kind leaves github and both without one');
   const loose = store({ place: 'local', repo: 'not a repo', sync: 'sometimes', git: 'yes', remote: 7 });
   assert.deepEqual(loose.problems.map((p) => p.path).sort(), ['memory.store.git', 'memory.store.remote', 'memory.store.repo', 'memory.store.sync']);
-  assert.deepEqual(loose.config.memory.store, { place: 'local', dir: '/home/ada/claude-memory', remote: null, repo: null, git: false, sync: 'auto' });
+  assert.deepEqual(loose.config.memory.store, {
+    place: 'local',
+    dir: '/home/ada/claude-memory',
+    remote: null,
+    repo: null,
+    git: false,
+    sync: 'auto',
+    handoffs: true,
+  });
   const manual = store({ sync: 'manual' });
   assert.equal(manual.config.memory.store?.sync, 'manual');
+  // A memory its owner commits: only bringing in; handoff notes kept elsewhere.
+  const owned = store({ sync: 'pull', handoffs: false });
+  assert.deepEqual([owned.config.memory.store?.sync, owned.config.memory.store?.handoffs, owned.problems], ['pull', false, []]);
+  const odd = store({ handoffs: 'no' });
+  assert.deepEqual([odd.config.memory.store?.handoffs, odd.problems.map((p) => p.path)], [true, ['memory.store.handoffs']]);
   assert.equal(store({ dir: '  /m  ', remote: ' git@github.com:ada/m.git ' }).config.memory.store?.dir, '/m');
   assert.equal(normalizeConfig({ memory: { store: 'x' } }).config.memory.store, null);
   assert.equal(normalizeConfig({ memory: { store: null } }).problems.length, 0);

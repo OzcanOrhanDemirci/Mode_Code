@@ -55,7 +55,7 @@ export function newestHandoff(ctx: Pick<AppContext, 'config' | 'layout'>, projec
 
 /** Every project's handoff notes written since a moment. */
 export function handoffsSince(ctx: Pick<AppContext, 'config' | 'layout'>, since: number): { project: string; at: number }[] {
-  const root = handoffRoot(ctx.config.memory.store?.dir ?? null, ctx.layout.handoffsDir);
+  const root = handoffRoot(ctx.config, ctx.layout.handoffsDir);
   const out: { project: string; at: number }[] = [];
   let projects: string[] = [];
   try {
@@ -158,7 +158,7 @@ export function morningFacts(ctx: AppContext, since: number, until: number, opts
       ahead: st?.ahead ?? null,
       conflicts: problem?.conflicts ?? [],
       held: problem?.held.map((h) => h.path) ?? [],
-      error: problem && ['offline', 'auth', 'failed'].includes(problem.push) ? problem.detail || problem.push : null,
+      error: problem && (['offline', 'auth', 'failed'].includes(problem.push) || problem.pull === 'diverged') ? problem.detail || problem.push : null,
     };
   }
   return {
@@ -195,7 +195,7 @@ export interface HandoffItem {
 
 /** Every project's handoff notes, newest first, read back (at most `limit`). */
 export function allHandoffs(ctx: Pick<AppContext, 'config' | 'layout'>, limit = 100): HandoffItem[] {
-  const root = handoffRoot(ctx.config.memory.store?.dir ?? null, ctx.layout.handoffsDir);
+  const root = handoffRoot(ctx.config, ctx.layout.handoffsDir);
   let projects: string[] = [];
   try {
     projects = readdirSync(root, { withFileTypes: true })

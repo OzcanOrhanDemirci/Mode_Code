@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newestRecord, parseSyncRecord, syncProblem, type SyncResult } from '../../src/core/memory-sync.js';
 import { handoffRoot } from '../../src/core/memory.js';
+import { cloneDefaults } from '../../src/core/config.js';
 
 const result = (over: Partial<SyncResult> = {}): SyncResult => ({
   repo: true,
@@ -17,6 +18,7 @@ const result = (over: Partial<SyncResult> = {}): SyncResult => ({
   behind: 0,
   pulled: [],
   index: null,
+  head: null,
   detail: '',
   ...over,
 });
@@ -108,7 +110,24 @@ test('what needs the person, in the order it matters; offline is said but tried 
   for (const o of ['none', 'skipped', 'busy'] as const) assert.equal(syncProblem(result({ pull: o, push: o === 'busy' ? 'busy' : o })), null, o);
 });
 
-test('handoffs live in the store when there is one, else in the fallback folder', () => {
-  assert.equal(handoffRoot('/m', '/d/handoffs'), '/m/handoffs');
-  assert.equal(handoffRoot(null, '/d/handoffs'), '/d/handoffs');
+test("handoffs live in the store when it keeps them, else in the sync's shared place when it takes them, else in the fallback folder", () => {
+  const store = (handoffs: boolean) => ({ place: 'local' as const, dir: '/m', remote: null, repo: null, git: true, sync: 'pull' as const, handoffs });
+  const sync = (handoffs: boolean) => ({
+    place: 'folder' as const,
+    dir: '/s',
+    remote: null,
+    repo: null,
+    machine: { id: 'pc-1a2b', name: 'pc' },
+    everyMinutes: 30,
+    keepMonths: 3,
+    handoffs,
+  });
+  const at = (s: ReturnType<typeof store> | null, y: ReturnType<typeof sync> | null) =>
+    handoffRoot({ memory: { ...cloneDefaults().memory, store: s }, sync: y }, '/d/handoffs');
+  assert.equal(at(store(true), sync(true)), '/m/handoffs');
+  assert.equal(at(store(false), sync(true)), '/s/handoffs');
+  assert.equal(at(store(false), sync(false)), '/d/handoffs');
+  assert.equal(at(null, sync(true)), '/s/handoffs');
+  assert.equal(at(null, null), '/d/handoffs');
+  assert.equal(at(store(false), null), '/d/handoffs');
 });

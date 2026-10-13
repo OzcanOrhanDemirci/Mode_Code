@@ -258,7 +258,7 @@ export function MemoryStore({ width, open }: ScreenProps) {
           <Row label={t('mcli.sync')}>
             {t(`mcli.sync.${s.sync}` as MessageKey)}
             {last
-              ? ` · ${ago(last.at, now, lang)}: ${t(`mem.last.${last.result.pull === 'conflict' ? 'conflict' : last.result.held.length ? 'held' : 'ok'}` as MessageKey)}`
+              ? ` · ${ago(last.at, now, lang)}: ${t(`mem.last.${last.result.pull === 'conflict' ? 'conflict' : last.result.pull === 'diverged' ? 'diverged' : last.result.held.length ? 'held' : 'ok'}` as MessageKey)}`
               : ''}
           </Row>
         ) : null}
