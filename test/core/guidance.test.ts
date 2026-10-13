@@ -46,8 +46,8 @@ test('the quota line: measured, stale or missing', () => {
 
 test('every keyword gets one instruction that quotes what the person typed', () => {
   const cases: [string, RegExp][] = [
-    ['app devam', /Keyword "continue" for project "app": work autonomously/],
-    ['manuel app devam', /Keyword "manual continue" for project "app": work step by step/],
+    ['app devam', /Keyword "continue" for project "app": pick the work up where it stopped\. Quota/],
+    ['manuel app devam', /Keyword "manual continue" for project "app": pick the work up where it stopped\. Way of working, manual: work step by step/],
     ['sohbet', /Keyword "chat": chat mode: conversation only/],
     ['araştırma', /Keyword "research": research mode: read, search the web/],
     ['plan', /Keyword "plan": plan mode: read and plan/],
@@ -148,7 +148,38 @@ test('the way of working: manual and autonomous alone, each said in the words th
   assert.match(manual, /The way of working is now manual: work step by step\. Do what the message asks, say what you did and what would come next, and wait/);
   const auto = keywordContext(kw('otonom'), state, q(), null)[0]!;
   assert.match(auto, /The way of working is now autonomous: go on without asking for approval between steps.* The mode stays as it is\./);
-  assert.match(keywordContext(kw('manuel app devam'), state, q(), null)[0]!, /Keyword "manual continue": work step by step/);
+  assert.match(
+    keywordContext(kw('manuel app devam'), state, q(), null)[0]!,
+    /Keyword "manual continue": pick the work up where it stopped\. Way of working, manual: work step by step/,
+  );
+});
+
+test('continue under the strip states the mode and the way of working it leaves as they are', () => {
+  // The person, 2026-10-13: chat and manual on the strip, then "terminal devam" was told "work autonomously".
+  const strip = { strip: true, workDir: '/tmp/w' };
+  const said = (text: string, s = state) => keywordContext(kw(text), s, q(), 'app', strip)[0]!;
+  const chatManual = said('app devam', { ...state, mode: 'chat', interaction: 'manual' });
+  assert.match(
+    chatManual,
+    /Keyword "continue" for project "app": pick the work up where it stopped\. The keyword changes neither the mode nor the way of working; they stay as the strip above the prompt shows\. Mode, chat mode: conversation only\..* The safety layer enforces this until the person picks another mode\. Way of working, manual: work step by step\..* Quota/,
+  );
+  assert.doesNotMatch(chatManual, /autonom|continue" or/);
+  const codeAuto = said('app devam', { ...state, mode: 'code', interaction: 'autonomous' });
+  assert.match(
+    codeAuto,
+    /Mode, code mode: develop, test and commit; the safety belt and the project locks apply\. Way of working, autonomous: go on without asking/,
+  );
+  assert.doesNotMatch(codeAuto, /safety layer enforces/);
+  // A session nobody set reads as the strip shows it: free, manual.
+  assert.match(said('app devam'), /Mode, free mode: .* Way of working, manual: work step by step/);
+  assert.match(said('app devam', { ...state, mode: 'research' }), /Mode, research mode: .*work folder \(\/tmp\/w\)/);
+  // "manual continue" names the way of working; the mode it leaves.
+  assert.match(
+    said('manuel app devam', { ...state, mode: 'plan', interaction: 'manual' }),
+    /pick the work up where it stopped\. The way of working is now manual; the mode stays as the strip above the prompt shows\. Mode, plan mode: .* Way of working, manual: /,
+  );
+  // A mode keyword no longer points at "continue" as a way out of chat.
+  assert.match(keywordContext(kw('sohbet'), state, q(), null)[0]!, /The safety layer enforces this until the person picks another mode\.$/);
 });
 
 test('a command and a press are named as such, not as typed words', () => {
@@ -162,11 +193,14 @@ test("the folder's last choice, told with the first prompt; a folder to continue
   const r = restoredContext('plan', 'autonomous', '/tmp/w');
   assert.match(
     r,
-    /starts as the person last left this folder.*plan mode: read and plan.*work folder \(\/tmp\/w\).* And work autonomously: go on without asking/,
+    /took up the mode and the way of working last used in this folder\. What holds now, as the strip above the prompt shows: Mode, plan mode: read and plan.*work folder \(\/tmp\/w\).* Way of working, autonomous: go on without asking/,
   );
-  assert.match(r, /They change either with \/1 to \/8/);
-  assert.match(restoredContext('chat', 'manual', '/tmp/w'), /chat mode: conversation only.* And work manually: work step by step/);
-  assert.match(restoredContext('code', 'default', '/w'), /And work manually/);
+  assert.match(r, /The person changes either with \/1 to \/8.*; "continue" changes neither\.$/);
+  assert.match(
+    restoredContext('chat', 'manual', '/tmp/w'),
+    /chat mode: conversation only.* until the person picks another mode\. Way of working, manual: work step by step/,
+  );
+  assert.match(restoredContext('code', 'default', '/w'), /Way of working, manual/);
   assert.equal(
     continueFolderContext('/home/ada/dev/notes', false),
     "[terminal-code] The project to continue is the folder /home/ada/dev/notes: not this session's folder, so work there.",

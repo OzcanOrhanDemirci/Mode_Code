@@ -23,7 +23,7 @@ import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
 import { isBeltTool, isFileTool, shellOf } from '../core/belt/tools.js';
 import type { BeltContext, BeltDecision, GitFacts } from '../core/belt/types.js';
 import { checkGuards, type ModeGuard } from '../core/guard.js';
-import { detectKeyword, isModeKeyword, messageWithoutKeyword, MODE_KEYWORDS, type KeywordMatch } from '../core/keywords.js';
+import { detectKeyword, isModeKeyword, messageWithoutKeyword, MODE_KEYWORDS, type KeywordKind, type KeywordMatch } from '../core/keywords.js';
 import {
   actionKeyword,
   CHOICE_LINE,
@@ -79,6 +79,7 @@ import {
   parseHookState,
   parseModState,
   sameFolderSessions,
+  withRun,
   type ModSessionState,
 } from '../core/session.js';
 import { effectiveMode, isRestricted, MODE_ICON, tempZones, type ModeZones, type WorkMode } from '../core/modes.js';
@@ -1127,7 +1128,7 @@ async function saveRun($: $, c: Ctx, r: Run, redraw = true): Promise<void> {
   if (dir) await $.fs.write(joinPath(dir, 'run.json'), JSON.stringify(r, null, 2) + '\n');
   const open = !isTerminal(r);
   c.run = open ? r : null;
-  c.state = { ...c.state, runId: open ? r.id : null, interaction: open ? 'full' : c.state.interaction === 'full' ? 'default' : c.state.interaction };
+  c.state = withRun(c.state, open ? r.id : null);
   await saveState($, c);
   if (redraw) await refreshStatus($, c);
 }
@@ -2120,7 +2121,7 @@ async function sessionStateText($: $): Promise<string> {
   if (c.run) parts.push(autoStateText(c.run));
   else if (s.interaction === 'autonomous') parts.push(`the person asked for autonomous work${label ? ` on project "${label}"` : ''}`);
   else if (s.interaction === 'manual') parts.push(`the person asked to work step by step${label ? ` on project "${label}"` : ''}`);
-  if (s.mode === 'chat') parts.push('chat mode is on: no project or memory writes and no commits until the person says continue');
+  if (s.mode === 'chat') parts.push('chat mode is on: no project or memory writes and no commits until the person picks another mode');
   else if (s.mode !== 'free') parts.push(`${s.mode} mode is on (the safety layer enforces it)`);
   if (s.weeklyTarget !== null) parts.push(`the weekly quota budget is ${s.weeklyTarget}%`);
   if (s.wrapUp) parts.push('work is wrapping up: finish the current step, commit, report and stop');
@@ -2301,12 +2302,11 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
     extra.push(...(await sameFolderNotes($, c)));
   }
   let flowSaid = false;
-  // The first prompt after the session took up the folder's last choice: the model is told what it is.
-  if (human && c.restored) {
-    c.restored = false;
-    const cwd = await $.session.cwd();
-    extra.push(restoredContext(c.state.mode, c.state.interaction === 'autonomous' ? 'autonomous' : 'manual', workRoot(c, cwd)));
-  }
+  // The first prompt after the session took up the folder's last choice: the model is told what holds,
+  // once this prompt's own keyword is applied (the note goes first; a "continue" states it itself).
+  const restoredAt = human && c.restored ? extra.length : -1;
+  if (restoredAt >= 0) c.restored = false;
+  let said: KeywordKind | null = null;
   let typed = String(e.text ?? '');
   // `/9` or `/8` without a task: the person's next own message is the task, unless it is a keyword itself.
   if (human && kind !== 'plugin' && c.armed) {
@@ -2319,9 +2319,14 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   const applied = ours && c.selfSent !== null && typed === c.selfSent;
   if (ours) c.selfSent = null;
   if (human && !applied && (c.config.modules.keywords || typed !== String(e.text ?? ''))) {
-    const said = await keywordTurn($, c, typed);
-    extra.push(...said.context);
-    flowSaid = said.flow;
+    const turn = await keywordTurn($, c, typed);
+    extra.push(...turn.context);
+    flowSaid = turn.flow;
+    said = turn.kind;
+  }
+  if (restoredAt >= 0 && said !== 'continue' && said !== 'manual') {
+    const cwd = await $.session.cwd();
+    extra.splice(restoredAt, 0, restoredContext(c.state.mode, c.state.interaction, workRoot(c, cwd)));
   }
   if (human) c.pendingContinue = null;
   // While a flow runs, every prompt carries where it stands (short), unless a flow keyword just said more.
@@ -2360,10 +2365,10 @@ async function syncPermissionMode($: $, c: Ctx): Promise<void> {
 }
 
 /** Detects a keyword in the person's prompt, applies it to the session, and returns the context it adds. */
-async function keywordTurn($: $, c: Ctx, text: string): Promise<{ context: string[]; flow: boolean }> {
+async function keywordTurn($: $, c: Ctx, text: string): Promise<{ context: string[]; flow: boolean; kind: KeywordKind | null }> {
   const kw: KeywordMatch | null = detectKeyword(text, projectRefs(c.config), keywordTables(c.config));
-  if (!kw) return { context: [], flow: false };
-  return applyKeywordTurn($, c, kw, text);
+  if (!kw) return { context: [], flow: false, kind: null };
+  return { ...(await applyKeywordTurn($, c, kw, text)), kind: kw.kind };
 }
 
 /**
@@ -2428,6 +2433,7 @@ async function applyKeywordTurn($: $, c: Ctx, given: KeywordMatch, text: string)
   const cwd = await $.session.cwd();
   const context = keywordContext(kw, c.state, await quotaNow($, c), label, {
     workDir: workRoot(c, cwd),
+    strip: modes,
     flow: running && isModeKeyword(kw.kind) ? { step: pausedFor ?? stepName(currentStep(running)!.kind, c.lang), paused: pausedFor !== null } : null,
   });
   if (folder) context.push(continueFolderContext(folder.folder, pathKey(folder.folder, c.platform) === pathKey(resolvePath(cwd, pathEnv(c, cwd)), c.platform)));
@@ -3760,7 +3766,8 @@ async function restoreLast($: $, c: Ctx): Promise<void> {
   if (!c.state.cwd) return;
   // The 40 newest records are plenty to find the last session in this folder, and keep the start quick.
   const last = lastChoice(await sessionStates($, c, 40), c.state.cwd, c.platform, c.sessionId);
-  if (!last || (last.mode === 'free' && last.interaction !== 'autonomous')) return;
+  // Only a choice that differs from a fresh session's: a manual the person picked is theirs to keep too.
+  if (!last || (last.mode === 'free' && last.interaction === 'default')) return;
   c.state = { ...c.state, mode: last.mode, interaction: last.interaction };
   c.restored = true;
   await saveState($, c);

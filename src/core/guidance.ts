@@ -28,6 +28,26 @@ export function quotaLine(q: QuotaAssessment): string {
 const MANUAL_NOTE =
   'work step by step. Do what the message asks, say what you did and what would come next, and wait for the person before going further; when something needs their decision, ask.';
 
+/** Working autonomously, as the person defined it: go on, and stop only for a decision that is theirs. */
+const AUTONOMOUS_NOTE =
+  'go on without asking for approval between steps; when a plan is done, write the next one and carry it out. ' +
+  'Stop only for a decision the person must make (irreversible or outward-facing steps, a direction with no single right answer, a project lock); ' +
+  'skip such a step if later work does not depend on it, and list your autonomous decisions in the final report.';
+
+/** The way of working in one sentence; the default reads as manual, as the strip shows it. */
+function styleSentence(interaction: ModSessionState['interaction']): string {
+  return interaction === 'manual' || interaction === 'default' ? `Way of working, manual: ${MANUAL_NOTE}` : `Way of working, autonomous: ${AUTONOMOUS_NOTE}`;
+}
+
+/** What keeps a restricting mode: code, until the person changes it (a "continue" does not). */
+const HELD = 'The safety layer enforces this until the person picks another mode.';
+
+/** The mode in one sentence, with the guard that holds it when it restricts. */
+function modeSentence(mode: WorkMode, workDir: string | undefined): string {
+  const note = MODE_NOTE[mode].replace('{work}', workDir ? ` (${workDir})` : '');
+  return `Mode, ${note}${mode === 'free' || mode === 'code' ? '' : ` ${HELD}`}`;
+}
+
 /** What a mode allows, for the model: one sentence each. */
 const MODE_NOTE: Record<WorkMode, string> = {
   free: 'free mode: no restriction beyond the safety belt and the project locks.',
@@ -43,6 +63,11 @@ export interface KeywordExtras {
   workDir?: string;
   /** Set when a flow is attached: a mode keyword (always the whole message) pauses the flow at this step. */
   flow?: { step: string; paused: boolean } | null;
+  /**
+   * The plugin draws the strip, so the session has a mode and a way of working to state. The hook alone
+   * (the plugin not loaded) has neither.
+   */
+  strip?: boolean;
 }
 
 /** Context for a detected keyword, or [] when the keyword needs none. */
@@ -69,19 +94,22 @@ export function keywordContext(
       : '';
   switch (kw.kind) {
     case 'continue':
-      return [
-        `${said} Keyword "continue"${project}: work autonomously. Do not ask for approval between steps; when a plan is done, write the next one and carry it out. ` +
-          `Stop only for a decision the person must make (irreversible or outward-facing steps, a direction with no single right answer, a project lock); ` +
-          `skip such a step if later work does not depend on it, and list your autonomous decisions in the final report. ${quotaLine(quota)}${unknownProject}`,
-      ];
-    case 'manual':
-      return [`${said} Keyword "manual continue"${project}: ${MANUAL_NOTE} ${quotaLine(quota)}${unknownProject}`];
+    case 'manual': {
+      // "continue" picks the work up and leaves the mode and the way of working as the person set them on
+      // the strip; "manual continue" names the way of working (the person, 2026-10-13).
+      const name = kw.kind === 'continue' ? 'continue' : 'manual continue';
+      const head = `${said} Keyword "${name}"${project}: pick the work up where it stopped.`;
+      if (!extras.strip) return [`${head}${kw.kind === 'manual' ? ` Way of working, manual: ${MANUAL_NOTE}` : ''} ${quotaLine(quota)}${unknownProject}`];
+      const kept =
+        kw.kind === 'continue'
+          ? 'The keyword changes neither the mode nor the way of working; they stay as the strip above the prompt shows.'
+          : 'The way of working is now manual; the mode stays as the strip above the prompt shows.';
+      return [`${head} ${kept} ${modeSentence(state.mode, extras.workDir)} ${styleSentence(state.interaction)} ${quotaLine(quota)}${unknownProject}`];
+    }
     case 'manualStyle':
       return [`${said} The way of working is now manual: ${MANUAL_NOTE}`];
     case 'autonomous':
-      return [
-        `${said} The way of working is now autonomous: go on without asking for approval between steps, and stop only for a decision the person must make (irreversible or outward-facing steps, a direction with no single right answer, a project lock). The mode stays as it is.`,
-      ];
+      return [`${said} The way of working is now autonomous: ${AUTONOMOUS_NOTE} The mode stays as it is.`];
     case 'chat':
     case 'research':
     case 'plan':
@@ -93,8 +121,7 @@ export function keywordContext(
         return [
           `${said} Keyword "${kw.kind}": the person switched to ${note} The flow is paused at its ${extras.flow.step} step: keep its draft as it is and work in the new mode. "continue" resumes the flow.`,
         ];
-      const until = mode === 'chat' ? 'until the person types "continue" or picks another mode' : 'until the person picks another mode';
-      return [`${said} Keyword "${kw.kind}": ${note}${mode === 'free' || mode === 'code' ? '' : ` The safety layer enforces this ${until}.`}`];
+      return [`${said} Keyword "${kw.kind}": ${note}${mode === 'free' || mode === 'code' ? '' : ` ${HELD}`}`];
     }
     case 'quota':
       return state.weeklyTarget === null
@@ -126,15 +153,15 @@ export function keywordContext(
 
 /**
  * Told with the first prompt when the session took up the mode and the way of working the person last
- * used in this folder (the strip shows them): what they allow, and how the person changes them.
+ * used in this folder: what holds now, after any change made since (a press, this prompt's own keyword),
+ * as the strip shows it; what that allows, and how the person changes it.
  */
-export function restoredContext(mode: WorkMode, interaction: 'default' | 'manual' | 'autonomous', workDir: string): string {
-  const note = MODE_NOTE[mode].replace('{work}', ` (${workDir})`);
-  const style =
-    interaction === 'autonomous'
-      ? 'work autonomously: go on without asking between steps and stop only for a decision the person must make'
-      : `work manually: ${MANUAL_NOTE.charAt(0).toLowerCase()}${MANUAL_NOTE.slice(1)}`;
-  return `${P} This session starts as the person last left this folder, as the mode strip above the prompt shows: ${note} And ${style} They change either with /1 to /8, a press on the strip, or the keyword typed as the whole message.`;
+export function restoredContext(mode: WorkMode, interaction: ModSessionState['interaction'], workDir: string): string {
+  return (
+    `${P} This session took up the mode and the way of working last used in this folder. What holds now, as the strip above the prompt shows: ` +
+    `${modeSentence(mode, workDir)} ${styleSentence(interaction)} ` +
+    'The person changes either with /1 to /8, a press on the strip, or the word typed as the whole message; "continue" changes neither.'
+  );
 }
 
 /** Told with the person's prompt when they chose a folder to continue that is not a registered project. */

@@ -42,6 +42,8 @@ export interface ModSessionState {
   /** Claude Code's own plan mode as last seen in this session, and the plan file it named. */
   nativePlan: { on: boolean; planFile: string | null; at: number } | null;
   interaction: Interaction;
+  /** The way of working a full-autonomy run took over, given back when the run ends (see withRun). */
+  interactionBefore: Exclude<Interaction, 'full'> | null;
   /** Project the last keyword named, if any. */
   project: string | null;
   /** Weekly quota target from "kota N" / "kota +N"; null means the default budget. */
@@ -89,6 +91,7 @@ export function newModState(sessionId: string, modVersion: string, now: number):
     runId: null,
     nativePlan: null,
     interaction: 'default',
+    interactionBefore: null,
     project: null,
     weeklyTarget: null,
     weeklyTargetSource: null,
@@ -119,6 +122,7 @@ export function parseModState(text: string | null): ModSessionState | null {
       flowId: typeof s.flowId === 'string' ? s.flowId : null,
       runId: typeof s.runId === 'string' ? s.runId : null,
       interaction: INTERACTIONS.has(s.interaction) ? s.interaction : 'default',
+      interactionBefore: INTERACTIONS.has(s.interactionBefore as Interaction) && (s.interactionBefore as Interaction) !== 'full' ? s.interactionBefore : null,
       nativePlan:
         isObj(plan) && typeof plan.on === 'boolean' && typeof plan.at === 'number'
           ? { on: plan.on, planFile: typeof plan.planFile === 'string' ? plan.planFile : null, at: plan.at }
@@ -210,6 +214,11 @@ export function isApproved(s: ModSessionState | null, toolUseId: string | undefi
 /**
  * The state change a detected keyword causes. Pure; the caller persists it. A mode keyword is the whole
  * message, so it changes the mode for good (while a flow runs, the caller pauses the flow).
+ *
+ * The mode and the way of working change only where the person names them: a mode or a way of working
+ * typed alone, and "manual" in "manual <project> continue". "continue", a budget and "stop" leave both as
+ * the strip shows them ("they must not change when I did not write it, or choosing them means nothing",
+ * the person, 2026-10-13).
  */
 export function applyKeyword(s: ModSessionState, kw: KeywordMatch, weeklyTarget: number | null): ModSessionState {
   if (isModeKeyword(kw.kind)) return { ...s, mode: MODE_KEYWORDS[kw.kind], turnMode: null };
@@ -220,9 +229,7 @@ export function applyKeyword(s: ModSessionState, kw: KeywordMatch, weeklyTarget:
     case 'manual': {
       const next: ModSessionState = {
         ...s,
-        interaction: kw.kind === 'continue' ? 'autonomous' : 'manual',
-        // Continue leaves chat (the one mode that means "do not work"); research, plan and code stay.
-        mode: s.mode === 'chat' ? 'free' : s.mode,
+        interaction: kw.kind === 'manual' ? 'manual' : s.interaction,
         turnMode: null,
         wrapUp: false,
         project: kw.project ?? s.project,
@@ -232,21 +239,31 @@ export function applyKeyword(s: ModSessionState, kw: KeywordMatch, weeklyTarget:
     case 'fullAuto': {
       // Full autonomy needs an explicit budget; the plugin starts the run only after its checks pass, and
       // only then sets the interaction (see run-gate.ts). Here: the project and the budget the person named.
-      if (kw.auto === 'cancel') return { ...s, interaction: s.interaction === 'full' ? 'default' : s.interaction };
+      // Letting a run go brings back the way of working it took over.
+      if (kw.auto === 'cancel') return s.interaction === 'full' ? { ...s, interaction: s.interactionBefore ?? 'default', interactionBefore: null } : s;
       const next: ModSessionState = { ...s, project: kw.project ?? s.project, wrapUp: false, resumeAt: null };
       return kw.budget && weeklyTarget !== null ? { ...next, weeklyTarget, weeklyTargetSource: `${kw.budget.plus ? '+' : ''}${kw.budget.n}` } : next;
     }
     case 'quota':
-      return weeklyTarget === null
-        ? s
-        : { ...s, weeklyTarget, weeklyTargetSource: `${kw.plus ? '+' : ''}${kw.n}`, interaction: kw.standalone ? s.interaction : 'autonomous' };
+      return weeklyTarget === null ? s : { ...s, weeklyTarget, weeklyTargetSource: `${kw.plus ? '+' : ''}${kw.n}` };
     case 'wrapUp':
       return { ...s, wrapUp: true, resumeAt: null };
     case 'handoff':
       return { ...s, project: kw.project ?? s.project };
     case 'stop':
-      return { ...s, wrapUp: true, interaction: 'default', resumeAt: null };
+      return { ...s, wrapUp: true, resumeAt: null };
     default:
       return s;
   }
+}
+
+/**
+ * A full-autonomy run takes the session's way of working over while it is open, and gives back the one it
+ * took when it ends: the strip shows what the person chose before the run, not a default.
+ */
+export function withRun(s: ModSessionState, runId: string | null): ModSessionState {
+  if (runId) return { ...s, runId, interaction: 'full', interactionBefore: s.interaction === 'full' ? s.interactionBefore : s.interaction };
+  return s.interaction === 'full'
+    ? { ...s, runId: null, interaction: s.interactionBefore ?? 'default', interactionBefore: null }
+    : { ...s, runId: null, interactionBefore: null };
 }

@@ -5,41 +5,52 @@ import {
   addApproval,
   applyKeyword,
   APPROVAL_TTL_MS,
+  LIVE_WINDOW_MS,
   isApproved,
   newModState,
   parseHookState,
   parseModState,
   sameFolderSessions,
+  withRun,
 } from '../../src/core/session.js';
 import { detectKeyword, type KeywordMatch } from '../../src/core/keywords.js';
 
 const s0 = newModState('abc', '1.0.0', 1000);
 const kw = (k: Partial<KeywordMatch> & Pick<KeywordMatch, 'kind'>): KeywordMatch => ({ lang: 'tr', text: '', standalone: true, ...k });
 
-test('continue makes the session autonomous and clears a wrap-up', () => {
-  const s = applyKeyword({ ...s0, wrapUp: true, mode: 'chat' }, kw({ kind: 'continue', project: 'terminal-code' }), null);
-  assert.equal(s.interaction, 'autonomous');
-  assert.equal(s.mode, 'free');
-  assert.equal(s.wrapUp, false);
-  assert.equal(s.project, 'terminal-code');
+test('continue names the project and clears a wrap-up; the mode and the way of working stay as the person set them', () => {
+  // The person, 2026-10-13: chat and manual on the strip, then "terminal devam" turned them into free and autonomous.
+  for (const mode of ['chat', 'research', 'plan', 'code', 'free'] as const)
+    for (const interaction of ['default', 'manual', 'autonomous'] as const) {
+      const s = applyKeyword({ ...s0, wrapUp: true, mode, interaction }, kw({ kind: 'continue', project: 'terminal-code' }), null);
+      assert.deepEqual([s.mode, s.interaction, s.wrapUp, s.project], [mode, interaction, false, 'terminal-code'], `${mode} ${interaction}`);
+    }
+  // With a budget too ("terminal devam kota 40").
+  const budget = applyKeyword({ ...s0, mode: 'chat', interaction: 'manual' }, kw({ kind: 'continue', budget: { n: 40, plus: false } }), 40);
+  assert.deepEqual([budget.mode, budget.interaction, budget.weeklyTarget], ['chat', 'manual', 40]);
+});
+
+test('"manual <project> continue" names the way of working, so it sets it; the mode stays', () => {
+  const s = applyKeyword({ ...s0, mode: 'chat', interaction: 'autonomous', wrapUp: true }, kw({ kind: 'manual', project: 'app' }), null);
+  assert.deepEqual([s.mode, s.interaction, s.wrapUp, s.project], ['chat', 'manual', false, 'app']);
 });
 
 test('chat, wrap up and stop change only what they say', () => {
   assert.equal(applyKeyword(s0, kw({ kind: 'chat' }), null).mode, 'chat');
   assert.equal(applyKeyword(s0, kw({ kind: 'wrapUp' }), null).wrapUp, true);
-  const stopped = applyKeyword({ ...s0, interaction: 'autonomous', resumeAt: 5 }, kw({ kind: 'stop' }), null);
-  assert.equal(stopped.interaction, 'default');
-  assert.equal(stopped.resumeAt, null);
+  const stopped = applyKeyword({ ...s0, interaction: 'autonomous', mode: 'code', resumeAt: 5 }, kw({ kind: 'stop' }), null);
+  // Stop ends the work and any resume; the way of working on the strip is still the person's.
+  assert.deepEqual([stopped.wrapUp, stopped.resumeAt, stopped.interaction, stopped.mode], [true, null, 'autonomous', 'code']);
 });
 
-test('a quota keyword sets the weekly target; at the end of a task it also means autonomous', () => {
+test('a quota keyword sets the weekly target and nothing else, alone or at the end of a task', () => {
   const alone = applyKeyword(s0, kw({ kind: 'quota', n: 40, plus: false }), 40);
   assert.equal(alone.weeklyTarget, 40);
   assert.equal(alone.interaction, 'default');
-  const atEnd = applyKeyword(s0, kw({ kind: 'quota', n: 8, plus: true, standalone: false }), 34);
+  const atEnd = applyKeyword({ ...s0, interaction: 'manual' }, kw({ kind: 'quota', n: 8, plus: true, standalone: false }), 34);
   assert.equal(atEnd.weeklyTarget, 34);
   assert.equal(atEnd.weeklyTargetSource, '+8');
-  assert.equal(atEnd.interaction, 'autonomous');
+  assert.equal(atEnd.interaction, 'manual');
   assert.equal(applyKeyword(s0, kw({ kind: 'quota', n: 8, plus: true }), null), s0); // +N with no reading changes nothing
 });
 
@@ -83,11 +94,35 @@ test('full autonomy: the keyword names the project and the budget; the run itsel
   assert.deepEqual([s.interaction, s.project, s.weeklyTarget, s.weeklyTargetSource, s.wrapUp, s.resumeAt], ['default', 'terminal', 51, '+10', false, null]);
   const cancel = applyKeyword({ ...s0, interaction: 'full', runId: 'r1' }, detectKeyword('tam otonom iptal')!, null);
   assert.equal(cancel.interaction, 'default');
+  // Letting a run go gives back the way of working it took over.
+  const back1 = applyKeyword({ ...s0, interaction: 'full', interactionBefore: 'autonomous', runId: 'r1' }, detectKeyword('tam otonom iptal')!, null);
+  assert.deepEqual([back1.interaction, back1.interactionBefore], ['autonomous', null]);
   assert.equal(applyKeyword({ ...s0, interaction: 'manual' }, detectKeyword('tam otonom iptal')!, null).interaction, 'manual');
   // The interaction and the run survive the state file; an unknown interaction does not.
-  const back = parseModState(JSON.stringify({ ...s0, interaction: 'full', runId: 'r1' }))!;
-  assert.deepEqual([back.interaction, back.runId], ['full', 'r1']);
+  const back = parseModState(JSON.stringify({ ...s0, interaction: 'full', interactionBefore: 'manual', runId: 'r1' }))!;
+  assert.deepEqual([back.interaction, back.interactionBefore, back.runId], ['full', 'manual', 'r1']);
   assert.equal(parseModState(JSON.stringify({ ...s0, interaction: 'turbo' }))!.interaction, 'default');
+  for (const odd of ['full', 'turbo', 7, null])
+    assert.equal(parseModState(JSON.stringify({ ...s0, interactionBefore: odd }))!.interactionBefore, null, String(odd));
+  // A state file written before the field existed reads as none.
+  const { interactionBefore: _, ...old } = s0;
+  assert.equal(parseModState(JSON.stringify(old))!.interactionBefore, null);
+});
+
+test('a run takes the way of working over while it is open and gives back the one it took', () => {
+  for (const before of ['default', 'manual', 'autonomous'] as const) {
+    const open = withRun({ ...s0, interaction: before }, 'r1');
+    assert.deepEqual([open.runId, open.interaction, open.interactionBefore], ['r1', 'full', before]);
+    // The run's record is saved again while it runs: what it took stays what it took.
+    const again = withRun(open, 'r1');
+    assert.deepEqual([again.interaction, again.interactionBefore], ['full', before]);
+    const closed = withRun(again, null);
+    assert.deepEqual([closed.runId, closed.interaction, closed.interactionBefore], [null, before, null]);
+  }
+  // A session that never had a run, or whose run was let go already, keeps its own.
+  assert.deepEqual(withRun({ ...s0, interaction: 'manual' }, null), { ...s0, interaction: 'manual' });
+  // A run state from before the field: the default comes back.
+  assert.equal(withRun({ ...s0, interaction: 'full', runId: 'r1' }, null).interaction, 'default');
 });
 
 test("the hook state keeps a run's stop counter and the last stop it let through", () => {
@@ -111,4 +146,85 @@ test("the hook state keeps a run's stop counter and the last stop it let through
   );
   const torn = parseHookState(JSON.stringify({ v: 1, sessionId: 's1', autoStop: { streak: 'x' }, autoAllowed: { runId: 1 } }), 's1');
   assert.deepEqual([torn.autoStop, torn.autoAllowed], [null, null]);
+});
+
+test('a fresh state is all defaults; a state file needs its version, its session and when it was alive', () => {
+  assert.deepEqual(
+    [s0.mode, s0.interaction, s0.interactionBefore, s0.wrapUp, s0.resumeAt, s0.project, s0.weeklyTarget],
+    ['free', 'default', null, false, null, null, null],
+  );
+  for (const torn of ['5', '[1]', '{"v":1,"sessionId":"a"}', '{"v":1,"aliveAt":1}', '{"sessionId":"a","aliveAt":1}'])
+    assert.equal(parseModState(torn), null, torn);
+  // Approvals in the file: only well-formed ones come back.
+  const approvals = [{ toolUseId: 't1', at: 1, rules: [] }, { at: 2 }, 'x', null, { toolUseId: 3 }];
+  assert.deepEqual(
+    parseModState(JSON.stringify({ ...s0, approvals }))!.approvals.map((a) => a.toolUseId),
+    ['t1'],
+  );
+});
+
+test('the hook state: its own session and version only; each field kept when it has its type, a default when not', () => {
+  const full = { v: 1, sessionId: 's1', lastRunAt: 5, permissionMode: 'plan', permissionModeAt: 7, promptAt: 9, blocks: { 'git.clean': 2 } };
+  const h = parseHookState(JSON.stringify(full), 's1');
+  assert.deepEqual([h.lastRunAt, h.permissionMode, h.permissionModeAt, h.promptAt, h.blocks], [5, 'plan', 7, 9, { 'git.clean': 2 }]);
+  const odd = parseHookState(JSON.stringify({ ...full, lastRunAt: '5', permissionMode: 1, permissionModeAt: '7', promptAt: null, blocks: [] }), 's1');
+  assert.deepEqual([odd.lastRunAt, odd.permissionMode, odd.permissionModeAt, odd.promptAt, odd.blocks], [0, null, 0, 0, {}]);
+  assert.equal(parseHookState(JSON.stringify({ ...full, v: 2 }), 's1').lastRunAt, 0);
+  assert.equal(parseHookState('[1]', 's1').lastRunAt, 0);
+  assert.equal(parseHookState('{', 's1').lastRunAt, 0);
+  // A stop let through needs all three of its parts.
+  for (const part of [{ runId: 'r' }, { runId: 'r', why: 'w' }, { why: 'w', at: 1 }, { runId: 'r', at: 1 }])
+    assert.equal(parseHookState(JSON.stringify({ ...full, autoAllowed: part }), 's1').autoAllowed, null, JSON.stringify(part));
+});
+
+test('approvals: the same call approved again replaces the old one; one as old as the limit is gone', () => {
+  const a1 = addApproval(s0, { toolUseId: 't1', at: 1000, rules: [] });
+  const again = addApproval(a1, { toolUseId: 't1', at: 2000, rules: ['x'] });
+  assert.deepEqual(
+    again.approvals.map((a) => [a.toolUseId, a.at]),
+    [['t1', 2000]],
+  );
+  const other = addApproval(a1, { toolUseId: 't2', at: 1000 + APPROVAL_TTL_MS - 1, rules: [] });
+  assert.deepEqual(
+    other.approvals.map((a) => a.toolUseId),
+    ['t1', 't2'],
+  );
+  const late = addApproval(a1, { toolUseId: 't2', at: 1000 + APPROVAL_TTL_MS, rules: [] });
+  assert.deepEqual(
+    late.approvals.map((a) => a.toolUseId),
+    ['t2'],
+  );
+  // One approval among others is found; at the limit it no longer counts.
+  assert.equal(isApproved(other, 't1', 1000 + APPROVAL_TTL_MS - 1), true);
+  assert.equal(isApproved(other, 't2', 1000 + APPROVAL_TTL_MS - 1), true);
+  assert.equal(isApproved(a1, 't1', 1000 + APPROVAL_TTL_MS), false);
+});
+
+test('a session alive exactly the live window ago no longer counts as working', () => {
+  const now = 1_000_000_000;
+  const me = { sessionId: 'me', cwd: 'C:/w' };
+  const edge = { ...newModState('a', '1', now - LIVE_WINDOW_MS), cwd: 'C:/w' };
+  const inside = { ...newModState('b', '1', now - LIVE_WINDOW_MS + 1), cwd: 'C:/w' };
+  assert.deepEqual(
+    sameFolderSessions(me, [edge, inside], now, true).map((s) => s.sessionId),
+    ['b'],
+  );
+});
+
+test('a budget is set only when the keyword gave one and it could be worked out', () => {
+  for (const k of [
+    kw({ kind: 'continue' }),
+    kw({ kind: 'manual' }),
+    detectKeyword('Bunu yap. terminal tam otonom', [{ id: 'terminal', names: ['terminal'] }])!,
+  ]) {
+    const s = applyKeyword(s0, k, 40);
+    assert.deepEqual([s.weeklyTarget, s.weeklyTargetSource], [null, null], k.kind);
+  }
+  for (const k of [
+    kw({ kind: 'continue', budget: { n: 40, plus: false } }),
+    detectKeyword('Bunu yap. terminal tam otonom kota +10', [{ id: 'terminal', names: ['terminal'] }])!,
+  ]) {
+    const s = applyKeyword(s0, k, null);
+    assert.deepEqual([s.weeklyTarget, s.weeklyTargetSource], [null, null], `${k.kind} with no reading`);
+  }
 });

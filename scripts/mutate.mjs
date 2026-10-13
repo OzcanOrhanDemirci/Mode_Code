@@ -87,6 +87,8 @@ const TARGETS = {
   'src/core/controls.ts': ['test/core/controls.test.ts', 'test/core/keywords.test.ts'],
   // `/0` (docs/modes.md, "Session controls"): which terminal opens the control center, with which arguments.
   'src/core/launch.ts': ['test/core/launch.test.ts'],
+  // What a keyword does to the session: the mode and the way of working change only where the person names them.
+  'src/core/session.ts': ['test/core/session.test.ts', 'test/core/modes.test.ts'],
 };
 
 // ── finding mutation sites in TypeScript without a parser: code outside strings, comments and regexes ──

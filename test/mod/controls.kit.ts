@@ -266,12 +266,15 @@ test('/devam lists every registered project and every folder; a number or a name
   await settle(w);
   expect(one.text).toBe('Continuing terminal');
   expect(w.submitted.at(-1)).toBe('terminal continue');
-  expect(w.modState()).toMatchObject({ interaction: 'autonomous', project: 'terminal-code' });
+  // Continuing picks the project; the way of working stays as the person set it.
+  expect(w.modState()).toMatchObject({ interaction: 'default', mode: 'free', project: 'terminal-code' });
   // A folder that is not registered: its own project key, and the model is told where it is.
+  await run($, '7');
+  await run($, '1');
   await run($, 'continue', 'notes quota 30');
   await settle(w);
   expect(w.submitted.at(-1)).toBe('continue quota 30');
-  expect(w.modState()).toMatchObject({ project: 'notes', weeklyTarget: 30, interaction: 'autonomous' });
+  expect(w.modState()).toMatchObject({ project: 'notes', weeklyTarget: 30, interaction: 'autonomous', mode: 'chat' });
   expect((await run($, 'devam', 'zzz')).text).toBe('Nothing is called "zzz". /devam lists everything.');
 });
 
@@ -351,7 +354,65 @@ test("a new session takes up this folder's last choice, says so, and tells the m
   expect(w.modState()).toMatchObject({ sessionId: SESSION, mode: 'plan', interaction: 'autonomous' });
   expect(w.toasts).toContain("This folder's last choice: 📐 plan · autonomous");
   const r: any = await $.prompt.submit(typed('hello'));
-  expect(r.context.join('\n')).toMatch(/This session starts as the person last left this folder/);
+  expect(r.context.join('\n')).toMatch(
+    /This session took up the mode and the way of working last used in this folder\. What holds now.*Mode, plan mode.*Way of working, autonomous/,
+  );
   const again: any = await $.prompt.submit(typed('and then?'));
-  expect(again.context.join('\n')).not.toMatch(/last left this folder/);
+  expect(again.context.join('\n')).not.toMatch(/last used in this folder/);
+});
+
+test('a manual the person picked is their last choice too; free with nothing picked is not one', async ($, on) => {
+  const w = world(on);
+  const now = w.clock.now();
+  w.write(`${DATA}/state/sessions/older.mod.json`, record('older', PROJECT, now - 5000, 'free', 'manual'));
+  on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }));
+  await $.session.start({ source: 'startup', cwd: PROJECT } as any);
+  expect(w.modState()).toMatchObject({ mode: 'free', interaction: 'manual' });
+  const r: any = await $.prompt.submit(typed('hello'));
+  expect(r.context.join('\n')).toMatch(/Mode, free mode.*Way of working, manual: work step by step/);
+});
+
+test('nothing to take up when the last session here was never set', async ($, on) => {
+  const w = world(on);
+  const now = w.clock.now();
+  w.write(`${DATA}/state/sessions/older.mod.json`, record('older', PROJECT, now - 5000, 'free', 'default'));
+  on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }));
+  await $.session.start({ source: 'startup', cwd: PROJECT } as any);
+  expect(w.modState()).toMatchObject({ mode: 'free', interaction: 'default' });
+  expect(w.toasts.some((t: string) => /last choice/.test(t))).toBe(false);
+  const r: any = await $.prompt.submit(typed('hello'));
+  expect((r.context ?? []).join('\n')).not.toMatch(/last used in this folder/);
+});
+
+test('the first prompt tells what holds after the presses and its own keyword, never the choice it started from', async ($, on) => {
+  // The person, 2026-10-13: the session took up code · manual, they pressed chat, then typed "terminal devam";
+  // the model read "chat, manual" and "continue: work autonomously" together, and the strip went free · autonomous.
+  const w = world(on, { config: { projects: [{ id: 'terminal-code', names: ['terminal'] }] } });
+  const now = w.clock.now();
+  w.write(`${DATA}/state/sessions/older.mod.json`, record('older', PROJECT, now - 5000, 'code', 'manual'));
+  on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }));
+  await $.session.start({ source: 'startup', cwd: PROJECT } as any);
+  await run($, '1');
+  const r: any = await $.prompt.submit(typed('terminal devam'));
+  const said = r.context.join('\n');
+  expect(w.modState()).toMatchObject({ mode: 'chat', interaction: 'manual', project: 'terminal-code' });
+  expect(said).toMatch(/Keyword "continue" for project "terminal": pick the work up where it stopped\. The keyword changes neither/);
+  expect(said).toMatch(/Mode, chat mode: conversation only.*Way of working, manual: work step by step/);
+  // One statement of what holds: the continue note says it, so the folder's note does not repeat it.
+  expect(said).not.toMatch(/last used in this folder|autonom|starts as/);
+});
+
+test("a mode typed as the first prompt: the folder's note comes first and already says the new mode", async ($, on) => {
+  const w = world(on);
+  const now = w.clock.now();
+  w.write(`${DATA}/state/sessions/older.mod.json`, record('older', PROJECT, now - 5000, 'code', 'autonomous'));
+  on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }));
+  await $.session.start({ source: 'startup', cwd: PROJECT } as any);
+  const r: any = await $.prompt.submit(typed('plan'));
+  const notes: string[] = r.context;
+  const folder = notes.findIndex((n) => /last used in this folder/.test(n));
+  const keyword = notes.findIndex((n) => /Keyword "plan"/.test(n));
+  expect(folder >= 0 && keyword > folder).toBe(true);
+  expect(notes[folder]).toMatch(/Mode, plan mode.*Way of working, autonomous/);
+  expect(w.modState()).toMatchObject({ mode: 'plan', interaction: 'autonomous' });
 });

@@ -60,8 +60,9 @@ test('mode keywords change the session only as the whole message; the way of wor
   assert.deepEqual([auto.interaction, auto.mode, auto.project, auto.resumeAt], ['autonomous', 'plan', 'x', null]);
   const manual = applyKeyword({ ...s, interaction: 'autonomous', mode: 'chat' }, kw('manuel'), null);
   assert.deepEqual([manual.interaction, manual.mode], ['manual', 'chat']);
-  // Continue leaves chat only.
-  assert.equal(applyKeyword({ ...s, mode: 'chat' }, kw('devam'), null).mode, 'free');
+  // Continue changes no mode, chat included: the person leaves a mode by picking another (2026-10-13).
+  assert.equal(applyKeyword({ ...s, mode: 'chat' }, kw('devam'), null).mode, 'chat');
+  assert.equal(applyKeyword({ ...s, mode: 'chat' }, kw('manuel app devam'), null).mode, 'chat');
   assert.equal(applyKeyword({ ...s, mode: 'plan', turnMode: 'code' }, kw('devam'), null).mode, 'plan');
   assert.equal(applyKeyword({ ...s, turnMode: 'code' }, kw('devam'), null).turnMode, null);
   // Flow and approval keywords leave the session to the flow.

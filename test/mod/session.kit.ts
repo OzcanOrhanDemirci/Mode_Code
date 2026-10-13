@@ -19,13 +19,39 @@ const reading = (five: number, week: number, resetsIn: number, now: number) =>
     changed: ['rateLimits'],
   }) as any;
 
-test('"<project> continue" makes the session autonomous and tells the model why', async ($, on) => {
+test('"<project> continue" names the project and tells the model; the mode and the way of working stay', async ($, on) => {
   const w = world(on, { config: PROJECTS });
   const r: any = await $.prompt.submit(typed('terminal devam'));
-  expect(r.context.join('\n')).toMatch(/Keyword "continue" for project "terminal": work autonomously/);
+  expect(r.context.join('\n')).toMatch(
+    /Keyword "continue" for project "terminal": pick the work up where it stopped\. The keyword changes neither the mode nor the way of working.*Mode, free mode.*Way of working, manual/,
+  );
   expect(w.toasts).toEqual(['Keyword: continue · terminal']);
-  expect(w.modState()).toMatchObject({ interaction: 'autonomous', project: 'terminal-code' });
+  expect(w.modState()).toMatchObject({ interaction: 'default', mode: 'free', project: 'terminal-code' });
   expect(w.events().some((e: any) => e.kind === 'keyword' && e.keyword === 'continue')).toBe(true);
+});
+
+test('"<project> continue" keeps chat and manual, and autonomous where the person chose it', async ($, on) => {
+  const w = world(on, { config: PROJECTS });
+  await $.prompt.submit(typed('sohbet'));
+  await $.prompt.submit(typed('manuel'));
+  const r: any = await $.prompt.submit(typed('terminal devam'));
+  expect(w.modState()).toMatchObject({ mode: 'chat', interaction: 'manual', project: 'terminal-code' });
+  expect(r.context.join('\n')).toMatch(/Mode, chat mode: conversation only.* until the person picks another mode\. Way of working, manual/);
+  await $.prompt.submit(typed('otonom'));
+  await $.prompt.submit(typed('kod'));
+  const r2: any = await $.prompt.submit(typed('terminal devam'));
+  expect(w.modState()).toMatchObject({ mode: 'code', interaction: 'autonomous' });
+  expect(r2.context.join('\n')).toMatch(/Mode, code mode.*Way of working, autonomous: go on without asking/);
+  // "manual <project> continue" names the way of working; the mode it leaves.
+  await $.prompt.submit(typed('manuel terminal devam'));
+  expect(w.modState()).toMatchObject({ mode: 'code', interaction: 'manual' });
+});
+
+test("a keyword typed before a paste is seen: the session is that project's", async ($, on) => {
+  const w = world(on, { config: PROJECTS });
+  await $.prompt.submit(typed('terminal devam (\n\n<pasted_content id="025f">\n Kontrol merkezi açılamadı\n</pasted_content id="025f">\n\n)'));
+  expect(w.modState()).toMatchObject({ project: 'terminal-code' });
+  expect(w.events().some((e: any) => e.kind === 'keyword' && e.keyword === 'continue' && e.project === 'terminal-code')).toBe(true);
 });
 
 test('a sentence that happens to contain the word is not a keyword', async ($, on) => {
@@ -58,29 +84,43 @@ test('the quota guard: at 96% of the 5-hour window it asks to wrap up, once, and
 test("at the stop line an autonomous session schedules its own resume, a minute after the reset, with the person's keyword", async ($, on) => {
   const w = world(on, { config: PROJECTS });
   const now = w.clock.now();
+  await $.prompt.submit(typed('otonom'));
   await $.prompt.submit(typed('terminal devam'));
   await $.session.measure(reading(99.5, 40, 3600_000, now));
   const state = w.modState();
   expect(state.resumeAt).toBe(now + 3600_000 + 60_000);
-  expect(w.submitted).toEqual(['terminal devam']);
+  expect(w.submitted).toEqual(['otonom', 'terminal devam']);
   await w.clock.advance(3600_000 + 59_000);
-  expect(w.submitted.length).toBe(1);
-  await w.clock.advance(2_000);
   expect(w.submitted.length).toBe(2);
+  await w.clock.advance(2_000);
+  expect(w.submitted.length).toBe(3);
   // The resume prompt ends with the continue keyword in the interface language, which reads as the keyword again.
-  expect(w.submitted[1]).toMatch(/\nterminal continue$/);
+  expect(w.submitted[2]).toMatch(/\nterminal continue$/);
   expect(w.modState()).toMatchObject({ resumeAt: null, wrapUp: false, interaction: 'autonomous' });
   expect(w.events().some((e: any) => e.kind === 'resume')).toBe(true);
 });
 
-test('"stop" cancels a scheduled resume', async ($, on) => {
+test('"stop" cancels a scheduled resume; the way of working the person chose stays', async ($, on) => {
+  const w = world(on, { config: PROJECTS });
+  const now = w.clock.now();
+  await $.prompt.submit(typed('otonom'));
+  await $.prompt.submit(typed('terminal devam'));
+  await $.session.measure(reading(99.5, 40, 600_000, now));
+  expect(w.modState().resumeAt).not.toBe(null);
+  await $.prompt.submit(typed('dur'));
+  await w.clock.advance(3600_000);
+  expect(w.submitted).toEqual(['otonom', 'terminal devam', 'dur']);
+  expect(w.modState()).toMatchObject({ resumeAt: null, wrapUp: true, interaction: 'autonomous' });
+});
+
+test('"continue" with nothing chosen does not resume by itself: the session never became autonomous', async ($, on) => {
   const w = world(on, { config: PROJECTS });
   const now = w.clock.now();
   await $.prompt.submit(typed('terminal devam'));
   await $.session.measure(reading(99.5, 40, 600_000, now));
-  await $.prompt.submit(typed('dur'));
+  expect(w.modState().resumeAt).toBe(null);
   await w.clock.advance(3600_000);
-  expect(w.submitted).toEqual(['terminal devam', 'dur']);
+  expect(w.submitted).toEqual(['terminal devam']);
 });
 
 test('a manual session does not resume by itself', async ($, on) => {
@@ -101,6 +141,7 @@ test('the session state survives a compaction: the summary is asked to keep it, 
     instructions = e.instructions ?? '';
     return { messages: e.messages };
   });
+  await $.prompt.submit(typed('otonom'));
   await $.prompt.submit(typed('terminal devam'));
   await $.session.compact({ trigger: 'manual', messages: [{ role: 'user', text: 'summary so far', toolUses: [] }] } as any);
   expect(instructions).toMatch(/Keep this in the summary/);
