@@ -14,7 +14,9 @@
  *   7. there too, a stop before the run is done is turned back by the safety-net hook; the run then finishes,
  *      or, when the model keeps stopping with nothing changed, the stall guard pauses it;
  *   8. the memory: a change made elsewhere is pulled at the start and reaches Claude before it answers, the
- *      handoff keyword has Claude write a note that is kept and sent, and the next session is told about it.
+ *      handoff keyword has Claude write a note that is kept and sent, and the next session is told about it;
+ *   9. sync across computers: one computer's plugin sends a softened belt rule and a handoff note, the other
+ *      takes the note over, and the rule waits for the person.
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
  *        add --keep to leave the sessions' folders and the full-autonomy sessions' streams in place
@@ -30,7 +32,7 @@ const dist = join(root, 'dist');
 const fwd = (p) => p.replace(/\\/g, '/');
 if (!process.argv.includes('--yes')) {
   console.log(
-    'test-live: opt-in. Runs nine short headless Claude Code sessions, ten where full autonomy can run (cheapest model, capped spend), with this build loaded. Run with --yes.',
+    'test-live: opt-in. Runs eleven short headless Claude Code sessions, thirteen where full autonomy can run (cheapest model, capped spend), with this build loaded. Run with --yes.',
   );
   process.exit(0);
 }
@@ -73,7 +75,7 @@ writeFileSync(
   }),
 );
 
-function session(prompt, settingsFile = settings, tools = 'Bash,Write,Read,Edit,Glob,Grep,mcp__terminal-code__flow_step') {
+function session(prompt, settingsFile = settings, tools = 'Bash,Write,Read,Edit,Glob,Grep,mcp__terminal-code__flow_step', extraEnv = {}) {
   const args = [
     '-p',
     prompt,
@@ -94,10 +96,11 @@ function session(prompt, settingsFile = settings, tools = 'Bash,Write,Read,Edit,
     '--verbose',
     '--no-session-persistence',
   ];
-  let r = spawnSync('claude', args, { cwd: project, env, encoding: 'utf8', timeout: 240_000, windowsHide: true });
+  const runEnv = { ...env, ...extraEnv };
+  let r = spawnSync('claude', args, { cwd: project, env: runEnv, encoding: 'utf8', timeout: 240_000, windowsHide: true });
   if (r.error && process.platform === 'win32') {
     const q = (a) => (/^[\w@./:=,-]+$/.test(a) ? a : `"${a.replace(/"/g, '\\"')}"`);
-    r = spawnSync(['claude', ...args.map(q)].join(' '), { cwd: project, env, encoding: 'utf8', timeout: 240_000, windowsHide: true, shell: true });
+    r = spawnSync(['claude', ...args.map(q)].join(' '), { cwd: project, env: runEnv, encoding: 'utf8', timeout: 240_000, windowsHide: true, shell: true });
   }
   const events = (r.stdout ?? '')
     .split('\n')
@@ -271,6 +274,83 @@ function memoryCases() {
 }
 
 /** One headless session in a fresh project of its own (a first commit, ESM), with the strict sandbox and the Stop hook. */
+/**
+ * 9. Sync across computers (docs/sync.md), on every platform: two computers' data folders through a bare
+ * repository standing for GitHub. One computer softens a belt rule; its plugin sends the change when its
+ * session starts and the handoff note the keyword had Claude write when the session ends. The other computer
+ * takes the note over; the softened rule waits for the person, who is told, and is not in effect.
+ */
+function syncCases() {
+  const remote = fwd(join(work, 'sync-remote.git'));
+  spawnSync('git', ['init', '-q', '--bare', remote]);
+  const computer = (name) => {
+    const dir = fwd(join(work, `sync-${name}`));
+    spawnSync('git', ['clone', '-q', remote, dir]);
+    for (const [k, v] of [
+      ['user.name', 'live'],
+      ['user.email', 'live@example.com'],
+      ['commit.gpgsign', 'false'],
+    ])
+      spawnSync('git', ['-C', dir, 'config', k, v]);
+    const home = fwd(join(work, `data-${name}`));
+    mkdirSync(home, { recursive: true });
+    const write = (raw) =>
+      writeFileSync(
+        join(home, 'config.json'),
+        JSON.stringify({ language: 'en', ...raw, sync: { place: 'github', dir, remote, machine: { id: `${name}-0000`, name } } }, null, 2),
+      );
+    const cli = (...args) =>
+      spawnSync(node, [join(dist, 'cli.mjs'), ...args], { env: { ...env, TERMINAL_CODE_HOME: home }, encoding: 'utf8', windowsHide: true });
+    return { dir, home, write, cli };
+  };
+  const show = (path) => spawnSync('git', ['--git-dir', remote, 'show', `HEAD:${path}`], { encoding: 'utf8' }).stdout;
+  const tools = 'Read,Glob,Grep,mcp__terminal-code__handoff';
+
+  const desk = computer('desk');
+  desk.write({});
+  const first = desk.cli('sync', 'now', '--json');
+  desk.write({ belt: { verdicts: { 'git.clean': 'warn' } } });
+  const handed = session('We set up sync today; nothing else is open. devir', settings, tools, { TERMINAL_CODE_HOME: desk.home });
+  const onRemote = spawnSync('git', ['--git-dir', remote, 'ls-tree', '-r', '--name-only', 'HEAD'], { encoding: 'utf8' }).stdout.split('\n');
+  const note = onRemote.find((f) => /^handoffs\/project\/\d{8}-\d{6}-[a-z0-9]+\.md$/.test(f)) ?? null;
+  const verdicts = (() => {
+    try {
+      return JSON.parse(show('machines/desk-0000/settings.json')).entries['belt.verdicts'];
+    } catch {
+      return null;
+    }
+  })();
+  check(
+    "sync: a computer's plugin sent its changed setting when its session started and the handoff note when it ended",
+    first.status === 0 && verdicts?.value?.['git.clean'] === 'warn' && verdicts.at > 0 && !!note,
+    note ?? `setting ${JSON.stringify(verdicts)}; ${String(handed.final?.result ?? handed.stderr).slice(0, 60)}`,
+  );
+
+  const laptop = computer('laptop');
+  laptop.write({});
+  laptop.cli('sync', 'now', '--json');
+  const told = session('Is a handoff note waiting for this project? If so, reply with its next step only; if not, reply NONE.', settings, tools, {
+    TERMINAL_CODE_HOME: laptop.home,
+  });
+  const next = note ? (/## Next\n\n([^\n]+)/.exec(show(note))?.[1] ?? '') : '';
+  const words = next.toLowerCase().match(/[a-zçğıöşü]{5,}/g) ?? [];
+  check(
+    'sync: the other computer took the handoff note over',
+    !/\bNONE\b/.test(told.final?.result ?? 'NONE') && words.some((w) => (told.final?.result ?? '').toLowerCase().includes(w)),
+    String(told.final?.result ?? told.stderr).slice(0, 80),
+  );
+  const toast = told.events.some(
+    (e) => e.type === 'system' && e.subtype === 'ui_toast' && /it would lower a protection here: belt\.verdicts/.test(e.text ?? ''),
+  );
+  const inEffect = laptop.cli('config', 'get', 'belt.verdicts').stdout.replace(/\s+/g, '');
+  check(
+    'sync: the softened rule waited for the person, who was told, and is not in effect',
+    toast && inEffect === '{}',
+    `${toast ? 'told' : 'not told'}; in effect ${inEffect}`,
+  );
+  return [handed, told];
+}
+
 function autoSession(name, prompt) {
   const proj = join(work, name);
   mkdirSync(proj);
@@ -389,7 +469,8 @@ try {
   const six = fullAutonomy();
   const seven = stopTurnedBack();
   const eight = memoryCases();
-  const cost = [one, two, three, four, five, six, seven, ...eight].filter(Boolean).reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
+  const nine = syncCases();
+  const cost = [one, two, three, four, five, six, seven, ...eight, ...nine].filter(Boolean).reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
   console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
 } finally {
   if (process.argv.includes('--keep')) console.log(`test-live: kept ${fwd(work)}`);
