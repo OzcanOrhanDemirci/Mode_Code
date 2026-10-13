@@ -12,6 +12,7 @@
  *   5. a research flow: the model writes a sourced report, calls flow_step, and code checks it and ends the flow.
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
+ *        add --keep to leave the sessions' folders and the full-autonomy session's stream in place
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -174,6 +175,7 @@ function fullAutonomy() {
     '--no-session-persistence',
   ];
   const r = spawnSync('claude', args, { cwd: proj, env, encoding: 'utf8', timeout: 900_000 });
+  writeFileSync(join(work, 'auto-session.jsonl'), `${r.stdout ?? ''}\n${r.stderr ?? ''}`);
   const events = (r.stdout ?? '')
     .split('\n')
     .filter((l) => l.startsWith('{'))
@@ -269,6 +271,7 @@ try {
   const cost = [one, two, three, four, five, ...(six ? [six] : [])].reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
   console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
 } finally {
-  rmSync(work, { recursive: true, force: true });
+  if (process.argv.includes('--keep')) console.log(`test-live: kept ${fwd(work)}`);
+  else rmSync(work, { recursive: true, force: true });
 }
 process.exit(results.every((r) => r.ok) ? 0 : 1);
