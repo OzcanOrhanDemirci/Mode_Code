@@ -287,7 +287,13 @@ test('full autonomy: Projects › Runs lists each run, its card the milestones, 
   const d = addDeferred(m.run, { kind: 'push', tool: 'Bash', what: 'git push origin main', reason: 'pushes to the protected branch main' }, NOW - 300_000);
   assert.ok(d.ok);
   r = pauseRun(d.run, 'quota', NOW - 60_000).run;
-  data.runList = [r];
+  // Beside it: one running, one stuck, one done (the list's order and badges).
+  const other = (id: string, task: string) =>
+    startRun({ ...r, id, task, sessionId: 's', workDir: 'C:/tmp/w/runs', start: { commit: 'c'.repeat(40), branch: 'main' }, now: NOW - 7_200_000 });
+  const running = other('20261013-1100-running', 'Running task');
+  const stuck = { ...other('20261013-1000-stuck', 'Stuck task'), status: 'stuck' as const, runningSince: null };
+  const done = { ...other('20261013-0900-done', 'Done task'), status: 'done' as const, runningSince: null };
+  data.runList = [r, running, stuck, done];
   const home = await draw(data, { address: 'home/overview' });
   try {
     assert.match(home.text(), /Full-autonomy runs/);
@@ -303,7 +309,7 @@ test('full autonomy: Projects › Runs lists each run, its card the milestones, 
     assert.match(t, /✓\s+1\. Limiter\s+bbbbbbbbbbbb · CONCERNS/);
     assert.match(t, /▶\s+2\. Wire it in/);
     assert.match(t, /push git push origin main/);
-    assert.match(t, /terminal-code autonomy rollback 20261013-1210-rate-limit <n>/);
+    assert.match(t.replace(/[│╭╮╰╯─]/g, '').replace(/\s+/g, ' '), /terminal-code autonomy rollback 20261013-1210-rate-limit <n>/);
   } finally {
     card.close();
   }
@@ -312,5 +318,40 @@ test('full autonomy: Projects › Runs lists each run, its card the milestones, 
     assert.match(empty.text(), /Henüz tam otonom koşu yok/);
   } finally {
     empty.close();
+  }
+});
+
+test('full autonomy: the runs list shows how many run, and each run its state', async () => {
+  const data = new FakeData('en');
+  const mk = (id: string, task: string, status: 'active' | 'paused' | 'stuck' | 'done') => ({
+    ...startRun({
+      id,
+      task,
+      project: null,
+      cwd: 'C:/work/api',
+      sessionId: 's',
+      workDir: 'C:/tmp/w/runs',
+      budget: { weeklyTarget: 52, source: '+10' },
+      start: { commit: 'a'.repeat(40), branch: 'main' },
+      now: NOW - 3_600_000,
+    }),
+    status,
+  });
+  data.runList = [mk('20261013-1300-a', 'Running one', 'active'), mk('20261013-1200-b', 'Stuck one', 'stuck'), mk('20261013-1100-c', 'Paused one', 'paused')];
+  const s = await draw(data, { address: 'projects/runs' });
+  try {
+    const t = s.text();
+    assert.match(t, /Running one/);
+    assert.match(t, /⏸ Stuck one/);
+    assert.match(t, /⏸ Paused one/);
+    assert.match(t, /stuck/);
+  } finally {
+    s.close();
+  }
+  const projects = await draw(data, { address: 'projects' });
+  try {
+    assert.match(projects.text(), /Runs\s+1 running/);
+  } finally {
+    projects.close();
   }
 });

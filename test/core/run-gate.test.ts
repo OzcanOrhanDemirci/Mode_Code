@@ -236,3 +236,19 @@ test('every check reads in both languages with its parameters filled', () => {
         assert.ok(tIn(lang, `auto.gate.name.${c.id}`).length > 2);
       }
 });
+
+test('the edges of the checks: a target without a budget word, a budget measured against another target, a drive over 9p', () => {
+  assert.deepEqual(failed({ ...good(), budget: { ...budget(51), explicit: false } }), ['budget:auto.gate.budget.missing']);
+  // The reading at the target counts as reached, even when the assessment was made against another target.
+  const other = assessQuota(
+    reading(51),
+    { weeklyTarget: null, fiveHourWrapUp: 95, fiveHourStop: 99, defaultWeeklyTarget: 99, defaultWeeklyWrapUp: 97, staleMinutes: 360 },
+    NOW,
+  );
+  assert.equal(other.level, 'ok');
+  assert.deepEqual(failed({ ...good(), budget: { explicit: true, target: 51, quota: other } }), ['budget:auto.gate.budget.reached']);
+  assert.deepEqual(failed({ ...good(), budget: { explicit: true, target: 52, quota: other } }), []);
+  // A Windows drive mounted over 9p without the drvfs name is still a Windows drive.
+  assert.deepEqual(windowsMounts('C:\\134 /mnt/c 9p rw,noatime,cache=5 0 0\n'), ['/mnt/c']);
+  assert.deepEqual(windowsMounts('incomplete line\n\n'), []);
+});

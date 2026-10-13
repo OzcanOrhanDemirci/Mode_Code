@@ -384,3 +384,31 @@ test('self-tests: a belt failure fails as a protection; another suite only warns
   assert.equal(check('selftest.suites', failing('footer')).status, 'warn');
   assert.equal(check('selftest.suites', healthyFacts({ selftest: null })).status, 'skip');
 });
+
+test('full autonomy: off is a note; on, the start checks that would fail here are named, each with its fix', () => {
+  assert.equal(brief(check('install.autonomy', healthyFacts())), 'info doc.autonomy.off');
+  const ready = healthyFacts({
+    autonomy: { enabled: true, checks: [{ id: 'platform', ok: true, key: 'auto.gate.platform.ok', params: { platform: 'linux' } }] },
+  });
+  assert.equal(brief(check('install.autonomy', ready)), 'ok doc.autonomy.ready');
+  const notReady = check(
+    'install.autonomy',
+    healthyFacts({
+      autonomy: {
+        enabled: true,
+        checks: [
+          { id: 'platform', ok: false, key: 'auto.gate.platform.windows' },
+          { id: 'budget', ok: null, key: 'auto.cli.atStart' },
+          { id: 'sandbox', ok: false, key: 'auto.gate.sandbox.gaps', params: { settings: 'sandbox.enabled' } },
+        ],
+      },
+    }),
+  );
+  assert.equal(brief(notReady), 'warn doc.autonomy.notReady');
+  assert.deepEqual(notReady.summary.params, { n: 2 });
+  assert.deepEqual(
+    notReady.details?.map((d) => d.key),
+    ['auto.gate.platform.windows', 'auto.gate.sandbox.gaps'],
+  );
+  assert.equal(notReady.protection, false, 'full autonomy is a feature, not a protection: a run that cannot start harms nothing');
+});

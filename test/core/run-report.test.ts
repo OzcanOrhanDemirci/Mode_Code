@@ -167,3 +167,16 @@ test('the report is the draft followed by the facts; without a draft it says so'
   const bare = composeReport(null, r, 'en', x);
   assert.ok(bare.startsWith('# Add rate limiting to the public API, with tests.\n\n(Claude wrote no report draft.)\n\n## What terminal-code measured'));
 });
+
+test('the edges of the report: a minute is a minute, a hand-edited record, a passing review with notes, nothing waiting', () => {
+  assert.equal(durationText(60_000, 'en'), '1 min');
+  const r = sample();
+  const x = { now: T + 64 * MIN, notes: false, quota: null };
+  // A running record that still carries a pause (edited by hand) reads as running.
+  assert.match(factsSection({ ...r, pause: { reason: 'quota', at: T, detail: '' } }, 'en', x), /- Status: running/);
+  // A passing review's notes are not findings to deal with.
+  const passing = { ...r, milestones: r.milestones.map((m) => ({ ...m, review: { ...m.review, verdict: 'pass' as const, findings: ['minor: naming'] } })) };
+  assert.doesNotMatch(factsSection(passing, 'en', x), /Review findings/);
+  assert.doesNotMatch(factsSection(r, 'en', x), /### Waiting for you\n\nNothing\./);
+  assert.match(factsSection({ ...r, deferred: [] }, 'en', x), /### Waiting for you\n\nNothing\./);
+});

@@ -259,3 +259,66 @@ test('the record reads back as written, and a torn or foreign file reads as noth
   const odd = parseRun(JSON.stringify({ ...r, deferred: [{ kind: 'nope' }, r.deferred[0]], blockers: [{ kind: 'nope', text: 't', at: 1 }] }))!;
   assert.deepEqual([odd.deferred.length, odd.blockers[0]!.kind], [1, 'other']);
 });
+
+test('the edges of the record: id length, revisions that keep every done step, a phase a record may claim, the heartbeat minute', () => {
+  const now = new Date(2026, 9, 13, 12, 10).getTime();
+  // Five words up to 40 characters: exactly 40 is kept.
+  assert.equal(runId('aaaaaaaaaaaaaaaaaaaa bbbbbbbbbbbbbbbbbbb c', now, new Set()), '20261013-1210-aaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbbbbb');
+  // A revision may keep exactly as many steps as have milestones.
+  const one = ok(acceptPlan(start(), { steps: [PLAN.steps[0]!], verification: ['npm test'] }, [], T + MIN));
+  const done = ok(acceptMilestone(one, ms(1, 'b'), T + 2 * MIN));
+  assert.equal(acceptPlan(done, { steps: [PLAN.steps[0]!], verification: ['npm test'] }, [], T + 3 * MIN).ok, true);
+  // A record that says "finish" while still active (edited by hand) takes no milestone and no finish.
+  const odd = { ...working(), phase: 'finish' as const };
+  assert.equal((acceptMilestone(odd, ms(1, 'b'), T) as { error: string }).error, 'phase');
+  assert.equal((finishRun(odd, finished, true, T) as { error: string }).error, 'phase');
+  // One failing command among passing ones fails the finish.
+  let all = ok(acceptMilestone(working(), ms(1, 'b'), T + MIN));
+  all = ok(acceptMilestone(all, ms(2, 'c'), T + 2 * MIN));
+  const mixed = {
+    ...finished,
+    verification: [
+      { command: 'npm test', ok: true, seconds: 1 },
+      { command: 'npm run lint', ok: false, seconds: 1 },
+    ],
+  };
+  assert.equal((finishRun(all, mixed, true, T) as { detail: string }).detail, 'verification');
+  // Two different pushes are two steps waiting for the person.
+  let d = ok(addDeferred(working(), { kind: 'push', tool: 'Bash', what: 'git push origin main', reason: 'r' }, T));
+  d = ok(addDeferred(d, { kind: 'push', tool: 'Bash', what: 'git push origin master', reason: 'r' }, T));
+  d = ok(addDeferred(d, { kind: 'push', tool: 'PowerShell', what: 'git push origin main', reason: 'r' }, T));
+  assert.equal(d.deferred.length, 3);
+  // The heartbeat is written once a full minute has passed.
+  assert.equal(heartbeat(start(), T + 60_000)?.aliveAt, T + 60_000);
+});
+
+test('parsing keeps what is valid and drops what is not, entry by entry', () => {
+  const r = working();
+  assert.equal(parseRun(JSON.stringify({ ...r, v: 2 })), null);
+  assert.equal(parseRun(JSON.stringify({ ...r, id: 5 })), null);
+  assert.equal(parseRun(JSON.stringify({ ...r, status: 'done', phase: 'nope' })), null);
+  const p = parseRun(
+    JSON.stringify({
+      ...r,
+      plan: { ...r.plan, steps: [{ n: 0, title: 'zero', acceptance: 'x' }, ...r.plan!.steps] },
+      pause: { reason: 'nope', at: 1, detail: '' },
+      history: [{ at: 'x', event: 'start' }, { at: 1 }, { at: 2, event: 'plan' }],
+    }),
+  )!;
+  assert.deepEqual(
+    p.plan!.steps.map((s) => s.n),
+    [1, 2],
+  );
+  assert.equal(p.pause, null);
+  assert.deepEqual(p.history, [{ at: 2, event: 'plan' }]);
+  // A running run and a finished one read back as written.
+  assert.deepEqual(parseRun(JSON.stringify(r)), r);
+  let f = ok(acceptMilestone(r, ms(1, 'b'), T + MIN));
+  f = ok(acceptMilestone(f, ms(2, 'c'), T + 2 * MIN));
+  f = ok(finishRun(f, finished, true, T + 3 * MIN));
+  assert.deepEqual(parseRun(JSON.stringify(f)), f);
+  assert.equal(
+    parseRun(JSON.stringify({ ...f, finish: { ...f.finish, verification: [{ command: 'x', ok: 'yes', seconds: 1 }] } }))!.finish!.verification[0]!.ok,
+    false,
+  );
+});

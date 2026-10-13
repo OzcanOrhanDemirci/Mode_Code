@@ -248,7 +248,14 @@ export class FakeData implements DataSource {
       notes: null,
     };
   }
-  check: GateResult = { ok: false, checks: [{ id: 'platform', ok: false, key: 'auto.gate.platform.windows' }] };
+  check: GateResult = {
+    ok: false,
+    checks: [
+      { id: 'enabled', ok: true, key: 'auto.gate.enabled.ok' },
+      { id: 'platform', ok: false, key: 'auto.gate.platform.windows' },
+      { id: 'budget', ok: null, key: 'auto.cli.atStart' },
+    ],
+  };
   autonomyCheck() {
     return this.check;
   }

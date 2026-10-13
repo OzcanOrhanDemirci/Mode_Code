@@ -123,3 +123,7 @@ test('the fingerprint changes with the commit, the work tree and the record, not
   assert.equal(fingerprintOf('a', ' M src/x.ts\n', { ...r, aliveAt: T + 99 * MIN }), base);
   assert.match(fingerprintOf(null, '', r), /^-:0:/);
 });
+
+test('a record that says it is planning is planning, whatever plan it holds', () => {
+  assert.deepEqual(missingOf({ ...working(), phase: 'plan' }), { kind: 'plan' });
+});

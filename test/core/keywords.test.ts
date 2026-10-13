@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { detectKeyword, messageWithoutKeyword, reservedWords, type ProjectRef } from '../../src/core/keywords.js';
+import { DEFAULT_KEYWORDS, detectKeyword, messageWithoutKeyword, reservedWords, type ProjectRef } from '../../src/core/keywords.js';
 
 const projects: ProjectRef[] = [
   { id: 'terminal_code', names: ['terminal'] },
@@ -149,4 +149,10 @@ test('full autonomy: cancel, and the sentences that only contain the words', () 
   assert.equal(d('tam otonom iptal kota 10')?.budget, undefined);
   assert.notEqual(d('tam otonom iptal kota 10')?.kind, 'fullAuto');
   assert.ok(reservedWords().has('tam otonom'));
+});
+
+test("a keyword table without full-autonomy phrases (a person's own table) has none", () => {
+  const tables = { en: { ...DEFAULT_KEYWORDS.en, fullAuto: [] } };
+  assert.equal(detectKeyword('full auto', [], tables), null);
+  assert.equal(detectKeyword('continue', [], tables)?.kind, 'continue');
 });

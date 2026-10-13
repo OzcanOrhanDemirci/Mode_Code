@@ -54,6 +54,13 @@ const TARGETS = {
   'src/core/guard.ts': ['test/core/guard.test.ts', 'test/corpus/modes.test.ts'],
   'src/core/flow.ts': ['test/core/flow.test.ts', 'test/core/guidance.test.ts'],
   'src/core/flow-checks.ts': ['test/core/flow-checks.test.ts'],
+  // Full autonomy: when a run may start, stop, move on, and what it may do while nobody is there.
+  'src/core/run.ts': ['test/core/run.test.ts', 'test/core/run-stop.test.ts', 'test/core/run-report.test.ts', 'test/properties/autonomy.test.ts'],
+  'src/core/run-gate.ts': ['test/core/run-gate.test.ts', 'test/properties/autonomy.test.ts', 'test/app/runs.test.ts'],
+  'src/core/run-stop.ts': ['test/core/run-stop.test.ts', 'test/properties/autonomy.test.ts'],
+  'src/core/run-guard.ts': ['test/core/run-guard.test.ts', 'test/properties/autonomy.test.ts'],
+  'src/core/run-review.ts': ['test/core/run-review.test.ts'],
+  'src/core/run-report.ts': ['test/core/run-report.test.ts'],
 };
 
 // ── finding mutation sites in TypeScript without a parser: code outside strings, comments and regexes ──

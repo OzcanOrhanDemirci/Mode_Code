@@ -100,3 +100,18 @@ test('the verdict is read from the answer; findings are its bullet lines; an ans
   assert.deepEqual(parseReview('').findings, ['The review gave no answer.']);
   assert.equal(parseReview(`VERDICT: CONCERNS\n${Array.from({ length: 50 }, (_, i) => `- f${i}`).join('\n')}`).findings.length, 30);
 });
+
+test('the edges of the review: a context line is no added line, a diff exactly at the limit is whole, no stat says so', () => {
+  assert.equal(diffSignals("diff --git a/x b/x\n it.skip('kept as it was', () => {}) // +").skipMarkers, 0);
+  const exact = 'y'.repeat(REVIEW_DIFF_CHARS);
+  const p = reviewPrompt({ task: 't', plan: PLAN, step: null, commits: '', stat: '', diff: exact, signals: { deletedTests: [], skipMarkers: 0 }, earlier: [] });
+  assert.ok(p.endsWith(exact));
+  assert.match(p, /## Files changed\n\(none\)/);
+});
+
+test('a file header is no added line, whatever the file is called', () => {
+  assert.equal(
+    diffSignals('diff --git a/src/pending (copy).ts b/src/pending (copy).ts\n--- a/src/pending (copy).ts\n+++ b/src/pending (copy).ts\n').skipMarkers,
+    0,
+  );
+});

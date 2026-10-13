@@ -106,6 +106,90 @@ function session(prompt) {
   return { status: r.status, events, final, text: JSON.stringify(events), stderr: r.stderr ?? '' };
 }
 
+/**
+ * 6. Full autonomy (docs/autonomy.md), where it can run: Linux, macOS, WSL2. A project with a first commit,
+ * the strict sandbox, the Stop hook, full autonomy turned on; the task is small and its verification real.
+ * The run must pass its start checks (the live probe included), plan, reach a milestone on a commit with a
+ * rollback reference, and finish with its verification passing and its report written.
+ */
+function fullAutonomy() {
+  if (process.platform === 'win32') {
+    console.log('· full autonomy: runs only in WSL2, macOS or Linux (native Windows is refused by design); run this there');
+    return null;
+  }
+  const proj = join(work, 'auto');
+  mkdirSync(proj);
+  const g = (...a) => spawnSync('git', ['-C', proj, '-c', 'user.name=live', '-c', 'user.email=live@example.com', ...a], { encoding: 'utf8' });
+  writeFileSync(join(proj, 'package.json'), '{ "name": "auto-demo", "type": "module", "private": true }\n');
+  g('init', '-q');
+  g('add', '-A');
+  g('commit', '-q', '-m', 'start');
+  const cfg = JSON.parse(readFileSync(join(data, 'config.json'), 'utf8'));
+  writeFileSync(join(data, 'config.json'), JSON.stringify({ ...cfg, autonomy: { enabled: true, maxHours: 1, stallMinutes: 20 } }, null, 2));
+  const s = JSON.parse(readFileSync(settings, 'utf8'));
+  const auto = join(work, 'settings-auto.json');
+  writeFileSync(
+    auto,
+    JSON.stringify({
+      ...s,
+      sandbox: { enabled: true, failIfUnavailable: true, allowUnsandboxedCommands: false },
+      hooks: { ...s.hooks, Stop: [{ hooks: [entry('Stop', 15, false)] }] },
+    }),
+  );
+  const args = [
+    '-p',
+    'Write sum.js exporting a function sum(a, b) that returns a + b, and sum.test.js that tests it with node:test; the verification is node --test. full auto quota 99',
+    '--plugin-dir',
+    join(dist, 'plugin'),
+    '--settings',
+    auto,
+    '--setting-sources',
+    'project',
+    '--model',
+    'haiku',
+    '--max-budget-usd',
+    '1.50',
+    '--permission-mode',
+    'bypassPermissions',
+    '--output-format',
+    'stream-json',
+    '--verbose',
+    '--no-session-persistence',
+  ];
+  const r = spawnSync('claude', args, { cwd: proj, env, encoding: 'utf8', timeout: 900_000 });
+  const events = (r.stdout ?? '')
+    .split('\n')
+    .filter((l) => l.startsWith('{'))
+    .map((l) => {
+      try {
+        return JSON.parse(l);
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+  const final = events.find((e) => e.type === 'result');
+  const runs = existsSync(join(data, 'runs')) ? readdirSync(join(data, 'runs')) : [];
+  const run = runs.length ? JSON.parse(readFileSync(join(data, 'runs', runs[0], 'run.json'), 'utf8')) : null;
+  const refs = g('for-each-ref', '--format=%(refname)', 'refs/terminal-code/').stdout.trim().split('\n').filter(Boolean);
+  check(
+    'full autonomy: the start checks passed, the live probe included, and a run started',
+    !!run,
+    run ? run.id : (final?.result?.slice?.(0, 120) ?? r.stderr.slice(0, 200)),
+  );
+  check(
+    'full autonomy: the run planned, reached a milestone on a commit, and finished with its verification passing',
+    run?.status === 'done' && run.milestones.length > 0 && run.finish?.verification.every((v) => v.ok),
+    run ? `${run.status}, ${run.milestones.length} milestone(s), ${run.history.map((h) => h.event).join(' ')}` : '',
+  );
+  check(
+    'full autonomy: rollback references and the report are kept',
+    refs.length >= 2 && !!run && existsSync(join(data, 'runs', run.id, 'report.md')),
+    refs.join(' '),
+  );
+  return { final };
+}
+
 const results = [];
 const check = (name, ok, detail = '') => {
   results.push({ name, ok, detail });
@@ -164,7 +248,8 @@ try {
     record?.status === 'done' && record.steps[0].evidence?.kind === 'research' && existsSync(join(data, 'flows', flows[0], 'research.md')),
     record ? `${record.status}, ${record.history.map((h) => h.event).join(' ')}` : (five.final?.result?.slice?.(0, 80) ?? five.stderr.slice(0, 200)),
   );
-  const cost = [one, two, three, four, five].reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
+  const six = fullAutonomy();
+  const cost = [one, two, three, four, five, ...(six ? [six] : [])].reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
   console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
 } finally {
   rmSync(work, { recursive: true, force: true });
