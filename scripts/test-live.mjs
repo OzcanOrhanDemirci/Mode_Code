@@ -9,10 +9,12 @@
  *   2. a write into the tool's own data folder is refused, and the file is never created;
  *   3. a keyword typed as the prompt reaches the mod, which logs it (one that asks for a summary, not for work);
  *   4. research mode keeps the project unchanged: the guard refuses the write, or the model, told the mode, does not try;
- *   5. a research flow: the model writes a sourced report, calls flow_step, and code checks it and ends the flow.
+ *   5. a research flow: the model writes a sourced report, calls flow_step, and code checks it and ends the flow;
+ *   6. full autonomy: on native Windows the start checks refuse it; in WSL2, macOS or Linux a whole run;
+ *   7. there too, a stop before the run is done is turned back by the safety-net hook and the run finishes.
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
- *        add --keep to leave the sessions' folders and the full-autonomy session's stream in place
+ *        add --keep to leave the sessions' folders and the full-autonomy sessions' streams in place
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -24,7 +26,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 const fwd = (p) => p.replace(/\\/g, '/');
 if (!process.argv.includes('--yes')) {
-  console.log('test-live: opt-in. Runs five short headless Claude Code sessions (cheapest model, capped spend) with this build loaded. Run with --yes.');
+  console.log(
+    'test-live: opt-in. Runs six short headless Claude Code sessions, eight where full autonomy can run (cheapest model, capped spend), with this build loaded. Run with --yes.',
+  );
   process.exit(0);
 }
 if (!existsSync(join(dist, 'hook.mjs'))) {
@@ -135,32 +139,79 @@ function fullAutonomy() {
     console.log('· full autonomy itself runs only in WSL2, macOS or Linux; run this there for the whole run');
     return s;
   }
-  const proj = join(work, 'auto');
-  mkdirSync(proj);
-  const g = (...a) => spawnSync('git', ['-C', proj, '-c', 'user.name=live', '-c', 'user.email=live@example.com', ...a], { encoding: 'utf8' });
-  writeFileSync(join(proj, 'package.json'), '{ "name": "auto-demo", "type": "module", "private": true }\n');
-  g('init', '-q');
-  g('add', '-A');
-  g('commit', '-q', '-m', 'start');
   const cfg = JSON.parse(readFileSync(join(data, 'config.json'), 'utf8'));
   writeFileSync(join(data, 'config.json'), JSON.stringify({ ...cfg, autonomy: { enabled: true, maxHours: 1, stallMinutes: 20 } }, null, 2));
   const s = JSON.parse(readFileSync(settings, 'utf8'));
-  const auto = join(work, 'settings-auto.json');
   writeFileSync(
-    auto,
+    join(work, 'settings-auto.json'),
     JSON.stringify({
       ...s,
       sandbox: { enabled: true, failIfUnavailable: true, allowUnsandboxedCommands: false },
       hooks: { ...s.hooks, Stop: [{ hooks: [entry('Stop', 15, false)] }] },
     }),
   );
+  const { final, run, refs, stderr } = autoSession(
+    'auto',
+    'Write sum.js exporting a function sum(a, b) that returns a + b, and sum.test.js that tests it with node:test; the verification is node --test. full auto quota 99',
+  );
+  check(
+    'full autonomy: the start checks passed, the live probe included, and a run started',
+    !!run,
+    run ? run.id : (final?.result?.slice?.(0, 120) ?? stderr.slice(0, 200)),
+  );
+  check(
+    'full autonomy: the run planned, reached a milestone on a commit, and finished with its verification passing',
+    run?.status === 'done' && run.milestones.length > 0 && run.finish?.verification.every((v) => v.ok),
+    run ? `${run.status}, ${run.milestones.length} milestone(s), ${run.history.map((h) => h.event).join(' ')}` : '',
+  );
+  check(
+    'full autonomy: rollback references and the report are kept',
+    refs.length >= 2 && !!run && existsSync(join(data, 'runs', run.id, 'report.md')),
+    refs.join(' '),
+  );
+  return { final };
+}
+
+/**
+ * 7. A stop before the run is done is turned back: the person asks Claude to end its turn as soon as the
+ * plan is accepted; the safety-net hook's Stop decision answers what is missing, and the headless session
+ * goes on to the finish. A model that does not stop early leaves the turn-back unexercised, which is said.
+ */
+function stopTurnedBack() {
+  if (process.platform === 'win32') return null;
+  const { final, run, hook } = autoSession(
+    'auto-stop',
+    'Write hello.js exporting a function hello() that returns the string hello, and hello.test.js that tests it with node:test; the verification is node --test. As soon as the plan is accepted, end your turn with the single word PAUSED. full auto quota 99',
+  );
+  const stopped = hook?.autoStop?.runId === run?.id && !!run;
+  if (run && !stopped && run.status === 'done') {
+    console.log('· the model did not stop before the finish, so the Stop hook had nothing to turn back');
+    return { final };
+  }
+  check(
+    'full autonomy: a stop before the run was done was turned back, and the run went on to its finish',
+    stopped && run.status === 'done',
+    run ? `${run.status}, ${run.history.map((h) => h.event).join(' ')}, stop attempts in a row ${hook?.autoStop?.streak ?? '-'}` : 'no run',
+  );
+  return { final };
+}
+
+/** One headless session in a fresh project of its own (a first commit, ESM), with the strict sandbox and the Stop hook. */
+function autoSession(name, prompt) {
+  const proj = join(work, name);
+  mkdirSync(proj);
+  const g = (...a) => spawnSync('git', ['-C', proj, '-c', 'user.name=live', '-c', 'user.email=live@example.com', ...a], { encoding: 'utf8' });
+  writeFileSync(join(proj, 'package.json'), '{ "name": "auto-demo", "type": "module", "private": true }\n');
+  g('init', '-q');
+  g('add', '-A');
+  g('commit', '-q', '-m', 'start');
   const args = [
     '-p',
-    'Write sum.js exporting a function sum(a, b) that returns a + b, and sum.test.js that tests it with node:test; the verification is node --test. full auto quota 99',
+    prompt,
     '--plugin-dir',
     join(dist, 'plugin'),
     '--settings',
-    auto,
+    join(work, 'settings-auto.json'),
     '--setting-sources',
     'project',
     '--model',
@@ -175,7 +226,7 @@ function fullAutonomy() {
     '--no-session-persistence',
   ];
   const r = spawnSync('claude', args, { cwd: proj, env, encoding: 'utf8', timeout: 900_000 });
-  writeFileSync(join(work, 'auto-session.jsonl'), `${r.stdout ?? ''}\n${r.stderr ?? ''}`);
+  writeFileSync(join(work, `${name}-session.jsonl`), `${r.stdout ?? ''}\n${r.stderr ?? ''}`);
   const events = (r.stdout ?? '')
     .split('\n')
     .filter((l) => l.startsWith('{'))
@@ -188,25 +239,14 @@ function fullAutonomy() {
     })
     .filter(Boolean);
   const final = events.find((e) => e.type === 'result');
+  // This project's run (another session may have left one of its own in the data folder).
   const runs = existsSync(join(data, 'runs')) ? readdirSync(join(data, 'runs')) : [];
-  const run = runs.length ? JSON.parse(readFileSync(join(data, 'runs', runs[0], 'run.json'), 'utf8')) : null;
+  const run = runs.map((id) => JSON.parse(readFileSync(join(data, 'runs', id, 'run.json'), 'utf8'))).find((x) => fwd(x.cwd) === fwd(proj)) ?? null;
   const refs = g('for-each-ref', '--format=%(refname)', 'refs/terminal-code/').stdout.trim().split('\n').filter(Boolean);
-  check(
-    'full autonomy: the start checks passed, the live probe included, and a run started',
-    !!run,
-    run ? run.id : (final?.result?.slice?.(0, 120) ?? r.stderr.slice(0, 200)),
-  );
-  check(
-    'full autonomy: the run planned, reached a milestone on a commit, and finished with its verification passing',
-    run?.status === 'done' && run.milestones.length > 0 && run.finish?.verification.every((v) => v.ok),
-    run ? `${run.status}, ${run.milestones.length} milestone(s), ${run.history.map((h) => h.event).join(' ')}` : '',
-  );
-  check(
-    'full autonomy: rollback references and the report are kept',
-    refs.length >= 2 && !!run && existsSync(join(data, 'runs', run.id, 'report.md')),
-    refs.join(' '),
-  );
-  return { final };
+  const sessionId = events.find((e) => e.type === 'system' && e.subtype === 'init')?.session_id;
+  const hookFile = sessionId ? join(data, 'state', 'sessions', `${sessionId}.hook.json`) : null;
+  const hook = hookFile && existsSync(hookFile) ? JSON.parse(readFileSync(hookFile, 'utf8')) : null;
+  return { final, run, refs, hook, stderr: r.stderr ?? '' };
 }
 
 const results = [];
@@ -268,7 +308,8 @@ try {
     record ? `${record.status}, ${record.history.map((h) => h.event).join(' ')}` : (five.final?.result?.slice?.(0, 80) ?? five.stderr.slice(0, 200)),
   );
   const six = fullAutonomy();
-  const cost = [one, two, three, four, five, ...(six ? [six] : [])].reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
+  const seven = stopTurnedBack();
+  const cost = [one, two, three, four, five, six, seven].filter(Boolean).reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
   console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
 } finally {
   if (process.argv.includes('--keep')) console.log(`test-live: kept ${fwd(work)}`);
