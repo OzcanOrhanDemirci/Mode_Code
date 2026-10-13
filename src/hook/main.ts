@@ -9,6 +9,10 @@
  * Usage: node hook.mjs <EventName>   (the event's JSON arrives on stdin)
  */
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { parseRun } from '../core/run.js';
+import { fingerprintOf, pauseFor, STALL_STOPS, stopDecision } from '../core/run-stop.js';
+import { runDir } from '../core/layout.js';
 import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
 import { isBeltTool } from '../core/belt/tools.js';
 import { parseModState, parseHookState, isApproved, applyKeyword } from '../core/session.js';
@@ -26,7 +30,7 @@ import { APP_VERSION, SELF_TEST_SESSION } from '../core/app.js';
 import { dataLayout, processLanguage } from '../node/env.js';
 import { loadConfig, beltContext, classifyEnv, memoryDirs } from '../node/context.js';
 import { readText, readJson, writeJsonAtomic, appendLine } from '../node/fsx.js';
-import { memoryStatus } from '../node/git.js';
+import { git, memoryStatus } from '../node/git.js';
 import { readTail } from '../node/tail.js';
 
 type Input = Record<string, unknown>;
@@ -131,12 +135,12 @@ function userPromptSubmit(input: Input): void {
   const prompt = str(input.prompt) ?? '';
   const kw = detectKeyword(prompt, projectRefs(config), keywordTables(config));
   if (!kw) return;
-  // Modes and flows live in the plugin; without it nothing would enforce them, and the person must know.
-  if (isModeKeyword(kw.kind) || kw.kind === 'flow' || kw.kind === 'approve') {
+  // Modes, flows and full autonomy live in the plugin; without it nothing would enforce them, and the person must know.
+  if (isModeKeyword(kw.kind) || kw.kind === 'flow' || kw.kind === 'approve' || kw.kind === 'fullAuto') {
     out({
       hookSpecificOutput: {
         hookEventName: 'UserPromptSubmit',
-        additionalContext: `[terminal-code] The person's message ${kw.standalone ? 'is' : 'ends with'} "${kw.text}", a terminal-code keyword for modes and flows. They need the terminal-code plugin, which is not loaded in this session, so nothing enforces them here. Tell the person in one line (terminal-code doctor shows why the plugin is not loaded); the safety belt still runs.`,
+        additionalContext: `[terminal-code] The person's message ${kw.standalone ? 'is' : 'ends with'} "${kw.text}", a terminal-code keyword for modes, flows or full autonomy. They need the terminal-code plugin, which is not loaded in this session, so nothing enforces them here. Tell the person in one line (terminal-code doctor shows why the plugin is not loaded); the safety belt still runs.`,
       },
     });
     return;
@@ -150,9 +154,65 @@ function userPromptSubmit(input: Input): void {
   if (ctx.length) out({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: ctx.join('\n') } });
 }
 
+/**
+ * A session working on a full-autonomy run stops only when code lets it (core/run-stop.ts): the text that
+ * turns it back, or null. The hook keeps its counter in its own state file and records a stop it let
+ * through for a reason (stalled, time limit, budget), which the plugin then pauses the run for.
+ */
+function autonomyStop(input: Input, l: ReturnType<typeof dataLayout>, config: ReturnType<typeof loadConfig>['config'], lang: Lang): string | null {
+  const sessionId = str(input.session_id) ?? '';
+  const modFile = sessionFile(l, sessionId, 'mod');
+  const mod = modFile ? parseModState(readText(modFile)) : null;
+  const dir = mod?.runId ? runDir(l, mod.runId) : null;
+  const run = dir ? parseRun(readText(join(dir, 'run.json'))) : null;
+  if (!run) return null;
+  const hookFile = sessionFile(l, sessionId, 'hook');
+  const state = parseHookState(hookFile ? readText(hookFile) : null, sessionId);
+  const now = Date.now();
+  const q = assessQuota(readJson<QuotaReading>(l.quota), budgetOf(config, mod), now);
+  const tasks = Array.isArray(input.background_tasks) ? input.background_tasks : [];
+  const background = tasks.filter((t) => !!t && typeof t === 'object' && ['running', 'pending'].includes(String((t as Record<string, unknown>).status))).length;
+  const head = git(run.cwd, ['rev-parse', 'HEAD']);
+  const status = git(run.cwd, ['status', '--porcelain=v1'], 5000);
+  const d = stopDecision(
+    run,
+    {
+      now,
+      fingerprint: fingerprintOf(head.ok ? head.out : null, status.out, run),
+      // A reading too old to act on counts as a reached budget (the run pauses, and resumes after a fresh one).
+      quotaLevel: q.usable ? q.level : 'wrapUp',
+      background,
+      maxHours: config.autonomy.maxHours,
+      stallMinutes: config.autonomy.stallMinutes,
+    },
+    state.autoStop ?? { runId: null, fingerprint: null, streak: 0 },
+  );
+  const allowed = d.allow && pauseFor(d.why) ? { runId: run.id, why: d.why, at: now } : state.autoAllowed;
+  try {
+    if (hookFile) writeJsonAtomic(hookFile, { ...state, lastRunAt: now, autoStop: d.memory, autoAllowed: allowed });
+  } catch {
+    /* without the counter every attempt counts as the first: the run is turned back until another limit lets it stop */
+  }
+  if (d.allow) return null;
+  const m = d.missing;
+  const first =
+    m.kind === 'plan'
+      ? tIn(lang, 'auto.stop.plan', { path: run.planPath })
+      : m.kind === 'step'
+        ? tIn(lang, 'auto.stop.step', { n: m.n, of: m.of, title: m.title })
+        : tIn(lang, 'auto.stop.finish', { path: run.reportPath });
+  return `${first}\n${tIn(lang, 'auto.stop.tail', { streak: d.streak, max: STALL_STOPS })}`;
+}
+
 function stop(input: Input, lang: Lang): void {
   const l = dataLayout();
   const { config } = loadConfig(l);
+  const auto = autonomyStop(input, l, config, lang);
+  if (auto) {
+    // Feedback that keeps the run going, not an error: the run works as designed (docs/autonomy.md).
+    out({ hookSpecificOutput: { hookEventName: 'Stop', additionalContext: auto } });
+    return;
+  }
   if (!config.modules.footer || config.footer.mode !== 'check') return;
   if (input.stop_hook_active === true) return; // one correction per turn, never a loop
   const transcript = str(input.transcript_path);

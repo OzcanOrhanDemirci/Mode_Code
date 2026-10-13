@@ -84,6 +84,15 @@ const ALLOWED = new Set([
   'ui.notify',
   'ui.resolve',
   'ui.toast',
+  // Full autonomy (docs/autonomy.md): the start checks read Claude Code's merged settings (the sandbox keys)
+  // and whether WSL's interop entry exists; a run's request may come from the person's last message; the
+  // independent review of a milestone is one model call through Claude Code's own client, to the session's
+  // provider, with the session's model unless the person names another (no other network use).
+  'fs.exists',
+  'model.complete',
+  'session.messages',
+  'session.model',
+  'settings.read',
 ]);
 const notes = (report.contents ?? []).flatMap((c) => c.notes ?? []);
 const callsNote = notes.find((n) => / calls: /.test(n)) ?? '';

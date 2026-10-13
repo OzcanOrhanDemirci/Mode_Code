@@ -19,6 +19,16 @@ export interface WorldOptions {
   startedAtHome?: boolean;
   /** What a tool beneath the plugin answers, by tool name (default: it ran). */
   results?: Record<string, (e: any) => any>;
+  /** More environment variables (WSL_DISTRO_NAME, …). */
+  env?: Record<string, string>;
+  /** Answers a git call before the defaults do (its arguments after -C <dir> --no-pager); undefined falls through. */
+  git?: (args: string[]) => { exitCode: number; stdout: string; stderr?: string } | undefined;
+  /** Claude Code's merged settings, as $.settings.read answers them. */
+  settings?: Record<string, unknown>;
+  /** What an independent review's model call answers (default: a clean PASS). */
+  review?: (e: any) => any;
+  /** The session's messages, as $.session.messages answers them. */
+  messages?: { role: 'user' | 'assistant'; text: string; toolUses: never[] }[];
 }
 
 export const HOME = '/home/ada';
@@ -45,6 +55,7 @@ export function world(on: any, opts: WorldOptions = {}) {
     ...(opts.windows ? { USERPROFILE: at.HOME, OS: 'Windows_NT', TEMP: `${at.HOME}/AppData/Local/Temp` } : { HOME: at.HOME }),
     TERMINAL_CODE_HOME: at.DATA,
     TERMINAL_CODE_LANG: opts.lang ?? 'en',
+    ...(opts.env ?? {}),
   });
   const write = (path: string, text: string) => files.set(norm(path), { text, mtimeMs: clock.now() });
   if (opts.config) write(`${at.DATA}/config.json`, JSON.stringify(opts.config));
@@ -77,6 +88,8 @@ export function world(on: any, opts: WorldOptions = {}) {
     const [cmd, ...rest] = e.argv as string[];
     if (cmd === 'uname') return { value: { exitCode: 0, stdout: 'Linux\n', stderr: '' } };
     if (cmd === 'git') {
+      const own = opts.git?.(rest.slice(rest[0] === '-C' ? 3 : 0));
+      if (own) return { value: { stderr: '', ...own } };
       const a = rest.join(' ');
       if (a.includes('symbolic-ref')) return { value: { exitCode: 0, stdout: 'feature\n', stderr: '' } };
       if (a.includes('remote get-url')) return { value: { exitCode: 0, stdout: 'https://example.com/ada/app.git\n', stderr: '' } };
@@ -122,12 +135,25 @@ export function world(on: any, opts: WorldOptions = {}) {
     return { text: e.text, context: e.context ?? [] };
   });
   on('session.measure', (_$: any, e: any) => ({ changed: e.changed }));
+  on('fs.exists', (_$: any, e: any) => {
+    const path = norm(e.path).replace(/\/+$/, '');
+    return { value: files.has(path) || [...files.keys()].some((p) => p.startsWith(path + '/')) };
+  });
+  on('settings.read', () => ({ value: opts.settings ?? {} }));
+  on('session.model', () => ({ value: 'claude-opus-5-5' }));
+  on('session.messages', () => ({ value: opts.messages ?? [] }));
+  const reviews: any[] = [];
+  on('model.complete', (_$: any, e: any) => {
+    reviews.push(e);
+    return { value: opts.review ? opts.review(e) : { isAnswered: true, text: 'VERDICT: PASS', usage: { input_tokens: 1, output_tokens: 1 } } };
+  });
   return {
     clock,
     files,
     reached,
     calls,
     registered,
+    reviews,
     toasts,
     notes,
     asked,
