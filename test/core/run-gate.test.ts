@@ -3,7 +3,18 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { asksNobody, checkGate, GATE_CHECKS, interopOn, sandboxGaps, windowsMounts, wslVersion, type GateFacts } from '../../src/core/run-gate.js';
+import {
+  asksNobody,
+  AT_FIRST_STEP,
+  checkGate,
+  GATE_CHECKS,
+  gateOpen,
+  interopOn,
+  sandboxGaps,
+  windowsMounts,
+  wslVersion,
+  type GateFacts,
+} from '../../src/core/run-gate.js';
 import { assessQuota, type QuotaReading } from '../../src/core/quota.js';
 import { tIn } from '../../src/core/i18n/index.js';
 
@@ -51,6 +62,7 @@ const good = (): GateFacts => ({
   settings: STRICT,
   probe: { ran: true, refused: true, detail: "touch: cannot touch '/home/ada/.terminal-code-sandbox-probe': Read-only file system" },
   permissionMode: 'bypassPermissions',
+  permissionMeasured: true,
   hookRan: true,
   modes: true,
   git: { topLevel: '/home/ada/api', cwd: '/home/ada/api', tracked: 0, sameFolder: true },
@@ -158,6 +170,23 @@ test('permission modes: only those in which nothing waits for an answer', () => 
   assert.deepEqual(failed({ ...good(), permissionMode: 'acceptEdits' }), ['permission:auto.gate.permission.network']);
   assert.deepEqual(failed({ ...good(), permissionMode: 'default' }), ['permission:auto.gate.permission.asks']);
   assert.deepEqual(failed({ ...good(), permissionMode: null }), ['permission:auto.gate.permission.unknown']);
+});
+
+test('at the prompt the permission mode is not measurable yet: nothing fails for it, but nothing starts on it', () => {
+  // Claude Code runs the plugin's prompt hook before the safety-net hook: the mode on record is an earlier prompt's.
+  for (const permissionMode of ['bypassPermissions', 'default', null]) {
+    const atPrompt = checkGate({ ...good(), probe: null, permissionMode, permissionMeasured: false });
+    const check = atPrompt.checks.find((c) => c.id === 'permission')!;
+    assert.deepEqual([check.ok, check.key], [null, 'auto.gate.permission.atStart'], String(permissionMode));
+    assert.equal(gateOpen(atPrompt), true, 'the run may go on to its first step');
+    assert.equal(atPrompt.ok, false, 'and starts only there');
+  }
+  // Measured as passing but with the probe still unmeasured, or the other way round: no start either.
+  assert.equal(checkGate({ ...good(), probe: null }).ok, false);
+  assert.equal(checkGate({ ...good(), permissionMeasured: false }).ok, false);
+  assert.deepEqual(AT_FIRST_STEP, ['probe', 'permission']);
+  // A failure measured at the prompt closes the way at once.
+  assert.equal(gateOpen(checkGate({ ...good(), probe: null, permissionMeasured: false, enabled: false })), false);
 });
 
 test('budget: explicit, measured, fresh and not reached', () => {

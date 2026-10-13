@@ -105,13 +105,14 @@ import {
   type RunResult,
   type RunStep,
 } from '../core/run.js';
-import { checkGate, type GateFacts, type GateResult, type WslFacts } from '../core/run-gate.js';
+import { checkGate, gateOpen, type GateFacts, type GateResult, type WslFacts } from '../core/run-gate.js';
 import { checkAutonomy, credentialPaths, type AutoEnv } from '../core/run-guard.js';
 import { diffSignals, parseReview, REVIEW_SYSTEM, reviewPrompt } from '../core/run-review.js';
 import { checkDraft, composeReport, durationText } from '../core/run-report.js';
 import { pauseFor, type StopAllow } from '../core/run-stop.js';
 import {
   autoNoTaskContext,
+  autoPendingContext,
   autoRefusedContext,
   autoResumeContext,
   autoStallContext,
@@ -152,6 +153,25 @@ interface Ctx {
   run: Run | null;
   /** When the model was last told that no milestone came for the stall time. */
   stallWarnedAt: number;
+  /** A full-autonomy start or resume whose last checks wait for the model's first step (see PendingStart). */
+  pendingStart: PendingStart | null;
+  /** The plugin's own sandbox probe while it runs: the one command a paused run's guard lets through. */
+  probing: string | null;
+}
+
+/**
+ * A run asked for at a prompt, every check measurable there passed. Claude Code runs the plugin's prompt hook
+ * before the safety-net hook, so the permission mode this prompt came with is on record only once the model
+ * takes its first step: then the last checks run (that mode, and the live probe) and the run starts.
+ */
+interface PendingStart {
+  /** When the prompt came in: the safety-net hook's record of it is newer. */
+  at: number;
+  /** The paused run to resume, or null for a new one. */
+  resume: string | null;
+  request: string;
+  project: string | null;
+  budget: { target: number; source: string };
 }
 
 let ctxPromise: Promise<Ctx> | null = null;
@@ -292,6 +312,8 @@ async function load($: $): Promise<Ctx> {
     flow: flow && isOpen(flow) ? flow : null,
     run: run && !isTerminal(run) ? run : null,
     stallWarnedAt: 0,
+    pendingStart: null,
+    probing: null,
   };
 }
 
@@ -970,6 +992,12 @@ async function runEvent($: $, c: Ctx, r: Run, action: string, extra: Record<stri
   await logEvent($, c, { kind: 'run', action, run: r.id, phase: r.phase, status: r.status, ...extra });
 }
 
+/** A run's record by its id; null when it is missing or torn. */
+async function loadRun($: $, c: Ctx, id: string): Promise<Run | null> {
+  const dir = runDir(c.layout, id);
+  return dir ? parseRun(await readFile($, joinPath(dir, 'run.json'))) : null;
+}
+
 /** The open runs in the data folder, newest first. */
 async function openRuns($: $, c: Ctx): Promise<Run[]> {
   let names: string[] = [];
@@ -1082,14 +1110,18 @@ async function probeSandbox($: $, c: Ctx): Promise<{ ran: boolean; refused: bool
   const tools = new Set((await $.tool.list()).map((t) => t.name));
   if (!tools.has('Bash')) return { ran: false, refused: false, detail: 'no Bash tool' };
   let r: Awaited<ReturnType<typeof $.tool.call>>;
+  const command = `touch '${path.replace(/'/g, `'\\''`)}'`;
+  c.probing = command;
   try {
     r = await $.tool.call({
       tool: 'Bash',
-      command: `touch '${path.replace(/'/g, `'\\''`)}'`,
+      command,
       description: 'terminal-code: full autonomy sandbox probe (a write outside the project must be refused)',
     } as never);
   } catch (err) {
     return { ran: false, refused: false, detail: String((err as Error)?.message ?? err).slice(0, 200) };
+  } finally {
+    c.probing = null;
   }
   if (r.deny !== undefined) return { ran: false, refused: false, detail: String(r.deny).slice(0, 200) };
   let exists = false;
@@ -1120,12 +1152,17 @@ function requiredFor(c: Ctx, top: string, project: string | null): string[] {
     .flatMap((p) => p.verify ?? []);
 }
 
-/** Everything the start checks need, measured; the live probe only once every other check passed. */
+/**
+ * Everything the start checks need, measured. At the prompt (`firstStep` null) the permission mode and the
+ * live probe are not measurable yet; at the run's first step (`firstStep`: when that prompt came in) the
+ * mode is the one the safety-net hook recorded with the prompt, and the probe runs once every other check passed.
+ */
 async function autoGate(
   $: $,
   c: Ctx,
   budget: { explicit: boolean; target: number | null; source: string | null },
   resuming: Run | null,
+  firstStep: number | null,
 ): Promise<{ result: GateResult; project: ProjectFacts }> {
   const cwd = await $.session.cwd();
   const env = pathEnv(c, cwd);
@@ -1152,8 +1189,10 @@ async function autoGate(
     wsl: await wslFactsOf($, c),
     settings,
     probe: null,
-    permissionMode: hook.permissionMode,
-    hookRan: hook.lastRunAt > 0,
+    // A record from before this prompt may be stale (the person can switch modes between prompts): not this prompt's, not known.
+    permissionMode: firstStep !== null && hook.promptAt >= firstStep ? hook.permissionMode : null,
+    permissionMeasured: firstStep !== null,
+    hookRan: hook.lastRunAt > 0 || hook.promptAt > 0,
     modes: c.config.modules.modes,
     git: {
       topLevel: project.topLevel,
@@ -1171,19 +1210,19 @@ async function autoGate(
     },
   };
   const before = checkGate(facts);
-  // The probe writes (outside the project, where it must be refused): only when nothing else stands in the way.
-  if (before.checks.every((x) => x.ok !== false) && c.platform !== 'win32') facts.probe = await probeSandbox($, c);
+  // The probe writes (outside the project, where it must be refused): only at the first step, when nothing else stands in the way.
+  if (firstStep !== null && gateOpen(before) && c.platform !== 'win32') facts.probe = await probeSandbox($, c);
   return { result: checkGate(facts), project };
 }
 
 const AUTO_TOOL = {
   name: 'autonomy',
   description:
-    'Drives the full-autonomy run of this session (terminal-code): "plan" once the plan file is written; "milestone" with step when that plan step is done and committed; "blocker" with kind and text for what is in the way; "defer" with text for a step that must wait for the person; "finish" when every step has its milestone and the report draft is written; "stuck" when every path is blocked; "status". Code checks each and answers what is missing or what comes next.',
+    'Drives the full-autonomy run of this session (terminal-code): "start" first, when a run was asked for (it runs the last start checks); "plan" once the plan file is written; "milestone" with step when that plan step is done and committed; "blocker" with kind and text for what is in the way; "defer" with text for a step that must wait for the person; "finish" when every step has its milestone and the report draft is written; "stuck" when every path is blocked; "status". Code checks each and answers what is missing or what comes next.',
   inputSchema: {
     type: 'object',
     properties: {
-      action: { type: 'string', enum: ['plan', 'milestone', 'blocker', 'defer', 'finish', 'stuck', 'status'] },
+      action: { type: 'string', enum: ['start', 'plan', 'milestone', 'blocker', 'defer', 'finish', 'stuck', 'status'] },
       step: { type: 'integer', minimum: 1, description: 'For milestone: the plan step it completes.' },
       kind: { type: 'string', enum: ['decision', 'access', 'tool', 'external', 'other'], description: 'For blocker.' },
       text: { type: 'string', description: 'For blocker and defer: what, in a sentence or two.' },
@@ -1276,7 +1315,18 @@ function failedChecks(g: GateResult): number {
   return g.checks.filter((x) => x.ok === false).length;
 }
 
-/** "<task>. <project> full auto quota +N": the start checks, then a run in its plan phase. */
+function passedChecks(g: GateResult): number {
+  return g.checks.filter((x) => x.ok === true).length;
+}
+
+function failedIds(g: GateResult): string[] {
+  return g.checks.filter((x) => x.ok === false).map((x) => x.id);
+}
+
+/**
+ * "<task>. <project> full auto quota +N": the start checks measurable at the prompt; when they pass, the run
+ * waits for the model's first step, where the last two are measured (see PendingStart).
+ */
 async function autoKeyword($: $, c: Ctx, kw: KeywordMatch, text: string): Promise<string[]> {
   const now = await $.clock.now();
   if (kw.auto === 'cancel') {
@@ -1301,9 +1351,9 @@ async function autoKeyword($: $, c: Ctx, kw: KeywordMatch, text: string): Promis
   }
   const target = kw.budget ? weeklyTargetFrom(kw.budget, c.reading, now) : null;
   const source = kw.budget ? `${kw.budget.plus ? '+' : ''}${kw.budget.n}` : null;
-  const { result, project } = await autoGate($, c, { explicit: !!kw.budget, target, source }, null);
-  await logEvent($, c, { kind: 'run', action: 'gate', ok: result.ok, failed: result.checks.filter((x) => x.ok === false).map((x) => x.id) });
-  if (!result.ok || !project.topLevel || !project.head || target === null || source === null) {
+  const { result, project } = await autoGate($, c, { explicit: !!kw.budget, target, source }, null, null);
+  await logEvent($, c, { kind: 'run', action: 'gate', step: 'prompt', ok: gateOpen(result), failed: failedIds(result) });
+  if (!gateOpen(result) || !project.topLevel || !project.head || target === null || source === null) {
     $.ui.toast(tIn(c.lang, 'auto.toast.refused', { n: Math.max(1, failedChecks(result)) }), { timeoutMs: 10_000 });
     return [autoRefusedContext(result, c.lang)];
   }
@@ -1312,36 +1362,10 @@ async function autoKeyword($: $, c: Ctx, kw: KeywordMatch, text: string): Promis
     $.ui.toast(tIn(c.lang, 'auto.toast.noTask'));
     return [autoNoTaskContext()];
   }
-  const taken = new Set<string>();
-  try {
-    for (const e of await $.fs.list(c.layout.runsDir)) taken.add(e.name);
-  } catch {
-    /* no runs yet */
-  }
-  const id = newRunId(request, now, taken);
-  const r = startRun({
-    id,
-    task: request,
-    project: kw.project ?? c.state.project,
-    cwd: project.topLevel,
-    sessionId: c.sessionId,
-    workDir: runWorkRoot(c, cwd),
-    budget: { weeklyTarget: target, source },
-    start: { commit: project.head, branch: project.branch, untracked: project.untracked },
-    now,
-  });
-  await gitIn($, project.topLevel, ['update-ref', rollbackRef(id, 0), project.head]);
-  try {
-    await $.fs.write(joinPath(r.workDir, 'README.md'), `Drafts of the full-autonomy run ${id}: plan.md, report.md, notes.md.\n`);
-  } catch {
-    /* Claude's Write tool makes the folder too */
-  }
-  c.state = { ...c.state, weeklyTarget: target, weeklyTargetSource: source };
-  await saveRun($, c, r);
-  await runEvent($, c, r, 'start', { checks: result.checks.length });
+  c.pendingStart = { at: now, resume: null, request, project: kw.project ?? c.state.project, budget: { target, source } };
   await registerAutoTool($);
-  $.ui.toast(tIn(c.lang, 'auto.toast.started', { checks: result.checks.filter((x) => x.ok).length }), { timeoutMs: 8000 });
-  return [autoStartContext(r, requiredFor(c, r.cwd, r.project))];
+  $.ui.toast(tIn(c.lang, 'auto.toast.starting', { checks: passedChecks(result) }), { timeoutMs: 8000 });
+  return [autoPendingContext(false)];
 }
 
 /** Resumes the attached paused run, or the project's or this folder's: the start checks run again first. */
@@ -1352,21 +1376,86 @@ async function autoResume($: $, c: Ctx, project: string | null, cwd: string): Pr
     $.ui.toast(tIn(c.lang, 'auto.toast.held'));
     return null;
   }
-  const { result } = await autoGate($, c, { explicit: true, target: r.budget.weeklyTarget, source: r.budget.source }, r);
-  if (!result.ok) {
+  const { result } = await autoGate($, c, { explicit: true, target: r.budget.weeklyTarget, source: r.budget.source }, r, null);
+  await logEvent($, c, { kind: 'run', action: 'gate', step: 'prompt', run: r.id, ok: gateOpen(result), failed: failedIds(result) });
+  if (!gateOpen(result)) {
     $.ui.toast(tIn(c.lang, 'auto.toast.refused', { n: Math.max(1, failedChecks(result)) }), { timeoutMs: 10_000 });
     return [autoRefusedContext(result, c.lang)];
   }
-  const now = await $.clock.now();
-  const paused = r.status === 'paused' ? r : (pauseRun(r, 'session', now).run as Run);
-  const res = resumeRun(paused, c.sessionId, now);
-  if (!res.ok) return null;
-  c.state = { ...c.state, weeklyTarget: r.budget.weeklyTarget, weeklyTargetSource: r.budget.source };
-  await saveRun($, c, res.run);
-  await runEvent($, c, res.run, 'resume');
+  c.pendingStart = {
+    at: await $.clock.now(),
+    resume: r.id,
+    request: r.task,
+    project: r.project,
+    budget: { target: r.budget.weeklyTarget, source: r.budget.source },
+  };
   await registerAutoTool($);
-  $.ui.toast(tIn(c.lang, 'auto.toast.resumed', { phase: tIn(c.lang, `auto.phase.${res.run.phase}` as MessageKey) }));
-  return [autoResumeContext(res.run)];
+  $.ui.toast(tIn(c.lang, 'auto.toast.starting', { checks: passedChecks(result) }), { timeoutMs: 8000 });
+  return [autoPendingContext(true)];
+}
+
+/**
+ * The model's first step after a start or resume was asked for: the last checks (the permission mode the
+ * safety-net hook recorded with that prompt, the live probe) and every other check again, then the run starts
+ * or resumes. Answers what the model reads: the run's rules and phase, or which checks failed.
+ */
+async function completeStart($: $, c: Ctx): Promise<string> {
+  const p = c.pendingStart!;
+  // Taken first: the probe below is a tool call of its own, and the next prompt starts over.
+  c.pendingStart = null;
+  const cwd = await $.session.cwd();
+  const resuming = p.resume ? await loadRun($, c, p.resume) : null;
+  if (p.resume && (!resuming || isTerminal(resuming) || (await runHeldElsewhere($, c, resuming)))) {
+    $.ui.toast(tIn(c.lang, 'auto.toast.held'));
+    return tIn(c.lang, 'auto.tool.none');
+  }
+  const { result, project } = await autoGate($, c, { explicit: true, target: p.budget.target, source: p.budget.source }, resuming, p.at);
+  await logEvent($, c, { kind: 'run', action: 'gate', step: 'first', ...(p.resume ? { run: p.resume } : {}), ok: result.ok, failed: failedIds(result) });
+  if (!result.ok || !project.topLevel || !project.head) {
+    $.ui.toast(tIn(c.lang, 'auto.toast.refused', { n: Math.max(1, failedChecks(result)) }), { timeoutMs: 10_000 });
+    return autoRefusedContext(result, c.lang);
+  }
+  const now = await $.clock.now();
+  c.state = { ...c.state, weeklyTarget: p.budget.target, weeklyTargetSource: p.budget.source };
+  if (resuming) {
+    const paused = resuming.status === 'paused' ? resuming : (pauseRun(resuming, 'session', now).run as Run);
+    const res = resumeRun(paused, c.sessionId, now);
+    if (!res.ok) return tIn(c.lang, 'auto.tool.none');
+    await saveRun($, c, res.run);
+    await runEvent($, c, res.run, 'resume');
+    const phase = tIn(c.lang, `auto.phase.${res.run.phase}` as MessageKey);
+    $.ui.toast(tIn(c.lang, 'auto.toast.resumed', { phase }));
+    return `${tIn(c.lang, 'auto.tool.resumedAt', { phase })}\n\n${autoResumeContext(res.run)}`;
+  }
+  const taken = new Set<string>();
+  try {
+    for (const e of await $.fs.list(c.layout.runsDir)) taken.add(e.name);
+  } catch {
+    /* no runs yet */
+  }
+  const id = newRunId(p.request, now, taken);
+  const r = startRun({
+    id,
+    task: p.request,
+    project: p.project,
+    cwd: project.topLevel,
+    sessionId: c.sessionId,
+    workDir: runWorkRoot(c, cwd),
+    budget: { weeklyTarget: p.budget.target, source: p.budget.source },
+    start: { commit: project.head, branch: project.branch, untracked: project.untracked },
+    now,
+  });
+  await gitIn($, project.topLevel, ['update-ref', rollbackRef(id, 0), project.head]);
+  try {
+    await $.fs.write(joinPath(r.workDir, 'README.md'), `Drafts of the full-autonomy run ${id}: plan.md, report.md, notes.md.\n`);
+  } catch {
+    /* Claude's Write tool makes the folder too */
+  }
+  await saveRun($, c, r);
+  await runEvent($, c, r, 'start', { checks: result.checks.length });
+  $.ui.toast(tIn(c.lang, 'auto.toast.started', { checks: passedChecks(result) }), { timeoutMs: 8000 });
+  const mode = String(result.checks.find((x) => x.id === 'permission')?.params?.mode ?? '');
+  return `${tIn(c.lang, 'auto.tool.started', { checks: passedChecks(result), mode })}\n\n${autoStartContext(r, requiredFor(c, r.cwd, r.project))}`;
 }
 
 /** An independent review: a model call with none of the session's conversation. */
@@ -1429,6 +1518,8 @@ async function onAutoTool($: $, e: any): Promise<any> {
   const c = await ctxOf($);
   const answer = (text: string) => ({ result: text });
   if (e.agentId !== undefined) return answer(tIn(c.lang, 'auto.tool.agent'));
+  // The first step after a start was asked for: whatever the action, the last checks come first.
+  if (c.pendingStart) return answer(await completeStart($, c));
   const r = c.run;
   if (!r) return answer(tIn(c.lang, 'auto.tool.none'));
   const action = String(e.action ?? '');
@@ -1930,6 +2021,11 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   void [_t, _a, _c, _m];
   const cwd = await $.session.cwd();
 
+  // A start was asked for and the model went to work without the autonomy tool: this call is held, the last
+  // checks run now, and the model reads their outcome (the run's rules, or what failed).
+  if (c.pendingStart && e.agentId === undefined && tool !== `mcp__${PLUGIN_NAME}__${AUTO_TOOL.name}`)
+    return { deny: `${tIn(c.lang, 'auto.guard.heldForStart', { tool })}\n\n${await completeStart($, c)}` };
+
   const ctx = await beltContextFor($, c);
   const d = await evaluateToolCall(tool, input, ctx);
   const rules = d.findings.map((f) => f.rule);
@@ -1960,7 +2056,8 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
     }
   }
 
-  if (c.run) {
+  // The plugin's own sandbox probe is a start check, not a step of the run (a paused run's guard would hold it).
+  if (c.run && !(c.probing !== null && tool === 'Bash' && input.command === c.probing)) {
     const auto = await autoGuard($, c, tool, input, cwd);
     if (auto) return auto;
   }
@@ -2016,6 +2113,8 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   const extra: string[] = [];
   if (human) {
     c.turn = { startedAt: await $.clock.now(), uses: [] };
+    // A start asked for at an earlier prompt and never taken up lapses: each prompt asks anew.
+    c.pendingStart = null;
     await refreshConfig($, c);
     await syncPermissionMode($, c);
     // A mode given for one turn ends with it.
@@ -2349,6 +2448,12 @@ async function onTurnComplete($: $, e: In<'turn.complete'>, next: Nx<'turn.compl
   const result = await next(e);
   if (e.agentId !== undefined || e.reason !== 'answer') return result;
   const c = await ctxOf($);
+  if (c.pendingStart) {
+    // The model answered without taking the run's first step: nothing started, and the person is told.
+    c.pendingStart = null;
+    await logEvent($, c, { kind: 'run', action: 'gate', step: 'first', ok: false, failed: ['notTaken'] });
+    $.ui.toast(tIn(c.lang, 'auto.toast.notStarted'), { timeoutMs: 10_000 });
+  }
   try {
     await autoTurnEnded($, c);
   } catch {

@@ -13,6 +13,16 @@ const typed = (text: string) => ({ text, wait: false, origin: { kind: 'composer'
 const TOOL = 'mcp__terminal-code__autonomy';
 const auto = (action: string, more: Record<string, unknown> = {}) => ({ tool: TOOL, action, ...more }) as any;
 const NOW = Date.parse('2026-10-12T10:00:00Z');
+
+/**
+ * The person's prompt, then the model's first step (the autonomy tool's "start"), where the last start checks
+ * run: the permission mode the safety-net hook recorded with that prompt, and the live probe.
+ */
+async function begin($: any, text: string): Promise<{ prompt: string; start: string }> {
+  const r: any = await $.prompt.submit(typed(text));
+  const s: any = await $.tool.call(auto('start'));
+  return { prompt: (r.context ?? []).join('\n'), start: String(s.result) };
+}
 const PROBE_REFUSED = "touch: cannot touch '/home/ada/.terminal-code-sandbox-probe': Read-only file system";
 const STRICT = { sandbox: { enabled: true, failIfUnavailable: true, allowUnsandboxedCommands: false } };
 const PLAN = `# Rate limiting
@@ -76,6 +86,7 @@ function ready(on: any, extra: Opts = {}, config: Record<string, unknown> = {}) 
   const w = world(on, {
     env: { WSL_DISTRO_NAME: 'terminal-code' },
     settings: STRICT,
+    promptMode: 'bypassPermissions',
     git: g.git,
     config: { autonomy: { enabled: true }, projects: [{ id: 'app', names: ['app'], path: PROJECT, verify: ['npm run check'] }], ...config },
     ...extra,
@@ -86,10 +97,8 @@ function ready(on: any, extra: Opts = {}, config: Record<string, unknown> = {}) 
   });
   w.write('/proc/sys/kernel/osrelease', '6.6.87.2-microsoft-standard-WSL2\n');
   w.write('/proc/mounts', '/dev/sdd / ext4 rw,relatime 0 0\ntmpfs /run tmpfs rw 0 0\n');
-  w.write(
-    `${DATA}/state/sessions/${SESSION}.hook.json`,
-    JSON.stringify({ v: 1, sessionId: SESSION, lastRunAt: NOW, blocks: {}, permissionMode: 'bypassPermissions', permissionModeAt: NOW }),
-  );
+  // The session started (SessionStart ran); Claude Code hands the permission mode over only with each prompt.
+  w.write(`${DATA}/state/sessions/${SESSION}.hook.json`, JSON.stringify({ v: 1, sessionId: SESSION, lastRunAt: NOW, blocks: {} }));
   w.write(
     `${DATA}/state/quota.json`,
     JSON.stringify({
@@ -132,16 +141,17 @@ test('a budget is required; a write outside the project that goes through fails 
   });
   const none: any = await $.prompt.submit(typed('Add rate limiting. app full auto'));
   expect(none.context.join('\n')).toMatch(/- Budget: No budget: end the message with a quota label/);
-  const wrote: any = await $.prompt.submit(typed('Add rate limiting. app full auto quota +10'));
-  expect(wrote.context.join('\n')).toMatch(/- Sandbox probe: A write outside the project went through/);
+  const wrote = await begin($, 'Add rate limiting. app full auto quota +10');
+  expect(wrote.start).toMatch(/- Sandbox probe: A write outside the project went through/);
   expect(w.modState().runId).toBe(null);
 });
 
 test('a whole run: start, plan, milestones on commits with reviews, what waits for the person, finish and its report', async ($, on) => {
   let verdict = 'VERDICT: PASS';
   const { w, g, run } = ready(on, { review: () => ({ isAnswered: true, text: verdict, usage: { input_tokens: 1, output_tokens: 1 } }) });
-  const r: any = await $.prompt.submit(typed('Add rate limiting to the API. app full auto quota +10'));
-  const start = r.context.join('\n');
+  const { prompt, start } = await begin($, 'Add rate limiting to the API. app full auto quota +10');
+  expect(prompt).toMatch(/The person asked for full autonomy\. The start checks that can be measured now passed; .* action "start"/);
+  expect(start).toMatch(/^Full autonomy started: 11 start checks passed, the live sandbox probe and the permission mode \(bypassPermissions\) among them\./);
   expect(start).toMatch(/The person started full autonomy \(run \d{8}-\d{4}-add-rate-limiting-to-the, weekly budget 51%\)/);
   expect(start).toMatch(/"Add rate limiting to the API\."/);
   expect(start).toMatch(/`npm run check`/);
@@ -238,7 +248,7 @@ test('a whole run: start, plan, milestones on commits with reviews, what waits f
 
 test("the plan cannot drop the person's commands; a milestone cannot skip a step; a subagent cannot drive the run", async ($, on) => {
   const { w, run } = ready(on);
-  await $.prompt.submit(typed('Add rate limiting. app full auto quota +10'));
+  await begin($, 'Add rate limiting. app full auto quota +10');
   w.write(run().planPath, PLAN.replace('- `npm test`', '- `npm run lint`'));
   await $.tool.call(auto('plan'));
   expect(run().plan.verification).toEqual(['npm run lint', 'npm run check']);
@@ -252,7 +262,7 @@ test("the plan cannot drop the person's commands; a milestone cannot skip a step
 test("Claude Code's own permission question during a run is answered as deferred, never left waiting", async ($, on) => {
   const { run } = ready(on);
   on('tool.check', () => ({ decision: 'ask', reason: 'Edit outside the working directory' }));
-  await $.prompt.submit(typed('Add rate limiting. app full auto quota +10'));
+  await begin($, 'Add rate limiting. app full auto quota +10');
   const v: any = await ($.tool as any).check({ tool: 'Edit', input: { file_path: '/etc/hosts' }, tool_use_id: 'toolu_1' });
   expect(v.decision).toBe('deny');
   expect(v.reason).toMatch(/^🤖 Full autonomy: deferred: Edit \/etc\/hosts \(Edit outside the working directory\)/);
@@ -269,15 +279,18 @@ test('stop pauses the run with its report; continue runs the checks again and re
     instructions = String(e.instructions ?? '');
     return { messages: e.messages };
   });
-  await $.prompt.submit(typed('Add rate limiting to the API. app full auto quota +10'));
+  await begin($, 'Add rate limiting to the API. app full auto quota +10');
   const id = run().id;
   await $.prompt.submit(typed('dur'));
   expect([run().status, run().pause.reason]).toEqual(['paused', 'person']);
   expect(w.read(`${DATA}/runs/${id}/report.md`)).toMatch(/- Status: paused \(by you\)/);
   const blocked: any = await $.tool.call(auto('milestone', { step: 1 }));
   expect(String(blocked.result)).toMatch(/The run is paused \(by you\)\. The person resumes it with "continue"/);
-  const back: any = await $.prompt.submit(typed('app continue'));
-  expect(back.context.join('\n')).toMatch(/The full-autonomy run .* resumed\. The person's request, word for word: "Add rate limiting to the API\."/);
+  const back = await begin($, 'app continue');
+  expect(back.prompt).toMatch(/The person asked to resume the paused full-autonomy run\. .* action "start"/);
+  expect(back.start).toMatch(
+    /^The run resumed at its plan phase: every start check passed again\.\n\n.*The full-autonomy run .* resumed\. The person's request, word for word: "Add rate limiting to the API\."/,
+  );
   expect(run().status).toBe('active');
   expect(w.calls.filter((c: any) => String(c.command).startsWith('touch ')).length).toBe(2);
   await $.session.compact({ trigger: 'manual', messages: [{ role: 'user', text: 'so far', toolUses: [] }] } as any);
@@ -290,7 +303,7 @@ test('stop pauses the run with its report; continue runs the checks again and re
 test('a stop the safety-net hook let through for no progress pauses the run and says so', async ($, on) => {
   const { w, run } = ready(on);
   on('turn.complete', (_$: any, e: any) => ({ text: e.answer }));
-  await $.prompt.submit(typed('Add rate limiting. app full auto quota +10'));
+  await begin($, 'Add rate limiting. app full auto quota +10');
   const id = run().id;
   w.write(
     `${DATA}/state/sessions/${SESSION}.hook.json`,
@@ -310,12 +323,74 @@ test('a stop the safety-net hook let through for no progress pauses the run and 
   // Paused by code: nothing more changes until the person resumes it.
   const edit: any = await $.tool.call({ tool: 'Write', file_path: `${PROJECT}/a.ts`, content: 'x' } as any);
   expect(edit.deny).toMatch(/no measurable progress; the run is paused/);
+  // Resumed by the person: the plugin's own probe is a start check and passes the paused run's guard.
+  const back = await begin($, 'app continue');
+  expect(back.start).toMatch(/^The run resumed at its plan phase: every start check passed again\./);
+  expect(w.calls.filter((c: any) => String(c.command).startsWith('touch ')).length).toBe(2);
+});
+
+test("the last start checks wait for the model's first step; a call made before it is held, and the run starts there", async ($, on) => {
+  const { w, run } = ready(on);
+  const r: any = await $.prompt.submit(typed('Add rate limiting. app full auto quota +10'));
+  // At the prompt the safety-net hook has not seen it yet: no probe, no run, the model is told to call "start".
+  expect(r.context.join('\n')).toMatch(/the last two \(Claude Code's permission mode for this prompt, and a live probe of the sandbox\)/);
+  expect(w.toasts.at(-1)).toMatch(/^🤖 Full autonomy: \d+ start checks passed; the last two run at Claude's first step\.$/);
+  expect([run(), w.calls.some((c: any) => c.tool === 'Bash')]).toEqual([null, false]);
+  expect(w.registered.map((t: any) => t.name)).toContain('autonomy');
+  // The model went to work without it: that call is held, the last checks run, and the run starts.
+  const held: any = await $.tool.call({ tool: 'Read', file_path: `${PROJECT}/README.md` } as any);
+  expect(held.deny).toMatch(
+    /^🤖 Full autonomy: Read was held; the last start checks ran first\. Call it again if it is still needed\.\n\nFull autonomy started:/,
+  );
+  expect([run().status, run().phase]).toEqual(['active', 'plan']);
+  expect(w.reached).not.toContain('Read');
+  const gates = w.events().filter((e: any) => e.kind === 'run' && e.action === 'gate');
+  expect(gates.map((e: any) => [e.step, e.ok])).toEqual([
+    ['prompt', true],
+    ['first', true],
+  ]);
+  // From here on calls go through as the run's phase allows.
+  const again: any = await $.tool.call({ tool: 'Read', file_path: `${PROJECT}/README.md` } as any);
+  expect(again.deny).toBeUndefined();
+});
+
+test("the permission mode must be this prompt's: one that asks, or none recorded with it, refuses the start", async ($, on) => {
+  const { w, run } = ready(on);
+  w.hook.mode = 'default';
+  const asks = await begin($, 'Add rate limiting. app full auto quota +10');
+  expect(asks.start).toMatch(/- Asks nobody: Permission mode default stops to ask\./);
+  expect(run()).toBe(null);
+  // An earlier prompt came with bypassPermissions; this one reaches no safety-net hook (an old one, a broken one).
+  w.hook.mode = 'bypassPermissions';
+  await $.prompt.submit(typed('hello'));
+  await w.clock.advance(60_000);
+  w.hook.mode = null;
+  const stale = await begin($, 'Add rate limiting. app full auto quota +10');
+  expect(stale.start).toMatch(/- Asks nobody: Claude Code's permission mode did not reach terminal-code with this prompt/);
+  expect(run()).toBe(null);
+  // Refused at the first step, the probe never ran: nothing was written outside the project for a run that cannot start.
+  expect(w.calls.some((c: any) => c.tool === 'Bash')).toBe(false);
+});
+
+test('a start the model never takes up lapses with the turn, or with the next prompt', async ($, on) => {
+  const { w, run } = ready(on);
+  on('turn.complete', (_$: any, e: any) => ({ text: e.answer }));
+  await $.prompt.submit(typed('Add rate limiting. app full auto quota +10'));
+  await $.turn.complete({ answer: 'Sure.', durationMs: 5, isAborted: false, turnId: 't1', reason: 'answer' } as any);
+  expect(w.toasts.at(-1)).toBe('🤖 Full autonomy did not start: the turn ended before its first step.');
+  const late: any = await $.tool.call(auto('start'));
+  expect(String(late.result)).toMatch(/No full-autonomy run is attached to this session/);
+  await $.prompt.submit(typed('Add rate limiting. app full auto quota +10'));
+  await $.prompt.submit(typed('what time is it'));
+  const lapsed: any = await $.tool.call({ tool: 'Read', file_path: `${PROJECT}/README.md` } as any);
+  expect(lapsed.deny).toBeUndefined();
+  expect(run()).toBe(null);
 });
 
 test("files the run left untracked hold back a milestone; the person's own untracked files do not", async ($, on) => {
   const { w, g, run } = ready(on);
   g.st.untracked = ['notes-of-the-person.txt'];
-  await $.prompt.submit(typed('Add rate limiting. app full auto quota +10'));
+  await begin($, 'Add rate limiting. app full auto quota +10');
   w.write(run().planPath, PLAN);
   await $.tool.call(auto('plan'));
   g.commit();
@@ -329,7 +404,7 @@ test("files the run left untracked hold back a milestone; the person's own untra
 
 test('a plan whose verification would wait for the person is refused: it could never pass', async ($, on) => {
   const { w, run } = ready(on);
-  await $.prompt.submit(typed('Add rate limiting. app full auto quota +10'));
+  await begin($, 'Add rate limiting. app full auto quota +10');
   w.write(run().planPath, PLAN.replace('- `npm test`', '- `npm test`\n- `git push origin main`'));
   const r: any = await $.tool.call(auto('plan'));
   expect(String(r.result)).toMatch(/The verification command `git push origin main` could not run during the run \(pushes to the protected branch main\)/);

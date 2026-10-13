@@ -168,9 +168,21 @@ test('without the plugin a mode or flow keyword says plainly that nothing enforc
     );
     const state = JSON.parse(readFileSync(join(home, 'state', 'sessions', 'test-session.hook.json'), 'utf8'));
     assert.equal(state.permissionMode, 'plan');
-    // Recorded again only when it changes.
+    assert.ok(state.promptAt > 0 && state.promptAt === state.permissionModeAt);
+    // The mode's time moves only when it changes; the prompt's on every prompt (a full-autonomy start reads both).
+    const later = Date.now() + 1;
+    while (Date.now() < later) {
+      /* the next millisecond */
+    }
     run('UserPromptSubmit', { ...base(home), hook_event_name: 'UserPromptSubmit', prompt: 'hello', permission_mode: 'plan' }, home);
-    assert.equal(JSON.parse(readFileSync(join(home, 'state', 'sessions', 'test-session.hook.json'), 'utf8')).permissionModeAt, state.permissionModeAt);
+    const again = JSON.parse(readFileSync(join(home, 'state', 'sessions', 'test-session.hook.json'), 'utf8'));
+    assert.equal(again.permissionModeAt, state.permissionModeAt);
+    assert.ok(again.promptAt > state.promptAt);
+    // A prompt without a mode is still a prompt the hook saw; the mode on record stays.
+    run('UserPromptSubmit', { ...base(home), permission_mode: undefined, hook_event_name: 'UserPromptSubmit', prompt: 'hello' }, home);
+    const bare = JSON.parse(readFileSync(join(home, 'state', 'sessions', 'test-session.hook.json'), 'utf8'));
+    assert.equal(bare.permissionMode, 'plan');
+    assert.ok(bare.promptAt >= again.promptAt);
     run('SessionStart', { ...base(home), hook_event_name: 'SessionStart', session_id: 'other', permission_mode: 'acceptEdits' }, home);
     assert.equal(JSON.parse(readFileSync(join(home, 'state', 'sessions', 'other.hook.json'), 'utf8')).permissionMode, 'acceptEdits');
   } finally {

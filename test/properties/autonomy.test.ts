@@ -24,7 +24,7 @@ import {
   type Run,
   type RunResult,
 } from '../../src/core/run.js';
-import { checkGate, type GateFacts } from '../../src/core/run-gate.js';
+import { checkGate, gateOpen, type GateFacts } from '../../src/core/run-gate.js';
 import { STALL_STOPS, stopDecision, type StopMemory } from '../../src/core/run-stop.js';
 import { checkAutonomy, credentialPaths, type AutoEnv } from '../../src/core/run-guard.js';
 import { assessQuota } from '../../src/core/quota.js';
@@ -155,6 +155,7 @@ const facts = fc.record({
   }),
   probe: fc.option(fc.record({ ran: fc.boolean(), refused: fc.boolean(), detail: fc.constant('') }), { nil: null }),
   permissionMode: fc.constantFrom('bypassPermissions', 'acceptEdits', 'default', 'plan', 'dontAsk', 'auto', null),
+  permissionMeasured: fc.boolean(),
   hookRan: fc.boolean(),
   modes: fc.boolean(),
   tracked: fc.integer({ min: 0, max: 2 }),
@@ -166,7 +167,7 @@ const facts = fc.record({
   paused: fc.boolean(),
 });
 
-test('a run starts only when no check failed and the live probe passed', () => {
+test('a run starts only when no check failed, the live probe passed and the permission mode was measured', () => {
   fc.assert(
     fc.property(facts, (x) => {
       const quota = assessQuota(
@@ -189,6 +190,7 @@ test('a run starts only when no check failed and the live probe passed', () => {
         settings: x.settings,
         probe: x.probe,
         permissionMode: x.permissionMode,
+        permissionMeasured: x.permissionMeasured,
         hookRan: x.hookRan,
         modes: x.modes,
         git: { topLevel: x.top ? '/p' : null, cwd: '/p', tracked: x.tracked, sameFolder: x.sameFolder },
@@ -196,13 +198,19 @@ test('a run starts only when no check failed and the live probe passed', () => {
       };
       const g = checkGate(f);
       const probe = g.checks.find((c) => c.id === 'probe')!;
-      assert.equal(g.ok, g.checks.every((c) => c.ok !== false) && probe.ok === true);
+      const permission = g.checks.find((c) => c.id === 'permission')!;
+      assert.equal(g.ok, g.checks.every((c) => c.ok !== false) && probe.ok === true && permission.ok === true);
+      assert.equal(
+        gateOpen(g),
+        g.checks.every((c) => c.ok !== false),
+      );
       // Each fact that is wrong on its own fails the run.
       if (g.ok) {
         assert.ok(x.enabled && x.budget.explicit && x.hookRan && x.modes && x.top && x.sameFolder && x.tracked === 0);
         assert.ok(!x.flow && !x.ownRun && !x.elsewhere && !x.paused);
         assert.notEqual(x.platform, 'win32');
         assert.ok(x.probe?.ran && x.probe.refused);
+        assert.ok(x.permissionMeasured && ['bypassPermissions', 'dontAsk', 'auto'].includes(String(x.permissionMode)));
         assert.ok(x.settings?.sandbox.enabled && x.settings.sandbox.failIfUnavailable && x.settings.sandbox.allowUnsandboxedCommands === false);
         if (x.wsl)
           assert.ok(x.wsl.osrelease?.includes('WSL2') && (x.wsl.interop === null || x.wsl.interop.startsWith('disabled')) && x.wsl.mounts?.includes('ext4'));

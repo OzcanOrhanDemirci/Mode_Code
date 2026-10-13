@@ -54,6 +54,18 @@ export function autoStartContext(r: Run, required: readonly string[]): string {
   );
 }
 
+/**
+ * Told to the model when every start check measurable at the prompt passed: the last two (the permission
+ * mode this prompt came with, and the live sandbox probe) are measured at its first call of the autonomy tool.
+ */
+export function autoPendingContext(resume: boolean): string {
+  const what = resume ? 'to resume the paused full-autonomy run' : 'for full autonomy';
+  return (
+    `${P} The person asked ${what}. The start checks that can be measured now passed; the last two (Claude Code's permission mode for this prompt, and a live probe of the sandbox) are measured when you call ${AUTO_TOOL} with action "start". ` +
+    `Call it now, before anything else: until it answers, every other tool call is held. Its answer says whether the run ${resume ? 'resumed' : 'started'} and what comes next; do not start on the task before it.`
+  );
+}
+
 /** Told to the model when the person asked for full autonomy and a start check failed: say so, do not start. */
 export function autoRefusedContext(g: GateResult, lang: Lang): string {
   const failed = g.checks.filter((c) => c.ok === false);

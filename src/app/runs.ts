@@ -143,6 +143,7 @@ export function autonomyCheck(ctx: Pick<AppContext, 'layout' | 'config'>, cwd: s
     settings: mergedSettings(claude),
     probe: null,
     permissionMode: null,
+    permissionMeasured: false,
     hookRan: hookInstalled,
     modes: ctx.config.modules.modes,
     git: {
@@ -153,8 +154,9 @@ export function autonomyCheck(ctx: Pick<AppContext, 'layout' | 'config'>, cwd: s
     },
     alone: { flow: false, ownRun: false, elsewhere: false, paused: null },
   });
+  // The probe keeps its own note; the rest of what only a session measures (the permission mode is a prompt's) is said once.
   const checks: GateCheck[] = g.checks.map((c) =>
-    SESSION_ONLY.includes(c.id) && c.ok !== null
+    SESSION_ONLY.includes(c.id) && (c.ok !== null || c.id === 'permission')
       ? { id: c.id, ok: null, key: 'auto.cli.atStart' }
       : c.id === 'hook'
         ? // From the terminal the hook is known to be installed, not to have run in a session.

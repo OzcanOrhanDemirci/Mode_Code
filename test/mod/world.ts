@@ -29,6 +29,11 @@ export interface WorldOptions {
   review?: (e: any) => any;
   /** The session's messages, as $.session.messages answers them. */
   messages?: { role: 'user' | 'assistant'; text: string; toolUses: never[] }[];
+  /**
+   * The permission mode Claude Code hands the safety-net hook with each prompt. When set, the world records it
+   * beneath the plugin as the hook does: after the plugin's own prompt hook, so not before its next step.
+   */
+  promptMode?: string;
 }
 
 export const HOME = '/home/ada';
@@ -130,8 +135,18 @@ export function world(on: any, opts: WorldOptions = {}) {
     registered.push(e);
     return { value: { tool: `mcp__terminal-code__${e.name}` } };
   });
+  // The safety-net hook's record of each prompt (UserPromptSubmit runs beneath every plugin's prompt hook).
+  const hook = { mode: opts.promptMode ?? null, prompts: 0 };
   on('prompt.submit', (_$: any, e: any) => {
     submitted.push(e.text);
+    if (hook.mode !== null) {
+      const path = `${at.DATA}/state/sessions/${SESSION}.hook.json`;
+      const prev = files.get(norm(path));
+      const state = prev ? JSON.parse(prev.text) : { v: 1, sessionId: SESSION, lastRunAt: 0, blocks: {}, permissionMode: null, permissionModeAt: 0 };
+      const changed = state.permissionMode !== hook.mode;
+      write(path, JSON.stringify({ ...state, ...(changed ? { permissionMode: hook.mode, permissionModeAt: clock.now() } : {}), promptAt: clock.now() }));
+      hook.prompts++;
+    }
     return { text: e.text, context: e.context ?? [] };
   });
   on('session.measure', (_$: any, e: any) => ({ changed: e.changed }));
@@ -149,6 +164,7 @@ export function world(on: any, opts: WorldOptions = {}) {
   });
   return {
     clock,
+    hook,
     files,
     reached,
     calls,

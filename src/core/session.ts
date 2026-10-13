@@ -66,6 +66,11 @@ export interface HookSessionState {
   /** Claude Code's permission mode as the hook last received it (`plan`, `default`, …), and when. */
   permissionMode: string | null;
   permissionModeAt: number;
+  /**
+   * When the hook last received one of the person's prompts (epoch ms; 0 never). Claude Code runs the plugin's
+   * prompt hook before this one, so what the hook records for a prompt is there only from its first tool call on.
+   */
+  promptAt: number;
   /** A full-autonomy run's attempts to stop: what had changed at the last one, and how many in a row did not change it. */
   autoStop: { runId: string | null; fingerprint: string | null; streak: number } | null;
   /** The last stop of a run the hook let through, and why (the plugin pauses the run accordingly). */
@@ -127,7 +132,17 @@ export function parseModState(text: string | null): ModSessionState | null {
 }
 
 export function parseHookState(text: string | null, sessionId: string): HookSessionState {
-  const fresh: HookSessionState = { v: 1, sessionId, lastRunAt: 0, blocks: {}, permissionMode: null, permissionModeAt: 0, autoStop: null, autoAllowed: null };
+  const fresh: HookSessionState = {
+    v: 1,
+    sessionId,
+    lastRunAt: 0,
+    blocks: {},
+    permissionMode: null,
+    permissionModeAt: 0,
+    promptAt: 0,
+    autoStop: null,
+    autoAllowed: null,
+  };
   if (!text) return fresh;
   try {
     const o = JSON.parse(text) as unknown;
@@ -138,6 +153,7 @@ export function parseHookState(text: string | null, sessionId: string): HookSess
       blocks: isObj(o.blocks) ? (o.blocks as Record<string, number>) : {},
       permissionMode: typeof o.permissionMode === 'string' ? o.permissionMode : null,
       permissionModeAt: typeof o.permissionModeAt === 'number' ? o.permissionModeAt : 0,
+      promptAt: typeof o.promptAt === 'number' ? o.promptAt : 0,
       autoStop:
         isObj(o.autoStop) && typeof o.autoStop.streak === 'number'
           ? {

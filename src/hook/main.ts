@@ -124,11 +124,28 @@ function recordPermissionMode(l: ReturnType<typeof dataLayout>, sessionId: strin
   }
 }
 
+/**
+ * Each of the person's prompts, with the permission mode it came with: a full-autonomy start reads both to
+ * know the mode is this prompt's (the plugin's own prompt hook runs before this one, so it cannot).
+ */
+function recordPrompt(l: ReturnType<typeof dataLayout>, sessionId: string, mode: string | undefined, now: number): void {
+  if (sessionId === SELF_TEST_SESSION) return;
+  const file = sessionFile(l, sessionId, 'hook');
+  if (!file) return;
+  const state = parseHookState(readText(file), sessionId);
+  const changed = !!mode && mode !== state.permissionMode;
+  try {
+    writeJsonAtomic(file, { ...state, ...(changed ? { permissionMode: mode, permissionModeAt: now } : {}), promptAt: now });
+  } catch {
+    /* a full-autonomy start then finds no record of this prompt and does not start */
+  }
+}
+
 function userPromptSubmit(input: Input): void {
   const l = dataLayout();
   const { config } = loadConfig(l);
   const sessionId = str(input.session_id) ?? '';
-  recordPermissionMode(l, sessionId, str(input.permission_mode), Date.now());
+  recordPrompt(l, sessionId, str(input.permission_mode), Date.now());
   if (!config.modules.keywords) return;
   const modFile = sessionFile(l, sessionId, 'mod');
   if (modFile && readText(modFile) !== null) return; // the mod handles keywords in this session

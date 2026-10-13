@@ -56,7 +56,10 @@ export const enAuto = {
     'acceptEdits mode asks before a command reaches a new host. Set sandbox.network.strictAllowlist to true, or start Claude Code in bypassPermissions, dontAsk or auto mode.',
   'auto.gate.permission.asks':
     'Permission mode {mode} stops to ask. Start Claude Code in bypassPermissions, dontAsk or auto mode (or acceptEdits with a strict allowlist).',
-  'auto.gate.permission.unknown': "Claude Code's permission mode is not known yet; is the safety-net hook installed?",
+  'auto.gate.permission.unknown':
+    "Claude Code's permission mode did not reach terminal-code with this prompt: the safety-net hook did not record it. Run terminal-code doctor --fix in your own terminal.",
+  'auto.gate.permission.atStart':
+    "Measured at the run's first step: Claude Code hands the prompt's permission mode to the safety-net hook after terminal-code has read the prompt.",
   'auto.gate.hook.ok': 'The safety-net hook runs in this session.',
   'auto.gate.hook.missing': 'The safety-net hook has not run in this session; run terminal-code doctor in your own terminal.',
   'auto.gate.modes.ok': 'Modes are on.',
@@ -144,6 +147,8 @@ export const enAuto = {
 
   // ── the autonomy tool's answers ──
   'auto.tool.none': 'No full-autonomy run is attached to this session.',
+  'auto.tool.started': 'Full autonomy started: {checks} start checks passed, the live sandbox probe and the permission mode ({mode}) among them.',
+  'auto.tool.resumedAt': 'The run resumed at its {phase} phase: every start check passed again.',
   'auto.tool.agent': 'Only the main session drives the run; a subagent cannot call this tool.',
   'auto.tool.paused': 'The run is paused ({reason}). The person resumes it with "{cont}".',
   'auto.tool.over': 'The run is {status}; nothing changes any more.',
@@ -202,6 +207,7 @@ export const enAuto = {
   'auto.guard.memory': '🤖 Full autonomy: memory folders are not written during a run. Put the note in {notes}; the person decides from the report.',
   'auto.guard.escape': '🤖 Full autonomy: commands run inside the sandbox only; dangerouslyDisableSandbox is refused.',
   'auto.guard.stalled': '🤖 Full autonomy: no measurable progress; the run is paused. Report what was done and stop.',
+  'auto.guard.heldForStart': '🤖 Full autonomy: {tool} was held; the last start checks ran first. Call it again if it is still needed.',
 
   // ── stopping ──
   'auto.stop.plan':
@@ -215,6 +221,8 @@ export const enAuto = {
   // ── notices ──
   'auto.toast.started': '🤖 Full autonomy started: {checks} start checks passed. Plan first.',
   'auto.toast.refused': '🤖 Full autonomy did not start: {n} start check(s) failed.',
+  'auto.toast.starting': "🤖 Full autonomy: {checks} start checks passed; the last two run at Claude's first step.",
+  'auto.toast.notStarted': '🤖 Full autonomy did not start: the turn ended before its first step.',
   'auto.toast.planAccepted': '🤖 Plan accepted: {steps}.',
   'auto.toast.milestone': '🤖 Milestone {n}/{of}: review {verdict}.',
   'auto.toast.done': '🤖 Full autonomy: the run is done.',

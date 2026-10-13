@@ -57,7 +57,10 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
     "acceptEdits modu bir komut yeni bir sunucuya bağlanmadan önce soruyor. sandbox.network.strictAllowlist değerini true yap ya da Claude Code'u bypassPermissions, dontAsk veya auto modunda başlat.",
   'auto.gate.permission.asks':
     "{mode} izin modu durup soruyor. Claude Code'u bypassPermissions, dontAsk ya da auto modunda başlat (veya sıkı izin listesiyle acceptEdits).",
-  'auto.gate.permission.unknown': "Claude Code'un izin modu henüz bilinmiyor; güvenlik ağı hook'u kurulu mu?",
+  'auto.gate.permission.unknown':
+    "Claude Code'un izin modu bu istemle terminal-code'a ulaşmadı: güvenlik ağı hook'u kaydetmedi. Kendi terminalinde terminal-code doctor --fix çalıştır.",
+  'auto.gate.permission.atStart':
+    "Koşunun ilk adımında ölçülür: Claude Code istemin izin modunu güvenlik ağı hook'una, terminal-code istemi okuduktan sonra verir.",
   'auto.gate.hook.ok': "Güvenlik ağı hook'u bu oturumda çalışıyor.",
   'auto.gate.hook.missing': "Güvenlik ağı hook'u bu oturumda çalışmadı; kendi terminalinde terminal-code doctor çalıştır.",
   'auto.gate.modes.ok': 'Modlar açık.',
@@ -145,6 +148,8 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
 
   // ── autonomy aracının cevapları ──
   'auto.tool.none': 'Bu oturuma bağlı bir tam otonom koşu yok.',
+  'auto.tool.started': 'Tam otonom başladı: canlı kum havuzu sınaması ve izin modu ({mode}) dahil {checks} başlangıç denetimi geçti.',
+  'auto.tool.resumedAt': 'Koşu {phase} aşamasında sürüyor: başlangıç denetimlerinin hepsi yeniden geçti.',
   'auto.tool.agent': 'Koşuyu yalnız ana oturum yürütür; bir alt ajan bu aracı çağıramaz.',
   'auto.tool.paused': 'Koşu duraklatıldı ({reason}). Kişi "{cont}" yazarak sürdürür.',
   'auto.tool.over': 'Koşunun durumu: {status}; artık hiçbir şey değişmez.',
@@ -204,6 +209,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.guard.memory': '🤖 Tam otonom: koşu sırasında hafıza klasörlerine yazılmaz. Notu {notes} dosyasına koy; kişi rapordan karar verir.',
   'auto.guard.escape': '🤖 Tam otonom: komutlar yalnız kum havuzunda çalışır; dangerouslyDisableSandbox reddedilir.',
   'auto.guard.stalled': '🤖 Tam otonom: ölçülebilir ilerleme yok; koşu duraklatıldı. Yapılanları raporla ve dur.',
+  'auto.guard.heldForStart': '🤖 Tam otonom: {tool} bekletildi; önce son başlangıç denetimleri çalıştı. Hâlâ gerekiyorsa yeniden çağır.',
 
   // ── durma ──
   'auto.stop.plan':
@@ -217,6 +223,8 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   // ── bildirimler ──
   'auto.toast.started': '🤖 Tam otonom başladı: {checks} başlangıç denetimi geçti. Önce plan.',
   'auto.toast.refused': '🤖 Tam otonom başlamadı: {n} başlangıç denetimi geçmedi.',
+  'auto.toast.starting': "🤖 Tam otonom: {checks} başlangıç denetimi geçti; son ikisi Claude'un ilk adımında ölçülür.",
+  'auto.toast.notStarted': '🤖 Tam otonom başlamadı: tur, ilk adımdan önce bitti.',
   'auto.toast.planAccepted': '🤖 Plan kabul edildi: {steps}.',
   'auto.toast.milestone': '🤖 Kilometre taşı {n}/{of}: inceleme {verdict}.',
   'auto.toast.done': '🤖 Tam otonom: koşu bitti.',

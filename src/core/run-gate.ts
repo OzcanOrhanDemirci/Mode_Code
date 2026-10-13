@@ -61,8 +61,14 @@ export interface GateFacts {
   settings: Readonly<Record<string, unknown>> | null;
   /** The live probe: a write outside the project through Claude Code's shell tool. Null when not measured. */
   probe: { ran: boolean; refused: boolean; detail: string } | null;
-  /** Claude Code's permission mode as the safety-net hook last received it. */
+  /**
+   * Claude Code's permission mode as the safety-net hook received it with this prompt; null when it did not.
+   * Claude Code runs the plugin's prompt hook before the safety-net hook, so at the prompt itself the mode on
+   * record is an earlier prompt's or none: it is measured from the run's first step on (`permissionMeasured`).
+   */
   permissionMode: string | null;
+  /** Whether `permissionMode` is this prompt's: false at the prompt itself and in the terminal. */
+  permissionMeasured: boolean;
   hookRan: boolean;
   modes: boolean;
   git: { topLevel: string | null; cwd: string; tracked: number; sameFolder: boolean };
@@ -193,11 +199,13 @@ export function checkGate(f: GateFacts): GateResult {
           ? no('sandbox', 'auto.gate.sandbox.gaps', { settings: sandboxGaps(f.settings).join(', ') })
           : pass('sandbox', 'auto.gate.sandbox.ok'),
     probeCheck(f),
-    asksNobody(f.permissionMode, f.settings)
-      ? pass('permission', 'auto.gate.permission.ok', { mode: f.permissionMode ?? '' })
-      : f.permissionMode === 'acceptEdits'
-        ? no('permission', 'auto.gate.permission.network')
-        : no('permission', f.permissionMode ? 'auto.gate.permission.asks' : 'auto.gate.permission.unknown', { mode: f.permissionMode ?? '' }),
+    !f.permissionMeasured
+      ? skip('permission', 'auto.gate.permission.atStart')
+      : asksNobody(f.permissionMode, f.settings)
+        ? pass('permission', 'auto.gate.permission.ok', { mode: f.permissionMode ?? '' })
+        : f.permissionMode === 'acceptEdits'
+          ? no('permission', 'auto.gate.permission.network')
+          : no('permission', f.permissionMode ? 'auto.gate.permission.asks' : 'auto.gate.permission.unknown', { mode: f.permissionMode ?? '' }),
     f.hookRan ? pass('hook', 'auto.gate.hook.ok') : no('hook', 'auto.gate.hook.missing'),
     f.modes ? pass('modes', 'auto.gate.modes.ok') : no('modes', 'auto.gate.modes.off'),
     projectCheck(f.git),
@@ -211,7 +219,15 @@ export function checkGate(f: GateFacts): GateResult {
             ? no('alone', 'auto.gate.alone.paused', f.alone.paused)
             : pass('alone', 'auto.gate.alone.ok'),
   ];
-  // The probe is the one check that is never skipped where a run can start: unmeasured is not passed.
-  const ok = checks.every((c) => c.ok !== false) && checks.find((c) => c.id === 'probe')?.ok === true;
+  // The probe and the permission mode are measured only at the run's first step: unmeasured is not passed.
+  const ok = checks.every((c) => c.ok !== false) && AT_FIRST_STEP.every((id) => checks.find((c) => c.id === id)?.ok === true);
   return { ok, checks };
+}
+
+/** The checks measured only at the run's first step, once Claude Code has handed the prompt to the safety-net hook. */
+export const AT_FIRST_STEP: readonly GateCheckId[] = ['probe', 'permission'];
+
+/** Nothing measured so far failed: the run may go on to its first step, where the rest is measured. */
+export function gateOpen(g: GateResult): boolean {
+  return g.checks.every((c) => c.ok !== false);
 }
