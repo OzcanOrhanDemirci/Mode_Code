@@ -46,13 +46,14 @@ Data
   ✓ The settings file is valid.
   ✓ The session index is sound (42 sessions).
   ✓ A recent quota reading is stored.
+  ✓ Where the memory lives: this computer and your GitHub · C:/dev/notes/memory. Claude Code uses it.
   ✓ 3 recent session transcripts read: 100 rows in the expected shape.
   ✓ Every tool that ran commands or wrote files in recent sessions is checked by the belt (Bash, Edit).
   ✓ Session ids have the expected shape.
 Self-tests
   ✓ All 30 built-in samples of 1 suites gave the expected answer.
 
-37 checks in 2.1 s: 27 ok, 2 warnings, 3 problems.
+38 checks in 2.1 s: 28 ok, 2 warnings, 3 problems.
 Problems that weaken a protection: 3.
 
 Problems that can be repaired automatically: 3.

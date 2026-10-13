@@ -1,7 +1,7 @@
 ## Problem report for terminal-code
 
 - terminal-code dev · Node.js 24.15.0 · win32 x64 10.0.26200 · Claude Code 2.1.295
-- 27 ok · 3 notes · 2 warnings · 3 problems · 2 skipped
+- 28 ok · 3 notes · 2 warnings · 3 problems · 2 skipped
 
 | check | status | result |
 | --- | --- | --- |
@@ -39,6 +39,7 @@
 | data.config | ok | The settings file is valid. |
 | data.index | ok | The session index is sound (42 sessions). |
 | data.quota | ok | A recent quota reading is stored. |
+| data.memoryStore | ok | Where the memory lives: this computer and your GitHub · C:/dev/notes/memory. Claude Code uses it. |
 | data.transcripts | ok | 3 recent session transcripts read: 100 rows in the expected shape. |
 | data.toolNames | ok | Every tool that ran commands or wrote files in recent sessions is checked by the belt (Bash, Edit). |
 | data.sessionIds | ok | Session ids have the expected shape. |

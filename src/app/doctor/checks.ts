@@ -276,6 +276,26 @@ const protectMemory: Check = (f) => {
   return result(id, 'protection', false, 'ok', m('doc.protect.memory.ok', { n: f.memoryDirs.length }));
 };
 
+const dataMemoryStore: Check = (f) => {
+  const id = 'data.memoryStore';
+  const s = f.memoryStore;
+  if (!s) return result(id, 'data', false, 'info', m('doc.memory.none'), { hint: m('doc.memory.setupHint') });
+  if (!s.exists) return result(id, 'data', false, 'fail', m('doc.memory.missing', { dir: s.dir }), { hint: m('doc.memory.setupHint') });
+  if (!s.inUse)
+    return result(id, 'data', false, 'warn', s.setting ? m('doc.memory.elsewhere', { dir: s.setting }) : m('doc.memory.perProject'), {
+      hint: m('doc.memory.setupHint'),
+    });
+  if (s.git && !s.isRepo) return result(id, 'data', false, 'warn', m('doc.memory.noGit', { dir: s.dir }), { hint: m('doc.memory.setupHint') });
+  if (s.remote && !s.hasOrigin) return result(id, 'data', false, 'warn', m('doc.memory.noOrigin', { remote: s.remote }), { hint: m('doc.memory.setupHint') });
+  const r = s.last?.result;
+  if (r?.pull === 'conflict')
+    return result(id, 'data', false, 'warn', m('doc.memory.conflict', { files: r.conflicts.join(', ') }), { hint: m('doc.memory.syncHint') });
+  if (r && (r.push === 'auth' || r.pull === 'auth'))
+    return result(id, 'data', false, 'warn', m('doc.memory.auth', { detail: r.detail }), { hint: m('doc.memory.syncHint') });
+  if (r?.held.length) return result(id, 'data', false, 'info', m('doc.memory.held', { files: r.held.map((h) => h.path).join(', ') }));
+  return result(id, 'data', false, 'ok', m('doc.memory.ok', { place: `@msetup.place.${s.place}`, dir: s.dir }));
+};
+
 // ── shells and terminal ──
 
 const shellGitBash: Check = (f) => {
@@ -550,6 +570,7 @@ export const CHECKS: readonly Check[] = [
   dataConfig,
   dataIndex,
   dataQuota,
+  dataMemoryStore,
   dataTranscripts,
   dataToolNames,
   dataSessionIds,

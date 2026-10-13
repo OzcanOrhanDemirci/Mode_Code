@@ -160,6 +160,20 @@ export const enMemory = {
   'mcli.noHistory': 'The memory folder has no git history to sync: terminal-code memory setup adds one.',
   'mcli.setupHint': 'Choose where it lives (this computer, your GitHub, or both): {cmd}',
 
+  // ── the maintenance check ──
+  'doc.memory.none': 'Where Claude Code keeps its memory is not set up yet (it keeps one per project, on this computer only).',
+  'doc.memory.setupHint': 'Run terminal-code memory setup in your own terminal.',
+  'doc.memory.syncHint': 'terminal-code memory shows it; terminal-code memory sync tries again.',
+  'doc.memory.missing': 'The memory folder does not exist: {dir}.',
+  'doc.memory.elsewhere': 'Claude Code writes its memory to {dir}, not to the folder set up for it.',
+  'doc.memory.perProject': 'Claude Code keeps its memory in one folder per project (its default), not in the folder set up for it.',
+  'doc.memory.noGit': 'The memory folder {dir} should have a git history but has none.',
+  'doc.memory.noOrigin': 'The memory folder has no remote to sync with ({remote} was set up).',
+  'doc.memory.conflict': 'The last sync could not join changes made here and elsewhere: {files}. Nothing was forced.',
+  'doc.memory.auth': 'GitHub refused the sign-in at the last sync: {detail}',
+  'doc.memory.held': 'Held back from the last sync, they look like they hold a secret: {files}.',
+  'doc.memory.ok': 'Where the memory lives: {place} · {dir}. Claude Code uses it.',
+
   // ── the control center ──
   'tui.backSoon': 'Back to the control center…',
   'page.memoryStore': 'Where it lives',

@@ -272,6 +272,42 @@ test('protection: the installed hook disagreeing, links, short names, memory fol
   assert.equal(check('protect.memory', healthyFacts({ memoryDirs: [{ path: 'C:/m', exists: true, isRepo: false }] })).status, 'info');
 });
 
+test('the memory store: not set up, missing, not used by Claude Code, without git or origin, a conflict, a refused sign-in, a file held back', () => {
+  const store = healthyFacts().memoryStore!;
+  const last = (over: object) => ({
+    at: 1,
+    trigger: 'turn' as const,
+    session: null,
+    result: {
+      repo: true,
+      commit: 'ok' as const,
+      committed: 1,
+      held: [],
+      pull: 'ok' as const,
+      push: 'ok' as const,
+      conflicts: [],
+      ahead: 0,
+      behind: 0,
+      detail: '',
+      ...over,
+    },
+  });
+  const at = (over: object) => brief(check('data.memoryStore', healthyFacts({ memoryStore: { ...store, ...over } })));
+  assert.equal(brief(check('data.memoryStore', healthyFacts())), 'ok doc.memory.ok');
+  assert.equal(brief(check('data.memoryStore', healthyFacts({ memoryStore: null }))), 'info doc.memory.none');
+  assert.equal(at({ exists: false }), 'fail doc.memory.missing');
+  assert.equal(at({ inUse: false, setting: 'C:/elsewhere' }), 'warn doc.memory.elsewhere');
+  assert.equal(at({ inUse: false, setting: null }), 'warn doc.memory.perProject');
+  assert.equal(at({ isRepo: false }), 'warn doc.memory.noGit');
+  assert.equal(at({ isRepo: false, git: false, remote: null }), 'ok doc.memory.ok', 'a local folder kept without git is fine');
+  assert.equal(at({ hasOrigin: false }), 'warn doc.memory.noOrigin');
+  assert.equal(at({ last: last({ pull: 'conflict', conflicts: ['MEMORY.md'] }) }), 'warn doc.memory.conflict');
+  assert.equal(at({ last: last({ push: 'auth', detail: 'denied' }) }), 'warn doc.memory.auth');
+  assert.equal(at({ last: last({ pull: 'auth' }) }), 'warn doc.memory.auth');
+  assert.equal(at({ last: last({ held: [{ path: 'k.md', reason: 'secret' }] }) }), 'info doc.memory.held');
+  assert.equal(at({ last: last({ push: 'offline' }) }), 'ok doc.memory.ok', 'offline is tried again, not a problem');
+});
+
 test('shells: Git Bash missing or mapping /tmp elsewhere than the belt assumes; PowerShell; the terminal', () => {
   const gb = healthyFacts().gitBash!;
   assert.equal(check('shell.gitBash', healthyFacts({ gitBash: { ...gb, path: null, tmp: null } })).status, 'warn');

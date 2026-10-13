@@ -29,6 +29,9 @@ import { toolPath } from '../../node/env.js';
 import { readTail } from '../../node/tail.js';
 import type { Facts, ProgramRun, SettingsFileFacts } from './types.js';
 import { autonomyCheck } from '../runs.js';
+import { memorySyncFile } from '../../core/layout.js';
+import { newestRecord, parseSyncRecord } from '../../core/memory-sync.js';
+import { readMemorySetting } from '../../node/memory-store.js';
 
 export interface DoctorEnv {
   layout: Layout;
@@ -53,6 +56,28 @@ export interface DoctorEnv {
 }
 
 export type Measure = 'plugins' | 'shells' | 'transcripts' | 'agreement' | 'shortNames' | 'gitProjects';
+
+/** The memory store as the doctor reads it: settings, folder, git, Claude Code's setting, the newest sync record. */
+function memoryStoreFacts(d: DoctorEnv): Facts['memoryStore'] {
+  const s = d.config.memory.store;
+  if (!s) return null;
+  const exists = existsSync(s.dir);
+  const inside = exists ? runProgram('git', ['-C', s.dir, 'rev-parse', '--is-inside-work-tree'], { timeoutMs: 4000 }) : null;
+  const origin = exists ? runProgram('git', ['-C', s.dir, 'config', '--get', 'remote.origin.url'], { timeoutMs: 4000 }) : null;
+  const setting = readMemorySetting(d.claudeDir);
+  return {
+    place: s.place,
+    dir: s.dir,
+    exists,
+    isRepo: !!inside?.ok && inside.out === 'true',
+    git: s.git,
+    remote: s.remote,
+    hasOrigin: !!origin?.ok && origin.out.length > 0,
+    setting,
+    inUse: !!setting && pathKey(toolPath(setting), d.platform) === pathKey(toolPath(s.dir), d.platform),
+    last: newestRecord((['mod', 'hook', 'cli'] as const).map((w) => parseSyncRecord(readText(memorySyncFile(d.layout, w))))),
+  };
+}
 
 function wants(d: DoctorEnv, what: Measure): boolean {
   return d.measure?.[what] ?? !d.quick;
@@ -603,6 +628,7 @@ export async function gatherFacts(d0: DoctorEnv, now = Date.now()): Promise<Fact
       const r = exists ? runProgram('git', ['-C', p, 'rev-parse', '--is-inside-work-tree'], { timeoutMs: 4000 }) : null;
       return { path: p, exists, isRepo: !!r?.ok && r.out === 'true' };
     }),
+    memoryStore: memoryStoreFacts(d),
     gitBash,
     powershell,
     posixShell,

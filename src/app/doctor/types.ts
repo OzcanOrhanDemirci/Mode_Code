@@ -5,6 +5,7 @@
  * facts and the same checks run on the person's machine; repairs (repairs.ts) change things, back up what
  * they change, and are counted only when the check passes again afterwards.
  */
+import type { SyncRecord } from '../../core/memory-sync.js';
 import type { MessageKey } from '../../core/i18n/index.js';
 import type { TranscriptShape } from '../../core/transcript.js';
 import type { PathAlias, Platform } from '../../core/paths.js';
@@ -113,6 +114,19 @@ export interface Facts {
   aliases: PathAlias[];
   shortNames: { long: string; short: string; recognised: boolean }[];
   memoryDirs: { path: string; exists: boolean; isRepo: boolean }[];
+  /** The memory store (docs/memory.md): its settings, its folder, Claude Code's setting, its last sync. */
+  memoryStore: {
+    place: string;
+    dir: string;
+    exists: boolean;
+    isRepo: boolean;
+    git: boolean;
+    remote: string | null;
+    hasOrigin: boolean;
+    setting: string | null;
+    inUse: boolean;
+    last: SyncRecord | null;
+  } | null;
 
   gitBash: { path: string | null; tmp: string | null; expectedTmp: string; error?: string } | null;
   powershell: { pwsh: string | null; windowsPowerShell: boolean } | null;
