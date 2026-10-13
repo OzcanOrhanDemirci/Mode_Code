@@ -11,7 +11,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Quota guard: wraps up at the budget, stops at the limit, resumes autonomous work after the reset.
 - Footer lines under each answer, drawn by the plugin or written by the model and checked by a hook.
 - Quiet long work: Claude Code's "the user has not heard from you" reminders are left out.
-- Chat mode enforced by code: no project or memory writes until you say continue.
+- Chat mode enforced by code: no project or memory writes until you pick another mode.
 - Control center with seven categories, three columns, addresses, a go-to palette, filters, view levels, plain and high-contrast modes, settings edited in place.
 - Session index in SQLite: incremental, each API message counted once, secrets masked.
 - Commands: `status`, `doctor`, `install`, `uninstall`, `quota`, `tokens`, `sessions`, `belt`, `secrets`, `config`, each with versioned `--json` output.
@@ -53,6 +53,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - The words that switch the mode (`plan`, `kod`, `sohbet`, `araştırma`, `serbest`) count only as the whole message: "Bu bir plan." no longer switches modes, and inside a flow a mode word at the end of a longer message no longer changes that turn. `manuel` and `otonom` alone set the way of working. A budget at the very end of a sentence counts ("bunu da yap kota 29").
 - Manual work means what the author meant by it: Claude does what the message asks, says what it did and what would come next, and waits; it asks when a decision is the person's.
 - The mode and the way of working are always shown beside Claude Code's own labels, the defaults (free, manual) too.
+- The mode and the way of working change only when you name them: on the strip, with `/1` … `/8`, a mode or `manuel` / `otonom` typed alone, or `manuel` in `manuel <proje> devam`. `continue` no longer turns the session autonomous or leaves chat mode, a budget at the end of a task no longer turns it autonomous, `stop` no longer resets it, and a full-autonomy run gives back the way of working it took over when it ends. Continue now tells Claude the mode and the way of working it leaves as they are. A new session also takes up a manual you picked in the folder, not only a mode or autonomous work. Reported by the author: chat and manual on the strip, then `terminal devam`, and the strip showed free and autonomous.
 - Full autonomy's independent reviews see the project beyond the diff: the tracked files and the build manifests at the reviewed commit; the final review also gets the verification results. Measured in live runs: the reviews' false alarms about files the diff did not touch stopped.
 - Package runners are read as the program they run: `npx wrangler deploy` is asked about like `wrangler deploy`.
 - Publishing and deploying with `--dry-run` are no longer asked about.
@@ -61,6 +62,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Fixed
 
+- A keyword typed before a paste was not seen (`terminal devam (<paste>)`): the end of the message was the paste's closing bracket. What you paste is now material, not your words: the keyword around it counts as it would at the end, what is inside it never does. Found when a session started that way was not that project's, and its handoff note went under the folder's name.
+- The first prompt of a session that took up the folder's last choice told Claude the choice it started from, not what held after a press on the strip or the prompt's own keyword; it now says what holds, once.
 - `/0` did not open the control center in Windows Terminal in a session started in the home folder: Claude Code refuses to find a program by name in Windows' app alias folder when the session's folder contains it. Windows Terminal is now run by its alias's full path (a link only; a program copied there is not taken), and a failed `/0` keeps its reason in the event log. Found by the author's first `/0` in a real session.
 - The doctor said Claude Code keeps one memory per project when its memory folder was set outside terminal-code; it says where the memory is now.
 - The memory setup gave a folder inside a larger repository, chosen for this computer only, a git history of its own inside the other; it is used as it is now.

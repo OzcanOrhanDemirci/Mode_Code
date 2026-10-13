@@ -46,7 +46,7 @@ After a command runs, Claude Code itself reports whether it held the command rea
 
 A mode keyword counts **only as the whole message**: `plan` switches to plan mode, "Bu bir plan." is a sentence. Plan, code, chat and research are everyday words, and a mode that changes by accident is worse than one more keystroke (decided with the author, 2026-10-13). Matching ignores case, accents and Turkish keyboard variants ([keywords.md](keywords.md)).
 
-- **Outside a flow** a mode keyword sets the session's mode until another one. `continue` / `devam` leaves chat, as before; it keeps research, plan and code.
+- **Outside a flow** a mode keyword sets the session's mode until another one. `continue` / `devam` keeps every mode, chat included: a mode is left by picking another (the person, 2026-10-13: "it must not change when I did not write it, or choosing it means nothing").
 - **While a flow runs** the flow sets the mode. A mode keyword is an explicit choice: the flow is paused at its step and the session switches to that mode (`continue` resumes the flow).
 
 ## Session controls
@@ -74,7 +74,7 @@ The mode and the **way of working** are what a person changes all the time, so t
 | `/devam` (`/continue`) | lists every project and folder to continue | `/devam 3`, `/devam terminal`, `/devam 3 kota 29`         |
 | `/kota` (`/quota`)     | asks for a weekly budget                   | `/kota 70`, `/kota +5`                                    |
 
-- **Ways of working.** **Manual**: Claude does what the message asks, says what it did and what would come next, and waits; it asks when something needs your decision. A session starts manual, which is how Claude Code works by default. **Autonomous**: Claude goes on without asking between steps and stops only for a decision that is yours. **Full auto**: a run that works to its end without asking ([autonomy.md](autonomy.md)); it starts only where its checks pass, never on native Windows, where `/8` says so before asking anything.
+- **Ways of working.** **Manual**: Claude does what the message asks, says what it did and what would come next, and waits; it asks when something needs your decision. A session starts manual, which is how Claude Code works by default. Only you change it: `continue`, a budget, `stop` and the end of a full-autonomy run leave it as you chose it (a run gives back the way of working it took over). **Autonomous**: Claude goes on without asking between steps and stops only for a decision that is yours. **Full auto**: a run that works to its end without asking ([autonomy.md](autonomy.md)); it starts only where its checks pass, never on native Windows, where `/8` says so before asking anything.
 - **The control center beside the session.** `/0` (or `0` on the strip) opens the control center in a new tab of the terminal the session runs in, in the session's folder, and says where the session stands. It opens the command-line program the installation recorded (`doctor` checks the record and `doctor --fix` writes it), and it asks the terminal by the variables the terminal sets for the programs it runs:
 
   | The session runs in               | `/0` opens                                                    | Measured              |
