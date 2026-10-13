@@ -34,6 +34,11 @@ export interface Invocation {
   via: string[];
   /** Code handed to an interpreter as a string (python -c, node -e, …); not parsed as shell. */
   inlineCode?: string;
+  /**
+   * The command runs inside a WSL distribution (reached through `wsl`): its paths are that distribution's,
+   * except the Windows drives it mounts under /mnt. The distribution named with -d, and the folder --cd gave.
+   */
+  guest?: { distro: string | null; cd: string | null };
   /** The source text of the simple command. */
   raw: string;
 }
@@ -330,7 +335,15 @@ function expand(cmd: SimpleCommand, argv: readonly Word[], via: string[], depth:
       i !== -1
         ? rest.slice(i + 1)
         : rest.filter((w, k) => !(w.text.startsWith('-') || ['-d', '--distribution', '-u', '--user', '--cd'].includes(rest[k - 1]?.text ?? '')));
+    const opts = i !== -1 ? rest.slice(0, i) : rest;
+    const valueOf = (...names: string[]) => {
+      const k = opts.findIndex((w) => names.includes(w.text));
+      return k !== -1 && opts[k + 1] && !opts[k + 1]!.dynamic ? opts[k + 1]!.text : null;
+    };
+    const before = out.invocations.length;
     if (inner.length) expand({ ...cmd, dialect: 'bash', heredocs: [] }, inner, [...via, 'wsl'], depth + 1, out);
+    const guest = { distro: valueOf('-d', '--distribution'), cd: valueOf('--cd') };
+    for (const inv of out.invocations.slice(before)) inv.guest ??= guest;
     return;
   }
   if (cmd.dialect === 'powershell') {

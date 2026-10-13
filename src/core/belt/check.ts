@@ -61,6 +61,32 @@ interface Scope {
   paths: ProtectedPaths;
   findings: Finding[];
   inline: boolean;
+  /** Set while judging a command that runs inside a WSL distribution (see Invocation.guest). */
+  guest?: { distro: string | null; cd: string | null };
+}
+
+/** How Windows reaches a WSL distribution's files; a path there is the distribution's, not this machine's. */
+const WSL_SHARE = '//wsl.localhost';
+
+/** A path inside a WSL distribution, spelled the way Windows reaches it (`~` stays: the distribution's own home). */
+function guestPath(distro: string | null, posix: string): string {
+  const out: string[] = [];
+  for (const seg of posix.split('/')) {
+    if (!seg || seg === '.') continue;
+    if (seg === '..') out.pop();
+    else out.push(seg);
+  }
+  return `${WSL_SHARE}/${distro ?? '<default>'}/${out.join('/')}`;
+}
+
+/** The folders of a distribution whose deletion destroys it or its user's data: its root, home and system folders. */
+function guestCritical(path: string): string | null {
+  const m = /^\/\/wsl\.localhost\/[^/]+\/(.*)$/.exec(path);
+  if (!m) return null;
+  const rest = m[1]!.replace(/\/+$/, '');
+  if (rest === '' || rest === '~' || /^(?:home|root|etc|usr|bin|sbin|lib\w*|var|boot|opt|srv|mnt|proc|sys|dev)$/.test(rest) || /^home\/[^/]+$/.test(rest))
+    return path;
+  return null;
 }
 
 function say(s: Scope, key: MessageKey, params?: Record<string, string | number>): string {
@@ -91,6 +117,18 @@ interface Target {
 
 function target(word: { text: string; dynamic: boolean; glob: boolean }, cwd: string | null, s: Scope): Target {
   let text = word.text;
+  if (s.guest) {
+    // Inside a WSL distribution: its home and absolute paths are its own; /mnt/<drive> is the Windows drive;
+    // a relative path is relative to where wsl starts (the Windows folder it mounts), or to --cd.
+    text = text.replace(/^\$\{?HOME\}?(?=\/|$)/, '~');
+    const drive = /^\/mnt\/([A-Za-z])(\/.*)?$/.exec(text);
+    if (drive) text = `${drive[1]!.toUpperCase()}:${drive[2] ?? '/'}`;
+    else if (text.startsWith('/') || text.startsWith('~') || s.guest.cd !== null) {
+      if (/\$/.test(text)) return { path: null, glob: word.glob, raw: word.text };
+      const posix = text.startsWith('/') || text.startsWith('~') ? text : `${s.guest.cd}/${text}`;
+      return { path: guestPath(s.guest.distro, posix), glob: word.glob, raw: word.text };
+    }
+  }
   if (word.dynamic) {
     const e = expandVars(text, s.ctx);
     if (e === null) return { path: null, glob: word.glob, raw: word.text };
@@ -123,6 +161,11 @@ function checkDelete(t: Target, recursive: boolean, s: Scope): void {
   const { ctx, paths } = s;
   if (t.path === null) {
     if (recursive) add(s, 'fs.delete-outside-project', 'belt.reason.deleteUnknown', { target: show(t.raw) });
+    return;
+  }
+  const inGuest = guestCritical(t.path);
+  if (inGuest) {
+    add(s, 'fs.delete-critical', 'belt.reason.deleteProtected', { target: show(t.path) });
     return;
   }
   const crit = hitsCritical(t.path, paths, ctx.platform);
@@ -256,7 +299,9 @@ function psPaths(w: Word | undefined | true): Word[] {
     .filter((x) => x.text);
 }
 
-async function checkInvocation(inv: Invocation, cwd: string | null, s: Scope, dialect: Dialect): Promise<void> {
+async function checkInvocation(inv: Invocation, cwd: string | null, s0: Scope, dialect: Dialect): Promise<void> {
+  // A command for a WSL distribution, typed on Windows, is judged with the distribution's paths.
+  const s: Scope = inv.guest && s0.ctx.platform === 'win32' ? { ...s0, guest: inv.guest } : s0;
   const ws = words(inv);
   const p = inv.program;
   const lower = (i: number) => (inv.args[i] ?? '').toLowerCase();
