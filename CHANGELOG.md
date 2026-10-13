@@ -33,6 +33,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Claude Code's plan mode is bridged: its plan mode puts the session in plan mode, and its plan dialog approves a flow's plan after the plugin has checked it.
 - `terminal-code flow`, Projects › Flows, and plans waiting for approval on Home and in the inbox.
 - `belt replay` also says what the restricted modes would run of your recent shell commands; `doctor` runs a modes self-test.
+- Full autonomy: `<project> full auto quota +N` / `<proje> tam otonom kota +N` runs one task to its end with nobody at the keyboard. It starts only after code measured its start checks: turned on by the person, an explicit budget, WSL2 with interop off and no Windows drive mounted (native Windows is refused), Claude Code's sandbox in its strict form, a live probe in which the operating system refuses a write outside the project, a permission mode that never waits for an answer, the safety-net hook running, a clean git work tree. A run plans (the plan's verification commands only grow, the person's `projects[].verify` always among them), reaches a milestone per step on a commit of its own with a rollback reference and an independent review (one model call that sees the request and the diff, never the conversation), and finishes only when every verification command passes and a final review does not fail. See [docs/autonomy.md](docs/autonomy.md).
+- During a run nothing is asked: what the belt would ask about, pushes to protected branches, merges, releases, outward tools and Claude Code's own permission questions are refused as deferred, recorded with the exact command and listed in the run's report; unknown tools, questions for the person, writes outside the project, credential reads, memory folders and the sandbox's escape hatch are refused.
+- The safety-net hook keeps an unfinished run from stopping, unless code measures a reason: the run is over or paused, the budget or the time limit is reached, background work will wake the session, or three attempts to stop changed nothing.
+- `terminal-code autonomy` (list, show, report, check, enable, disable, rollback), Settings › Autonomy with what turning it on means, Projects › Runs, open runs on Home, ended runs in the inbox, a doctor check.
 
 ### Changed
 
@@ -43,6 +47,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Fixed
 
+- A command typed on Windows for a WSL distribution (`wsl -d dev -- rm -rf ~/dev/old`) was judged with the Windows home folder: the distribution's home and absolute paths are now its own, the Windows drives it mounts under `/mnt` keep Windows' protection, and deleting the distribution's root, home or system folders is refused.
 - In the plugin, the folders registered as projects did not count as projects: a session started in the home folder asked about every recursive delete inside them. The hook and the command line had them.
 - Windows 8.3 short names of protected folders (`TERMIN~1`) were not recognised, and neither were protected folders that are links.
 - On macOS and Linux every recursive delete under the home folder was blocked, inside projects too.

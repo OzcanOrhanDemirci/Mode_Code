@@ -34,6 +34,7 @@
 - **Keywords.** End a message with `continue`, `manual continue`, `chat`, `quota 40`, `wrap up`, `stop`, `status` or `help` (or their Turkish forms: `devam`, `kota 40`, `toparla`, `dur` …) and the tool tells Claude exactly what you mean. `myproject continue quota 40` works on that project autonomously, within 40% of your weekly quota.
 - **Modes**, enforced by code: 💬 chat, 🔍 research, 📐 plan and 🔨 code. Chat, research and plan change nothing outside a temporary folder, the work folder or the plan file: every program a shell command runs is placed (reads, writes named files, changes around its folder, changes outside, unknown) and what cannot be placed is refused, with the reason. Claude Code's own plan mode is bridged to 📐 plan.
 - **Flows.** End a task with `flow` and it runs as 🔍 research ▶ 📐 plan → ⏸ approval → 🔨 code. No step is skipped, and code checks each one: a report whose findings cite sources that exist, a plan with acceptance criteria and verification commands, your approval in a dialog (or Claude Code's plan dialog), and the verification commands passing when the plugin runs them. Flows pause, resume in a new session and show in the control center. See [docs/modes.md](docs/modes.md).
+- **Full autonomy.** End a task with `myproject full auto quota +10` and it runs to its end while you are away: a plan whose verification commands only grow, a milestone per step on a commit you can return to, an independent review of each one (a separate model call that sees your request and the diff, never the conversation), and a finish that counts only when every verification command passes. Nothing is asked: what needs you (pushes to protected branches, merges, releases, what the belt would ask) waits, recorded with its exact command, in the run's report. It starts only behind a boundary code measures first: on Windows, a WSL2 distribution with no road back to Windows; everywhere, Claude Code's sandbox in its strict form. Off until you turn it on. See [docs/autonomy.md](docs/autonomy.md).
 - **Quota guard.** Reads the 5-hour and weekly windows that Claude Code reports, wraps up work at your budget, stops at the limit and, when the work was autonomous, resumes by itself one minute after the window resets.
 - **Footer lines.** Under each answer: whether your memory repository was pushed, whether anything changed, and the quota when it matters. Computed from git, the turn's tool calls and the measured quota, never guessed.
 - **Quiet long work.** Leaves out Claude Code's "the user has not heard from you" reminders, so long autonomous work does not fill your screen with status lines.
@@ -163,19 +164,20 @@ See [docs/cli.md](docs/cli.md) for every command.
 
 A keyword counts only when it is the whole message or ends it; inside a sentence it is just a word. Matching ignores case and accents, so `termınal devam` (Turkish keyboard) works too. `stop` and `wrap up` count only as the whole message, so they never fire by accident.
 
-| Keyword  | English                                             | Turkish                                             | What Claude is told                                                             |
-| -------- | --------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------- |
-| continue | `continue`, `myproject continue`                    | `devam`, `terminal devam`                           | Work autonomously; stop only for a decision you must make                       |
-| manual   | `manual myproject continue`                         | `manuel terminal devam`                             | Step by step; say what you will do and wait                                     |
-| chat     | `chat`                                              | `sohbet`                                            | Conversation only; project and memory writes are refused until you say continue |
-| quota    | `quota 40`, `quota +8`                              | `kota 40`, `kota +8`                                | Weekly budget: 40%, or 8 points above the current reading                       |
-| wrap up  | `wrap up`                                           | `toparla`                                           | Bring the step to a consistent point, commit, report, stop                      |
-| stop     | `stop`                                              | `dur`                                               | Stop now; stop timers and agents                                                |
-| status   | `status`                                            | `durum`                                             | Say where you are without stopping                                              |
-| help     | `help`                                              | `yardım`                                            | Summarize the keywords and rules                                                |
-| modes    | `research`, `plan`, `code`, `free`                  | `araştırma`, `plan`, `kod`, `serbest`               | Switch modes; inside a flow, at the end of a longer message, for that turn only |
-| flow     | `flow`, `flow plan`, `flow research`, `flow cancel` | `akış`, `akış plan`, `akış araştırma`, `akış iptal` | Start or end a flow on the task in the message                                  |
-| approve  | `approve`                                           | `onay`                                              | Approve the plan waiting for approval (whole message only)                      |
+| Keyword   | English                                             | Turkish                                             | What Claude is told                                                                                 |
+| --------- | --------------------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| continue  | `continue`, `myproject continue`                    | `devam`, `terminal devam`                           | Work autonomously; stop only for a decision you must make                                           |
+| manual    | `manual myproject continue`                         | `manuel terminal devam`                             | Step by step; say what you will do and wait                                                         |
+| chat      | `chat`                                              | `sohbet`                                            | Conversation only; project and memory writes are refused until you say continue                     |
+| quota     | `quota 40`, `quota +8`                              | `kota 40`, `kota +8`                                | Weekly budget: 40%, or 8 points above the current reading                                           |
+| wrap up   | `wrap up`                                           | `toparla`                                           | Bring the step to a consistent point, commit, report, stop                                          |
+| stop      | `stop`                                              | `dur`                                               | Stop now; stop timers and agents                                                                    |
+| status    | `status`                                            | `durum`                                             | Say where you are without stopping                                                                  |
+| help      | `help`                                              | `yardım`                                            | Summarize the keywords and rules                                                                    |
+| modes     | `research`, `plan`, `code`, `free`                  | `araştırma`, `plan`, `kod`, `serbest`               | Switch modes; inside a flow, at the end of a longer message, for that turn only                     |
+| flow      | `flow`, `flow plan`, `flow research`, `flow cancel` | `akış`, `akış plan`, `akış araştırma`, `akış iptal` | Start or end a flow on the task in the message                                                      |
+| approve   | `approve`                                           | `onay`                                              | Approve the plan waiting for approval (whole message only)                                          |
+| full auto | `myproject full auto quota +10`, `full auto cancel` | `terminal tam otonom kota +10`, `tam otonom iptal`  | Run the task to its end without asking (needs the budget; see [docs/autonomy.md](docs/autonomy.md)) |
 
 Name your projects under Settings › Projects and keywords, and add your own phrases in the settings file. Details: [docs/keywords.md](docs/keywords.md).
 
@@ -189,7 +191,7 @@ Details: [docs/safety-belt.md](docs/safety-belt.md).
 
 ## Privacy and security
 
-- **Nothing leaves your machine.** No telemetry, no analytics, no network connection of its own.
+- **Nothing leaves your machine.** No telemetry, no analytics, no network connection of its own. The one model call it makes is the independent review of a full-autonomy run's milestones, through Claude Code's own client, to the provider your session already uses.
 - **What it reads:** Claude Code's settings files and transcripts (read-only), your memory folders (for git status and secret scans).
 - **What it writes:** its data folder (`~/.terminal-code`), and, with your approval at install, four hook entries in your Claude Code user settings (a backup is kept). The plugin is installed through Claude Code's own `claude plugin` command.
 - **What it stores:** numbers (tokens, tool counts, times) and short texts (session titles, first prompts) with secrets masked before they are written.
@@ -201,9 +203,9 @@ Found a vulnerability? Please report it privately: see [SECURITY.md](SECURITY.md
 
 A tool that stands between an agent and your machine has to earn trust with evidence. Twelve layers, from rules about the code itself to real Claude Code sessions, each saying what it proves and what it cannot ([docs/testing.md](docs/testing.md)). Measured on 2026-10-13:
 
-- **468 tests** on Windows, Linux and macOS, Node.js 22 and 24; mean line coverage **92.4%** of the lines that compile to code, every file held to a floor.
+- **555 tests** on Windows, Linux and macOS, Node.js 22 and 24, and in a WSL2 distribution; mean line coverage **93.2%** of the lines that compile to code, every file held to a floor.
 - **False alarms count as bugs.** 197 everyday commands must pass the belt without a single question on every platform, and 162 reading commands must run in chat, research and plan mode. Over the author's last 30 days (36,658 tool calls) the belt would have asked 4.4 times a day.
-- **The tests are tested.** Mutation testing makes 1,116 small deliberate changes to the code that decides, the belt and the modes alike; the tests catch all 1,116. The maintenance check breaks a sandbox in 13 ways and must notice all 13 and repair what can be repaired.
+- **The tests are tested.** Mutation testing makes 1,463 small deliberate changes to the code that decides, the belt, the modes and full autonomy alike; the tests catch all 1,463. The maintenance check breaks a sandbox in 13 ways and must notice all 13 and repair what can be repaired.
 - **Inside the real engine.** The plugin is tested with Claude Code's own test kit, every night against the newest Claude Code release, and in live headless sessions.
 - **The tests found real bugs**, each fixed with a test that keeps it fixed: protected files reachable under Windows short names (`TERMIN~1`) or with a trailing dot, every recursive delete under the home folder blocked on macOS, a parser crash on `__proto__`.
 
@@ -211,7 +213,7 @@ On your machine, `terminal-code doctor` runs the same checks: Node.js, Claude Co
 
 ## Limits
 
-- **On native Windows the belt is an accident preventer, not a security boundary.** Claude Code's sandbox does not run there, and a script can do what a single command cannot. For unattended autonomous work use WSL2, macOS or Linux, where the sandbox adds a layer.
+- **On native Windows the belt is an accident preventer, not a security boundary.** Claude Code's sandbox does not run there, and a script can do what a single command cannot. Full autonomy therefore runs only inside WSL2 (a distribution with interop off and no Windows drive mounted), or on macOS and Linux with Claude Code's sandbox in its strict form; the start checks measure that before the first step.
 - **The plugin uses Claude Code's early-access mods API**, which can change between releases. When it does not load, the hook keeps the belt running and the control center says which features are paused.
 - **Quota figures come from Claude Code**, recorded by the plugin after each answer. Without the plugin there is no quota reading; tokens are not quota.
 - **Footer lines drawn by the plugin** are part of how the answer is drawn, not of the conversation: the model never reads them and a transcript export does not contain them. If you want them written into the answers themselves, choose the "Checked" footer mode: Claude writes them and a hook checks them.
@@ -232,10 +234,9 @@ Next, in this order:
 
 - **Session handoff:** a handoff note before `/clear` and before compaction, and a morning report. The session state already survives compaction.
 - **Sync across machines:** settings and history, append-only, per machine.
-- **Fully autonomous runs** with a definition of done, in WSL2. Last on purpose: they build on the modes and flows.
 - **Publication** on npm under the final name, with provenance.
 
-Shipped from the earlier roadmap: modes and flows ([docs/modes.md](docs/modes.md)), rule templates (seven), quota history, the day and week report, the maintenance check (`doctor`) and the test process described in [docs/testing.md](docs/testing.md).
+Shipped from the earlier roadmap: full autonomy with a definition of done, in WSL2 ([docs/autonomy.md](docs/autonomy.md)), modes and flows ([docs/modes.md](docs/modes.md)), rule templates (seven), quota history, the day and week report, the maintenance check (`doctor`) and the test process described in [docs/testing.md](docs/testing.md).
 
 ## Contributing
 

@@ -114,8 +114,25 @@ function session(prompt) {
  */
 function fullAutonomy() {
   if (process.platform === 'win32') {
-    console.log('· full autonomy: runs only in WSL2, macOS or Linux (native Windows is refused by design); run this there');
-    return null;
+    // Here the run must not start: the start checks run in the real engine and refuse it, naming the platform.
+    const cfg = JSON.parse(readFileSync(join(data, 'config.json'), 'utf8'));
+    writeFileSync(join(data, 'config.json'), JSON.stringify({ ...cfg, autonomy: { enabled: true } }, null, 2));
+    const s = session('Write hello.txt with the word hi. liveapp full auto quota 99');
+    const logged = readdirSync(join(data, 'events'))
+      .flatMap((m) => readdirSync(join(data, 'events', m)).map((f) => readFileSync(join(data, 'events', m, f), 'utf8')))
+      .join('\n');
+    const gate = logged
+      .split('\n')
+      .filter((l) => l.includes('"kind":"run"') && l.includes('"action":"gate"'))
+      .map((l) => JSON.parse(l))
+      .at(-1);
+    check(
+      'full autonomy on native Windows: the start checks refuse the run in the real engine, naming the platform',
+      !!gate && gate.ok === false && gate.failed.includes('platform') && !existsSync(join(data, 'runs')) && !existsSync(join(project, 'hello.txt')),
+      gate ? `failed: ${gate.failed.join(', ')}` : (s.final?.result?.slice?.(0, 80) ?? s.stderr.slice(0, 200)),
+    );
+    console.log('· full autonomy itself runs only in WSL2, macOS or Linux; run this there for the whole run');
+    return s;
   }
   const proj = join(work, 'auto');
   mkdirSync(proj);
