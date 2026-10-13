@@ -101,7 +101,9 @@ export function cli(w: World, args: string[], opts: { dist?: boolean; input?: st
   const entry = opts.dist ? [join(ROOT, 'dist', 'cli.mjs')] : ['--import', import.meta.resolve('tsx'), join(ROOT, 'src', 'cli', 'main.tsx')];
   const r = spawnSync(process.execPath, [...entry, ...args], {
     cwd: opts.cwd ?? w.root,
-    env: w.env,
+    // And with the project's tsconfig.json, which tsx would not find from there: without it the sources
+    // compile differently (JSX the classic way), and Node's coverage merges two versions of each file.
+    env: opts.dist ? w.env : { ...w.env, TSX_TSCONFIG_PATH: join(ROOT, 'tsconfig.json') },
     input: opts.input ?? '',
     encoding: 'utf8',
     timeout: opts.timeoutMs ?? 120_000,

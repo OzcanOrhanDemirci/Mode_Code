@@ -201,7 +201,7 @@ Found a vulnerability? Please report it privately: see [SECURITY.md](SECURITY.md
 
 A tool that stands between an agent and your machine has to earn trust with evidence. Twelve layers, from rules about the code itself to real Claude Code sessions, each saying what it proves and what it cannot ([docs/testing.md](docs/testing.md)). Measured on 2026-10-13:
 
-- **468 tests** on Windows, Linux and macOS, Node.js 22 and 24; mean line coverage **96.6%**, every file held to a floor.
+- **468 tests** on Windows, Linux and macOS, Node.js 22 and 24; mean line coverage **92.4%** of the lines that compile to code, every file held to a floor.
 - **False alarms count as bugs.** 197 everyday commands must pass the belt without a single question on every platform, and 162 reading commands must run in chat, research and plan mode. Over the author's last 30 days (36,658 tool calls) the belt would have asked 4.4 times a day.
 - **The tests are tested.** Mutation testing makes 1,116 small deliberate changes to the code that decides, the belt and the modes alike; the tests catch all 1,116. The maintenance check breaks a sandbox in 13 ways and must notice all 13 and repair what can be repaired.
 - **Inside the real engine.** The plugin is tested with Claude Code's own test kit, every night against the newest Claude Code release, and in live headless sessions.

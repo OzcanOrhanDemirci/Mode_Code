@@ -204,7 +204,7 @@ Bir güvenlik açığı mı buldun? Lütfen gizli bildir: [SECURITY.md](SECURITY
 
 Bir ajanla makinen arasında duran bir araç güveni kanıtla kazanmalı. Kodun kendisiyle ilgili kurallardan gerçek Claude Code oturumlarına kadar on iki katman var; her biri neyi kanıtladığını ve neyi kanıtlayamadığını söylüyor ([docs/testing.md](docs/testing.md), İngilizce). 2026-10-13 ölçümü:
 
-- Windows, Linux ve macOS'ta, Node.js 22 ve 24 ile **468 test**; ortalama satır kapsamı **%96,6**, her dosya bir tabana bağlı.
+- Windows, Linux ve macOS'ta, Node.js 22 ve 24 ile **468 test**; koda dönüşen satırlarda ortalama satır kapsamı **%92,4**, her dosya bir tabana bağlı.
 - **Yanlış alarm da hata sayılır.** 197 günlük komut her platformda kemerden tek bir soru sorulmadan geçmek, 162 okuma komutu da sohbet, araştırma ve plan modunda çalışmak zorunda. Yazarın son 30 gününde (36.658 araç çağrısı) kemer günde 4,4 kez sorardı.
 - **Testlerin kendisi de test ediliyor.** Mutasyon testi karar veren koda, kemere de modlara da, 1.116 küçük, bilerek yapılmış değişiklik uygular; testler 1.116'sını da yakalıyor. Bakım denetimi bir deneme ortamını 13 şekilde bozar; 13'ünü de fark etmesi ve onarılabilecek olanları onarması gerekir.
 - **Gerçek motorun içinde.** Eklenti Claude Code'un kendi test takımıyla, her gece en yeni Claude Code sürümüne karşı ve gerçek başsız oturumlarda sınanıyor.
