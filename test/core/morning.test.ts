@@ -9,7 +9,9 @@ import {
   awayLong,
   morningLines,
   morningSummary,
+  nextActivity,
   notesContext,
+  parseActivity,
   parseNoteDecisions,
   pendingNotes,
   toDeliver,
@@ -118,4 +120,59 @@ test('notes from runs: pending until decided, delivered once after approval; a b
     notesContext([{ id: 'd', path: '/runs/d/notes.md' }]),
     /approved notes that full-autonomy runs left for the memory: \/runs\/d\/notes\.md \(run d\)\. Read them and merge/,
   );
+});
+
+test('the activity record: the last prompt, and the last gap long enough for a morning report', () => {
+  assert.deepEqual(parseActivity(null), { lastPromptAt: null, away: null });
+  assert.deepEqual(parseActivity('not json'), { lastPromptAt: null, away: null });
+  assert.deepEqual(parseActivity(JSON.stringify({ lastPromptAt: 5, away: { from: 1, to: 4 } })), { lastPromptAt: 5, away: { from: 1, to: 4 } });
+  assert.deepEqual(
+    parseActivity(JSON.stringify({ lastPromptAt: 'x', away: { from: 4, to: 1 } })),
+    { lastPromptAt: null, away: null },
+    'a window that ends before it starts is none',
+  );
+  assert.deepEqual(parseActivity(JSON.stringify({ away: { from: 1 } })), { lastPromptAt: null, away: null });
+  const hour = 3_600_000;
+  // The first prompt ever: no gap to speak of.
+  assert.deepEqual(nextActivity({ lastPromptAt: null, away: null }, NOW, 6), { lastPromptAt: NOW, away: null });
+  // A short gap keeps the old window; a long one replaces it.
+  const old = { from: 1, to: 2 };
+  assert.deepEqual(nextActivity({ lastPromptAt: NOW - hour, away: old }, NOW, 6), { lastPromptAt: NOW, away: old });
+  assert.deepEqual(nextActivity({ lastPromptAt: NOW - 6 * hour, away: old }, NOW, 6), { lastPromptAt: NOW, away: { from: NOW - 6 * hour, to: NOW } });
+});
+
+test('the edges: a stuck run with a reason is stuck, one-sided belt counts, each memory problem alone, a local store sends nothing', () => {
+  const run = (status: 'paused' | 'stuck' | 'done', reason: string | null = null) => ({ id: status, task: 't', status, reason, report: null, deferred: 0 });
+  assert.deepEqual(
+    morningLines({ ...empty(), runs: [run('stuck', 'why')] }, 'en').map((l) => l.text),
+    ['t · stuck'],
+  );
+  assert.deepEqual(
+    morningLines({ ...empty(), runs: [run('paused')] }, 'en').map((l) => l.text),
+    ['t · paused'],
+  );
+  assert.equal(morningSummary({ ...empty(), runs: [run('stuck')] }, 'en'), '☀ While you were away: 1 run(s) wait for you. terminal-code morning');
+  assert.equal(morningSummary({ ...empty(), runs: [run('paused')] }, 'en'), '☀ While you were away: 1 run(s) wait for you. terminal-code morning');
+  assert.equal(morningSummary({ ...empty(), runs: [run('done')] }, 'en'), '☀ While you were away: 1 run(s) done. terminal-code morning');
+  assert.deepEqual(
+    morningLines({ ...empty(), belt: { blocked: 1, asked: 0 } }, 'en').map((l) => l.text),
+    ['1 blocked, 0 asked'],
+  );
+  assert.deepEqual(
+    morningLines({ ...empty(), belt: { blocked: 0, asked: 2 } }, 'en').map((l) => l.text),
+    ['0 blocked, 2 asked'],
+  );
+  const mem = (over: object) => ({ ...empty(), memory: { place: 'both' as const, ahead: null, conflicts: [], held: [], error: null, ...over } });
+  for (const over of [{ conflicts: ['a.md'] }, { held: ['b.md'] }, { error: 'down' }])
+    assert.equal(morningSummary(mem(over), 'en'), '☀ While you were away: the memory sync needs you. terminal-code morning', JSON.stringify(over));
+  assert.deepEqual(morningLines(mem({ place: 'local', ahead: 2 }), 'en'), []);
+  assert.deepEqual(morningLines(mem({ ahead: 0 }), 'en'), []);
+});
+
+test('decisions: one broken entry does not lose the others; a delivered time is kept; only an object of decisions counts', () => {
+  assert.deepEqual(parseNoteDecisions(JSON.stringify({ a: null, b: { decision: 'approved', at: 2, delivered: 5 } })), {
+    b: { decision: 'approved', at: 2, delivered: 5 },
+  });
+  assert.deepEqual(parseNoteDecisions(JSON.stringify([{ decision: 'approved', at: 1 }])), {});
+  assert.deepEqual(parseActivity(JSON.stringify({ lastPromptAt: 3, away: { from: 3, to: 3 } })), { lastPromptAt: 3, away: { from: 3, to: 3 } });
 });

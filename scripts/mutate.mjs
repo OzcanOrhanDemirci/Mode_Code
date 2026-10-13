@@ -61,6 +61,11 @@ const TARGETS = {
   'src/core/run-guard.ts': ['test/core/run-guard.test.ts', 'test/properties/autonomy.test.ts'],
   'src/core/run-review.ts': ['test/core/run-review.test.ts'],
   'src/core/run-report.ts': ['test/core/run-report.test.ts'],
+  // The memory (docs/memory.md): what is committed, held back, pulled and pushed; the notes handed over.
+  'src/core/memory.ts': ['test/core/memory.test.ts', 'test/core/memory-sync-records.test.ts'],
+  'src/core/memory-sync.ts': ['test/core/memory-sync-steps.test.ts', 'test/core/memory-sync-records.test.ts'],
+  'src/core/handoff.ts': ['test/core/handoff.test.ts'],
+  'src/core/morning.ts': ['test/core/morning.test.ts'],
 };
 
 // ── finding mutation sites in TypeScript without a parser: code outside strings, comments and regexes ──

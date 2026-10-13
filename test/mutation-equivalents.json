@@ -336,6 +336,22 @@
       "line": "if (!text || text.startsWith('-')) continue;",
       "kind": "equivalent",
       "why": "an option or an empty word resolves inside the folder the command runs in, and a command never runs inside a credential folder (refused at its cd), so it is never under one"
+    },
+    {
+      "file": "src/core/morning.ts",
+      "from": "||",
+      "to": "&&",
+      "line": "typeof raw !== 'object' || raw === null",
+      "kind": "equivalent",
+      "why": "with the first test joined to the null test, a string or null still reaches Object.entries, which yields no decision for a string and throws (caught: no decisions) for null; arrays still stop at the last test"
+    },
+    {
+      "file": "src/core/memory-sync.ts",
+      "from": "||",
+      "to": "&&",
+      "line": "typeof o.result !== 'object' || o.result === null",
+      "kind": "equivalent",
+      "why": "a result that is null or not an object fails at the next test: reading its fields throws (caught: no record) or finds no commit, pull and push"
     }
   ]
 }

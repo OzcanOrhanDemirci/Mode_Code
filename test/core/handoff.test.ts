@@ -195,3 +195,16 @@ test('a text that is not a handoff note reads back as none', () => {
   const crlf = parseHandoff('---\r\ntype: handoff\r\nproject: x\r\nat: 2026-10-13T00:00:00Z\r\ntrigger: elsewhere\r\n---\r\n## Next\r\n\r\ngo\r\n');
   assert.deepEqual([crlf?.trigger, crlf?.sections.Next], ['keyword', 'go']);
 });
+
+test('lists exactly at the limit are whole; equally long early messages: the first is the summary', () => {
+  const thirty = composeHandoff(facts({ commits: Array.from({ length: 30 }, (_, i) => `c${i}`) }), {});
+  assert.match(thirty, /- c29\n/);
+  assert.doesNotMatch(thirty, /more\n/);
+  assert.equal(
+    compactionSummary([
+      { role: 'user', text: 'first' },
+      { role: 'user', text: 'other' },
+    ]),
+    'first',
+  );
+});

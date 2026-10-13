@@ -231,3 +231,8 @@ test('"handoff" / "devir" at the end of a message, with or without a project; in
   assert.equal(s.project, 'terminal');
   assert.equal(applyKeyword(newModState('s', 'v', 0), detectKeyword('devir')!, null).project, null);
 });
+
+test("git's shortest entry, a one-letter name, is read", () => {
+  assert.deepEqual(parsePorcelainZ('?? a\0'), [{ status: '??', path: 'a' }]);
+  assert.deepEqual(parsePorcelainZ('?? \0'), []);
+});
