@@ -11,7 +11,9 @@
  *   4. research mode keeps the project unchanged: the guard refuses the write, or the model, told the mode, does not try;
  *   5. a research flow: the model writes a sourced report, calls flow_step, and code checks it and ends the flow;
  *   6. full autonomy: on native Windows the start checks refuse it; in WSL2, macOS or Linux a whole run;
- *   7. there too, a stop before the run is done is turned back by the safety-net hook and the run finishes.
+ *   7. there too, a stop before the run is done is turned back by the safety-net hook and the run finishes;
+ *   8. the memory: a change made elsewhere is pulled before Claude reads the index, the handoff keyword has
+ *      Claude write a note that is kept and sent, and the next session is told about it.
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
  *        add --keep to leave the sessions' folders and the full-autonomy sessions' streams in place
@@ -27,7 +29,7 @@ const dist = join(root, 'dist');
 const fwd = (p) => p.replace(/\\/g, '/');
 if (!process.argv.includes('--yes')) {
   console.log(
-    'test-live: opt-in. Runs six short headless Claude Code sessions, seven where full autonomy can run (cheapest model, capped spend), with this build loaded. Run with --yes.',
+    'test-live: opt-in. Runs nine short headless Claude Code sessions, ten where full autonomy can run (cheapest model, capped spend), with this build loaded. Run with --yes.',
   );
   process.exit(0);
 }
@@ -70,14 +72,14 @@ writeFileSync(
   }),
 );
 
-function session(prompt) {
+function session(prompt, settingsFile = settings, tools = 'Bash,Write,Read,Edit,Glob,Grep,mcp__terminal-code__flow_step') {
   const args = [
     '-p',
     prompt,
     '--plugin-dir',
     join(dist, 'plugin'),
     '--settings',
-    settings,
+    settingsFile,
     '--setting-sources',
     'project',
     '--model',
@@ -85,7 +87,7 @@ function session(prompt) {
     '--max-budget-usd',
     '0.25',
     '--allowedTools',
-    'Bash,Write,Read,Edit,Glob,Grep,mcp__terminal-code__flow_step',
+    tools,
     '--output-format',
     'stream-json',
     '--verbose',
@@ -194,6 +196,70 @@ function stopTurnedBack() {
     run ? `${run.status}, ${run.history.map((h) => h.event).join(' ')}, stop attempts in a row ${hook?.autoStop?.streak ?? '-'}` : 'no run',
   );
   return { final };
+}
+
+/**
+ * 8. The memory (docs/memory.md), on every platform: a store kept in sync with a "GitHub" (a bare repository
+ * here). A change made on another computer is pulled before Claude reads the index; the handoff keyword
+ * has Claude write a note through the handoff tool, kept in the store and sent; the next session is told.
+ */
+function memoryCases() {
+  const gitIn = (dir, ...a) =>
+    spawnSync('git', ['-C', dir, '-c', 'user.name=live', '-c', 'user.email=live@example.com', '-c', 'commit.gpgsign=false', ...a], { encoding: 'utf8' });
+  const remote = fwd(join(work, 'memory-remote.git'));
+  const store = fwd(join(work, 'memory'));
+  const other = fwd(join(work, 'memory-other'));
+  spawnSync('git', ['init', '-q', '--bare', remote]);
+  spawnSync('git', ['clone', '-q', remote, store]);
+  for (const k of [
+    ['user.name', 'live'],
+    ['user.email', 'live@example.com'],
+    ['commit.gpgsign', 'false'],
+  ])
+    gitIn(store, 'config', ...k);
+  writeFileSync(join(store, 'MEMORY.md'), '# Memory\n');
+  gitIn(store, 'add', '-A');
+  gitIn(store, 'commit', '-q', '-m', 'start');
+  gitIn(store, 'push', '-q', '-u', 'origin', 'HEAD');
+  // Another computer adds a note after this one last pulled.
+  spawnSync('git', ['clone', '-q', remote, other]);
+  writeFileSync(join(other, 'MEMORY.md'), '# Memory\n- The project codename is PELICAN.\n');
+  gitIn(other, 'commit', '-q', '-am', 'from the other computer');
+  gitIn(other, 'push', '-q');
+  const cfg = JSON.parse(readFileSync(join(data, 'config.json'), 'utf8'));
+  writeFileSync(
+    join(data, 'config.json'),
+    JSON.stringify({ ...cfg, memory: { store: { place: 'both', dir: store, remote, git: true, sync: 'auto' } } }, null, 2),
+  );
+  const s = JSON.parse(readFileSync(settings, 'utf8'));
+  const memSettings = join(work, 'settings-memory.json');
+  writeFileSync(memSettings, JSON.stringify({ ...s, autoMemoryDirectory: store }));
+  const tools = 'Read,Glob,Grep,mcp__terminal-code__handoff';
+
+  const asked = session('What is the project codename in your memory index? Reply with the codename only.', memSettings, tools);
+  check(
+    'memory: a change made elsewhere was pulled before Claude read the index',
+    /PELICAN/i.test(asked.final?.result ?? ''),
+    String(asked.final?.result ?? asked.stderr).slice(0, 80),
+  );
+  const handed = session('We only checked the memory today; nothing else is open. devir', memSettings, tools);
+  const dir = join(store, 'handoffs', 'project');
+  const notes = existsSync(dir) ? readdirSync(dir).filter((f) => /^\d{8}-\d{6}-/.test(f)) : [];
+  const onRemote = spawnSync('git', ['--git-dir', remote, 'ls-tree', '-r', '--name-only', 'HEAD'], { encoding: 'utf8' }).stdout.split('\n');
+  check(
+    'memory: the handoff keyword wrote a note through the tool, kept in the store and sent to the remote',
+    notes.length === 1 && onRemote.some((f) => f === `handoffs/project/${notes[0]}`),
+    notes.length ? notes[0] : String(handed.final?.result ?? handed.stderr).slice(0, 80),
+  );
+  const next = notes.length ? (/## Next\n\n([^\n]+)/.exec(readFileSync(join(dir, notes[0]), 'utf8'))?.[1] ?? '') : '';
+  const told = session('Is a handoff note waiting for this project? If so, reply with its next step only; if not, reply NONE.', memSettings, tools);
+  const words = next.toLowerCase().match(/[a-zçğıöşü]{5,}/g) ?? [];
+  check(
+    'memory: the next session was told about the note',
+    !/\bNONE\b/.test(told.final?.result ?? 'NONE') && words.some((w) => (told.final?.result ?? '').toLowerCase().includes(w)),
+    String(told.final?.result ?? '').slice(0, 80),
+  );
+  return [asked, handed, told];
 }
 
 /** One headless session in a fresh project of its own (a first commit, ESM), with the strict sandbox and the Stop hook. */
@@ -309,7 +375,8 @@ try {
   );
   const six = fullAutonomy();
   const seven = stopTurnedBack();
-  const cost = [one, two, three, four, five, six, seven].filter(Boolean).reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
+  const eight = memoryCases();
+  const cost = [one, two, three, four, five, six, seven, ...eight].filter(Boolean).reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
   console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
 } finally {
   if (process.argv.includes('--keep')) console.log(`test-live: kept ${fwd(work)}`);
