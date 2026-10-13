@@ -15,6 +15,8 @@ export interface WorldOptions {
   windows?: boolean;
   /** The session cannot say where it is: every $.session.cwd call fails. */
   cwdFails?: boolean;
+  /** The session started in the home folder instead of the project (its cwd and root). */
+  startedAtHome?: boolean;
   /** What a tool beneath the plugin answers, by tool name (default: it ran). */
   results?: Record<string, (e: any) => any>;
 }
@@ -48,9 +50,9 @@ export function world(on: any, opts: WorldOptions = {}) {
   if (opts.config) write(`${at.DATA}/config.json`, JSON.stringify(opts.config));
   on('session.cwd', () => {
     if (opts.cwdFails) throw new Error('the session is gone');
-    return { value: at.PROJECT };
+    return { value: opts.startedAtHome ? at.HOME : at.PROJECT };
   });
-  on('session.root', () => ({ value: at.PROJECT }));
+  on('session.root', () => ({ value: opts.startedAtHome ? at.HOME : at.PROJECT }));
   on('session.id', () => ({ value: SESSION }));
   on('fs.read', (_$: any, e: any) => (files.has(norm(e.path)) ? { value: files.get(norm(e.path))!.text } : { deny: `ENOENT: ${e.path}` }));
   on('fs.write', (_$: any, e: any) => {

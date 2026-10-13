@@ -43,6 +43,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Fixed
 
+- In the plugin, the folders registered as projects did not count as projects: a session started in the home folder asked about every recursive delete inside them. The hook and the command line had them.
 - Windows 8.3 short names of protected folders (`TERMIN~1`) were not recognised, and neither were protected folders that are links.
 - On macOS and Linux every recursive delete under the home folder was blocked, inside projects too.
 - Windows drops trailing dots and spaces from a name; a protected file spelled that way (`.claude./settings.json.`) was not recognised.

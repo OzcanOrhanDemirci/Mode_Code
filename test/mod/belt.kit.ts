@@ -112,3 +112,14 @@ test('on Windows: every spelling of the data folder is refused, its 8.3 short na
   }
   expect(w.reached).toEqual([]);
 });
+
+test('a session started in the home folder: a recursive delete inside a registered project runs, outside it asks', async ($, on) => {
+  const config = { version: 1, projects: [{ id: 'app', names: ['app'], path: PROJECT }] };
+  const w = world(on, { startedAtHome: true, config, answer: 'block' });
+  const inside: any = await $.tool.call({ tool: 'Bash', command: `rm -rf ${PROJECT}/.tmp/out` } as any);
+  expect(inside.deny).toBeUndefined();
+  expect(w.asked).toEqual([]);
+  const outside: any = await $.tool.call({ tool: 'Bash', command: 'rm -rf /home/ada/elsewhere/out' } as any);
+  expect(w.asked.length).toBe(1);
+  expect(String(outside.deny ?? outside.text)).toMatch(/fs\.delete-outside-project/);
+});

@@ -404,6 +404,9 @@ async function beltContextFor($: $, c: Ctx): Promise<BeltContext> {
     home: c.home,
     cwd: env.cwd,
     projectDir: resolvePath(c.env.CLAUDE_PROJECT_DIR ?? root, env),
+    // The folders registered as projects count as projects here too, as in the hook and the CLI; without them a
+    // session started in the home folder asked about every recursive delete in every project.
+    knownProjects: c.config.projects.flatMap((p) => (p.path ? [resolvePath(p.path, env)] : [])),
     env: c.env,
     dataDir: c.layout.root,
     memoryDirs: memoryDirs(c, cwd),
