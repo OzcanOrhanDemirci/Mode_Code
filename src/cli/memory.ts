@@ -47,7 +47,8 @@ export function terminalIO(ctx: AppContext): SetupIO {
       say(bold(question));
       options.forEach((o, i) => say(`  ${cyan(String(i + 1))}  ${o}${i === def ? dim(` (${T('mcli.default')})`) : ''}`));
       for (;;) {
-        const a = await line(`${T('install.ask.pick', { n: options.length })} `);
+        // The prompt names the option Enter takes: the one marked above, not always the first.
+        const a = await line(`${T('mcli.pick', { n: options.length, def: def + 1 })} `);
         if (a === '') return def;
         const n = parseInt(a, 10);
         if (n >= 1 && n <= options.length) return n - 1;

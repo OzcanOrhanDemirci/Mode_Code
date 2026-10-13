@@ -133,6 +133,7 @@ export const trMemory: Record<keyof typeof enMemory, string> = {
   'help.memory': 'Hafızanın nerede durduğu, kurulumu ve eşitlemesi, devir notları, koşulardan gelen notlar',
   'help.morning': 'Sen yokken neler oldu',
   'mcli.default': 'Enter',
+  'mcli.pick': '1-{n} arası seç (Enter = {def}):',
   'mcli.needsTerminal': 'Kurulum birkaç soru soruyor: bir terminalde çalıştır.',
   'mcli.title': 'Hafıza · {place}',
   'mcli.title.none': 'Hafıza · kurulmamış',

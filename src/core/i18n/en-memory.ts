@@ -137,6 +137,7 @@ export const enMemory = {
   'help.memory': 'Where your memory lives, its setup and sync, handoff notes, notes from runs',
   'help.morning': 'What happened while you were away',
   'mcli.default': 'Enter',
+  'mcli.pick': 'Choose 1-{n} (Enter = {def}):',
   'mcli.needsTerminal': 'The setup asks a few questions: run it in a terminal.',
   'mcli.title': 'Memory · {place}',
   'mcli.title.none': 'Memory · not set up',
