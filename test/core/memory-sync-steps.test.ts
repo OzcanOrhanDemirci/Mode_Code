@@ -470,6 +470,17 @@ test('only a fast-forward, for a store its owner commits: nothing of theirs is c
   assert.equal((await run({ exitCode: 128, stderr: "fatal: Unable to create '/m/.git/index.lock': File exists." })).pull, 'busy');
   assert.equal((await run({ exitCode: 1, stderr: 'fatal: something else' })).pull, 'failed');
   assert.equal((await run(new Error('timed out after 60000 ms'))).pull, 'offline');
+  // Another pull at the same moment leaves several heads behind: once more, and level is level (measured, 2026-10-13).
+  let tries = 0;
+  const raced = fake((args) => {
+    if (args.join(' ') !== ff) return base({})(args);
+    tries++;
+    return tries === 1 ? { exitCode: 128, stderr: 'fatal: Cannot fast-forward to multiple branches.' } : {};
+  });
+  const r2 = await syncMemory(raced.runner, input({ pullMode: 'ff-only', steps: { commit: false, pull: true, push: false } }));
+  assert.deepEqual([r2.pull, r2.detail, tries], ['ok', '', 2]);
+  const stuck = await run({ exitCode: 128, stderr: 'fatal: Cannot fast-forward to multiple branches.' });
+  assert.equal(stuck.pull, 'diverged', 'twice in a row: as git says');
   // A pull that could not join is not followed by a push, even when one was asked for.
   const both = fake(base({ [ff]: { exitCode: 128, stderr: 'fatal: Not possible to fast-forward, aborting.' } }));
   const b = await syncMemory(both.runner, input({ pullMode: 'ff-only' }));

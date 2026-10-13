@@ -347,8 +347,15 @@ async function broughtIn(git: Git, from: string, to: string): Promise<Pulled | n
  * merged. Local changes in the way, or both sides having moved, leave the folder as it was and say so.
  */
 async function fastForward(git: Git, res: SyncResult, note: (s: string) => void): Promise<PullOutcome> {
-  const pull = await git(['pull', '--ff-only', '--quiet'], 60_000);
+  let pull = await git(['pull', '--ff-only', '--quiet'], 60_000);
   if (pull.ok) return 'ok';
+  // Another pull at the same moment (the person's own start hook, say) leaves several heads in FETCH_HEAD and
+  // git refuses with "Cannot fast-forward to multiple branches": once more, after it. Measured on the author's
+  // machine (2026-10-13): reported as diverged though both sides were level.
+  if (/multiple branches/i.test(pull.err + pull.out)) {
+    pull = await git(['pull', '--ff-only', '--quiet'], 60_000);
+    if (pull.ok) return 'ok';
+  }
   const text = pull.err + pull.out;
   note(text);
   // git names the files a fast-forward would overwrite, one per line, indented.
