@@ -265,6 +265,22 @@ test('installation: plugin files and the plugin seen in a session', () => {
     'warn doc.install.pluginFiles.bad → restore-plugin-files',
   );
   assert.equal(check('install.pluginFiles', healthyFacts({ pluginFiles: { ...pf, shipped: false } })).status, 'info');
+  // The program /0 opens: recorded and there, never recorded (an installation before it was), or gone.
+  const cc = healthyFacts().controlCenter;
+  assert.equal(brief(check('install.controlCenter', healthyFacts())), 'ok doc.install.cli.ok');
+  assert.equal(
+    brief(check('install.controlCenter', healthyFacts({ controlCenter: { ...cc, recorded: null, exists: false } }))),
+    'warn doc.install.cli.none → record-cli',
+  );
+  const gone = check('install.controlCenter', healthyFacts({ controlCenter: { ...cc, exists: false } }));
+  assert.equal(brief(gone), 'warn doc.install.cli.gone → record-cli');
+  assert.equal(gone.summary.params?.path, cc.recorded);
+  const noBuild = check('install.controlCenter', healthyFacts({ controlCenter: { recorded: null, exists: false, shipped: null } }));
+  assert.equal(noBuild.status, 'info');
+  // Not a protection: without it /0 says the menu instead, and nothing guarded is weaker.
+  for (const r of [noBuild, gone, check('install.controlCenter', healthyFacts({ controlCenter: { ...cc, recorded: null, exists: false } }))])
+    assert.equal(r.protection, false, r.summary.key);
+  assert.equal(check('install.controlCenter', healthyFacts({ manifest: null })).status, 'skip');
   assert.equal(check('install.modSeen', healthyFacts({ modSeen: null })).status, 'info');
   assert.equal(
     check('install.modSeen', healthyFacts({ modSeen: { at: 1, version: 'other' } })).summary.key,

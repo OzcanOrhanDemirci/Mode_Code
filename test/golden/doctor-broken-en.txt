@@ -15,6 +15,7 @@ Installation
   ✗ Safety-net hooks are missing for Stop (3 of 4 in place).
       → Put the safety-net hooks back into the Claude Code settings
   ✓ The plugin files match this version.
+  ✓ /0 opens the control center from C:/dev/terminal-code/dist/cli.mjs.
   ✓ The plugin last reported in from a session at 2026-10-12 11:50 (UTC).
   · Full autonomy is off (terminal-code autonomy enable turns it on).
 Protection
@@ -54,7 +55,7 @@ Data
 Self-tests
   ✓ All 30 built-in samples of 1 suites gave the expected answer.
 
-40 checks in 2.1 s: 28 ok, 2 warnings, 3 problems.
+41 checks in 2.1 s: 29 ok, 2 warnings, 3 problems.
 Problems that weaken a protection: 3.
 
 Problems that can be repaired automatically: 3.

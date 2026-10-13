@@ -52,6 +52,7 @@ import {
   type StripView,
 } from '../core/controls.js';
 import { ago, percent, shortPath } from '../core/format.js';
+import { centerProgram, commandLine, LAUNCH_ENV, OPENS, terminalLaunch } from '../core/launch.js';
 import { fold } from '../core/text.js';
 import {
   conflictContext,
@@ -3399,9 +3400,9 @@ async function sendAsPerson($: $, c: Ctx, text: string): Promise<string[]> {
  * as a toast; its notes for the model go into the conversation at once (read from the running turn's next
  * request too: a press while Claude works is the brake), as rows the person does not see as typed.
  */
-async function press($: $, name: string, args = ''): Promise<void> {
+async function press($: $, name: string, args = '', surface?: string): Promise<void> {
   try {
-    const r = await control($, name, args, 'strip');
+    const r = await control($, name, args, 'strip', surface === undefined || surface === 'terminal' ? 'here' : 'remote');
     if (r.context?.length) await $.session.append({ message: { type: 'user', content: [{ type: 'text', text: r.context.join('\n\n') }] } });
     $.ui.toast(name === '0' ? r.text.split('\n')[0]! : r.text, { timeoutMs: 8000 });
   } catch {
@@ -3507,16 +3508,107 @@ function viaOf(e: In<'command.run'>): 'command' | 'strip' {
   return o?.kind === 'plugin' && o.name === PLUGIN_NAME ? 'strip' : 'command';
 }
 
+/**
+ * Whether the person is at the computer's terminal: their Enter there, or a run of a plugin's own. A message
+ * through the bridge comes from a phone or the web, and a headless run has no one to see a new tab.
+ */
+function whereOf(e: In<'command.run'>): 'here' | 'remote' {
+  const kind = (e.origin as { kind?: string } | undefined)?.kind;
+  return kind === 'composer' || kind === 'plugin' ? 'here' : 'remote';
+}
+
 async function onCommand($: $, e: In<'command.run'>, next: Nx<'command.run'>): Out<'command.run'> {
   if (!commandNamed(e.command)) return next(e);
-  return control($, e.command, String(e.args ?? ''), viaOf(e));
+  return control($, e.command, String(e.args ?? ''), viaOf(e), whereOf(e));
+}
+
+/** What the terminal the session runs in says about itself (LAUNCH_ENV), each name spelled out for the plugin's validator. */
+async function launchEnv($: $): Promise<Record<(typeof LAUNCH_ENV)[number], string | undefined>> {
+  const [
+    WT_SESSION,
+    TMUX,
+    TERM_PROGRAM,
+    WEZTERM_PANE,
+    KONSOLE_VERSION,
+    GNOME_TERMINAL_SCREEN,
+    GNOME_TERMINAL_SERVICE,
+    DISPLAY,
+    WAYLAND_DISPLAY,
+    SSH_CONNECTION,
+    SSH_CLIENT,
+    SSH_TTY,
+    WSL_DISTRO_NAME,
+  ] = await Promise.all([
+    $.env.get('WT_SESSION'),
+    $.env.get('TMUX'),
+    $.env.get('TERM_PROGRAM'),
+    $.env.get('WEZTERM_PANE'),
+    $.env.get('KONSOLE_VERSION'),
+    $.env.get('GNOME_TERMINAL_SCREEN'),
+    $.env.get('GNOME_TERMINAL_SERVICE'),
+    $.env.get('DISPLAY'),
+    $.env.get('WAYLAND_DISPLAY'),
+    $.env.get('SSH_CONNECTION'),
+    $.env.get('SSH_CLIENT'),
+    $.env.get('SSH_TTY'),
+    $.env.get('WSL_DISTRO_NAME'),
+  ]);
+  return {
+    WT_SESSION,
+    TMUX,
+    TERM_PROGRAM,
+    WEZTERM_PANE,
+    KONSOLE_VERSION,
+    GNOME_TERMINAL_SCREEN,
+    GNOME_TERMINAL_SERVICE,
+    DISPLAY,
+    WAYLAND_DISPLAY,
+    SSH_CONNECTION,
+    SSH_CLIENT,
+    SSH_TTY,
+    WSL_DISTRO_NAME,
+  };
+}
+
+/**
+ * Opens the control center beside the session (`/0`): the program the installation recorded, in a new tab of
+ * this terminal or a window of its own (src/core/launch.ts). Says what went wrong, with the command to open
+ * it by hand, when it cannot.
+ */
+async function openCenter($: $, c: Ctx): Promise<{ ok: true; opens: 'tab' | 'window' } | { ok: false; text: string }> {
+  const lang = c.lang;
+  const program = centerProgram(await readFile($, c.layout.manifest));
+  if (!program || !(await $.fs.exists(program[1]).catch(() => false))) return { ok: false, text: tIn(lang, 'ctl.center.unknown', { app: APP_NAME }) };
+  const cmd = commandLine(program, c.platform);
+  const env = await launchEnv($);
+  const cwd = c.state.cwd ?? (await $.session.cwd());
+  const launch = terminalLaunch({ platform: c.platform, env, program, cwd, title: APP_NAME });
+  if (!launch) {
+    await logEvent($, c, { kind: 'center', via: null, ok: false });
+    return { ok: false, text: tIn(lang, 'ctl.center.noTerminal', { cmd }) };
+  }
+  let reason: string | null = null;
+  try {
+    const r = await $.process.run(launch.argv, { cwd, timeoutMs: 15_000 });
+    if (r.exitCode !== 0) reason = `${launch.via}: ${r.stderr.trim().split('\n')[0]?.slice(0, 160) || `exit ${r.exitCode}`}`;
+  } catch (err) {
+    reason = `${launch.via}: ${String((err as Error)?.message ?? err).slice(0, 160)}`;
+  }
+  await logEvent($, c, { kind: 'center', via: launch.via, ok: reason === null });
+  return reason === null ? { ok: true, opens: OPENS[launch.via] } : { ok: false, text: tIn(lang, 'ctl.center.failed', { reason, cmd }) };
 }
 
 /**
  * A control, by its command's name: what `/3` and a press on the strip both do. Answers the line to show and
  * the notes for the model.
  */
-async function control($: $, name: string, given: string, via: 'command' | 'strip'): Promise<{ text: string; context?: string[] }> {
+async function control(
+  $: $,
+  name: string,
+  given: string,
+  via: 'command' | 'strip',
+  where: 'here' | 'remote' = 'here',
+): Promise<{ text: string; context?: string[] }> {
   const action = commandNamed(name)!;
   const c = await ctxOf($);
   const args = given.trim();
@@ -3535,8 +3627,16 @@ async function control($: $, name: string, given: string, via: 'command' | 'stri
       const sent = args ? await sendAsPerson($, c, args) : [];
       return say(tIn(lang, 'ctl.done', { controls: controlsLine(viewOf(c), lang) }), [...said.context, ...sent]);
     }
-    case 'menu':
-      return say(menuText(viewOf(c), lang, (await quotaTail($)).replace(/^🛡\s*/, '') || '—'));
+    case 'menu': {
+      // The control center opens beside the session; the row keeps where the session stands. From the phone, the menu.
+      const quota = (await quotaTail($)).replace(/^🛡\s*/, '') || '—';
+      const menu = menuText(viewOf(c), lang, quota);
+      if (where === 'remote') return say(`${menu}\n\n${tIn(lang, 'ctl.center.remote')}`);
+      const opened = await openCenter($, c);
+      if (!opened.ok) return say(`${opened.text}\n\n${menu}`);
+      const now = tIn(lang, 'ctl.menu.now', { controls: controlsLine(viewOf(c), lang), quota });
+      return say(`${tIn(lang, opened.opens === 'tab' ? 'ctl.center.tab' : 'ctl.center.window')}\n${now}`);
+    }
     case 'quota': {
       const q = await quotaNow($, c);
       const week = q.usable && q.week ? Math.round(q.week.used) : null;
@@ -3709,7 +3809,7 @@ export function register(on: On): void {
     const { Box, Text, Button } = $.ui.resolve(e);
     const props = e.props as { bodyColumns?: number };
     const columns = Number(props.bodyColumns ?? e.viewport?.columns ?? 80);
-    const onPress = (id: string) => () => press($, id);
+    const onPress = (id: string) => (p?: { surface?: string }) => press($, id, '', p?.surface);
     const item = (it: StripItem) =>
       h(
         Button,

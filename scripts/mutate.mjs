@@ -85,6 +85,8 @@ const TARGETS = {
   'src/node/previous.ts': ['test/node/install-previous.test.ts'],
   // The session's controls (docs/modes.md, "Session controls"): commands, budgets, what to continue, the strip.
   'src/core/controls.ts': ['test/core/controls.test.ts', 'test/core/keywords.test.ts'],
+  // `/0` (docs/modes.md, "Session controls"): which terminal opens the control center, with which arguments.
+  'src/core/launch.ts': ['test/core/launch.test.ts'],
 };
 
 // ── finding mutation sites in TypeScript without a parser: code outside strings, comments and regexes ──

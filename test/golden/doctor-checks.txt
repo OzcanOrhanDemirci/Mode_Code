@@ -12,6 +12,7 @@ install.previous skip doc.install.previous.never
 install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
@@ -55,6 +56,7 @@ install.previous skip doc.install.previous.never
 install.hookProgram skip protection doc.notInstalled
 install.hooks skip protection doc.notInstalled
 install.pluginFiles skip doc.notInstalled
+install.controlCenter skip doc.notInstalled
 install.modSeen skip doc.notInstalled
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
@@ -98,6 +100,7 @@ install.previous skip doc.install.previous.never
 install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
@@ -144,6 +147,7 @@ install.hookProgram warn protection repair=restore-hook-program doc.install.hook
 install.hooks fail protection repair=restore-hooks doc.install.hooks.missing {"events":"UserPromptSubmit, SessionStart","n":2,"of":4}
 install.pluginFiles warn repair=restore-plugin-files doc.install.pluginFiles.bad {"n":1}
     doc.line {"text":"hooks/register.js"}
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
 install.modSeen info doc.install.modSeen.never
 install.autonomy info doc.autonomy.off
 protect.agreement fail protection repair=restore-hook-program doc.protect.agreement.differ {"n":2,"of":30}
@@ -194,6 +198,7 @@ install.previous skip doc.install.previous.never
 install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
@@ -237,6 +242,7 @@ install.previous skip doc.install.previous.never
 install.hookProgram fail protection repair=restore-hook-program doc.install.hook.missing {"path":"C:/Users/ada/.terminal-code/bin/hook.mjs"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles info doc.install.hook.noBuild
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
 install.autonomy info doc.autonomy.off
 protect.agreement skip protection doc.protect.agreement.notRun
@@ -279,6 +285,7 @@ install.previous skip doc.install.previous.never
 install.hookProgram info protection doc.install.hook.noBuild
 install.hooks fail protection repair=restore-hooks doc.install.hooks.changed
 install.pluginFiles ok doc.install.pluginFiles.ok
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
 install.autonomy info doc.autonomy.off
 protect.agreement warn protection doc.protect.agreement.error {"error":"spawn failed"}
@@ -327,6 +334,7 @@ install.hooks warn repair=remove-duplicate-hooks doc.install.hooks.duplicates {"
     doc.line {"text":"UserPromptSubmit"}
     doc.line {"text":"project: PreToolUse"}
 install.pluginFiles ok doc.install.pluginFiles.ok
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
 install.modSeen info doc.install.modSeen.other {"have":"older","now":"dev"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
@@ -372,6 +380,7 @@ install.previous skip doc.install.previous.never
 install.hookProgram warn protection repair=restore-hook-program doc.install.hook.otherBuild {"version":"0.1.0"}
 install.hooks fail protection repair=restore-hooks doc.install.hooks.older {"tools":"Monitor"}
 install.pluginFiles ok doc.install.pluginFiles.ok
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
@@ -415,6 +424,7 @@ install.previous skip doc.install.previous.never
 install.hookProgram fail protection repair=restore-hook-program doc.install.hook.differs {"path":"C:/Users/ada/.terminal-code/bin/hook.mjs"}
 install.hooks fail protection repair=restore-hooks doc.install.hooks.changed
 install.pluginFiles ok doc.install.pluginFiles.ok
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
@@ -458,6 +468,7 @@ install.previous skip doc.install.previous.never
 install.hookProgram fail protection repair=restore-hook-program doc.install.hook.altered {"path":"C:/Users/ada/.terminal-code/bin/hook.mjs"}
 install.hooks fail protection repair=restore-hooks doc.install.hooks.changed
 install.pluginFiles ok doc.install.pluginFiles.ok
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
@@ -501,6 +512,7 @@ install.previous skip doc.install.previous.never
 install.hookProgram warn protection repair=restore-hook-program doc.install.hook.older {"have":"0.1.0","now":"0.2.0"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
 install.modSeen info doc.install.modSeen.other {"have":"0.1.0","now":"0.2.0"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
@@ -544,6 +556,7 @@ install.previous skip doc.install.previous.never
 install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks fail protection repair=restore-hooks doc.install.hooks.changed
 install.pluginFiles ok doc.install.pluginFiles.ok
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
@@ -587,6 +600,7 @@ install.previous skip doc.install.previous.never
 install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}

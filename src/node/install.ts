@@ -56,6 +56,11 @@ export interface Manifest {
    * the same version (a reinstall fixes it) from one changed after installation. Absent before 0.1.0.
    */
   hookHash?: string;
+  /**
+   * The command-line program of the build that installed, absolute: what `/0` opens beside a session, run by
+   * `node`. Absent before 0.1.0, and when the build had none; the doctor records it then.
+   */
+  cli?: string;
   /** The exact hook groups added, per event, so removal takes out these and nothing else. */
   hooks: Record<string, unknown[]>;
   plugin: { id: string; installed: boolean; marketplaceDir: string };
@@ -105,6 +110,12 @@ export function stableNodePath(): string {
   } catch {
     return process.execPath;
   }
+}
+
+/** The command-line program beside the built hook and plugin, with forward slashes; null when the build has none. */
+export function cliProgram(dist: string): string | null {
+  const p = join(dist, 'cli.mjs');
+  return existsSync(p) ? p.replace(/\\/g, '/') : null;
 }
 
 export function hookProgram(l: Layout): string {
@@ -347,6 +358,7 @@ export function applyInstall(l: Layout, plan: InstallPlan, opts: { config?: Part
       return `${old.id} and ${prev.root} removed`;
     });
   const hookHash = fileHash(hook);
+  const cli = cliProgram(dist);
   const manifest: Manifest = {
     v: 1,
     app: APP_ID,
@@ -357,6 +369,7 @@ export function applyInstall(l: Layout, plan: InstallPlan, opts: { config?: Part
     settingsFile: plan.settingsFile,
     settingsBackup: backup,
     ...(hookHash ? { hookHash } : {}),
+    ...(cli ? { cli } : {}),
     hooks: groups,
     plugin: { id: PLUGIN_ID, installed: pluginInstalled, marketplaceDir: l.marketplace },
     createdConfig,

@@ -117,6 +117,16 @@ export const FAULTS: readonly Fault[] = [
     inject: (s) => appendFileSync(join(s.layout.pluginDir, 'hooks', 'register.js'), '\n// changed\n'),
   },
   {
+    id: 'cli-unrecorded',
+    check: 'install.controlCenter',
+    repair: 'record-cli',
+    inject: (s) => {
+      const m: Partial<Manifest> = { ...s.manifest() };
+      delete m.cli;
+      writeJsonAtomic(s.layout.manifest, m);
+    },
+  },
+  {
     id: 'data-folder-deleted',
     check: 'files.data',
     repair: 'create-data-folders',
@@ -229,6 +239,7 @@ export const SANDBOX_CHECKS = [
   'install.hookProgram',
   'install.hooks',
   'install.pluginFiles',
+  'install.controlCenter',
   'files.data',
   'files.leftovers',
   'files.permissions',

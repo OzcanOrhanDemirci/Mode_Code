@@ -22,7 +22,7 @@ import { runAllSuites } from '../../core/selftest/suites.js';
 import { transcriptShape } from '../../core/transcript.js';
 import type { Lang } from '../../core/i18n/index.js';
 import { readClaudeEnv, pluginsVia, type ClaudeRunner } from '../../node/claude-env.js';
-import { hookProgram, isOurHook, readManifest, underAgent } from '../../node/install.js';
+import { cliProgram, hookProgram, isOurHook, readManifest, underAgent } from '../../node/install.js';
 import { findPrevious, previousPlugin } from '../../node/previous.js';
 import { readJson, readText, realPathOf } from '../../node/fsx.js';
 import { beltContext, memoryDirs, protectedAliases } from '../../node/context.js';
@@ -656,6 +656,11 @@ export async function gatherFacts(d0: DoctorEnv, now = Date.now()): Promise<Fact
     previousNames: PREVIOUS_NAMES.map((n) => n.name),
     hookProgram: { path: hookFile, exists: hookExists, hash: hookExists ? sha256(hookFile) : null, shippedHash: sha256(shippedHook) },
     pluginFiles: pluginFiles(d.distDir, l.pluginDir),
+    controlCenter: {
+      recorded: manifest?.cli ?? null,
+      exists: !!manifest?.cli && existsSync(manifest.cli),
+      shipped: cliProgram(d.distDir),
+    },
     modSeen: modSeen(l),
     aliases: protectedAliases(roots),
     shortNames,

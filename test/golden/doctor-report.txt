@@ -1,7 +1,7 @@
 ## Problem report for terminal-code
 
 - terminal-code dev · Node.js 24.15.0 · win32 x64 10.0.26200 · Claude Code 2.1.295
-- 28 ok · 4 notes · 2 warnings · 3 problems · 3 skipped
+- 29 ok · 4 notes · 2 warnings · 3 problems · 3 skipped
 
 | check | status | result |
 | --- | --- | --- |
@@ -17,6 +17,7 @@
 | install.hookProgram | fail | The hook program is missing: ~/.terminal-code/bin/hook.mjs. |
 | install.hooks | fail | Safety-net hooks are missing for Stop (3 of 4 in place). |
 | install.pluginFiles | ok | The plugin files match this version. |
+| install.controlCenter | ok | /0 opens the control center from C:/dev/terminal-code/dist/cli.mjs. |
 | install.modSeen | ok | The plugin last reported in from a session at 2026-10-12 11:50 (UTC). |
 | install.autonomy | info | Full autonomy is off (terminal-code autonomy enable turns it on). |
 | protect.agreement | fail | The installed hook answered 1 of 30 samples differently from this version. |

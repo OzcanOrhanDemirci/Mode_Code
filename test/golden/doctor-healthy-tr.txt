@@ -13,6 +13,7 @@ Kurulum
   ✓ Hook programı bu sürümle aynı (sha256 aaaaaaaaaaaa…).
   ✓ Güvenlik ağı hook'ları 4 olayın hepsinde yerinde ve hata olursa engelliyor.
   ✓ Eklenti dosyaları bu sürümle aynı.
+  ✓ /0 kontrol merkezini C:/dev/terminal-code/dist/cli.mjs ile açar.
   ✓ Eklenti en son 2026-10-12 11:50 (UTC) zamanında bir oturumdan haber verdi.
   · Tam otonom kapalı (terminal-code autonomy enable ile açılır).
 Koruma
@@ -46,4 +47,4 @@ Veri
 Öz-sınama
   ✓ 1 paketteki 30 yerleşik örneğin hepsi beklenen cevabı verdi.
 
-2.1 sn içinde 40 denetim: 33 tamam, 0 uyarı, 0 sorun.
+2.1 sn içinde 41 denetim: 34 tamam, 0 uyarı, 0 sorun.

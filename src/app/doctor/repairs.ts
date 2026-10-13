@@ -17,7 +17,17 @@ import type { Config } from '../../core/config.js';
 import type { Layout } from '../../core/layout.js';
 import type { ClaudeRunner } from '../../node/claude-env.js';
 import { ensureDir, readText, writeAtomic, writeJsonAtomic } from '../../node/fsx.js';
-import { fileHash, hookGroups, hookProgram, pluginInstallArgs, readManifest, withOurHooks, writeMarketplace, type Manifest } from '../../node/install.js';
+import {
+  cliProgram,
+  fileHash,
+  hookGroups,
+  hookProgram,
+  pluginInstallArgs,
+  readManifest,
+  withOurHooks,
+  writeMarketplace,
+  type Manifest,
+} from '../../node/install.js';
 import type { Facts, RepairId } from './types.js';
 
 export interface RepairEnv {
@@ -128,6 +138,18 @@ export const REPAIRS: Record<RepairId, RepairInfo> = {
       const r = e.runner.run(pluginInstallArgs(e.layout), 120_000);
       const out = `${r.stdout}${r.stderr}`.trim().split('\n').pop() ?? '';
       return { id: 'reinstall-plugin', ok: r.status === 0, detail: out || `exit ${r.status}` };
+    },
+  },
+  'record-cli': {
+    // Which program `/0` starts: the person's to point, as the hook program is.
+    personOnly: true,
+    run: (e) => {
+      const cli = cliProgram(e.distDir);
+      const m = readManifest(e.layout);
+      if (!cli) return { id: 'record-cli', ok: false, detail: `this build has no command-line program (${e.distDir.replace(/\\/g, '/')})` };
+      if (!m) return { id: 'record-cli', ok: false, detail: 'not installed' };
+      writeJsonAtomic(e.layout.manifest, { ...m, cli } satisfies Manifest);
+      return { id: 'record-cli', ok: true, detail: `/0 opens ${cli}` };
     },
   },
   'enable-plugin': {

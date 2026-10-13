@@ -15,6 +15,7 @@ Kurulum
   ✗ Şu olaylarda güvenlik ağı hook'u eksik: Stop (4 olaydan 3 tanesi yerinde).
       → Güvenlik ağı hook'larını Claude Code ayarlarına geri koy
   ✓ Eklenti dosyaları bu sürümle aynı.
+  ✓ /0 kontrol merkezini C:/dev/terminal-code/dist/cli.mjs ile açar.
   ✓ Eklenti en son 2026-10-12 11:50 (UTC) zamanında bir oturumdan haber verdi.
   · Tam otonom kapalı (terminal-code autonomy enable ile açılır).
 Koruma
@@ -54,7 +55,7 @@ Veri
 Öz-sınama
   ✓ 1 paketteki 30 yerleşik örneğin hepsi beklenen cevabı verdi.
 
-2.1 sn içinde 40 denetim: 28 tamam, 2 uyarı, 3 sorun.
+2.1 sn içinde 41 denetim: 29 tamam, 2 uyarı, 3 sorun.
 Sorunlardan 3 tanesi bir korumayı zayıflatıyor.
 
 3 sorun kendiliğinden onarılabilir:

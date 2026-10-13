@@ -3,4 +3,4 @@ Onarımlar
       yedek: ~/.terminal-code/install/backups/settings.json.doctor.1
   Bu sürümün hook programını geri kopyala: ! yapıldı, ama denetim hâlâ geçmiyor
   Bozuk oturum dizinini kaldır (yeniden kurulur): ✗ onarılamadı: ~/.terminal-code/index.db is locked
-Onarımlardan sonra: 33 tamam, 0 uyarı, 0 sorun.
+Onarımlardan sonra: 34 tamam, 0 uyarı, 0 sorun.

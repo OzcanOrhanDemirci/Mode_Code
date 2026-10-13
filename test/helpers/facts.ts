@@ -75,6 +75,7 @@ export function healthyFacts(over: Partial<Facts> = {}): Facts {
     previousNames: [],
     hookProgram: { path: `${DATA}/bin/hook.mjs`, exists: true, hash: HASH, shippedHash: HASH },
     pluginFiles: { dir: `${DATA}/marketplace/plugins/terminal-code`, missing: [], different: [], shipped: true },
+    controlCenter: { recorded: 'C:/dev/terminal-code/dist/cli.mjs', exists: true, shipped: 'C:/dev/terminal-code/dist/cli.mjs' },
     modSeen: { at: NOW - 600_000, version: APP_VERSION },
     aliases: [],
     shortNames: [{ long: DATA, short: 'C:/Users/ada/TERMIN~1', recognised: true }],

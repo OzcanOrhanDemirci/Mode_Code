@@ -5,10 +5,13 @@
  * The world beneath is in memory (see world.ts).
  */
 import { test, expect, mock } from 'claude-code/testing';
-import { world, DATA, HOME, PROJECT, SESSION } from './world.ts';
+import { world, DATA, HOME, PROJECT, SESSION, WIN } from './world.ts';
 
 const typed = (text: string) => ({ text, wait: false, origin: { kind: 'composer' } }) as any;
 const run = async ($: any, command: string, args = '') => (await $.command.run({ command, args })) as any;
+/** A command as the engine stamps where it came from: the person's Enter, the bridge (a phone), the SDK. */
+const runFrom = async ($: any, command: string, origin: { kind: string } | undefined, args = '') =>
+  (await $.command.run({ command, args, ...(origin ? { origin } : {}) })) as any;
 /** What a command sends on goes from a timer the moment it is done (see submitAsPerson): the clock moves it. */
 const settle = async (w: { clock: { advance(ms: number): Promise<unknown> } }) => {
   await w.clock.advance(5);
@@ -107,13 +110,96 @@ test('typed as the whole message, "plan" and "otonom" do what /3 and /7 do; in a
   expect(w.modState().interaction).toBe('autonomous');
 });
 
-test('/0 says where the session stands and lists every command', async ($, on) => {
-  world(on, { lang: 'tr' });
+test('/0 from the phone says where the session stands and lists every command; it opens nothing', async ($, on) => {
+  const w = world(on, { lang: 'tr' });
   await run($, '4');
-  const r = await run($, '0');
-  expect(r.text).toMatch(/^Şu an: 🔨 kod · manuel/);
-  expect(r.text).toMatch(/\*\*\/4 🔨 kod\*\*/);
-  expect(r.text).toMatch(/\/9 akış · \/devam · \/kota/);
+  for (const origin of [{ kind: 'bridge' }, { kind: 'sdk' }, undefined]) {
+    const r = await runFrom($, '0', origin);
+    expect(r.text).toMatch(/^Şu an: 🔨 kod · manuel/);
+    expect(r.text).toMatch(/\*\*\/4 🔨 kod\*\*/);
+    expect(r.text).toMatch(/\/9 akış · \/devam · \/kota/);
+    expect(r.text).toMatch(/Kontrol merkezi bilgisayarda açılır: orada yazılan \/0 onu yeni sekmede açar\.$/);
+  }
+  expect(w.ran).toEqual([]);
+});
+
+/** The installation's record of the Node.js and the command-line program, and the program on the disk. */
+const installed = (w: any, cli = 'C:/dev/tc/dist/cli.mjs') => {
+  w.write(`${WIN.DATA}/install/manifest.json`, JSON.stringify({ v: 1, app: 'terminal-code', node: 'C:/Program Files/nodejs/node.exe', cli }));
+  w.write(cli, '// the control center');
+};
+const opensTab = (argv: string[]) => (argv[0] === 'wt.exe' ? { exitCode: 0 } : undefined);
+
+test('/0 at the terminal opens the control center in a new tab of Windows Terminal, in the session folder', async ($, on) => {
+  const w = world(on, { lang: 'tr', windows: true, env: { WT_SESSION: 'f7502808' }, programs: opensTab });
+  installed(w);
+  await run($, '4');
+  const r = await runFrom($, '0', { kind: 'composer' });
+  expect(r.text.split('\n')[0]).toBe('Kontrol merkezi yeni sekmede açıldı.');
+  expect(r.text.split('\n')[1]).toMatch(/^Şu an: 🔨 kod · manuel · /);
+  expect(r.text.split('\n').length).toBe(2);
+  expect(w.ran).toEqual([
+    ['wt.exe', '-w', '0', 'new-tab', '--title', 'terminal-code', '-d', 'C:/dev/app', 'C:/Program Files/nodejs/node.exe', 'C:/dev/tc/dist/cli.mjs'],
+  ]);
+  expect(w.events().filter((e: any) => e.kind === 'center')).toEqual([expect.objectContaining({ via: 'windows-terminal', ok: true })]);
+});
+
+test('/0 that cannot open says why and how to open it by hand, then the menu', async ($, on) => {
+  const w = world(on, {
+    windows: true,
+    env: { WT_SESSION: 'x' },
+    programs: (argv) => (argv[0] === 'wt.exe' ? { exitCode: 1, stderr: 'boom\nmore' } : undefined),
+  });
+  installed(w);
+  const failed = await runFrom($, '0', { kind: 'composer' });
+  expect(failed.text.split('\n')[0]).toBe(
+    'The control center did not open (windows-terminal: boom). Open it yourself: & "C:/Program Files/nodejs/node.exe" "C:/dev/tc/dist/cli.mjs"',
+  );
+  expect(failed.text).toMatch(/\n\nNow: free · manual/);
+  expect(w.events().filter((e: any) => e.kind === 'center')).toEqual([expect.objectContaining({ via: 'windows-terminal', ok: false })]);
+});
+
+test('/0 with no record of the installation, or a program that is gone, names the repair and runs nothing', async ($, on) => {
+  const w = world(on, { windows: true, env: { WT_SESSION: 'x' }, programs: opensTab });
+  const none = await runFrom($, '0', { kind: 'composer' });
+  expect(none.text.split('\n')[0]).toBe('Where the control center is was not recorded at installation: "terminal-code doctor --fix" records it.');
+  w.write(`${WIN.DATA}/install/manifest.json`, JSON.stringify({ v: 1, node: 'C:/n.exe', cli: 'C:/gone/cli.mjs' }));
+  const gone = await runFrom($, '0', { kind: 'composer' });
+  expect(gone.text.split('\n')[0]).toBe(none.text.split('\n')[0]);
+  expect(w.ran).toEqual([]);
+});
+
+test('/0 in a terminal that cannot be asked for a tab says the command to type, in its shell', async ($, on) => {
+  const w = world(on, { programs: () => ({ exitCode: 0 }) });
+  w.write(`${DATA}/install/manifest.json`, JSON.stringify({ v: 1, node: '/usr/bin/node', cli: `${HOME}/tc/cli.mjs` }));
+  w.write(`${HOME}/tc/cli.mjs`, '//');
+  const r = await runFrom($, '0', { kind: 'composer' });
+  expect(r.text.split('\n')[0]).toBe(`No new tab can be opened from this terminal; open the control center yourself: '/usr/bin/node' '${HOME}/tc/cli.mjs'`);
+  expect(w.ran).toEqual([]);
+});
+
+test('/0 inside tmux opens a window of that tmux, in the session folder', async ($, on) => {
+  const w = world(on, { env: { TMUX: '/tmp/tmux-1000/default,1,0' }, programs: (argv) => (argv[0] === 'tmux' ? { exitCode: 0 } : undefined) });
+  w.write(`${DATA}/install/manifest.json`, JSON.stringify({ v: 1, node: '/usr/bin/node', cli: `${HOME}/tc/cli.mjs` }));
+  w.write(`${HOME}/tc/cli.mjs`, '//');
+  expect((await runFrom($, '0', { kind: 'composer' })).text.split('\n')[0]).toBe('The control center opened in a new tab.');
+  expect(w.ran).toEqual([['tmux', 'new-window', '-n', 'terminal-code', '-c', PROJECT, `cd '${PROJECT}' && exec '/usr/bin/node' '${HOME}/tc/cli.mjs'`]]);
+});
+
+test('a press on "0" of the strip at the terminal opens the control center; on the phone it says the menu', async ($, on) => {
+  const w = world(on, { windows: true, env: { WT_SESSION: 'x' }, programs: opensTab });
+  installed(w);
+  await run($, '3');
+  const ui = await $.ui.mount({ plugin: 'terminal-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+  await ui.press({ key: 'strip-0' });
+  expect(w.toasts.at(-1)).toBe('The control center opened in a new tab.');
+  expect(w.ran.length).toBe(1);
+  await ui.unmount();
+  const phone = await $.ui.mount({ plugin: 'terminal-code', surface: 'mobile', component: 'AbovePrompt', props: band } as any);
+  await phone.press({ key: 'strip-0' });
+  expect(w.toasts.at(-1)).toMatch(/^Now: 📐 plan · manual/);
+  expect(w.ran.length).toBe(1);
+  await phone.unmount();
 });
 
 test('/kota: a number or +N, asked when not given; a budget the week has passed is refused', async ($, on) => {

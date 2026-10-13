@@ -120,6 +120,26 @@ test('the hook program and the plugin files are copied from this build', () => {
   }
 });
 
+test("record-cli writes this build's command-line program into the record, keeping the rest; without one it changes nothing", () => {
+  const s = sandbox();
+  try {
+    const manifest = { v: 1, app: 'terminal-code', version: '0.1.0', node: 'C:/node/node.exe', hooks: {}, createdConfig: false };
+    mkdirSync(`${s.env.layout.root}/install`, { recursive: true });
+    writeFileSync(s.env.layout.manifest, JSON.stringify(manifest));
+    assert.equal(REPAIRS['record-cli'].run(s.env, healthyFacts()).ok, false, 'a build with no command-line program');
+    assert.deepEqual(JSON.parse(readFileSync(s.env.layout.manifest, 'utf8')), manifest);
+    writeFileSync(`${s.dist}/cli.mjs`, '// control center\n');
+    const r = REPAIRS['record-cli'].run(s.env, healthyFacts());
+    assert.equal(r.ok, true, r.detail);
+    assert.deepEqual(JSON.parse(readFileSync(s.env.layout.manifest, 'utf8')), { ...manifest, cli: `${s.dist}/cli.mjs` });
+    assert.equal(r.detail, `/0 opens ${s.dist}/cli.mjs`);
+    rmSync(s.env.layout.manifest);
+    assert.equal(REPAIRS['record-cli'].run(s.env, healthyFacts()).ok, false, 'not installed');
+  } finally {
+    s.done();
+  }
+});
+
 test('plugin repairs go through claude: install from the local marketplace, enable at user scope', () => {
   const s = sandbox();
   try {
@@ -244,7 +264,15 @@ test('the plan: each repair once, in a safe order, notes only on request, the pe
   // Code that comes from the build running the doctor never goes into the protection on an agent's say-so:
   // an agent could build a weaker hook and have the doctor install it.
   assert.equal(agent.find((p) => p.id === 'restore-hook-program')?.refused, true);
-  for (const id of ['restore-hook-program', 'restore-plugin-files', 'repoint-node', 'reinstall-plugin', 'enable-plugin', 'rewrite-config'] as const)
+  for (const id of [
+    'restore-hook-program',
+    'restore-plugin-files',
+    'repoint-node',
+    'reinstall-plugin',
+    'enable-plugin',
+    'rewrite-config',
+    'record-cli',
+  ] as const)
     assert.equal(REPAIRS[id].personOnly, true, id);
 });
 

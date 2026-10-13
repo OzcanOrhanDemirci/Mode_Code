@@ -26,6 +26,8 @@ export interface WorldOptions {
     args: string[],
     dir?: string,
   ) => { exitCode: number; stdout: string; stderr?: string } | Promise<{ exitCode: number; stdout: string; stderr?: string }> | undefined;
+  /** Answers any other program the plugin runs (its whole argv); undefined: the program is not found. */
+  programs?: (argv: string[]) => { exitCode: number; stdout?: string; stderr?: string } | undefined;
   /** Claude Code's merged settings, as $.settings.read answers them. */
   settings?: Record<string, unknown>;
   /** What an independent review's model call answers (default: a clean PASS). */
@@ -58,6 +60,8 @@ export function world(on: any, opts: WorldOptions = {}) {
   const asked: string[] = [];
   const submitted: string[] = [];
   const clock = mock.clock(on, { now: opts.now ?? Date.parse('2026-10-12T10:00:00Z') });
+  /** Every program other than uname and git the plugin ran, as it asked. */
+  const ran: string[][] = [];
   const at = opts.windows ? WIN : { HOME, DATA, PROJECT };
   mock.env(on, {
     ...(opts.windows ? { USERPROFILE: at.HOME, OS: 'Windows_NT', TEMP: `${at.HOME}/AppData/Local/Temp` } : { HOME: at.HOME }),
@@ -117,6 +121,9 @@ export function world(on: any, opts: WorldOptions = {}) {
       if (a.includes('remote get-url')) return { value: { exitCode: 0, stdout: 'https://example.com/ada/app.git\n', stderr: '' } };
       return { value: { exitCode: 1, stdout: '', stderr: 'not a git repository' } };
     }
+    ran.push(e.argv as string[]);
+    const own = opts.programs?.(e.argv as string[]);
+    if (own) return { value: { stdout: '', stderr: '', ...own } };
     return { value: { exitCode: 127, stdout: '', stderr: 'not found' } };
   });
   on('ui.toast', (_$: any, e: any) => {
@@ -189,6 +196,7 @@ export function world(on: any, opts: WorldOptions = {}) {
     clock,
     hook,
     files,
+    ran,
     reached,
     calls,
     registered,

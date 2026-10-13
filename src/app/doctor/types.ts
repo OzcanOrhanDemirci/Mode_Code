@@ -28,6 +28,7 @@ export type RepairId =
   | 'repoint-node'
   | 'restore-plugin-files'
   | 'reinstall-plugin'
+  | 'record-cli'
   | 'enable-plugin'
   | 'create-data-folders'
   | 'rebuild-index'
@@ -115,6 +116,8 @@ export interface Facts {
   hookProgram: { path: string; exists: boolean; hash: string | null; shippedHash: string | null };
   /** Plugin files in the local marketplace against the ones this build ships: missing and different. */
   pluginFiles: { dir: string; missing: string[]; different: string[]; shipped: boolean };
+  /** The command-line program the installation recorded for `/0` to open, and this build's own. */
+  controlCenter: { recorded: string | null; exists: boolean; shipped: string | null };
   /** The newest time a session's mod reported in, and its version. */
   modSeen: { at: number; version: string } | null;
 

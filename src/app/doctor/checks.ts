@@ -239,6 +239,17 @@ const installPluginFiles: Check = (f) => {
   return result(id, 'install', false, 'ok', m('doc.install.pluginFiles.ok'));
 };
 
+/** The command-line program `/0` opens beside a session: recorded by the installation, and still there. */
+const installControlCenter: Check = (f) => {
+  const id = 'install.controlCenter';
+  if (!f.manifest) return result(id, 'install', false, 'skip', m('doc.notInstalled'));
+  const c = f.controlCenter;
+  if (c.recorded && c.exists) return result(id, 'install', false, 'ok', m('doc.install.cli.ok', { path: c.recorded }));
+  if (!c.shipped) return result(id, 'install', false, 'info', m('doc.install.hook.noBuild'));
+  if (!c.recorded) return result(id, 'install', false, 'warn', m('doc.install.cli.none'), { repair: 'record-cli' });
+  return result(id, 'install', false, 'warn', m('doc.install.cli.gone', { path: c.recorded }), { repair: 'record-cli' });
+};
+
 const installModSeen: Check = (f) => {
   const id = 'install.modSeen';
   if (!f.manifest) return result(id, 'install', false, 'skip', m('doc.notInstalled'));
@@ -583,6 +594,7 @@ export const CHECKS: readonly Check[] = [
   installHookProgram,
   installHooks,
   installPluginFiles,
+  installControlCenter,
   installModSeen,
   installAutonomy,
   protectAgreement,

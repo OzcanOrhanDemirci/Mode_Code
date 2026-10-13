@@ -126,6 +126,10 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       assert.deepEqual(settings.hooks.Notification, mine.hooks.Notification);
       assert.equal(settings.hooks.PreToolUse[0].hooks[0].onFailure, 'block');
       assert.ok(w.claudeState().plugins.some((p) => p.id === 'terminal-code@terminal-code-local'));
+      // The program /0 opens beside a session: this build's own, recorded where the plugin reads it.
+      const recorded = JSON.parse(readFileSync(join(w.data, 'install', 'manifest.json'), 'utf8')).cli;
+      assert.match(recorded, /\/dist\/cli\.mjs$/);
+      assert.ok(existsSync(recorded), recorded);
 
       const s = cli(w, ['status', '--json'], opt);
       assert.equal(s.json?.installed, true);
@@ -137,11 +141,17 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       // here too; the installation's own checks must pass.
       for (const id of ['install.hooks', 'install.hookProgram', 'node.hooks', 'protect.agreement', 'install.pluginFiles'])
         assert.ok(!fails.some((f) => f.id === id), `${id} failed on a fresh installation`);
+      const ccStatus = (healthy.json?.checks as { id: string; status: string }[]).find((c) => c.id === 'install.controlCenter')?.status;
+      assert.equal(ccStatus, 'ok');
 
-      // Break it the way an accident would: the hooks gone from the settings, the hook program deleted.
+      // Break it the way an accident would: the hooks gone from the settings, the hook program deleted; and the
+      // record an installation before /0 opened anything has: no command-line program in it.
       writeFileSync(join(w.claudeDir, 'settings.json'), JSON.stringify(mine));
       const hook = join(w.data, 'bin', 'hook.mjs');
       writeFileSync(hook, 'process.exit(0);\n');
+      const older = JSON.parse(readFileSync(join(w.data, 'install', 'manifest.json'), 'utf8'));
+      delete older.cli;
+      writeFileSync(join(w.data, 'install', 'manifest.json'), JSON.stringify(older));
       const broken = cli(w, ['doctor', '--json'], opt);
       assert.equal(broken.code, 1);
       const status = (id: string, j: Record<string, any> | null) => (j?.checks as { id: string; status: string }[]).find((c) => c.id === id)?.status;
@@ -151,13 +161,17 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
         (j?.checks as { id: string; summary: { key: string } }[]).find((c) => c.id === id)?.summary.key;
       // The installation recorded the program's fingerprint: a change since is called a change.
       assert.equal(said('install.hookProgram', broken.json), dist ? 'doc.install.hook.altered' : 'doc.install.hook.notThisBuild');
+      assert.equal(said('install.controlCenter', broken.json), 'doc.install.cli.none');
       const fixed = cli(w, ['doctor', '--json', '--fix'], opt);
       const repairs = fixed.json?.repairs as { id: string; verified: boolean }[];
       assert.ok(repairs.some((r) => r.id === 'restore-hooks' && r.verified));
       assert.ok(repairs.some((r) => r.id === 'restore-hook-program' && r.verified));
+      assert.ok(repairs.some((r) => r.id === 'record-cli' && r.verified));
       assert.equal(status('install.hooks', fixed.json), 'ok');
+      assert.equal(status('install.controlCenter', fixed.json), 'ok');
       const manifest = JSON.parse(readFileSync(join(w.data, 'install', 'manifest.json'), 'utf8'));
       assert.equal(manifest.hookHash, createHash('sha256').update(readFileSync(hook)).digest('hex'), 'the repair recorded the program it put back');
+      assert.equal(manifest.cli, recorded, 'the repair recorded the program /0 opens, the one the installation did');
       const after = JSON.parse(readFileSync(join(w.claudeDir, 'settings.json'), 'utf8'));
       assert.equal(after.theme, 'dark', "the person's settings survived the repair");
       assert.ok(after.hooks.PreToolUse);
