@@ -6,6 +6,7 @@
  * they change, and are counted only when the check passes again afterwards.
  */
 import type { SyncRecord } from '../../core/memory-sync.js';
+import type { SharedRecord } from '../../core/sync-export.js';
 import type { MessageKey } from '../../core/i18n/index.js';
 import type { TranscriptShape } from '../../core/transcript.js';
 import type { PathAlias, Platform } from '../../core/paths.js';
@@ -128,6 +129,19 @@ export interface Facts {
     setting: string | null;
     inUse: boolean;
     last: SyncRecord | null;
+  } | null;
+
+  /** Sync across computers (docs/sync.md): where, whether it is there, git, the last sync, what waits. */
+  sync: {
+    place: string;
+    dir: string;
+    name: string;
+    exists: boolean;
+    isRepo: boolean;
+    hasOrigin: boolean;
+    others: number;
+    last: SharedRecord | null;
+    pending: string[];
   } | null;
 
   gitBash: { path: string | null; tmp: string | null; expectedTmp: string; error?: string } | null;

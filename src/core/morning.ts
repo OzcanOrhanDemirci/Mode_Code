@@ -36,6 +36,10 @@ export interface MorningFacts {
   memory: { place: MemoryPlace; ahead: number | null; conflicts: string[]; held: string[]; error: string | null } | null;
   /** Notes from full-autonomy runs waiting for approval. */
   notes: number;
+  /** What the other computers did (docs/sync.md): only those with something to say. */
+  elsewhere?: { machine: string; runs: MorningRun[]; flows: number; sessions: number; blocked: number }[];
+  /** Settings from other computers waiting for the person. */
+  syncPending?: number;
 }
 
 /** The person was away long enough for a morning report: a gap of at least `afterHours` since the last prompt. */
@@ -87,6 +91,19 @@ export function morningLines(f: MorningFacts, lang: Lang): { label: string; text
   }
   if (f.belt && (f.belt.blocked || f.belt.asked))
     out.push({ label: L('morning.belt'), text: L('morning.beltText', { blocked: f.belt.blocked, asked: f.belt.asked }) });
+  for (const e of f.elsewhere ?? []) {
+    const parts = [
+      e.sessions ? L('morning.elsewhere.sessions', { n: e.sessions }) : '',
+      ...e.runs.map(
+        (r) =>
+          `${r.task.split('\n')[0]!.slice(0, 60)} · ${r.status === 'paused' && r.reason ? L('morning.run.pausedFor', { reason: r.reason }) : L(`morning.run.${r.status}` as Parameters<typeof tIn>[1])}`,
+      ),
+      e.flows ? L('morning.elsewhere.flows', { n: e.flows }) : '',
+      e.blocked ? L('morning.elsewhere.blocked', { n: e.blocked }) : '',
+    ].filter(Boolean);
+    out.push({ label: L('morning.elsewhere'), text: `${e.machine}: ${parts.join(' · ')}` });
+  }
+  if (f.syncPending) out.push({ label: L('morning.sync'), text: L('morning.syncPending', { n: f.syncPending }) });
   if (f.quota && f.quota.weekTo !== null)
     out.push({ label: L('morning.quota'), text: L('morning.quotaText', { from: percent(f.quota.weekFrom, lang), to: percent(f.quota.weekTo, lang) }) });
   return out;
@@ -106,6 +123,9 @@ export function morningSummary(f: MorningFacts, lang: Lang): string | null {
   if (m && (m.conflicts.length || m.held.length || m.error)) parts.push(L('morning.sum.memory'));
   else if (m && m.ahead && m.place !== 'local') parts.push(L('morning.sum.ahead', { n: m.ahead }));
   if (f.handoffs.length) parts.push(L('morning.sum.handoffs', { n: f.handoffs.length }));
+  const news = (f.elsewhere ?? []).filter((e) => e.runs.length || e.flows);
+  if (news.length) parts.push(L('morning.sum.elsewhere', { names: news.map((e) => e.machine).join(', ') }));
+  if (f.syncPending) parts.push(L('morning.sum.pending', { n: f.syncPending }));
   return parts.length ? L('morning.sum', { what: parts.join(' · '), cmd: `${APP_NAME} morning` }) : null;
 }
 

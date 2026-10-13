@@ -479,7 +479,7 @@ function stop(io: SetupIO, why: string): SetupOutcome {
   return STOP;
 }
 
-async function run(r: Runner, argv: string[], cwd: string, timeoutMs = 30_000): Promise<{ ok: boolean; out: string; err: string }> {
+export async function run(r: Runner, argv: string[], cwd: string, timeoutMs = 30_000): Promise<{ ok: boolean; out: string; err: string }> {
   try {
     const out = await r.run(argv, { cwd, timeoutMs, env: { GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', LC_ALL: 'C' } });
     return { ok: out.exitCode === 0, out: out.stdout, err: out.stderr.trim() || out.stdout.trim() };
@@ -489,35 +489,36 @@ async function run(r: Runner, argv: string[], cwd: string, timeoutMs = 30_000): 
 }
 
 /** The folder's origin as configured (not as `url.insteadOf` rewrites it), when the folder is in a work tree that has one. */
-async function remoteOf(r: Runner, git: string, dir: string): Promise<{ url: string; repo: string | null } | null> {
+export async function remoteOf(r: Runner, git: string, dir: string): Promise<{ url: string; repo: string | null } | null> {
   const url = await run(r, [git, '-C', dir, 'config', '--get', 'remote.origin.url'], dir);
   if (!url.ok || !url.out.trim()) return null;
   return { url: url.out.trim(), repo: githubRepoOf(url.out.trim()) };
 }
 
-/** Offers to install a missing tool with this system's installer; finds it again afterwards. */
-async function offerInstall(
+/** Offers to install a missing tool with this system's installer; finds it again afterwards. `cmd` is the setup to run again. */
+export async function offerInstall(
   io: SetupIO,
-  env: SetupEnv,
+  env: Pick<SetupEnv, 'has' | 'platform' | 'runner' | 'exists'>,
   tool: ToolName,
   T: (k: MessageKey, p?: Record<string, string | number>) => string,
+  cmd = 'terminal-code memory setup',
 ): Promise<ToolFound | null> {
   const managers = ['winget', 'brew', 'apt-get', 'dnf', 'pacman', 'zypper'];
   const present = new Set<string>();
   for (const m of managers) if (await env.has(m)) present.add(m);
   const plan = installPlan(tool, env.platform, (p) => present.has(p));
   if (!plan.argv) {
-    io.say(T('msetup.tool.page', { page: plan.page }));
+    io.say(T('msetup.tool.page', { page: plan.page, cmd }));
     return null;
   }
   if (!(await io.confirm(T('msetup.tool.install', { cmd: plan.argv.join(' ') }), true))) {
-    io.say(T('msetup.tool.page', { page: plan.page }));
+    io.say(T('msetup.tool.page', { page: plan.page, cmd }));
     return null;
   }
   await io.interactive(plan.argv);
   const found = await findTool(env.runner, tool, env.platform, env.exists);
   if (found) io.say(T('msetup.tool.found', { tool, version: found.version }));
-  else io.say(T('msetup.tool.reopen'));
+  else io.say(T('msetup.tool.reopen', { cmd }));
   return found;
 }
 

@@ -26,6 +26,7 @@ import {
   Memory,
   MemoryHandoffs,
   MemoryStore,
+  Sync,
   Modules,
   Projects,
 } from './screens/settings.js';
@@ -261,6 +262,17 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
           n('handoffs', 'page.memoryHandoffs', { description: d('desc.memoryHandoffs'), screen: (p) => <MemoryHandoffs {...p} /> }),
           n('protected', 'page.memoryProtected', { description: d('desc.memoryProtected'), screen: (p) => <Memory {...p} /> }),
         ],
+      }),
+      n('sync', 'page.sync', {
+        description: d('desc.sync'),
+        badge: (() => {
+          const v = data.sync();
+          if (!v.setting) return { text: t('mem.notSetUp'), state: 'gray' as const };
+          if (!v.exists) return { text: t('health.state.red'), state: 'red' as const };
+          if (v.pending.length) return { text: t('sync.badge.waiting', { n: v.pending.length }), state: 'red' as const };
+          return { text: v.setting.machine.name, state: 'info' as const };
+        })(),
+        screen: (p) => <Sync {...p} />,
       }),
       n('projects', 'page.projects', { description: d('desc.projectsSet'), screen: (p) => <Projects {...p} /> }),
       n('autonomy', 'page.autonomy', { description: d('desc.autonomy'), screen: (p) => <Autonomy {...p} /> }),

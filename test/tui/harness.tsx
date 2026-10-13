@@ -5,6 +5,7 @@
  */
 import { render } from 'ink';
 import type { HandoffItem, MemoryView } from '../../src/app/memory.js';
+import type { SyncView } from '../../src/app/sync.js';
 import { EventEmitter } from 'node:events';
 import { App, type AppProps } from '../../src/tui/app.js';
 import { cloneDefaults, setConfigValue, type Config, type ConfigProblem } from '../../src/core/config.js';
@@ -280,6 +281,10 @@ export class FakeData implements DataSource {
   morningReport: { since: number; lines: { label: string; text: string }[] } | null = null;
   morning() {
     return this.morningReport;
+  }
+  syncState: SyncView = { setting: null, exists: false, machines: [], last: null, pending: [], applied: [], homeless: [], handoffs: 'local' };
+  sync() {
+    return this.syncState;
   }
   lastSeen() {
     return this.seen;

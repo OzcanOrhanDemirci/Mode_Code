@@ -116,6 +116,16 @@ export async function ghRepo(r: Runner, ghCommand: string, repo: string): Promis
   }
 }
 
+/**
+ * Whether a repository holds a path at its top (a folder or a file), asked of GitHub without a download:
+ * true, false (GitHub said it is not there), or null when GitHub could not be asked.
+ */
+export async function ghHasPath(r: Runner, ghCommand: string, repo: string, path: string): Promise<boolean | null> {
+  const out = await gh(r, ghCommand, ['api', `repos/${repo}/contents/${path}`, '--silent']);
+  if (out.ok) return true;
+  return /\b404\b|not found/i.test(out.err + out.out) ? false : null;
+}
+
 /** Creates a private repository; null on success, else what GitHub said. */
 export async function ghCreatePrivate(r: Runner, ghCommand: string, repo: string, description: string): Promise<string | null> {
   const out = await gh(r, ghCommand, ['repo', 'create', repo, '--private', '--description', description], 60_000);

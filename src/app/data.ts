@@ -91,11 +91,16 @@ export interface ToolEvent {
 
 /** Events of the last `days` days, newest first. */
 export function loadEvents(ctx: AppContext, days = 30, now = Date.now()): ToolEvent[] {
+  return loadEventsFrom(ctx.layout.eventsDir, days, now);
+}
+
+/** The events of the last `days` in an events folder: this computer's, or another's copy in the shared place (docs/sync.md). */
+export function loadEventsFrom(eventsDir: string, days = 30, now = Date.now()): ToolEvent[] {
   const since = now - days * 86400_000;
   const out: ToolEvent[] = [];
   let months: string[];
   try {
-    months = readdirSync(ctx.layout.eventsDir).filter((m) => /^\d{4}-\d{2}$/.test(m));
+    months = readdirSync(eventsDir).filter((m) => /^\d{4}-\d{2}$/.test(m));
   } catch {
     return [];
   }
@@ -104,13 +109,13 @@ export function loadEvents(ctx: AppContext, days = 30, now = Date.now()): ToolEv
   for (const m of months.filter((x) => x >= oldestMonth)) {
     let files: string[];
     try {
-      files = readdirSync(join(ctx.layout.eventsDir, m)).filter((f) => f.endsWith('.jsonl'));
+      files = readdirSync(join(eventsDir, m)).filter((f) => f.endsWith('.jsonl'));
     } catch {
       continue;
     }
     for (const f of files) {
       const session = f.replace(/\.(?:mod|hook|cli)\.jsonl$/, '');
-      for (const line of (readText(join(ctx.layout.eventsDir, m, f)) ?? '').split('\n')) {
+      for (const line of (readText(join(eventsDir, m, f)) ?? '').split('\n')) {
         if (!line) continue;
         try {
           const e = JSON.parse(line) as ToolEvent;

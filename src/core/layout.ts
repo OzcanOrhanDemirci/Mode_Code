@@ -19,6 +19,8 @@
  *   handoffs/<project>/              the mod (handoff notes, when no memory store is set up)
  *   state/memory-sync.<who>.json     one writer each (mod, hook, cli): the last sync of the memory store
  *   state/memory-seen.<who>.json     one writer each: the commit the memory store was last seen at
+ *   state/sync.<who>.json            one writer each (mod, hook, cli): the last sync across computers (docs/sync.md)
+ *   state/sync-ignored.json          the command line (settings from other computers the person kept their own value for)
  *   state/activity.json              the mod (when the person last typed: the morning report's gap)
  *   state/notes.json                 the command line (the person's decisions on notes from runs)
  *   state/notes-delivered.json       the mod (approved notes handed to a session)
@@ -47,6 +49,7 @@ export interface Layout {
   activity: string;
   notes: string;
   notesDelivered: string;
+  syncIgnored: string;
 }
 
 export function layout(root: string): Layout {
@@ -72,12 +75,18 @@ export function layout(root: string): Layout {
     activity: joinPath(root, 'state', 'activity.json'),
     notes: joinPath(root, 'state', 'notes.json'),
     notesDelivered: joinPath(root, 'state', 'notes-delivered.json'),
+    syncIgnored: joinPath(root, 'state', 'sync-ignored.json'),
   };
 }
 
 /** The last sync of the memory store, one file per writer. */
 export function memorySyncFile(l: Layout, writer: 'mod' | 'hook' | 'cli'): string {
   return joinPath(l.stateDir, `memory-sync.${writer}.json`);
+}
+
+/** A writer's last sync across computers (docs/sync.md). */
+export function syncRecordFile(l: Layout, writer: 'mod' | 'hook' | 'cli'): string {
+  return joinPath(l.stateDir, `sync.${writer}.json`);
 }
 
 /** Where a writer last saw the memory store (a commit): what arrived since is told to Claude. */

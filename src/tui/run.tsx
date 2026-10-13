@@ -10,6 +10,7 @@ import { LiveData } from './store.js';
 import { App } from './app.js';
 import type { LeaveAction } from './ui.js';
 import { runMemorySetup } from '../cli/memory.js';
+import { runSyncSetup } from '../cli/sync.js';
 
 export async function runControlCenter(opts: { address: string | null; plain: boolean }): Promise<number> {
   const ctx = appContext();
@@ -48,6 +49,7 @@ export async function runControlCenter(opts: { address: string | null; plain: bo
     const left = leave as { action: LeaveAction; back: string } | null;
     if (!left) return 0;
     if (left.action === 'memory-setup') await runMemorySetup(appContext());
+    if (left.action === 'sync-setup') await runSyncSetup(appContext());
     process.stdout.write(`\n${tIn(ctx.lang, 'tui.backSoon')}\n`);
     await new Promise((r) => setTimeout(r, 1200));
     address = left.back;

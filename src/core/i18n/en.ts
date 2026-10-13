@@ -9,6 +9,7 @@ import { enDoctor } from './en-doctor.js';
 import { enModes } from './en-modes.js';
 import { enAuto } from './en-auto.js';
 import { enMemory } from './en-memory.js';
+import { enSync } from './en-sync.js';
 
 export const en = {
   ...enUi,
@@ -17,6 +18,7 @@ export const en = {
   ...enModes,
   ...enAuto,
   ...enMemory,
+  ...enSync,
   // ── safety belt: reasons (one per situation; {placeholders} are filled in) ──
   'belt.reason.inline': 'Inside code passed to an interpreter: {reason}',
   'belt.reason.deleteUnknown': 'Recursive delete whose target is only known at run time: {target}.',

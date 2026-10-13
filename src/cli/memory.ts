@@ -31,7 +31,7 @@ function json(schema: string, data: object): void {
 }
 
 /** The setup's questions, asked in this terminal. */
-function terminalIO(ctx: AppContext): SetupIO {
+export function terminalIO(ctx: AppContext): SetupIO {
   const T = (k: MessageKey, p?: Record<string, string | number>) => tIn(ctx.lang, k, p);
   const line = async (q: string): Promise<string> => {
     const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -74,7 +74,7 @@ function terminalIO(ctx: AppContext): SetupIO {
 }
 
 /** Whether a program answers on this PATH. */
-async function has(program: string): Promise<boolean> {
+export async function has(program: string): Promise<boolean> {
   const r = spawnSync(program, ['--version'], { stdio: 'ignore', windowsHide: true, timeout: 10_000 });
   return !r.error && r.status !== null;
 }

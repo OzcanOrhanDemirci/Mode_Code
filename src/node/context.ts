@@ -2,6 +2,7 @@
 /** Builds the contexts the pure core needs from what a Node process can see. */
 import { homedir } from 'node:os';
 import { parseConfig, type Config, type ConfigProblem } from '../core/config.js';
+import type { Pending } from '../core/sync.js';
 import { beltConfigOf } from '../core/settings-view.js';
 import type { BeltContext } from '../core/belt/types.js';
 import type { ClassifyEnv } from '../core/footer.js';
@@ -11,14 +12,22 @@ import type { Layout } from '../core/layout.js';
 import { readText, fileSize, realPathOf } from './fsx.js';
 import { gitFacts } from './git.js';
 import { claudeDir, home, managedSettingsFiles, platform, scratchDirs, toolPath } from './env.js';
+import { mergedConfig } from './sync.js';
 
 export interface LoadedConfig {
+  /** The settings in effect: this computer's own, with the other computers' changes when sync is set up (docs/sync.md). */
   config: Config;
   problems: ConfigProblem[];
+  /** This computer's own settings, config.json as it is. */
+  local: Config;
+  /** Settings from other computers that lower a protection here, waiting for the person. */
+  pending: Pending[];
 }
 
 export function loadConfig(l: Layout): LoadedConfig {
-  return parseConfig(readText(l.config));
+  const { config, problems } = parseConfig(readText(l.config));
+  const m = mergedConfig(config, l);
+  return { config: m.config, problems, local: config, pending: m.pending };
 }
 
 export function memoryDirs(config: Config, cwd: string): string[] {
@@ -66,6 +75,7 @@ export function beltContext(opts: {
     knownProjects: opts.config.projects.flatMap((p) => (p.path ? [resolvePath(p.path, { platform, home: homedir(), cwd: opts.cwd })] : [])),
     env,
     dataDir: opts.layout.root,
+    ...(opts.config.sync ? { syncDir: resolvePath(opts.config.sync.dir, { platform, home: homedir(), cwd: opts.cwd }) } : {}),
     memoryDirs: memory,
     managedSettingsFiles: managedSettingsFiles(),
     lang: opts.lang,

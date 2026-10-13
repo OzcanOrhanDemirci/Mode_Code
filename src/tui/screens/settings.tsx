@@ -276,6 +276,61 @@ export function MemoryStore({ width, open }: ScreenProps) {
   );
 }
 
+/** Sync across computers (docs/sync.md): where it lives, the computers, the last sync, what waits; "s" opens the setup. */
+export function Sync({ width, open }: ScreenProps) {
+  const { data, flash, theme, leave, lang, now } = useEnv();
+  const t = useT();
+  const v = data.sync();
+  useScreenKeys((input) => {
+    if (input !== 's') return false;
+    if (leave) leave('sync-setup', 'settings/sync');
+    else flash(t('sync.setupCli'), 'warn');
+    return true;
+  }, open);
+  const s = v.setting;
+  const names = new Map(v.machines.map((m) => [m.id, m.name]));
+  return (
+    <Box flexDirection="column" width={width}>
+      <Muted wrap="wrap">{t('sync.intro')}</Muted>
+      <Box marginTop={1} flexDirection="column">
+        <Row label={t('scli.where')}>{s ? `${t(`scli.place.${s.place}` as MessageKey)}${s.repo ? ` · ${s.repo}` : ''}` : t('scli.title.none')}</Row>
+        {s ? (
+          <Row label={t('mcli.folder')} {...(v.exists ? {} : { color: theme.bad })}>
+            {shortPath(s.dir, homedir(), width - 24)}
+          </Row>
+        ) : null}
+        {s ? <Row label={t('scli.this')}>{`${s.machine.name} (${s.machine.id})`}</Row> : null}
+        {s
+          ? v.machines
+              .filter((m) => !m.self)
+              .map((m, i) => (
+                <Row key={m.id} label={i === 0 ? t('scli.others') : ''}>
+                  {`${m.name}${m.platform ? ` · ${m.platform}` : ''} · ${m.lastSeen ? t('scli.seen', { when: ago(m.lastSeen, now, lang) }) : t('scli.seen.never')}`}
+                </Row>
+              ))
+          : null}
+        {s ? <Row label={t('scli.last')}>{v.last ? ago(v.last.at, now, lang) : t('scli.last.none')}</Row> : null}
+        {v.pending.map((p, i) => (
+          <Row key={p.key} label={i === 0 ? t('scli.pending') : ''} color={theme.warn}>
+            {t('scli.pending.line', { key: p.key, machine: names.get(p.machine) ?? p.machine, when: ago(p.at, now, lang) })}
+          </Row>
+        ))}
+        {v.pending.length ? (
+          <Row label="">{t('scli.pending.hint', { approve: `${APP_NAME} sync approve <setting>`, ignore: `${APP_NAME} sync ignore <setting>` })}</Row>
+        ) : null}
+        {v.applied.length ? <Row label={t('scli.applied')}>{t('scli.applied.text', { n: v.applied.length })}</Row> : null}
+        {v.homeless.length ? (
+          <Row label={t('scli.projects')}>{t('scli.projects.text', { ids: v.homeless.join(', '), cmd: `${APP_NAME} sync project` })}</Row>
+        ) : null}
+        {s ? <Row label={t('scli.handoffs')}>{t(`scli.handoffs.${v.handoffs}` as MessageKey)}</Row> : null}
+      </Box>
+      <Box marginTop={1}>
+        <Note kind={s ? 'info' : 'warn'}>{t(s ? 'sync.changeKey' : 'sync.setupKey')}</Note>
+      </Box>
+    </Box>
+  );
+}
+
 /** Handoff notes and the morning report: when they are written and offered. */
 export function MemoryHandoffs({ width, open }: ScreenProps) {
   const { data } = useEnv();

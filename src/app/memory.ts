@@ -16,6 +16,7 @@ import { pathKey } from '../core/paths.js';
 import type { AppContext } from './context.js';
 import { loadEvents, openIndex } from './data.js';
 import { loadFlows } from './flows.js';
+import { elsewhereFacts } from './sync.js';
 import { loadRuns } from './runs.js';
 import { claudeDir, platform, toolPath } from '../node/env.js';
 import { readText, writeJsonAtomic } from '../node/fsx.js';
@@ -181,6 +182,8 @@ export function morningFacts(ctx: AppContext, since: number, until: number, opts
     quota: readings.length ? { weekFrom: readings[0]!.week ?? null, weekTo: readings[readings.length - 1]!.week ?? null } : null,
     memory,
     notes: pendingNoteRuns(ctx).length,
+    elsewhere: elsewhereFacts(ctx, since, until),
+    syncPending: ctx.pending?.length ?? 0,
   };
 }
 

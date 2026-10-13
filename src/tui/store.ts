@@ -27,6 +27,7 @@ import type { Run } from '../core/run.js';
 import type { GateResult } from '../core/run-gate.js';
 import { allHandoffs, memoryView, recentMorning, type HandoffItem, type MemoryView } from '../app/memory.js';
 import { morningLines } from '../core/morning.js';
+import { syncView, type SyncView } from '../app/sync.js';
 
 export interface Timed<T> {
   at: number;
@@ -80,6 +81,8 @@ export interface DataSource {
   handoffs(): HandoffItem[];
   /** The morning report of the last long gap while it is recent; null otherwise. */
   morning(): { since: number; lines: { label: string; text: string }[] } | null;
+  /** Sync across computers: where, the computers, what waits for the person (docs/sync.md). */
+  sync(): SyncView;
   refresh(): void;
   close(): void;
 }
@@ -235,6 +238,9 @@ export class LiveData implements DataSource {
   }
   handoffs(): HandoffItem[] {
     return this.memo('handoffs', 5_000, () => allHandoffs(this.ctx));
+  }
+  sync(): SyncView {
+    return this.memo('sync', 5_000, () => syncView(this.ctx));
   }
   morning(): { since: number; lines: { label: string; text: string }[] } | null {
     return this.memo('morning', 30_000, () => {

@@ -34,6 +34,7 @@ import { git, memoryStatus } from '../node/git.js';
 import { readTail } from '../node/tail.js';
 import { handoffLine, isFresh } from '../core/handoff.js';
 import { lookStore, recordSync, seenSince, syncStore, type SyncTrigger } from '../node/memory.js';
+import { pruneShared, sharedDue, syncShared } from '../node/sync.js';
 import { looksOnly, syncPlan } from '../core/memory-sync.js';
 import { pulledContext } from '../core/memory.js';
 import type { SyncResult } from '../core/memory-sync.js';
@@ -180,18 +181,23 @@ async function hookSync(
 
 async function userPromptSubmit(input: Input, lang: Lang): Promise<void> {
   const l = dataLayout();
-  const { config } = loadConfig(l);
+  const { config, local, pending } = loadConfig(l);
   const sessionId = str(input.session_id) ?? '';
   const previousPrompt = recordPrompt(l, sessionId, str(input.permission_mode), Date.now());
   const modFile = sessionFile(l, sessionId, 'mod');
   if (modFile && readText(modFile) !== null) return; // the mod handles keywords and the memory in this session
   const notes: string[] = [];
+  let toPerson: string | null = null;
   // Without the plugin, the session's first prompt brings the memory in and offers the waiting handoff note.
   if (previousPrompt === 0) {
     // Claude Code has loaded the index by now: what the pull brought in is told with this prompt.
     const r = await hookSync(l, config, 'start', sessionId, lang);
     const pulled = r && config.memory.store ? pulledContext({ files: r.pulled, index: r.index }, config.memory.store.dir) : null;
     if (pulled) notes.push(pulled);
+    // Sync across computers before the handoff note is looked for: one written on another computer comes with it (docs/sync.md).
+    if (local.sync) await syncShared(local, l, { trigger: 'start', session: sessionId || null, writer: 'hook' });
+    const waiting = local.sync ? loadConfig(l).pending : pending;
+    if (waiting.length) toPerson = tIn(lang, 'mod.sync.pending', { keys: waiting.map((p) => p.key).join(', '), cmd: 'terminal-code sync' });
     if (config.memory.handoff.enabled) {
       try {
         const h = newestHandoffAt(config, l, projectKeyAt(config, str(input.cwd) ?? process.cwd()));
@@ -202,7 +208,11 @@ async function userPromptSubmit(input: Input, lang: Lang): Promise<void> {
     }
   }
   const say = () => {
-    if (notes.length) out({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: notes.join('\n') } });
+    if (notes.length || toPerson)
+      out({
+        ...(toPerson ? { systemMessage: toPerson } : {}),
+        ...(notes.length ? { hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: notes.join('\n') } } : {}),
+      });
   };
   if (!config.modules.keywords) return say();
   const prompt = str(input.prompt) ?? '';
@@ -281,11 +291,15 @@ function autonomyStop(input: Input, l: ReturnType<typeof dataLayout>, config: Re
 
 async function stop(input: Input, lang: Lang): Promise<void> {
   const l = dataLayout();
-  const { config } = loadConfig(l);
-  // Without the plugin, a turn that changed the memory is recorded and sent here (docs/memory.md).
+  const { config, local } = loadConfig(l);
+  // Without the plugin, a turn that changed the memory is recorded and sent here (docs/memory.md), and sync
+  // across computers runs when it is due (docs/sync.md).
   const sid = str(input.session_id) ?? '';
   const modPath = sessionFile(l, sid, 'mod');
-  if (!(modPath && readText(modPath) !== null)) await hookSync(l, config, 'turn', sid, lang);
+  if (!(modPath && readText(modPath) !== null)) {
+    await hookSync(l, config, 'turn', sid, lang);
+    if (sharedDue(local, l)) await syncShared(local, l, { trigger: 'turn', session: sid || null, writer: 'hook' });
+  }
   const auto = autonomyStop(input, l, config, lang);
   if (auto) {
     // Feedback that keeps the run going, not an error: the run works as designed (docs/autonomy.md).
@@ -328,11 +342,13 @@ async function stop(input: Input, lang: Lang): Promise<void> {
 
 function sessionStart(input: Input, lang: Lang): void {
   const l = dataLayout();
-  const { config } = loadConfig(l);
+  const { config, local } = loadConfig(l);
   const sessionId = str(input.session_id) ?? '';
-  // Handoff notes past the kept number leave the folder (the plugin cannot delete files; git keeps them).
+  // Handoff notes past the kept number leave the folder, and this computer's history past the months kept
+  // leaves the shared place (the plugin cannot delete files; git keeps them).
   try {
     pruneHandoffs(config, l);
+    pruneShared(local);
   } catch {
     /* tried again at the next start */
   }

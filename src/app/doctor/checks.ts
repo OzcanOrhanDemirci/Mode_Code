@@ -4,6 +4,7 @@
  * names a repair when a safe one exists, and otherwise says what the person can do. A check never guesses:
  * what could not be measured is reported as such.
  */
+import { syncProblem } from '../../core/memory-sync.js';
 import { MIN_CLAUDE_CODE_FOR_HOOKS, MIN_CLAUDE_CODE_FOR_MODS, PLUGIN_ID } from '../../core/app.js';
 import { caseInsensitive } from '../../core/paths.js';
 import { compareVersions } from '../../core/version.js';
@@ -299,6 +300,22 @@ const dataMemoryStore: Check = (f) => {
   return result(id, 'data', false, 'ok', m('doc.memory.ok', { place: `@msetup.place.${s.place}`, dir: s.dir }));
 };
 
+const dataSync: Check = (f) => {
+  const id = 'data.sync';
+  const s = f.sync;
+  if (!s) return result(id, 'data', false, 'info', m('doc.sync.none'), { hint: m('doc.sync.setupHint') });
+  if (!s.exists) return result(id, 'data', false, 'fail', m('doc.sync.missing', { dir: s.dir }), { hint: m('doc.sync.setupHint') });
+  if (s.place === 'github' && !s.isRepo) return result(id, 'data', false, 'warn', m('doc.sync.noGit', { dir: s.dir }), { hint: m('doc.sync.setupHint') });
+  if (s.place === 'github' && !s.hasOrigin) return result(id, 'data', false, 'warn', m('doc.sync.noOrigin', { dir: s.dir }), { hint: m('doc.sync.setupHint') });
+  const r = s.last?.result ?? null;
+  const problem = s.last?.error ? 'failed' : r ? syncProblem(r) : null;
+  if (problem && problem !== 'offline')
+    return result(id, 'data', false, 'warn', m('doc.sync.problem', { detail: s.last?.error ?? (r?.detail || problem) }), { hint: m('doc.sync.nowHint') });
+  if (s.pending.length)
+    return result(id, 'data', false, 'warn', m('doc.sync.pending', { n: s.pending.length, keys: s.pending.join(', ') }), { hint: m('doc.sync.pendingHint') });
+  return result(id, 'data', false, 'ok', m('doc.sync.ok', { place: `@scli.place.${s.place}`, name: s.name, n: s.others }));
+};
+
 // ── shells and terminal ──
 
 const shellGitBash: Check = (f) => {
@@ -574,6 +591,7 @@ export const CHECKS: readonly Check[] = [
   dataIndex,
   dataQuota,
   dataMemoryStore,
+  dataSync,
   dataTranscripts,
   dataToolNames,
   dataSessionIds,

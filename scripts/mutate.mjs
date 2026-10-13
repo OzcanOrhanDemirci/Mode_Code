@@ -72,6 +72,9 @@ const TARGETS = {
   'src/core/memory-sync.ts': ['test/core/memory-sync-steps.test.ts', 'test/core/memory-sync-records.test.ts'],
   'src/core/handoff.ts': ['test/core/handoff.test.ts'],
   'src/core/morning.ts': ['test/core/morning.test.ts'],
+  // Sync across computers (docs/sync.md): how settings meet, and what never applies without the person.
+  'src/core/sync.ts': ['test/core/sync.test.ts', 'test/properties/sync.test.ts'],
+  'src/core/sync-export.ts': ['test/core/sync-export.test.ts'],
 };
 
 // ── finding mutation sites in TypeScript without a parser: code outside strings, comments and regexes ──

@@ -87,6 +87,8 @@ export interface SyncInput {
   pullMode?: 'rebase' | 'ff-only';
   /** The commit this computer last saw the store at: what arrived since, by any hand, is reported as well. */
   since?: string | null;
+  /** Files larger than this are held back (MAX_NOTE_BYTES unless given: the sync's history files may be larger than notes). */
+  maxBytes?: number;
 }
 
 export type SyncTrigger = 'start' | 'turn' | 'manual';
@@ -255,7 +257,7 @@ async function commitStep(git: Git, input: SyncInput, top: string, res: SyncResu
     const text = await input.readFile(`${top.replace(/[\\/]+$/, '')}/${c.path}`);
     // A folder git lists as one untracked entry (a nested repository) or a file that cannot be read is left as it is.
     if (text === null) continue;
-    if (new TextEncoder().encode(text).length > MAX_NOTE_BYTES) res.held.push({ path: c.path, reason: 'large' });
+    if (new TextEncoder().encode(text).length > (input.maxBytes ?? MAX_NOTE_BYTES)) res.held.push({ path: c.path, reason: 'large' });
     else if (input.secrets(text) > 0) res.held.push({ path: c.path, reason: 'secret' });
     else ok.push(c);
   }

@@ -352,6 +352,22 @@
       "line": "typeof o.result !== 'object' || o.result === null",
       "kind": "equivalent",
       "why": "a result that is null or not an object fails at the next test: reading its fields throws (caught: no record) or finds no commit, pull and push"
+    },
+    {
+      "file": "src/core/sync.ts",
+      "from": "<",
+      "to": "<=",
+      "line": "machine < own.machine",
+      "kind": "equivalent",
+      "why": "a file with this computer's own id is skipped before the comparison, so the two ids are never equal there"
+    },
+    {
+      "file": "src/core/sync.ts",
+      "from": "<",
+      "to": "<=",
+      "line": "m.machine < best.machine",
+      "kind": "equivalent",
+      "why": "two other computers never share an id: each is a folder name under machines/"
     }
   ]
 }

@@ -188,7 +188,7 @@ export function protectedPaths(ctx: BeltContext): ProtectedPaths {
     '/etc/crontab',
   ].map((p) => resolvePath(p, env));
   const memoryDirs = ctx.memoryDirs.map((p) => resolvePath(p, env));
-  const toolDirs = [resolvePath(ctx.dataDir, env)];
+  const toolDirs = [resolvePath(ctx.dataDir, env), ...(ctx.syncDir ? [joinPath(resolvePath(ctx.syncDir, env), 'machines')] : [])];
   // Every folder and file the checks name, so a short-name spelling of any of them is written out.
   const known = dedupe(
     [

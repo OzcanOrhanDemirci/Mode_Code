@@ -14,7 +14,9 @@ import { atom, read, update } from 'claude-code';
 import type { TerminalCodeFooters, TerminalCodeLabels } from './contract.js';
 import { APP_NAME, APP_VERSION, DATA_DIR_NAME, PLUGIN_NAME } from '../core/app.js';
 import { parseConfig, type Config } from '../core/config.js';
-import { layout, sessionFile, eventsFile, flowDir, memorySeenFile, memorySyncFile, runDir, type Layout } from '../core/layout.js';
+import { layout, sessionFile, eventsFile, flowDir, memorySeenFile, memorySyncFile, runDir, syncRecordFile, type Layout } from '../core/layout.js';
+import { SYNC_MAX_BYTES, syncCommitMessage, type Pending } from '../core/sync.js';
+import { exportMachine, parseSharedRecord, settingsInEffect, syncDue, type SharedRecord, type SyncFs } from '../core/sync-export.js';
 import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform } from '../core/paths.js';
 import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '../core/i18n/index.js';
 import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
@@ -199,6 +201,16 @@ interface Ctx {
   memSyncing: boolean;
   /** Sync problems already told to the person in this session. */
   memWarned: Set<string>;
+  // ── sync across computers (docs/sync.md) ──
+  /** This computer's own settings, config.json as it is; `config` is the settings in effect. */
+  local: Config;
+  /** Settings from other computers that lower a protection here, waiting for the person; those already told. */
+  syncPending: Pending[];
+  syncSaid: Set<string>;
+  /** The sync at the session's start while it runs: the first prompt waits for it (handoff notes may come with it). */
+  sharedStart: Promise<void> | null;
+  sharedSyncing: boolean;
+  sharedWarned: Set<string>;
   /** The sync at the session's start while it runs: the first prompt waits for it. */
   memStart: Promise<unknown> | null;
   /** What syncs brought in from elsewhere since the last prompt, told to Claude with the next one. */
@@ -327,7 +339,10 @@ async function load($: $): Promise<Ctx> {
   const home = resolvePath(rawHome, { platform, home: rawHome, cwd });
   const root = env.TERMINAL_CODE_HOME ? resolvePath(env.TERMINAL_CODE_HOME, { platform, home, cwd }) : joinPath(home, DATA_DIR_NAME);
   const l = layout(root);
-  const { config } = parseConfig(await readFile($, l.config));
+  const { config: local } = parseConfig(await readFile($, l.config));
+  // The settings in effect: this computer's own with the other computers' changes (docs/sync.md).
+  const merged = await settingsInEffect(modSyncFs($), local, l.syncIgnored);
+  const config = merged.config;
   const lang = detectLanguage({ configured: config.language === 'auto' ? null : config.language, env });
   setLanguage(lang);
   const sessionId = await $.session.id();
@@ -375,6 +390,12 @@ async function load($: $): Promise<Ctx> {
     memWarned: new Set(),
     memStart: null,
     memPulled: null,
+    local,
+    syncPending: merged.pending,
+    syncSaid: new Set(),
+    sharedStart: null,
+    sharedSyncing: false,
+    sharedWarned: new Set(),
   };
 }
 
@@ -438,7 +459,11 @@ async function sameFolderNotes($: $, c: Ctx): Promise<string[]> {
 /** Settings changed in the control center take effect at the next prompt, without restarting the session. */
 async function refreshConfig($: $, c: Ctx): Promise<void> {
   const text = await readFile($, c.layout.config);
-  const { config } = parseConfig(text);
+  const { config: local } = parseConfig(text);
+  const merged = await settingsInEffect(modSyncFs($), local, c.layout.syncIgnored);
+  c.local = local;
+  c.syncPending = merged.pending;
+  const config = merged.config;
   if (JSON.stringify(config) === JSON.stringify(c.config)) return;
   c.config = config;
   c.lang = detectLanguage({ configured: config.language === 'auto' ? null : config.language, env: c.env });
@@ -547,6 +572,7 @@ async function beltContextFor($: $, c: Ctx): Promise<BeltContext> {
     knownProjects: c.config.projects.flatMap((p) => (p.path ? [resolvePath(p.path, env)] : [])),
     env: c.env,
     dataDir: c.layout.root,
+    ...(c.config.sync ? { syncDir: resolvePath(c.config.sync.dir, env) } : {}),
     memoryDirs: memoryDirs(c, cwd),
     managedSettingsFiles: managedFiles(c.platform),
     lang: c.lang,
@@ -2579,6 +2605,7 @@ async function onTurnComplete($: $, e: In<'turn.complete'>, next: Nx<'turn.compl
     const acts = classifyTurn(c.turn.uses, classifyEnvFor(c, cwdNow));
     if (acts.files + acts.shell + acts.settings > 0) c.changedAt = await $.clock.now();
     await memorySync($, c, 'turn');
+    await sharedSync($, c, 'turn');
   } catch {
     /* the next turn or session syncs again */
   }
@@ -2668,6 +2695,8 @@ async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.st
   // loaded the index already: what came in is told with the first prompt, which waits for this.
   c.memStart = memorySync($, c, 'start');
   await c.memStart;
+  // Sync across computers goes on while the person types; the first prompt waits for it (docs/sync.md).
+  c.sharedStart = sharedSync($, c, 'start');
   return r;
 }
 
@@ -2699,6 +2728,7 @@ async function onSessionEnd($: $, e: In<'session.end'>, next: Nx<'session.end'>)
     if (autoRunning(c)) await pauseAuto($, c, 'session', String(e.reason ?? 'ended'));
     // The work of a session that changed something is handed off, even without a note asked for (docs/memory.md).
     if (e.reason !== 'resume') await endHandoff($, c, e.reason === 'clear' ? 'clear' : 'end');
+    await sharedSync($, c, 'end');
   } catch {
     /* the flow and the run stay as they were; "continue" in the next session takes them over */
   }
@@ -2820,6 +2850,95 @@ async function memorySync($: $, c: Ctx, trigger: 'start' | 'turn'): Promise<Sync
     return null;
   } finally {
     c.memSyncing = false;
+  }
+}
+
+/** The shared place through Claude Code's own file access. */
+function modSyncFs($: $): SyncFs {
+  return {
+    read: (p) => readFile($, p),
+    write: (p, t) => $.fs.write(p, t),
+    async list(dir) {
+      try {
+        return (await $.fs.list(dir)).map((e) => ({ name: e.name, kind: e.kind, mtimeMs: e.mtimeMs }));
+      } catch {
+        return [];
+      }
+    },
+  };
+}
+
+/**
+ * One sync across computers (docs/sync.md): this computer's files written into its own folder of the shared
+ * place; with GitHub, committed, the others' brought in, sent. After a turn only when it is due. The settings
+ * are read again afterwards (the others' changes), and a problem is told to the person once.
+ */
+async function sharedSync($: $, c: Ctx, trigger: 'start' | 'turn' | 'end'): Promise<void> {
+  const s = c.local.sync;
+  if (!s || c.sharedSyncing) return;
+  try {
+    const now = await $.clock.now();
+    if (trigger === 'turn') {
+      const records = await Promise.all((['mod', 'hook', 'cli'] as const).map(async (w) => parseSharedRecord(await readFile($, syncRecordFile(c.layout, w)))));
+      if (!syncDue(records, now, s.everyMinutes)) return;
+    }
+    c.sharedSyncing = true;
+    const record: SharedRecord = { at: now, trigger, session: c.sessionId, written: 0, result: null, error: null };
+    try {
+      const ex = await exportMachine(modSyncFs($), {
+        dir: s.dir,
+        machine: s.machine,
+        platform: c.platform,
+        app: APP_VERSION,
+        now,
+        layout: c.layout,
+        local: c.local,
+        keepMonths: s.keepMonths,
+      });
+      record.written = ex.written.length;
+    } catch (err) {
+      record.error = String((err as Error)?.message ?? err)
+        .split('\n')[0]!
+        .slice(0, 300);
+    }
+    if (s.place === 'github' && !record.error)
+      record.result = await syncMemory(modRunner($), {
+        dir: s.dir,
+        remote: true,
+        steps: { commit: true, pull: true, push: true },
+        message: (counts) => syncCommitMessage(s.machine.name, counts),
+        readFile: (p) => readFile($, p),
+        secrets: (t) => scanSecrets(t).length,
+        maxBytes: SYNC_MAX_BYTES,
+      });
+    try {
+      await $.fs.write(syncRecordFile(c.layout, 'mod'), JSON.stringify(record, null, 2) + '\n');
+    } catch {
+      /* the record is for the person's eyes; the sync itself happened */
+    }
+    await logEvent($, c, {
+      kind: 'sync',
+      trigger,
+      written: record.written,
+      commit: record.result?.commit ?? null,
+      pull: record.result?.pull ?? null,
+      push: record.result?.push ?? null,
+      error: !!record.error,
+    });
+    const problem = record.error ? 'failed' : record.result ? syncProblem(record.result) : null;
+    if (problem && problem !== 'offline' && !c.sharedWarned.has(problem)) {
+      c.sharedWarned.add(problem);
+      const files = record.result ? (problem === 'held' ? record.result.held.map((h) => h.path) : record.result.conflicts).slice(0, 4).join(', ') : '';
+      $.ui.toast(tIn(c.lang, `mod.sync.${problem}` as MessageKey, { files, detail: (record.error ?? record.result?.detail ?? '').slice(0, 120) }), {
+        timeoutMs: 12_000,
+      });
+    }
+    // What the other computers changed is in effect from now on.
+    await refreshConfig($, c);
+  } catch {
+    /* the next turn or session syncs again */
+  } finally {
+    c.sharedSyncing = false;
   }
 }
 
@@ -3070,7 +3189,10 @@ async function morningLineFor($: $, c: Ctx, from: number, now: number): Promise<
     const r = last && last.at >= from ? last.result : null;
     memory = { place: s.place, ahead: last?.result.ahead ?? null, conflicts: r?.conflicts ?? [], held: r?.held.map((h) => h.path) ?? [], error: null };
   }
-  return morningSummary({ since: from, now, runs, flows, sessions: [], handoffs: [], belt: null, quota: null, memory, notes }, c.lang);
+  return morningSummary(
+    { since: from, now, runs, flows, sessions: [], handoffs: [], belt: null, quota: null, memory, notes, syncPending: c.syncPending.length },
+    c.lang,
+  );
 }
 
 /**
@@ -3097,6 +3219,16 @@ async function memoryPromptContext($: $, c: Ctx, kw: KeywordMatch | null): Promi
   if (c.memStart) {
     await c.memStart;
     c.memStart = null;
+  }
+  if (c.sharedStart) {
+    await c.sharedStart;
+    c.sharedStart = null;
+  }
+  // Settings from another computer that lower a protection: the person is told once each (they are not Claude's to take).
+  const unsaid = c.syncPending.filter((p) => !c.syncSaid.has(`${p.key}@${p.at}`));
+  if (unsaid.length) {
+    for (const p of unsaid) c.syncSaid.add(`${p.key}@${p.at}`);
+    $.ui.toast(tIn(c.lang, 'mod.sync.pending', { keys: unsaid.map((p) => p.key).join(', '), cmd: `${APP_NAME} sync` }), { timeoutMs: 15_000 });
   }
   const store = c.config.memory.store;
   const pulled = c.memPulled && store ? pulledContext(c.memPulled, store.dir) : null;

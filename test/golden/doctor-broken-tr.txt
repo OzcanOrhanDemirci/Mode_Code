@@ -47,13 +47,14 @@ Veri
   ✓ Oturum dizini sağlam (42 oturum).
   ✓ Yakın zamanda alınmış bir kota ölçümü kayıtlı.
   ✓ Hafızanın yeri: bu bilgisayar ve GitHub'ın · C:/dev/notes/memory. Claude Code onu kullanıyor.
+  · Bilgisayarlar arası eşitleme kurulmamış.
   ✓ Son 3 oturum kaydı okundu: 100 satır beklenen biçimde.
   ✓ Son oturumlarda komut çalıştıran ya da dosya yazan her aracı kemer denetliyor (Bash, Edit).
   ✓ Oturum kimlikleri beklenen biçimde.
 Öz-sınama
   ✓ 1 paketteki 30 yerleşik örneğin hepsi beklenen cevabı verdi.
 
-2.1 sn içinde 38 denetim: 28 tamam, 2 uyarı, 3 sorun.
+2.1 sn içinde 39 denetim: 28 tamam, 2 uyarı, 3 sorun.
 Sorunlardan 3 tanesi bir korumayı zayıflatıyor.
 
 3 sorun kendiliğinden onarılabilir:

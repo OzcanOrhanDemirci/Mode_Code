@@ -90,6 +90,7 @@ export function healthyFacts(over: Partial<Facts> = {}): Facts {
       inUse: true,
       last: null,
     },
+    sync: null,
     gitBash: { path: 'C:/Program Files/Git/bin/bash.exe', tmp: 'C:/Users/ada/AppData/Local/Temp', expectedTmp: 'C:/Users/ada/AppData/Local/Temp' },
     powershell: { pwsh: '7.6.6', windowsPowerShell: true },
     posixShell: null,

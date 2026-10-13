@@ -32,6 +32,8 @@ import { autonomyCheck } from '../runs.js';
 import { memorySyncFile } from '../../core/layout.js';
 import { newestRecord, parseSyncRecord } from '../../core/memory-sync.js';
 import { readMemorySetting } from '../../node/memory-store.js';
+import { lastShared, mergedConfig } from '../../node/sync.js';
+import { machinesIn } from '../sync-setup.js';
 
 export interface DoctorEnv {
   layout: Layout;
@@ -76,6 +78,26 @@ function memoryStoreFacts(d: DoctorEnv): Facts['memoryStore'] {
     setting,
     inUse: !!setting && pathKey(toolPath(setting), d.platform) === pathKey(toolPath(s.dir), d.platform),
     last: newestRecord((['mod', 'hook', 'cli'] as const).map((w) => parseSyncRecord(readText(memorySyncFile(d.layout, w))))),
+  };
+}
+
+/** Sync across computers as the doctor reads it: the setting, the shared place, git there, the last sync, what waits. */
+function syncFacts(d: DoctorEnv): Facts['sync'] {
+  const s = d.config.sync;
+  if (!s) return null;
+  const exists = existsSync(s.dir);
+  const inside = exists && s.place === 'github' ? runProgram('git', ['-C', s.dir, 'rev-parse', '--is-inside-work-tree'], { timeoutMs: 4000 }) : null;
+  const origin = exists && s.place === 'github' ? runProgram('git', ['-C', s.dir, 'config', '--get', 'remote.origin.url'], { timeoutMs: 4000 }) : null;
+  return {
+    place: s.place,
+    dir: s.dir,
+    name: s.machine.name,
+    exists,
+    isRepo: !!inside?.ok && inside.out === 'true',
+    hasOrigin: !!origin?.ok && origin.out.length > 0,
+    others: machinesIn(s.dir).filter((m) => m.id !== s.machine.id).length,
+    last: lastShared(d.layout),
+    pending: mergedConfig(d.config, d.layout).pending.map((p) => p.key),
   };
 }
 
@@ -630,6 +652,7 @@ export async function gatherFacts(d0: DoctorEnv, now = Date.now()): Promise<Fact
     }),
     memorySetting: readMemorySetting(d.claudeDir),
     memoryStore: memoryStoreFacts(d),
+    sync: syncFacts(d),
     gitBash,
     powershell,
     posixShell,

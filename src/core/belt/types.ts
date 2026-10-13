@@ -101,6 +101,8 @@ export interface BeltContext {
   env: Readonly<Record<string, string | undefined>>;
   /** The tool's own data folder (resolved). */
   dataDir: string;
+  /** The shared place of sync across computers (docs/sync.md), when set up: its computers' folders are the tool's own too. */
+  syncDir?: string;
   /** Memory folders the person asked to protect from deletion and shrinking (resolved). */
   memoryDirs: string[];
   /** Managed (organisation) settings files for this platform (resolved). */
