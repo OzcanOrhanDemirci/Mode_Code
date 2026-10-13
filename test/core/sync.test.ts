@@ -9,6 +9,9 @@ import assert from 'node:assert/strict';
 import { cloneDefaults, normalizeConfig, type Config } from '../../src/core/config.js';
 import {
   applyShared,
+  changedFromDefaults,
+  differences,
+  syncCommitMessage,
   flowSummary,
   lowersProtection,
   machineId,
@@ -77,6 +80,7 @@ test('the sync setting: a place, a folder, this computer; github needs a remote;
     [{ place: 'folder', dir: '/s', machine: { id: 'A B', name: 'a' } }, 'sync.machine'],
     [{ place: 'folder', dir: '/s', machine: { id: 'a-0000', name: '' } }, 'sync.machine'],
     [{ place: 'folder', dir: '/s', machine: { id: 'a-0000', name: 'x'.repeat(61) } }, 'sync.machine'],
+    [{ place: 'folder', dir: '/s', machine: { id: 'a-0000', name: '  ' } }, 'sync.machine'],
     [{ place: 'folder', dir: '/s' }, 'sync.machine'],
     [{ place: 'github', dir: '/s', machine: { id: 'a-0000', name: 'a' } }, 'sync.remote'],
   ] as const) {
@@ -93,6 +97,7 @@ test('the sync setting: a place, a folder, this computer; github needs a remote;
   assert.deepEqual(loose.problems.map((p) => p.path).sort(), ['sync.everyMinutes', 'sync.extra', 'sync.handoffs', 'sync.keepMonths', 'sync.repo']);
   assert.deepEqual([loose.config.sync?.everyMinutes, loose.config.sync?.keepMonths, loose.config.sync?.handoffs], [30, 3, true]);
   assert.equal(normalizeConfig({ sync: null }).problems.length, 0);
+  assert.equal(normalizeConfig({ sync: { place: 'folder', dir: '/s', machine: { id: 'a-0000', name: 'x'.repeat(60) } } }).config.sync?.machine.name.length, 60);
 });
 
 test("a computer's id: its name in plain letters and four hex digits; where its files are", () => {
@@ -433,4 +438,58 @@ test('history: month folders kept, events masked line by line, summaries of runs
   assert.deepEqual(parseIgnored('[1]'), {});
   assert.deepEqual(parseIgnored(null), {});
   assert.deepEqual(cloneDefaults().sync, null);
+});
+
+test("a computer joining: where its settings differ from the others' newest changes; what a first computer chose; the commit message", () => {
+  const here = config({ view: 'simple', footer: { mode: 'check' } });
+  const a = sent('a-0000', config({ view: 'detailed', language: 'tr' }), 0, { view: 500, language: 500 });
+  const b = sent('b-0000', config({ view: 'recommended', footer: { mode: 'check' } }), 0, { view: 500, 'footer.mode': 600 });
+  // view: equal times, "a" sorts first; language: only a changed it; footer.mode: b's equals here; defaults (0) claim nothing.
+  assert.deepEqual(
+    differences(here, [b, a]).map((d) => [d.key, d.here, d.theirs, d.machine, d.at]),
+    [
+      ['language', 'auto', 'tr', 'a-0000', 500],
+      ['view', 'simple', 'detailed', 'a-0000', 500],
+    ],
+  );
+  // A newer change wins whatever the order; a removed project shows as removed; what the settings would refuse is left out.
+  const c = sent('c-0000', config({ view: 'recommended' }), 0, { view: 700 });
+  c.entries['projects.gone'] = { removed: true, at: 700 };
+  c.entries['footer.showFiveFrom'] = { value: 250, at: 700 };
+  c.entries['sync'] = { value: null, at: 700 };
+  const withProject = config({ view: 'simple', projects: [{ id: 'gone', names: ['gone'] }] });
+  assert.deepEqual(
+    differences(withProject, [a, c]).map((d) => [d.key, d.theirs]),
+    [
+      ['language', 'tr'],
+      ['projects.gone', undefined],
+      ['view', 'recommended'],
+    ],
+  );
+  // The same in any order of the files: equal times to the id that sorts first, a newer change over an older one.
+  assert.deepEqual(
+    differences(here, [a, b]).map((d) => [d.key, d.machine]),
+    [
+      ['language', 'a-0000'],
+      ['view', 'a-0000'],
+    ],
+  );
+  assert.deepEqual(
+    differences(withProject, [c, a]).map((d) => [d.key, d.theirs]),
+    [
+      ['language', 'tr'],
+      ['projects.gone', undefined],
+      ['view', 'recommended'],
+    ],
+  );
+  // Only defaults from the others (times of 0): nothing differs that anyone chose.
+  assert.deepEqual(differences(here, [sent('d-0000', config())]), []);
+  assert.deepEqual(differences(here, []), []);
+  assert.deepEqual(differences(config({ view: 'detailed', language: 'tr' }), [a]), [], 'nothing differs');
+  // A first computer: what differs from a fresh installation.
+  assert.deepEqual([...changedFromDefaults(config({ view: 'simple', projects: [{ id: 'app', names: ['app'] }] }))].sort(), ['projects.app', 'view']);
+  assert.deepEqual([...changedFromDefaults(config())], []);
+  assert.equal(syncCommitMessage('PC', { added: 2, changed: 1, removed: 3 }), 'sync: PC (2 added, 1 changed, 3 removed)');
+  assert.equal(syncCommitMessage('PC', { added: 0, changed: 1, removed: 0 }), 'sync: PC (1 changed)');
+  assert.equal(syncCommitMessage('PC', { added: 0, changed: 0, removed: 0 }), 'sync: PC');
 });

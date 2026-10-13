@@ -424,15 +424,18 @@ export async function applyPlan(io: SetupIO, env: SetupEnv, p: SetupPlan): Promi
   }
 
   let sync: SyncResult | null = null;
+  const how = {
+    dir: p.dir,
+    message: (counts: { added: number; changed: number; removed: number }) => commitMessage(counts, null, env.lang),
+    readFile: async (path: string) => readText(path),
+    secrets: (text: string) => scanSecrets(text).length,
+    gitCommand: git,
+  };
   if (p.git && p.mode === 'auto') {
     sync = await syncMemory(env.runner, {
-      dir: p.dir,
+      ...how,
       remote: !!p.remote,
       steps: { commit: true, pull: !p.clone && !p.createRepo && !!p.remote, push: !!p.remote },
-      message: (counts) => commitMessage(counts, null, env.lang),
-      readFile: async (path) => readText(path),
-      secrets: (text) => scanSecrets(text).length,
-      gitCommand: git,
     });
     if (sync.commit === 'failed' || sync.commit === 'identity' || sync.commit === 'busy') return fail(T('msetup.plan.commit'), sync.detail);
     if (p.remote && sync.push !== 'ok' && sync.push !== 'none') return fail(T('msetup.plan.commitPush'), sync.detail || sync.push);
@@ -440,16 +443,7 @@ export async function applyPlan(io: SetupIO, env: SetupEnv, p: SetupPlan): Promi
     if (sync.held.length) io.say(`    ${T('msetup.apply.held', { files: sync.held.map((h) => h.path).join(', ') })}`);
   } else if (p.git && p.mode === 'pull' && p.remote) {
     // Only a fast-forward: nothing of the person's is committed, rebased or sent. One that cannot be made is said, not fatal.
-    sync = await syncMemory(env.runner, {
-      dir: p.dir,
-      remote: true,
-      steps: { commit: false, pull: true, push: false },
-      pullMode: 'ff-only',
-      message: (counts) => commitMessage(counts, null, env.lang),
-      readFile: async (path) => readText(path),
-      secrets: (text) => scanSecrets(text).length,
-      gitCommand: git,
-    });
+    sync = await syncMemory(env.runner, { ...how, remote: true, steps: { commit: false, pull: true, push: false }, pullMode: 'ff-only' });
     if (sync.pull === 'ok' || sync.pull === 'none') ok(T('msetup.plan.pullOnly'));
     else io.say(`  · ${T('msetup.apply.pullLater', { detail: sync.detail || sync.pull })}`);
   }

@@ -368,6 +368,30 @@
       "line": "m.machine < best.machine",
       "kind": "equivalent",
       "why": "two other computers never share an id: each is a folder name under machines/"
+    },
+    {
+      "file": "src/core/sync.ts",
+      "from": "<",
+      "to": "<=",
+      "line": "(e.at === b.e.at && m.machine < b.machine)",
+      "kind": "equivalent",
+      "why": "two other computers never share an id: each is a folder name under machines/"
+    },
+    {
+      "file": "src/core/sync.ts",
+      "from": "<",
+      "to": "<=",
+      "line": "[...best.entries()].sort(([a], [b]) => (a < b ? -1 : 1))",
+      "kind": "equivalent",
+      "why": "the keys of a map are distinct, so the comparison never meets two equal ones"
+    },
+    {
+      "file": "src/core/memory-sync.ts",
+      "from": "&&",
+      "to": "||",
+      "line": "return h.ok && h.out.trim() ? h.out.trim() : null;",
+      "kind": "equivalent",
+      "why": "rev-parse --verify --quiet prints nothing when it fails, so a failed call has no output to take either way"
     }
   ]
 }

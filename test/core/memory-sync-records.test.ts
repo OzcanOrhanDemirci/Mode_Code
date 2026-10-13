@@ -31,6 +31,16 @@ test('a record reads back; a torn or foreign file is none', () => {
     result: result({ held: [{ path: 'a.md', reason: 'secret' }], conflicts: ['M.md'], pulled: ['MEMORY.md'] }),
   };
   assert.deepEqual(parseSyncRecord(JSON.stringify(r)), r);
+  // Where the sync left the store: a commit id, or none.
+  for (const [head, kept] of [
+    ['abcdef1', 'abcdef1'],
+    ['0123456789abcdef0123456789abcdef01234567', '0123456789abcdef0123456789abcdef01234567'],
+    ['abc', null],
+    ['ABCDEF1', null],
+    ['not a commit', null],
+    [7, null],
+  ] as const)
+    assert.equal(parseSyncRecord(JSON.stringify({ ...r, result: { ...r.result, head } }))?.result.head, kept, String(head));
   // The index's lines stay with the session that pulled them; the record keeps which files came in.
   const lines = parseSyncRecord(JSON.stringify({ ...r, result: { ...r.result, index: { removed: [], added: ['- x'] } } }))!;
   assert.deepEqual([lines.result.pulled, lines.result.index], [['MEMORY.md'], null]);

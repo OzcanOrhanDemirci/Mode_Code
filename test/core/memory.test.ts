@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { cloneDefaults, GITHUB_REPO, normalizeConfig, parseConfig } from '../../src/core/config.js';
 import {
   changeCounts,
+  managedByUs,
   commitMessage,
   indexChange,
   mergePulled,
@@ -309,4 +310,14 @@ test("what a pull brought in: the index's changed lines read from git's diff, jo
   assert.ok(!long.includes('x'.repeat(300)) && long.includes('x'.repeat(290)));
   const key = 'ghp_' + 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8';
   assert.ok(!pulledContext({ files: ['MEMORY.md'], index: { removed: [], added: [`- token ${key}`] } }, '/m')!.includes(key));
+});
+
+test("a store terminal-code set up says so in its README; another's does not", () => {
+  assert.equal(managedByUs(storeReadme('both')), true);
+  assert.equal(managedByUs(storeReadme('local').replace(/\n/g, '\r\n')), true);
+  assert.equal(managedByUs(null), false);
+  assert.equal(managedByUs('# My notes\n'), false);
+  assert.equal(managedByUs('# Claude Code memory\nkept by hand\n'), false, 'the heading alone');
+  assert.equal(managedByUs('# Notes\nIt is managed with terminal-code\n'), false, 'the sentence alone');
+  assert.equal(managedByUs(' # Claude Code memory\nIt is managed with terminal-code\n'), false);
 });

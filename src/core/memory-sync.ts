@@ -195,23 +195,23 @@ export async function syncMemory(r: Runner, input: SyncInput): Promise<SyncResul
 
   // Where it stood before anything came in now: what the pulls bring is told to Claude (its index may predate it).
   const pre = input.remote ? await headNow() : null;
-  const came = { in: false };
   const mode = input.pullMode ?? 'rebase';
   let upstream = input.remote ? await upstreamOf(git) : null;
   if (input.remote && input.steps.pull) {
     if (upstream === null) upstream = await adoptUpstream(git);
     if (upstream === null) res.pull = 'none';
-    else res.pull = mode === 'ff-only' ? await fastForward(git, res, note, came) : await pullStep(git, res, note, came);
+    else res.pull = mode === 'ff-only' ? await fastForward(git, res, note) : await pullStep(git, res, note);
   }
   if (input.remote && input.steps.push && res.pull !== 'conflict' && res.pull !== 'diverged') {
-    res.push = await pushStep(git, upstream, res, note, came);
+    res.push = await pushStep(git, upstream, res, note);
     if (res.push === 'ok' && upstream === null) upstream = await upstreamOf(git);
   }
   res.head = await headNow();
   let arrived: Pulled | null = null;
   const since = input.since?.trim() || null;
   if (since && before && since !== before && (await git(['merge-base', '--is-ancestor', since, before])).ok) arrived = await broughtIn(git, since, before);
-  if (pre && came.in && res.head && res.head !== pre) {
+  // Only a pull moves where the store stands after the commit: what lies between is what it brought.
+  if (pre && res.head && res.head !== pre) {
     const now = await broughtIn(git, pre, res.head);
     if (now) arrived = mergePulled(arrived, now);
   }
@@ -307,12 +307,9 @@ async function adoptUpstream(git: Git): Promise<string | null> {
   return set.ok ? `origin/${name}` : null;
 }
 
-async function pullStep(git: Git, res: SyncResult, note: (s: string) => void, came: { in: boolean }): Promise<PullOutcome> {
+async function pullStep(git: Git, res: SyncResult, note: (s: string) => void): Promise<PullOutcome> {
   const pull = await git(['pull', '--rebase', '--autostash', '--quiet'], 60_000);
-  if (pull.ok) {
-    came.in = true;
-    return 'ok';
-  }
+  if (pull.ok) return 'ok';
   const conflicted = await git(['diff', '--name-only', '--diff-filter=U']);
   const files = conflicted.ok
     ? conflicted.out
@@ -349,12 +346,9 @@ async function broughtIn(git: Git, from: string, to: string): Promise<Pulled | n
  * A pull that only fast-forwards, for a store its owner commits and pushes: nothing of theirs is rebased or
  * merged. Local changes in the way, or both sides having moved, leave the folder as it was and say so.
  */
-async function fastForward(git: Git, res: SyncResult, note: (s: string) => void, came: { in: boolean }): Promise<PullOutcome> {
+async function fastForward(git: Git, res: SyncResult, note: (s: string) => void): Promise<PullOutcome> {
   const pull = await git(['pull', '--ff-only', '--quiet'], 60_000);
-  if (pull.ok) {
-    came.in = true;
-    return 'ok';
-  }
+  if (pull.ok) return 'ok';
   const text = pull.err + pull.out;
   note(text);
   // git names the files a fast-forward would overwrite, one per line, indented.
@@ -370,7 +364,7 @@ async function fastForward(git: Git, res: SyncResult, note: (s: string) => void,
   return k === 'offline' || k === 'auth' || k === 'busy' ? k : 'failed';
 }
 
-async function pushStep(git: Git, upstream: string | null, res: SyncResult, note: (s: string) => void, came: { in: boolean }): Promise<PushOutcome> {
+async function pushStep(git: Git, upstream: string | null, res: SyncResult, note: (s: string) => void): Promise<PushOutcome> {
   if (upstream !== null) {
     const ahead = await git(['rev-list', '--count', '@{upstream}..HEAD']);
     if (ahead.ok && ahead.out.trim() === '0') return 'none';
@@ -383,7 +377,7 @@ async function pushStep(git: Git, upstream: string | null, res: SyncResult, note
   let push = await git(args, 60_000);
   if (!push.ok && classifyGitError(push.err) === 'rejected') {
     // The remote moved on since the pull: bring that in once, then try once more.
-    const again = await pullStep(git, res, note, came);
+    const again = await pullStep(git, res, note);
     if (again === 'conflict') return 'rejected';
     if (again === 'ok') push = await git(args, 60_000);
   }

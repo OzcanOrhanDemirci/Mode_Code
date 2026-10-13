@@ -176,3 +176,33 @@ test('decisions: one broken entry does not lose the others; a delivered time is 
   assert.deepEqual(parseNoteDecisions(JSON.stringify([{ decision: 'approved', at: 1 }])), {});
   assert.deepEqual(parseActivity(JSON.stringify({ lastPromptAt: 3, away: { from: 3, to: 3 } })), { lastPromptAt: 3, away: { from: 3, to: 3 } });
 });
+
+test("the other computers' news and the settings waiting from them (docs/sync.md)", () => {
+  const f: MorningFacts = {
+    ...empty(),
+    elsewhere: [
+      {
+        machine: 'MacBook',
+        runs: [
+          { id: 'r1', task: 'Ship the release\nwith notes', status: 'done', reason: null, report: null, deferred: 0 },
+          { id: 'r2', task: 'Port it', status: 'paused', reason: 'quota', report: null, deferred: 0 },
+        ],
+        flows: 1,
+        sessions: 3,
+        blocked: 2,
+      },
+      { machine: 'Laptop', runs: [], flows: 0, sessions: 1, blocked: 0 },
+    ],
+    syncPending: 2,
+  };
+  assert.deepEqual(morningLines(f, 'en'), [
+    { label: 'Elsewhere', text: 'MacBook: 3 session(s) · Ship the release · done · Port it · paused: quota · 1 flow(s) wait · the belt stopped 2' },
+    { label: 'Elsewhere', text: 'Laptop: 1 session(s)' },
+    { label: 'Sync', text: '2 setting(s) from other computers wait for you (terminal-code sync)' },
+  ]);
+  // In the one line: only news that needs the person (a run or a flow), and what waits.
+  assert.match(morningSummary(f, 'en') ?? '', /news from MacBook · 2 setting\(s\) wait/);
+  assert.equal(morningSummary({ ...empty(), elsewhere: [{ machine: 'Laptop', runs: [], flows: 0, sessions: 4, blocked: 1 }] }, 'en'), null);
+  assert.match(morningSummary({ ...empty(), elsewhere: [{ machine: 'Laptop', runs: [], flows: 2, sessions: 0, blocked: 0 }] }, 'en') ?? '', /news from Laptop/);
+  assert.match(morningSummary({ ...empty(), syncPending: 1 }, 'en') ?? '', /1 setting\(s\) wait/);
+});

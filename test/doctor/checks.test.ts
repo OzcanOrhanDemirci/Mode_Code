@@ -457,3 +457,56 @@ test('full autonomy: off is a note; on, the start checks that would fail here ar
   );
   assert.equal(notReady.protection, false, 'full autonomy is a feature, not a protection: a run that cannot start harms nothing');
 });
+
+test('sync across computers: not set up, missing, without git or origin, a sync that failed, settings waiting, fine', () => {
+  const sync = {
+    place: 'github',
+    dir: 'C:/Users/ada/.terminal-code/sync',
+    name: 'PC',
+    exists: true,
+    isRepo: true,
+    hasOrigin: true,
+    others: 1,
+    last: null,
+    pending: [] as string[],
+  };
+  const at = (over: object | null) => {
+    const r = check('data.sync', healthyFacts({ sync: over && { ...sync, ...over } }));
+    assert.equal(r.protection, false);
+    return brief(r);
+  };
+  const result = (over: object) => ({
+    repo: true,
+    commit: 'ok' as const,
+    committed: 1,
+    held: [],
+    pull: 'ok' as const,
+    push: 'ok' as const,
+    conflicts: [],
+    ahead: 0,
+    behind: 0,
+    pulled: [],
+    index: null,
+    head: null,
+    detail: 'why',
+    ...over,
+  });
+  const last = (over: object, error: string | null = null) => ({ at: 1, trigger: 'turn' as const, session: null, written: 1, result: result(over), error });
+  assert.equal(at(null), 'info doc.sync.none');
+  assert.equal(at({}), 'ok doc.sync.ok');
+  assert.deepEqual(check('data.sync', healthyFacts({ sync })).summary.params, { place: '@scli.place.github', name: 'PC', n: 1 });
+  assert.equal(at({ exists: false }), 'fail doc.sync.missing');
+  assert.equal(at({ isRepo: false }), 'warn doc.sync.noGit');
+  assert.equal(at({ hasOrigin: false }), 'warn doc.sync.noOrigin');
+  assert.equal(at({ place: 'folder', isRepo: false, hasOrigin: false }), 'ok doc.sync.ok', 'a folder another service syncs has no git');
+  assert.equal(at({ last: last({ push: 'auth' }) }), 'warn doc.sync.problem');
+  assert.deepEqual(check('data.sync', healthyFacts({ sync: { ...sync, last: last({ push: 'auth' }) } })).summary.params, { detail: 'why' });
+  assert.equal(at({ last: last({}, 'EACCES') }), 'warn doc.sync.problem');
+  assert.deepEqual(check('data.sync', healthyFacts({ sync: { ...sync, last: { ...last({}), result: null, error: 'EACCES' } } })).summary.params, {
+    detail: 'EACCES',
+  });
+  assert.equal(at({ last: last({ push: 'offline' }) }), 'ok doc.sync.ok', 'offline is tried again, not a problem');
+  assert.equal(at({ last: { ...last({}), result: null } }), 'ok doc.sync.ok');
+  assert.equal(at({ pending: ['belt.verdicts'] }), 'warn doc.sync.pending');
+  assert.equal(check('data.sync', healthyFacts({ sync: { ...sync, pending: ['a', 'b'] } })).summary.params?.keys, 'a, b');
+});

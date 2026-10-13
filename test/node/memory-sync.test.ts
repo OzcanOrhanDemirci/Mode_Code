@@ -13,7 +13,8 @@ import { join } from 'node:path';
 import { classifyGitError, syncMemory, type SyncInput } from '../../src/core/memory-sync.js';
 import { commitMessage } from '../../src/core/memory.js';
 import { scanSecrets } from '../../src/core/secrets/scan.js';
-import { nodeRunner, stepsFor } from '../../src/node/memory.js';
+import { lookStore, nodeRunner, recordSync, seenSince, stepsFor } from '../../src/node/memory.js';
+import { layout } from '../../src/core/layout.js';
 import { readText } from '../../src/node/fsx.js';
 
 const hasGit = spawnSync('git', ['--version']).status === 0;
@@ -310,6 +311,49 @@ test(
       // Seen where it stands: nothing more to tell.
       const again = await syncMemory(nodeRunner, { ...input(b, 'start'), steps: { commit: false, pull: false, push: false }, since: look.head });
       assert.deepEqual(again.pulled, []);
+    } finally {
+      w.done();
+    }
+  },
+);
+
+test(
+  'where each writer last saw the store: recorded with a sync, noted by a look when it moved, the newest of them read back',
+  { skip: !hasGit && 'git is not installed' },
+  async () => {
+    const w = world();
+    try {
+      const a = w.clone('a');
+      const l = layout(join(w.root, 'data').replace(/\\/g, '/'));
+      assert.equal(seenSince(l), null);
+      const r = await syncMemory(nodeRunner, input(a, 'turn'));
+      recordSync(l, 'cli', 'manual', null, r);
+      assert.equal(seenSince(l), run(a, 'rev-parse', 'HEAD'));
+      assert.equal(JSON.parse(readFileSync(join(l.stateDir, 'memory-sync.cli.json'), 'utf8')).trigger, 'manual');
+      // The owner commits by hand; a look notes it, and a second look with nothing new writes nothing.
+      writeFileSync(join(a, 'two.md'), 'two\n');
+      run(a, 'add', 'two.md');
+      run(a, 'commit', '-q', '-m', 'by hand');
+      lookStore(l, a, 'hook');
+      const seen = join(l.stateDir, 'memory-seen.hook.json');
+      assert.equal(JSON.parse(readFileSync(seen, 'utf8')).head, run(a, 'rev-parse', 'HEAD'));
+      const stamp = readFileSync(seen, 'utf8');
+      lookStore(l, a, 'hook');
+      assert.equal(readFileSync(seen, 'utf8'), stamp);
+      assert.equal(seenSince(l), run(a, 'rev-parse', 'HEAD'), 'the newest of the writers');
+      // Not a repository: nothing noted; a record without a head leaves where it was seen alone.
+      const plain = mkdtempSync(join(tmpdir(), 'tc-plain-'));
+      const cliSeen = readFileSync(join(l.stateDir, 'memory-seen.cli.json'), 'utf8');
+      lookStore(l, plain, 'cli');
+      assert.equal(readFileSync(join(l.stateDir, 'memory-seen.cli.json'), 'utf8'), cliSeen);
+      recordSync(l, 'hook', 'turn', 's', { ...r, head: null });
+      assert.equal(JSON.parse(readFileSync(seen, 'utf8')).head, run(a, 'rev-parse', 'HEAD'));
+      rmSync(plain, { recursive: true, force: true });
+      // A state folder that cannot be written: nothing thrown.
+      const blocked = layout(join(w.root, 'blocked-file').replace(/\\/g, '/'));
+      writeFileSync(join(w.root, 'blocked-file'), 'x');
+      assert.doesNotThrow(() => recordSync(blocked, 'cli', 'manual', null, r));
+      assert.doesNotThrow(() => lookStore(blocked, a, 'cli'));
     } finally {
       w.done();
     }
