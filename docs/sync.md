@@ -65,7 +65,7 @@ Lowering a protection means:
 - projects: fewer commands in a definition of done, or a project that had one removed;
 - keywords: a phrase added (a phrase can start autonomous work).
 
-Settings that are lists (the belt's verdicts, the protected branches) count as one setting each: two computers changing different rules between two syncs keep the newer list.
+Settings that are lists (the belt's verdicts, the protected branches) count as one setting each.
 
 ## When it syncs
 
@@ -76,9 +76,9 @@ Settings that are lists (the belt's verdicts, the protected branches) count as o
 | A session ends                                               | the same                                                                                                                              |
 | You run `terminal-code sync now`                             | the same, at once, and says where things stand                                                                                        |
 
-The plugin does it inside Claude Code; where the plugin is not loaded, the safety-net hook does it at the first prompt and after turns. A computer that is offline keeps working; what it has goes when the network is back.
+The plugin does it inside Claude Code, and your first prompt waits for the start's sync, so a handoff note written on another computer is there when the session looks for one. Where the plugin is not loaded, the safety-net hook does it at the first prompt and after turns. A computer that is offline keeps working; what it has goes when the network is back.
 
-History is kept for `sync.keepMonths` (3) months per computer in the shared place; older months leave it (with GitHub, the history keeps them).
+History is kept for `sync.keepMonths` (3) months per computer in the shared place; older months leave it when a session starts (with GitHub, the history keeps them).
 
 ## Memory you already keep in sync
 
@@ -109,18 +109,20 @@ Each takes `--json`. `setup`, `approve`, `ignore` and `project` run only in your
 
 ## Settings
 
-| Setting             | Default | What it does                                                                |
-| ------------------- | ------- | --------------------------------------------------------------------------- |
-| `sync.everyMinutes` | `30`    | how often a session sends after its turns (5 to 1440)                       |
-| `sync.keepMonths`   | `3`     | months of history each computer keeps in the shared place (1 to 24)         |
-| `sync.handoffs`     | `true`  | handoff notes go into the shared place (when the memory does not keep them) |
+| Setting                 | Default | What it does                                                                              |
+| ----------------------- | ------- | ----------------------------------------------------------------------------------------- |
+| `sync.everyMinutes`     | `30`    | how often a session sends after its turns (5 to 1440)                                     |
+| `sync.keepMonths`       | `3`     | months of history each computer keeps in the shared place (1 to 24)                       |
+| `sync.handoffs`         | `true`  | handoff notes go into the shared place (when the memory does not keep them)               |
+| `memory.store.sync`     | `auto`  | `auto`, `pull` or `manual` (above)                                                        |
+| `memory.store.handoffs` | `true`  | handoff notes go into the memory folder; asked by the setup for a memory you keep in sync |
 
-The rest of the `sync` section (where it lives, this computer's name) is written by the setup and is this computer's own.
+The whole `sync` section is this computer's own: the setup writes where the shared place is and what this computer is called, and the three settings above stay as each computer has them.
 
 ## Safety
 
 - **Only you lower a protection.** Above.
-- **Claude cannot write the shared place.** The belt protects it like terminal-code's own data folder.
+- **Claude cannot write the computers' folders.** The belt protects `machines/` in the shared place like terminal-code's own data folder.
 - **Secrets stay home.** History is copied with secrets masked; a file that still looks like it holds one is held back from GitHub.
 - **Private only, nothing forced.** A public repository is refused; a push is never forced; a pull that cannot be joined is undone and shown.
 
@@ -129,17 +131,31 @@ The rest of the `sync` section (where it lives, this computer's name) is written
 - Two computers changing the same setting between two syncs: the newer change wins.
 - A sync service that copies slowly delays what the other computers see; terminal-code cannot tell how far behind it is.
 - The other computers' history is what they last sent: a computer that is switched off shows what it did until then.
+- A setting is compared as a whole: two computers changing different rules of the belt's verdicts between two syncs keep the newer list.
+
+## Measured
+
+On the author's Windows 11 machine and in the WSL2 distribution of [autonomy.md](autonomy.md), Claude Code 2.1.296, 2026-10-13:
+
+| What                       | Result                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Live, headless sessions    | two computers' data folders through a bare repository standing for GitHub. One softened a belt rule; its plugin sent the change when its session started, and the handoff note the keyword had Claude write when the session ended. The other took the note over, and the softened rule waited: the person was told by a notice, and it was not in effect. Windows 14 of 14 live checks ($0.033); WSL2 17 of 17 ($0.048) |
+| The settings' merge        | as properties over 300 generated cases each: every computer comes to the same value for every setting whatever the times, equal ones included; nothing that lowers a protection applies by itself                                                                                                                                                                                                                        |
+| The shared place           | on real repositories: two computers' settings, history (a secret masked) and a handoff note travelling both ways, nothing ever joined with a merge commit; a repository with other files committing only its folder and leaving the person's uncommitted file as it was; a folder another service syncs; history past the months kept removed                                                                            |
+| The setup                  | driven through its questions with real git and a stand-in GitHub: a new repository named by the person; a second computer shown where its settings differ (a softened rule named as such) and taking the others'; one sending its own; a repository holding other files, used through a folder of it and the person's own copy; a folder with a computer set up there before; refusals                                   |
+| A memory kept by its owner | a fast-forward brought in on real repositories, both sides moved or a local edit in the way leaving everything as it was; what the owner's own pull brought in since the last session told with the first prompt, in the hook and in the plugin                                                                                                                                                                          |
+| Mutation testing           | the sync's core and its export: 207 changes, all caught, four explained as equivalent; the memory's sync, settings and the doctor's checks again at 100%                                                                                                                                                                                                                                                                 |
 
 ## Plan and status
 
 Written 2026-10-13, kept as a checklist:
 
-- [ ] This guide, then the decisions in [architecture.md](architecture.md).
-- [ ] Memory: the `pull` and `manual` modes for a memory you keep in sync yourself, asked by the setup; nothing added to such a folder; handoff notes where you want them; what arrived since the last session told to Claude whoever brought it in; the doctor's message about a memory set outside terminal-code.
-- [ ] Core: the shared settings, their times, the newest change winning, lowering a protection held for approval; what is copied and kept.
-- [ ] The shared place on disk and in git: this computer's files, the others' read back, the sync through the same engine as the memory's.
-- [ ] The setup, both places, with the GitHub steps shared with the memory setup.
-- [ ] The command line, the plugin and the hook (when it syncs, settings read with the others' changes, the first-prompt notice), handoff notes in the shared place.
-- [ ] The control center (Settings › Sync, the morning report and Home with the other computers), the doctor, the belt protecting the shared place.
-- [ ] Tests in every layer, mutation targets and coverage floors; live: two computers' data folders through a bare repository.
-- [ ] README, changelog, testing.md; measured.
+- [x] This guide, then the decisions in [architecture.md](architecture.md).
+- [x] Memory: the `pull` and `manual` modes for a memory you keep in sync yourself, asked by the setup; nothing added to such a folder; handoff notes where you want them; what arrived since the last session told to Claude whoever brought it in; the doctor's message about a memory set outside terminal-code.
+- [x] Core: the shared settings, their times, the newest change winning, lowering a protection held for approval; what is copied and kept.
+- [x] The shared place on disk and in git: this computer's files, the others' read back, the sync through the same engine as the memory's.
+- [x] The setup, both places, with the GitHub steps shared with the memory setup.
+- [x] The command line, the plugin and the hook (when it syncs, settings read with the others' changes, the first-prompt notice), handoff notes in the shared place.
+- [x] The control center (Settings › Sync, the morning report and Home with the other computers), the doctor, the belt protecting the shared place.
+- [x] Tests in every layer, mutation targets and coverage floors; live: two computers' data folders through a bare repository.
+- [x] README, changelog, testing.md; measured.

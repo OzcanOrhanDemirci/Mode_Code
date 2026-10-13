@@ -41,6 +41,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Handoff notes: `handoff` / `devir` (and `wrap up`) has Claude write where the work stands through a tool; notes are also written from a compaction's own summary, when a session that changed something clears or ends, and when a full-autonomy run pauses or ends. They are kept in the memory under `handoffs/<project>/` and synced; the next session is told about the newest on its first prompt and gets the whole note on `continue`.
 - The morning report: one line on the first prompt after a while away, the full report in `terminal-code morning` and on Home. Notes from full-autonomy runs wait for your approval (`terminal-code memory notes`).
 - `terminal-code memory` (status, setup, sync, handoff, notes) and `morning`; Settings › Memory and Projects › Handoffs in the control center; the doctor checks the memory store.
+- A memory you keep in sync yourself: the setup asks, for a folder that already has a git history, whether terminal-code keeps it in sync, only brings in changes when a session starts (a fast-forward; you commit and push), or leaves git to you. Nothing is added to such a folder, and handoff notes go into it only when you want. What arrived since this computer's last session, whoever brought it in, is told to Claude.
+- Sync across computers ([docs/sync.md](docs/sync.md)): `terminal-code sync setup` shares terminal-code's settings, history and handoff notes through a private repository on your GitHub that you name (a folder of it when it holds other files, through a copy you may already have) or a folder another service keeps in sync. Each computer writes only its own folder. The newest change of a setting wins on every computer; one that lowers a protection waits for you (`sync approve`, `sync ignore`). Paths, full autonomy switched on and the quota reading stay each computer's own. The morning report says what the other computers did; `terminal-code sync` (status, setup, now, approve, ignore, project), Settings › Sync, and the doctor's check.
 
 ### Changed
 
@@ -51,6 +53,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Text widths are measured the way the terminal draws them (emoji and symbols such as 🛡 ⚪ ✅ ⛔ included), so no line is cut or wraps.
 
 ### Fixed
+
+- The doctor said Claude Code keeps one memory per project when its memory folder was set outside terminal-code; it says where the memory is now.
+- The memory setup gave a folder inside a larger repository, chosen for this computer only, a git history of its own inside the other; it is used as it is now.
+- The README said nothing leaves your machine; the memory and sync go to a private repository of yours when you set them up so, and it says that now.
 
 - A full-autonomy run never started in a real session: Claude Code runs the plugin's prompt hook before the safety-net hook's, and `SessionStart` carries no permission mode, so the start checks found the mode unknown. The start now has two steps: the checks measurable at the prompt there, the permission mode that prompt came with and the live sandbox probe at Claude's first step (the autonomy tool's `start`). Found in the first live run in WSL2.
 - A command typed on Windows for a WSL distribution (`wsl -d dev -- rm -rf ~/dev/old`) was judged with the Windows home folder: the distribution's home and absolute paths are now its own, the Windows drives it mounts under `/mnt` keep Windows' protection, and deleting the distribution's root, home or system folders is refused.

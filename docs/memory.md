@@ -54,7 +54,7 @@ With a git history (all three, when git is installed):
 - **Secrets and large files are held back.** Before a commit, each changed file is scanned with the secret scanner; one that looks like it holds a key or a token is not committed, nor is a file over 1 MB, and you are told which file (once per session, and in `terminal-code memory`).
 - **Nothing is forced.** When the same note changed here and on another computer and git cannot join the changes, the pull is undone, your files stay as they are, and `terminal-code memory` says which files need you. A push the remote rejects (it moved on) is pulled once and sent again. terminal-code never force-pushes or rewrites the memory's history.
 - **Offline is normal.** A pull or push that cannot reach GitHub is tried again at the next turn or session.
-- **Manual sync.** With `memory.store.sync` set to `manual`, terminal-code only shows the status; you run `terminal-code memory sync` when you want.
+- **A memory you keep in sync yourself.** When the folder already has a git history the setup did not start, the setup asks how terminal-code should look after it: everything (as above), **only bring in** changes when a session starts and only when that needs no merge (`git pull --ff-only`; you commit and push), or **leave git to you** (status only; `terminal-code memory sync` does everything when you ask). Such a folder gets no README or `.gitignore`, and handoff notes go into it only when you say so. In every mode, what arrived since this computer's last session, whoever brought it in, is told to Claude. See [sync.md](sync.md#memory-you-already-keep-in-sync).
 - **Claude hears what came in.** Claude Code loads the index (`MEMORY.md`) as a session starts, and the pull at the start can land after that: measured once in WSL2, where a session answered from the old index although the pull had landed 0.7 s before the prompt. So what a pull brings in is told to Claude with your next prompt (the first one waits for the start's pull): the files, and the lines the index lost and gained, up to 30. Past that, or when the lines cannot be read, Claude is asked to read the index again.
 - **Who does it.** The plugin, inside Claude Code. Where the plugin is not loaded, the safety-net hook does the same at the session's first prompt and at the end of each turn. Each keeps a record of its last sync.
 
@@ -110,16 +110,16 @@ Each takes `--json`. In the control center: Settings › Memory (where it lives,
 
 ## Settings
 
-| Setting                     | Default | What it does                                                                            |
-| --------------------------- | ------- | --------------------------------------------------------------------------------------- |
-| `memory.store`              | none    | written by the setup: `place`, `dir`, `remote`, `repo`, `git`, `sync` (`auto`/`manual`) |
-| `memory.handoff.enabled`    | `true`  | handoff notes at all                                                                    |
-| `memory.handoff.onCompact`  | `true`  | a note from each compaction's summary                                                   |
-| `memory.handoff.onEnd`      | `true`  | a note from what code measured on `/clear` and at a session's end                       |
-| `memory.handoff.keep`       | `20`    | notes kept per project in the folder                                                    |
-| `memory.handoff.maxAgeDays` | `14`    | older notes are not offered                                                             |
-| `memory.morning.enabled`    | `true`  | the morning report's line                                                               |
-| `memory.morning.afterHours` | `6`     | how long without a prompt counts as away                                                |
+| Setting                     | Default | What it does                                                                                               |
+| --------------------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
+| `memory.store`              | none    | written by the setup: `place`, `dir`, `remote`, `repo`, `git`, `sync` (`auto`/`pull`/`manual`), `handoffs` |
+| `memory.handoff.enabled`    | `true`  | handoff notes at all                                                                                       |
+| `memory.handoff.onCompact`  | `true`  | a note from each compaction's summary                                                                      |
+| `memory.handoff.onEnd`      | `true`  | a note from what code measured on `/clear` and at a session's end                                          |
+| `memory.handoff.keep`       | `20`    | notes kept per project in the folder                                                                       |
+| `memory.handoff.maxAgeDays` | `14`    | older notes are not offered                                                                                |
+| `memory.morning.enabled`    | `true`  | the morning report's line                                                                                  |
+| `memory.morning.afterHours` | `6`     | how long without a prompt counts as away                                                                   |
 
 ## Limits
 

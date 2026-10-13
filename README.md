@@ -2,7 +2,7 @@
 
 # terminal-code
 
-**A local companion for Claude Code: a safety belt and a behavior layer inside Claude Code, and a control center in your terminal.** Everything stays on your machine. No telemetry.
+**A local companion for Claude Code: a safety belt and a behavior layer inside Claude Code, and a control center in your terminal.** Everything stays on your machines, or goes only where you send it. No telemetry.
 
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 ![Node.js 22.13 or newer](https://img.shields.io/badge/node-%E2%89%A522.13-brightgreen.svg)
@@ -36,6 +36,7 @@
 - **Flows.** End a task with `flow` and it runs as 🔍 research ▶ 📐 plan → ⏸ approval → 🔨 code. No step is skipped, and code checks each one: a report whose findings cite sources that exist, a plan with acceptance criteria and verification commands, your approval in a dialog (or Claude Code's plan dialog), and the verification commands passing when the plugin runs them. Flows pause, resume in a new session and show in the control center. See [docs/modes.md](docs/modes.md).
 - **Full autonomy.** End a task with `myproject full auto quota +10` and it runs to its end while you are away: a plan whose verification commands only grow, a milestone per step on a commit you can return to, an independent review of each one (a separate model call that sees your request and the diff, never the conversation), and a finish that counts only when every verification command passes. Nothing is asked: what needs you (pushes to protected branches, merges, releases, what the belt would ask) waits, recorded with its exact command, in the run's report. It starts only behind a boundary code measures first: on Windows, a WSL2 distribution with no road back to Windows; everywhere, Claude Code's sandbox in its strict form. Off until you turn it on. See [docs/autonomy.md](docs/autonomy.md).
 - **Memory and handoffs.** `terminal-code memory setup` asks where Claude Code's memory should live: on this computer, in a private repository on your GitHub, or both. It installs git and the GitHub CLI if you want, signs you in, names and creates the private repository, brings the memory you already have along, shows every change and asks once. From then on the memory is pulled when a session starts and sent after a turn that changed it, with anything that looks like a secret held back. Type `handoff` (or `devir`) and Claude writes a handoff note into that memory; notes are also written before a compaction and when a session ends, and the next session, on this computer or another, goes on from there. After a while away, a morning report says what happened. See [docs/memory.md](docs/memory.md).
+- **Sync across computers.** `terminal-code sync setup` shares terminal-code's settings, history and handoff notes between the computers you work on, through a private repository on your GitHub that you name, or a folder another service keeps in sync. Each computer writes only its own folder there. The newest change of a setting wins on every computer, but one that would lower a protection waits for you. A memory you already keep in sync yourself is adopted as it is: terminal-code only brings in changes, and you commit and push. See [docs/sync.md](docs/sync.md).
 - **Quota guard.** Reads the 5-hour and weekly windows that Claude Code reports, wraps up work at your budget, stops at the limit and, when the work was autonomous, resumes by itself one minute after the window resets.
 - **Footer lines.** Under each answer: whether your memory repository was pushed, whether anything changed, and the quota when it matters. Computed from git, the turn's tool calls and the measured quota, never guessed.
 - **Quiet long work.** Leaves out Claude Code's "the user has not heard from you" reminders, so long autonomous work does not fill your screen with status lines.
@@ -193,7 +194,7 @@ Details: [docs/safety-belt.md](docs/safety-belt.md).
 
 ## Privacy and security
 
-- **Nothing leaves your machine.** No telemetry, no analytics, no network connection of its own. The one model call it makes is the independent review of a full-autonomy run's milestones, through Claude Code's own client, to the provider your session already uses.
+- **Nothing leaves your machine unless you send it.** No telemetry, no analytics. The memory and sync go only where you set them up to go: a private repository of yours, through git and the GitHub CLI, or a folder you chose. The one model call it makes is the independent review of a full-autonomy run's milestones, through Claude Code's own client, to the provider your session already uses.
 - **What it reads:** Claude Code's settings files and transcripts (read-only), your memory folders (for git status and secret scans).
 - **What it writes:** its data folder (`~/.terminal-code`), and, with your approval at install, four hook entries in your Claude Code user settings (a backup is kept). The plugin is installed through Claude Code's own `claude plugin` command.
 - **What it stores:** numbers (tokens, tool counts, times) and short texts (session titles, first prompts) with secrets masked before they are written.
@@ -205,9 +206,9 @@ Found a vulnerability? Please report it privately: see [SECURITY.md](SECURITY.md
 
 A tool that stands between an agent and your machine has to earn trust with evidence. Twelve layers, from rules about the code itself to real Claude Code sessions, each saying what it proves and what it cannot ([docs/testing.md](docs/testing.md)). Measured on 2026-10-13:
 
-- **634 tests** on Windows, Linux and macOS, Node.js 22 and 24, and in a WSL2 distribution; mean line coverage **93.5%** of the lines that compile to code, every file held to a floor.
+- **684 tests** on Windows, Linux and macOS, Node.js 22 and 24, and in a WSL2 distribution; mean line coverage **93.8%** of the lines that compile to code, every file held to a floor.
 - **False alarms count as bugs.** 197 everyday commands must pass the belt without a single question on every platform, and 162 reading commands must run in chat, research and plan mode. Over the author's last 30 days (36,658 tool calls) the belt would have asked 4.4 times a day.
-- **The tests are tested.** Mutation testing makes 1,763 small deliberate changes to the code that decides, the belt, the modes, full autonomy and the memory's sync alike; the tests catch all 1,763. The maintenance check breaks a sandbox in 13 ways and must notice all 13 and repair what can be repaired.
+- **The tests are tested.** Mutation testing makes 2,078 small deliberate changes to the code that decides, the belt, the modes, full autonomy, the memory's sync and sync across computers alike; the tests catch all 2,078. The maintenance check breaks a sandbox in 13 ways and must notice all 13 and repair what can be repaired.
 - **Inside the real engine.** The plugin is tested with Claude Code's own test kit, every night against the newest Claude Code release, and in live headless sessions.
 - **The tests found real bugs**, each fixed with a test that keeps it fixed: protected files reachable under Windows short names (`TERMIN~1`) or with a trailing dot, every recursive delete under the home folder blocked on macOS, a parser crash on `__proto__`.
 
@@ -234,10 +235,9 @@ On your machine, `terminal-code doctor` runs the same checks: Node.js, Claude Co
 
 Next, in this order:
 
-- **Sync across machines:** terminal-code's own settings and history, append-only, per machine. (The memory and its handoff notes already go along through your GitHub.)
 - **Publication** on npm under the final name, with provenance.
 
-Shipped from the earlier roadmap: the memory's setup and sync with handoff notes and a morning report ([docs/memory.md](docs/memory.md)), full autonomy with a definition of done, in WSL2 ([docs/autonomy.md](docs/autonomy.md)), modes and flows ([docs/modes.md](docs/modes.md)), rule templates (seven), quota history, the day and week report, the maintenance check (`doctor`) and the test process described in [docs/testing.md](docs/testing.md).
+Shipped from the earlier roadmap: sync across computers, and the memory kept in sync by its owner ([docs/sync.md](docs/sync.md)), the memory's setup and sync with handoff notes and a morning report ([docs/memory.md](docs/memory.md)), full autonomy with a definition of done, in WSL2 ([docs/autonomy.md](docs/autonomy.md)), modes and flows ([docs/modes.md](docs/modes.md)), rule templates (seven), quota history, the day and week report, the maintenance check (`doctor`) and the test process described in [docs/testing.md](docs/testing.md).
 
 ## Contributing
 

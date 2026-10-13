@@ -7,9 +7,9 @@
       "functions": 44
     },
     "src/app/data.ts": {
-      "lines": 68,
-      "branches": 46,
-      "functions": 60
+      "lines": 81,
+      "branches": 48,
+      "functions": 83
     },
     "src/app/doctor/checks.ts": {
       "lines": 92,
@@ -23,8 +23,8 @@
     },
     "src/app/doctor/facts.ts": {
       "lines": 83,
-      "branches": 56,
-      "functions": 78
+      "branches": 55,
+      "functions": 75
     },
     "src/app/doctor/render.ts": {
       "lines": 93,
@@ -57,13 +57,13 @@
       "functions": 87
     },
     "src/app/memory-setup.ts": {
-      "lines": 79,
-      "branches": 64,
+      "lines": 82,
+      "branches": 68,
       "functions": 94
     },
     "src/app/memory.ts": {
       "lines": 93,
-      "branches": 67,
+      "branches": 69,
       "functions": 65
     },
     "src/app/replay.ts": {
@@ -80,6 +80,16 @@
       "lines": 91,
       "branches": 74,
       "functions": 88
+    },
+    "src/app/sync-setup.ts": {
+      "lines": 77,
+      "branches": 61,
+      "functions": 82
+    },
+    "src/app/sync.ts": {
+      "lines": 91,
+      "branches": 78,
+      "functions": 94
     },
     "src/cli/args.ts": {
       "lines": 94,
@@ -98,7 +108,7 @@
     },
     "src/cli/main.tsx": {
       "lines": 84,
-      "branches": 72,
+      "branches": 73,
       "functions": 69
     },
     "src/cli/memory.ts": {
@@ -110,6 +120,11 @@
       "lines": 80,
       "branches": 36,
       "functions": 78
+    },
+    "src/cli/sync.ts": {
+      "lines": 81,
+      "branches": 44,
+      "functions": 73
     },
     "src/core/app.ts": {
       "lines": 94,
@@ -173,7 +188,7 @@
     },
     "src/core/flow.ts": {
       "lines": 94,
-      "branches": 84,
+      "branches": 85,
       "functions": 94
     },
     "src/core/footer.ts": {
@@ -226,6 +241,11 @@
       "branches": 92,
       "functions": 94
     },
+    "src/core/i18n/en-sync.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
     "src/core/i18n/en-tui.ts": {
       "lines": 94,
       "branches": 92,
@@ -266,6 +286,11 @@
       "branches": 92,
       "functions": 94
     },
+    "src/core/i18n/tr-sync.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
     "src/core/i18n/tr-tui.ts": {
       "lines": 94,
       "branches": 92,
@@ -292,8 +317,8 @@
       "functions": 94
     },
     "src/core/memory-sync.ts": {
-      "lines": 92,
-      "branches": 88,
+      "lines": 93,
+      "branches": 89,
       "functions": 94
     },
     "src/core/memory.ts": {
@@ -308,7 +333,7 @@
     },
     "src/core/morning.ts": {
       "lines": 94,
-      "branches": 92,
+      "branches": 90,
       "functions": 94
     },
     "src/core/paths.ts": {
@@ -416,6 +441,16 @@
       "branches": 85,
       "functions": 94
     },
+    "src/core/sync-export.ts": {
+      "lines": 94,
+      "branches": 88,
+      "functions": 94
+    },
+    "src/core/sync.ts": {
+      "lines": 94,
+      "branches": 89,
+      "functions": 94
+    },
     "src/core/templates.ts": {
       "lines": 92,
       "branches": 54,
@@ -438,7 +473,7 @@
     },
     "src/hook/main.ts": {
       "lines": 88,
-      "branches": 70,
+      "branches": 71,
       "functions": 89
     },
     "src/node/claude-env.ts": {
@@ -458,7 +493,7 @@
     },
     "src/node/fsx.ts": {
       "lines": 58,
-      "branches": 63,
+      "branches": 67,
       "functions": 71
     },
     "src/node/git.ts": {
@@ -468,7 +503,7 @@
     },
     "src/node/handoffs.ts": {
       "lines": 92,
-      "branches": 78,
+      "branches": 76,
       "functions": 94
     },
     "src/node/index-db.ts": {
@@ -483,18 +518,23 @@
     },
     "src/node/memory-store.ts": {
       "lines": 89,
-      "branches": 58,
+      "branches": 65,
       "functions": 94
     },
     "src/node/memory-tools.ts": {
       "lines": 94,
-      "branches": 87,
+      "branches": 85,
       "functions": 94
     },
     "src/node/memory.ts": {
-      "lines": 85,
-      "branches": 34,
-      "functions": 85
+      "lines": 87,
+      "branches": 68,
+      "functions": 87
+    },
+    "src/node/sync.ts": {
+      "lines": 90,
+      "branches": 64,
+      "functions": 94
     },
     "src/node/tail.ts": {
       "lines": 86,
@@ -517,7 +557,7 @@
       "functions": 74
     },
     "src/tui/run.tsx": {
-      "lines": 16,
+      "lines": 17,
       "branches": 92,
       "functions": 0
     },
@@ -542,9 +582,9 @@
       "functions": 65
     },
     "src/tui/screens/settings.tsx": {
-      "lines": 76,
-      "branches": 48,
-      "functions": 57
+      "lines": 78,
+      "branches": 53,
+      "functions": 62
     },
     "src/tui/screens/templates.tsx": {
       "lines": 83,
@@ -557,7 +597,7 @@
       "functions": 76
     },
     "src/tui/store.ts": {
-      "lines": 3,
+      "lines": 4,
       "branches": 92,
       "functions": 0
     },
@@ -568,7 +608,7 @@
     },
     "src/tui/tree.tsx": {
       "lines": 92,
-      "branches": 61,
+      "branches": 60,
       "functions": 94
     },
     "src/tui/ui.tsx": {
