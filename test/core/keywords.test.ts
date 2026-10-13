@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_KEYWORDS, detectKeyword, messageWithoutKeyword, reservedWords, type ProjectRef } from '../../src/core/keywords.js';
+import { DEFAULT_KEYWORDS, detectKeyword, messageWithoutKeyword, ownWords, reservedWords, type ProjectRef } from '../../src/core/keywords.js';
 
 const projects: ProjectRef[] = [
   { id: 'terminal_code', names: ['terminal'] },
@@ -83,6 +83,39 @@ test('notifications are never keywords, and keywords are reserved', () => {
   assert.equal(d('<task-notification>dur</task-notification>'), null);
   const r = reservedWords();
   for (const w of ['dur', 'devam', 'kota', 'sohbet', 'stop', 'continue']) assert.ok(r.has(w), w);
+});
+
+test("a paste is the person's material, not their words: the keyword typed around it still counts", () => {
+  const paste = (body: string, id = '025f') => `<pasted_content id="${id}">\n${body}\n</pasted_content id="${id}">`;
+  // Word for word the message that went unseen (2026-10-13): its handoff note was filed under the folder's name.
+  const seen = d(`terminal devam (\n\n${paste(' terminal-code │\n $.process.run(wt.exe) failed to start: …')}\n\n)`);
+  assert.deepEqual([seen?.kind, seen?.project, seen?.standalone], ['continue', 'terminal_code', false]);
+  for (const text of [
+    `terminal devam\n${paste('log')}`,
+    `terminal devam: ${paste('log')}`,
+    `terminal devam — ${paste('log')}`,
+    `terminal devam [${paste('log')}]`,
+    `terminal devam "${paste('log')}"`,
+    `${paste('a log that ends in dur')}\nterminal devam`,
+    `terminal devam ${paste('one')} ${paste('two', 'b1')}`,
+  ])
+    assert.equal(d(text)?.project, 'terminal_code', text);
+  // A paste never makes the whole message: the words that count only alone stay words beside it.
+  assert.equal(d(`plan\n${paste('the error')}`), null);
+  assert.equal(d(`dur ${paste('x')}`), null);
+  assert.equal(d(`${paste('x')}\nsohbet`), null);
+  // What is inside a paste is never a keyword, whatever it ends with.
+  assert.equal(d(paste('terminal devam')), null);
+  assert.equal(d(`Bunu oku: ${paste('kota 40')}`), null);
+  // A closing tag with another id belongs to a paste inside the paste; a paste cut short runs to the end.
+  assert.equal(d(`${paste('x </pasted_content id="zz"> terminal devam')}`), null);
+  assert.equal(d(`terminal devam (<pasted_content id="9">\nno end`)?.project, 'terminal_code');
+  // Without a paste nothing changes: a standalone keyword is still standalone.
+  assert.equal(d('terminal devam')?.standalone, true);
+  // The words themselves: a paste cut short at the very start leaves none.
+  assert.deepEqual(ownWords('<pasted_content id="9">\nterminal devam'), { text: '', pasted: true });
+  assert.deepEqual(ownWords('terminal devam'), { text: 'terminal devam', pasted: false });
+  assert.deepEqual(ownWords(`a (${paste('x')}) b ${paste('y')}`), { text: 'a   b', pasted: true });
 });
 
 test('mode keywords: the whole message only, in both languages; everyday words in a sentence stay words', () => {

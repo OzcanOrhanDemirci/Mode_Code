@@ -178,6 +178,34 @@ function escape(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/** A paste as Claude Code hands it on: wrapped in tags, the closing one with the same id. */
+const PASTE = /<pasted_content(?:\s+id="([^"]*)")?[^>]*>[\s\S]*?<\/pasted_content(?:\s+id="\1")?\s*>/g;
+
+/**
+ * The person's own words in a prompt. What they pasted is material, not their words: a keyword typed
+ * before a paste still ends the message ("terminal devam (<paste>)", the person, 2026-10-13, whose
+ * continue went unseen). Brackets, quotes and a colon left around a paste go with it.
+ */
+export function ownWords(prompt: string): { text: string; pasted: boolean } {
+  let pasted = false;
+  let text = prompt.replace(PASTE, () => {
+    pasted = true;
+    return ' ';
+  });
+  // A paste whose closing tag never came (a message cut short) runs to the end.
+  const open = text.search(/<pasted_content\b/);
+  if (open >= 0) {
+    pasted = true;
+    text = text.slice(0, open);
+  }
+  if (!pasted) return { text: prompt, pasted };
+  for (let before = ''; before !== text;) {
+    before = text;
+    text = text.replace(/\(\s*\)|\[\s*\]|\{\s*\}|"\s*"|`\s*`/g, ' ');
+  }
+  return { text: text.replace(/[\s:;,(\[{"`\-–—]+$/, ''), pasted };
+}
+
 /** The tail of the message that can hold a keyword: the last line, after its last sentence boundary. */
 function tail(prompt: string): string {
   // Lines are split before folding: fold() collapses newlines into spaces.
@@ -227,13 +255,15 @@ export function detectKeyword(
   projects: readonly ProjectRef[] = [],
   tables: Partial<Record<Lang, KeywordTable>> = DEFAULT_KEYWORDS,
 ): KeywordMatch | null {
-  if (/^\s*</.test(prompt)) return null; // notifications and system messages are not the person typing
-  const whole = fold(prompt.replace(/\n+/g, ' '))
+  const own = ownWords(prompt);
+  if (/^\s*</.test(own.text)) return null; // notifications and system messages are not the person typing
+  const whole = fold(own.text.replace(/\n+/g, ' '))
     .replace(/[.!?…]+$/, '')
     .trim();
-  const end = tail(prompt);
+  const end = tail(own.text);
   if (!end) return null;
-  const standalone = end === whole;
+  // A paste is part of the message: the keyword before it ends the message, but is not all of it.
+  const standalone = end === whole && !own.pasted;
 
   for (const [lang, t] of Object.entries(tables) as [Lang, KeywordTable][]) {
     const alt = (list: string[]) => list.map((x) => escape(fold(x))).join('|');
