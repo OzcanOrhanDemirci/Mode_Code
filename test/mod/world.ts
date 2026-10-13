@@ -48,9 +48,13 @@ export const SESSION = 'kit-session-1';
 /** The same machine on Windows. */
 export const WIN = { HOME: 'C:/Users/ada', DATA: 'C:/Users/ada/.terminal-code', PROJECT: 'C:/dev/app' };
 
-/** The engine hands file paths over in the host's own form (C:\home\ada\x on Windows): back to /home/ada/x. */
+/**
+ * The engine hands file paths over in the host's own form (C:\home\ada\x on Windows): back to /home/ada/x. A
+ * Windows path on a Linux or macOS host is not absolute there, so it arrives under the test's own folder
+ * (/tmp/…/C:/Users/ada/x): everything up to its drive goes too.
+ */
 export function norm(path: string): string {
-  return path.replace(/\\/g, '/').replace(/^[A-Za-z]:(?=\/)/, '');
+  return path.replace(/\\/g, '/').replace(/^(?:.*\/)?[A-Za-z]:(?=\/)/, '');
 }
 
 export function world(on: any, opts: WorldOptions = {}) {
