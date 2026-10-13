@@ -27,7 +27,7 @@ const dist = join(root, 'dist');
 const fwd = (p) => p.replace(/\\/g, '/');
 if (!process.argv.includes('--yes')) {
   console.log(
-    'test-live: opt-in. Runs six short headless Claude Code sessions, eight where full autonomy can run (cheapest model, capped spend), with this build loaded. Run with --yes.',
+    'test-live: opt-in. Runs six short headless Claude Code sessions, seven where full autonomy can run (cheapest model, capped spend), with this build loaded. Run with --yes.',
   );
   process.exit(0);
 }

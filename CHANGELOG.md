@@ -40,6 +40,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
+- Full autonomy's independent reviews see the project beyond the diff: the tracked files and the build manifests at the reviewed commit; the final review also gets the verification results. Measured in live runs: the reviews' false alarms about files the diff did not touch stopped.
 - Package runners are read as the program they run: `npx wrangler deploy` is asked about like `wrangler deploy`.
 - Publishing and deploying with `--dry-run` are no longer asked about.
 - When an agent runs `doctor`, repairs that would put code into the protection are refused and left to the person.
@@ -47,6 +48,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Fixed
 
+- A full-autonomy run never started in a real session: Claude Code runs the plugin's prompt hook before the safety-net hook's, and `SessionStart` carries no permission mode, so the start checks found the mode unknown. The start now has two steps: the checks measurable at the prompt there, the permission mode that prompt came with and the live sandbox probe at Claude's first step (the autonomy tool's `start`). Found in the first live run in WSL2.
 - A command typed on Windows for a WSL distribution (`wsl -d dev -- rm -rf ~/dev/old`) was judged with the Windows home folder: the distribution's home and absolute paths are now its own, the Windows drives it mounts under `/mnt` keep Windows' protection, and deleting the distribution's root, home or system folders is refused.
 - In the plugin, the folders registered as projects did not count as projects: a session started in the home folder asked about every recursive delete inside them. The hook and the command line had them.
 - Windows 8.3 short names of protected folders (`TERMIN~1`) were not recognised, and neither were protected folders that are links.
