@@ -31,7 +31,7 @@ import { applyKeyword, newModState } from '../../src/core/session.js';
 
 const view: StripView = { mode: 'plan', style: 'autonomous', flow: null, fullAutoHere: false };
 
-test('every control has its digit, 0 to 9, and the words that take a value; each name once', () => {
+test('every control has its number, 0 to 9 and 00, and the words that take a value or close; each name once', () => {
   const names = COMMANDS.map((c) => c.name);
   assert.equal(new Set(names).size, names.length);
   for (const d of '0123456789') assert.ok(commandNamed(d), d);
@@ -40,9 +40,13 @@ test('every control has its digit, 0 to 9, and the words that take a value; each
   assert.deepEqual([commandNamed('devam'), commandNamed('continue')], [{ kind: 'continue' }, { kind: 'continue' }]);
   assert.deepEqual([commandNamed('kota'), commandNamed('quota')], [{ kind: 'quota' }, { kind: 'quota' }]);
   assert.deepEqual([commandNamed('akis'), commandNamed('flow'), commandNamed('9')], [{ kind: 'flow' }, { kind: 'flow' }, { kind: 'flow' }]);
+  assert.deepEqual([commandNamed('00'), commandNamed('kapat'), commandNamed('close')], [{ kind: 'close' }, { kind: 'close' }, { kind: 'close' }]);
   assert.equal(commandNamed('10'), null);
+  assert.equal(commandNamed('000'), null);
   assert.equal(digitOf({ kind: 'mode', mode: 'chat' }), '1');
   assert.equal(digitOf({ kind: 'style', style: 'manual' }), '6');
+  assert.equal(digitOf({ kind: 'menu' }), '0');
+  assert.equal(digitOf({ kind: 'close' }), '00', 'a number of two digits is on the strip too');
   // Every command name is one Claude Code takes: letters, digits, "_" and "-".
   for (const n of names) assert.match(n, /^[A-Za-z0-9_-]{1,64}$/);
 });
@@ -174,7 +178,7 @@ test('the strip: every control on every layout, one row when it fits, never wide
   for (const lang of ['tr', 'en'] as const)
     for (const columns of [40, 50, 60, 80, 100, 120, 160, 200]) {
       const rows = stripRows(view, lang, columns);
-      assert.deepEqual(ids(rows), ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'], `${lang} ${columns}`);
+      assert.deepEqual(ids(rows), ['0', '00', '1', '2', '3', '4', '5', '6', '7', '8', '9'], `${lang} ${columns}`);
       if (columns >= 50) for (const r of rows) assert.ok(rowCells(r) <= columns, `${lang} ${columns}: ${rowCells(r)}`);
     }
   assert.equal(stripRows(view, 'tr', 200).length, 1);
@@ -199,6 +203,11 @@ test('the strip: every control on every layout, one row when it fits, never wide
   const flowing = stripRows({ ...view, flow: '2/4', fullAutoHere: true }, 'tr', 200).flat();
   assert.ok(flowing.some((s) => s.items.some((i) => i.id === '9' && i.active && i.label === '9 akış 2/4')));
   assert.ok(!flowing.some((s) => s.items.some((i) => i.dim)));
+  // Closing comes last, after the menu, never highlighted.
+  const last = (rows: ReturnType<typeof stripRows>) => rows.flat().at(-1)!.items.at(-1)!;
+  assert.deepEqual(last(stripRows(view, 'tr', 200)), { id: '00', label: '00 ✕ kapat', active: false, dim: false });
+  assert.equal(last(stripRows(view, 'en', 200)).label, '00 ✕ close');
+  assert.equal(last(stripRows(view, 'tr', 50)).label, '00✕');
 });
 
 test('the controls in a line and the menu', () => {
@@ -208,7 +217,8 @@ test('the controls in a line and the menu', () => {
   assert.match(menu, /^Şu an: 📐 plan · otonom · hafta %54$/m);
   assert.match(menu, /^- Mod: \/1 💬 sohbet · \/2 🔍 araştırma · \*\*\/3 📐 plan\*\* · \/4 🔨 kod · \/5 serbest$/m);
   assert.match(menu, /\*\*\/7 otonom\*\*/);
-  for (const c of ['/1', '/2', '/4', '/5', '/6', '/8', '/9', '/0', '/devam', '/kota']) assert.ok(menu.includes(c), c);
+  for (const c of ['/1', '/2', '/4', '/5', '/6', '/8', '/9', '/0', '/devam', '/kota', '/00 kapat']) assert.ok(menu.includes(c), c);
+  assert.match(menuText(view, 'en', '—'), /\/0 menu · \/00 close$/m);
 });
 
 test('the list /devam prints: numbered, registered ones starred, the folder and when', () => {

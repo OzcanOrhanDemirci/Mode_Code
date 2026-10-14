@@ -171,6 +171,11 @@
       "branches": 92,
       "functions": 94
     },
+    "src/core/close.ts": {
+      "lines": 94,
+      "branches": 75,
+      "functions": 94
+    },
     "src/core/config.ts": {
       "lines": 93,
       "branches": 91,

@@ -53,6 +53,7 @@ import {
 } from '../core/controls.js';
 import { ago, percent, shortPath } from '../core/format.js';
 import { centerProgram, commandLine, LAUNCH_ENV, OPENS, terminalLaunch, windowsAppsDir, windowsTerminalProgram } from '../core/launch.js';
+import { closeTabArgv, closeTabOutcome, type CloseTab } from '../core/close.js';
 import { fold } from '../core/text.js';
 import {
   conflictContext,
@@ -268,6 +269,11 @@ interface Ctx {
   pendingContinue: { key: string; folder: string; label: string } | null;
   /** The text this plugin last sent as the person's (sendAsPerson): already applied, so not again if it comes back. */
   selfSent: string | null;
+  /** The main loop's model turn while it runs (its `turn.start` id): Claude is working, `/00` asks first. */
+  turnId: string | null;
+  /** `/00` is closing the session; `closed` once its end steps ran, so the end itself does not run them again. */
+  closing: boolean;
+  closed: boolean;
 }
 
 /**
@@ -452,6 +458,9 @@ async function load($: $): Promise<Ctx> {
     armed: null,
     pendingContinue: null,
     selfSent: null,
+    turnId: null,
+    closing: false,
+    closed: false,
     local,
     syncPending: merged.pending,
     syncSaid: new Set(),
@@ -2747,8 +2756,10 @@ async function keepChange($: $, c: Ctx): Promise<void> {
 
 async function onTurnComplete($: $, e: In<'turn.complete'>, next: Nx<'turn.complete'>): Out<'turn.complete'> {
   const result = await next(e);
-  if (e.agentId !== undefined || e.reason !== 'answer') return result;
+  if (e.agentId !== undefined) return result;
   const c = await ctxOf($);
+  if (c.turnId === e.turnId) c.turnId = null;
+  if (e.reason !== 'answer') return result;
   try {
     const cwdNow = await $.session.cwd();
     const acts = classifyTurn(c.turn.uses, classifyEnvFor(c, cwdNow));
@@ -2883,9 +2894,12 @@ async function onSessionEnd($: $, e: In<'session.end'>, next: Nx<'session.end'>)
       if (p.ok) await saveFlow($, c, p.flow);
     }
     if (autoRunning(c)) await pauseAuto($, c, 'session', String(e.reason ?? 'ended'));
-    // The work of a session that changed something is handed off, even without a note asked for (docs/memory.md).
-    if (e.reason !== 'resume') await endHandoff($, c, e.reason === 'clear' ? 'clear' : 'end');
-    await sharedSync($, c, 'end');
+    // A session closed with /00 handed off and synced before it asked to exit, with no clock running (closeSession).
+    if (!c.closed) {
+      // The work of a session that changed something is handed off, even without a note asked for (docs/memory.md).
+      if (e.reason !== 'resume') await endHandoff($, c, e.reason === 'clear' ? 'clear' : 'end');
+      await sharedSync($, c, 'end');
+    }
   } catch {
     /* the flow and the run stay as they were; "continue" in the next session takes them over */
   }
@@ -3505,6 +3519,7 @@ const COMMAND_HINT: Record<ControlAction['kind'], MessageKey | null> = {
   menu: null,
   continue: 'ctl.hint.continue',
   quota: 'ctl.hint.quota',
+  close: null,
 };
 
 function commandDescription(a: ControlAction, lang: Lang): string {
@@ -3513,13 +3528,16 @@ function commandDescription(a: ControlAction, lang: Lang): string {
   return tIn(lang, `ctl.desc.${a.kind}` as MessageKey);
 }
 
-/** The slash commands, in the person's language. The mode, the way of working, the menu and the budget act at once, mid-turn too: the brake. */
+/**
+ * The slash commands, in the person's language. The mode, the way of working, the menu and the budget act at
+ * once, mid-turn too: the brake. So does closing, which asks first while Claude works.
+ */
 async function registerCommands($: $, c: Ctx): Promise<void> {
   // All asked at once, while the start's hook runs: a call made after it returned would not count.
   await Promise.all(
     COMMANDS.map((cmd) => {
       const hint = COMMAND_HINT[cmd.action.kind];
-      const now = cmd.action.kind === 'mode' || cmd.action.kind === 'style' || cmd.action.kind === 'menu' || cmd.action.kind === 'quota';
+      const now = ['mode', 'style', 'menu', 'quota', 'close'].includes(cmd.action.kind);
       return $.command
         .register({
           name: cmd.name,
@@ -3914,6 +3932,57 @@ async function control(
       c.armed = { kind: 'fullAuto', budget };
       return say(tIn(lang, 'ctl.auto.armed', { budget: budgetText(budget, lang) }));
     }
+    case 'close': {
+      if (c.closing) return say(tIn(lang, 'ctl.close.already'));
+      // While Claude works, closing stops its work: asked first. Idle, it closes at once.
+      if (c.turnId !== null) {
+        const yes = tIn(lang, 'ctl.close.yes');
+        const answer = await askOptions($, tIn(lang, 'ctl.close.busy'), [yes, tIn(lang, 'ctl.close.no')]);
+        if (answer === null || fold(answer) !== fold(yes)) return say(tIn(lang, 'ctl.cancelled'));
+      }
+      c.closing = true;
+      // From a timer, the moment this row is shown: Claude Code refuses a command run from a command's own hook.
+      $.clock.after(1, () => {
+        void closeSession($, c, via);
+      });
+      return say(tIn(lang, c.platform === 'win32' ? 'ctl.close.going' : 'ctl.close.goingNoTab'));
+    }
+  }
+}
+
+/**
+ * Closes the session as /exit does (`/00`): a running turn is stopped first; the steps the session's end runs
+ * under Claude Code's short clock (the handoff note, the sync) run here, with none, so none is cut short; on
+ * Windows the helper that closes the tab after Claude Code is started (src/core/close.ts); then Claude Code is
+ * asked to exit. If it does not, the session goes on and says so.
+ */
+async function closeSession($: $, c: Ctx, via: 'command' | 'strip'): Promise<void> {
+  const busy = c.turnId !== null;
+  if (c.turnId !== null) await $.turn.abort({ turnId: c.turnId }).catch(() => undefined);
+  try {
+    await endHandoff($, c, 'end');
+    await sharedSync($, c, 'end');
+    c.closed = true;
+  } catch {
+    /* the end runs them again */
+  }
+  let tab: CloseTab | 'off' = 'off';
+  let detail = '';
+  if (c.platform === 'win32') {
+    try {
+      ({ tab, detail } = closeTabOutcome((await $.process.run(closeTabArgv(c.env.SYSTEMROOT), { timeoutMs: 20_000 })).stdout));
+    } catch (err) {
+      tab = 'failed';
+      detail = String((err as Error)?.message ?? err).slice(0, 80);
+    }
+  }
+  await logEvent($, c, { kind: 'close', via, busy, tab, ...(detail ? { detail } : {}) });
+  try {
+    await $.command.run({ command: 'exit' });
+  } catch (err) {
+    c.closing = false;
+    c.closed = false;
+    $.ui.toast(tIn(c.lang, 'ctl.close.failed', { reason: String((err as Error)?.message ?? err).slice(0, 160) }), { timeoutMs: 15_000 });
   }
 }
 
@@ -3936,6 +4005,17 @@ export function register(on: On): void {
   on('prompt.submit', onPromptSubmit);
   on('session.measure', onMeasure);
   on('turn.complete', onTurnComplete);
+  // The main loop's turn while it runs: Claude is working, and /00 asks before it stops that work.
+  on('turn.start', async ($, e, next) => {
+    if (e.agentId !== undefined) return next(e);
+    const r = await next(e);
+    try {
+      (await ctxOf($)).turnId = e.turnId;
+    } catch {
+      /* /00 then closes without asking */
+    }
+    return r;
+  });
   on('prompt.attachment', { type: 'silent_turn_reminder' }, async ($, e, next) => ((await quietWork($)) ? { text: null } : next(e)));
   on('prompt.attachment', { type: 'plan_mode' }, async ($, e, next) => {
     const r = await next(e);
@@ -3967,7 +4047,7 @@ export function register(on: On): void {
   });
   // After /clear the conversation goes on under a new session id with a fresh state; a running flow pauses.
   on('session.end', onSessionEnd);
-  // The slash commands of the controls: /0 to /9, /devam, /kota, /akis and their English names.
+  // The slash commands of the controls: /0 to /9, /00, /devam, /kota, /akis, /kapat and their English names.
   on('command.run', onCommand);
   // Above the prompt: the strip with the mode and the way of working, always in view and pressable; and while a
   // plan waits for approval, a line that says so and how to approve. A question of Claude Code's own goes first.

@@ -8,6 +8,7 @@ export const enControls = {
   'ctl.strip.flow': 'flow',
   'ctl.strip.flowAt': 'flow {at}',
   'ctl.strip.menu': 'menu',
+  'ctl.strip.close': 'close',
   'ctl.style.manual': 'manual',
   'ctl.style.autonomous': 'autonomous',
   'ctl.style.full': 'full auto',
@@ -43,6 +44,7 @@ export const enControls = {
   'ctl.desc.menu': 'Opens the control center in a new tab; says where this session stands',
   'ctl.desc.continue': 'Continue a project or a folder: lists them all when none is given',
   'ctl.desc.quota': 'Weekly budget: a number (70) or points above now (+5)',
+  'ctl.desc.close': 'Closes the session cleanly: handoff note, sync, exit; on Windows its tab too',
   'ctl.hint.text': '[text]',
   'ctl.hint.fullAuto': '[quota +N] [task]',
   'ctl.hint.flow': '[task]',
@@ -78,4 +80,12 @@ export const enControls = {
   'ctl.continue.ambiguous': 'More than one fits "{text}": {list}. Use the number.',
   'ctl.continue.empty': 'There is nothing to continue yet: no registered project, and Claude Code has not been used in any folder.',
   'ctl.continue.started': 'Continuing {label}',
+  // ── closing ──
+  'ctl.close.going': 'The session is closing: the handoff note and the sync first, then Claude Code exits and its tab closes.',
+  'ctl.close.goingNoTab': 'The session is closing: the handoff note and the sync first, then Claude Code exits. The tab stays open; close it yourself.',
+  'ctl.close.busy': 'Claude is working right now. Stop it and close the session?',
+  'ctl.close.yes': 'Close',
+  'ctl.close.no': 'Cancel',
+  'ctl.close.already': 'The session is already closing.',
+  'ctl.close.failed': 'Claude Code did not exit ({reason}). /exit closes it.',
 } as const;

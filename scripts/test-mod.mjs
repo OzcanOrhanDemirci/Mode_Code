@@ -93,10 +93,12 @@ const ALLOWED = new Set([
   'session.messages',
   'session.model',
   'settings.read',
-  // The controls (docs/modes.md, "Controls"): the slash commands /0 to /9, /devam, /kota and /akis are
-  // registered and answered; a press on the strip above the prompt runs the same command.
+  // The controls (docs/modes.md, "Controls"): the slash commands /0 to /9, /00, /devam, /kota and /akis are
+  // registered and answered; a press on the strip above the prompt runs the same command. /00 closes the
+  // session as /exit does (command.run), stopping Claude's running turn first once the person confirmed it.
   'command.register',
   'command.run',
+  'turn.abort',
 ]);
 const notes = (report.contents ?? []).flatMap((c) => c.notes ?? []);
 const callsNote = notes.find((n) => / calls: /.test(n)) ?? '';

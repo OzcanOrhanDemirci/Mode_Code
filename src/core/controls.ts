@@ -3,8 +3,8 @@
  * The controls of a session: its mode and its way of working, the heart of the tool, always in view on the
  * strip above the prompt and changed in three ways that do the same thing: a slash command (`/3`), a press
  * on the strip, or a keyword typed as the whole message ("plan"). Commands that need a value (`/devam`,
- * `/kota`, `/9`, `/8`) ask for it when it is not given and apply it at once when it is. Pure: the plugin
- * (src/mod/register.ts) asks, draws and applies.
+ * `/kota`, `/9`, `/8`) ask for it when it is not given and apply it at once when it is. `/00` closes the
+ * session cleanly (src/core/close.ts). Pure: the plugin (src/mod/register.ts) asks, draws and applies.
  */
 import type { KeywordMatch, KeywordKind, FlowVariant } from './keywords.js';
 import type { Interaction, ModSessionState } from './session.js';
@@ -23,9 +23,10 @@ export type ControlAction =
   | { kind: 'flow' }
   | { kind: 'menu' }
   | { kind: 'continue' }
-  | { kind: 'quota' };
+  | { kind: 'quota' }
+  | { kind: 'close' };
 
-/** Every slash command, by name: a digit for everything on the strip, a word for those that take a value. */
+/** Every slash command, by name: a number for everything on the strip, a word for those that take a value and for closing. */
 export const COMMANDS: readonly { name: string; action: ControlAction }[] = [
   { name: '1', action: { kind: 'mode', mode: 'chat' } },
   { name: '2', action: { kind: 'mode', mode: 'research' } },
@@ -37,17 +38,20 @@ export const COMMANDS: readonly { name: string; action: ControlAction }[] = [
   { name: '8', action: { kind: 'fullAuto' } },
   { name: '9', action: { kind: 'flow' } },
   { name: '0', action: { kind: 'menu' } },
+  { name: '00', action: { kind: 'close' } },
   { name: 'devam', action: { kind: 'continue' } },
   { name: 'continue', action: { kind: 'continue' } },
   { name: 'kota', action: { kind: 'quota' } },
   { name: 'quota', action: { kind: 'quota' } },
   { name: 'akis', action: { kind: 'flow' } },
   { name: 'flow', action: { kind: 'flow' } },
+  { name: 'kapat', action: { kind: 'close' } },
+  { name: 'close', action: { kind: 'close' } },
 ];
 
-/** The digit of the command that does `action` on the strip. */
+/** The number of the command that does `action` on the strip. */
 export function digitOf(action: ControlAction): string {
-  return COMMANDS.find((c) => /^\d$/.test(c.name) && JSON.stringify(c.action) === JSON.stringify(action))!.name;
+  return COMMANDS.find((c) => /^\d+$/.test(c.name) && JSON.stringify(c.action) === JSON.stringify(action))!.name;
 }
 
 export function commandNamed(name: string): ControlAction | null {
@@ -217,7 +221,7 @@ export interface StripItem {
   dim: boolean;
 }
 
-/** A titled group of controls: the mode, or the way of working with the flow and the menu. */
+/** A titled group of controls: the mode, or the way of working with the flow, the menu and closing. */
 export interface StripSegment {
   title: string;
   items: StripItem[];
@@ -289,6 +293,7 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
           dim: false,
         },
         { id: '0', label: tight ? '0≡' : `0 ${tIn(lang, 'ctl.strip.menu')}`, active: false, dim: false },
+        { id: '00', label: tight ? '00✕' : `00 ✕ ${tIn(lang, 'ctl.strip.close')}`, active: false, dim: false },
       ],
     },
   ];
@@ -313,7 +318,9 @@ export function menuText(v: StripView, lang: Lang, quota: string): string {
   const mark = (on: boolean, text: string) => (on ? `**${text}**` : text);
   const modes = MODES.map((m) => mark(v.mode === m, `/${digitOf({ kind: 'mode', mode: m })} ${modeLabel(m, lang)}`)).join(' · ');
   const styles = STYLES.map((s) => mark(v.style === s, `/${STYLE_DIGIT[s]} ${tIn(lang, `ctl.style.${s}` as MessageKey)}`)).join(' · ');
-  const other = [`/9 ${tIn(lang, 'ctl.strip.flow')}`, '/devam', '/kota', `/0 ${tIn(lang, 'ctl.strip.menu')}`].join(' · ');
+  const other = [`/9 ${tIn(lang, 'ctl.strip.flow')}`, '/devam', '/kota', `/0 ${tIn(lang, 'ctl.strip.menu')}`, `/00 ${tIn(lang, 'ctl.strip.close')}`].join(
+    ' · ',
+  );
   return [
     tIn(lang, 'ctl.menu.now', { controls: controlsLine(v, lang), quota }),
     '',

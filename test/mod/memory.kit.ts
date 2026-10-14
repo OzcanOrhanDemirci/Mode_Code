@@ -138,6 +138,29 @@ test('a turn that changed something keeps what its note would be written from, s
   expect(w.modState().work.handoffAt).toBe(NOW + 2000);
 });
 
+test('/00 writes the note of a session that changed something before Claude Code is asked to exit; its end does not write another', async ($, on) => {
+  const w = world(on, { config: {}, git: repoGit() });
+  const notes = () => [...w.files.keys()].filter((p) => p.startsWith(`${HANDOFFS}/ada-app/`));
+  const atExit: number[] = [];
+  on('turn.complete', (_$: any, e: any) => ({ text: e.answer }));
+  on('session.end', (_$: any, e: any) => ({ sessionId: e.sessionId }));
+  on('command.run', { command: 'exit' }, () => {
+    atExit.push(notes().length);
+    return { text: '' };
+  });
+  await $.prompt.submit(typed('Fix the bug.'));
+  await $.tool.call({ tool: 'Write', file_path: `${PROJECT}/src/a.ts`, content: 'x' } as any);
+  await $.turn.complete({ answer: 'Fixed.', durationMs: 5, isAborted: false, turnId: 't1', reason: 'answer' } as any);
+  await $.command.run({ command: '00', args: '' } as any);
+  await w.clock.advance(5);
+  for (let i = 0; i < 400 && !atExit.length; i++) await Promise.resolve();
+  // Written with no clock running, before the exit: Claude Code's end has a short one, which cut a sync before.
+  expect(atExit).toEqual([1]);
+  await $.session.end({ reason: 'prompt_input_exit', sessionId: SESSION, resume: {} } as any);
+  expect(notes().length).toBe(1);
+  expect(w.read(notes()[0]!)!).toMatch(/trigger: end/);
+});
+
 test('a session closed without ending still leaves its note: the next session writes it, once, and is told of it', async ($, on) => {
   const SESSIONS = `${DATA}/state/sessions`;
   // ps knows process 111 (a session still running); every other number is gone.

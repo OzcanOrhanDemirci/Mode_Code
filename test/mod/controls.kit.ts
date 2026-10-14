@@ -55,12 +55,37 @@ test("the commands are declared at the start, in the person's language; the mode
   on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }));
   await $.session.start({ source: 'startup', cwd: PROJECT } as any);
   await settle(w);
-  expect(w.commands.map((c: any) => c.name)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'devam', 'continue', 'kota', 'quota', 'akis', 'flow']);
+  expect(w.commands.map((c: any) => c.name)).toEqual([
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+    '0',
+    '00',
+    'devam',
+    'continue',
+    'kota',
+    'quota',
+    'akis',
+    'flow',
+    'kapat',
+    'close',
+  ]);
   const three = w.commands.find((c: any) => c.name === '3');
   expect(three.description).toMatch(/^Mod: 📐 plan/);
   expect(three.argumentHint).toBe('[metin]');
   expect(three.immediate).toBe(true);
   expect(w.commands.find((c: any) => c.name === 'kota').immediate).toBe(true);
+  expect(w.commands.find((c: any) => c.name === '00')).toMatchObject({
+    immediate: true,
+    description: "Oturumu düzgünce kapatır: devir notu, eşitleme, çıkış; Windows'ta sekmesiyle birlikte",
+  });
+  expect(w.commands.find((c: any) => c.name === '00').argumentHint).toBeUndefined();
   expect(w.commands.find((c: any) => c.name === 'devam').immediate).toBeUndefined();
   expect(w.commands.find((c: any) => c.name === '8').immediate).toBeUndefined();
 });
@@ -117,7 +142,7 @@ test('/0 from the phone says where the session stands and lists every command; i
     const r = await runFrom($, '0', origin);
     expect(r.text).toMatch(/^Şu an: 🔨 kod · manuel/);
     expect(r.text).toMatch(/\*\*\/4 🔨 kod\*\*/);
-    expect(r.text).toMatch(/\/9 akış · \/devam · \/kota/);
+    expect(r.text).toMatch(/\/9 akış · \/devam · \/kota · \/0 menü · \/00 kapat/);
     expect(r.text).toMatch(/Kontrol merkezi bilgisayarda açılır: orada yazılan \/0 onu yeni sekmede açar\.$/);
   }
   expect(w.ran).toEqual([]);
@@ -312,7 +337,7 @@ test('the strip above the prompt: every control, those in effect marked, the ful
   await run($, '3');
   const ui = await $.ui.mount({ plugin: 'terminal-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
   const keys = (await ui.findAll({ type: 'Button' })).map((b: any) => b.key);
-  expect(keys).toEqual(['strip-1', 'strip-2', 'strip-3', 'strip-4', 'strip-5', 'strip-6', 'strip-7', 'strip-8', 'strip-9', 'strip-0']);
+  expect(keys).toEqual(['strip-1', 'strip-2', 'strip-3', 'strip-4', 'strip-5', 'strip-6', 'strip-7', 'strip-8', 'strip-9', 'strip-0', 'strip-00']);
   expect((await ui.find({ key: 'strip-3' }))?.props.variant).toBe('primary');
   expect((await ui.find({ key: 'strip-4' }))?.props.variant).toBeUndefined();
   expect((await ui.find({ type: 'Text', text: '8 full auto' }))?.props.dimColor).toBe(true);
@@ -339,7 +364,7 @@ test('the strip yields to a question of Claude Code, and fits a narrow terminal'
   }
   expect(handedOn).toMatch(/no implementation for ui\.render/);
   const narrow = await $.ui.mount({ plugin: 'terminal-code', surface: 'terminal', component: 'AbovePrompt', props: { ...band, bodyColumns: 50 } } as any);
-  expect((await narrow.findAll({ type: 'Button' })).length).toBe(10);
+  expect((await narrow.findAll({ type: 'Button' })).length).toBe(11);
   expect(await narrow.find({ type: 'Text', text: '3📐' })).toBeDefined();
   await narrow.unmount();
 });
@@ -415,4 +440,108 @@ test("a mode typed as the first prompt: the folder's note comes first and alread
   expect(folder >= 0 && keyword > folder).toBe(true);
   expect(notes[folder]).toMatch(/Mode, plan mode.*Way of working, autonomous/);
   expect(w.modState()).toMatchObject({ mode: 'plan', interaction: 'autonomous' });
+});
+
+// ── closing: /00 ──
+
+/** Claude Code beneath: the exit the plugin asks for (as /exit), the turns it runs and one it stops. */
+const engine = (on: any, exit: () => any = () => ({ text: '' })) => {
+  const exits: any[] = [];
+  const aborted: string[] = [];
+  on('command.run', { command: 'exit' }, (_$: any, e: any) => {
+    exits.push(e);
+    return exit();
+  });
+  on('turn.abort', (_$: any, e: any) => {
+    aborted.push(e.turnId);
+    return { value: undefined };
+  });
+  on('turn.start', (_$: any, e: any) => ({ turnId: e.turnId }));
+  on('turn.complete', (_$: any, e: any) => ({ text: e.answer }));
+  on('session.end', (_$: any, e: any) => ({ sessionId: e.sessionId }));
+  return { exits, aborted };
+};
+/** The starter of the helper that closes the tab: Windows PowerShell, which says it is armed. */
+const starter = (argv: string[]) => (/powershell\.exe$/i.test(argv[0]!) ? { exitCode: 0, stdout: 'armed pwsh.exe\r\n' } : undefined);
+/** The close runs from a timer, step after step: the clock moves it, and every step it awaits settles. */
+const closed = async (w: any, done: () => boolean) => {
+  await w.clock.advance(5);
+  for (let i = 0; i < 400 && !done(); i++) await Promise.resolve();
+};
+
+test('/00 closes an idle session at once: it says so, starts the helper that closes the tab, then Claude Code exits as for /exit', async ($, on) => {
+  const w = world(on, { lang: 'tr', windows: true, env: { SYSTEMROOT: 'C:\\WINDOWS' }, programs: starter });
+  const cc = engine(on);
+  const r = await run($, '00');
+  expect(r.text).toBe('Oturum kapanıyor: önce devir notu ve eşitleme, sonra Claude Code çıkar ve sekmesi kapanır.');
+  expect(w.asked).toEqual([]);
+  // Not from the command's own hook, which Claude Code refuses: from a timer, once the row is shown.
+  expect(cc.exits).toEqual([]);
+  await closed(w, () => cc.exits.length > 0);
+  expect(w.ran.map((argv) => argv.slice(0, 5))).toEqual([
+    ['C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe', '-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand'],
+  ]);
+  expect(cc.exits.length).toBe(1);
+  expect(cc.aborted).toEqual([]);
+  expect(w.events().filter((e: any) => e.kind === 'close')).toEqual([
+    expect.objectContaining({ via: 'command', busy: false, tab: 'armed', detail: 'pwsh.exe' }),
+  ]);
+  // Once is enough: a second one while it closes asks for nothing more.
+  expect((await run($, 'kapat')).text).toBe('Oturum zaten kapanıyor.');
+  await closed(w, () => false);
+  expect(cc.exits.length).toBe(1);
+  // The end itself still marks the session ended.
+  await $.session.end({ reason: 'prompt_input_exit', sessionId: SESSION, resume: {} } as any);
+  expect(w.modState().endedAt).toBe(w.clock.now());
+});
+
+test('/00 while Claude works asks first; "Cancel" leaves the work and the session as they were', async ($, on) => {
+  const w = world(on, { answer: 'block' });
+  const cc = engine(on);
+  await $.turn.start({ text: 'Refactor it.', turnId: 't1' } as any);
+  expect((await run($, '00')).text).toBe('Nothing changed.');
+  expect(w.asked).toEqual(['Claude is working right now. Stop it and close the session?']);
+  await closed(w, () => false);
+  expect([cc.exits, cc.aborted]).toEqual([[], []]);
+  // The main turn's end is the end of the work; a subagent's turn is not Claude at work in the session.
+  await $.turn.complete({ answer: 'Done.', durationMs: 5, isAborted: false, turnId: 't1', reason: 'answer' } as any);
+  await $.turn.start({ text: 'look', turnId: 'a1', agentId: 'agent-1' } as any);
+  await run($, '00');
+  expect(w.asked.length).toBe(1);
+});
+
+test('/00 while Claude works, confirmed: the turn is stopped, then the session closes; off Windows the tab is left to the person', async ($, on) => {
+  const w = world(on, { answer: 'allow' });
+  const cc = engine(on);
+  await $.turn.start({ text: 'Refactor it.', turnId: 't7' } as any);
+  const r = await run($, '00');
+  expect(w.asked).toEqual(['Claude is working right now. Stop it and close the session?']);
+  expect(r.text).toBe('The session is closing: the handoff note and the sync first, then Claude Code exits. The tab stays open; close it yourself.');
+  await closed(w, () => cc.exits.length > 0);
+  expect(cc.aborted).toEqual(['t7']);
+  expect(cc.exits.length).toBe(1);
+  expect(w.ran).toEqual([]);
+  expect(w.events().filter((e: any) => e.kind === 'close')).toEqual([expect.objectContaining({ busy: true, tab: 'off' })]);
+});
+
+test('"00" on the strip closes too, from the phone as well; an exit Claude Code refuses is said, and /00 can be tried again', async ($, on) => {
+  const w = world(on);
+  let refuse = true;
+  const cc = engine(on, () => {
+    if (refuse) throw new Error('refused here');
+    return { text: '' };
+  });
+  await run($, '0');
+  const phone = await $.ui.mount({ plugin: 'terminal-code', surface: 'mobile', component: 'AbovePrompt', props: band } as any);
+  await phone.press({ key: 'strip-00' });
+  expect(w.toasts.at(-1)).toMatch(/^The session is closing: /);
+  await closed(w, () => w.toasts.length > 1);
+  // A hook that throws is skipped, so here the engine says why no exit ran: the reason is passed on as it came.
+  expect(w.toasts.at(-1)).toMatch(/^Claude Code did not exit \(.+\)\. \/exit closes it\.$/);
+  expect(w.events().filter((e: any) => e.kind === 'close')).toEqual([expect.objectContaining({ via: 'strip' })]);
+  refuse = false;
+  expect((await run($, '00')).text).toMatch(/^The session is closing: /);
+  await closed(w, () => cc.exits.length > 1);
+  expect(cc.exits.length).toBe(2);
+  await phone.unmount();
 });

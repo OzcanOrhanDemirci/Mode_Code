@@ -10,6 +10,7 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.strip.flow': 'akış',
   'ctl.strip.flowAt': 'akış {at}',
   'ctl.strip.menu': 'menü',
+  'ctl.strip.close': 'kapat',
   'ctl.style.manual': 'manuel',
   'ctl.style.autonomous': 'otonom',
   'ctl.style.full': 'tam otonom',
@@ -45,6 +46,7 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.desc.menu': 'Kontrol merkezini yeni sekmede açar; oturumun durumunu söyler',
   'ctl.desc.continue': 'Bir projeye ya da klasöre devam: verilmezse hepsini listeler',
   'ctl.desc.quota': 'Haftalık bütçe: bir sayı (70) ya da şimdinin üstüne puan (+5)',
+  'ctl.desc.close': "Oturumu düzgünce kapatır: devir notu, eşitleme, çıkış; Windows'ta sekmesiyle birlikte",
   'ctl.hint.text': '[metin]',
   'ctl.hint.fullAuto': '[kota +N] [görev]',
   'ctl.hint.flow': '[görev]',
@@ -80,4 +82,12 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.continue.ambiguous': '"{text}" birden fazlasına uyuyor: {list}. Numarasını kullan.',
   'ctl.continue.empty': 'Henüz devam edilecek bir şey yok: kayıtlı proje yok, Claude Code hiçbir klasörde kullanılmamış.',
   'ctl.continue.started': '{label} ile devam',
+  // ── kapatma ──
+  'ctl.close.going': 'Oturum kapanıyor: önce devir notu ve eşitleme, sonra Claude Code çıkar ve sekmesi kapanır.',
+  'ctl.close.goingNoTab': 'Oturum kapanıyor: önce devir notu ve eşitleme, sonra Claude Code çıkar. Sekme açık kalır; onu sen kapatırsın.',
+  'ctl.close.busy': 'Claude şu an çalışıyor. Yarıda kesip oturumu kapatayım mı?',
+  'ctl.close.yes': 'Kapat',
+  'ctl.close.no': 'Vazgeç',
+  'ctl.close.already': 'Oturum zaten kapanıyor.',
+  'ctl.close.failed': 'Claude Code kapanmadı ({reason}). /exit yazarak kapatabilirsin.',
 };
