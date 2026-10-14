@@ -31,26 +31,26 @@ The core holds every decision: the shell parsers and the belt, keywords, quota a
 
 ## Data folder
 
-| Path                                             | Writer                  | Contents                                                                       |
-| ------------------------------------------------ | ----------------------- | ------------------------------------------------------------------------------ |
-| `config.json`                                    | you, the control center | settings                                                                       |
-| `state/quota.json`                               | the mod                 | the latest rate-limit reading                                                  |
-| `state/sessions/<id>.mod.json`                   | the mod                 | mode, budget, approvals, block counts, flow of one session                     |
-| `state/sessions/<id>.hook.json`                  | the hook                | the hook's own counters, and Claude Code's permission mode as hooks receive it |
-| `flows/<id>/flow.json`, `research.md`, `plan.md` | the mod                 | a flow's record, the checked report and the approved plan                      |
-| `runs/<id>/run.json`, `plan.md`, `report.md`     | the mod                 | a full-autonomy run's record, the accepted plan and the report                 |
-| `memory/<repository>/`                           | the memory setup        | the working copy of a memory kept on GitHub only ([memory.md](memory.md))      |
-| `handoffs/<project>/`                            | the mod                 | handoff notes, when no memory store is set up (else inside the store)          |
-| `state/memory-sync.<mod\|hook\|cli>.json`        | one writer each         | the last sync of the memory store                                              |
-| `state/memory-seen.<mod\|hook\|cli>.json`        | one writer each         | the commit the memory store was last seen at (what arrived since is told)      |
-| `state/sync.<mod\|hook\|cli>.json`               | one writer each         | the last sync across computers ([sync.md](sync.md))                            |
-| `state/sync-ignored.json`                        | the CLI                 | settings from other computers the person kept their own value for              |
-| `state/activity.json`                            | the mod                 | when you last typed, and the last long gap (the morning report)                |
-| `state/notes.json`, `state/notes-delivered.json` | the CLI, the mod        | your decisions on notes from runs, and which were handed to a session          |
-| `events/<yyyy-mm>/<id>.<writer>.jsonl`           | mod, hook               | belt, keyword and quota events, append-only                                    |
-| `index.db`                                       | the CLI                 | the session index                                                              |
-| `bin/hook.mjs`, `marketplace/`                   | the installer           | the installed programs                                                         |
-| `install/manifest.json`, `install/backups/`      | the installer           | what was installed; settings backups                                           |
+| Path                                             | Writer                  | Contents                                                                                                        |
+| ------------------------------------------------ | ----------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `config.json`                                    | you, the control center | settings                                                                                                        |
+| `state/quota.json`                               | the mod                 | the latest rate-limit reading                                                                                   |
+| `state/sessions/<id>.mod.json`                   | the mod                 | mode, budget, approvals, block counts, flow of one session                                                      |
+| `state/sessions/<id>.hook.json`                  | the hook                | the hook's own counters, Claude Code's permission mode as hooks receive it, and the process the session runs in |
+| `flows/<id>/flow.json`, `research.md`, `plan.md` | the mod                 | a flow's record, the checked report and the approved plan                                                       |
+| `runs/<id>/run.json`, `plan.md`, `report.md`     | the mod                 | a full-autonomy run's record, the accepted plan and the report                                                  |
+| `memory/<repository>/`                           | the memory setup        | the working copy of a memory kept on GitHub only ([memory.md](memory.md))                                       |
+| `handoffs/<project>/`                            | the mod                 | handoff notes, when no memory store is set up (else inside the store)                                           |
+| `state/memory-sync.<mod\|hook\|cli>.json`        | one writer each         | the last sync of the memory store                                                                               |
+| `state/memory-seen.<mod\|hook\|cli>.json`        | one writer each         | the commit the memory store was last seen at (what arrived since is told)                                       |
+| `state/sync.<mod\|hook\|cli>.json`               | one writer each         | the last sync across computers ([sync.md](sync.md))                                                             |
+| `state/sync-ignored.json`                        | the CLI                 | settings from other computers the person kept their own value for                                               |
+| `state/activity.json`                            | the mod                 | when you last typed, and the last long gap (the morning report)                                                 |
+| `state/notes.json`, `state/notes-delivered.json` | the CLI, the mod        | your decisions on notes from runs, and which were handed to a session                                           |
+| `events/<yyyy-mm>/<id>.<writer>.jsonl`           | mod, hook               | belt, keyword and quota events, append-only                                                                     |
+| `index.db`                                       | the CLI                 | the session index                                                                                               |
+| `bin/hook.mjs`, `marketplace/`                   | the installer           | the installed programs                                                                                          |
+| `install/manifest.json`, `install/backups/`      | the installer           | what was installed; settings backups                                                                            |
 
 Every runtime file has exactly one writer, so no two processes race on a file; writes are atomic (a temporary file and a rename).
 
@@ -66,6 +66,7 @@ Every runtime file has exactly one writer, so no two processes race on a file; w
 - **Computers share settings without sharing a file.** Each computer writes only its own folder of the shared place: its settings with the time each changed there, its history, summaries of its runs and flows. The settings in effect are computed where they are read (the plugin, the hook's every call, the command line): `config.json` stays this computer's own, and the newest change of each setting wins, the same on every computer; one that lowers a protection waits for the person. So neither git nor a sync service ever has to choose between two computers' versions of a file, and nothing another computer sends can weaken a protection here. See [sync.md](sync.md).
 - **A flow's record has one writer.** Only the plugin writes `flows/<id>/`, which the belt keeps the model from writing; the model finishes a step through a tool the plugin registers (`mcp__terminal-code__flow_step`, served in-process), and the plugin checks the step before the record moves. The verification commands run through Claude Code's own shell tool, so the belt and the permission rules see them as any command.
 - **Claude Code's permission mode comes from the hooks.** Claude Code hands `permission_mode` to settings hooks, not to plugins: the safety-net hook records it in its own state file, and the plugin reads it, together with the plan-mode notes Claude Code adds to the conversation. The order matters: Claude Code runs the plugin's prompt hook before the settings hooks' `UserPromptSubmit`, and `SessionStart` carries no permission mode (measured, Claude Code 2.1.296), so what the hook records with a prompt is there for the plugin only from that prompt's first tool call on. A full-autonomy start therefore measures the mode at the run's first step, against the time the hook recorded the prompt.
+- **Whether a session is still open is asked of its process.** A session marks itself ended first thing when it ends, but a window shut by its close button ends it without that, so its record alone would read as working for the next 15 minutes. The safety-net hook is Claude Code's child (exec form), so its parent is the session's own process: it records that process and its program when the session starts. Whoever counts another session as working (the same-folder warning, taking over a flow or a run, Home) looks the process up first: `tasklist` by its full path on Windows, `ps` elsewhere. Windows hands a freed process number out again soon, so there the program must match too. A lookup that cannot tell keeps the session counted: a warning too many, never one too few.
 - **Tokens counted per API message.** Transcripts repeat a message's usage on each content block; the index deduplicates by message id.
 - **No runtime dependencies.** Each program is one bundled file; bundled third-party code is listed in `THIRD_PARTY_NOTICES.md`, and the build fails on a license outside the allowed list.
 
