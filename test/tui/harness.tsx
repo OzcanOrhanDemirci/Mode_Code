@@ -361,6 +361,8 @@ const START_CAP_MS = 10_000;
 export interface Screen {
   /** The screen now, colors removed. */
   text(): string;
+  /** The screen now as the terminal receives it, colors included (scripts/screenshots.ts draws it). */
+  ansi(): string;
   press(...keys: string[]): Promise<void>;
   type(s: string): Promise<void>;
   close(): void;
@@ -400,6 +402,7 @@ export async function draw(
   return {
     // eslint-disable-next-line no-control-regex
     text: () => stdout.last.replace(/\u001B\[[0-9;?]*[A-Za-z]/g, ''),
+    ansi: () => stdout.last,
     async press(...keys: string[]) {
       for (const k of keys) {
         const before = stdout.frames;
