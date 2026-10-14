@@ -278,8 +278,9 @@ fetch_package() {
   fi
   mkdir -p "$STAGE/pkg"
   tar -xzf "$STAGE/package.tgz" -C "$STAGE/pkg" || die "$(t 'The package could not be unpacked.' 'Paket açılamadı.')"
-  [ -f "$STAGE/pkg/package/dist/cli.mjs" ] && [ -f "$STAGE/pkg/package/dist/hook.mjs" ] ||
-    die "$(t 'That is not a Mode_Code package.' 'Bu bir Mode_Code paketi değil.')"
+  for f in cli.mjs hook.mjs; do
+    [ -f "$STAGE/pkg/package/dist/$f" ] || die "$(t 'That is not a Mode_Code package.' 'Bu bir Mode_Code paketi değil.')"
+  done
   PKG_VERSION=$("$NODE" -p 'require(process.argv[1]).version' "$STAGE/pkg/package/package.json")
   [ -n "$SHA" ] && ok "$(t "$NAME $PKG_VERSION, checksum verified" "$NAME $PKG_VERSION, sağlama toplamı doğrulandı")"
   return 0
