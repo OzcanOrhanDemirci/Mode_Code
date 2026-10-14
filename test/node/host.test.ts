@@ -10,6 +10,9 @@ import { layout } from '../../src/core/layout.js';
 import { parseHookState } from '../../src/core/session.js';
 import { lookUpHost, sessionGone, withHost } from '../../src/node/host.js';
 
+/** This program as the lookup names it: Windows names the program; ps names the main thread, which Node calls MainThread. */
+const OWN = process.platform === 'win32' ? /^node\.exe$/i : /./;
+
 /** The number of a process that ran and has exited. */
 function exited(): number {
   const r = spawnSync(process.execPath, ['-e', ''], { windowsHide: true });
@@ -20,7 +23,7 @@ function exited(): number {
 test('a running process is found with its program; one that exited is not running', () => {
   const me = lookUpHost(process.pid);
   assert.equal(me?.running, true);
-  assert.match(String(me?.name), /^node(\.exe)?$/i);
+  assert.match(String(me?.name), OWN);
   assert.deepEqual(lookUpHost(exited()), { running: false, name: null });
 });
 
@@ -28,7 +31,7 @@ test("the hook's state takes the process once; the same process again is not loo
   const fresh = parseHookState(null, 's1');
   const once = withHost(fresh, process.pid);
   assert.equal(once.host?.pid, process.pid);
-  assert.match(String(once.host?.name), /^node(\.exe)?$/i);
+  assert.match(String(once.host?.name), OWN);
   assert.equal(withHost(once, process.pid), once);
   // A process that cannot be read is still recorded, without a name.
   const gone = exited();

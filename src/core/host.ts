@@ -53,7 +53,9 @@ export function readHost(platform: Platform, pid: number, exitCode: number, stdo
 
 /**
  * The process is surely gone: not running, or on Windows (which hands a freed process number out again soon)
- * running another program now. A lookup that could not tell keeps the session counted.
+ * running another program now. Elsewhere numbers come round slowly, and the name ps gives is the main thread's,
+ * which a program may set (Node's is MainThread, measured in WSL2): the number alone decides. A lookup that
+ * could not tell keeps the session counted.
  */
 export function hostGone(recorded: Host, seen: HostSeen | null, platform: Platform): boolean {
   if (!seen) return false;

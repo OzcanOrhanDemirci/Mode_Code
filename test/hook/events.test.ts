@@ -162,7 +162,8 @@ test('the process a session runs in: recorded at its start, or with a prompt whe
     const host = (id: string) => JSON.parse(readFileSync(join(home, 'state', 'sessions', `${id}.hook.json`), 'utf8')).host;
     // The hook's parent: here this test, in Claude Code the session's own process (exec form, no shell between).
     assert.equal(host('ev-session').pid, process.pid);
-    assert.match(String(host('ev-session').name), /^node(\.exe)?$/i);
+    // Windows names the program; elsewhere ps names the main thread, which Node calls MainThread (measured in WSL2).
+    assert.match(String(host('ev-session').name), process.platform === 'win32' ? /^node\.exe$/i : /./);
     run('UserPromptSubmit', { ...base(home), session_id: 'ev-late', hook_event_name: 'UserPromptSubmit', prompt: 'hello' }, home);
     assert.deepEqual(host('ev-late'), host('ev-session'));
   } finally {
