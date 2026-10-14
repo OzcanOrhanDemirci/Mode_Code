@@ -438,7 +438,7 @@ function transcriptFacts(claudeDir: string, now: number): Facts['transcripts'] {
 }
 
 /** Runs the installed hook program on one call and reads its verdict. */
-function hookVerdict(node: string, hook: string, input: object, env: NodeJS.ProcessEnv, cwd: string): Promise<string> {
+export function hookVerdict(node: string, hook: string, input: object, env: NodeJS.ProcessEnv, cwd: string): Promise<string> {
   return new Promise((resolve) => {
     let out = '';
     let settled = false;
@@ -456,6 +456,9 @@ function hookVerdict(node: string, hook: string, input: object, env: NodeJS.Proc
       }, 20_000);
       child.stdout.on('data', (b: Buffer) => (out += b.toString('utf8')));
       child.on('error', (err) => done(`error: ${err.message}`));
+      // A hook program that ends before it reads the call closes the pipe under the write (EPIPE). Unheard, that
+      // error ends the doctor itself; the verdict comes from how the program ended.
+      child.stdin.on('error', () => {});
       child.on('close', (code) => {
         clearTimeout(timer);
         if (code !== 0) return done(`exit ${code}`);
