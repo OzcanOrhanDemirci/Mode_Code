@@ -216,7 +216,8 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       writeFileSync(join(w.claudeDir, 'settings.json'), '{}');
       const agent = { ...w, env: { ...w.env, CLAUDECODE: '1' } };
       const r = cli(agent, ['doctor', '--fix', '--json'], opt);
-      const planned = r.json?.repairsPlanned as { id: string; refused: boolean }[];
+      assert.ok(r.json, `doctor --fix --json printed no JSON (exit ${r.code}):\n${r.err || r.out}`);
+      const planned = r.json.repairsPlanned as { id: string; refused: boolean }[];
       assert.equal(planned.find((p) => p.id === 'restore-hook-program')?.refused, true);
       assert.equal(readFileSync(hook, 'utf8'), 'process.exit(0);\n', 'the hook program was not replaced');
       const settings = JSON.parse(readFileSync(join(w.claudeDir, 'settings.json'), 'utf8'));
