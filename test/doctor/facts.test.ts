@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { gatherFacts, locateGitBash, onPath, runProgram, sha256 } from '../../src/app/doctor/facts.js';
+import { gatherFacts, hookVerdict, locateGitBash, onPath, runProgram, sha256 } from '../../src/app/doctor/facts.js';
 import { buildSandbox } from '../../src/app/doctor/selfcheck.js';
 import { distDir } from '../../src/node/install.js';
 import { toolPath } from '../../src/node/env.js';
@@ -177,4 +177,20 @@ test('running a program: first line of output, exit status, a missing program, a
   assert.equal(slow.ok, false);
   assert.ok(slow.ms < 4000);
   assert.equal(sha256(join(tmpdir(), 'no-such-file-tc')), null);
+});
+
+test('a hook program that ends before it reads the call gets a verdict, and the doctor goes on', async () => {
+  // The doctor's own tests put such a program in place; on macOS it now and then ended the doctor (exit 1, no
+  // output). A call larger than a pipe holds keeps the write going when the program ends, every time.
+  const root = mkdtempSync(join(tmpdir(), 'tc-verdict-'));
+  try {
+    const hook = join(root, 'hook.mjs');
+    writeFileSync(hook, 'process.exit(0);\n');
+    const big = { tool_name: 'Bash', tool_input: { command: 'x'.repeat(4 * 1024 * 1024) } };
+    assert.equal(await hookVerdict(process.execPath, hook, big, process.env, root), 'allow');
+    writeFileSync(hook, 'process.exit(2);\n');
+    assert.equal(await hookVerdict(process.execPath, hook, big, process.env, root), 'exit 2');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
