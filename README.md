@@ -251,7 +251,7 @@ Found a vulnerability? Please report it privately: see [SECURITY.md](SECURITY.md
 
 ## How it is tested
 
-A tool that stands between an agent and your machine has to earn trust with evidence. Fifteen layers, from rules about the code itself to real Claude Code sessions and the one-line installer, each saying what it proves and what it cannot ([docs/testing.md](docs/testing.md)). Measured on 2026-10-14:
+A tool that stands between an agent and your machine has to earn trust with evidence. Sixteen layers, from rules about the code itself to real Claude Code sessions and the one-line installer, each saying what it proves and what it cannot ([docs/testing.md](docs/testing.md)). Measured on 2026-10-14:
 
 - **776 tests**, passing on Windows 11 and on Linux (Ubuntu 24.04 in WSL2); CI runs them on Windows, Linux and macOS with Node.js 22 and 24. Mean line coverage **94.0%** of the lines that compile to code, every file held to a floor.
 - **False alarms count as bugs.** 197 everyday commands must pass the belt without a single question on every platform, and 162 reading commands must run in chat, research and plan mode. Over the author's last 30 days (36,658 tool calls) the belt would have asked 4.4 times a day.
@@ -272,6 +272,8 @@ On your machine, `mode-code doctor` runs the same checks: Node.js, Claude Code a
 ## FAQ
 
 **Is it safe to pipe a script from the internet into my shell?** Read it first: [install.sh](install.sh) and [install.ps1](install.ps1) are short and commented, and the whole script is functions run by its last line, so a download cut short runs nothing. What they download is checked against SHA-256 before it is used, they never ask for administrator rights, and `mode-code uninstall` removes what they put in place. If you would rather not pipe, download the script, read it, and run it as a file.
+
+**Will my antivirus flag it?** It should not. Before a release, every file of the repository and of the package is written where Windows antivirus programs look hardest and read back (`npm run test:av`); Bitdefender leaves every one alone. It once quarantined a test file whose sample commands, together, read like an attacker's script; those samples were rewritten and the check was added so it cannot come back unnoticed. If your antivirus flags a file, it is a false alarm we want to fix: [open an issue](https://github.com/OzcanOrhanDemirci/Mode_Code/issues/new/choose) with the file's name and the detection's name.
 
 **Does it change how Claude Code works?** Only where you see it: the belt's decisions, the context a keyword adds, the footer and the status line entry. Turn any feature off under Settings › Features; the belt stays.
 

@@ -51,6 +51,7 @@
     "test:live": "node scripts/test-live.mjs",
     "test:package": "node scripts/test-package.mjs",
     "test:installer": "node scripts/test-installer.mjs",
+    "test:av": "node scripts/av-check.mjs",
     "screenshots": "node --import tsx scripts/screenshots.ts",
     "mo-art": "node --import tsx scripts/mo-art.ts",
     "test:rename": "node scripts/rename-rehearsal.mjs",

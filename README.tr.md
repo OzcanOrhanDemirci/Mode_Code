@@ -253,7 +253,7 @@ Bir güvenlik açığı mı buldun? Lütfen gizli bildir: [SECURITY.md](SECURITY
 
 ## Nasıl test ediliyor
 
-Bir ajanla makinen arasında duran bir araç güveni kanıtla kazanmalı. Kodun kendisiyle ilgili kurallardan gerçek Claude Code oturumlarına ve tek satırlık kuruluma kadar on beş katman var; her biri neyi kanıtladığını ve neyi kanıtlayamadığını söylüyor ([docs/testing.md](docs/testing.md), İngilizce). 2026-10-14 ölçümü:
+Bir ajanla makinen arasında duran bir araç güveni kanıtla kazanmalı. Kodun kendisiyle ilgili kurallardan gerçek Claude Code oturumlarına ve tek satırlık kuruluma kadar on altı katman var; her biri neyi kanıtladığını ve neyi kanıtlayamadığını söylüyor ([docs/testing.md](docs/testing.md), İngilizce). 2026-10-14 ölçümü:
 
 - **776 test**, Windows 11'de ve Linux'ta (WSL2'de Ubuntu 24.04) hepsi geçiyor; CI onları Windows, Linux ve macOS'ta Node.js 22 ve 24 ile çalıştırır. Koda dönüşen satırlarda ortalama satır kapsamı **%94,0**, her dosya bir tabana bağlı.
 - **Yanlış alarm da hata sayılır.** 197 günlük komut her platformda kemerden tek bir soru sorulmadan geçmek, 162 okuma komutu da sohbet, araştırma ve plan modunda çalışmak zorunda. Yazarın son 30 gününde (36.658 araç çağrısı) kemer günde 4,4 kez sorardı.
@@ -274,6 +274,8 @@ Kendi makinende `mode-code doctor` aynı denetimleri yapar: Node.js, Claude Code
 ## Sık sorulanlar
 
 **İnternetten bir betiği kabuğuma aktarmak güvenli mi?** Önce oku: [install.sh](install.sh) ve [install.ps1](install.ps1) kısa ve açıklamalıdır; betiğin tamamı fonksiyonlardan oluşur ve onları son satır çalıştırır, yani yarıda kesilen bir indirme hiçbir şey çalıştırmaz. İndirdikleri, kullanılmadan önce SHA-256 ile doğrulanır; asla yönetici hakkı istemezler ve yerleştirdiklerini `mode-code uninstall` kaldırır. Aktarmak istemezsen betiği indir, oku ve dosya olarak çalıştır.
+
+**Antivirüsüm onu tehdit sayar mı?** Saymamalı. Her sürümden önce deponun ve paketin bütün dosyaları, Windows antivirüslerinin en sıkı taradığı yere yazılıp geri okunur (`npm run test:av`); Bitdefender hiçbirine dokunmuyor. Bir zamanlar, örnek komutları bir arada bir saldırganın betiğine benzeyen bir test dosyasını karantinaya alıyordu; o örnekler yeniden yazıldı ve sorun fark edilmeden geri gelemesin diye bu denetim eklendi. Antivirüsün bir dosyayı işaretlerse bu, düzeltmek istediğimiz bir yanlış alarmdır: dosyanın ve tespitin adıyla [bir kayıt aç](https://github.com/OzcanOrhanDemirci/Mode_Code/issues/new/choose).
 
 **Claude Code'un çalışma biçimini değiştirir mi?** Yalnız gördüğün yerlerde: kemerin kararları, bir anahtar kelimenin eklediği bağlam, alt satırlar ve durum satırı. Herhangi bir özelliği Ayarlar › Özellikler altından kapatabilirsin; kemer kalır.
 

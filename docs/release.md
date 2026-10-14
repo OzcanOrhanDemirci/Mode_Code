@@ -61,6 +61,7 @@ Done on 2026-10-14, kept here as a record:
 - **Commit identities**: every commit is authored with GitHub's noreply address.
 - **Actions logs and artifacts**, which become public with the repository (196 runs, 46 coverage reports): no workflow uses a secret, and the reports hold only coverage figures.
 - **Licenses**: every bundled package is on the allowed list (the build checks) and listed in THIRD_PARTY_NOTICES.md.
+- **Antivirus** (L15, Bitdefender on the author's Windows machine): every tracked and every built file left alone in the temporary folder. A test file it used to quarantine was rewritten first ([testing.md](testing.md#what-the-tests-found)).
 
 ## Renaming
 

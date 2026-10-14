@@ -87,6 +87,12 @@ const layers = [
     },
   },
   {
+    name: 'L15 antivirus',
+    cmd: node,
+    args: ['scripts/av-check.mjs'],
+    counts: (o) => ([...o.matchAll(/^av-check: (.*)$/gm)].pop()?.[1] ?? '').replace(/^skipped: /, '').trim(),
+  },
+  {
     name: 'doctor self-check',
     cmd: node,
     args: ['dist/cli.mjs', 'doctor', '--self-check', '--json'],

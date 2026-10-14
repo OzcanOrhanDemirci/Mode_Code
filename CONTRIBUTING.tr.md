@@ -37,6 +37,7 @@ Node.js 22.13 ya da sonrası. `npm test` her şeyi Claude Code olmadan ve ağa �
 | `npm test`               | testler (önce derle: bazıları `dist/` içindeki programları çalıştırır)                            |
 | `npm run format`         | kodu Prettier ile biçimlendirir                                                                   |
 | `npm run test:installer` | tek satırlık kurulumu, bu derlemenin ürettiği pakete karşı, sende olan her kabukta çalıştırır     |
+| `npm run test:av`        | antivirüsü açık Windows'ta: deponun ve derlemenin hiçbir dosyası tehdit sayılmıyor                |
 | `npm run screenshots`    | bir ekranı değiştirdikten sonra README resimlerini kontrol merkezinin kendisinden yeniden çizer   |
 | `npm run mo-art`         | Mo'yu değiştirdikten sonra Mo'nun resimlerini (README, docs/mo.md, sosyal önizleme) yeniden çizer |
 | `npm run verify`         | makinende çalışabilen her test katmanı, her biri tek satır ([docs/testing.md](docs/testing.md))   |
