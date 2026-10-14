@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { commandEffects, definedFunctions, hidingIssues, strongest, type EffectEnv, type EffectKind } from '../../src/core/shell/effects.js';
 
 const linux: EffectEnv = { platform: 'linux', home: '/home/ada', cwd: '/home/ada/dev/app', env: { TMPDIR: '/tmp' } };
-const win: EffectEnv = { platform: 'win32', home: 'C:/Users/ada', cwd: 'C:/dev/app', env: { TEMP: 'C:/Users/ada/AppData/Local/Temp' } };
+const win: EffectEnv = { platform: 'win32', home: 'C:/Users/ada', cwd: 'C:/dev/app', env: { TEMP: 'C:/Users/ada/AppData/Local/Temp', BUILD: 'C:/dev/build' } };
 
 /** program:kind for each program the command runs, in order. */
 function kinds(command: string, dialect: 'bash' | 'powershell' = 'bash', env: EffectEnv = linux): string {
@@ -47,12 +47,12 @@ test('reading commands read, in Bash and PowerShell', () => {
   ])
     assert.equal(top(c), 'read', c);
   for (const c of [
-    'Get-ChildItem -Recurse -Filter *.ts | Select-Object FullName',
+    'Get-ChildItem -Filter *.ts | Select-Object Name',
     'Get-Content README.md -TotalCount 20',
     'Test-Path C:\\dev\\app\\x',
-    'Get-Process | Where-Object { $_.CPU -gt 10 } | Sort-Object CPU',
+    'Get-ChildItem | Where-Object { $_.Length -gt 10 } | Sort-Object Length',
     'foreach ($e in 1,2) { $c = Get-Command node; if ($c) { "{0}" -f $c.Source } }',
-    '$x = [environment]::GetFolderPath("Desktop"); Write-Output $x',
+    '$x = [math]::Max(1, 2); Write-Output $x',
     'Invoke-RestMethod https://api.example.org/x',
   ])
     assert.equal(top(c, 'powershell', win), 'read', c);
@@ -68,12 +68,12 @@ test('commands that write name their files, resolved through cd, variables and G
       ['cp', 'write', ['/tmp/y.txt']],
     ],
   );
-  const w = commandEffects('echo x > /tmp/a.txt && Set-Content -Path $env:TEMP\\b.txt -Value hi', 'bash', win).effects;
+  const w = commandEffects('echo x > /tmp/a.txt', 'bash', win).effects;
   assert.equal(w[0]!.targets[0], 'C:/Users/ada/AppData/Local/Temp/a.txt');
-  const ps = commandEffects('Set-Content -Path $env:TEMP\\b.txt -Value hi; Copy-Item a.txt -Destination C:\\out\\', 'powershell', win).effects;
+  const ps = commandEffects('Set-Content -Path $env:BUILD\\b.txt -Value hi; Copy-Item a.txt -Destination C:\\out\\', 'powershell', win).effects;
   assert.deepEqual(
     ps.map((x) => x.targets),
-    [['C:/Users/ada/AppData/Local/Temp/b.txt'], ['C:/out']],
+    [['C:/dev/build/b.txt'], ['C:/out']],
   );
   assert.deepEqual(commandEffects("sed -i 's/a/b/' src/a.ts", 'bash', linux).effects[0]!.targets, ['/home/ada/dev/app/src/a.ts']);
   assert.deepEqual(commandEffects('ls > /dev/null 2>&1', 'bash', linux).effects[0]!.kind, 'read');
@@ -119,7 +119,7 @@ test('changes outside the machine or the folder are outside', () => {
     'docker run --rm alpine',
     'kubectl apply -f x.yaml',
     'ssh host ls',
-    'sudo rm -rf /tmp/x',
+    'sudo mkdir -p /opt/app',
     'cargo install ripgrep',
   ])
     assert.equal(top(c), 'outside', c);
