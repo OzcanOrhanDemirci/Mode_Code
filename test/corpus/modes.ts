@@ -30,6 +30,8 @@ export const READS: Record<string, string[]> = {
     'git rev-parse --show-toplevel',
     'git config --get user.email',
     'git config --list --show-origin',
+    'git config --global user.email',
+    'git config get --global user.name',
     'git ls-files | wc -l',
     'git ls-remote --heads origin',
     'git stash list',

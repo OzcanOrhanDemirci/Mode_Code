@@ -530,6 +530,29 @@ const GIT_READS = new Set([
 ]);
 const GIT_OUTSIDE = wordSet(`push send-email svn p4 daemon instaweb credential credential-store`);
 
+/**
+ * `git config` reads unless it is given a value or an action that changes: one key reads it, whatever the scope
+ * (`--global user.email`), and so do --get…, --list and the `get`/`list` subcommands; a key with a value, --add,
+ * --unset…, --replace-all, --rename-section, --remove-section, --edit and the `set`/`unset`/… subcommands change.
+ * Options that take a value (--file .gitmodules) are skipped with it, so the value is not taken for a key.
+ */
+function gitConfigReads(args: readonly string[]): boolean {
+  const rest: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i]!;
+    if (/^(?:-f|--file|--blob|--type|--default|--comment)$/.test(a)) {
+      i++;
+      continue;
+    }
+    if (/^(?:--get|--get-all|--get-regexp|--get-urlmatch|--get-color|--get-colorbool|--list|-l)$/.test(a)) return true;
+    if (/^(?:--add|--unset|--unset-all|--replace-all|--rename-section|--remove-section|-e|--edit)$/.test(a)) return false;
+    if (!a.startsWith('-')) rest.push(a);
+  }
+  if (['get', 'list'].includes(rest[0] ?? '')) return true;
+  if (['set', 'unset', 'rename-section', 'remove-section', 'edit'].includes(rest[0] ?? '')) return false;
+  return rest.length <= 1;
+}
+
 /** Listing and showing forms of otherwise changing git subcommands: `git branch -a`, `git remote -v`, … */
 export function gitOnlyReads(sub: string, args: readonly string[]): boolean {
   const words = args.filter((a) => !a.startsWith('-'));
@@ -545,7 +568,7 @@ export function gitOnlyReads(sub: string, args: readonly string[]): boolean {
     case 'remote':
       return words.length === 0 || ['show', 'get-url'].includes(words[0]!);
     case 'config':
-      return flags.some((f) => /^(?:--get|--get-all|--get-regexp|--list|-l|--show-origin)$/.test(f)) || (words.length === 1 && !flags.length);
+      return gitConfigReads(args);
     case 'stash':
     case 'worktree':
     case 'notes':
