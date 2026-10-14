@@ -91,7 +91,7 @@ export interface Facts {
   /** The tool's data folder and Claude Code's configuration folder, in the tool's path form. */
   dataDir: string;
   claudeDir: string;
-  /** CLAUDE_CONFIG_DIR, TERMINAL_CODE_HOME as set for this process. */
+  /** CLAUDE_CONFIG_DIR, MODE_CODE_HOME as set for this process. */
   claudeDirFromEnv: boolean;
   underAgent: boolean;
 
@@ -125,7 +125,7 @@ export interface Facts {
   aliases: PathAlias[];
   shortNames: { long: string; short: string; recognised: boolean }[];
   memoryDirs: { path: string; exists: boolean; isRepo: boolean }[];
-  /** Claude Code's autoMemoryDirectory, set up or not by terminal-code; null when it keeps one memory per project. */
+  /** Claude Code's autoMemoryDirectory, set up or not by mode-code; null when it keeps one memory per project. */
   memorySetting: string | null;
   /** The memory store (docs/memory.md): its settings, its folder, Claude Code's setting, its last sync. */
   memoryStore: {

@@ -189,14 +189,16 @@ export function protectedPaths(ctx: BeltContext): ProtectedPaths {
   ].map((p) => resolvePath(p, env));
   const memoryDirs = ctx.memoryDirs.map((p) => resolvePath(p, env));
   const toolDirs = [resolvePath(ctx.dataDir, env), ...(ctx.syncDir ? [joinPath(resolvePath(ctx.syncDir, env), 'machines')] : [])];
-  // Every folder and file the checks name, so a short-name spelling of any of them is written out.
+  // Every folder and file the checks name, so a short-name spelling of any of them is written out. When a
+  // short name could stand for two of them, the first wins: the tool's own and Claude Code's come first, so
+  // the stricter reading is taken (`MO1A2B~5` is `.mode-code` before it is `Movies`).
   const known = dedupe(
     [
-      ...critical,
+      ...toolDirs,
       ...claudeConfig,
       joinPath(cdir, 'CLAUDE.md'),
-      ...toolDirs,
       ...memoryDirs,
+      ...critical,
       ...startupDirs,
       ...tempDirs,
       ...(ctx.knownProjects ?? []).map((p) => resolvePath(p, env)),

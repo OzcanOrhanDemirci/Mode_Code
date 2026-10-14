@@ -93,6 +93,8 @@ test('a note without a summary from Claude: the compaction summary, or only what
   assert.match(bare, /### Uncommitted\n\n- nothing\n/);
   assert.doesNotMatch(bare, /Quota/);
   assert.equal(nextOf(parseHandoff(bare)!), 'last request: Bu güncellemeyi yapalım.');
+  // A note written under an earlier name of the tool carries that name in its heading, and still reads back.
+  assert.equal(nextOf(parseHandoff(bare.replace('## What Mode_Code measured', '## What terminal-code measured'))!), 'last request: Bu güncellemeyi yapalım.');
   assert.equal(nextOf(parseHandoff(composeHandoff(facts({ request: null }), {}))!), '');
   // A quota with one window unknown is shown with a question mark; one with none is left out.
   assert.match(composeHandoff(facts({ quota: { five: null, week: 50 } }), {}), /- Quota: 5-hour \?, weekly 50%/);
@@ -146,7 +148,7 @@ test('what Claude is told: one line on the first prompt, the whole note on conti
   const line = handoffLine(h, '/m/handoffs/terminal/20261013-073012-1a2b3c4d.md');
   assert.match(
     line,
-    /^\[terminal-code\] A handoff note for this project is waiting, written 2026-10-13 07:30 UTC on ada-laptop \(asked for by the person\)\. Next: "Write the setup steps\."\./,
+    /^\[Mode_Code\] A handoff note for this project is waiting, written 2026-10-13 07:30 UTC on ada-laptop \(asked for by the person\)\. Next: "Write the setup steps\."\./,
   );
   assert.match(
     line,

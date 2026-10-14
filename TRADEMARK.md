@@ -6,7 +6,7 @@ The project name is not final yet; this policy applies to the current name and t
 
 ## You may
 
-- Refer to the project by name in a factual way: in articles, talks, documentation, package lists, comparisons and reviews ("works with terminal-code", "a fork of terminal-code").
+- Refer to the project by name in a factual way: in articles, talks, documentation, package lists, comparisons and reviews ("works with Mode_Code", "a fork of Mode_Code").
 - Say that your own software is based on this project, as long as it is clear that it is your work.
 - Use the name in links to this repository.
 

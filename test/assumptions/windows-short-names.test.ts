@@ -30,7 +30,7 @@ test('a write through the 8.3 short name of the data folder is refused like one 
   if (process.platform !== 'win32') return t.skip('Windows only');
   const base = realpathSync.native(mkdtempSync(join(tmpdir(), 'tc-short-')));
   try {
-    const long = toolPath(join(base, '.terminal-code-probe'));
+    const long = toolPath(join(base, '.mode-code-probe'));
     mkdirSync(long);
     const short = shortName(long);
     if (!short || short.toLowerCase() === long.toLowerCase()) return t.skip('this volume gives no 8.3 short names (fsutil 8dot3name)');

@@ -5,7 +5,7 @@
  * what could not be measured is reported as such.
  */
 import { syncProblem } from '../../core/memory-sync.js';
-import { APP_NAME, MIN_CLAUDE_CODE_FOR_HOOKS, MIN_CLAUDE_CODE_FOR_MODS, PLUGIN_ID } from '../../core/app.js';
+import { CLI_NAME, MIN_CLAUDE_CODE_FOR_HOOKS, MIN_CLAUDE_CODE_FOR_MODS, PLUGIN_ID } from '../../core/app.js';
 import { caseInsensitive } from '../../core/paths.js';
 import { compareVersions } from '../../core/version.js';
 import { isBeltTool } from '../../core/belt/tools.js';
@@ -156,7 +156,7 @@ const installPrevious: Check = (f) => {
   if (!p) return result(id, 'install', false, 'ok', m('doc.install.previous.none', { names: f.previousNames.join(', ') }));
   if (p.installed || p.hooks > 0 || p.plugin)
     return result(id, 'install', false, 'warn', m('doc.install.previous.found', { name: p.name, path: p.root, hooks: p.hooks }), {
-      hint: m('doc.install.previous.hint', { cmd: `${APP_NAME} install` }),
+      hint: m('doc.install.previous.hint', { cmd: `${CLI_NAME} install` }),
     });
   return result(id, 'install', false, 'info', m('doc.install.previous.left', { name: p.name, path: p.root }));
 };
@@ -304,7 +304,7 @@ const protectMemory: Check = (f) => {
 const dataMemoryStore: Check = (f) => {
   const id = 'data.memoryStore';
   const s = f.memoryStore;
-  // A memory set up outside terminal-code is said as it is, not as the default it is not.
+  // A memory set up outside mode-code is said as it is, not as the default it is not.
   if (!s && f.memorySetting) return result(id, 'data', false, 'info', m('doc.memory.outside', { dir: f.memorySetting }), { hint: m('doc.memory.adoptHint') });
   if (!s) return result(id, 'data', false, 'info', m('doc.memory.none'), { hint: m('doc.memory.setupHint') });
   if (!s.exists) return result(id, 'data', false, 'fail', m('doc.memory.missing', { dir: s.dir }), { hint: m('doc.memory.setupHint') });

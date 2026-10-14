@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// A stand-in for the `claude` command in process tests. It answers the commands terminal-code runs
+// A stand-in for the `claude` command in process tests. It answers the commands mode-code runs
 // (--version, plugin list/install/enable/uninstall, plugin marketplace remove) from a JSON state file
 // named by FAKE_CLAUDE_STATE, and records every call there. It never contacts anything.
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -22,7 +22,7 @@ else if (a.startsWith('plugin list')) process.stdout.write(JSON.stringify(state.
 else if (a.startsWith('plugin install')) {
   // The plugin is named by its marketplace, as Claude Code names it: the catalog in the folder after --marketplace.
   const dir = args[args.indexOf('--marketplace') + 1];
-  let market = 'terminal-code-local';
+  let market = 'mode-code-local';
   try {
     market = JSON.parse(readFileSync(join(dir, '.claude-plugin', 'marketplace.json'), 'utf8')).name ?? market;
   } catch {

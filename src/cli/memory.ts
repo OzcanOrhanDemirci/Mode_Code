@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * `terminal-code memory` and `terminal-code morning` (docs/memory.md): where the memory lives and how it
+ * `mode-code memory` and `mode-code morning` (docs/memory.md): where the memory lives and how it
  * stands, the setup, a sync now, the handoff notes, the notes from full-autonomy runs, the morning report.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
-import { APP_NAME, APP_VERSION } from '../core/app.js';
+import { APP_ID, APP_VERSION, CLI_NAME } from '../core/app.js';
 import { serializeConfig } from '../core/config.js';
 import { dateTime, shortPath } from '../core/format.js';
 import { nextOf } from '../core/handoff.js';
@@ -27,7 +27,7 @@ import { bold, cyan, dim, gray, green, red, yellow } from './style.js';
 const say = (s = '') => process.stdout.write(s + '\n');
 
 function json(schema: string, data: object): void {
-  process.stdout.write(JSON.stringify({ schema: `${APP_NAME}.${schema}/1`, version: APP_VERSION, ...data }, null, 2) + '\n');
+  process.stdout.write(JSON.stringify({ schema: `${APP_ID}.${schema}/1`, version: APP_VERSION, ...data }, null, 2) + '\n');
 }
 
 /** The setup's questions, asked in this terminal. */
@@ -202,7 +202,7 @@ export async function cmdMemory(a: Args): Promise<number> {
       say(`${bold(p.id)}  ${p.task.split('\n')[0]!.slice(0, 80)}`);
       say(dim(`  ${p.path}`));
       for (const l of (readText(p.path) ?? '').split('\n').slice(0, 12)) say(`  ${gray('│')} ${l}`);
-      say(dim(`  ${APP_NAME} memory notes approve ${p.id}   ·   ${APP_NAME} memory notes discard ${p.id}`));
+      say(dim(`  ${CLI_NAME} memory notes approve ${p.id}   ·   ${CLI_NAME} memory notes discard ${p.id}`));
       say();
     }
     return 0;
@@ -227,7 +227,7 @@ export async function cmdMemory(a: Args): Promise<number> {
     say(bold(T(ctx, 'mcli.title.none')));
     row(T(ctx, 'mcli.claude'), v.setting ? shortPath(v.setting, h, 70) : T(ctx, 'mcli.perProject'));
     say();
-    say(T(ctx, 'mcli.setupHint', { cmd: `${APP_NAME} memory setup` }));
+    say(T(ctx, 'mcli.setupHint', { cmd: `${CLI_NAME} memory setup` }));
   } else {
     say(bold(T(ctx, 'mcli.title', { place: T(ctx, `msetup.place.${v.store.place}` as MessageKey) })));
     row(T(ctx, 'mcli.folder'), shortPath(v.store.dir, h, 70));
@@ -255,7 +255,7 @@ export async function cmdMemory(a: Args): Promise<number> {
     T(ctx, 'mcli.handoff'),
     v.handoff ? `${dateTime(v.handoff.note.at, ctx.lang)} · ${nextOf(v.handoff.note, 80)}` : dim(T(ctx, 'mcli.handoff.none', { project: v.project })),
   );
-  if (v.pendingNotes) row(T(ctx, 'mcli.notes'), yellow(T(ctx, 'mcli.notes.pending', { n: v.pendingNotes, cmd: `${APP_NAME} memory notes` })));
+  if (v.pendingNotes) row(T(ctx, 'mcli.notes'), yellow(T(ctx, 'mcli.notes.pending', { n: v.pendingNotes, cmd: `${CLI_NAME} memory notes` })));
   return 0;
 }
 

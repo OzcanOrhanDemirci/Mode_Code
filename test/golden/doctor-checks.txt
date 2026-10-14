@@ -6,19 +6,19 @@ claude.version ok protection doc.claude.ok {"v":"2.1.295","min":"2.1.295"}
 claude.installs ok doc.claude.installs.one {"path":"C:/Users/ada/.local/bin/claude.exe"}
 claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
-claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"dev"}
+claude.plugin ok doc.claude.plugin.ok {"id":"mode-code@mode-code-local","v":"dev"}
 install.manifest ok doc.install.ok {"v":"dev","when":"2026-10-11"}
 install.previous skip doc.install.previous.never
 install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
-install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
-    doc.protect.shortNames.one {"short":"C:/Users/ada/TERMIN~1","long":"C:/Users/ada/.terminal-code"}
+    doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
 shell.gitBash ok protection doc.shell.gitBash.ok {"path":"C:/Program Files/Git/bin/bash.exe"}
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
@@ -62,7 +62,7 @@ install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
-    doc.protect.shortNames.one {"short":"C:/Users/ada/TERMIN~1","long":"C:/Users/ada/.terminal-code"}
+    doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
 shell.gitBash ok protection doc.shell.gitBash.ok {"path":"C:/Program Files/Git/bin/bash.exe"}
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
@@ -94,13 +94,13 @@ claude.version ok protection doc.claude.ok {"v":"2.1.295","min":"2.1.295"}
 claude.installs ok doc.claude.installs.one {"path":"C:/Users/ada/.local/bin/claude.exe"}
 claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
-claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"dev"}
+claude.plugin ok doc.claude.plugin.ok {"id":"mode-code@mode-code-local","v":"dev"}
 install.manifest ok doc.install.ok {"v":"dev","when":"2026-10-11"}
 install.previous skip doc.install.previous.never
 install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
-install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
@@ -147,7 +147,7 @@ install.hookProgram warn protection repair=restore-hook-program doc.install.hook
 install.hooks fail protection repair=restore-hooks doc.install.hooks.missing {"events":"UserPromptSubmit, SessionStart","n":2,"of":4}
 install.pluginFiles warn repair=restore-plugin-files doc.install.pluginFiles.bad {"n":1}
     doc.line {"text":"hooks/register.js"}
-install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen info doc.install.modSeen.never
 install.autonomy info doc.autonomy.off
 protect.agreement fail protection repair=restore-hook-program doc.protect.agreement.differ {"n":2,"of":30}
@@ -162,7 +162,7 @@ shell.powershell info doc.shell.pwsh.only51
 shell.posix skip doc.notMeasured
 shell.terminal warn doc.shell.terminal.narrow {"program":"Windows Terminal","columns":"50","cp":"65001"}
 shell.locale info doc.shell.locale.info {"intl":"en-US","lang":"-","chosen":"en"}
-files.data warn doc.files.data.noRename {"path":"C:/Users/ada/.terminal-code"}
+files.data warn doc.files.data.noRename {"path":"C:/Users/ada/.mode-code"}
 files.space fail doc.files.space.low {"mb":30}
 files.case ok protection doc.files.case.insensitive
 files.leftovers warn repair=remove-stale-temp doc.files.leftovers.temp {"n":1}
@@ -192,13 +192,13 @@ claude.version ok protection doc.claude.ok {"v":"2.1.295","min":"2.1.295"}
 claude.installs ok doc.claude.installs.one {"path":"C:/Users/ada/.local/bin/claude.exe"}
 claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
-claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"dev"}
+claude.plugin ok doc.claude.plugin.ok {"id":"mode-code@mode-code-local","v":"dev"}
 install.manifest ok doc.install.ok {"v":"dev","when":"2026-10-11"}
 install.previous skip doc.install.previous.never
 install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
-install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
@@ -215,7 +215,7 @@ files.space ok doc.files.space.ok {"gb":"100.0"}
 files.case fail protection hint=doc.reportHint doc.files.case.gap
 files.leftovers ok doc.files.leftovers.none
 files.permissions fail protection repair=tighten-permissions doc.files.permissions.loose
-    doc.line {"text":".terminal-code 777"}
+    doc.line {"text":".mode-code 777"}
 git.found ok doc.git.ok {"v":"2.55.0"}
 git.projects ok doc.git.projects.ok {"n":1}
 data.config ok doc.data.config.ok
@@ -236,13 +236,13 @@ claude.version fail protection hint=doc.claude.installHint doc.claude.missing
 claude.installs skip doc.claude.missing
 claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
-claude.plugin warn repair=reinstall-plugin doc.claude.plugin.missing {"id":"terminal-code@terminal-code-local"}
+claude.plugin warn repair=reinstall-plugin doc.claude.plugin.missing {"id":"mode-code@mode-code-local"}
 install.manifest ok doc.install.ok {"v":"dev","when":"2026-10-11"}
 install.previous skip doc.install.previous.never
-install.hookProgram fail protection repair=restore-hook-program doc.install.hook.missing {"path":"C:/Users/ada/.terminal-code/bin/hook.mjs"}
+install.hookProgram fail protection repair=restore-hook-program doc.install.hook.missing {"path":"C:/Users/ada/.mode-code/bin/hook.mjs"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles info doc.install.hook.noBuild
-install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
 install.autonomy info doc.autonomy.off
 protect.agreement skip protection doc.protect.agreement.notRun
@@ -279,19 +279,19 @@ claude.version ok protection doc.claude.ok {"v":"2.1.296","min":"2.1.295"}
 claude.installs info doc.claude.installs.notOnPath
 claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
-claude.plugin warn repair=enable-plugin doc.claude.plugin.disabled {"id":"terminal-code@terminal-code-local"}
+claude.plugin warn repair=enable-plugin doc.claude.plugin.disabled {"id":"mode-code@mode-code-local"}
 install.manifest ok doc.install.ok {"v":"dev","when":"2026-10-11"}
 install.previous skip doc.install.previous.never
 install.hookProgram info protection doc.install.hook.noBuild
 install.hooks fail protection repair=restore-hooks doc.install.hooks.changed
 install.pluginFiles ok doc.install.pluginFiles.ok
-install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
 install.autonomy info doc.autonomy.off
 protect.agreement warn protection doc.protect.agreement.error {"error":"spawn failed"}
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
-    doc.protect.shortNames.one {"short":"C:/Users/ada/TERMIN~1","long":"C:/Users/ada/.terminal-code"}
+    doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory info doc.protect.memory.noGit {"n":1}
 shell.gitBash warn protection doc.shell.gitBash.noTmp {"path":"C:/Git/bin/bash.exe","error":"timeout"}
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
@@ -326,15 +326,15 @@ claude.version ok protection doc.claude.ok {"v":"2.1.295","min":"2.1.295"}
 claude.installs ok doc.claude.installs.one {"path":"C:/Users/ada/.local/bin/claude.exe"}
 claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
-claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"older"}
-install.manifest warn doc.install.otherData {"recorded":"D:/elsewhere/.terminal-code","now":"C:/Users/ada/.terminal-code"}
+claude.plugin ok doc.claude.plugin.ok {"id":"mode-code@mode-code-local","v":"older"}
+install.manifest warn doc.install.otherData {"recorded":"D:/elsewhere/.mode-code","now":"C:/Users/ada/.mode-code"}
 install.previous skip doc.install.previous.never
 install.hookProgram warn protection repair=restore-hook-program doc.install.hook.notThisBuild
 install.hooks warn repair=remove-duplicate-hooks doc.install.hooks.duplicates {"n":2}
     doc.line {"text":"UserPromptSubmit"}
     doc.line {"text":"project: PreToolUse"}
 install.pluginFiles ok doc.install.pluginFiles.ok
-install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen info doc.install.modSeen.other {"have":"older","now":"dev"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
@@ -374,19 +374,19 @@ claude.version ok protection doc.claude.ok {"v":"2.1.295","min":"2.1.295"}
 claude.installs ok doc.claude.installs.one {"path":"C:/Users/ada/.local/bin/claude.exe"}
 claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
-claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"0.1.0"}
+claude.plugin ok doc.claude.plugin.ok {"id":"mode-code@mode-code-local","v":"0.1.0"}
 install.manifest ok doc.install.ok {"v":"0.1.0","when":"2026-10-11"}
 install.previous skip doc.install.previous.never
 install.hookProgram warn protection repair=restore-hook-program doc.install.hook.otherBuild {"version":"0.1.0"}
 install.hooks fail protection repair=restore-hooks doc.install.hooks.older {"tools":"Monitor"}
 install.pluginFiles ok doc.install.pluginFiles.ok
-install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
-    doc.protect.shortNames.one {"short":"C:/Users/ada/TERMIN~1","long":"C:/Users/ada/.terminal-code"}
+    doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
 shell.gitBash ok protection doc.shell.gitBash.ok {"path":"C:/Program Files/Git/bin/bash.exe"}
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
@@ -418,19 +418,19 @@ claude.version ok protection doc.claude.ok {"v":"2.1.295","min":"2.1.295"}
 claude.installs ok doc.claude.installs.one {"path":"C:/Users/ada/.local/bin/claude.exe"}
 claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
-claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"0.1.0"}
+claude.plugin ok doc.claude.plugin.ok {"id":"mode-code@mode-code-local","v":"0.1.0"}
 install.manifest ok doc.install.ok {"v":"0.1.0","when":"2026-10-11"}
 install.previous skip doc.install.previous.never
-install.hookProgram fail protection repair=restore-hook-program doc.install.hook.differs {"path":"C:/Users/ada/.terminal-code/bin/hook.mjs"}
+install.hookProgram fail protection repair=restore-hook-program doc.install.hook.differs {"path":"C:/Users/ada/.mode-code/bin/hook.mjs"}
 install.hooks fail protection repair=restore-hooks doc.install.hooks.changed
 install.pluginFiles ok doc.install.pluginFiles.ok
-install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
-    doc.protect.shortNames.one {"short":"C:/Users/ada/TERMIN~1","long":"C:/Users/ada/.terminal-code"}
+    doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
 shell.gitBash ok protection doc.shell.gitBash.ok {"path":"C:/Program Files/Git/bin/bash.exe"}
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
@@ -462,19 +462,19 @@ claude.version ok protection doc.claude.ok {"v":"2.1.295","min":"2.1.295"}
 claude.installs ok doc.claude.installs.one {"path":"C:/Users/ada/.local/bin/claude.exe"}
 claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
-claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"0.1.0"}
+claude.plugin ok doc.claude.plugin.ok {"id":"mode-code@mode-code-local","v":"0.1.0"}
 install.manifest ok doc.install.ok {"v":"0.1.0","when":"2026-10-11"}
 install.previous skip doc.install.previous.never
-install.hookProgram fail protection repair=restore-hook-program doc.install.hook.altered {"path":"C:/Users/ada/.terminal-code/bin/hook.mjs"}
+install.hookProgram fail protection repair=restore-hook-program doc.install.hook.altered {"path":"C:/Users/ada/.mode-code/bin/hook.mjs"}
 install.hooks fail protection repair=restore-hooks doc.install.hooks.changed
 install.pluginFiles ok doc.install.pluginFiles.ok
-install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
-    doc.protect.shortNames.one {"short":"C:/Users/ada/TERMIN~1","long":"C:/Users/ada/.terminal-code"}
+    doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
 shell.gitBash ok protection doc.shell.gitBash.ok {"path":"C:/Program Files/Git/bin/bash.exe"}
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
@@ -512,13 +512,13 @@ install.previous skip doc.install.previous.never
 install.hookProgram warn protection repair=restore-hook-program doc.install.hook.older {"have":"0.1.0","now":"0.2.0"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
-install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen info doc.install.modSeen.other {"have":"0.1.0","now":"0.2.0"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
-    doc.protect.shortNames.one {"short":"C:/Users/ada/TERMIN~1","long":"C:/Users/ada/.terminal-code"}
+    doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
 shell.gitBash ok protection doc.shell.gitBash.ok {"path":"C:/Program Files/Git/bin/bash.exe"}
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
@@ -550,19 +550,19 @@ claude.version ok protection doc.claude.ok {"v":"2.1.295","min":"2.1.295"}
 claude.installs ok doc.claude.installs.one {"path":"C:/Users/ada/.local/bin/claude.exe"}
 claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
-claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"0.1.0"}
+claude.plugin ok doc.claude.plugin.ok {"id":"mode-code@mode-code-local","v":"0.1.0"}
 install.manifest ok doc.install.ok {"v":"0.1.0","when":"2026-10-11"}
 install.previous skip doc.install.previous.never
 install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks fail protection repair=restore-hooks doc.install.hooks.changed
 install.pluginFiles ok doc.install.pluginFiles.ok
-install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
-    doc.protect.shortNames.one {"short":"C:/Users/ada/TERMIN~1","long":"C:/Users/ada/.terminal-code"}
+    doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
 shell.gitBash ok protection doc.shell.gitBash.ok {"path":"C:/Program Files/Git/bin/bash.exe"}
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
@@ -594,19 +594,19 @@ claude.version ok protection doc.claude.ok {"v":"2.1.295","min":"2.1.295"}
 claude.installs ok doc.claude.installs.one {"path":"C:/Users/ada/.local/bin/claude.exe"}
 claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
-claude.plugin ok doc.claude.plugin.ok {"id":"terminal-code@terminal-code-local","v":"0.1.0"}
+claude.plugin ok doc.claude.plugin.ok {"id":"mode-code@mode-code-local","v":"0.1.0"}
 install.manifest ok doc.install.ok {"v":"0.1.0","when":"2026-10-11"}
 install.previous skip doc.install.previous.never
 install.hookProgram ok protection doc.install.hook.ok {"hash":"aaaaaaaaaaaa"}
 install.hooks ok protection doc.install.hooks.ok {"n":4}
 install.pluginFiles ok doc.install.pluginFiles.ok
-install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/terminal-code/dist/cli.mjs"}
+install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
 install.autonomy info doc.autonomy.off
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
-    doc.protect.shortNames.one {"short":"C:/Users/ada/TERMIN~1","long":"C:/Users/ada/.terminal-code"}
+    doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
 shell.gitBash ok protection doc.shell.gitBash.ok {"path":"C:/Program Files/Git/bin/bash.exe"}
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}

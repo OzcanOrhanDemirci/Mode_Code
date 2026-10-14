@@ -23,16 +23,16 @@ import {
 } from '../../src/core/launch.js';
 
 const NODE_W = 'C:/Program Files/nodejs/node.exe';
-const CLI_W = 'C:/dev/terminal-code/dist/cli.mjs';
+const CLI_W = 'C:/dev/mode-code/dist/cli.mjs';
 const NODE_P = '/usr/local/bin/node';
-const CLI_P = '/home/ada/dev/terminal-code/dist/cli.mjs';
+const CLI_P = '/home/ada/dev/mode-code/dist/cli.mjs';
 
 const win = (env: LaunchInput['env'] = {}, over: Partial<LaunchInput> = {}): LaunchInput => ({
   platform: 'win32',
   env,
   program: [NODE_W, CLI_W],
   cwd: 'C:/Users/ada',
-  title: 'terminal-code',
+  title: 'mode-code',
   ...over,
 });
 const posix = (platform: 'linux' | 'darwin', env: LaunchInput['env'] = {}, over: Partial<LaunchInput> = {}): LaunchInput => ({
@@ -40,7 +40,7 @@ const posix = (platform: 'linux' | 'darwin', env: LaunchInput['env'] = {}, over:
   env,
   program: [NODE_P, CLI_P],
   cwd: '/home/ada/dev/app',
-  title: 'terminal-code',
+  title: 'mode-code',
   ...over,
 });
 const decode = (b64: string) => Buffer.from(b64, 'base64').toString('utf16le');
@@ -48,7 +48,7 @@ const decode = (b64: string) => Buffer.from(b64, 'base64').toString('utf16le');
 test('Windows Terminal: a new tab in the window the session runs in, the folder and the program as they are', () => {
   assert.deepEqual(terminalLaunch(win({ WT_SESSION: 'f7502808-2eec' })), {
     via: 'windows-terminal',
-    argv: ['wt.exe', '-w', '0', 'new-tab', '--title', 'terminal-code', '-d', 'C:/Users/ada', NODE_W, CLI_W],
+    argv: ['wt.exe', '-w', '0', 'new-tab', '--title', 'mode-code', '-d', 'C:/Users/ada', NODE_W, CLI_W],
   });
   // A ";" would start Windows Terminal's next command: it goes escaped, in every argument it reads.
   const odd = terminalLaunch(win({ WT_SESSION: 'x' }, { cwd: 'C:/a;b', title: 't;1', program: ['C:/n;ode.exe', 'C:/c;li.mjs'] }))!;
@@ -98,13 +98,13 @@ test('any other Windows console: PowerShell starts the program in a window of it
   assert.equal(l.argv.length, 6);
   assert.equal(
     decode(l.argv[5]!),
-    `Start-Process -FilePath 'C:/Program Files/nodejs/node.exe' -ArgumentList '"C:/dev/terminal-code/dist/cli.mjs"' -WorkingDirectory 'C:/Users/ada'`,
+    `Start-Process -FilePath 'C:/Program Files/nodejs/node.exe' -ArgumentList '"C:/dev/mode-code/dist/cli.mjs"' -WorkingDirectory 'C:/Users/ada'`,
   );
   // A quote in a path is doubled inside PowerShell's single quotes; a program alone has no argument list.
   const q = terminalLaunch(win({}, { program: ["C:/O'Neil/node.exe"], cwd: "C:/it's here" }))!;
   assert.equal(decode(q.argv[5]!), `Start-Process -FilePath 'C:/O''Neil/node.exe' -WorkingDirectory 'C:/it''s here'`);
   const two = terminalLaunch(win({}, { program: [NODE_W, CLI_W, 'tokens'] }))!;
-  assert.match(decode(two.argv[5]!), / -ArgumentList '"C:\/dev\/terminal-code\/dist\/cli\.mjs"','"tokens"' /);
+  assert.match(decode(two.argv[5]!), / -ArgumentList '"C:\/dev\/mode-code\/dist\/cli\.mjs"','"tokens"' /);
   assert.equal(OPENS['windows-console'], 'window');
   // tmux variables mean nothing to a Windows program.
   assert.equal(terminalLaunch(win({ TMUX: '/tmp/tmux-1000/default,1,0' }))!.via, 'windows-console');
@@ -122,7 +122,7 @@ test('tmux: a new window of the same tmux on macOS and Linux, over SSH too; the 
   for (const platform of ['linux', 'darwin'] as const)
     assert.deepEqual(terminalLaunch(posix(platform, env)), {
       via: 'tmux',
-      argv: ['tmux', 'new-window', '-n', 'terminal-code', '-c', '/home/ada/dev/app', `cd '/home/ada/dev/app' && exec '${NODE_P}' '${CLI_P}'`],
+      argv: ['tmux', 'new-window', '-n', 'mode-code', '-c', '/home/ada/dev/app', `cd '/home/ada/dev/app' && exec '${NODE_P}' '${CLI_P}'`],
     });
   assert.equal(OPENS.tmux, 'tab');
 });

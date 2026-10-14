@@ -120,7 +120,7 @@ test('a temporary folder set to a protected place does not make that place free 
 });
 
 test('a home folder reached through a link: its shell profiles are still profiles', async () => {
-  const ctx = winCtx({ home: 'D:/home/ada', dataDir: 'D:/home/ada/.terminal-code', aliases: [{ real: 'D:/home/ada', spelled: 'C:/Users/ada' }] });
+  const ctx = winCtx({ home: 'D:/home/ada', dataDir: 'D:/home/ada/.mode-code', aliases: [{ real: 'D:/home/ada', spelled: 'C:/Users/ada' }] });
   assert.equal(summary(await write('C:/Users/ada/.bashrc', 'x', ctx)), 'ask persist.shell-profile');
   assert.equal(summary(await write('C:/Users/ada/notes/.bashrc', 'x', ctx)), 'allow');
 });

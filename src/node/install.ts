@@ -269,7 +269,7 @@ export function selfTest(node: string, hook: string, l: Layout): { ok: boolean; 
       encoding: 'utf8',
       timeout: 20_000,
       windowsHide: true,
-      env: { ...process.env, TERMINAL_CODE_HOME: l.root },
+      env: { ...process.env, MODE_CODE_HOME: l.root },
     });
     return { status: r.status, out: (r.stdout ?? '').trim() };
   };
@@ -391,7 +391,7 @@ export function writeMarketplace(l: Layout, dist: string): void {
   writeJsonAtomic(join(l.marketplace, '.claude-plugin', 'marketplace.json'), {
     name: MARKETPLACE_NAME,
     owner: { name: APP_ID },
-    metadata: { description: 'Local marketplace created by the terminal-code installer.' },
+    metadata: { description: 'Local marketplace created by the mode-code installer.' },
     plugins: [
       { name: PLUGIN_NAME, source: `./plugins/${PLUGIN_NAME}`, version: pkgManifest.version ?? APP_VERSION, description: pkgManifest.description ?? '' },
     ],

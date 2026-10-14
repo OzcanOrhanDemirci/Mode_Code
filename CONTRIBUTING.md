@@ -13,8 +13,8 @@ Thank you for wanting to help. Issues, ideas, rule templates, translations and c
 ## Setup
 
 ```sh
-git clone https://github.com/OzcanOrhanDemirci/terminal-code.git
-cd terminal-code
+git clone https://github.com/OzcanOrhanDemirci/Mode_Code.git
+cd Mode_Code
 npm ci
 npm run check   # type check, format check, tests, build
 ```

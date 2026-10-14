@@ -5,6 +5,7 @@
  * belt enforces (repository lists, rule packs). A template only ever tightens: it adds to lists and turns
  * packs on, it never switches a rule off. Pure.
  */
+import { APP_ID, APP_NAME, PREVIOUS_NAMES } from './app.js';
 import type { Config } from './config.js';
 import type { Lang } from './i18n/index.js';
 
@@ -190,8 +191,19 @@ export function templateById(id: string): Template | undefined {
   return TEMPLATES.find((t) => t.id === id);
 }
 
-const BEGIN = '<!-- terminal-code:templates -->';
-const END = '<!-- /terminal-code:templates -->';
+const marks = (id: string) => ({ begin: `<!-- ${id}:templates -->`, end: `<!-- /${id}:templates -->` });
+const { begin: BEGIN, end: END } = marks(APP_ID);
+
+/** Where the marked block is: under this name's markers, or an earlier name's (written back under this name's). */
+function marked(text: string): { a: number; b: number; begin: string; end: string } | null {
+  for (const id of [APP_ID, ...PREVIOUS_NAMES.map((p) => p.id)]) {
+    const { begin, end } = marks(id);
+    const a = text.indexOf(begin);
+    const b = text.indexOf(end);
+    if (a !== -1 && b !== -1 && b > a) return { a, b, begin, end };
+  }
+  return null;
+}
 
 /** The template ids recorded in a CLAUDE.md's marked block. */
 export function appliedTemplates(claudeMd: string | null): string[] {
@@ -202,9 +214,8 @@ export function appliedTemplates(claudeMd: string | null): string[] {
 }
 
 function between(text: string): string | null {
-  const a = text.indexOf(BEGIN);
-  const b = text.indexOf(END);
-  return a === -1 || b === -1 || b < a ? null : text.slice(a + BEGIN.length, b);
+  const m = marked(text);
+  return m ? text.slice(m.a + m.begin.length, m.b) : null;
 }
 
 /** CLAUDE.md with the marked block holding exactly these templates' rules (removed when the list is empty). */
@@ -214,17 +225,16 @@ export function withTemplates(claudeMd: string | null, ids: readonly string[], l
   const block = known.length
     ? [
         BEGIN,
-        lang === 'tr' ? '## terminal-code şablonlarından kurallar' : '## Rules from terminal-code templates',
+        lang === 'tr' ? `## ${APP_NAME} şablonlarından kurallar` : `## Rules from ${APP_NAME} templates`,
         '',
         ...known.flatMap((t) => [`<!-- template:${t.id} -->`, `### ${t.name[lang]}`, '', ...t.rules[lang].map((r) => `- ${r}`), '']),
         END,
       ].join('\n')
     : '';
-  const a = text.indexOf(BEGIN);
-  const b = text.indexOf(END);
-  if (a !== -1 && b !== -1 && b > a) {
-    const before = text.slice(0, a).replace(/\n+$/, '');
-    const after = text.slice(b + END.length).replace(/^\n+/, '');
+  const m = marked(text);
+  if (m) {
+    const before = text.slice(0, m.a).replace(/\n+$/, '');
+    const after = text.slice(m.b + m.end.length).replace(/^\n+/, '');
     return [before, block, after].filter((x) => x.length > 0).join('\n\n') + (block || before || after ? '\n' : '');
   }
   if (!block) return text;

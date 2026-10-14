@@ -13,8 +13,8 @@ Yardım etmek istediğin için teşekkürler. Kayıtlar, fikirler, kural şablon
 ## Kurulum
 
 ```sh
-git clone https://github.com/OzcanOrhanDemirci/terminal-code.git
-cd terminal-code
+git clone https://github.com/OzcanOrhanDemirci/Mode_Code.git
+cd Mode_Code
 npm ci
 npm run check   # tip denetimi, biçim denetimi, testler, derleme
 ```

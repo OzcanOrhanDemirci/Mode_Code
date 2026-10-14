@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-/** English messages of the maintenance check (`terminal-code doctor`). Part of the English source dictionary. */
+/** English messages of the maintenance check (`mode-code doctor`). Part of the English source dictionary. */
 export const enDoctor = {
   // ── shared ──
   'doc.line': '{text}',
   'doc.notInstalled': 'Not installed.',
   'doc.notMeasured': 'Not measured here.',
   'doc.windowsOnly': 'Applies to Windows only.',
-  'doc.reportHint': 'This is not something you caused. Please report it, so the tool can be fixed: terminal-code doctor --report prints what to send.',
+  'doc.reportHint': 'This is not something you caused. Please report it, so the tool can be fixed: mode-code doctor --report prints what to send.',
   'doc.checkCrashed': 'A check failed to run: {error}',
 
   // ── Node.js ──
@@ -58,7 +58,7 @@ export const enDoctor = {
   'doc.install.previous.hint': 'Run {cmd}: it brings its settings and history over, swaps its hooks for these and removes its plugin and folder.',
   'doc.install.previous.left':
     '{path} holds what {name}, the earlier name of this tool, kept; nothing of it runs. Delete the folder when you no longer need it.',
-  'doc.install.hint': 'Run "terminal-code install" to install it.',
+  'doc.install.hint': 'Run "mode-code install" to install it.',
   'doc.install.otherData': 'The installation record names another data folder ({recorded}); this run uses {now}.',
   'doc.install.hook.ok': 'The hook program matches this version (sha256 {hash}…).',
   'doc.install.hook.missing': 'The hook program is missing: {path}.',
@@ -197,8 +197,8 @@ export const enDoctor = {
   'doc.repairs.title': 'Repairs',
   'doc.repairs.offer': 'Problems that can be repaired automatically: {n}.',
   'doc.repairs.ask': 'Repair them now? Every changed file is backed up first. [y/N]',
-  'doc.repairs.hint': 'Run "terminal-code doctor --fix" to repair them.',
-  'doc.repairs.refused': 'Not repaired, because an agent runs this command: {what}. Run "terminal-code doctor --fix" yourself.',
+  'doc.repairs.hint': 'Run "mode-code doctor --fix" to repair them.',
+  'doc.repairs.refused': 'Not repaired, because an agent runs this command: {what}. Run "mode-code doctor --fix" yourself.',
   'doc.repairs.verified': 'repaired and checked again',
   'doc.repairs.unverified': 'done, but the check still fails',
   'doc.repairs.failed': 'could not be repaired: {detail}',
@@ -252,6 +252,6 @@ export const enDoctor = {
   'doc.fault.loose-permissions': 'Settings file writable by others',
 
   // ── report ──
-  'doc.report.title': 'Problem report for terminal-code',
+  'doc.report.title': 'Problem report for Mode_Code',
   'doc.report.intro': 'Paste this into a new issue at {url}. It holds versions and check results only: no paths with your name, no commands, no file contents.',
 } as const;

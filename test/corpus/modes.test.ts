@@ -39,7 +39,7 @@ test('every reading command runs in chat, research and plan modes (no false alar
     for (const mode of ['chat', 'research', 'plan'] as const) {
       const g: ModeGuard = {
         mode,
-        zones: { temp: [temp], work: [`${temp}/terminal-code/flows`], plan: [] },
+        zones: { temp: [temp], work: [`${temp}/mode-code/flows`], plan: [] },
         env: env.env,
         flowStep: null,
         words: { code: 'code', free: 'free' },

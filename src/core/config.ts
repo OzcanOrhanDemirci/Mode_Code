@@ -52,7 +52,7 @@ export interface MemoryStore {
    * changes that need no merge when a session starts; the person commits and pushes. manual: status only.
    */
   sync: MemorySyncMode;
-  /** Handoff notes are kept in the store (else with terminal-code: in the sync's shared place, or its data folder). */
+  /** Handoff notes are kept in the store (else with mode-code: in the sync's shared place, or its data folder). */
   handoffs: boolean;
 }
 
@@ -60,7 +60,7 @@ export type MemorySyncMode = 'auto' | 'pull' | 'manual';
 
 export const MEMORY_SYNC_MODES: readonly MemorySyncMode[] = ['auto', 'pull', 'manual'];
 
-/** Where the shared copy of terminal-code's settings and history lives (docs/sync.md). */
+/** Where the shared copy of mode-code's settings and history lives (docs/sync.md). */
 export type SyncPlace = 'github' | 'folder';
 
 export const SYNC_PLACES: readonly SyncPlace[] = ['github', 'folder'];
@@ -113,7 +113,7 @@ export interface Config {
   memory: {
     /** Memory folders: protected from deletion and shrinking, and reported in the footer when they are git repositories. */
     dirs: string[];
-    /** Where the memory lives and how it is kept in sync; null until `terminal-code memory setup` ran. */
+    /** Where the memory lives and how it is kept in sync; null until `mode-code memory setup` ran. */
     store: MemoryStore | null;
     /** Handoff notes: written on the keyword, before a compaction, at the end of a session; taken over by the next. */
     handoff: {
@@ -150,7 +150,7 @@ export interface Config {
   };
   projects: ProjectEntry[];
   modes: {
-    /** Where flows keep their drafts (the report, the plan); null: a terminal-code folder in the temporary folder. */
+    /** Where flows keep their drafts (the report, the plan); null: a mode-code folder in the temporary folder. */
     workDir: string | null;
   };
   /** Full autonomy (docs/autonomy.md). Off until the person turns it on in their own terminal. */
@@ -169,7 +169,7 @@ export interface Config {
     highContrast: boolean;
     reduceMotion: boolean;
   };
-  /** Sync across computers (docs/sync.md); null until `terminal-code sync setup` ran. This computer's own. */
+  /** Sync across computers (docs/sync.md); null until `mode-code sync setup` ran. This computer's own. */
   sync: SyncSetting | null;
 }
 

@@ -22,7 +22,7 @@ export const enAuto = {
   'auto.gate.name.project': 'Project',
   'auto.gate.name.alone': 'Alone',
   'auto.gate.enabled.ok': 'Full autonomy is turned on.',
-  'auto.gate.enabled.off': 'Full autonomy is off. Turn it on in your own terminal: terminal-code autonomy enable.',
+  'auto.gate.enabled.off': 'Full autonomy is off. Turn it on in your own terminal: mode-code autonomy enable.',
   'auto.gate.budget.missing': 'No budget: end the message with a quota label, for example "full auto quota +10".',
   'auto.gate.budget.stale': 'The quota reading is stale; send any message so Claude Code measures it again, then start.',
   'auto.gate.budget.noReading': 'There is no quota reading yet; send any message so Claude Code measures it, then start.',
@@ -57,11 +57,11 @@ export const enAuto = {
   'auto.gate.permission.asks':
     'Permission mode {mode} stops to ask. Start Claude Code in bypassPermissions, dontAsk or auto mode (or acceptEdits with a strict allowlist).',
   'auto.gate.permission.unknown':
-    "Claude Code's permission mode did not reach terminal-code with this prompt: the safety-net hook did not record it. Run terminal-code doctor --fix in your own terminal.",
+    "Claude Code's permission mode did not reach Mode_Code with this prompt: the safety-net hook did not record it. Run mode-code doctor --fix in your own terminal.",
   'auto.gate.permission.atStart':
-    "Measured at the run's first step: Claude Code hands the prompt's permission mode to the safety-net hook after terminal-code has read the prompt.",
+    "Measured at the run's first step: Claude Code hands the prompt's permission mode to the safety-net hook after Mode_Code has read the prompt.",
   'auto.gate.hook.ok': 'The safety-net hook runs in this session.',
-  'auto.gate.hook.missing': 'The safety-net hook has not run in this session; run terminal-code doctor in your own terminal.',
+  'auto.gate.hook.missing': 'The safety-net hook has not run in this session; run mode-code doctor in your own terminal.',
   'auto.gate.modes.ok': 'Modes are on.',
   'auto.gate.modes.off': 'Modes are off (modules.modes); full autonomy plans in plan mode.',
   'auto.gate.project.noGit': 'The session does not run in a git work tree ({cwd}); a run needs commits to return to.',
@@ -74,7 +74,7 @@ export const enAuto = {
   'auto.gate.alone.ok': 'Nothing else runs here.',
   'auto.gate.alone.paused': 'A paused run waits in this folder ({id}): resume it with "{cont}", or end it with "{cancel}".',
   'auto.mode.tailPlan':
-    'The full-autonomy run is planning: write the plan at {path} and call mcp__terminal-code__autonomy with action "plan"; the project changes once the plan is accepted.',
+    'The full-autonomy run is planning: write the plan at {path} and call mcp__mode-code__autonomy with action "plan"; the project changes once the plan is accepted.',
 
   // ── the report ──
   'auto.check.report.missing': 'The report draft {path} does not exist yet.',
@@ -118,7 +118,7 @@ export const enAuto = {
   'auto.blocker.external': 'external',
   'auto.blocker.other': 'other',
   'auto.report.statusPaused': 'paused ({reason})',
-  'auto.report.facts': 'What terminal-code measured',
+  'auto.report.facts': 'What mode-code measured',
   'auto.report.task': 'Request',
   'auto.report.noTask': '(given earlier in the conversation)',
   'auto.report.status': 'Status',
@@ -200,7 +200,7 @@ export const enAuto = {
   'auto.guard.person':
     '🤖 Full autonomy: {tool} puts something to the person, and nobody is there. Decide yourself where there is a sensible default and note the decision for the report; otherwise record a blocker.',
   'auto.guard.unknown':
-    '🤖 Full autonomy: {tool} is a tool terminal-code does not know, so it does not run during a run. Reach the goal with known tools, or record a blocker.',
+    '🤖 Full autonomy: {tool} is a tool Mode_Code does not know, so it does not run during a run. Reach the goal with known tools, or record a blocker.',
   'auto.guard.fenceWrite':
     '🤖 Full autonomy: writes stay inside the project ({project}), the temporary folders and the run\'s folder ({work}); {path} is outside. If the change must happen there, record it as deferred (action "defer").',
   'auto.guard.fenceRead': '🤖 Full autonomy: credential files are not read during a run ({what}).',
@@ -211,11 +211,11 @@ export const enAuto = {
 
   // ── stopping ──
   'auto.stop.plan':
-    '🤖 Full autonomy: the run is not done. Its plan is not accepted yet: write it at {path} and call mcp__terminal-code__autonomy with action "plan".',
+    '🤖 Full autonomy: the run is not done. Its plan is not accepted yet: write it at {path} and call mcp__mode-code__autonomy with action "plan".',
   'auto.stop.step':
-    '🤖 Full autonomy: the run is not done. Step {n}/{of} ({title}) has no milestone yet: finish it, commit, and call mcp__terminal-code__autonomy with action "milestone" and step {n}.',
+    '🤖 Full autonomy: the run is not done. Step {n}/{of} ({title}) has no milestone yet: finish it, commit, and call mcp__mode-code__autonomy with action "milestone" and step {n}.',
   'auto.stop.finish':
-    '🤖 Full autonomy: the run is not done. Every step has its milestone: write the report draft at {path} and call mcp__terminal-code__autonomy with action "finish".',
+    '🤖 Full autonomy: the run is not done. Every step has its milestone: write the report draft at {path} and call mcp__mode-code__autonomy with action "finish".',
   'auto.stop.tail': 'If every path is blocked, record the blockers and call action "stuck". Attempts to stop with nothing changed: {streak}/{max}.',
 
   // ── notices ──
@@ -244,7 +244,7 @@ export const enAuto = {
   // ── the command line ──
   'help.autonomy': 'Full autonomy: runs, their reports, the start checks, on and off',
   'auto.cli.atStart': 'Measured when a run starts, in its session.',
-  'auto.cli.hookMissing': 'The safety-net hook is not installed: run terminal-code install (or terminal-code doctor --fix).',
+  'auto.cli.hookMissing': 'The safety-net hook is not installed: run mode-code install (or mode-code doctor --fix).',
   'auto.cli.hookInstalled': 'The safety-net hook is installed; a run checks that it ran in its session.',
   'auto.cli.warnTitle': 'Full autonomy: what turning it on means',
   'auto.cli.warnBody':
@@ -274,10 +274,10 @@ export const enAuto = {
   'auto.cli.fileDrafts': 'Drafts',
   'auto.cli.fileNotes': 'Memory notes',
   'auto.cli.isOn': 'Full autonomy is on.',
-  'auto.cli.isOff': 'Full autonomy is off (terminal-code autonomy enable, in your own terminal).',
+  'auto.cli.isOff': 'Full autonomy is off (mode-code autonomy enable, in your own terminal).',
   'auto.cli.none': 'No run yet.',
   'auto.cli.where': 'Where',
-  'doc.autonomy.off': 'Full autonomy is off (terminal-code autonomy enable turns it on).',
+  'doc.autonomy.off': 'Full autonomy is off (mode-code autonomy enable turns it on).',
   'doc.autonomy.ready': 'Full autonomy is on, and nothing measured here stands in the way of a run.',
   'doc.autonomy.notReady': 'Full autonomy is on, but {n} start check(s) would fail here:',
 
@@ -288,7 +288,7 @@ export const enAuto = {
   'desc.run': 'A full-autonomy run.',
   'badge.running': '{n} running',
   'run.missing': 'This run is no longer on record.',
-  'run.rollbackHint': 'Back to a milestone: terminal-code autonomy rollback {id} <n>',
+  'run.rollbackHint': 'Back to a milestone: mode-code autonomy rollback {id} <n>',
   'runs.empty': 'No full-autonomy run yet. A run takes one task to its end while nobody is at the keyboard, inside a boundary code measures first.',
   'runs.howTo': 'Turn it on under Settings › Autonomy, then end a message with "<project> full auto quota +10" (see docs/autonomy.md).',
   'page.autonomy': 'Autonomy',

@@ -171,7 +171,7 @@ export function runId(task: string, now: number, taken: ReadonlySet<string>): st
 
 /** The git reference that keeps a run's point n (0 is where it started). */
 export function rollbackRef(id: string, n: number): string {
-  return `refs/terminal-code/runs/${id}/${n}`;
+  return `refs/mode-code/runs/${id}/${n}`;
 }
 
 export interface StartRunInput {

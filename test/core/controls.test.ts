@@ -95,7 +95,7 @@ test('what to continue: registered projects first, then every folder once, newes
   const choices = continueChoices({
     projects: [
       { id: 'car', names: ['araba'], path: 'C:/dev/car' },
-      { id: 'terminal-code', names: ['terminal'], path: 'C:/dev/terminal_code' },
+      { id: 'mode-code', names: ['terminal'], path: 'C:/dev/terminal_code' },
       { id: 'notes', names: [], path: null },
     ],
     folders: [
@@ -111,7 +111,7 @@ test('what to continue: registered projects first, then every folder once, newes
   assert.deepEqual(
     choices.map((c) => [c.n, c.label, c.project, c.at]),
     [
-      [1, 'terminal', 'terminal-code', 300],
+      [1, 'terminal', 'mode-code', 300],
       [2, 'araba', 'car', 100],
       [3, 'notes', 'notes', 0],
       [4, 'Desktop', null, 400],
@@ -123,7 +123,7 @@ test('what to continue: registered projects first, then every folder once, newes
 
 test('a choice by its number, its name, its folder, or the start of one; several that fit are not guessed', () => {
   const choices = continueChoices({
-    projects: [{ id: 'terminal-code', names: ['terminal'], path: '/home/ada/dev/terminal_code' }],
+    projects: [{ id: 'mode-code', names: ['terminal'], path: '/home/ada/dev/terminal_code' }],
     folders: [
       { path: '/home/ada/dev/collapse', at: 2 },
       { path: '/home/ada/dev/car', at: 1 },
@@ -136,7 +136,7 @@ test('a choice by its number, its name, its folder, or the start of one; several
   assert.equal(pick('3'), 'collapse');
   assert.equal(pick('9'), null);
   assert.equal(pick('Terminal'), 'terminal');
-  assert.equal(pick('terminal-code'), 'terminal', 'the id');
+  assert.equal(pick('mode-code'), 'terminal', 'the id');
   assert.equal(pick('/home/ada/dev/car'), 'car', 'the path');
   assert.equal(pick('col'), 'collapse');
   assert.equal(pick('car'), 'car', 'an exact name wins over the start of another');

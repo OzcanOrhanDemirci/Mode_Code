@@ -77,7 +77,7 @@ function place(run: (repo: string, head: string) => Run): Place {
         cwd: root,
         input: JSON.stringify({ session_id: SESSION, cwd: repo, hook_event_name: 'Stop', stop_hook_active: false, last_assistant_message: 'Done.', ...extra }),
         encoding: 'utf8',
-        env: { ...process.env, TERMINAL_CODE_HOME: home, TERMINAL_CODE_LANG: 'en' },
+        env: { ...process.env, MODE_CODE_HOME: home, MODE_CODE_LANG: 'en' },
         timeout: 30_000,
       });
       assert.equal(r.status, 0, r.stderr);

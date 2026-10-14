@@ -2,7 +2,7 @@
 /**
  * Interface language. English is the source dictionary; every other language must define every key
  * (the type system enforces it), so a missing translation is a build error, not an English word in a
- * Turkish screen. Language choice: setting → TERMINAL_CODE_LANG → LC_ALL / LC_MESSAGES / LANG → the
+ * Turkish screen. Language choice: setting → MODE_CODE_LANG → LC_ALL / LC_MESSAGES / LANG → the
  * system locale → English.
  */
 import { format } from '../text.js';
@@ -38,7 +38,7 @@ export interface LangSources {
 export function detectLanguage(src: LangSources): Lang {
   if (isLang(src.configured)) return src.configured;
   const env = src.env ?? {};
-  for (const v of [env.TERMINAL_CODE_LANG, env.LC_ALL, env.LC_MESSAGES, env.LANG]) {
+  for (const v of [env.MODE_CODE_LANG, env.LC_ALL, env.LC_MESSAGES, env.LANG]) {
     const l = langFromLocale(v);
     if (l) return l;
   }

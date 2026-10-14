@@ -336,7 +336,7 @@ test('the memory store: not set up, missing, not used by Claude Code, without gi
   };
   assert.equal(at({}), 'ok doc.memory.ok');
   assert.equal(at(null, null), 'info doc.memory.none');
-  // A memory Claude Code keeps somewhere terminal-code did not set up is said as it is (not "one per project").
+  // A memory Claude Code keeps somewhere mode-code did not set up is said as it is (not "one per project").
   assert.equal(at(null), 'info doc.memory.outside');
   assert.equal(check('data.memoryStore', healthyFacts({ memoryStore: null })).hint?.key, 'doc.memory.adoptHint');
   assert.equal(at({ exists: false }), 'fail doc.memory.missing');
@@ -399,7 +399,7 @@ test('files: data folder, space, letter case, leftovers, permissions', () => {
   );
   assert.equal(brief(check('files.leftovers', healthyFacts({ data: { ...d, staleStates: 3 } }))), 'info doc.files.leftovers.states → prune-session-state');
   assert.equal(
-    brief(check('files.permissions', healthyFacts({ platform: 'linux', data: { ...d, looseModes: ['.terminal-code 777'] } }))),
+    brief(check('files.permissions', healthyFacts({ platform: 'linux', data: { ...d, looseModes: ['.mode-code 777'] } }))),
     'fail doc.files.permissions.loose → tighten-permissions',
   );
   assert.equal(check('files.permissions', healthyFacts()).status, 'skip');
@@ -504,7 +504,7 @@ test('full autonomy: off is a note; on, the start checks that would fail here ar
 test('sync across computers: not set up, missing, without git or origin, a sync that failed, settings waiting, fine', () => {
   const sync = {
     place: 'github',
-    dir: 'C:/Users/ada/.terminal-code/sync',
+    dir: 'C:/Users/ada/.mode-code/sync',
     name: 'PC',
     exists: true,
     isRepo: true,

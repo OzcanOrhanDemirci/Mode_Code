@@ -72,7 +72,7 @@ const machines: [string, Facts][] = [
       powershell: null,
       posixShell: { shell: null, version: null },
       shortNames: [],
-      data: { ...h.data, caseInsensitive: true, looseModes: ['.terminal-code 777'] },
+      data: { ...h.data, caseInsensitive: true, looseModes: ['.mode-code 777'] },
     }),
   ],
 ];
@@ -108,7 +108,7 @@ machines.push(
     healthyFacts({
       hookNode: { path: 'C:/node/node.exe', exists: true, version: '22.12.9' },
       claude: { installs: [], version: '2.1.296' },
-      plugins: [{ id: 'terminal-code@terminal-code-local', enabled: false, version: 'dev', scope: 'user' }],
+      plugins: [{ id: 'mode-code@mode-code-local', enabled: false, version: 'dev', scope: 'user' }],
       hookProgram: { ...h.hookProgram, shippedHash: null },
       hooks: h.hooks.map((x) => (x.event === 'PreToolUse' ? { ...x, matcher: 'Bash' } : x)),
       hookAgreement: { samples: 0, agreed: 0, differences: [], error: 'spawn failed' },
@@ -125,9 +125,9 @@ machines.push(
     'tour 3: another data folder, duplicated hooks, another plugin version, MCP tools, a stricter belt',
     healthyFacts({
       platform: 'darwin',
-      manifest: { ...h.manifest!, dataDir: 'D:/elsewhere/.terminal-code', version: 'older' },
+      manifest: { ...h.manifest!, dataDir: 'D:/elsewhere/.mode-code', version: 'older' },
       hooks: [...h.hooks, { ...h.hooks[1]! }, { ...h.hooks[0]!, scope: 'project' }],
-      plugins: [{ id: 'terminal-code@terminal-code-local', enabled: true, version: 'older', scope: 'user' }],
+      plugins: [{ id: 'mode-code@mode-code-local', enabled: true, version: 'older', scope: 'user' }],
       hookProgram: { ...h.hookProgram, hash: 'c'.repeat(64) },
       modSeen: { at: h.measuredAt, version: 'older' },
       gitBash: null,
@@ -159,7 +159,7 @@ const withPre = (matcher: string, onFailure: 'block' | null = 'block') => h.hook
 const released = {
   appVersion: '0.1.0',
   manifest: { ...h.manifest!, version: '0.1.0' },
-  plugins: [{ id: 'terminal-code@terminal-code-local', enabled: true, version: '0.1.0', scope: 'user' as const }],
+  plugins: [{ id: 'mode-code@mode-code-local', enabled: true, version: '0.1.0', scope: 'user' as const }],
   modSeen: { at: h.measuredAt, version: '0.1.0' },
 };
 machines.push(
@@ -196,7 +196,7 @@ machines.push(
       appVersion: '0.2.0',
       manifest: { ...released.manifest },
       hookProgram: { ...h.hookProgram, hash: 'b'.repeat(64) },
-      plugins: [{ id: 'terminal-code@terminal-code-local', enabled: true, version: '0.1.0', scope: 'user' }],
+      plugins: [{ id: 'mode-code@mode-code-local', enabled: true, version: '0.1.0', scope: 'user' }],
       modSeen: { at: h.measuredAt, version: '0.1.0' },
     }),
   ],

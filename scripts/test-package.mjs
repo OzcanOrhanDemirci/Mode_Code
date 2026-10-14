@@ -103,7 +103,7 @@ try {
 
   // ── run through npm's own launcher, in an isolated home ──
   const home = join(tmp, 'home');
-  const runEnv = { ...env, TERMINAL_CODE_HOME: join(home, 'data'), CLAUDE_CONFIG_DIR: join(home, 'claude'), TERMINAL_CODE_LANG: 'en' };
+  const runEnv = { ...env, MODE_CODE_HOME: join(home, 'data'), CLAUDE_CONFIG_DIR: join(home, 'claude'), MODE_CODE_LANG: 'en' };
   mkdirSync(join(home, 'claude'), { recursive: true });
   const v = sh(shim, ['--version'], { cwd: home, env: runEnv });
   if (v.status !== 0 || v.stdout.trim() !== pkg.version)

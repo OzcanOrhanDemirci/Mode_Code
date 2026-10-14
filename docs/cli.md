@@ -1,16 +1,16 @@
 # Command line
 
-`terminal-code` with no command opens the control center in a terminal; piped or in CI it prints the status instead. Every command accepts `--json` and `--no-color` (also honoured: `NO_COLOR`, `FORCE_COLOR`). The interface language follows the settings file, then `TERMINAL_CODE_LANG`, `LC_ALL`, `LC_MESSAGES`, `LANG`, then the system locale.
+`mode-code` with no command opens the control center in a terminal; piped or in CI it prints the status instead. Every command accepts `--json` and `--no-color` (also honoured: `NO_COLOR`, `FORCE_COLOR`). The interface language follows the settings file, then `MODE_CODE_LANG`, `LC_ALL`, `LC_MESSAGES`, `LANG`, then the system locale.
 
 ## JSON output
 
-`--json` prints one JSON document. Its `schema` field names the command and a version, for example `terminal-code.status/1`. Within a version fields are only added, never renamed or removed, so scripts keep working. `version` is the tool's version.
+`--json` prints one JSON document. Its `schema` field names the command and a version, for example `mode-code.status/1`. Within a version fields are only added, never renamed or removed, so scripts keep working. `version` is the tool's version.
 
 ## Commands
 
 | Command                                                                                                | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Exit code                            |
 | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------ |
-| `terminal-code`                                                                                        | Opens the control center (a terminal is needed)                                                                                                                                                                                                                                                                                                                                                                                                                          | 0                                    |
+| `mode-code`                                                                                            | Opens the control center (a terminal is needed)                                                                                                                                                                                                                                                                                                                                                                                                                          | 0                                    |
 | `open <address>`                                                                                       | Opens it at a screen, e.g. `security/rules/git.clean`, `measure/quota`                                                                                                                                                                                                                                                                                                                                                                                                   | 0, 2 without a terminal              |
 | `status`                                                                                               | What is installed and working, quota, what was blocked today                                                                                                                                                                                                                                                                                                                                                                                                             | 1 when a protection is broken        |
 | `doctor [--fix] [--all] [--quick] [--report] [--self-check]`                                           | Checks the installation, the protections, the shells, the file system and git on this machine, runs the built-in self-tests, and offers the safe repairs (`--fix` makes them without asking). `--all` also lists what is fine, `--quick` leaves out the slower measurements, `--report` prints a problem report to paste into an issue (home folder and user name replaced), `--self-check` tests the doctor itself in a throwaway sandbox. See [testing.md](testing.md) | 1 when a check fails                 |
@@ -61,7 +61,7 @@ Commands that change your Claude Code setup, lower a protection or widen what a 
 
 ## The settings file
 
-`~/.terminal-code/config.json` (or `$TERMINAL_CODE_HOME/config.json`). Every key is optional; a wrong value falls back to its default for that key only, and `doctor` lists what was wrong. The safety belt's locked rules cannot be weakened from this file.
+`~/.mode-code/config.json` (or `$MODE_CODE_HOME/config.json`). Every key is optional; a wrong value falls back to its default for that key only, and `doctor` lists what was wrong. The safety belt's locked rules cannot be weakened from this file.
 
 ```json
 {
@@ -91,7 +91,7 @@ Commands that change your Claude Code setup, lower a protection or widen what a 
 
 | Variable                  | Effect                                                                        |
 | ------------------------- | ----------------------------------------------------------------------------- |
-| `TERMINAL_CODE_HOME`      | The data folder (default `~/.terminal-code`)                                  |
-| `TERMINAL_CODE_LANG`      | Interface language, `en` or `tr`                                              |
+| `MODE_CODE_HOME`          | The data folder (default `~/.mode-code`)                                      |
+| `MODE_CODE_LANG`          | Interface language, `en` or `tr`                                              |
 | `CLAUDE_CONFIG_DIR`       | Where Claude Code's configuration is (read the same way Claude Code reads it) |
 | `NO_COLOR`, `FORCE_COLOR` | Colors in command output                                                      |

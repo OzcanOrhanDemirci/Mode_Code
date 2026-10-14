@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * Runs the command line as a person runs it: a separate process, with its own data folder
- * (TERMINAL_CODE_HOME), its own Claude Code folder (CLAUDE_CONFIG_DIR) and a stand-in `claude` first on
+ * (MODE_CODE_HOME), its own Claude Code folder (CLAUDE_CONFIG_DIR) and a stand-in `claude` first on
  * PATH. Nothing outside the temporary folder is touched, and no session variable of a Claude Code session
  * the tests may run in leaks into the child (it would make the tool refuse to install).
  */
@@ -78,9 +78,9 @@ export function world(opts: { claude?: { version?: string; pluginVersion?: strin
   }
   env[pk] = path;
   Object.assign(env, {
-    TERMINAL_CODE_HOME: data,
+    MODE_CODE_HOME: data,
     CLAUDE_CONFIG_DIR: claudeDir,
-    TERMINAL_CODE_LANG: opts.lang ?? 'en',
+    MODE_CODE_LANG: opts.lang ?? 'en',
     NO_COLOR: '1',
     FAKE_CLAUDE_STATE: stateFile,
   });
@@ -104,7 +104,7 @@ export interface Ran {
   json: Record<string, any> | null;
 }
 
-/** Runs `terminal-code <args>`: from source, or with `dist` the bundle the package ships (bundleCli). */
+/** Runs `mode-code <args>`: from source, or with `dist` the bundle the package ships (bundleCli). */
 export function cli(w: World, args: string[], opts: { dist?: boolean; input?: string; cwd?: string; timeoutMs?: number } = {}): Ran {
   // tsx by its full address: the child runs in the temporary folder, where a bare "tsx" would not resolve.
   const entry = opts.dist ? [bundleCli()] : ['--import', import.meta.resolve('tsx'), join(ROOT, 'src', 'cli', 'main.tsx')];

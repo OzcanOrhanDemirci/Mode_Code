@@ -20,7 +20,7 @@ function run(event: string, input: object, home: string): { out: Record<string, 
     cwd: root,
     input: JSON.stringify(input),
     encoding: 'utf8',
-    env: { ...process.env, TERMINAL_CODE_HOME: home, TERMINAL_CODE_LANG: 'en' },
+    env: { ...process.env, MODE_CODE_HOME: home, MODE_CODE_LANG: 'en' },
     timeout: 30_000,
   });
   const text = (r.stdout ?? '').trim();
@@ -122,7 +122,7 @@ test('an "ask" rule asks; the same call passes once the person approved it throu
 });
 
 test('a keyword adds its context when the mod is not running', () => {
-  const home = fresh({ projects: [{ id: 'terminal-code', names: ['terminal'] }] });
+  const home = fresh({ projects: [{ id: 'mode-code', names: ['terminal'] }] });
   try {
     const r = run('UserPromptSubmit', { ...base(home), hook_event_name: 'UserPromptSubmit', prompt: 'termınal devam' }, home);
     assert.match(r.out?.hookSpecificOutput?.additionalContext ?? '', /Keyword "continue" for project "terminal"/);
@@ -164,7 +164,7 @@ test('without the plugin a mode or flow keyword says plainly that nothing enforc
     const r = run('UserPromptSubmit', { ...base(home), hook_event_name: 'UserPromptSubmit', prompt: 'akış', permission_mode: 'plan' }, home);
     assert.match(
       r.out?.hookSpecificOutput?.additionalContext ?? '',
-      /need the terminal-code plugin, which is not loaded in this session, so nothing does them here/,
+      /need the mode-code plugin, which is not loaded in this session, so nothing does them here/,
     );
     const state = JSON.parse(readFileSync(join(home, 'state', 'sessions', 'test-session.hook.json'), 'utf8'));
     assert.equal(state.permissionMode, 'plan');

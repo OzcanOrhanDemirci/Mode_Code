@@ -24,7 +24,7 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'health.belt.disabledAll': "Bir Claude Code ayar dosyası ({scope}) bütün hook'ları kapatıyor (disableAllHooks); emniyet kemeri çalışamıyor.",
   'health.belt.noProgram': 'Hook programı yok: {path}. Geri getirmek için yeniden kur.',
   'health.belt.noNode':
-    "Hook'ların çalıştırdığı Node.js yok ({path}); Claude Code denetlenen her çağrıyı engelliyor. Onarmak için 'terminal-code install' komutunu yeniden çalıştır.",
+    "Hook'ların çalıştırdığı Node.js yok ({path}); Claude Code denetlenen her çağrıyı engelliyor. Onarmak için 'mode-code install' komutunu yeniden çalıştır.",
   'health.belt.noHook': "Güvenlik ağı hook'u Claude Code ayarlarında yok. Geri eklemek için yeniden kur.",
   'health.claudeOld': 'Claude Code {have}, bu özelliğin istediği {need} sürümünden eski. "claude update" ile güncelle.',
   'health.belt.selfTest': 'Öz sınama başarısız: {detail}',
@@ -119,7 +119,7 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'install.warn.hooksDisabled': "{file} bütün hook'ları kapatıyor (disableAllHooks). O ayarı kaldırmazsan emniyet kemeri çalışamaz.",
   'install.warn.otherVersion': '{have} sürümü kurulu; bu kurulum onu {now} ile değiştirir.',
 
-  'uninstall.title': 'terminal-code kaldırma',
+  'uninstall.title': 'Mode_Code kaldırma',
   'uninstall.intro': 'Bu işlem tam olarak kurulumun eklediklerini kaldırır:',
   'uninstall.noManifest': 'Kurulum kaydı bulunamadı. Bir kurulumun ekleyeceği şeyler kaldırılır:',
   'uninstall.plugin': 'Claude Code eklentisi ve yerel pazarı',
@@ -251,8 +251,8 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'report.titleDay': 'Son bir günde olanlar',
   'help.template': 'Bu klasör için hazır kurallar (herkese açık depo, sunucu, Flutter …)',
   'template.hint':
-    'Uygulamak için: terminal-code template apply <kimlik>. Bu klasörün CLAUDE.md dosyasına birkaç kural yazar, bazıları emniyet kemerini sıkılaştırır.',
-  'template.unknown': '"{id}" adlı bir şablon yok. Bak: terminal-code template list',
+    'Uygulamak için: mode-code template apply <kimlik>. Bu klasörün CLAUDE.md dosyasına birkaç kural yazar, bazıları emniyet kemerini sıkılaştırır.',
+  'template.unknown': '"{id}" adlı bir şablon yok. Bak: mode-code template list',
   'template.noRemote': 'Bu şablon, bu klasörde origin adlı uzak deposu olan bir git deposu ister.',
   'template.willWrite': 'Şu kuralları {file} dosyasına ekler:',
   'template.willRemove': 'Şu kuralları {file} dosyasından kaldırır:',

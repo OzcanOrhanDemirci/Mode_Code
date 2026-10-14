@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Entry point of the `terminal-code` command. With no command in a terminal it opens the control center;
+ * Entry point of the `mode-code` command. With no command in a terminal it opens the control center;
  * piped or in CI it prints the status instead, so it never hangs waiting for keys that will not come.
  */
 import { APP_NAME, APP_VERSION } from '../core/app.js';

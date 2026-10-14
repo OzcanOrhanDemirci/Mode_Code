@@ -74,6 +74,17 @@ test('the text: every spelling and the repository, counted; nothing that only lo
   assert.equal(r.count, 13);
   const moved = renameText('github.com/someone/old-tool.git', { ...plan, to: { ...plan.to, repo: 'harbor-org/harbor' } });
   assert.equal(moved.text, 'github.com/harbor-org/harbor.git', 'the repository first, then the id: no half-renamed address');
+  const named = renameText("Harbor Light's settings · [Harbor Light] · harbor-light doctor · Harbor Lights", {
+    from: plan.to,
+    to: { id: 'beacon', name: 'Bea_Con', repo: 'someone/Bea_Con' },
+    final: true,
+  });
+  assert.equal(
+    named.text,
+    "Bea_Con's settings · [Bea_Con] · beacon doctor · Harbor Lights",
+    'a display name that is not a spelling of the id is renamed as a whole word',
+  );
+  assert.equal(named.count, 3);
 });
 
 test('the identity file: the old name recorded first, earlier ones kept as they were, the display name and finality set', () => {

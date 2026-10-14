@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * The command line. Every command prints plain text for people and, with --json, one JSON document whose
- * shape is versioned in its "schema" field ("terminal-code.<command>/1"): fields are only ever added
+ * shape is versioned in its "schema" field ("mode-code.<command>/1"): fields are only ever added
  * within a version, so scripts keep working.
  */
 import { createInterface } from 'node:readline/promises';
 import { homedir } from 'node:os';
-import { APP_NAME, APP_VERSION, MIN_CLAUDE_CODE_FOR_HOOKS, REPO_URL } from '../core/app.js';
+import { APP_NAME, APP_VERSION, CLI_NAME, MIN_CLAUDE_CODE_FOR_HOOKS, REPO_URL } from '../core/app.js';
 import { cloneDefaults, serializeConfig, setConfigValue, type Config } from '../core/config.js';
 import { evaluateToolCall } from '../core/belt/evaluate.js';
 import { RULES, RULE_IDS } from '../core/belt/rules.js';
@@ -42,7 +42,7 @@ type Out = (s?: string) => void;
 const say: Out = (s = '') => process.stdout.write(s + '\n');
 
 function json(schema: string, data: object): void {
-  process.stdout.write(JSON.stringify({ schema: `terminal-code.${schema}/1`, version: APP_VERSION, ...data }, null, 2) + '\n');
+  process.stdout.write(JSON.stringify({ schema: `mode-code.${schema}/1`, version: APP_VERSION, ...data }, null, 2) + '\n');
 }
 
 function T(ctx: AppContext, key: MessageKey, params?: Record<string, string | number>): string {
@@ -124,7 +124,7 @@ export async function cmdStatus(a: Args): Promise<number> {
   say();
   if (!h.installed) {
     say(yellow(T(ctx, 'cli.status.notInstalled')));
-    say(T(ctx, 'cli.status.installHint', { cmd: cyan(`${APP_NAME} install`) }));
+    say(T(ctx, 'cli.status.installHint', { cmd: cyan(`${CLI_NAME} install`) }));
     return 0;
   }
   for (const f of h.features) {
@@ -147,7 +147,7 @@ export async function cmdStatus(a: Args): Promise<number> {
   }
   if (events.length) say(`  ${red('🛡')} ${T(ctx, 'cli.status.blockedToday', { n: events.length })}`);
   if (ctx.problems.length) say(yellow(`  ${T(ctx, 'cli.status.configProblems', { n: ctx.problems.length, file: shortPath(ctx.layout.config, homedir()) })}`));
-  if (c.red) say(red(`\n${T(ctx, 'cli.status.redHint', { cmd: `${APP_NAME} doctor` })}`));
+  if (c.red) say(red(`\n${T(ctx, 'cli.status.redHint', { cmd: `${CLI_NAME} doctor` })}`));
   return c.red ? 1 : 0;
 }
 
@@ -236,11 +236,11 @@ export async function cmdInstall(a: Args): Promise<number> {
   say();
   if (!r.ok) {
     say(red(T(ctx, 'install.failed')));
-    say(T(ctx, 'install.failedHint', { cmd: `${APP_NAME} uninstall`, repo: `${REPO_URL}/issues` }));
+    say(T(ctx, 'install.failedHint', { cmd: `${CLI_NAME} uninstall`, repo: `${REPO_URL}/issues` }));
     return 1;
   }
   say(green(bold(T(ctx, 'install.done'))));
-  say(T(ctx, 'install.next', { cmd: cyan(APP_NAME) }));
+  say(T(ctx, 'install.next', { cmd: cyan(CLI_NAME) }));
   return 0;
 }
 
@@ -314,9 +314,9 @@ export async function cmdUninstall(a: Args): Promise<number> {
   );
   if (flag(a, 'dry-run')) return 0;
   say();
-  const word = purge ? APP_NAME : undefined;
+  const word = purge ? CLI_NAME : undefined;
   if (!flag(a, 'yes', 'y') || purge) {
-    const ok = await confirm(purge ? T(ctx, 'uninstall.typeName', { name: APP_NAME }) : T(ctx, 'uninstall.confirm'), word);
+    const ok = await confirm(purge ? T(ctx, 'uninstall.typeName', { name: CLI_NAME }) : T(ctx, 'uninstall.confirm'), word);
     if (!ok) {
       say(T(ctx, 'cli.cancelled'));
       return 1;
@@ -1041,9 +1041,9 @@ export function helpText(lang: Lang): string {
   return [
     `${bold(APP_NAME)} ${APP_VERSION}  ${dim(L('help.tagline'))}`,
     '',
-    `${bold(L('help.usage'))}  ${APP_NAME} ${dim('[' + L('help.command') + ']')}`,
+    `${bold(L('help.usage'))}  ${CLI_NAME} ${dim('[' + L('help.command') + ']')}`,
     '',
-    `  ${c(APP_NAME.padEnd(28))}${L('help.open')}`,
+    `  ${c(CLI_NAME.padEnd(28))}${L('help.open')}`,
     `  ${c('open <address>'.padEnd(28))}${L('help.openAt')}`,
     `  ${c('status'.padEnd(28))}${L('help.status')}`,
     `  ${c('doctor'.padEnd(28))}${L('help.doctor')}`,

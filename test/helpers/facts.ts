@@ -9,7 +9,7 @@ import type { Facts, SettingsFileFacts } from '../../src/app/doctor/types.js';
 import type { HookEntry } from '../../src/node/claude-env.js';
 
 export const NOW = Date.parse('2026-10-12T12:00:00Z');
-const DATA = 'C:/Users/ada/.terminal-code';
+const DATA = 'C:/Users/ada/.mode-code';
 const NODE = 'C:/Program Files/nodejs/node.exe';
 const HASH = 'a'.repeat(64);
 
@@ -60,7 +60,7 @@ export function healthyFacts(over: Partial<Facts> = {}): Facts {
     plugins: [{ id: PLUGIN_ID, enabled: true, version: APP_VERSION, scope: 'user' }],
     manifest: {
       v: 1,
-      app: 'terminal-code',
+      app: 'mode-code',
       version: APP_VERSION,
       installedAt: NOW - 86400_000,
       node: NODE,
@@ -74,11 +74,11 @@ export function healthyFacts(over: Partial<Facts> = {}): Facts {
     previous: null,
     previousNames: [],
     hookProgram: { path: `${DATA}/bin/hook.mjs`, exists: true, hash: HASH, shippedHash: HASH },
-    pluginFiles: { dir: `${DATA}/marketplace/plugins/terminal-code`, missing: [], different: [], shipped: true },
-    controlCenter: { recorded: 'C:/dev/terminal-code/dist/cli.mjs', exists: true, shipped: 'C:/dev/terminal-code/dist/cli.mjs' },
+    pluginFiles: { dir: `${DATA}/marketplace/plugins/mode-code`, missing: [], different: [], shipped: true },
+    controlCenter: { recorded: 'C:/dev/mode-code/dist/cli.mjs', exists: true, shipped: 'C:/dev/mode-code/dist/cli.mjs' },
     modSeen: { at: NOW - 600_000, version: APP_VERSION },
     aliases: [],
-    shortNames: [{ long: DATA, short: 'C:/Users/ada/TERMIN~1', recognised: true }],
+    shortNames: [{ long: DATA, short: 'C:/Users/ada/MODECO~1', recognised: true }],
     memoryDirs: [{ path: 'C:/dev/notes/memory', exists: true, isRepo: true }],
     memorySetting: 'C:/dev/notes/memory',
     memoryStore: {

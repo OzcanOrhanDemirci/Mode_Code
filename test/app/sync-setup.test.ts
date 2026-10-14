@@ -103,7 +103,7 @@ test(
         computer(m, 'data', { footer: { mode: 'off' }, belt: { verdicts: { 'git.clean': 'warn' } } }, 'win', '0001'),
       );
       assert.equal(first.ok, true);
-      // The Mac had a handoff note in terminal-code's own folder.
+      // The Mac had a handoff note in mode-code's own folder.
       const mac = computer(m, 'mac-data', {}, 'MacBook.local', '0002');
       mkdirSync(join(mac.layout.handoffsDir, 'app'), { recursive: true });
       writeFileSync(join(mac.layout.handoffsDir, 'app', '20261012-090000-abcdef12.md'), '---\ntype: handoff\n---\n\n## Next\n\nGo on.\n');
@@ -122,12 +122,12 @@ test(
       assert.match(said, /is used for sync already: this computer joins it/);
       assert.match(said, /differ from the other computers' in 2 place\(s\)/);
       assert.match(said, /belt\.verdicts: \{\} → \{"git\.clean":"warn"\} \(Windows\) · lowers a protection here/);
-      assert.match(said, /bring the 1 kept in terminal-code's folder there/);
+      assert.match(said, /bring the 1 kept in Mode_Code's folder there/);
       assert.deepEqual([r.config?.footer.mode, r.config?.belt.verdicts?.['git.clean']], ['off', 'warn']);
       assert.equal(r.config?.sync?.machine.id, 'mac-0002');
       const dir = `${m.root}/mac-data/sync`;
       assert.ok(existsSync(join(dir, 'handoffs', 'app', '20261012-090000-abcdef12.md')));
-      assert.ok(!existsSync(mac.layout.handoffsDir), "nothing is left behind in terminal-code's folder");
+      assert.ok(!existsSync(mac.layout.handoffsDir), "nothing is left behind in Mode_Code's folder");
       assert.ok(m.remoteFiles('ada/tc-sync').includes('handoffs/app/20261012-090000-abcdef12.md'));
       // Taken from the others, so this computer claims nothing: its values are theirs.
       assert.equal(settingsOf(dir, 'mac-0002').entries['footer.mode']!.at, 0);
@@ -197,13 +197,13 @@ test(
       const r = await syncSetup(s.io, computer(m, 'data'));
       assert.equal(r.ok, true, s.said.join('\n'));
       const said = s.said.join('\n');
-      assert.match(said, /holds other files: terminal-code keeps its own in a folder of it/);
+      assert.match(said, /holds other files: Mode_Code keeps its own in a folder of it/);
       assert.match(said, /"\.\.\/up" cannot be a folder there/);
       assert.match(said, /holds other files and is not a copy of that repository/);
       assert.match(said, /is a copy of that repository already: it is used as it is/);
-      assert.equal(r.config?.sync?.dir, `${copy}/terminal-code`);
+      assert.equal(r.config?.sync?.dir, `${copy}/mode-code`);
       assert.equal(git(copy, 'status', '--porcelain'), '?? draft.md');
-      assert.ok(m.remoteFiles('ada/notes').every((f) => f === 'MEMORY.md' || f.startsWith('terminal-code/')));
+      assert.ok(m.remoteFiles('ada/notes').every((f) => f === 'MEMORY.md' || f.startsWith('mode-code/')));
       assert.ok(!m.ghCalls.some((c) => c[1] === 'create'));
     } finally {
       m.done();
@@ -214,7 +214,7 @@ test(
 test('a folder another service keeps in sync: no git asked about; a computer set up there before is recognized', async () => {
   const m = machine();
   try {
-    const shared = `${m.home}/iCloud/terminal-code`;
+    const shared = `${m.home}/iCloud/mode-code`;
     mkdirSync(join(shared, 'machines', 'old-pc-0000'), { recursive: true });
     writeFileSync(
       join(shared, 'machines', 'old-pc-0000', 'machine.json'),
@@ -232,7 +232,7 @@ test('a folder another service keeps in sync: no git asked about; a computer set
     ]);
     const r = await syncSetup(s.io, env);
     assert.equal(r.ok, true, s.said.join('\n'));
-    assert.match(s.said.join('\n'), /inside terminal-code's own data folder/);
+    assert.match(s.said.join('\n'), /inside Mode_Code's own data folder/);
     assert.match(s.said.join('\n'), /Computers in it already: Old PC/);
     assert.deepEqual(r.config?.sync?.machine, { id: 'old-pc-0000', name: 'Old PC' });
     assert.deepEqual([r.config?.sync?.place, r.config?.sync?.remote, r.record?.result], ['folder', null, null]);
@@ -283,7 +283,7 @@ test('refused: a public repository, a folder inside the memory; saying no change
 });
 
 test('a folder inside a repository: plain names only', () => {
-  for (const ok of ['terminal-code', 'a/b', 'sync 2', 'x.y']) assert.equal(subfolderProblem(ok), false, ok);
+  for (const ok of ['mode-code', 'a/b', 'sync 2', 'x.y']) assert.equal(subfolderProblem(ok), false, ok);
   for (const bad of ['', '/', '..', 'a/../b', '.git', 'a/.git', '/abs', 'C:/x', 'a:b', 'x'.repeat(81)]) assert.equal(subfolderProblem(bad), true, bad);
 });
 

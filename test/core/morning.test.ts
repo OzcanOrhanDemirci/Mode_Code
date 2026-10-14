@@ -77,7 +77,7 @@ test('everything that happened, in the order it matters, with one summary line',
     'Full autonomy: Port the parser · paused: quota reached',
     'Full autonomy: Fix CI · stuck',
     'Flows: Sign-in: the plan waits for your approval',
-    'Notes: 1 note file(s) from full-autonomy runs wait for your approval: terminal-code memory notes',
+    'Notes: 1 note file(s) from full-autonomy runs wait for your approval: mode-code memory notes',
     'Memory: a pull needs you: MEMORY.md changed here and elsewhere',
     'Memory: held back, it looks like it holds a secret: token.md',
     'Memory: 2 change(s) wait to go up to GitHub',
@@ -89,11 +89,11 @@ test('everything that happened, in the order it matters, with one summary line',
   ]);
   assert.equal(
     morningSummary(f, 'en'),
-    '☀ While you were away: 1 run(s) done · 2 run(s) wait for you · 1 plan(s) wait for approval · 1 note file(s) wait for approval · the memory sync needs you · 3 handoff note(s). terminal-code morning',
+    '☀ While you were away: 1 run(s) done · 2 run(s) wait for you · 1 plan(s) wait for approval · 1 note file(s) wait for approval · the memory sync needs you · 3 handoff note(s). mode-code morning',
   );
   assert.equal(
     morningSummary({ ...empty(), memory: { place: 'github', ahead: 2, conflicts: [], held: [], error: null } }, 'tr'),
-    '☀ Sen yokken: 2 hafıza değişikliği gönderilmeyi bekliyor. terminal-code morning',
+    '☀ Sen yokken: 2 hafıza değişikliği gönderilmeyi bekliyor. mode-code morning',
   );
   assert.ok(morningLines(f, 'tr').some((l) => l.text === 'Port the parser · duraklatıldı: quota reached'));
   // A belt that did nothing and a quota never read stay out.
@@ -151,9 +151,9 @@ test('the edges: a stuck run with a reason is stuck, one-sided belt counts, each
     morningLines({ ...empty(), runs: [run('paused')] }, 'en').map((l) => l.text),
     ['t · paused'],
   );
-  assert.equal(morningSummary({ ...empty(), runs: [run('stuck')] }, 'en'), '☀ While you were away: 1 run(s) wait for you. terminal-code morning');
-  assert.equal(morningSummary({ ...empty(), runs: [run('paused')] }, 'en'), '☀ While you were away: 1 run(s) wait for you. terminal-code morning');
-  assert.equal(morningSummary({ ...empty(), runs: [run('done')] }, 'en'), '☀ While you were away: 1 run(s) done. terminal-code morning');
+  assert.equal(morningSummary({ ...empty(), runs: [run('stuck')] }, 'en'), '☀ While you were away: 1 run(s) wait for you. mode-code morning');
+  assert.equal(morningSummary({ ...empty(), runs: [run('paused')] }, 'en'), '☀ While you were away: 1 run(s) wait for you. mode-code morning');
+  assert.equal(morningSummary({ ...empty(), runs: [run('done')] }, 'en'), '☀ While you were away: 1 run(s) done. mode-code morning');
   assert.deepEqual(
     morningLines({ ...empty(), belt: { blocked: 1, asked: 0 } }, 'en').map((l) => l.text),
     ['1 blocked, 0 asked'],
@@ -164,7 +164,7 @@ test('the edges: a stuck run with a reason is stuck, one-sided belt counts, each
   );
   const mem = (over: object) => ({ ...empty(), memory: { place: 'both' as const, ahead: null, conflicts: [], held: [], error: null, ...over } });
   for (const over of [{ conflicts: ['a.md'] }, { held: ['b.md'] }, { error: 'down' }])
-    assert.equal(morningSummary(mem(over), 'en'), '☀ While you were away: the memory sync needs you. terminal-code morning', JSON.stringify(over));
+    assert.equal(morningSummary(mem(over), 'en'), '☀ While you were away: the memory sync needs you. mode-code morning', JSON.stringify(over));
   assert.deepEqual(morningLines(mem({ place: 'local', ahead: 2 }), 'en'), []);
   assert.deepEqual(morningLines(mem({ ahead: 0 }), 'en'), []);
 });
@@ -198,7 +198,7 @@ test("the other computers' news and the settings waiting from them (docs/sync.md
   assert.deepEqual(morningLines(f, 'en'), [
     { label: 'Elsewhere', text: 'MacBook: 3 session(s) · Ship the release · done · Port it · paused: quota · 1 flow(s) wait · the belt stopped 2' },
     { label: 'Elsewhere', text: 'Laptop: 1 session(s)' },
-    { label: 'Sync', text: '2 setting(s) from other computers wait for you (terminal-code sync)' },
+    { label: 'Sync', text: '2 setting(s) from other computers wait for you (mode-code sync)' },
   ]);
   // In the one line: only news that needs the person (a run or a flow), and what waits.
   assert.match(morningSummary(f, 'en') ?? '', /news from MacBook · 2 setting\(s\) wait/);

@@ -51,11 +51,11 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
     try {
       const s = cli(w, ['status', '--json'], opt);
       assert.equal(s.code, 0, s.err);
-      assert.equal(s.json?.schema, 'terminal-code.status/1');
+      assert.equal(s.json?.schema, 'mode-code.status/1');
       assert.equal(s.json?.installed, false);
       assert.equal(s.json?.claudeCode, '2.1.296');
       const d = cli(w, ['doctor', '--json', '--quick'], opt);
-      assert.equal(d.json?.schema, 'terminal-code.doctor/1');
+      assert.equal(d.json?.schema, 'mode-code.doctor/1');
       assert.ok(Array.isArray(d.json?.checks) && d.json.checks.length >= 30);
       const byId = Object.fromEntries((d.json?.checks as { id: string; status: string }[]).map((c) => [c.id, c.status]));
       assert.equal(byId['install.manifest'], 'info');
@@ -74,7 +74,7 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
     try {
       const r = cli(w, ['install', '--dry-run', '--json'], opt);
       assert.equal(r.code, 0, r.err);
-      assert.equal(r.json?.schema, 'terminal-code.install-plan/1');
+      assert.equal(r.json?.schema, 'mode-code.install-plan/1');
       assert.deepEqual(
         r.json?.plan.steps.map((s: { kind: string }) => s.kind),
         ['data-folder', 'hook-program', 'marketplace', 'plugin', 'settings-hooks', 'config', 'self-test'],
@@ -125,7 +125,7 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       assert.equal(settings.theme, 'dark');
       assert.deepEqual(settings.hooks.Notification, mine.hooks.Notification);
       assert.equal(settings.hooks.PreToolUse[0].hooks[0].onFailure, 'block');
-      assert.ok(w.claudeState().plugins.some((p) => p.id === 'terminal-code@terminal-code-local'));
+      assert.ok(w.claudeState().plugins.some((p) => p.id === 'mode-code@mode-code-local'));
       // The program /0 opens beside a session: this build's own, recorded where the plugin reads it.
       const recorded = JSON.parse(readFileSync(join(w.data, 'install', 'manifest.json'), 'utf8')).cli;
       assert.match(recorded, /\/dist\/cli\.mjs$/);
@@ -249,7 +249,7 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
     const w = world();
     try {
       const rules = cli(w, ['belt', 'rules', '--json'], opt);
-      assert.equal(rules.json?.schema, 'terminal-code.belt-rules/1');
+      assert.equal(rules.json?.schema, 'mode-code.belt-rules/1');
       assert.ok(rules.json?.rules.length >= 30);
       const tst = cli(w, ['belt', 'test', '--command', 'git status', '--json'], opt);
       assert.equal(tst.json?.decision.verdict, 'allow');
@@ -320,7 +320,7 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       assert.equal(cli(w, ['sessions', '--json'], opt).json?.sessions.length, 1);
       const rep = cli(w, ['report', '--json'], opt);
       assert.equal(rep.code, 0);
-      assert.equal(rep.json?.schema, 'terminal-code.report/1');
+      assert.equal(rep.json?.schema, 'mode-code.report/1');
     } finally {
       w.done();
     }
@@ -366,7 +366,7 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       const show = cli(w, ['flow', 'show', '20261012'], opt);
       assert.equal(show.code, 0);
       assert.match(show.out, /2 steps, 1 verification command/);
-      assert.equal(cli(w, ['flow', 'show', flow.id, '--json'], opt).json?.schema, 'terminal-code.flow/1');
+      assert.equal(cli(w, ['flow', 'show', flow.id, '--json'], opt).json?.schema, 'mode-code.flow/1');
       assert.equal(cli(w, ['flow', 'show', 'nope'], opt).code, 1);
     } finally {
       w.done();
@@ -415,7 +415,7 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
         phase: 'work',
         pause: { reason: 'quota', at: now, detail: '' },
         budget: { weeklyTarget: 52, source: '+10' },
-        start: { commit: 'a'.repeat(40), branch: 'main', ref: 'refs/terminal-code/runs/20261013-1210-rate-limit/0' },
+        start: { commit: 'a'.repeat(40), branch: 'main', ref: 'refs/mode-code/runs/20261013-1210-rate-limit/0' },
         workDir: 'C:/tmp/w/20261013-1210-rate-limit',
         planPath: 'C:/tmp/w/20261013-1210-rate-limit/plan.md',
         reportPath: 'C:/tmp/w/20261013-1210-rate-limit/report.md',
@@ -450,7 +450,7 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       };
       mkdirSync(join(w.data, 'runs', run.id), { recursive: true });
       writeFileSync(join(w.data, 'runs', run.id, 'run.json'), JSON.stringify(run));
-      writeFileSync(join(w.data, 'runs', run.id, 'report.md'), '# Rate limiting\n\n## What terminal-code measured\n');
+      writeFileSync(join(w.data, 'runs', run.id, 'report.md'), '# Rate limiting\n\n## What mode-code measured\n');
       const list = cli(w, ['autonomy'], opt);
       assert.match(list.out, /Full autonomy is on/);
       assert.match(list.out, /paused \(quota budget\)/);
@@ -468,7 +468,7 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       assert.equal(cli(w, ['autonomy', 'show', 'nope'], opt).code, 1);
       // The checks from here: this temporary folder is no git work tree, so a run would not start here.
       const check = cli(w, ['autonomy', 'check', '--json'], opt);
-      assert.equal(check.json?.schema, 'terminal-code.autonomy.check/1');
+      assert.equal(check.json?.schema, 'mode-code.autonomy.check/1');
       assert.ok(check.json?.checks.some((c: any) => c.id === 'project' && c.ok === false));
       assert.ok(check.json?.checks.some((c: any) => c.id === 'budget' && c.ok === null));
       // The agent cannot widen what a session does unasked through the settings either.
@@ -531,7 +531,7 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       assert.equal(r.code, 0, r.out.slice(0, 2000) + r.err);
       assert.equal(r.json?.ok, true);
       const rep = cli(w, ['doctor', '--report', '--quick'], opt);
-      assert.match(rep.out, /^## Problem report for terminal-code/);
+      assert.match(rep.out, /^## Problem report for Mode_Code/);
     } finally {
       w.done();
     }

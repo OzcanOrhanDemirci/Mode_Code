@@ -11,7 +11,7 @@ const ctx: BeltContext = {
   cwd: '/home/ada/app',
   projectDir: '/home/ada/app',
   env: {},
-  dataDir: '/home/ada/.terminal-code',
+  dataDir: '/home/ada/.mode-code',
   memoryDirs: [],
   managedSettingsFiles: ['/etc/claude-code/managed-settings.json'],
   lang: 'en',

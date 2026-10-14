@@ -10,7 +10,7 @@ import { test, expect } from 'claude-code/testing';
 import { DATA, PROJECT, SESSION, world } from './world.ts';
 
 const typed = (text: string) => ({ text, wait: false, origin: { kind: 'composer' } }) as any;
-const TOOL = 'mcp__terminal-code__autonomy';
+const TOOL = 'mcp__mode-code__autonomy';
 const auto = (action: string, more: Record<string, unknown> = {}) => ({ tool: TOOL, action, ...more }) as any;
 const NOW = Date.parse('2026-10-12T10:00:00Z');
 
@@ -23,7 +23,7 @@ async function begin($: any, text: string): Promise<{ prompt: string; start: str
   const s: any = await $.tool.call(auto('start'));
   return { prompt: (r.context ?? []).join('\n'), start: String(s.result) };
 }
-const PROBE_REFUSED = "touch: cannot touch '/home/ada/.terminal-code-sandbox-probe': Read-only file system";
+const PROBE_REFUSED = "touch: cannot touch '/home/ada/.mode-code-sandbox-probe': Read-only file system";
 const STRICT = { sandbox: { enabled: true, failIfUnavailable: true, allowUnsandboxedCommands: false } };
 const PLAN = `# Rate limiting
 
@@ -86,7 +86,7 @@ type Opts = Parameters<typeof world>[1];
 function ready(on: any, extra: Opts = {}, config: Record<string, unknown> = {}) {
   const g = repo();
   const w = world(on, {
-    env: { WSL_DISTRO_NAME: 'terminal-code' },
+    env: { WSL_DISTRO_NAME: 'mode-code' },
     settings: STRICT,
     promptMode: 'bypassPermissions',
     git: g.git,
@@ -124,7 +124,7 @@ test('nothing starts while a start check fails; each failed check is named for t
   const r: any = await $.prompt.submit(typed('Add rate limiting. app full auto quota +10'));
   const said = r.context.join('\n');
   expect(said).toMatch(/asked for full autonomy, but \d+ start check\(s\) failed, so no run started/);
-  expect(said).toMatch(/- Turned on: Full autonomy is off\. Turn it on in your own terminal: terminal-code autonomy enable\./);
+  expect(said).toMatch(/- Turned on: Full autonomy is off\. Turn it on in your own terminal: mode-code autonomy enable\./);
   expect(said).toMatch(/- Project: The session does not run in a git work tree/);
   expect(w.toasts.some((t) => /Full autonomy did not start/.test(t))).toBe(true);
   expect(w.modState().runId).toBe(null);
@@ -136,7 +136,7 @@ test('a budget is required; a write outside the project that goes through fails 
   const { w } = ready(on, {
     results: {
       Bash: (e: any) => {
-        if (String(e.command).startsWith('touch ')) w.write('/home/ada/.terminal-code-sandbox-probe', '');
+        if (String(e.command).startsWith('touch ')) w.write('/home/ada/.mode-code-sandbox-probe', '');
         return { result: '' };
       },
     },
@@ -157,7 +157,7 @@ test('a whole run: start, plan, milestones on commits with reviews, what waits f
   expect(start).toMatch(/The person started full autonomy \(run \d{8}-\d{4}-add-rate-limiting-to-the, weekly budget 51%\)/);
   expect(start).toMatch(/"Add rate limiting to the API\."/);
   expect(start).toMatch(/`npm run check`/);
-  expect(w.calls.find((c: any) => c.tool === 'Bash')?.command).toBe("touch '/home/ada/.terminal-code-sandbox-probe'");
+  expect(w.calls.find((c: any) => c.tool === 'Bash')?.command).toBe("touch '/home/ada/.mode-code-sandbox-probe'");
   expect(w.registered.map((t: any) => t.name)).toContain('autonomy');
   let x = run();
   expect([x.status, x.phase, x.budget, x.start.commit, x.start.branch]).toEqual([
@@ -167,12 +167,12 @@ test('a whole run: start, plan, milestones on commits with reviews, what waits f
     'a'.repeat(40),
     'run/limits',
   ]);
-  expect(g.st.refs.get(`refs/terminal-code/runs/${x.id}/0`)).toBe('a'.repeat(40));
+  expect(g.st.refs.get(`refs/mode-code/runs/${x.id}/0`)).toBe('a'.repeat(40));
   expect(w.modState().interaction).toBe('full');
 
   // Planning: the project does not change; the plan's own file does.
   const early: any = await $.tool.call({ tool: 'Write', file_path: `${PROJECT}/src/limiter.ts`, content: 'x' } as any);
-  expect(early.deny).toMatch(/The full-autonomy run is planning: write the plan at .*plan\.md and call mcp__terminal-code__autonomy with action "plan"/);
+  expect(early.deny).toMatch(/The full-autonomy run is planning: write the plan at .*plan\.md and call mcp__mode-code__autonomy with action "plan"/);
   expect(String(((await $.tool.call(auto('milestone', { step: 1 }))) as any).result)).toMatch(/The plan is not accepted yet/);
   expect(String(((await $.tool.call(auto('plan'))) as any).result)).toMatch(/The plan does not pass its check yet/);
   w.write(x.planPath, PLAN);
@@ -198,12 +198,10 @@ test('a whole run: start, plan, milestones on commits with reviews, what waits f
   expect(String(failed.result)).toMatch(/The independent review failed this step:\n• the limiter is never called/);
   verdict = 'VERDICT: CONCERNS\n- no test for the reset window';
   const m1: any = await $.tool.call(auto('milestone', { step: 1, note: 'bucket in place' }));
-  expect(String(m1.result)).toMatch(
-    /Milestone 1\/2 accepted on 111111111111; rollback point refs\/terminal-code\/runs\/.*\/1\. Independent review: CONCERNS\./,
-  );
+  expect(String(m1.result)).toMatch(/Milestone 1\/2 accepted on 111111111111; rollback point refs\/mode-code\/runs\/.*\/1\. Independent review: CONCERNS\./);
   expect(String(m1.result)).toMatch(/The person's request, word for word: «Add rate limiting to the API\.»/);
   expect(String(m1.result)).toMatch(/Next: step 2\/2: Wire it in/);
-  expect(g.st.refs.get(`refs/terminal-code/runs/${x.id}/1`)).toBe(g.st.head);
+  expect(g.st.refs.get(`refs/mode-code/runs/${x.id}/1`)).toBe(g.st.head);
   // The review saw the request, the step and the diff, and none of the conversation.
   const asked = w.reviews.at(-1);
   expect(asked.model).toBe('claude-opus-5-5');
@@ -249,7 +247,7 @@ test('a whole run: start, plan, milestones on commits with reviews, what waits f
   expect([final.status, final.finish.verification.length, final.finish.review.verdict]).toEqual(['done', 2, 'pass']);
   const report = w.read(`${DATA}/runs/${x.id}/report.md`)!;
   expect(report.startsWith(DRAFT.trim())).toBe(true);
-  expect(report).toMatch(/## What terminal-code measured/);
+  expect(report).toMatch(/## What mode-code measured/);
   expect(report).toMatch(/\*\*push\*\* · Bash: `git push origin main`/);
   expect(w.notes.some((n) => /The full-autonomy run is done: Add rate limiting to the API\./.test(n))).toBe(true);
   expect([w.modState().runId, w.modState().interaction]).toEqual([null, 'default']);
@@ -375,7 +373,7 @@ test("the permission mode must be this prompt's: one that asks, or none recorded
   await w.clock.advance(60_000);
   w.hook.mode = null;
   const stale = await begin($, 'Add rate limiting. app full auto quota +10');
-  expect(stale.start).toMatch(/- Asks nobody: Claude Code's permission mode did not reach terminal-code with this prompt/);
+  expect(stale.start).toMatch(/- Asks nobody: Claude Code's permission mode did not reach Mode_Code with this prompt/);
   expect(run()).toBe(null);
   // Refused at the first step, the probe never ran: nothing was written outside the project for a run that cannot start.
   expect(w.calls.some((c: any) => c.tool === 'Bash')).toBe(false);

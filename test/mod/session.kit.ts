@@ -7,7 +7,7 @@
 import { test, expect, mock } from 'claude-code/testing';
 import { DATA, PROJECT, SESSION, WIN, world } from './world.ts';
 
-const PROJECTS = { projects: [{ id: 'terminal-code', names: ['terminal'] }] };
+const PROJECTS = { projects: [{ id: 'mode-code', names: ['terminal'] }] };
 const typed = (text: string) => ({ text, wait: false, origin: { kind: 'composer' } }) as any;
 const reading = (five: number, week: number, resetsIn: number, now: number) =>
   ({
@@ -26,7 +26,7 @@ test('"<project> continue" names the project and tells the model; the mode and t
     /Keyword "continue" for project "terminal": pick the work up where it stopped\. The keyword changes neither the mode nor the way of working.*Mode, free mode.*Way of working, manual/,
   );
   expect(w.toasts).toEqual(['Keyword: continue · terminal']);
-  expect(w.modState()).toMatchObject({ interaction: 'default', mode: 'free', project: 'terminal-code' });
+  expect(w.modState()).toMatchObject({ interaction: 'default', mode: 'free', project: 'mode-code' });
   expect(w.events().some((e: any) => e.kind === 'keyword' && e.keyword === 'continue')).toBe(true);
 });
 
@@ -35,7 +35,7 @@ test('"<project> continue" keeps chat and manual, and autonomous where the perso
   await $.prompt.submit(typed('sohbet'));
   await $.prompt.submit(typed('manuel'));
   const r: any = await $.prompt.submit(typed('terminal devam'));
-  expect(w.modState()).toMatchObject({ mode: 'chat', interaction: 'manual', project: 'terminal-code' });
+  expect(w.modState()).toMatchObject({ mode: 'chat', interaction: 'manual', project: 'mode-code' });
   expect(r.context.join('\n')).toMatch(/Mode, chat mode: conversation only.* until the person picks another mode\. Way of working, manual/);
   await $.prompt.submit(typed('otonom'));
   await $.prompt.submit(typed('kod'));
@@ -50,8 +50,8 @@ test('"<project> continue" keeps chat and manual, and autonomous where the perso
 test("a keyword typed before a paste is seen: the session is that project's", async ($, on) => {
   const w = world(on, { config: PROJECTS });
   await $.prompt.submit(typed('terminal devam (\n\n<pasted_content id="025f">\n Kontrol merkezi açılamadı\n</pasted_content id="025f">\n\n)'));
-  expect(w.modState()).toMatchObject({ project: 'terminal-code' });
-  expect(w.events().some((e: any) => e.kind === 'keyword' && e.keyword === 'continue' && e.project === 'terminal-code')).toBe(true);
+  expect(w.modState()).toMatchObject({ project: 'mode-code' });
+  expect(w.events().some((e: any) => e.kind === 'keyword' && e.keyword === 'continue' && e.project === 'mode-code')).toBe(true);
 });
 
 test('a sentence that happens to contain the word is not a keyword', async ($, on) => {
@@ -151,7 +151,7 @@ test('the quota guard: at 96% of the 5-hour window it asks to wrap up, once, and
   expect(w.modState().wrapUp).toBe(true);
   const next: any = await $.prompt.submit(typed('what next?'));
   expect(next.context.join('\n')).toMatch(/wrap/i);
-  expect(w.json('/home/ada/.terminal-code/state/quota.json').windows[0].used).toBe(96.5);
+  expect(w.json('/home/ada/.mode-code/state/quota.json').windows[0].used).toBe(96.5);
 });
 
 test("at the stop line an autonomous session schedules its own resume, a minute after the reset, with the person's keyword", async ($, on) => {
@@ -242,7 +242,7 @@ test('the footer lines are drawn under the answer just finished, on every surfac
   await $.turn.complete({ answer: 'Done.', durationMs: 5, isAborted: false, turnId: 't1', reason: 'answer' } as any);
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui: any = await $.ui.mount({
-      plugin: 'terminal-code',
+      plugin: 'mode-code',
       surface,
       component: 'AssistantMessage',
       props: { text: 'Done.', isFirstOfReply: true },
@@ -253,7 +253,7 @@ test('the footer lines are drawn under the answer just finished, on every surfac
   }
   // Another answer's text gets no footer of this one.
   const other: any = await $.ui.mount({
-    plugin: 'terminal-code',
+    plugin: 'mode-code',
     surface: 'terminal',
     component: 'AssistantMessage',
     props: { text: 'Something else.', isFirstOfReply: true },

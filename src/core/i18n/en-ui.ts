@@ -26,7 +26,7 @@ export const enUi = {
   'health.notInstalled': 'Not installed yet.',
   'health.belt.disabledAll': 'A Claude Code settings file ({scope}) turns every hook off (disableAllHooks), so the safety belt cannot run.',
   'health.belt.noProgram': 'The hook program is missing: {path}. Reinstall to restore it.',
-  'health.belt.noNode': 'The Node.js the hooks run is gone ({path}), so Claude Code blocks every checked call. Run "terminal-code install" again to repair it.',
+  'health.belt.noNode': 'The Node.js the hooks run is gone ({path}), so Claude Code blocks every checked call. Run "mode-code install" again to repair it.',
   'health.belt.noHook': 'The safety-net hook is not in your Claude Code settings. Reinstall to add it back.',
   'health.claudeOld': 'Claude Code {have} is older than {need}, which this feature needs. Update Claude Code with "claude update".',
   'health.belt.selfTest': 'The self-test failed: {detail}',
@@ -124,7 +124,7 @@ export const enUi = {
   'install.warn.otherVersion': 'Version {have} is installed; this replaces it with {now}.',
 
   // ── uninstall ──
-  'uninstall.title': 'Remove terminal-code',
+  'uninstall.title': 'Remove Mode_Code',
   'uninstall.intro': 'This removes exactly what the installation added:',
   'uninstall.noManifest': 'No installation record was found. This removes what an installation would have added:',
   'uninstall.plugin': 'the Claude Code plugin and its local marketplace',
@@ -260,9 +260,8 @@ export const enUi = {
   'report.errors.one': '1 error',
   'report.titleDay': 'What happened in the last day',
   'help.template': 'Ready-made rules for this folder (public repo, server, Flutter …)',
-  'template.hint':
-    "Apply one with: terminal-code template apply <id>. It writes a few rules into this folder's CLAUDE.md and, for some, tightens the safety belt.",
-  'template.unknown': 'No template named "{id}". See: terminal-code template list',
+  'template.hint': "Apply one with: mode-code template apply <id>. It writes a few rules into this folder's CLAUDE.md and, for some, tightens the safety belt.",
+  'template.unknown': 'No template named "{id}". See: mode-code template list',
   'template.noRemote': 'This template needs a git repository with a remote named origin in this folder.',
   'template.willWrite': 'Adds these rules to {file}:',
   'template.willRemove': 'Removes these rules from {file}:',

@@ -209,7 +209,7 @@ export function buildSandbox(lang: Lang): Sandbox | string {
     managedSettings: [],
     cwd: root,
     home: root,
-    env: { ...process.env, TERMINAL_CODE_HOME: l.root, CLAUDE_CONFIG_DIR: claudeDir },
+    env: { ...process.env, MODE_CODE_HOME: l.root, CLAUDE_CONFIG_DIR: claudeDir },
     platform,
     config: { ...cloneDefaults(), language: lang },
     problems: [],

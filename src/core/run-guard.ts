@@ -324,7 +324,7 @@ function shellVerdict(tool: string, input: Readonly<Record<string, unknown>>, di
 
 /** The guard's answer for one tool call during a run. */
 export function checkAutonomy(tool: string, input: Readonly<Record<string, unknown>>, e: AutoEnv): AutoVerdict {
-  if (tool.startsWith('mcp__terminal-code__')) return ALLOW;
+  if (tool.startsWith('mcp__mode-code__')) return ALLOW;
   const dialect = shellOf(tool);
   if (dialect) return shellVerdict(tool, input, dialect, e);
   if (isFileTool(tool)) {

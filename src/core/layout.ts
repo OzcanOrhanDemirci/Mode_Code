@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Where the tool keeps its data, inside one folder (`~/.terminal-code` by default). Pure: both the mod
+ * Where the tool keeps its data, inside one folder (`~/.mode-code` by default). Pure: both the mod
  * (through `$.fs`) and Node code (through `node:fs`) compute the same paths from the same folder.
  *
  * Every runtime file has exactly one writer, so no two processes ever race on a file:

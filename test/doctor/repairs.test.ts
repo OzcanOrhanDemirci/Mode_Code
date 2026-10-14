@@ -25,7 +25,7 @@ function sandbox(): { root: string; env: RepairEnv; dist: string; done(): void }
   mkdirSync(`${dist}/plugin/.claude-plugin`, { recursive: true });
   mkdirSync(`${dist}/plugin/hooks`, { recursive: true });
   writeFileSync(`${dist}/hook.mjs`, '// hook of this build\n');
-  writeFileSync(`${dist}/plugin/.claude-plugin/plugin.json`, JSON.stringify({ name: 'terminal-code', version: '9.9.9' }));
+  writeFileSync(`${dist}/plugin/.claude-plugin/plugin.json`, JSON.stringify({ name: 'mode-code', version: '9.9.9' }));
   writeFileSync(`${dist}/plugin/hooks/register.js`, '// mod\n');
   mkdirSync(`${root}/claude`, { recursive: true });
   mkdirSync(l.root, { recursive: true });
@@ -123,7 +123,7 @@ test('the hook program and the plugin files are copied from this build', () => {
 test("record-cli writes this build's command-line program into the record, keeping the rest; without one it changes nothing", () => {
   const s = sandbox();
   try {
-    const manifest = { v: 1, app: 'terminal-code', version: '0.1.0', node: 'C:/node/node.exe', hooks: {}, createdConfig: false };
+    const manifest = { v: 1, app: 'mode-code', version: '0.1.0', node: 'C:/node/node.exe', hooks: {}, createdConfig: false };
     mkdirSync(`${s.env.layout.root}/install`, { recursive: true });
     writeFileSync(s.env.layout.manifest, JSON.stringify(manifest));
     assert.equal(REPAIRS['record-cli'].run(s.env, healthyFacts()).ok, false, 'a build with no command-line program');
@@ -146,7 +146,7 @@ test('plugin repairs go through claude: install from the local marketplace, enab
     const claude = s.env.runner as ReturnType<typeof standInClaude>;
     assert.equal(REPAIRS['enable-plugin'].run(s.env, healthyFacts()).ok, false, 'nothing to enable before it is installed');
     assert.equal(REPAIRS['reinstall-plugin'].run(s.env, healthyFacts()).ok, true);
-    assert.deepEqual(claude.calls.at(-1), ['plugin', 'install', 'terminal-code', '--marketplace', s.env.layout.marketplace, '--scope', 'user']);
+    assert.deepEqual(claude.calls.at(-1), ['plugin', 'install', 'mode-code', '--marketplace', s.env.layout.marketplace, '--scope', 'user']);
     claude.plugin.enabled = false;
     assert.equal(REPAIRS['enable-plugin'].run(s.env, healthyFacts()).ok, true);
     assert.equal(claude.plugin.enabled, true);

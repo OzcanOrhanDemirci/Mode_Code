@@ -49,7 +49,7 @@ for (const k of Object.keys(env)) if (k.startsWith('CLAUDE_CODE_') || k === 'CLA
 // and on Windows Git Bash's /tmp is that folder, so a project inside it could not show what research mode
 // refuses), and outside any repository, with a repository of its own. Measured: a session working in a
 // folder inside this repository found the repository's uncommitted changes and committed them.
-const base = join(homedir(), '.cache', 'terminal-code-live');
+const base = join(homedir(), '.cache', 'mode-code-live');
 mkdirSync(base, { recursive: true });
 const work = mkdtempSync(join(base, 'run-'));
 const project = join(work, 'project');
@@ -58,8 +58,8 @@ mkdirSync(project);
 mkdirSync(data);
 spawnSync('git', ['init', '-q', project], { windowsHide: true });
 writeFileSync(join(data, 'config.json'), JSON.stringify({ language: 'en', projects: [{ id: 'live-app', names: ['liveapp'] }] }, null, 2));
-env.TERMINAL_CODE_HOME = data;
-env.TERMINAL_CODE_LANG = 'en';
+env.MODE_CODE_HOME = data;
+env.MODE_CODE_LANG = 'en';
 
 // The safety-net hooks, as the installer writes them, pointing at the built hook program.
 const node = fwd(process.execPath);
@@ -81,7 +81,7 @@ writeFileSync(
  * One headless session. `prompt` is the prompt, or a list of messages sent one after the other into the same
  * session (stream-json input): a slash command, then a task.
  */
-function session(prompt, settingsFile = settings, tools = 'Bash,Write,Read,Edit,Glob,Grep,mcp__terminal-code__flow_step', extraEnv = {}, cwd = project) {
+function session(prompt, settingsFile = settings, tools = 'Bash,Write,Read,Edit,Glob,Grep,mcp__mode-code__flow_step', extraEnv = {}, cwd = project) {
   const { args, input } = sessionArgs(prompt, settingsFile, tools);
   const runEnv = { ...env, ...extraEnv };
   let r = spawnSync('claude', args, { cwd, env: runEnv, encoding: 'utf8', timeout: 240_000, windowsHide: true, input });
@@ -346,7 +346,7 @@ function memoryCases() {
   const s = JSON.parse(readFileSync(settings, 'utf8'));
   const memSettings = join(work, 'settings-memory.json');
   writeFileSync(memSettings, JSON.stringify({ ...s, autoMemoryDirectory: store }));
-  const tools = 'Read,Glob,Grep,mcp__terminal-code__handoff';
+  const tools = 'Read,Glob,Grep,mcp__mode-code__handoff';
 
   const asked = session('What is the project codename in your memory index? Reply with the codename only.', memSettings, tools);
   check(
@@ -400,18 +400,17 @@ function syncCases() {
         join(home, 'config.json'),
         JSON.stringify({ language: 'en', ...raw, sync: { place: 'github', dir, remote, machine: { id: `${name}-0000`, name } } }, null, 2),
       );
-    const cli = (...args) =>
-      spawnSync(node, [join(dist, 'cli.mjs'), ...args], { env: { ...env, TERMINAL_CODE_HOME: home }, encoding: 'utf8', windowsHide: true });
+    const cli = (...args) => spawnSync(node, [join(dist, 'cli.mjs'), ...args], { env: { ...env, MODE_CODE_HOME: home }, encoding: 'utf8', windowsHide: true });
     return { dir, home, write, cli };
   };
   const show = (path) => spawnSync('git', ['--git-dir', remote, 'show', `HEAD:${path}`], { encoding: 'utf8' }).stdout;
-  const tools = 'Read,Glob,Grep,mcp__terminal-code__handoff';
+  const tools = 'Read,Glob,Grep,mcp__mode-code__handoff';
 
   const desk = computer('desk');
   desk.write({});
   const first = desk.cli('sync', 'now', '--json');
   desk.write({ belt: { verdicts: { 'git.clean': 'warn' } } });
-  const handed = session('We set up sync today; nothing else is open. devir', settings, tools, { TERMINAL_CODE_HOME: desk.home });
+  const handed = session('We set up sync today; nothing else is open. devir', settings, tools, { MODE_CODE_HOME: desk.home });
   const onRemote = spawnSync('git', ['--git-dir', remote, 'ls-tree', '-r', '--name-only', 'HEAD'], { encoding: 'utf8' }).stdout.split('\n');
   const note = onRemote.find((f) => /^handoffs\/project\/\d{8}-\d{6}-[a-z0-9]+\.md$/.test(f)) ?? null;
   const verdicts = (() => {
@@ -431,7 +430,7 @@ function syncCases() {
   laptop.write({});
   laptop.cli('sync', 'now', '--json');
   const told = session('Is a handoff note waiting for this project? If so, reply with its next step only; if not, reply NONE.', settings, tools, {
-    TERMINAL_CODE_HOME: laptop.home,
+    MODE_CODE_HOME: laptop.home,
   });
   const next = note ? (/## Next\n\n([^\n]+)/.exec(show(note))?.[1] ?? '') : '';
   const words = next.toLowerCase().match(/[a-zçğıöşü]{5,}/g) ?? [];
@@ -497,7 +496,7 @@ function autoSession(name, prompt) {
   // This project's run (another session may have left one of its own in the data folder).
   const runs = existsSync(join(data, 'runs')) ? readdirSync(join(data, 'runs')) : [];
   const run = runs.map((id) => JSON.parse(readFileSync(join(data, 'runs', id, 'run.json'), 'utf8'))).find((x) => fwd(x.cwd) === fwd(proj)) ?? null;
-  const refs = g('for-each-ref', '--format=%(refname)', 'refs/terminal-code/').stdout.trim().split('\n').filter(Boolean);
+  const refs = g('for-each-ref', '--format=%(refname)', 'refs/mode-code/').stdout.trim().split('\n').filter(Boolean);
   const sessionId = events.find((e) => e.type === 'system' && e.subtype === 'init')?.session_id;
   const hookFile = sessionId ? join(data, 'state', 'sessions', `${sessionId}.hook.json`) : null;
   const hook = hookFile && existsSync(hookFile) ? JSON.parse(readFileSync(hookFile, 'utf8')) : null;

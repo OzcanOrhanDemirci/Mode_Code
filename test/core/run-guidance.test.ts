@@ -33,7 +33,7 @@ const r0 = startRun({
 
 test('a start or resume waiting for its last checks tells the model to call "start" first, and nothing else', () => {
   const start = autoPendingContext(false);
-  assert.match(start, /^\[terminal-code\] The person asked for full autonomy\. The start checks that can be measured now passed;/);
+  assert.match(start, /^\[Mode_Code\] The person asked for full autonomy\. The start checks that can be measured now passed;/);
   assert.match(start, /Claude Code's permission mode for this prompt, and a live probe of the sandbox/);
   assert.ok(start.includes(`call ${AUTO_TOOL} with action "start"`));
   assert.match(start, /every other tool call is held\. Its answer says whether the run started and what comes next/);
@@ -45,7 +45,7 @@ test('a start or resume waiting for its last checks tells the model to call "sta
 test("the start tells the rules, the request word for word, where the plan goes, its form and the person's commands", () => {
   const s = autoStartContext(r0, ['npm run check']);
   assert.match(s, /creating the run's branch, reading, and running the verification are not steps/);
-  assert.match(s, /^\[terminal-code\] The person started full autonomy \(run r1, weekly budget 52%\)\./);
+  assert.match(s, /^\[Mode_Code\] The person started full autonomy \(run r1, weekly budget 52%\)\./);
   assert.match(s, /"Add rate limiting to the public API, with tests\."/);
   assert.match(s, /never ask the person anything/);
   assert.match(s, /write the plan at \/tmp\/tc\/runs\/r1\/plan\.md/);

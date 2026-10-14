@@ -1,17 +1,11 @@
 <p align="right"><b>English</b> · <a href="README.tr.md">Türkçe</a></p>
 
-# terminal-code
+# Mode_Code
 
 **A local companion for Claude Code: a safety belt and a behavior layer inside Claude Code, and a control center in your terminal.** Everything stays on your machines, or goes only where you send it. No telemetry.
 
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 ![Node.js 22.13 or newer](https://img.shields.io/badge/node-%E2%89%A522.13-brightgreen.svg)
-
-<!-- name:temporary -->
-
-> **The name is temporary.** It will change before the first public release; the [trademark policy](TRADEMARK.md) already covers the final name.
-
-<!-- /name:temporary -->
 
 ## Contents
 
@@ -40,13 +34,13 @@
 - **Session controls.** The mode and the way of working (manual, autonomous, full auto) are always in view on a strip above the prompt, and change in one step: click the strip, type `/3` (plan) or `/7` (autonomous), or type the word alone. `/2 look into the cache` switches and sends the text; `/devam` lists every project and folder to continue; `/kota` asks for a budget; `/9` a flow; `/0` opens the control center in a new tab; `/00` closes the session cleanly, its tab too. They act at once, while Claude works too: the brake. A new session starts as you last left the folder. See [docs/modes.md](docs/modes.md#session-controls).
 - **Flows.** End a task with `flow` and it runs as 🔍 research ▶ 📐 plan → ⏸ approval → 🔨 code. No step is skipped, and code checks each one: a report whose findings cite sources that exist, a plan with acceptance criteria and verification commands, your approval in a dialog (or Claude Code's plan dialog), and the verification commands passing when the plugin runs them. Flows pause, resume in a new session and show in the control center. See [docs/modes.md](docs/modes.md).
 - **Full autonomy.** End a task with `myproject full auto quota +10` and it runs to its end while you are away: a plan whose verification commands only grow, a milestone per step on a commit you can return to, an independent review of each one (a separate model call that sees your request and the diff, never the conversation), and a finish that counts only when every verification command passes. Nothing is asked: what needs you (pushes to protected branches, merges, releases, what the belt would ask) waits, recorded with its exact command, in the run's report. It starts only behind a boundary code measures first: on Windows, a WSL2 distribution with no road back to Windows; everywhere, Claude Code's sandbox in its strict form. Off until you turn it on. See [docs/autonomy.md](docs/autonomy.md).
-- **Memory and handoffs.** `terminal-code memory setup` asks where Claude Code's memory should live: on this computer, in a private repository on your GitHub, or both. It installs git and the GitHub CLI if you want, signs you in, names and creates the private repository, brings the memory you already have along, shows every change and asks once. From then on the memory is pulled when a session starts and sent after a turn that changed it, with anything that looks like a secret held back. Type `handoff` (or `devir`) and Claude writes a handoff note into that memory; notes are also written before a compaction and when a session ends, and the next session, on this computer or another, goes on from there. After a while away, a morning report says what happened. See [docs/memory.md](docs/memory.md).
-- **Sync across computers.** `terminal-code sync setup` shares terminal-code's settings, history and handoff notes between the computers you work on, through a private repository on your GitHub that you name, or a folder another service keeps in sync. Each computer writes only its own folder there. The newest change of a setting wins on every computer, but one that would lower a protection waits for you. A memory you already keep in sync yourself is adopted as it is: terminal-code only brings in changes, and you commit and push. See [docs/sync.md](docs/sync.md).
+- **Memory and handoffs.** `mode-code memory setup` asks where Claude Code's memory should live: on this computer, in a private repository on your GitHub, or both. It installs git and the GitHub CLI if you want, signs you in, names and creates the private repository, brings the memory you already have along, shows every change and asks once. From then on the memory is pulled when a session starts and sent after a turn that changed it, with anything that looks like a secret held back. Type `handoff` (or `devir`) and Claude writes a handoff note into that memory; notes are also written before a compaction and when a session ends, and the next session, on this computer or another, goes on from there. After a while away, a morning report says what happened. See [docs/memory.md](docs/memory.md).
+- **Sync across computers.** `mode-code sync setup` shares Mode_Code's settings, history and handoff notes between the computers you work on, through a private repository on your GitHub that you name, or a folder another service keeps in sync. Each computer writes only its own folder there. The newest change of a setting wins on every computer, but one that would lower a protection waits for you. A memory you already keep in sync yourself is adopted as it is: Mode_Code only brings in changes, and you commit and push. See [docs/sync.md](docs/sync.md).
 - **Quota guard.** Reads the 5-hour and weekly windows that Claude Code reports, wraps up work at your budget, stops at the limit and, when the work was autonomous, resumes by itself one minute after the window resets.
 - **Footer lines.** Under each answer: whether your memory repository was pushed, whether anything changed, and the quota when it matters. Computed from git, the turn's tool calls and the measured quota, never guessed.
 - **Quiet long work.** Leaves out Claude Code's "the user has not heard from you" reminders, so long autonomous work does not fill your screen with status lines.
 
-**In your terminal** (`terminal-code`): a control center with seven categories, in English and Turkish, and a maintenance check (`terminal-code doctor`) that tests the installation and the machine around it and repairs what it safely can.
+**In your terminal** (`mode-code`): a control center with seven categories, in English and Turkish, and a maintenance check (`mode-code doctor`) that tests the installation and the machine around it and repairs what it safely can.
 
 |                 |                                                                                                                                                                                                                          |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -88,7 +82,7 @@ The footer lines under an answer, the mode beside Claude Code's own, and the quo
 A flow's plan waits for approval: the plugin checked it first, and only the person's answer moves the flow to its code step:
 
 ```
-● terminal-code - flow_step (MCP)(step: "plan")
+● mode-code - flow_step (MCP)(step: "plan")
 ──────────────────────────────────────────────────────────────────────────────
  ☐ Plan
 │ The plan is ready: 1 step, verified by `cat hello.txt`, `git status --short`.
@@ -112,8 +106,8 @@ Measured on the author's Windows 11 machine with Claude Code 2.1.296 and Node.js
 The package is not on npm yet (the final name is still open), so install from source:
 
 ```sh
-git clone https://github.com/OzcanOrhanDemirci/terminal-code.git
-cd terminal-code && npm ci && npm run build
+git clone https://github.com/OzcanOrhanDemirci/Mode_Code.git
+cd Mode_Code && npm ci && npm run build
 node dist/cli.mjs install
 ```
 
@@ -131,10 +125,10 @@ To remove it: `node dist/cli.mjs uninstall` (add `--purge` to delete its setting
 
 ## The control center
 
-`terminal-code` opens it. Three columns: where you came from, where you are, and what is selected. Every screen has an address (`security/rules`, `measure/quota`), which `terminal-code open <address>` also takes.
+`mode-code` opens it. Three columns: where you came from, where you are, and what is selected. Every screen has an address (`security/rules`, `measure/quota`), which `mode-code open <address>` also takes.
 
 ```
-terminal-code › Security › Safety belt rules                             🛡 working  week 27%  5h 21%
+mode-code › Security › Safety belt rules                             🛡 working  week 27%  5h 21%
 ╭──────────────────╮╭───────────────────────────────╮╭─────────────────────────────────────────────╮
 │  Protection stat…││▸ Force-push to a prote… block ││ Force-push to a protected branch            │
 │▸ Safety belt… 39 ││  Force-push               ask ││ Force-pushing a protected branch (main,     │
@@ -158,11 +152,11 @@ The same keys work everywhere: `↑↓` move, `→` open, `←` back, `1`-`7` ju
 Everything is also available as commands, each with `--json` output whose shape is versioned:
 
 ```sh
-terminal-code status            # what is installed and working, quota, today
-terminal-code doctor            # every feature's health and how to fix what is broken
-terminal-code report --week     # what happened: sessions, tokens, the belt, quota
-terminal-code tokens --by model # token use by day, model or folder
-terminal-code belt test --command "git clean -f"   # what the belt would do; nothing is run
+mode-code status            # what is installed and working, quota, today
+mode-code doctor            # every feature's health and how to fix what is broken
+mode-code report --week     # what happened: sessions, tokens, the belt, quota
+mode-code tokens --by model # token use by day, model or folder
+mode-code belt test --command "git clean -f"   # what the belt would do; nothing is run
 ```
 
 See [docs/cli.md](docs/cli.md) for every command.
@@ -202,9 +196,9 @@ Details: [docs/safety-belt.md](docs/safety-belt.md).
 
 - **Nothing leaves your machine unless you send it.** No telemetry, no analytics. The memory and sync go only where you set them up to go: a private repository of yours, through git and the GitHub CLI, or a folder you chose. The one model call it makes is the independent review of a full-autonomy run's milestones, through Claude Code's own client, to the provider your session already uses.
 - **What it reads:** Claude Code's settings files and transcripts (read-only), your memory folders (for git status and secret scans).
-- **What it writes:** its data folder (`~/.terminal-code`), and, with your approval at install, four hook entries in your Claude Code user settings (a backup is kept). The plugin is installed through Claude Code's own `claude plugin` command.
+- **What it writes:** its data folder (`~/.mode-code`), and, with your approval at install, four hook entries in your Claude Code user settings (a backup is kept). The plugin is installed through Claude Code's own `claude plugin` command.
 - **What it stores:** numbers (tokens, tool counts, times) and short texts (session titles, first prompts) with secrets masked before they are written.
-- **Removal:** `terminal-code uninstall` undoes exactly what the installation recorded. Commands that lower a protection refuse to run from inside a Claude Code session.
+- **Removal:** `mode-code uninstall` undoes exactly what the installation recorded. Commands that lower a protection refuse to run from inside a Claude Code session.
 
 Found a vulnerability? Please report it privately: see [SECURITY.md](SECURITY.md).
 
@@ -216,9 +210,9 @@ A tool that stands between an agent and your machine has to earn trust with evid
 - **False alarms count as bugs.** 197 everyday commands must pass the belt without a single question on every platform, and 162 reading commands must run in chat, research and plan mode. Over the author's last 30 days (36,658 tool calls) the belt would have asked 4.4 times a day.
 - **The tests are tested.** Mutation testing makes 2,078 small deliberate changes to the code that decides, the belt, the modes, full autonomy, the memory's sync and sync across computers alike; the tests catch all 2,078. The maintenance check breaks a sandbox in 13 ways and must notice all 13 and repair what can be repaired.
 - **Inside the real engine.** The plugin is tested with Claude Code's own test kit, every night against the newest Claude Code release, and in live headless sessions.
-- **The tests found real bugs**, each fixed with a test that keeps it fixed: protected files reachable under Windows short names (`TERMIN~1`) or with a trailing dot, every recursive delete under the home folder blocked on macOS, a parser crash on `__proto__`.
+- **The tests found real bugs**, each fixed with a test that keeps it fixed: protected files reachable under Windows short names (`MODECO~1`) or with a trailing dot, every recursive delete under the home folder blocked on macOS, a parser crash on `__proto__`.
 
-On your machine, `terminal-code doctor` runs the same checks: Node.js, Claude Code and its settings, the hooks and the plugin, Git Bash, PowerShell and zsh, the terminal, the file system, git and the tool's own data. It repairs what it safely can, backs up first, checks again, and says exactly what is left for you. `npm run verify` runs every layer that can run on a machine and prints one line per layer.
+On your machine, `mode-code doctor` runs the same checks: Node.js, Claude Code and its settings, the hooks and the plugin, Git Bash, PowerShell and zsh, the terminal, the file system, git and the tool's own data. It repairs what it safely can, backs up first, checks again, and says exactly what is left for you. `npm run verify` runs every layer that can run on a machine and prints one line per layer.
 
 ## Limits
 

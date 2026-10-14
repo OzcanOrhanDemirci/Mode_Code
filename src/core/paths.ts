@@ -148,7 +148,7 @@ export function joinPath(dir: string, ...parts: string[]): string {
 
 // ── Windows 8.3 short names ───────────────────────────────────────────────────────────────────────────
 
-/** A segment in the 8.3 short form Windows generates for long names: `TERMIN~1`, `CLAUDE~1.JSO`, `TE1A2B~5`. */
+/** A segment in the 8.3 short form Windows generates for long names: `MODECO~1`, `CLAUDE~1.JSO`, `MO1A2B~5`. */
 const SHORT_NAME = /^([^~.\s/]{1,6})~(\d{1,6})(?:\.([^.\s/]{1,3}))?$/;
 
 export function isShortNameSegment(seg: string): boolean {
@@ -168,7 +168,7 @@ function shortBasis(s: string): string {
 }
 
 /**
- * The first short name Windows gives `long` (`.terminal-code` → `TERMIN~1`), in the form couldBeShortName
+ * The first short name Windows gives `long` (`.mode-code` → `MODECO~1`), in the form couldBeShortName
  * accepts: what samples and self-tests write for the data folder, whatever the tool is called.
  */
 export function firstShortName(long: string): string {
@@ -201,7 +201,7 @@ export function couldBeShortName(short: string, long: string): boolean {
 
 /**
  * Rewrites a resolved Windows path whose leading segments spell one of the `known` paths through 8.3 short
- * names (`C:/Users/ada/TERMIN~1/x` for `C:/Users/ada/.terminal-code/x`), so a protected folder is recognised
+ * names (`C:/Users/ada/MODECO~1/x` for `C:/Users/ada/.mode-code/x`), so a protected folder is recognised
  * however it is spelled. The longest known path that matches wins; paths without a short segment are
  * returned unchanged. Elsewhere than Windows nothing changes.
  */

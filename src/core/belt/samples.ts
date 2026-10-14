@@ -126,7 +126,7 @@ export function samplePlaces(platform: Platform): SamplePlaces {
     return {
       home: 'C:/Users/selftest',
       project: 'C:/dev/selftest-app',
-      data: 'C:/Users/selftest/.terminal-code',
+      data: 'C:/Users/selftest/.mode-code',
       claude: 'C:/Users/selftest/.claude',
       temp: 'C:/Users/selftest/AppData/Local/Temp',
       outside: 'C:/Users/selftest/scratch',
@@ -135,7 +135,7 @@ export function samplePlaces(platform: Platform): SamplePlaces {
   return {
     home,
     project: `${home}/dev/selftest-app`,
-    data: `${home}/.terminal-code`,
+    data: `${home}/.mode-code`,
     claude: `${home}/.claude`,
     temp: platform === 'darwin' ? '/private/tmp' : '/tmp',
     outside: `${home}/scratch`,

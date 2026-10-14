@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * "What happened": a report for a period (the last day, the last week), built from the session index and
- * the event log. Used by `terminal-code report` and the control center's report screen.
+ * the event log. Used by `mode-code report` and the control center's report screen.
  */
 import type { SessionIndex, SessionRow, TokenTotals, ToolStat } from '../node/index-db.js';
 import { cacheHitRate } from '../node/index-db.js';

@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { hookGroups, isOurHook, withOurHooks, withoutOurHooks } from '../../src/node/install.js';
 
-const DATA = 'C:/Users/u/.terminal-code';
+const DATA = 'C:/Users/u/.mode-code';
 const NODE = 'C:/Program Files/nodejs/node.exe';
 const groups = hookGroups(NODE, `${DATA}/bin/hook.mjs`);
 
@@ -40,7 +40,7 @@ test('removal from settings that only had our hooks leaves no empty hooks object
 });
 
 test('our hooks are told apart by the program path, in any spelling', () => {
-  assert.equal(isOurHook({ command: NODE, args: ['C:\\Users\\u\\.terminal-code\\bin\\hook.mjs', 'Stop'] }, DATA), true);
-  assert.equal(isOurHook({ command: 'node', args: ['C:/other/.terminal-code-fork/bin/hook.mjs'] }, DATA), false);
+  assert.equal(isOurHook({ command: NODE, args: ['C:\\Users\\u\\.mode-code\\bin\\hook.mjs', 'Stop'] }, DATA), true);
+  assert.equal(isOurHook({ command: 'node', args: ['C:/other/.mode-code-fork/bin/hook.mjs'] }, DATA), false);
   assert.equal(isOurHook({ command: 'node C:/mine/guard.js' }, DATA), false);
 });

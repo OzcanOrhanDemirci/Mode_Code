@@ -5,13 +5,17 @@
  * Pure: the note's text (what Claude wrote and what code measured), reading it back, choosing the newest,
  * what to prune, and what Claude is told. Paths come in from the caller; nothing here reads the disk.
  */
-import { APP_NAME } from './app.js';
+import { APP_ID, APP_NAME, PREVIOUS_NAMES } from './app.js';
 import { maskSecrets } from './secrets/scan.js';
 import { truncate } from './text.js';
 
 const P = `[${APP_NAME}]`;
 
-export const HANDOFF_TOOL = 'mcp__terminal-code__handoff';
+/** The heading of what code measured. A note written under an earlier name of the tool has that name in it. */
+const MEASURED = `What ${APP_NAME} measured`;
+const MEASURED_ANY = [...new Set([APP_NAME, APP_ID, ...PREVIOUS_NAMES.flatMap((p) => [p.name, p.id])])].map((n) => `What ${n} measured`);
+
+export const HANDOFF_TOOL = 'mcp__mode-code__handoff';
 
 /**
  * What made the note: the person's keyword or wrap-up, a compaction, a /clear or the session's end, a run; or
@@ -143,7 +147,7 @@ export function composeHandoff(f: HandoffFacts, body: { parts?: HandoffParts | n
   } else if (body.summary && body.summary.trim()) {
     out.push('## Summary', '', maskSecrets(truncate(body.summary.trim(), SUMMARY_CHARS)), '');
   }
-  out.push('## What terminal-code measured', '');
+  out.push(`## ${MEASURED}`, '');
   out.push(`- Folder: ${f.cwd}`);
   out.push(`- Branch: ${f.branch ?? 'none'}${f.head ? ` at ${f.head.slice(0, 12)}` : ''}`);
   if (f.request) out.push(`- Last request: ${maskSecrets(truncate(oneLine(f.request), 500))}`);
@@ -166,7 +170,7 @@ export interface Handoff {
   session: string;
   at: number;
   trigger: HandoffTrigger;
-  /** Sections by their `## ` heading (Summary, Open, Decisions, Next, What terminal-code measured). */
+  /** Sections by their `## ` heading (Summary, Open, Decisions, Next, What Mode_Code measured). */
   sections: Record<string, string>;
 }
 
@@ -206,7 +210,7 @@ export function nextOf(h: Handoff, max = 240): string {
   if (next.trim()) return truncate(oneLine(next), max);
   const summary = h.sections.Summary ?? '';
   if (summary.trim()) return truncate(oneLine(summary), max);
-  const req = /- Last request: (.+)/.exec(h.sections['What terminal-code measured'] ?? '');
+  const req = /- Last request: (.+)/.exec(MEASURED_ANY.map((k) => h.sections[k]).find((s) => s !== undefined) ?? '');
   return req ? truncate(`last request: ${req[1]!}`, max) : '';
 }
 

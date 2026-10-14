@@ -36,7 +36,7 @@ function sample(): Run {
     project: 'api',
     cwd: '/home/ada/api',
     sessionId: 's1',
-    workDir: '/tmp/terminal-code/runs',
+    workDir: '/tmp/mode-code/runs',
     budget: { weeklyTarget: 52, source: '+10' },
     start: { commit: 'a1b2c3d4e5f6a7b8c9d0a1b2c3d4e5f6a7b8c9d0', branch: 'main' },
     now: T,
@@ -62,7 +62,7 @@ function sample(): Run {
         n: 1,
         at: T + 30 * MIN,
         commit: 'b'.repeat(40),
-        ref: 'refs/terminal-code/runs/x/1',
+        ref: 'refs/mode-code/runs/x/1',
         commits: 2,
         review: review('concerns', ['no test for the reset window']),
         note: '',
@@ -73,7 +73,7 @@ function sample(): Run {
   r = ok(
     acceptMilestone(
       r,
-      { n: 2, at: T + 60 * MIN, commit: 'c'.repeat(40), ref: 'refs/terminal-code/runs/x/2', commits: 1, review: review('pass'), note: '' },
+      { n: 2, at: T + 60 * MIN, commit: 'c'.repeat(40), ref: 'refs/mode-code/runs/x/2', commits: 1, review: review('pass'), note: '' },
       T + 60 * MIN,
     ),
   );
@@ -129,7 +129,7 @@ test('the facts section: milestones with the ways back, reviews, the verificatio
   let r = sample();
   r = ok(finishRun(r, { at: T + 70 * MIN, verification: [{ command: 'npm test', ok: true, seconds: 41 }], review: review('pass') }, true, T + 70 * MIN));
   const md = factsSection(r, 'en', { now: T + 70 * MIN, notes: true, quota: { five: 20, week: 49.6 } });
-  assert.match(md, /^## What terminal-code measured/);
+  assert.match(md, /^## What mode-code measured/);
   assert.match(md, /- Request: «Add rate limiting to the public API, with tests\.»/);
   assert.match(md, /- Status: done/);
   assert.match(md, /- Running time: 1 h 10 min/);
@@ -143,7 +143,7 @@ test('the facts section: milestones with the ways back, reviews, the verificatio
   assert.match(md, /- `npm test` ✓ \(41 s\)\n- Final review: PASS/);
   assert.match(md, /- \*\*push\*\* · Bash: `git push origin main` \(pushes to the protected branch main\) ×2/);
   assert.match(md, /### Blockers\n\nNone\./);
-  assert.match(md, /Claude left notes for your memory in \/tmp\/terminal-code\/runs\/20261013-1210-rate-limit\/notes\.md/);
+  assert.match(md, /Claude left notes for your memory in \/tmp\/mode-code\/runs\/20261013-1210-rate-limit\/notes\.md/);
   assert.doesNotMatch(md, /\{\w+\}/);
 });
 
@@ -163,9 +163,9 @@ test('the report is the draft followed by the facts; without a draft it says so'
   const r = sample();
   const x = { now: T + 64 * MIN, notes: false, quota: null };
   const full = composeReport('# Rate limiting\n\n## Summary\n\nDone.\n', r, 'en', x);
-  assert.ok(full.startsWith('# Rate limiting\n\n## Summary\n\nDone.\n\n## What terminal-code measured'));
+  assert.ok(full.startsWith('# Rate limiting\n\n## Summary\n\nDone.\n\n## What mode-code measured'));
   const bare = composeReport(null, r, 'en', x);
-  assert.ok(bare.startsWith('# Add rate limiting to the public API, with tests.\n\n(Claude wrote no report draft.)\n\n## What terminal-code measured'));
+  assert.ok(bare.startsWith('# Add rate limiting to the public API, with tests.\n\n(Claude wrote no report draft.)\n\n## What mode-code measured'));
 });
 
 test('the edges of the report: a minute is a minute, a hand-edited record, a passing review with notes, nothing waiting', () => {

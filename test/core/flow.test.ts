@@ -135,8 +135,8 @@ test('records round-trip, and anything torn or foreign is rejected rather than h
 });
 
 test('a flow folder only for ids of the flows own shape', () => {
-  const l = layout('/home/ada/.terminal-code');
-  assert.equal(flowDir(l, '20261012-2015-add-sign-in'), '/home/ada/.terminal-code/flows/20261012-2015-add-sign-in');
+  const l = layout('/home/ada/.mode-code');
+  assert.equal(flowDir(l, '20261012-2015-add-sign-in'), '/home/ada/.mode-code/flows/20261012-2015-add-sign-in');
   for (const bad of ['', '../x', 'A', 'a/b', 'x'.repeat(90), '-x']) assert.equal(flowDir(l, bad), null, bad);
 });
 

@@ -126,7 +126,7 @@ test("a repository with other files: only the shared place's own files are commi
     run(clone, 'commit', '-q', '-m', 'mine');
     run(clone, 'push', '-q', '-u', 'origin', 'HEAD');
     writeFileSync(join(clone, 'hafiza', 'draft.md'), 'not committed yet\n');
-    const dir = `${clone}/terminal-code`;
+    const dir = `${clone}/mode-code`;
     const a = computer(root, 'a', { place: 'github', dir, remote });
     const r = await syncShared(a.local(), a.l, { trigger: 'setup', session: null, writer: 'cli' });
     assert.deepEqual([r?.result?.commit, r?.result?.push], ['ok', 'ok']);
@@ -134,7 +134,7 @@ test("a repository with other files: only the shared place's own files are commi
     assert.ok(
       run(clone, 'show', '--name-only', '--format=', 'HEAD')
         .split('\n')
-        .every((f) => f.startsWith('terminal-code/machines/a-0000/')),
+        .every((f) => f.startsWith('mode-code/machines/a-0000/')),
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -144,7 +144,7 @@ test("a repository with other files: only the shared place's own files are commi
 test('a folder another service keeps in sync: no git, the same files; history past the months kept leaves it', async () => {
   const root = mkdtempSync(join(tmpdir(), 'tc-syncdir-'));
   try {
-    const shared = fwd(join(root, 'iCloud', 'terminal-code'));
+    const shared = fwd(join(root, 'iCloud', 'mode-code'));
     const a = computer(root, 'a', { place: 'folder', dir: shared }, { view: 'simple' });
     const b = computer(root, 'b', { place: 'folder', dir: shared });
     const r = await syncShared(a.local(), a.l, { trigger: 'setup', session: null, writer: 'cli', firstStamp: () => NOW });

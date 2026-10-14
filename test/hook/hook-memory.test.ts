@@ -25,7 +25,7 @@ function run(event: string, input: object, home: string): Record<string, any> | 
     cwd: root,
     input: JSON.stringify(input),
     encoding: 'utf8',
-    env: { ...ENV, TERMINAL_CODE_HOME: home, TERMINAL_CODE_LANG: 'en' },
+    env: { ...ENV, MODE_CODE_HOME: home, MODE_CODE_LANG: 'en' },
     timeout: 60_000,
   });
   const text = (r.stdout ?? '').trim();
@@ -128,7 +128,7 @@ test('the handoff keyword without the plugin says plainly that nothing writes th
     );
     assert.match(
       r?.hookSpecificOutput?.additionalContext ?? '',
-      /"devir", a terminal-code keyword for modes, flows, full autonomy or handoff notes\. They need the terminal-code plugin/,
+      /"devir", a mode-code keyword for modes, flows, full autonomy or handoff notes\. They need the mode-code plugin/,
     );
   } finally {
     rmSync(tmp, { recursive: true, force: true });

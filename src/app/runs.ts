@@ -124,7 +124,7 @@ export function autonomyCheck(ctx: Pick<AppContext, 'layout' | 'config'>, cwd: s
     const s = p.replace(/\\/g, '/').replace(/\/+$/, '');
     return plat === 'linux' ? s : s.toLowerCase();
   };
-  // Ours by the program it runs from this data folder (wherever TERMINAL_CODE_HOME puts it), as the doctor reads it.
+  // Ours by the program it runs from this data folder (wherever MODE_CODE_HOME puts it), as the doctor reads it.
   const ours = (event: string) => claude.hooks.some((h) => h.event === event && isOurHook({ command: h.command, args: h.args }, ctx.layout.root));
   const hookInstalled = !!readManifest(ctx.layout) && ours('Stop') && ours('PreToolUse');
   const g = checkGate({

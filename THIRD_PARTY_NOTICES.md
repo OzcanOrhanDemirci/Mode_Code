@@ -1,6 +1,6 @@
 # Third-party notices
 
-The published package of terminal-code bundles the following open-source packages. Each is used under its own license, reproduced below.
+The published package of mode-code bundles the following open-source packages. Each is used under its own license, reproduced below.
 
 - @alcalzone/ansi-tokenize 0.3.1 (MIT)
 - ansi-escapes 7.3.0 (MIT)

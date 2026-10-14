@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * Built-in self-tests: small suites of samples with known answers, shipped with the tool. The unit tests
- * run them in CI, and `terminal-code doctor` runs the very same samples on the person's machine, so what
+ * run them in CI, and `mode-code doctor` runs the very same samples on the person's machine, so what
  * was tested is what is checked again where it matters (another JavaScript engine version, another locale).
  */
 

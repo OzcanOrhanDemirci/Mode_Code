@@ -42,7 +42,7 @@ const start = (): Run =>
     project: 'api',
     cwd: '/home/ada/api',
     sessionId: 's1',
-    workDir: '/tmp/terminal-code/runs/',
+    workDir: '/tmp/mode-code/runs/',
     budget: { weeklyTarget: 52, source: '+10' },
     start: { commit: 'a'.repeat(40), branch: 'main' },
     now: T,
@@ -81,11 +81,11 @@ test('a run starts in its plan phase, active, with its files in the work folder 
   const r = start();
   assert.equal(r.task, 'Add rate limiting to the public API, with tests.');
   assert.deepEqual([r.status, r.phase, r.plan, r.milestones.length], ['active', 'plan', null, 0]);
-  assert.equal(r.workDir, '/tmp/terminal-code/runs/20261013-1210-add-rate-limiting');
+  assert.equal(r.workDir, '/tmp/mode-code/runs/20261013-1210-add-rate-limiting');
   assert.equal(r.planPath, `${r.workDir}/plan.md`);
   assert.equal(r.reportPath, `${r.workDir}/report.md`);
   assert.equal(r.notesPath, `${r.workDir}/notes.md`);
-  assert.equal(r.start.ref, 'refs/terminal-code/runs/20261013-1210-add-rate-limiting/0');
+  assert.equal(r.start.ref, 'refs/mode-code/runs/20261013-1210-add-rate-limiting/0');
   assert.deepEqual([isLive(r), isTerminal(r), nextStep(r), progress(r)], [true, false, null, { done: 0, of: 0 }]);
   assert.deepEqual(r.history, [{ at: T, event: 'start' }]);
 });
@@ -96,8 +96,8 @@ test('run ids are sortable, readable and unique; folders refuse other shapes', (
   assert.equal(runId('', now, new Set()), '20261013-1210-run');
   assert.equal(runId('Hız sınırı ekle', now, new Set()), '20261013-1210-hiz-siniri-ekle');
   assert.equal(runId('x', now, new Set(['20261013-1210-x', '20261013-1210-x-2'])), '20261013-1210-x-3');
-  const l = layout('/home/ada/.terminal-code');
-  assert.equal(runDir(l, '20261013-1210-x'), '/home/ada/.terminal-code/runs/20261013-1210-x');
+  const l = layout('/home/ada/.mode-code');
+  assert.equal(runDir(l, '20261013-1210-x'), '/home/ada/.mode-code/runs/20261013-1210-x');
   assert.equal(runDir(l, '../x'), null);
   assert.equal(runDir(l, 'A'), null);
 });

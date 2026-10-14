@@ -85,15 +85,15 @@ test('roots are recognised', () => {
 });
 
 test('8.3 short names: the forms Windows generates, and nothing else', () => {
-  for (const s of ['TERMIN~1', 'CLAUDE~1.JSO', 'PROGRA~2', 'TE1A2B~5', 'A~1', 'termin~12', 'MYLONG~1.TXT']) assert.equal(isShortNameSegment(s), true, s);
+  for (const s of ['MODECO~1', 'CLAUDE~1.JSO', 'PROGRA~2', 'MO1A2B~5', 'A~1', 'modeco~12', 'MYLONG~1.TXT']) assert.equal(isShortNameSegment(s), true, s);
   for (const s of ['~1', 'TERMINAL~1', 'a~b', 'x~1.html', 'file~', 'name.txt', '~', 'ab~1.c.d', 'with space~1']) assert.equal(isShortNameSegment(s), false, s);
 });
 
 test('8.3 short names: which long names a short name can stand for (forms measured on Windows 11)', () => {
-  assert.equal(couldBeShortName('TERMIN~1', '.terminal-code'), true);
+  assert.equal(couldBeShortName('MODECO~1', '.mode-code'), true);
   // The first short name, as samples write it for the data folder: what couldBeShortName accepts.
   for (const [long, short] of [
-    ['.terminal-code', 'TERMIN~1'],
+    ['.mode-code', 'MODECO~1'],
     ['.claude', 'CLAUDE~1'],
     ['.ab', 'AB~1'],
     ['settings.json', 'SETTIN~1.JSO'],
@@ -109,24 +109,24 @@ test('8.3 short names: which long names a short name can stand for (forms measur
   assert.equal(couldBeShortName('PROGRA~1', 'Program Files x'), true);
   assert.equal(couldBeShortName('A_B_C_~1', 'a+b=c;d'), true);
   assert.equal(couldBeShortName('AR-E~1', 'çağrı-öğe'), true);
-  assert.equal(couldBeShortName('TE1A2B~5', '.terminal-code'), true); // hashed form
+  assert.equal(couldBeShortName('MO1A2B~5', '.mode-code'), true); // hashed form
   assert.equal(couldBeShortName('CLAUDE~1.TXT', '.claude.json'), false);
-  assert.equal(couldBeShortName('TERMIN~1', '.claude'), false);
-  assert.equal(couldBeShortName('XY1A2B~5', '.terminal-code'), false);
-  assert.equal(couldBeShortName('not-short', '.terminal-code'), false);
-  assert.equal(couldBeShortName('__~1', '.terminal-code'), false); // nothing left to compare
+  assert.equal(couldBeShortName('MODECO~1', '.claude'), false);
+  assert.equal(couldBeShortName('XY1A2B~5', '.mode-code'), false);
+  assert.equal(couldBeShortName('not-short', '.mode-code'), false);
+  assert.equal(couldBeShortName('__~1', '.mode-code'), false); // nothing left to compare
 });
 
 test('8.3 short names are written out against the longest known path, on Windows only', () => {
-  const known = ['C:/Users/ada', 'C:/Users/ada/.claude', 'C:/Users/ada/.claude.json', 'C:/Users/ada/.terminal-code'];
-  assert.equal(expandShortNames('C:/Users/ada/TERMIN~1/config.json', known, 'win32'), 'C:/Users/ada/.terminal-code/config.json');
+  const known = ['C:/Users/ada', 'C:/Users/ada/.claude', 'C:/Users/ada/.claude.json', 'C:/Users/ada/.mode-code'];
+  assert.equal(expandShortNames('C:/Users/ada/MODECO~1/config.json', known, 'win32'), 'C:/Users/ada/.mode-code/config.json');
   assert.equal(expandShortNames('C:/Users/ada/CLAUDE~1/settings.json', known, 'win32'), 'C:/Users/ada/.claude/settings.json');
-  assert.equal(expandShortNames('C:/USERS/ADA/termin~1', known, 'win32'), 'C:/Users/ada/.terminal-code');
+  assert.equal(expandShortNames('C:/USERS/ADA/modeco~1', known, 'win32'), 'C:/Users/ada/.mode-code');
   assert.equal(expandShortNames('C:/Users/ada/OTHER~1/x', known, 'win32'), 'C:/Users/ada/OTHER~1/x');
-  assert.equal(expandShortNames('C:/Users/ada/.terminal-code/x', known, 'win32'), 'C:/Users/ada/.terminal-code/x');
-  assert.equal(expandShortNames('D:/Users/ada/TERMIN~1/x', known, 'win32'), 'D:/Users/ada/TERMIN~1/x');
-  assert.equal(expandShortNames('/home/ada/TERMIN~1/x', ['/home/ada/.terminal-code'], 'linux'), '/home/ada/TERMIN~1/x');
-  assert.equal(expandShortNames('C:/Users/ada/TERMIN~1', [], 'win32'), 'C:/Users/ada/TERMIN~1');
+  assert.equal(expandShortNames('C:/Users/ada/.mode-code/x', known, 'win32'), 'C:/Users/ada/.mode-code/x');
+  assert.equal(expandShortNames('D:/Users/ada/MODECO~1/x', known, 'win32'), 'D:/Users/ada/MODECO~1/x');
+  assert.equal(expandShortNames('/home/ada/MODECO~1/x', ['/home/ada/.mode-code'], 'linux'), '/home/ada/MODECO~1/x');
+  assert.equal(expandShortNames('C:/Users/ada/MODECO~1', [], 'win32'), 'C:/Users/ada/MODECO~1');
 });
 
 test('aliases move a path from where a link leads to its protected spelling', () => {

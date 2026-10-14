@@ -9,7 +9,7 @@ const E: AutoEnv = {
   home: HOME,
   cwd: '/home/ada/api',
   env: { HOME, TMPDIR: '/tmp' },
-  writable: ['/home/ada/api', '/tmp', '/tmp/terminal-code/runs/r1'],
+  writable: ['/home/ada/api', '/tmp', '/tmp/mode-code/runs/r1'],
   memoryDirs: ['/home/ada/notes'],
   credentials: credentialPaths(HOME, '/home/ada/.claude'),
   protectedBranches: ['main', 'master', 'release/*'],
@@ -89,7 +89,7 @@ test('the sandbox escape hatch and credential files are refused', () => {
 test("file tools write inside the project, the temporary folders and the run's folder only; memory folders never", () => {
   assert.equal(kind(checkAutonomy('Write', { file_path: '/home/ada/api/src/limiter.ts', content: '' }, E)), 'allow');
   assert.equal(kind(checkAutonomy('Edit', { file_path: 'src/limiter.ts', old_string: 'a', new_string: 'b' }, E)), 'allow');
-  assert.equal(kind(checkAutonomy('Write', { file_path: '/tmp/terminal-code/runs/r1/plan.md', content: '' }, E)), 'allow');
+  assert.equal(kind(checkAutonomy('Write', { file_path: '/tmp/mode-code/runs/r1/plan.md', content: '' }, E)), 'allow');
   assert.equal(kind(checkAutonomy('Write', { file_path: '/home/ada/.bashrc', content: '' }, E)), 'refuse:fence-write');
   assert.equal(kind(checkAutonomy('Edit', { file_path: '../other/x.ts', old_string: 'a', new_string: 'b' }, E)), 'refuse:fence-write');
   assert.equal(
@@ -114,7 +114,7 @@ test('tools: reads run, questions for the person are refused, outward tools wait
   assert.equal(kind(checkAutonomy('Artifact', { action: 'read', url: 'x' }, E)), 'allow');
   assert.equal(kind(checkAutonomy('Artifact', { action: 'publish', file_path: 'x.html' }, E)), 'defer:outward');
   assert.equal(kind(checkAutonomy('BrandNewTool', {}, E)), 'refuse:unknown-tool');
-  assert.equal(kind(checkAutonomy('mcp__terminal-code__autonomy', { action: 'milestone' }, E)), 'allow');
+  assert.equal(kind(checkAutonomy('mcp__mode-code__autonomy', { action: 'milestone' }, E)), 'allow');
 });
 
 test('MCP tools: only those whose names say they read run', () => {

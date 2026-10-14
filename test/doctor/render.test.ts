@@ -17,7 +17,7 @@ const HOME = 'C:/Users/ada';
 const broken = healthyFacts({
   hookProgram: { ...healthyFacts().hookProgram, exists: false, hash: null },
   hooks: healthyFacts().hooks.filter((h) => h.event !== 'Stop'),
-  hookAgreement: { samples: 30, agreed: 29, differences: [{ call: 'Write C:/Users/ada/TERMIN~1/config.json', mine: 'deny', theirs: 'allow' }], error: null },
+  hookAgreement: { samples: 30, agreed: 29, differences: [{ call: 'Write C:/Users/ada/MODECO~1/config.json', mine: 'deny', theirs: 'allow' }], error: null },
   data: { ...healthyFacts().data, staleTemp: ['config.json.4242.0a1b2c3d.tmp'] },
   git: { version: '2.55.0', projects: [{ path: 'C:/dev/app', exists: true, readable: false, error: 'fatal: detected dubious ownership', notRepo: false }] },
 });
@@ -53,10 +53,10 @@ for (const lang of ['en', 'tr'] as Lang[]) {
             detail: 'x',
             verified: true,
             refused: false,
-            backup: 'C:/Users/ada/.terminal-code/install/backups/settings.json.doctor.1',
+            backup: 'C:/Users/ada/.mode-code/install/backups/settings.json.doctor.1',
           },
           { id: 'restore-hook-program', ok: true, detail: 'x', verified: false, refused: false },
-          { id: 'rebuild-index', ok: false, detail: 'C:/Users/ada/.terminal-code/index.db is locked', verified: false, refused: false },
+          { id: 'rebuild-index', ok: false, detail: 'C:/Users/ada/.mode-code/index.db is locked', verified: false, refused: false },
           { id: 'reinstall-plugin', ok: false, detail: 'refused', verified: false, refused: true },
         ],
         after: { facts: healthyFacts(), results: after, tally: tally(after), ms: 1 },
@@ -96,7 +96,7 @@ test('the problem report hides the home folder and the user name, and carries no
   const results = runChecks(broken);
   const text = renderReport({ facts: broken, results, tally: tally(results), ms: 1 }, { home: HOME, user: 'ada' });
   assert.doesNotMatch(text, /ada/i);
-  assert.match(text, /~\/TERMIN~1\/config\.json/);
+  assert.match(text, /~\/MODECO~1\/config\.json/);
   assert.match(text, /\| install\.hookProgram \| fail \|/);
   assert.doesNotMatch(text, /\| shell\.posix \|/, 'skipped checks are left out');
   golden('doctor-report', text);

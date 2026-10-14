@@ -1,6 +1,6 @@
 Repairs
   Put the safety-net hooks back into the Claude Code settings: ✓ repaired and checked again
-      backup: ~/.terminal-code/install/backups/settings.json.doctor.1
+      backup: ~/.mode-code/install/backups/settings.json.doctor.1
   Copy the hook program of this version back: ! done, but the check still fails
-  Remove the damaged session index (it is built again): ✗ could not be repaired: ~/.terminal-code/index.db is locked
+  Remove the damaged session index (it is built again): ✗ could not be repaired: ~/.mode-code/index.db is locked
 After the repairs: 34 ok, 0 warnings, 0 problems.

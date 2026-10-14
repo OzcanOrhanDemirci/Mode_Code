@@ -1,17 +1,11 @@
 <p align="right"><a href="README.md">English</a> · <b>Türkçe</b></p>
 
-# terminal-code
+# Mode_Code
 
 **Claude Code için yerel bir yol arkadaşı: Claude Code'un içinde bir emniyet kemeri ve davranış katmanı, terminalinde bir kontrol merkezi.** Her şey kendi makinelerinde kalır ya da yalnız senin gönderdiğin yere gider. Telemetri yok.
 
 [![Lisans: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 ![Node.js 22.13 ve sonrası](https://img.shields.io/badge/node-%E2%89%A522.13-brightgreen.svg)
-
-<!-- name:temporary -->
-
-> **Ad geçici.** İlk herkese açık sürümden önce değişecek; [marka politikası](TRADEMARK.md) nihai adı da kapsıyor.
-
-<!-- /name:temporary -->
 
 ## İçindekiler
 
@@ -40,13 +34,13 @@
 - **Oturum kontrolleri.** Mod ve çalışma biçimi (manuel, otonom, tam otonom) istemin üstündeki şeritte hep görünür ve tek adımda değişir: şeride tıkla, `/3` (plan) ya da `/7` (otonom) yaz ya da kelimeyi tek başına yaz. `/2 önbelleğe bak` modu değiştirip metni gönderir; `/devam` devam edilebilecek her projeyi ve klasörü listeler; `/kota` bütçe sorar; `/9` akış; `/0` kontrol merkezini yeni sekmede açar; `/00` oturumu sekmesiyle birlikte düzgünce kapatır. Claude çalışırken de anında etkili olurlar: fren. Yeni bir oturum, klasörü en son bıraktığın gibi açılır. Bkz. [docs/modes.md](docs/modes.md#session-controls).
 - **Akışlar.** Bir görevi `akış` ile bitir; 🔍 araştırma ▶ 📐 plan → ⏸ onay → 🔨 kod olarak yürür. Hiçbir adım atlanmaz ve her birini kod denetler: bulguları var olan kaynaklara dayanan bir rapor, kabul ölçütleri ve doğrulama komutları olan bir plan, bir iletişim kutusunda (ya da Claude Code'un plan penceresinde) senin onayın ve eklenti çalıştırdığında geçen doğrulama komutları. Akışlar duraklatılır, yeni bir oturumda sürer ve kontrol merkezinde görünür. Ayrıntı: [docs/modes.md](docs/modes.md) (İngilizce).
 - **Tam otonom.** Bir görevi `projem tam otonom kota +10` ile bitir; sen yokken sonuna kadar yürür: doğrulama komutları yalnız artan bir plan, her adım için geri dönebileceğin bir commit üzerinde bir kilometre taşı, her birinin bağımsız incelemesi (isteğini ve farkı gören, sohbeti asla görmeyen ayrı bir model çağrısı) ve ancak her doğrulama komutu geçtiğinde sayılan bir bitiş. Hiçbir şey sorulmaz: sana ait olanlar (korunan dallara push, birleştirme, sürüm, kemerin soracakları) birebir komutuyla kaydedilip koşunun raporunda bekler. Yalnız kodun önce ölçtüğü bir sınırın içinde başlar: Windows'ta, Windows'a geri dönüş yolu olmayan bir WSL2 dağıtımı; her yerde, Claude Code'un sıkı biçimdeki kum havuzu. Sen açana kadar kapalı. Ayrıntı: [docs/autonomy.md](docs/autonomy.md) (İngilizce).
-- **Hafıza ve devir notları.** `terminal-code memory setup`, Claude Code'un hafızasının nerede duracağını sorar: bu bilgisayarda, GitHub'ında özel bir depoda ya da ikisinde. İstersen git'i ve GitHub CLI'ı kurar, giriş yaptırır, özel depoyu adlandırıp açar, var olan hafızanı yanında getirir, her değişikliği gösterip bir kez sorar. Bundan sonra hafıza her oturum başında çekilir, onu değiştiren bir turdan sonra gönderilir; sır içeriyor gibi görünen dosya bekletilir. `devir` (ya da `handoff`) yazınca Claude o hafızaya bir devir notu yazar; notlar sıkıştırmadan önce ve oturum biterken de yazılır, sonraki oturum (bu bilgisayarda ya da başkasında) oradan sürer. Bir süre yokken, sabah raporu neler olduğunu söyler. Ayrıntı: [docs/memory.md](docs/memory.md) (İngilizce).
-- **Bilgisayarlar arası eşitleme.** `terminal-code sync setup`, terminal-code'un ayarlarını, geçmişini ve devir notlarını çalıştığın bilgisayarlar arasında, adını senin koyduğun GitHub'ındaki özel bir depo ya da başka bir servisin eşitlediği bir klasör üzerinden paylaştırır. Her bilgisayar orada yalnız kendi klasörüne yazar. Bir ayarın en yeni değişikliği her bilgisayarda geçerli olur; ama bir korumayı azaltacak olanı seni bekler. Zaten kendin eşitlediğin bir hafıza olduğu gibi kullanılır: terminal-code yalnız değişiklikleri alır, kaydetmek ve göndermek sende kalır. Ayrıntı: [docs/sync.md](docs/sync.md) (İngilizce).
+- **Hafıza ve devir notları.** `mode-code memory setup`, Claude Code'un hafızasının nerede duracağını sorar: bu bilgisayarda, GitHub'ında özel bir depoda ya da ikisinde. İstersen git'i ve GitHub CLI'ı kurar, giriş yaptırır, özel depoyu adlandırıp açar, var olan hafızanı yanında getirir, her değişikliği gösterip bir kez sorar. Bundan sonra hafıza her oturum başında çekilir, onu değiştiren bir turdan sonra gönderilir; sır içeriyor gibi görünen dosya bekletilir. `devir` (ya da `handoff`) yazınca Claude o hafızaya bir devir notu yazar; notlar sıkıştırmadan önce ve oturum biterken de yazılır, sonraki oturum (bu bilgisayarda ya da başkasında) oradan sürer. Bir süre yokken, sabah raporu neler olduğunu söyler. Ayrıntı: [docs/memory.md](docs/memory.md) (İngilizce).
+- **Bilgisayarlar arası eşitleme.** `mode-code sync setup`, Mode_Code'un ayarlarını, geçmişini ve devir notlarını çalıştığın bilgisayarlar arasında, adını senin koyduğun GitHub'ındaki özel bir depo ya da başka bir servisin eşitlediği bir klasör üzerinden paylaştırır. Her bilgisayar orada yalnız kendi klasörüne yazar. Bir ayarın en yeni değişikliği her bilgisayarda geçerli olur; ama bir korumayı azaltacak olanı seni bekler. Zaten kendin eşitlediğin bir hafıza olduğu gibi kullanılır: Mode_Code yalnız değişiklikleri alır, kaydetmek ve göndermek sende kalır. Ayrıntı: [docs/sync.md](docs/sync.md) (İngilizce).
 - **Kota bekçisi.** Claude Code'un bildirdiği 5 saatlik ve haftalık pencereleri okur; bütçende işi toparlar, sınırda durdurur ve iş otonomsa pencere sıfırlandıktan bir dakika sonra kendiliğinden sürdürür.
 - **Alt satırlar.** Her cevabın altında: hafıza deposu itildi mi, bir şey değişti mi, gerektiğinde kota. Git'ten, turun araç çağrılarından ve ölçülen kotadan hesaplanır, asla tahmin edilmez.
 - **Sessiz uzun iş.** Claude Code'un "kullanıcı uzun süredir haber alamadı" hatırlatmalarını dışarıda bırakır; uzun otonom iş ekranını durum satırlarıyla doldurmaz.
 
-**Terminalinde** (`terminal-code`): yedi kategorili, Türkçe ve İngilizce bir kontrol merkezi; bir de kurulumu ve çevresindeki makineyi sınayıp güvenle onarabileceğini onaran bakım denetimi (`terminal-code doctor`).
+**Terminalinde** (`mode-code`): yedi kategorili, Türkçe ve İngilizce bir kontrol merkezi; bir de kurulumu ve çevresindeki makineyi sınayıp güvenle onarabileceğini onaran bakım denetimi (`mode-code doctor`).
 
 |                 |                                                                                                                                                                                                                           |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -90,7 +84,7 @@ Türkçe kurulumda aynı satırlar "Hafıza İtildi", "İşlem Yapıldı", "oton
 Bir akışın planı onay bekliyor: eklenti onu önce denetledi; akışı kod adımına yalnız kişinin cevabı geçirir (oturum İngilizceydi):
 
 ```
-● terminal-code - flow_step (MCP)(step: "plan")
+● mode-code - flow_step (MCP)(step: "plan")
 ──────────────────────────────────────────────────────────────────────────────
  ☐ Plan
 │ The plan is ready: 1 step, verified by `cat hello.txt`, `git status --short`.
@@ -114,8 +108,8 @@ Yazarın Windows 11 makinesinde, Claude Code 2.1.296 ve Node.js 24.15 ile ölç�
 Paket henüz npm'de değil (nihai ad belli değil); kaynaktan kur:
 
 ```sh
-git clone https://github.com/OzcanOrhanDemirci/terminal-code.git
-cd terminal-code && npm ci && npm run build
+git clone https://github.com/OzcanOrhanDemirci/Mode_Code.git
+cd Mode_Code && npm ci && npm run build
 node dist/cli.mjs install
 ```
 
@@ -133,10 +127,10 @@ Kaldırmak için: `node dist/cli.mjs uninstall` (ayarlarını ve geçmişini de 
 
 ## Kontrol merkezi
 
-`terminal-code` açar. Üç sütun: geldiğin yer, bulunduğun yer ve seçili olan. Her ekranın bir adresi var (`security/rules`, `measure/quota`); `terminal-code open <adres>` de aynı adresi alır.
+`mode-code` açar. Üç sütun: geldiğin yer, bulunduğun yer ve seçili olan. Her ekranın bir adresi var (`security/rules`, `measure/quota`); `mode-code open <adres>` de aynı adresi alır.
 
 ```
-terminal-code › Ana ekran                                             🛡 çalışıyor  hafta %27  5s %21
+mode-code › Ana ekran                                             🛡 çalışıyor  hafta %27  5s %21
 ╭──────────────────╮╭───────────────────────────────╮╭─────────────────────────────────────────────╮
 │▸ Ana ekran 1 ye… ││▸ Genel bakış                  ││ Genel bakış                                 │
 │  Projeler        ││  Sen yokken olanlar         1 ││ Her şeyin durumu tek bakışta.               │
@@ -161,11 +155,11 @@ Tuşlar her yerde aynı: `↑↓` gez, `→` aç, `←` geri, `1`-`7` kategoriye
 Her şey komut olarak da var; her biri sürümlü `--json` çıktısı verir:
 
 ```sh
-terminal-code status            # ne kurulu ve çalışıyor, kota, bugün
-terminal-code doctor            # her özelliğin sağlığı ve bozuk olanın nasıl düzeleceği
-terminal-code report --week     # olanlar: oturumlar, tokenler, kemer, kota
-terminal-code tokens --by model # güne, modele ya da klasöre göre token
-terminal-code belt test --command "git clean -f"   # kemerin ne yapacağı; hiçbir şey çalıştırılmaz
+mode-code status            # ne kurulu ve çalışıyor, kota, bugün
+mode-code doctor            # her özelliğin sağlığı ve bozuk olanın nasıl düzeleceği
+mode-code report --week     # olanlar: oturumlar, tokenler, kemer, kota
+mode-code tokens --by model # güne, modele ya da klasöre göre token
+mode-code belt test --command "git clean -f"   # kemerin ne yapacağı; hiçbir şey çalıştırılmaz
 ```
 
 Bütün komutlar: [docs/cli.md](docs/cli.md).
@@ -205,9 +199,9 @@ Ayrıntı: [docs/safety-belt.md](docs/safety-belt.md).
 
 - **Sen göndermedikçe hiçbir şey makinenden çıkmaz.** Telemetri yok, analitik yok. Hafıza ve eşitleme yalnız senin kurduğun yere gider: git ve GitHub CLI ile kendi özel depona ya da seçtiğin bir klasöre. Yaptığı tek model çağrısı, tam otonom bir koşunun kilometre taşlarının bağımsız incelemesidir; Claude Code'un kendi istemcisiyle, oturumunun zaten kullandığı sağlayıcıya gider.
 - **Ne okur:** Claude Code'un ayar dosyalarını ve kayıtlarını (salt okunur), hafıza klasörlerini (git durumu ve sır taraması için).
-- **Ne yazar:** kendi veri klasörünü (`~/.terminal-code`) ve kurulumda senin onayınla Claude Code kullanıcı ayarlarına dört hook kaydı (yedeği alınır). Eklenti Claude Code'un kendi `claude plugin` komutuyla kurulur.
+- **Ne yazar:** kendi veri klasörünü (`~/.mode-code`) ve kurulumda senin onayınla Claude Code kullanıcı ayarlarına dört hook kaydı (yedeği alınır). Eklenti Claude Code'un kendi `claude plugin` komutuyla kurulur.
 - **Ne saklar:** sayılar (token, araç sayısı, süre) ve kısa metinler (oturum başlıkları, ilk istemler); sırlar yazılmadan önce maskelenir.
-- **Kaldırma:** `terminal-code uninstall` kurulumun kaydettiğini tam olarak geri alır. Bir korumayı azaltan komutlar bir Claude Code oturumunun içinden çalışmayı reddeder.
+- **Kaldırma:** `mode-code uninstall` kurulumun kaydettiğini tam olarak geri alır. Bir korumayı azaltan komutlar bir Claude Code oturumunun içinden çalışmayı reddeder.
 
 Bir güvenlik açığı mı buldun? Lütfen gizli bildir: [SECURITY.md](SECURITY.md).
 
@@ -219,9 +213,9 @@ Bir ajanla makinen arasında duran bir araç güveni kanıtla kazanmalı. Kodun 
 - **Yanlış alarm da hata sayılır.** 197 günlük komut her platformda kemerden tek bir soru sorulmadan geçmek, 162 okuma komutu da sohbet, araştırma ve plan modunda çalışmak zorunda. Yazarın son 30 gününde (36.658 araç çağrısı) kemer günde 4,4 kez sorardı.
 - **Testlerin kendisi de test ediliyor.** Mutasyon testi karar veren koda, kemere, modlara, tam otonoma, hafızanın eşitlemesine ve bilgisayarlar arası eşitlemeye 2.078 küçük, bilerek yapılmış değişiklik uygular; testler 2.078'ini de yakalıyor. Bakım denetimi bir deneme ortamını 13 şekilde bozar; 13'ünü de fark etmesi ve onarılabilecek olanları onarması gerekir.
 - **Gerçek motorun içinde.** Eklenti Claude Code'un kendi test takımıyla, her gece en yeni Claude Code sürümüne karşı ve gerçek başsız oturumlarda sınanıyor.
-- **Testler gerçek hatalar buldu**, her biri düzeltildi ve bir testle düzeltilmiş kalıyor: Windows kısa adlarıyla (`TERMIN~1`) ya da sonda bir noktayla erişilebilen korumalı dosyalar, macOS'ta ev klasörü altındaki her özyinelemeli silmenin engellenmesi, `__proto__` sözcüğünde ayrıştırıcının çökmesi.
+- **Testler gerçek hatalar buldu**, her biri düzeltildi ve bir testle düzeltilmiş kalıyor: Windows kısa adlarıyla (`MODECO~1`) ya da sonda bir noktayla erişilebilen korumalı dosyalar, macOS'ta ev klasörü altındaki her özyinelemeli silmenin engellenmesi, `__proto__` sözcüğünde ayrıştırıcının çökmesi.
 
-Kendi makinende `terminal-code doctor` aynı denetimleri yapar: Node.js, Claude Code ve ayarları, hook'lar ve eklenti, Git Bash, PowerShell ve zsh, terminal, dosya sistemi, git ve aracın kendi verisi. Güvenle onarabileceğini onarır, önce yedek alır, sonra yeniden denetler, sana kalanı tam olarak söyler. `npm run verify` bir makinede çalışabilen her katmanı koşar ve her katman için tek satır yazar.
+Kendi makinende `mode-code doctor` aynı denetimleri yapar: Node.js, Claude Code ve ayarları, hook'lar ve eklenti, Git Bash, PowerShell ve zsh, terminal, dosya sistemi, git ve aracın kendi verisi. Güvenle onarabileceğini onarır, önce yedek alır, sonra yeniden denetler, sana kalanı tam olarak söyler. `npm run verify` bir makinede çalışabilen her katmanı koşar ve her katman için tek satır yazar.
 
 ## Sınırlar
 

@@ -8,14 +8,23 @@ import { cloneDefaults } from '../../src/core/config.js';
 test('rules go into one marked block that is replaced, never duplicated, and removed when empty', () => {
   const original = '# My project\n\nUse pnpm.\n';
   const one = withTemplates(original, ['flutter'], 'en');
-  assert.match(one, /^# My project\n\nUse pnpm\.\n\n<!-- terminal-code:templates -->/);
+  assert.match(one, /^# My project\n\nUse pnpm\.\n\n<!-- mode-code:templates -->/);
   assert.deepEqual(appliedTemplates(one), ['flutter']);
   const two = withTemplates(one, ['flutter', 'measured'], 'en');
-  assert.equal(two.split('<!-- terminal-code:templates -->').length, 2);
+  assert.equal(two.split('<!-- mode-code:templates -->').length, 2);
   assert.deepEqual(appliedTemplates(two), ['flutter', 'measured']);
   assert.equal(withTemplates(two, [], 'en'), original);
   assert.equal(withTemplates(null, [], 'en'), '');
-  assert.match(withTemplates(null, ['plain-docs'], 'tr'), /terminal-code şablonlarından kurallar/);
+  assert.match(withTemplates(null, ['plain-docs'], 'tr'), /Mode_Code şablonlarından kurallar/);
+});
+
+test('a block written under an earlier name of the tool is recognised and rewritten under this one', () => {
+  const old = withTemplates('# A\n', ['flutter'], 'en').replace(/mode-code:templates/g, 'terminal-code:templates');
+  assert.deepEqual(appliedTemplates(old), ['flutter']);
+  const next = withTemplates(old, ['flutter', 'measured'], 'en');
+  assert.doesNotMatch(next, /terminal-code:templates/);
+  assert.equal(next.split('<!-- mode-code:templates -->').length, 2);
+  assert.deepEqual(appliedTemplates(next), ['flutter', 'measured']);
 });
 
 test('text after the block is kept', () => {

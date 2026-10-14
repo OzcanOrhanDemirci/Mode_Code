@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * `terminal-code sync` (docs/sync.md): where the shared copy lives and how it stands, the setup, a sync now,
+ * `mode-code sync` (docs/sync.md): where the shared copy lives and how it stands, the setup, a sync now,
  * settings from other computers that wait for the person (approve or ignore), and a project's folder on this
  * computer. Each with --json; setup, approve, ignore and project only in the person's own terminal.
  */
 import { randomBytes } from 'node:crypto';
 import { existsSync, statSync } from 'node:fs';
 import { hostname } from 'node:os';
-import { APP_NAME, APP_VERSION } from '../core/app.js';
+import { APP_ID, APP_VERSION, CLI_NAME } from '../core/app.js';
 import { serializeConfig, type Config } from '../core/config.js';
 import { ago, dateTime, shortPath } from '../core/format.js';
 import { tIn, type MessageKey } from '../core/i18n/index.js';
@@ -30,7 +30,7 @@ import { bold, dim, green, red, yellow } from './style.js';
 const say = (s = '') => process.stdout.write(s + '\n');
 
 function json(schema: string, data: object): void {
-  process.stdout.write(JSON.stringify({ schema: `${APP_NAME}.${schema}/1`, version: APP_VERSION, ...data }, null, 2) + '\n');
+  process.stdout.write(JSON.stringify({ schema: `${APP_ID}.${schema}/1`, version: APP_VERSION, ...data }, null, 2) + '\n');
 }
 
 function T(ctx: AppContext, key: MessageKey, params?: Record<string, string | number>): string {
@@ -225,7 +225,7 @@ export async function cmdSync(a: Args): Promise<number> {
   if (!v.setting) {
     say(bold(T(ctx, 'scli.title.none')));
     say();
-    say(T(ctx, 'scli.setupHint', { cmd: `${APP_NAME} sync setup` }));
+    say(T(ctx, 'scli.setupHint', { cmd: `${CLI_NAME} sync setup` }));
     return 0;
   }
   const s = v.setting;
@@ -233,7 +233,7 @@ export async function cmdSync(a: Args): Promise<number> {
   row(T(ctx, 'scli.where'), [s.repo ?? '', shortPath(s.dir, h, 70)].filter(Boolean).join(' · ') + (v.exists ? '' : red(` · ${T(ctx, 'mcli.local.missing')}`)));
   row(T(ctx, 'scli.this'), `${s.machine.name} ${dim(`(${s.machine.id})`)}`);
   const others = v.machines.filter((m) => !m.self);
-  if (!others.length) row(T(ctx, 'scli.others'), dim(T(ctx, 'scli.others.none', { cmd: `${APP_NAME} sync setup` })));
+  if (!others.length) row(T(ctx, 'scli.others'), dim(T(ctx, 'scli.others.none', { cmd: `${CLI_NAME} sync setup` })));
   others.forEach((m, i) =>
     row(
       i === 0 ? T(ctx, 'scli.others') : '',
@@ -249,9 +249,9 @@ export async function cmdSync(a: Args): Promise<number> {
     ),
   );
   if (v.pending.length)
-    row('', dim(T(ctx, 'scli.pending.hint', { approve: `${APP_NAME} sync approve <setting>`, ignore: `${APP_NAME} sync ignore <setting>` })));
+    row('', dim(T(ctx, 'scli.pending.hint', { approve: `${CLI_NAME} sync approve <setting>`, ignore: `${CLI_NAME} sync ignore <setting>` })));
   if (v.applied.length) row(T(ctx, 'scli.applied'), T(ctx, 'scli.applied.text', { n: v.applied.length }));
-  if (v.homeless.length) row(T(ctx, 'scli.projects'), T(ctx, 'scli.projects.text', { ids: v.homeless.join(', '), cmd: `${APP_NAME} sync project` }));
+  if (v.homeless.length) row(T(ctx, 'scli.projects'), T(ctx, 'scli.projects.text', { ids: v.homeless.join(', '), cmd: `${CLI_NAME} sync project` }));
   row(T(ctx, 'scli.handoffs'), T(ctx, `scli.handoffs.${v.handoffs === 'shared' ? 'shared' : v.handoffs}` as MessageKey));
   return 0;
 }

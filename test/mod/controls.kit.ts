@@ -94,7 +94,7 @@ test('/3 switches to plan mode, says so in its row, tells the model; a write int
   const w = world(on);
   const r = await run($, '3');
   expect(r.text).toBe('Now: 📐 plan · manual');
-  expect(r.context.join('\n')).toMatch(/The person ran "\/3", a command of terminal-code/);
+  expect(r.context.join('\n')).toMatch(/The person ran "\/3", a command of Mode_Code/);
   expect(r.context.join('\n')).toMatch(/plan mode: read and plan/);
   expect(w.modState().mode).toBe('plan');
   expect(w.toasts).toEqual([]);
@@ -150,7 +150,7 @@ test('/0 from the phone says where the session stands and lists every command; i
 
 /** The installation's record of the Node.js and the command-line program, and the program on the disk. */
 const installed = (w: any, cli = 'C:/dev/tc/dist/cli.mjs') => {
-  w.write(`${WIN.DATA}/install/manifest.json`, JSON.stringify({ v: 1, app: 'terminal-code', node: 'C:/Program Files/nodejs/node.exe', cli }));
+  w.write(`${WIN.DATA}/install/manifest.json`, JSON.stringify({ v: 1, app: 'mode-code', node: 'C:/Program Files/nodejs/node.exe', cli }));
   w.write(cli, '// the control center');
 };
 const opensTab = (argv: string[]) => (argv[0] === 'wt.exe' ? { exitCode: 0 } : undefined);
@@ -164,7 +164,7 @@ test('/0 at the terminal opens the control center in a new tab of Windows Termin
   expect(r.text.split('\n')[1]).toMatch(/^Şu an: 🔨 kod · manuel · /);
   expect(r.text.split('\n').length).toBe(2);
   expect(w.ran).toEqual([
-    ['wt.exe', '-w', '0', 'new-tab', '--title', 'terminal-code', '-d', 'C:/dev/app', 'C:/Program Files/nodejs/node.exe', 'C:/dev/tc/dist/cli.mjs'],
+    ['wt.exe', '-w', '0', 'new-tab', '--title', 'Mode_Code', '-d', 'C:/dev/app', 'C:/Program Files/nodejs/node.exe', 'C:/dev/tc/dist/cli.mjs'],
   ]);
   expect(w.events().filter((e: any) => e.kind === 'center')).toEqual([expect.objectContaining({ via: 'windows-terminal', ok: true })]);
 });
@@ -200,7 +200,7 @@ test('/0 runs Windows Terminal by its alias, by the full path: Claude Code will 
   const r = await runFrom($, '0', { kind: 'composer' });
   expect(r.text.split('\n')[0]).toBe('The control center opened in a new tab.');
   expect(w.ran).toEqual([
-    [`${APPS}/wt.exe`, '-w', '0', 'new-tab', '--title', 'terminal-code', '-d', WIN.HOME, 'C:/Program Files/nodejs/node.exe', 'C:/dev/tc/dist/cli.mjs'],
+    [`${APPS}/wt.exe`, '-w', '0', 'new-tab', '--title', 'Mode_Code', '-d', WIN.HOME, 'C:/Program Files/nodejs/node.exe', 'C:/dev/tc/dist/cli.mjs'],
   ]);
 });
 
@@ -215,7 +215,7 @@ test('/0 does not run a program copied into the alias folder: only a link is an 
 test('/0 with no record of the installation, or a program that is gone, names the repair and runs nothing', async ($, on) => {
   const w = world(on, { windows: true, env: { WT_SESSION: 'x' }, programs: opensTab });
   const none = await runFrom($, '0', { kind: 'composer' });
-  expect(none.text.split('\n')[0]).toBe('Where the control center is was not recorded at installation: "terminal-code doctor --fix" records it.');
+  expect(none.text.split('\n')[0]).toBe('Where the control center is was not recorded at installation: "mode-code doctor --fix" records it.');
   w.write(`${WIN.DATA}/install/manifest.json`, JSON.stringify({ v: 1, node: 'C:/n.exe', cli: 'C:/gone/cli.mjs' }));
   const gone = await runFrom($, '0', { kind: 'composer' });
   expect(gone.text.split('\n')[0]).toBe(none.text.split('\n')[0]);
@@ -236,19 +236,19 @@ test('/0 inside tmux opens a window of that tmux, in the session folder', async 
   w.write(`${DATA}/install/manifest.json`, JSON.stringify({ v: 1, node: '/usr/bin/node', cli: `${HOME}/tc/cli.mjs` }));
   w.write(`${HOME}/tc/cli.mjs`, '//');
   expect((await runFrom($, '0', { kind: 'composer' })).text.split('\n')[0]).toBe('The control center opened in a new tab.');
-  expect(w.ran).toEqual([['tmux', 'new-window', '-n', 'terminal-code', '-c', PROJECT, `cd '${PROJECT}' && exec '/usr/bin/node' '${HOME}/tc/cli.mjs'`]]);
+  expect(w.ran).toEqual([['tmux', 'new-window', '-n', 'Mode_Code', '-c', PROJECT, `cd '${PROJECT}' && exec '/usr/bin/node' '${HOME}/tc/cli.mjs'`]]);
 });
 
 test('a press on "0" of the strip at the terminal opens the control center; on the phone it says the menu', async ($, on) => {
   const w = world(on, { windows: true, env: { WT_SESSION: 'x' }, programs: opensTab });
   installed(w);
   await run($, '3');
-  const ui = await $.ui.mount({ plugin: 'terminal-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+  const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
   await ui.press({ key: 'strip-0' });
   expect(w.toasts.at(-1)).toBe('The control center opened in a new tab.');
   expect(w.ran.length).toBe(1);
   await ui.unmount();
-  const phone = await $.ui.mount({ plugin: 'terminal-code', surface: 'mobile', component: 'AbovePrompt', props: band } as any);
+  const phone = await $.ui.mount({ plugin: 'mode-code', surface: 'mobile', component: 'AbovePrompt', props: band } as any);
   await phone.press({ key: 'strip-0' });
   expect(w.toasts.at(-1)).toMatch(/^Now: 📐 plan · manual/);
   expect(w.ran.length).toBe(1);
@@ -281,7 +281,7 @@ test('/kota +5 with no quota reading yet says so; dismissing the question change
 });
 
 test('/devam lists every registered project and every folder; a number or a name continues it, with a budget', async ($, on) => {
-  const w = world(on, { config: { projects: [{ id: 'terminal-code', names: ['terminal'], path: `${HOME}/dev/tc` }] } });
+  const w = world(on, { config: { projects: [{ id: 'mode-code', names: ['terminal'], path: `${HOME}/dev/tc` }] } });
   w.write(`${HOME}/.claude.json`, JSON.stringify({ projects: { [`${HOME}/dev/tc`]: {}, [PROJECT]: {}, [`${HOME}/dev/notes`]: {} } }));
   const list = await run($, 'devam');
   expect(list.text).toMatch(/^What to continue \(3\)/);
@@ -292,7 +292,7 @@ test('/devam lists every registered project and every folder; a number or a name
   expect(one.text).toBe('Continuing terminal');
   expect(w.submitted.at(-1)).toBe('terminal continue');
   // Continuing picks the project; the way of working stays as the person set it.
-  expect(w.modState()).toMatchObject({ interaction: 'default', mode: 'free', project: 'terminal-code' });
+  expect(w.modState()).toMatchObject({ interaction: 'default', mode: 'free', project: 'mode-code' });
   // A folder that is not registered: its own project key, and the model is told where it is.
   await run($, '7');
   await run($, '1');
@@ -335,7 +335,7 @@ test('the strip above the prompt: every control, those in effect marked, the ful
   const w = world(on, { windows: true });
   const session = mock.session(on);
   await run($, '3');
-  const ui = await $.ui.mount({ plugin: 'terminal-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+  const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
   const keys = (await ui.findAll({ type: 'Button' })).map((b: any) => b.key);
   expect(keys).toEqual(['strip-1', 'strip-2', 'strip-3', 'strip-4', 'strip-5', 'strip-6', 'strip-7', 'strip-8', 'strip-9', 'strip-0', 'strip-00']);
   expect((await ui.find({ key: 'strip-3' }))?.props.variant).toBe('primary');
@@ -346,7 +346,7 @@ test('the strip above the prompt: every control, those in effect marked, the ful
   expect(w.toasts.at(-1)).toBe('Now: 🔨 code · manual');
   // What the press changed goes into the conversation at once, as a row the model reads (the brake mid-turn).
   const rows = session.appended().map((r: any) => JSON.stringify(r.message));
-  expect(rows.some((t: string) => /The person chose \\"code\\" on terminal-code's mode strip/.test(t))).toBe(true);
+  expect(rows.some((t: string) => /The person chose \\"code\\" on Mode_Code's mode strip/.test(t))).toBe(true);
   await ui.press({ key: 'strip-8' });
   expect(w.toasts.at(-1)).toMatch(/^Full autonomy cannot start here:/);
   await ui.unmount();
@@ -358,12 +358,12 @@ test('the strip yields to a question of Claude Code, and fits a narrow terminal'
   // Under a question the plugin draws nothing and hands the band on (the kit has no engine beneath to draw it).
   let handedOn = '';
   try {
-    await $.ui.mount({ plugin: 'terminal-code', surface: 'terminal', component: 'AbovePrompt', props: { ...band, hasSurvey: true } } as any);
+    await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: { ...band, hasSurvey: true } } as any);
   } catch (err) {
     handedOn = String(err);
   }
   expect(handedOn).toMatch(/no implementation for ui\.render/);
-  const narrow = await $.ui.mount({ plugin: 'terminal-code', surface: 'terminal', component: 'AbovePrompt', props: { ...band, bodyColumns: 50 } } as any);
+  const narrow = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: { ...band, bodyColumns: 50 } } as any);
   expect((await narrow.findAll({ type: 'Button' })).length).toBe(11);
   expect(await narrow.find({ type: 'Text', text: '3📐' })).toBeDefined();
   await narrow.unmount();
@@ -412,7 +412,7 @@ test('nothing to take up when the last session here was never set', async ($, on
 test('the first prompt tells what holds after the presses and its own keyword, never the choice it started from', async ($, on) => {
   // The person, 2026-10-13: the session took up code · manual, they pressed chat, then typed "terminal devam";
   // the model read "chat, manual" and "continue: work autonomously" together, and the strip went free · autonomous.
-  const w = world(on, { config: { projects: [{ id: 'terminal-code', names: ['terminal'] }] } });
+  const w = world(on, { config: { projects: [{ id: 'mode-code', names: ['terminal'] }] } });
   const now = w.clock.now();
   w.write(`${DATA}/state/sessions/older.mod.json`, record('older', PROJECT, now - 5000, 'code', 'manual'));
   on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }));
@@ -420,7 +420,7 @@ test('the first prompt tells what holds after the presses and its own keyword, n
   await run($, '1');
   const r: any = await $.prompt.submit(typed('terminal devam'));
   const said = r.context.join('\n');
-  expect(w.modState()).toMatchObject({ mode: 'chat', interaction: 'manual', project: 'terminal-code' });
+  expect(w.modState()).toMatchObject({ mode: 'chat', interaction: 'manual', project: 'mode-code' });
   expect(said).toMatch(/Keyword "continue" for project "terminal": pick the work up where it stopped\. The keyword changes neither/);
   expect(said).toMatch(/Mode, chat mode: conversation only.*Way of working, manual: work step by step/);
   // One statement of what holds: the continue note says it, so the folder's note does not repeat it.
@@ -532,7 +532,7 @@ test('"00" on the strip closes too, from the phone as well; an exit Claude Code 
     return { text: '' };
   });
   await run($, '0');
-  const phone = await $.ui.mount({ plugin: 'terminal-code', surface: 'mobile', component: 'AbovePrompt', props: band } as any);
+  const phone = await $.ui.mount({ plugin: 'mode-code', surface: 'mobile', component: 'AbovePrompt', props: band } as any);
   await phone.press({ key: 'strip-00' });
   expect(w.toasts.at(-1)).toMatch(/^The session is closing: /);
   await closed(w, () => w.toasts.length > 1);

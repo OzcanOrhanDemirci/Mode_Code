@@ -7,20 +7,20 @@ Claude Code
   ✓ One claude command on PATH: ~/.local/bin/claude.exe.
   ✓ Claude Code reads its settings files without errors (1 read).
   ✓ No settings file turns the hooks off.
-  ✓ The plugin terminal-code@terminal-code-local is installed and on (version dev).
+  ✓ The plugin mode-code@mode-code-local is installed and on (version dev).
 Installation
   ✓ Installed version dev on 2026-10-11.
   ✓ The hook program matches this version (sha256 aaaaaaaaaaaa…).
   ✓ The safety-net hooks are in place for all 4 events and block on failure.
   ✓ The plugin files match this version.
-  ✓ /0 opens the control center from C:/dev/terminal-code/dist/cli.mjs.
+  ✓ /0 opens the control center from C:/dev/mode-code/dist/cli.mjs.
   ✓ The plugin last reported in from a session at 2026-10-12 11:50 (UTC).
-  · Full autonomy is off (terminal-code autonomy enable turns it on).
+  · Full autonomy is off (mode-code autonomy enable turns it on).
 Protection
   ✓ The installed hook answered all 30 samples exactly as this version does.
   ✓ No protected folder is a link.
   ✓ The belt protects the short names Windows gave the protected places (1).
-      ~/TERMIN~1 is ~/.terminal-code.
+      ~/MODECO~1 is ~/.mode-code.
   ✓ Memory folders are protected and are git repositories (1).
 Shells and terminal
   ✓ Git Bash (C:/Program Files/Git/bin/bash.exe) maps /tmp to your Temp folder, as the belt assumes.

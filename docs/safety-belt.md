@@ -26,7 +26,7 @@ A protection never turns gray: if something is broken, the control center shows 
 - a dry run is not the real thing: `--dry-run` and its spellings exempt publishing and deployment from the question;
 - git is read the way git reads it: global options (`-C`, `-c`, `--git-dir`), refspecs (`:branch` deletes it), and aliases (looked up in the repository);
 - paths are resolved the way the shell would (`~`, `$HOME`, `%USERPROFILE%`, `/c/...`), case-insensitively on Windows and macOS;
-- a protected place is recognised under every spelling of it: Windows 8.3 short names (`TERMIN~1`), the trailing dots and spaces Windows drops from a name (`.claude.`), and folders that are links (a dotfiles repository behind `~/.claude`, under either name);
+- a protected place is recognised under every spelling of it: Windows 8.3 short names (`MODECO~1`), the trailing dots and spaces Windows drops from a name (`.claude.`), and folders that are links (a dotfiles repository behind `~/.claude`, under either name);
 - a variable set once earlier in the same command, with a plain value, is filled in (`T=C:/tools/run.sh; $T` runs `run.sh`); a value set in a branch, a loop, after `||`, in a pipeline or more than once stays unknown;
 - code that is only known at run time (`eval` of a computed string, code built from variables) is **asked about**, never assumed safe. A program name whose value comes from outside the command (`$ADB devices`) is asked about only when its own arguments look risky (`rm`, `--force`, `-rf`, …): agents use such variables all the time for long tool paths.
 
@@ -34,7 +34,7 @@ Permission rules in Claude Code match the command text; the belt reads the comma
 
 ## Rules
 
-Run `terminal-code belt rules` (or open Security › Safety belt rules) for the current list with your changes applied. Groups:
+Run `mode-code belt rules` (or open Security › Safety belt rules) for the current list with your changes applied. Groups:
 
 - **git:** force-push (protected branches blocked, others asked), deleting remote branches, mirror pushes and pruning, pushing past pull requests, new branches in one-branch repositories, history rewrites, the hooks path, `--no-verify`, `git clean`, discarding uncommitted work, force-deleting branches.
 - **files and disks:** deleting or moving the home folder, a system folder, a drive root or anything that contains one; recursive deletes outside the project (inside the folders you registered as projects counts as inside; a session started in the home folder does not make the whole home folder a project; temporary folders are free); deleting a `.git` folder; formatting or overwriting disks.
@@ -51,16 +51,16 @@ Run `terminal-code belt rules` (or open Security › Safety belt rules) for the 
 From your own terminal (not from inside a Claude Code session):
 
 ```sh
-terminal-code config set belt.verdicts.git.force-push deny
-terminal-code config set belt.disabled '["git.no-verify"]'
-terminal-code config set belt.protectedBranches '["main","develop"]'
+mode-code config set belt.verdicts.git.force-push deny
+mode-code config set belt.disabled '["git.no-verify"]'
+mode-code config set belt.protectedBranches '["main","develop"]'
 ```
 
 Locked rules accept only stricter actions; the settings file cannot switch them off.
 
 ## Testing
 
-`terminal-code belt test --command "git clean -f"` or Security › Test a command shows the decision without running anything.
+`mode-code belt test --command "git clean -f"` or Security › Test a command shows the decision without running anything.
 
 ## Limits
 

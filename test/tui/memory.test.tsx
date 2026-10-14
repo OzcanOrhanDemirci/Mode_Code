@@ -86,7 +86,7 @@ test('Settings › Memory › Where it lives: the place, the folder, the reposit
   const s2 = await draw(data, { address: 'settings/memory/store' });
   try {
     await s2.press('s');
-    assert.match(s2.text(), /Run terminal-code memory setup in a terminal\./);
+    assert.match(s2.text(), /Run mode-code memory setup in a terminal\./);
   } finally {
     s2.close();
   }

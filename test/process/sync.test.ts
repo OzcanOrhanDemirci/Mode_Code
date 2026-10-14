@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * `terminal-code sync` as separate processes (docs/sync.md): before a setup, a folder another service keeps
+ * `mode-code sync` as separate processes (docs/sync.md): before a setup, a folder another service keeps
  * in sync shared by two computers' data folders, a setting from the other computer that lowers a protection
  * approved or ignored (never under an agent), a project's folder given here, and the --json contracts.
  */
@@ -19,9 +19,9 @@ test('sync: before a setup; the setup refused without a terminal or under an age
   try {
     const s = cli(w, ['sync', '--json']);
     assert.equal(s.code, 0, s.err);
-    assert.equal(s.json?.schema, 'terminal-code.sync/1');
+    assert.equal(s.json?.schema, 'mode-code.sync/1');
     assert.deepEqual([s.json?.setting, s.json?.machines, s.json?.pending], [null, [], []]);
-    assert.match(cli(w, ['sync']).out, /Sync · not set up[\s\S]*terminal-code sync setup/);
+    assert.match(cli(w, ['sync']).out, /Sync · not set up[\s\S]*mode-code sync setup/);
     assert.equal(cli(w, ['sync', 'setup']).code, 2);
     w.env.CLAUDECODE = '1';
     assert.equal(cli(w, ['sync', 'setup']).code, 1);

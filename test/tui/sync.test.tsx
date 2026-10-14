@@ -19,7 +19,7 @@ test('Settings › Sync: not set up, "s" leaves for the setup and comes back her
   const s2 = await draw(data, { address: 'settings/sync' });
   try {
     await s2.press('s');
-    assert.match(s2.text(), /Run terminal-code sync setup in a terminal\./);
+    assert.match(s2.text(), /Run mode-code sync setup in a terminal\./);
   } finally {
     s2.close();
   }
@@ -30,7 +30,7 @@ test('Settings › Sync: where, this computer and the others, what waits, projec
   data.syncState = {
     setting: {
       place: 'github',
-      dir: '/home/ada/.terminal-code/sync',
+      dir: '/home/ada/.mode-code/sync',
       remote: 'https://github.com/ada/tc-sync.git',
       repo: 'ada/tc-sync',
       machine: { id: 'pc-1a2b', name: 'PC' },

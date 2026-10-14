@@ -62,15 +62,15 @@ test('every keyword gets one instruction that quotes what the person typed', () 
     const lines = keywordContext(kw(text), state, q(), text.includes('app') ? 'app' : null);
     assert.equal(lines.length, 1, text);
     assert.match(lines[0]!, re, text);
-    assert.match(lines[0]!, /^\[terminal-code\] The person's message is "/);
+    assert.match(lines[0]!, /^\[Mode_Code\] The person's message is "/);
   }
   // At the end of a longer message the note says so.
   assert.match(keywordContext(kw('Şimdi bitti. app devam'), state, q(), 'app')[0]!, /message ends with "app devam"/);
 });
 
 test('an unknown project name: a near miss is suggested, anything else is looked up or asked about', () => {
-  const near = keywordContext(kw('termnal devam', [{ id: 'terminal-code', names: ['terminal'] }]), state, q(), null)[0]!;
-  assert.match(near, /"termnal", which is not a registered project; they probably meant "terminal-code"/);
+  const near = keywordContext(kw('termnal devam', [{ id: 'mode-code', names: ['terminal'] }]), state, q(), null)[0]!;
+  assert.match(near, /"termnal", which is not a registered project; they probably meant "mode-code"/);
   const other = keywordContext(kw('zebra devam', []), state, q(), null)[0]!;
   assert.match(other, /"zebra" is not a registered project/);
 });
@@ -117,15 +117,15 @@ test('a mode keyword while a flow runs pauses the flow at its step; the work fol
 
 test("flow guidance: the steps on one line, the rules, and the current step in the person's language", () => {
   const f = startFlow({ id: 'f1', variant: 'full', task: 'Add sign-in', project: null, cwd: '/a', sessionId: 's', workDir: '/tmp/w', now: NOW });
-  const t = { copyDir: '/home/ada/.terminal-code/flows/f1', nativePlan: false, approveWord: 'onay' };
+  const t = { copyDir: '/home/ada/.mode-code/flows/f1', nativePlan: false, approveWord: 'onay' };
   assert.equal(stepsLine(f, 'en'), '[🔍 research] ▶ 📐 plan → ⏸ approval → 🔨 code');
   const s = flowStartContext(f, 'en', t);
   assert.match(s, /started a flow: \[🔍 research\] ▶ 📐 plan → ⏸ approval → 🔨 code\. Task, in the person's words: "Add sign-in"\./);
-  assert.match(s, /none is skipped.*mcp__terminal-code__flow_step/);
+  assert.match(s, /none is skipped.*mcp__mode-code__flow_step/);
   assert.match(s, /write the report to \/tmp\/w\/f1\/research\.md/);
   assert.match(s, /## Findings/);
   assert.match(flowStartContext(f, 'tr', t), /## Bulgular/);
-  assert.match(flowTurnContext(f, 'en', t), /step 1\/4: .* call mcp__terminal-code__flow_step with step "research"/);
+  assert.match(flowTurnContext(f, 'en', t), /step 1\/4: .* call mcp__mode-code__flow_step with step "research"/);
   const plan = {
     ...f,
     current: 1,
@@ -137,7 +137,7 @@ test("flow guidance: the steps on one line, the rules, and the current step in t
   const waiting = { ...plan, current: 2, status: 'waiting' as const };
   assert.match(flowTurnContext(waiting, 'en', t), /waits for the person's approval \(they type "onay"\)/);
   const code = { ...plan, current: 3, verification: ['npm test', 'npm run lint'] };
-  assert.match(stepGuidance(code, 'en', t), /implement the approved plan \(\/home\/ada\/\.terminal-code\/flows\/f1\/plan\.md\).*`npm test`, `npm run lint`/);
+  assert.match(stepGuidance(code, 'en', t), /implement the approved plan \(\/home\/ada\/\.mode-code\/flows\/f1\/plan\.md\).*`npm test`, `npm run lint`/);
   assert.match(flowResumeContext(plan, 'en', t), /resumed the flow f1: .* Read the drafts in \/tmp\/w\/f1 first/);
   assert.match(flowNote('canceled', f, 'en', t), /canceled the flow f1/);
 });
@@ -184,9 +184,9 @@ test('continue under the strip states the mode and the way of working it leaves 
 
 test('a command and a press are named as such, not as typed words', () => {
   const plan = { ...kw('plan'), via: 'command' as const, text: '/3' };
-  assert.match(keywordContext(plan, state, q(), null)[0]!, /^\[terminal-code\] The person ran "\/3", a command of terminal-code/);
+  assert.match(keywordContext(plan, state, q(), null)[0]!, /^\[Mode_Code\] The person ran "\/3", a command of Mode_Code/);
   const press = { ...kw('plan'), via: 'strip' as const, text: 'plan' };
-  assert.match(keywordContext(press, state, q(), null)[0]!, /chose "plan" on terminal-code's mode strip above the prompt/);
+  assert.match(keywordContext(press, state, q(), null)[0]!, /chose "plan" on Mode_Code's mode strip above the prompt/);
 });
 
 test("the folder's last choice, told with the first prompt; a folder to continue that is not registered", () => {
@@ -203,10 +203,10 @@ test("the folder's last choice, told with the first prompt; a folder to continue
   assert.match(restoredContext('code', 'default', '/w'), /Way of working, manual/);
   assert.equal(
     continueFolderContext('/home/ada/dev/notes', false),
-    "[terminal-code] The project to continue is the folder /home/ada/dev/notes: not this session's folder, so work there.",
+    "[Mode_Code] The project to continue is the folder /home/ada/dev/notes: not this session's folder, so work there.",
   );
   assert.equal(
     continueFolderContext('/home/ada/dev/app', true),
-    "[terminal-code] The project to continue is the folder /home/ada/dev/app, this session's own folder.",
+    "[Mode_Code] The project to continue is the folder /home/ada/dev/app, this session's own folder.",
   );
 });

@@ -2,7 +2,7 @@
 /** English messages of the control center's screens. Part of the English source dictionary. */
 export const enTui = {
   'cli.unknownCommand': 'Unknown command "{cmd}". See --help.',
-  'tui.needsTerminal': 'The control center needs an interactive terminal. Try "terminal-code status" instead.',
+  'tui.needsTerminal': 'The control center needs an interactive terminal. Try "mode-code status" instead.',
   'tui.indexing': 'Reading your Claude Code history (first run only): {done}/{total} files, {mb} MB',
   'tui.indexFailed': 'The session history could not be read: {error}',
 
@@ -134,7 +134,7 @@ export const enTui = {
 
   // home
   'home.protection': 'Protection',
-  'home.notInstalled': 'Not installed yet. Run "terminal-code install" in a terminal.',
+  'home.notInstalled': 'Not installed yet. Run "mode-code install" in a terminal.',
   'home.redCount': '{n} protections are broken',
   'home.grayCount': '{n} features paused',
   'home.allWorking': 'everything works',
@@ -247,7 +247,7 @@ export const enTui = {
   'rule.pack': 'Pack',
   'rule.hits': 'Last 30 days',
   'rule.hitsText': '{n} times',
-  'rule.howChange': 'To change it: terminal-code config set belt.verdicts.{id} ask (or deny, warn, allow), from your own terminal.',
+  'rule.howChange': 'To change it: mode-code config set belt.verdicts.{id} ask (or deny, warn, allow), from your own terminal.',
   'rule.howLocked': 'Locked rules can be made stricter, never weaker.',
   'verdict.explain.deny': 'Block: the call does not run, and Claude is told not to work around it.',
   'verdict.explain.ask': 'Ask: you decide in a dialog; with no one to ask (a headless run) the call is blocked.',
@@ -396,7 +396,7 @@ export const enTui = {
   'maint.doctorFix': 'makes those repairs without asking, and checks again',
   'maint.selfCheck': 'tests the check itself on a broken installation in a temporary folder',
   'maint.lastCheck': 'Last check',
-  'maint.lastCheckNever': 'Not run yet. Run "terminal-code doctor".',
+  'maint.lastCheckNever': 'Not run yet. Run "mode-code doctor".',
   'maint.lastCheckLine': '{when}: {ok} ok, {warn} warnings, {fail} problems',
   'maint.lastCheckQuick': '(quick check)',
   'maint.install': 'shows every change, then installs or repairs',

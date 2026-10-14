@@ -149,7 +149,7 @@ export const BASH: Record<string, string[]> = {
     'grep -rn "git push --force" docs',
     'git log --grep="force push" --oneline',
     'cat ~/.claude/settings.json',
-    'ls ~/.terminal-code',
+    'ls ~/.mode-code',
     'git push --dry-run origin feature',
     'npm view rimraf version',
     'man rm',

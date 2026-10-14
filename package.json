@@ -1,16 +1,16 @@
 {
-  "name": "terminal-code",
+  "name": "mode-code",
   "version": "0.1.0-dev",
   "description": "A local, open-source companion for Claude Code: a behavior layer inside Claude Code and a control center in your terminal. No telemetry.",
   "license": "Apache-2.0",
   "author": "Özcan Orhan Demirci",
-  "homepage": "https://github.com/OzcanOrhanDemirci/terminal-code#readme",
+  "homepage": "https://github.com/OzcanOrhanDemirci/Mode_Code#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OzcanOrhanDemirci/terminal-code.git"
+    "url": "git+https://github.com/OzcanOrhanDemirci/Mode_Code.git"
   },
   "bugs": {
-    "url": "https://github.com/OzcanOrhanDemirci/terminal-code/issues"
+    "url": "https://github.com/OzcanOrhanDemirci/Mode_Code/issues"
   },
   "keywords": [
     "claude-code",
@@ -24,7 +24,7 @@
   "private": true,
   "type": "module",
   "bin": {
-    "terminal-code": "dist/cli.mjs"
+    "mode-code": "dist/cli.mjs"
   },
   "files": [
     "dist/",

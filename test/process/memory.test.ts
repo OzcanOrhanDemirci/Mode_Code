@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * `terminal-code memory` and `terminal-code morning` as separate processes (docs/memory.md): before any
+ * `mode-code memory` and `mode-code morning` as separate processes (docs/memory.md): before any
  * setup, the setup's refusals, a local store's status and sync, handoff notes, notes from runs approved and
  * discarded, the morning report; each with its --json contract.
  */
@@ -20,11 +20,11 @@ test('memory: before a setup, and the setup refused without a terminal or under 
   try {
     const s = cli(w, ['memory', '--json']);
     assert.equal(s.code, 0, s.err);
-    assert.equal(s.json?.schema, 'terminal-code.memory/1');
+    assert.equal(s.json?.schema, 'mode-code.memory/1');
     assert.deepEqual([s.json?.store, s.json?.setting, s.json?.inUse, s.json?.handoff], [null, null, false, null]);
     const text = cli(w, ['memory']);
     assert.match(text.out, /Memory · not set up/);
-    assert.match(text.out, /terminal-code memory setup/);
+    assert.match(text.out, /mode-code memory setup/);
     const piped = cli(w, ['memory', 'setup']);
     assert.equal(piped.code, 2);
     assert.match(piped.out, /run it in a terminal/);
@@ -138,7 +138,7 @@ test('memory: a local store with a history: status, sync, handoffs, notes from r
     delete w.env.CLAUDECODE;
     // The morning report over the last day.
     const m = cli(w, ['morning', '--json', '--hours', '24']);
-    assert.equal(m.json?.schema, 'terminal-code.morning/1');
+    assert.equal(m.json?.schema, 'mode-code.morning/1');
     assert.ok((m.json?.lines as { text: string }[]).some((l) => /Task 20261012-0800-a · done/.test(l.text)));
     const mt = cli(w, ['morning', '--hours', '24']).out;
     assert.match(mt, /While you were away · since/);

@@ -23,7 +23,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.gate.name.project': 'Proje',
   'auto.gate.name.alone': 'Tek başına',
   'auto.gate.enabled.ok': 'Tam otonom açık.',
-  'auto.gate.enabled.off': 'Tam otonom kapalı. Kendi terminalinde aç: terminal-code autonomy enable.',
+  'auto.gate.enabled.off': 'Tam otonom kapalı. Kendi terminalinde aç: mode-code autonomy enable.',
   'auto.gate.budget.missing': 'Bütçe yok: mesajı bir kota etiketiyle bitir, örneğin "tam otonom kota +10".',
   'auto.gate.budget.stale': 'Kota ölçümü eskimiş; Claude Code yeniden ölçsün diye herhangi bir mesaj gönder, sonra başlat.',
   'auto.gate.budget.noReading': 'Henüz kota ölçümü yok; Claude Code ölçsün diye herhangi bir mesaj gönder, sonra başlat.',
@@ -58,11 +58,11 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.gate.permission.asks':
     "{mode} izin modu durup soruyor. Claude Code'u bypassPermissions, dontAsk ya da auto modunda başlat (veya sıkı izin listesiyle acceptEdits).",
   'auto.gate.permission.unknown':
-    "Claude Code'un izin modu bu istemle terminal-code'a ulaşmadı: güvenlik ağı hook'u kaydetmedi. Kendi terminalinde terminal-code doctor --fix çalıştır.",
+    "Claude Code'un izin modu bu istemle Mode_Code'a ulaşmadı: güvenlik ağı hook'u kaydetmedi. Kendi terminalinde mode-code doctor --fix çalıştır.",
   'auto.gate.permission.atStart':
-    "Koşunun ilk adımında ölçülür: Claude Code istemin izin modunu güvenlik ağı hook'una, terminal-code istemi okuduktan sonra verir.",
+    "Koşunun ilk adımında ölçülür: Claude Code istemin izin modunu güvenlik ağı hook'una, Mode_Code istemi okuduktan sonra verir.",
   'auto.gate.hook.ok': "Güvenlik ağı hook'u bu oturumda çalışıyor.",
-  'auto.gate.hook.missing': "Güvenlik ağı hook'u bu oturumda çalışmadı; kendi terminalinde terminal-code doctor çalıştır.",
+  'auto.gate.hook.missing': "Güvenlik ağı hook'u bu oturumda çalışmadı; kendi terminalinde mode-code doctor çalıştır.",
   'auto.gate.modes.ok': 'Modlar açık.',
   'auto.gate.modes.off': 'Modlar kapalı (modules.modes); tam otonom plan modunda planlar.',
   'auto.gate.project.noGit': "Oturum bir git çalışma ağacında değil ({cwd}); koşunun dönülecek commit'lere ihtiyacı var.",
@@ -75,7 +75,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.gate.alone.ok': 'Burada başka bir şey çalışmıyor.',
   'auto.gate.alone.paused': 'Bu klasörde duraklatılmış bir koşu bekliyor ({id}): "{cont}" ile sürdür ya da "{cancel}" ile bitir.',
   'auto.mode.tailPlan':
-    'Tam otonom koşu planlıyor: planı {path} dosyasına yaz ve mcp__terminal-code__autonomy aracını "plan" eylemiyle çağır; proje, plan kabul edilince değişir.',
+    'Tam otonom koşu planlıyor: planı {path} dosyasına yaz ve mcp__mode-code__autonomy aracını "plan" eylemiyle çağır; proje, plan kabul edilince değişir.',
 
   // ── rapor ──
   'auto.check.report.missing': 'Rapor taslağı {path} henüz yok.',
@@ -119,7 +119,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.blocker.external': 'dış etken',
   'auto.blocker.other': 'diğer',
   'auto.report.statusPaused': 'duraklatıldı ({reason})',
-  'auto.report.facts': "terminal-code'un ölçtükleri",
+  'auto.report.facts': "Mode_Code'un ölçtükleri",
   'auto.report.task': 'İstek',
   'auto.report.noTask': '(sohbette daha önce verildi)',
   'auto.report.status': 'Durum',
@@ -202,7 +202,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.guard.person':
     '🤖 Tam otonom: {tool} kişiye bir şey soruyor ve orada kimse yok. Makul bir varsayılan varsa kendin karar ver ve kararı rapor için not et; yoksa bir engel kaydet.',
   'auto.guard.unknown':
-    "🤖 Tam otonom: {tool}, terminal-code'un tanımadığı bir araç; bu yüzden koşu sırasında çalışmaz. Hedefe bilinen araçlarla ulaş ya da bir engel kaydet.",
+    "🤖 Tam otonom: {tool}, Mode_Code'un tanımadığı bir araç; bu yüzden koşu sırasında çalışmaz. Hedefe bilinen araçlarla ulaş ya da bir engel kaydet.",
   'auto.guard.fenceWrite':
     '🤖 Tam otonom: yazmalar projenin ({project}), geçici klasörlerin ve koşunun klasörünün ({work}) içinde kalır; {path} dışarıda. Değişikliğin orada olması gerekiyorsa ertelenen olarak kaydet ("defer" eylemi).',
   'auto.guard.fenceRead': '🤖 Tam otonom: koşu sırasında kimlik bilgisi dosyaları okunmaz ({what}).',
@@ -212,12 +212,11 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.guard.heldForStart': '🤖 Tam otonom: {tool} bekletildi; önce son başlangıç denetimleri çalıştı. Hâlâ gerekiyorsa yeniden çağır.',
 
   // ── durma ──
-  'auto.stop.plan':
-    '🤖 Tam otonom: koşu bitmedi. Planı henüz kabul edilmedi: {path} dosyasına yaz ve mcp__terminal-code__autonomy aracını "plan" eylemiyle çağır.',
+  'auto.stop.plan': '🤖 Tam otonom: koşu bitmedi. Planı henüz kabul edilmedi: {path} dosyasına yaz ve mcp__mode-code__autonomy aracını "plan" eylemiyle çağır.',
   'auto.stop.step':
-    '🤖 Tam otonom: koşu bitmedi. {n}/{of}. adımın ({title}) kilometre taşı yok: bitir, commit\'le ve mcp__terminal-code__autonomy aracını "milestone" eylemi ve {n}. adımla çağır.',
+    '🤖 Tam otonom: koşu bitmedi. {n}/{of}. adımın ({title}) kilometre taşı yok: bitir, commit\'le ve mcp__mode-code__autonomy aracını "milestone" eylemi ve {n}. adımla çağır.',
   'auto.stop.finish':
-    '🤖 Tam otonom: koşu bitmedi. Her adımın kilometre taşı var: rapor taslağını {path} dosyasına yaz ve mcp__terminal-code__autonomy aracını "finish" eylemiyle çağır.',
+    '🤖 Tam otonom: koşu bitmedi. Her adımın kilometre taşı var: rapor taslağını {path} dosyasına yaz ve mcp__mode-code__autonomy aracını "finish" eylemiyle çağır.',
   'auto.stop.tail': 'Her yol tıkandıysa engelleri kaydet ve "stuck" eylemini çağır. Hiçbir şey değişmeden durma denemesi: {streak}/{max}.',
 
   // ── bildirimler ──
@@ -246,7 +245,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   // ── komut satırı ──
   'help.autonomy': 'Tam otonom: koşular, raporları, başlangıç denetimleri, açma ve kapama',
   'auto.cli.atStart': 'Koşu başlarken, kendi oturumunda ölçülür.',
-  'auto.cli.hookMissing': "Güvenlik ağı hook'u kurulu değil: terminal-code install (ya da terminal-code doctor --fix) çalıştır.",
+  'auto.cli.hookMissing': "Güvenlik ağı hook'u kurulu değil: mode-code install (ya da mode-code doctor --fix) çalıştır.",
   'auto.cli.hookInstalled': "Güvenlik ağı hook'u kurulu; koşu, kendi oturumunda çalıştığını denetler.",
   'auto.cli.warnTitle': 'Tam otonom: açmak ne demek',
   'auto.cli.warnBody':
@@ -276,10 +275,10 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.cli.fileDrafts': 'Taslaklar',
   'auto.cli.fileNotes': 'Hafıza notları',
   'auto.cli.isOn': 'Tam otonom açık.',
-  'auto.cli.isOff': 'Tam otonom kapalı (kendi terminalinde: terminal-code autonomy enable).',
+  'auto.cli.isOff': 'Tam otonom kapalı (kendi terminalinde: mode-code autonomy enable).',
   'auto.cli.none': 'Henüz koşu yok.',
   'auto.cli.where': 'Nerede',
-  'doc.autonomy.off': 'Tam otonom kapalı (terminal-code autonomy enable ile açılır).',
+  'doc.autonomy.off': 'Tam otonom kapalı (mode-code autonomy enable ile açılır).',
   'doc.autonomy.ready': 'Tam otonom açık ve burada ölçülenlerden hiçbiri bir koşuya engel değil.',
   'doc.autonomy.notReady': 'Tam otonom açık ama burada {n} başlangıç denetimi geçmez:',
 
@@ -290,7 +289,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'desc.run': 'Bir tam otonom koşu.',
   'badge.running': '{n} çalışıyor',
   'run.missing': 'Bu koşu artık kayıtta yok.',
-  'run.rollbackHint': 'Bir kilometre taşına dönüş: terminal-code autonomy rollback {id} <n>',
+  'run.rollbackHint': 'Bir kilometre taşına dönüş: mode-code autonomy rollback {id} <n>',
   'runs.empty':
     'Henüz tam otonom koşu yok. Bir koşu, klavyenin başında kimse yokken tek bir görevi sonuna kadar götürür; kodun önce ölçtüğü bir sınırın içinde.',
   'runs.howTo': 'Ayarlar › Otonomi altında aç, sonra bir mesajı "<proje> tam otonom kota +10" ile bitir (docs/autonomy.md).',

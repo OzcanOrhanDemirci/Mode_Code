@@ -61,7 +61,7 @@ export const git = (cwd: string, ...args: string[]) => {
   return r.stdout.trim();
 };
 
-/** A machine: a home, Claude Code's folder, terminal-code's data folder, and a GitHub of bare repositories. */
+/** A machine: a home, Claude Code's folder, mode-code's data folder, and a GitHub of bare repositories. */
 export function machine(opts: { signedIn?: boolean; gh?: boolean; winget?: boolean } = {}) {
   const root = toolPath(mkdtempSync(join(tmpdir(), 'tc-msetup-')));
   const github = join(root, 'github');

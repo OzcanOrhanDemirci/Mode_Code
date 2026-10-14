@@ -11,8 +11,8 @@
  */
 import type { EngineInterface, EventName, Hook, On } from 'claude-code';
 import { atom, read, update } from 'claude-code';
-import type { TerminalCodeFooters, TerminalCodeLabels } from './contract.js';
-import { APP_NAME, APP_VERSION, DATA_DIR_NAME, PLUGIN_NAME } from '../core/app.js';
+import type { ModeCodeFooters, ModeCodeLabels } from './contract.js';
+import { APP_ID, APP_NAME, APP_VERSION, CLI_NAME, DATA_DIR_NAME, PLUGIN_NAME } from '../core/app.js';
 import { parseConfig, type Config } from '../core/config.js';
 import { layout, sessionFile, eventsFile, flowDir, memorySeenFile, memorySyncFile, runDir, syncRecordFile, type Layout } from '../core/layout.js';
 import { SYNC_MAX_BYTES, syncCommitMessage, type Pending } from '../core/sync.js';
@@ -294,8 +294,8 @@ interface PendingStart {
 let ctxPromise: Promise<Ctx> | null = null;
 
 /** Session state the drawings read (kept by Claude Code across reloads of this module). */
-const footersAtom = atom({ plugin: 'terminal-code', key: 'footers' } as const, {} as TerminalCodeFooters);
-const labelsAtom = atom({ plugin: 'terminal-code', key: 'labels' } as const, { modes: [], tail: '', band: '', strip: null } as TerminalCodeLabels);
+const footersAtom = atom({ plugin: 'mode-code', key: 'footers' } as const, {} as ModeCodeFooters);
+const labelsAtom = atom({ plugin: 'mode-code', key: 'labels' } as const, { modes: [], tail: '', band: '', strip: null } as ModeCodeLabels);
 
 /** Environment variables the belt may need to expand in paths; the API reads them one literal name at a time. */
 async function readEnv($: $): Promise<Record<string, string | undefined>> {
@@ -314,8 +314,8 @@ async function readEnv($: $): Promise<Record<string, string | undefined>> {
     SYSTEMROOT,
     WINDIR,
     OS,
-    TERMINAL_CODE_HOME,
-    TERMINAL_CODE_LANG,
+    MODE_CODE_HOME,
+    MODE_CODE_LANG,
     LANG,
     LC_ALL,
     LC_MESSAGES,
@@ -337,8 +337,8 @@ async function readEnv($: $): Promise<Record<string, string | undefined>> {
     $.env.get('SYSTEMROOT'),
     $.env.get('WINDIR'),
     $.env.get('OS'),
-    $.env.get('TERMINAL_CODE_HOME'),
-    $.env.get('TERMINAL_CODE_LANG'),
+    $.env.get('MODE_CODE_HOME'),
+    $.env.get('MODE_CODE_LANG'),
     $.env.get('LANG'),
     $.env.get('LC_ALL'),
     $.env.get('LC_MESSAGES'),
@@ -361,8 +361,8 @@ async function readEnv($: $): Promise<Record<string, string | undefined>> {
     SYSTEMROOT,
     WINDIR,
     OS,
-    TERMINAL_CODE_HOME,
-    TERMINAL_CODE_LANG,
+    MODE_CODE_HOME,
+    MODE_CODE_LANG,
     LANG,
     LC_ALL,
     LC_MESSAGES,
@@ -396,7 +396,7 @@ async function load($: $): Promise<Ctx> {
   const platform = await detectPlatform($, env, cwd);
   const rawHome = (platform === 'win32' ? env.USERPROFILE : env.HOME) ?? env.HOME ?? env.USERPROFILE ?? cwd;
   const home = resolvePath(rawHome, { platform, home: rawHome, cwd });
-  const root = env.TERMINAL_CODE_HOME ? resolvePath(env.TERMINAL_CODE_HOME, { platform, home, cwd }) : joinPath(home, DATA_DIR_NAME);
+  const root = env.MODE_CODE_HOME ? resolvePath(env.MODE_CODE_HOME, { platform, home, cwd }) : joinPath(home, DATA_DIR_NAME);
   const l = layout(root);
   const { config: local } = parseConfig(await readFile($, l.config));
   // The settings in effect: this computer's own with the other computers' changes (docs/sync.md).
@@ -699,11 +699,11 @@ async function quotaNow($: $, c: Ctx): Promise<QuotaAssessment> {
 
 // ── modes and flows ───────────────────────────────────────────────────────────────────────────────────
 
-/** The flows' work folder: the setting, or terminal-code/flows in the temporary folder. */
+/** The flows' work folder: the setting, or mode-code/flows in the temporary folder. */
 function workRoot(c: Ctx, cwd: string): string {
   const env = pathEnv(c, cwd);
   if (c.config.modes.workDir) return resolvePath(c.config.modes.workDir, env);
-  return joinPath(tempZones(c.env, env)[0] ?? joinPath(c.home, '.cache'), APP_NAME, 'flows');
+  return joinPath(tempZones(c.env, env)[0] ?? joinPath(c.home, '.cache'), APP_ID, 'flows');
 }
 
 function claudeDirOf(c: Ctx, cwd: string): string {
@@ -991,7 +991,7 @@ async function runCommands($: $, c: Ctx, commands: readonly string[]): Promise<C
     const at = await $.clock.now();
     let r: Awaited<ReturnType<typeof $.tool.call>>;
     try {
-      r = await $.tool.call({ tool: shell, command, description: `terminal-code: verification ${i + 1}/${commands.length}`, timeout: 600_000 } as never);
+      r = await $.tool.call({ tool: shell, command, description: `Mode_Code: verification ${i + 1}/${commands.length}`, timeout: 600_000 } as never);
     } catch (err) {
       return done(tIn(c.lang, 'flow.step.codeRefused', { command, reason: String((err as Error)?.message ?? err) }));
     }
@@ -1165,11 +1165,11 @@ async function onExitPlanMode($: $, c: Ctx, e: In<'tool.call'>, next: Nx<'tool.c
 
 // ── full autonomy ─────────────────────────────────────────────────────────────────────────────────────
 
-/** The runs' work folder: beside the flows' (the setting), or terminal-code/runs in the temporary folder. */
+/** The runs' work folder: beside the flows' (the setting), or mode-code/runs in the temporary folder. */
 function runWorkRoot(c: Ctx, cwd: string): string {
   const env = pathEnv(c, cwd);
   if (c.config.modes.workDir) return joinPath(resolvePath(c.config.modes.workDir, env), 'runs');
-  return joinPath(tempZones(c.env, env)[0] ?? joinPath(c.home, '.cache'), APP_NAME, 'runs');
+  return joinPath(tempZones(c.env, env)[0] ?? joinPath(c.home, '.cache'), APP_ID, 'runs');
 }
 
 /** The run this session works on while it runs (not paused, not over). */
@@ -1306,7 +1306,7 @@ async function wslFactsOf($: $, c: Ctx): Promise<WslFacts | null> {
 
 /** A write outside the project through Claude Code's own shell tool: the operating system must refuse it. */
 async function probeSandbox($: $, c: Ctx): Promise<{ ran: boolean; refused: boolean; detail: string }> {
-  const path = joinPath(c.home, '.terminal-code-sandbox-probe');
+  const path = joinPath(c.home, '.mode-code-sandbox-probe');
   const tools = new Set((await $.tool.list()).map((t) => t.name));
   if (!tools.has('Bash')) return { ran: false, refused: false, detail: 'no Bash tool' };
   let r: Awaited<ReturnType<typeof $.tool.call>>;
@@ -1316,7 +1316,7 @@ async function probeSandbox($: $, c: Ctx): Promise<{ ran: boolean; refused: bool
     r = await $.tool.call({
       tool: 'Bash',
       command,
-      description: 'terminal-code: full autonomy sandbox probe (a write outside the project must be refused)',
+      description: 'Mode_Code: full autonomy sandbox probe (a write outside the project must be refused)',
     } as never);
   } catch (err) {
     return { ran: false, refused: false, detail: String((err as Error)?.message ?? err).slice(0, 200) };
@@ -1418,7 +1418,7 @@ async function autoGate(
 const AUTO_TOOL = {
   name: 'autonomy',
   description:
-    'Drives the full-autonomy run of this session (terminal-code): "start" first, when a run was asked for (it runs the last start checks); "plan" once the plan file is written; "milestone" with step when that plan step is done and committed; "blocker" with kind and text for what is in the way; "defer" with text for a step that must wait for the person; "finish" when every step has its milestone and the report draft is written; "stuck" when every path is blocked; "status". Code checks each and answers what is missing or what comes next.',
+    'Drives the full-autonomy run of this session (Mode_Code): "start" first, when a run was asked for (it runs the last start checks); "plan" once the plan file is written; "milestone" with step when that plan step is done and committed; "blocker" with kind and text for what is in the way; "defer" with text for a step that must wait for the person; "finish" when every step has its milestone and the report draft is written; "stuck" when every path is blocked; "status". Code checks each and answers what is missing or what comes next.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -2186,7 +2186,7 @@ async function sessionStateText($: $): Promise<string> {
       `a flow ${c.flow.status === 'paused' ? 'is paused' : 'runs'} (${c.flow.id}${c.flow.task ? `, task "${c.flow.task.slice(0, 200)}"` : ''}): ${stepsLine(c.flow, 'en')}; ` +
         (step?.kind === 'approve'
           ? "the plan waits for the person's approval"
-          : `finish the ${step?.kind ?? ''} step and call mcp__terminal-code__flow_step with its name; drafts are in ${c.flow.workDir}`),
+          : `finish the ${step?.kind ?? ''} step and call mcp__mode-code__flow_step with its name; drafts are in ${c.flow.workDir}`),
     );
   }
   return parts.length ? `[${APP_NAME}] Session state, kept across compaction: ${parts.join('; ')}.` : '';
@@ -2798,7 +2798,7 @@ async function onTurnComplete($: $, e: In<'turn.complete'>, next: Nx<'turn.compl
   // Drawn under the answer by the AssistantMessage render hook: part of the drawing, never of the transcript the model reads.
   const key = textKey(e.answer);
   await update($, footersAtom, (m) => {
-    const next: TerminalCodeFooters = { ...m, [key]: footer.lines };
+    const next: ModeCodeFooters = { ...m, [key]: footer.lines };
     const keys = Object.keys(next);
     for (const k of keys.slice(0, Math.max(0, keys.length - 200))) delete next[k];
     return next;
@@ -2809,8 +2809,7 @@ async function onTurnComplete($: $, e: In<'turn.complete'>, next: Nx<'turn.compl
 /** The tool the model finishes a flow's step with. In the prompt's tool list from the start (no search first). */
 const FLOW_TOOL = {
   name: 'flow_step',
-  description:
-    'Finishes the current step of a terminal-code flow (research ▶ plan → approval → code): code checks the step and answers what is missing or what comes next. Call it only while a flow runs and the step is complete; "status" shows the flow.',
+  description: `Finishes the current step of a ${APP_NAME} flow (research ▶ plan → approval → code): code checks the step and answers what is missing or what comes next. Call it only while a flow runs and the step is complete; "status" shows the flow.`,
   inputSchema: {
     type: 'object',
     properties: { step: { type: 'string', enum: ['research', 'plan', 'code', 'status'], description: 'The step being finished, or status.' } },
@@ -3180,7 +3179,7 @@ async function handoffFacts($: $, c: Ctx, trigger: HandoffTrigger): Promise<Hand
   };
 }
 
-/** Writes a handoff note into the memory (or terminal-code's folder without one); its path, or null when turned off. */
+/** Writes a handoff note into the memory (or mode-code's folder without one); its path, or null when turned off. */
 async function writeHandoff($: $, c: Ctx, trigger: HandoffTrigger, body: { parts?: HandoffParts; summary?: string }): Promise<string | null> {
   if (!c.config.memory.handoff.enabled) return null;
   const f = await handoffFacts($, c, trigger);
@@ -3219,7 +3218,7 @@ async function waitingHandoff($: $, c: Ctx): Promise<{ path: string; text: strin
 const HANDOFF_TOOL_DEF = {
   name: 'handoff',
   description:
-    'Writes a handoff note for this project (terminal-code): where the work stands, kept in the memory for the next session. Each part a few lines, in the language the person writes in.',
+    'Writes a handoff note for this project (Mode_Code): where the work stands, kept in the memory for the next session. Each part a few lines, in the language the person writes in.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -3403,7 +3402,7 @@ async function notesToDeliver($: $, c: Ctx): Promise<{ id: string; path: string 
   return out;
 }
 
-/** The morning line after a long gap: what ended, what waits for the person (a short version of `terminal-code morning`). */
+/** The morning line after a long gap: what ended, what waits for the person (a short version of `mode-code morning`). */
 async function morningLineFor($: $, c: Ctx, from: number, now: number): Promise<string | null> {
   const runs: MorningFacts['runs'] = [];
   let notes = 0;
@@ -3479,7 +3478,7 @@ async function memoryPromptContext($: $, c: Ctx, kw: KeywordMatch | null): Promi
   const unsaid = c.syncPending.filter((p) => !c.syncSaid.has(`${p.key}@${p.at}`));
   if (unsaid.length) {
     for (const p of unsaid) c.syncSaid.add(`${p.key}@${p.at}`);
-    $.ui.toast(tIn(c.lang, 'mod.sync.pending', { keys: unsaid.map((p) => p.key).join(', '), cmd: `${APP_NAME} sync` }), { timeoutMs: 15_000 });
+    $.ui.toast(tIn(c.lang, 'mod.sync.pending', { keys: unsaid.map((p) => p.key).join(', '), cmd: `${CLI_NAME} sync` }), { timeoutMs: 15_000 });
   }
   const store = c.config.memory.store;
   const pulled = c.memPulled && store ? pulledContext(c.memPulled, store.dir) : null;
@@ -3758,7 +3757,7 @@ async function launchEnv($: $): Promise<Record<(typeof LAUNCH_ENV)[number], stri
 async function openCenter($: $, c: Ctx): Promise<{ ok: true; opens: 'tab' | 'window' } | { ok: false; text: string }> {
   const lang = c.lang;
   const program = centerProgram(await readFile($, c.layout.manifest));
-  if (!program || !(await $.fs.exists(program[1]).catch(() => false))) return { ok: false, text: tIn(lang, 'ctl.center.unknown', { app: APP_NAME }) };
+  if (!program || !(await $.fs.exists(program[1]).catch(() => false))) return { ok: false, text: tIn(lang, 'ctl.center.unknown', { app: CLI_NAME }) };
   const cmd = commandLine(program, c.platform);
   const env = await launchEnv($);
   const cwd = c.state.cwd ?? (await $.session.cwd());

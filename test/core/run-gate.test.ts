@@ -60,7 +60,7 @@ const good = (): GateFacts => ({
   platform: 'linux',
   wsl: { osrelease: OSRELEASE, interop: null, mounts: MOUNTS_ISOLATED },
   settings: STRICT,
-  probe: { ran: true, refused: true, detail: "touch: cannot touch '/home/ada/.terminal-code-sandbox-probe': Read-only file system" },
+  probe: { ran: true, refused: true, detail: "touch: cannot touch '/home/ada/.mode-code-sandbox-probe': Read-only file system" },
   permissionMode: 'bypassPermissions',
   permissionMeasured: true,
   hookRan: true,

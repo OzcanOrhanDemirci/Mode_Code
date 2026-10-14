@@ -266,7 +266,7 @@ export function stepGuidance(f: Flow, lang: Lang, t: StepTexts): string {
 }
 
 const FLOW_RULES =
-  "Steps run in order and none is skipped. Finish a step by calling the tool mcp__terminal-code__flow_step with its name (research, plan or code); code checks the step and says exactly what is missing. The approval is the person's alone; only the person pauses, resumes or cancels the flow.";
+  "Steps run in order and none is skipped. Finish a step by calling the tool mcp__mode-code__flow_step with its name (research, plan or code); code checks the step and says exactly what is missing. The approval is the person's alone; only the person pauses, resumes or cancels the flow.";
 
 /** Told to the model when the person starts a flow. */
 export function flowStartContext(f: Flow, lang: Lang, t: StepTexts): string {
@@ -281,7 +281,7 @@ export function flowTurnContext(f: Flow, lang: Lang, t: StepTexts): string {
   const tail =
     step?.kind === 'approve'
       ? `The plan waits for the person's approval (they type "${t.approveWord}"); the project does not change before it.`
-      : `Finish it, then call mcp__terminal-code__flow_step with step "${step?.kind ?? ''}".`;
+      : `Finish it, then call mcp__mode-code__flow_step with step "${step?.kind ?? ''}".`;
   return `${P} A flow runs (${f.id}), step ${p.at}/${p.of}: ${stepsLine(f, lang)}. ${tail}`;
 }
 

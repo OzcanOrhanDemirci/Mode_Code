@@ -61,7 +61,7 @@ export interface SetupPlan {
   clone: boolean;
   /** The folder is already a clone of the remote, or already in a git history: use it as it is. */
   adopt: boolean;
-  /** How terminal-code keeps it in sync (asked when the folder is someone's own git history). */
+  /** How mode-code keeps it in sync (asked when the folder is someone's own git history). */
   mode: MemorySyncMode;
   /** Handoff notes are kept in the folder. */
   handoffs: boolean;
@@ -239,7 +239,7 @@ export async function memorySetup(io: SetupIO, env: SetupEnv): Promise<SetupOutc
       }
     }
     if (place === 'github') {
-      // terminal-code's own working copy: used as it is when it is already this repository's clone.
+      // mode-code's own working copy: used as it is when it is already this repository's clone.
       dir = githubOnlyDir(env.layout, repo);
       const there = folderFacts(dir);
       if (there.exists && there.files > 0) {
@@ -257,7 +257,7 @@ export async function memorySetup(io: SetupIO, env: SetupEnv): Promise<SetupOutc
   const tree = dir && gitTool && folderFacts(dir).exists ? await run(env.runner, [gitTool.command, '-C', dir, 'rev-parse', '--show-toplevel'], dir) : null;
   if (place === 'local' && tree?.ok && tree.out.trim()) adopt = true;
 
-  // ── 5b · a memory someone already keeps in git: how terminal-code looks after it (a GitHub-only working copy is terminal-code's own) ──
+  // ── 5b · a memory someone already keeps in git: how mode-code looks after it (a GitHub-only working copy is mode-code's own) ──
   let mode: MemorySyncMode = 'auto';
   let handoffs = true;
   if (adopt && place !== 'github') {
@@ -360,7 +360,7 @@ export async function applyPlan(io: SetupIO, env: SetupEnv, p: SetupPlan): Promi
   const git = p.gitCommand ?? 'git';
 
   if (p.createRepo && p.repo && p.ghCommand) {
-    const err = await ghCreatePrivate(env.runner, p.ghCommand, p.repo, 'Claude Code memory (terminal-code)');
+    const err = await ghCreatePrivate(env.runner, p.ghCommand, p.repo, 'Claude Code memory (mode-code)');
     if (err) return fail(T('msetup.plan.create', { repo: p.repo }), err);
     ok(T('msetup.plan.create', { repo: p.repo }));
   }
@@ -495,7 +495,7 @@ export async function offerInstall(
   env: Pick<SetupEnv, 'has' | 'platform' | 'runner' | 'exists'>,
   tool: ToolName,
   T: (k: MessageKey, p?: Record<string, string | number>) => string,
-  cmd = 'terminal-code memory setup',
+  cmd = 'mode-code memory setup',
 ): Promise<ToolFound | null> {
   const managers = ['winget', 'brew', 'apt-get', 'dnf', 'pacman', 'zypper'];
   const present = new Set<string>();

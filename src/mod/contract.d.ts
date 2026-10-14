@@ -2,13 +2,13 @@
 // The values the plugin keeps in Claude Code's session state ($.state), read while drawing.
 
 /** Footer lines per answer, keyed by a hash of the answer's text. */
-export type TerminalCodeFooters = Record<string, string[]>;
+export type ModeCodeFooters = Record<string, string[]>;
 
 /**
  * What the prompt footer shows: mode labels at the right, quota at the end of the hint line; the line above
  * the prompt; and the strip of controls above it (the mode, the way of working, the flow's place), or null.
  */
-export type TerminalCodeLabels = {
+export type ModeCodeLabels = {
   modes: string[];
   tail: string;
   band: string;
@@ -23,6 +23,6 @@ export type TerminalCodeLabels = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'terminal-code': { footers: TerminalCodeFooters; labels: TerminalCodeLabels };
+    'mode-code': { footers: ModeCodeFooters; labels: ModeCodeLabels };
   }
 }

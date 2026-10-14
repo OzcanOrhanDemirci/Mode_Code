@@ -9,8 +9,8 @@ import { test, expect } from 'claude-code/testing';
 import { world } from './world.ts';
 
 const typed = (text: string) => ({ text, wait: false, origin: { kind: 'composer' } }) as any;
-const WORK = '/tmp/terminal-code/flows';
-const STEP = 'mcp__terminal-code__flow_step';
+const WORK = '/tmp/mode-code/flows';
+const STEP = 'mcp__mode-code__flow_step';
 const step = (s: string) => ({ tool: STEP, step: s }) as any;
 
 const REPORT = `# Sign-in
@@ -38,7 +38,7 @@ Acceptance: a wrong code is refused.
 
 function flowOf(w: ReturnType<typeof world>): any {
   const id = w.modState()?.flowId;
-  return id ? w.json(`/home/ada/.terminal-code/flows/${id}/flow.json`) : null;
+  return id ? w.json(`/home/ada/.mode-code/flows/${id}/flow.json`) : null;
 }
 
 test('a mode keyword sets the mode; research refuses project writes and unknown programs, allows its work folder and reads', async ($, on) => {
@@ -88,7 +88,7 @@ test('a full flow: research, plan, the approval dialog and the verification run,
   const done: any = await $.tool.call(step('research'));
   expect(String(done.result)).toMatch(/The research step is done: 1 finding and 1 source checked/);
   expect(String(done.result)).toMatch(/Next, 📐 plan: write the plan to .*plan\.md/);
-  expect(w.read(`/home/ada/.terminal-code/flows/${f.id}/research.md`)).toBe(REPORT);
+  expect(w.read(`/home/ada/.mode-code/flows/${f.id}/research.md`)).toBe(REPORT);
 
   // The plan, checked; the dialog asks the person, who approves; the commands are the approved plan's.
   w.write(flowOf(w).planPath, PLAN);
@@ -97,13 +97,13 @@ test('a full flow: research, plan, the approval dialog and the verification run,
   expect(String(planned.result)).toMatch(/The person approved the plan\.\nNext, 🔨 code: implement the approved plan/);
   f = flowOf(w);
   expect([f.status, f.steps[2].status, f.approval.via, f.verification]).toEqual(['active', 'done', 'dialog', ['npm test']]);
-  expect(w.read(`/home/ada/.terminal-code/flows/${f.id}/plan.md`)).toBe(PLAN);
+  expect(w.read(`/home/ada/.mode-code/flows/${f.id}/plan.md`)).toBe(PLAN);
 
   // The code step runs the verification through the shell tool; the flow then ends and lets the session go.
   const coded: any = await $.tool.call(step('code'));
   expect(String(coded.result)).toMatch(/The code step is done: 1 verification command passed/);
   expect(w.calls.some((c: any) => c.tool === 'Bash' && c.command === 'npm test')).toBe(true);
-  const final = w.json(`/home/ada/.terminal-code/flows/${f.id}/flow.json`);
+  const final = w.json(`/home/ada/.mode-code/flows/${f.id}/flow.json`);
   expect(final.status).toBe('done');
   expect(w.modState().flowId).toBe(null);
   expect(
@@ -196,7 +196,7 @@ test('flow cancel ends the flow and frees the session; a second flow is refused 
   expect(w.toasts.some((t) => /A flow is already running here/.test(t))).toBe(true);
   expect(w.modState().flowId).toBe(id);
   await $.prompt.submit(typed('flow cancel'));
-  expect(w.json(`/home/ada/.terminal-code/flows/${id}/flow.json`).status).toBe('canceled');
+  expect(w.json(`/home/ada/.mode-code/flows/${id}/flow.json`).status).toBe('canceled');
   expect(w.modState().flowId).toBe(null);
 });
 

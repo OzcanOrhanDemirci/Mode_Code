@@ -99,7 +99,7 @@ export function checkMode(tool: string, input: Readonly<Record<string, unknown>>
       return refuse(g, lang, 'file', 'mode.refuse.file', { path: raw || '?', zones: zoneText(g.mode, g.zones, lang) });
     return null;
   }
-  if (tool.startsWith('mcp__terminal-code__')) return null;
+  if (tool.startsWith('mcp__mode-code__')) return null;
   if ((tool.startsWith('mcp__') && OUTWARD_MCP.test(tool)) || (OUTWARD_TOOLS.test(tool) && !READING_ACTION.test(String(input.action ?? ''))))
     return refuse(g, lang, 'tool', 'mode.refuse.tool', { tool });
   return null;

@@ -4,7 +4,7 @@ import type { enTui } from './en-tui.js';
 
 export const trTui: Record<keyof typeof enTui, string> = {
   'cli.unknownCommand': 'Bilinmeyen komut: "{cmd}". --help ile bak.',
-  'tui.needsTerminal': 'Kontrol merkezi etkileşimli bir terminal ister. Onun yerine "terminal-code status" dene.',
+  'tui.needsTerminal': 'Kontrol merkezi etkileşimli bir terminal ister. Onun yerine "mode-code status" dene.',
   'tui.indexing': 'Claude Code geçmişin okunuyor (yalnız ilk açılışta): {done}/{total} dosya, {mb} MB',
   'tui.indexFailed': 'Oturum geçmişi okunamadı: {error}',
 
@@ -132,7 +132,7 @@ export const trTui: Record<keyof typeof enTui, string> = {
   'term.view': 'Görünüm seviyesi: Sade, Önerilen ya da Ayrıntılı; neyin gösterileceğini değiştirir, neyin korunduğunu asla.',
 
   'home.protection': 'Koruma',
-  'home.notInstalled': 'Henüz kurulmadı. Bir terminalde "terminal-code install" çalıştır.',
+  'home.notInstalled': 'Henüz kurulmadı. Bir terminalde "mode-code install" çalıştır.',
   'home.redCount': '{n} koruma bozuk',
   'home.grayCount': '{n} özellik duraklatıldı',
   'home.allWorking': 'her şey çalışıyor',
@@ -242,7 +242,7 @@ export const trTui: Record<keyof typeof enTui, string> = {
   'rule.pack': 'Paket',
   'rule.hits': 'Son 30 gün',
   'rule.hitsText': '{n} kez',
-  'rule.howChange': 'Değiştirmek için kendi terminalinden: terminal-code config set belt.verdicts.{id} ask (ya da deny, warn, allow).',
+  'rule.howChange': 'Değiştirmek için kendi terminalinden: mode-code config set belt.verdicts.{id} ask (ya da deny, warn, allow).',
   'rule.howLocked': 'Kilitli kurallar sıkılaştırılabilir, asla gevşetilemez.',
   'verdict.explain.deny': "Engelle: çağrı çalışmaz ve Claude'a etrafından dolaşmaması söylenir.",
   'verdict.explain.ask': 'Sor: bir pencerede sen karar verirsin; sorulacak kimse yoksa (arayüzsüz çalışma) çağrı engellenir.',
@@ -389,7 +389,7 @@ export const trTui: Record<keyof typeof enTui, string> = {
   'maint.doctorFix': 'o onarımları sormadan yapar ve yeniden denetler',
   'maint.selfCheck': 'denetimin kendisini geçici klasörde bozulmuş bir kurulumda sınar',
   'maint.lastCheck': 'Son denetim',
-  'maint.lastCheckNever': 'Henüz çalıştırılmadı. "terminal-code doctor" komutunu çalıştır.',
+  'maint.lastCheckNever': 'Henüz çalıştırılmadı. "mode-code doctor" komutunu çalıştır.',
   'maint.lastCheckLine': '{when}: {ok} tamam, {warn} uyarı, {fail} sorun',
   'maint.lastCheckQuick': '(hızlı denetim)',
   'maint.install': 'her değişikliği gösterir, sonra kurar ya da onarır',

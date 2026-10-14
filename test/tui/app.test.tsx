@@ -23,12 +23,12 @@ test('→ goes in, ← comes back, digits jump to a category', async () => {
   const s = await draw(new FakeData());
   try {
     await s.press(KEY.right);
-    assert.match(s.text(), /terminal-code › Home/);
+    assert.match(s.text(), /Mode_Code › Home/);
     assert.match(s.text(), /Overview/);
     await s.press(KEY.left);
-    assert.doesNotMatch(s.text(), /terminal-code › Home/);
+    assert.doesNotMatch(s.text(), /Mode_Code › Home/);
     await s.press('5');
-    assert.match(s.text(), /terminal-code › Security/);
+    assert.match(s.text(), /Mode_Code › Security/);
     assert.match(s.text(), /Safety belt rules/);
   } finally {
     s.close();
@@ -327,7 +327,7 @@ test('full autonomy: Projects › Runs lists each run, its card the milestones, 
     assert.match(t, /✓\s+1\. Limiter\s+bbbbbbbbbbbb · CONCERNS/);
     assert.match(t, /▶\s+2\. Wire it in/);
     assert.match(t, /push git push origin main/);
-    assert.match(t.replace(/[│╭╮╰╯─]/g, '').replace(/\s+/g, ' '), /terminal-code autonomy rollback 20261013-1210-rate-limit <n>/);
+    assert.match(t.replace(/[│╭╮╰╯─]/g, '').replace(/\s+/g, ' '), /mode-code autonomy rollback 20261013-1210-rate-limit <n>/);
   } finally {
     card.close();
   }

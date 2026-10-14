@@ -12,7 +12,7 @@ import { nextStep, progress, type Run } from './run.js';
 
 const P = `[${APP_NAME}]`;
 
-export const AUTO_TOOL = 'mcp__terminal-code__autonomy';
+export const AUTO_TOOL = 'mcp__mode-code__autonomy';
 
 const PLAN_FORM = [
   '# <title>',

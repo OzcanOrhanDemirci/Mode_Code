@@ -183,7 +183,7 @@ test('GitHub remotes in every form git writes them, and only GitHub', () => {
 
 test('the project key is the same on every computer: settings id, else GitHub repository, else folder name', () => {
   assert.equal(projectKey({ id: 'terminal', remote: 'https://github.com/ada/tc.git', folder: 'C:/dev/terminal_code' }), 'terminal');
-  assert.equal(projectKey({ remote: 'git@github.com:Ada/Terminal-Code.git', folder: '/home/ada/dev/terminal_code' }), 'ada-terminal-code');
+  assert.equal(projectKey({ remote: 'git@github.com:Ada/Mode-Code.git', folder: '/home/ada/dev/terminal_code' }), 'ada-mode-code');
   assert.equal(projectKey({ remote: 'https://gitlab.com/team/app.git', folder: '/x/y' }), 'team-app');
   assert.equal(projectKey({ remote: null, folder: 'C:\\dev\\My Project\\' }), 'my-project');
   assert.equal(projectKey({ folder: '/' }), 'project');
@@ -221,7 +221,7 @@ test("the store's layout and texts; memories brought in get short, distinct name
     handoffs: '/m/handoffs',
     projects: '/m/projects',
   });
-  assert.match(storeReadme('local'), /It is managed with terminal-code\. `handoffs\/`/);
+  assert.match(storeReadme('local'), /It is managed with Mode_Code\. `handoffs\/`/);
   assert.match(storeReadme('both'), /kept in sync with a private GitHub repository/);
   assert.match(HANDOFF_README, /do not add them to MEMORY\.md/);
   assert.ok(!STORE_GITIGNORE.split('\n').some((l) => /\.md|^\*$/.test(l)), 'notes are never ignored');
@@ -285,12 +285,12 @@ test("what a pull brought in: the index's changed lines read from git's diff, jo
   const told = pulledContext({ files: ['MEMORY.md'], index: { removed: ['- Old.'], added: ['- The codename is PELICAN.'] } }, '/m')!;
   assert.equal(
     told,
-    '[terminal-code] The memory was brought up to date with changes made elsewhere: MEMORY.md. The index (MEMORY.md) in your context may have been loaded before that; these lines changed in it (- removed, + added):\n- - Old.\n+ - The codename is PELICAN.\n',
+    '[Mode_Code] The memory was brought up to date with changes made elsewhere: MEMORY.md. The index (MEMORY.md) in your context may have been loaded before that; these lines changed in it (- removed, + added):\n- - Old.\n+ - The codename is PELICAN.\n',
   );
   const other = pulledContext({ files: ['a.md'], index: null }, '/m')!;
   assert.equal(
     other,
-    '[terminal-code] The memory was brought up to date with changes made elsewhere: a.md. A file read earlier in this session may have changed: read it again when you need it.',
+    '[Mode_Code] The memory was brought up to date with changes made elsewhere: a.md. A file read earlier in this session may have changed: read it again when you need it.',
   );
   // The index changed but its lines are unknown, blank only, or too many: Claude is asked to read it again.
   const reread = /read \/m\/MEMORY\.md again before relying on it\./;
@@ -312,16 +312,16 @@ test("what a pull brought in: the index's changed lines read from git's diff, jo
   assert.ok(!pulledContext({ files: ['MEMORY.md'], index: { removed: [], added: [`- token ${key}`] } }, '/m')!.includes(key));
 });
 
-test("a store terminal-code set up says so in its README; another's does not", () => {
+test("a store Mode_Code set up says so in its README; another's does not", () => {
   assert.equal(managedByUs(storeReadme('both')), true);
   assert.equal(managedByUs(storeReadme('local').replace(/\n/g, '\r\n')), true);
   assert.equal(managedByUs(null), false);
   assert.equal(managedByUs('# My notes\n'), false);
   assert.equal(managedByUs('# Claude Code memory\nkept by hand\n'), false, 'the heading alone');
-  assert.equal(managedByUs('# Notes\nIt is managed with terminal-code\n'), false, 'the sentence alone');
-  assert.equal(managedByUs(' # Claude Code memory\nIt is managed with terminal-code\n'), false);
+  assert.equal(managedByUs('# Notes\nIt is managed with Mode_Code\n'), false, 'the sentence alone');
+  assert.equal(managedByUs(' # Claude Code memory\nIt is managed with Mode_Code\n'), false);
   // Set up under an earlier name of the tool: still ours after a rename.
   const old = '# Claude Code memory\n\nIt is managed with old-name and kept in sync.\n';
   assert.equal(managedByUs(old), false);
-  assert.equal(managedByUs(old, ['terminal-code', 'old-name']), true);
+  assert.equal(managedByUs(old, ['mode-code', 'old-name']), true);
 });

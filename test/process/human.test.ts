@@ -16,7 +16,7 @@ test('before installing: status and doctor point to install; install --dry-run l
     const s = cli(w, ['status']);
     assert.equal(s.code, 0);
     assert.match(s.out, /Not installed/i);
-    assert.match(s.out, /terminal-code install/);
+    assert.match(s.out, /mode-code install/);
     const d = cli(w, ['doctor', '--quick']);
     assert.match(d.out, /Maintenance check/);
     assert.match(d.out, /Node\.js/);
@@ -61,7 +61,7 @@ test('installed: status lists every feature; doctor offers the repairs it can ma
     assert.equal(d.code, 1);
     assert.match(d.out, /Safety-net hooks are missing/);
     assert.match(d.out, /Put the safety-net hooks back/);
-    assert.match(d.out, /terminal-code doctor --fix/);
+    assert.match(d.out, /mode-code doctor --fix/);
     const f = cli(w, ['doctor', '--fix']);
     assert.match(f.out, /repaired and checked again/);
     assert.match(f.out, /backup: /);

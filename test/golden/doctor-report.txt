@@ -1,6 +1,6 @@
-## Problem report for terminal-code
+## Problem report for Mode_Code
 
-- terminal-code dev · Node.js 24.15.0 · win32 x64 10.0.26200 · Claude Code 2.1.295
+- Mode_Code dev · Node.js 24.15.0 · win32 x64 10.0.26200 · Claude Code 2.1.295
 - 29 ok · 4 notes · 2 warnings · 3 problems · 3 skipped
 
 | check | status | result |
@@ -12,16 +12,16 @@
 | claude.installs | ok | One claude command on PATH: ~/.local/bin/claude.exe. |
 | claude.settings | ok | Claude Code reads its settings files without errors (1 read). |
 | claude.hooksOn | ok | No settings file turns the hooks off. |
-| claude.plugin | ok | The plugin terminal-code@terminal-code-local is installed and on (version dev). |
+| claude.plugin | ok | The plugin mode-code@mode-code-local is installed and on (version dev). |
 | install.manifest | ok | Installed version dev on 2026-10-11. |
-| install.hookProgram | fail | The hook program is missing: ~/.terminal-code/bin/hook.mjs. |
+| install.hookProgram | fail | The hook program is missing: ~/.mode-code/bin/hook.mjs. |
 | install.hooks | fail | Safety-net hooks are missing for Stop (3 of 4 in place). |
 | install.pluginFiles | ok | The plugin files match this version. |
-| install.controlCenter | ok | /0 opens the control center from C:/dev/terminal-code/dist/cli.mjs. |
+| install.controlCenter | ok | /0 opens the control center from C:/dev/mode-code/dist/cli.mjs. |
 | install.modSeen | ok | The plugin last reported in from a session at 2026-10-12 11:50 (UTC). |
-| install.autonomy | info | Full autonomy is off (terminal-code autonomy enable turns it on). |
+| install.autonomy | info | Full autonomy is off (mode-code autonomy enable turns it on). |
 | protect.agreement | fail | The installed hook answered 1 of 30 samples differently from this version. |
-|  |  | Write ~/TERMIN~1/config.json: this version says block, the installed hook says allow. |
+|  |  | Write ~/MODECO~1/config.json: this version says block, the installed hook says allow. |
 | protect.links | ok | No protected folder is a link. |
 | protect.shortNames | ok | The belt protects the short names Windows gave the protected places (1). |
 | protect.memory | ok | Memory folders are protected and are git repositories (1). |
@@ -47,4 +47,4 @@
 | data.sessionIds | ok | Session ids have the expected shape. |
 | selftest.suites | ok | All 30 built-in samples of 1 suites gave the expected answer. |
 
-<!-- Paste this into a new issue at https://github.com/OzcanOrhanDemirci/terminal-code/issues/new. It holds versions and check results only: no paths with your name, no commands, no file contents. -->
+<!-- Paste this into a new issue at https://github.com/OzcanOrhanDemirci/Mode_Code/issues/new. It holds versions and check results only: no paths with your name, no commands, no file contents. -->

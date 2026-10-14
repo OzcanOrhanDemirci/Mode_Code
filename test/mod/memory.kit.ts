@@ -8,7 +8,7 @@ import { test, expect } from 'claude-code/testing';
 import { DATA, PROJECT, SESSION, world } from './world.ts';
 
 const typed = (text: string) => ({ text, wait: false, origin: { kind: 'composer' } }) as any;
-const TOOL = 'mcp__terminal-code__handoff';
+const TOOL = 'mcp__mode-code__handoff';
 const NOW = Date.parse('2026-10-12T10:00:00Z');
 const PARTS = { summary: 'The store is in.', open: 'The wizard.', decisions: 'One memory for all.', next: 'Write the setup.' };
 const HANDOFFS = `${DATA}/handoffs`;
@@ -33,12 +33,12 @@ const note = (session: string, at: string, next: string) =>
 test('the handoff keyword: the tool is offered, Claude writes four parts, code adds what it measured and keeps the note', async ($, on) => {
   const w = world(on, { config: {}, git: repoGit() });
   const r: any = await $.prompt.submit(typed('Bugünlük bu kadar. devir'));
-  expect(r.context.join('\n')).toMatch(/The person asked for a handoff note: call mcp__terminal-code__handoff with summary/);
+  expect(r.context.join('\n')).toMatch(/The person asked for a handoff note: call mcp__mode-code__handoff with summary/);
   expect(w.registered.map((t: any) => t.name)).toContain('handoff');
   const missing: any = await $.tool.call({ tool: TOOL, summary: 'x', open: '', decisions: 'y' } as any);
   expect(String(missing.result)).toMatch(/The handoff note is not written yet:\n• open is missing.*\n• next is missing/);
   const done: any = await $.tool.call({ tool: TOOL, ...PARTS } as any);
-  expect(String(done.result)).toMatch(/The handoff note is written: .*\/handoffs\/ada-app\/20261012-100000-kitsessi\.md\. It is in terminal-code's folder/);
+  expect(String(done.result)).toMatch(/The handoff note is written: .*\/handoffs\/ada-app\/20261012-100000-kitsessi\.md\. It is in Mode_Code's folder/);
   const text = w.read(`${HANDOFFS}/ada-app/20261012-100000-kitsessi.md`)!;
   expect(text).toMatch(/^---\ntype: handoff\nproject: ada-app\n/);
   expect(text).toMatch(/## Next\n\nWrite the setup\.\n/);
@@ -84,7 +84,7 @@ test('wrap up asks for the note as part of wrapping up; a compaction keeps its s
     tokensBefore: 1,
   }));
   const r: any = await $.prompt.submit(typed('toparla'));
-  expect(r.context.join('\n')).toMatch(/As part of wrapping up, write a handoff note: call mcp__terminal-code__handoff/);
+  expect(r.context.join('\n')).toMatch(/As part of wrapping up, write a handoff note: call mcp__mode-code__handoff/);
   expect(w.registered.map((t: any) => t.name)).toContain('handoff');
   await $.session.compact({ trigger: 'manual', messages: [{ role: 'user', text: 'so far', toolUses: [] }] } as any);
   const files = [...w.files.keys()].filter((p) => p.startsWith(`${HANDOFFS}/ada-app/`));
@@ -331,7 +331,7 @@ test('the morning line after a long gap, and approved run notes handed to the ne
   w.write('/tmp/tc/runs/r2/notes.md', 'Uses pnpm.\n');
   w.write(`${DATA}/state/notes.json`, JSON.stringify({ r2: { decision: 'approved', at: NOW, delivered: null } }));
   const first: any = await $.prompt.submit(typed('Good morning.'));
-  expect(w.toasts.some((t) => /^☀ While you were away: 2 run\(s\) done · 1 note file\(s\) wait for approval\. terminal-code morning$/.test(t))).toBe(true);
+  expect(w.toasts.some((t) => /^☀ While you were away: 2 run\(s\) done · 1 note file\(s\) wait for approval\. mode-code morning$/.test(t))).toBe(true);
   expect(first.context.join('\n')).toMatch(/The person approved notes that full-autonomy runs left for the memory: \/tmp\/tc\/runs\/r2\/notes\.md \(run r2\)/);
   expect(w.json(`${DATA}/state/activity.json`)).toEqual({ lastPromptAt: NOW, away: { from: NOW - 10 * 3_600_000, to: NOW } });
   // Once: the next session is told nothing again.

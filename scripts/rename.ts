@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Renames the tool in one pass: every spelling of its name in every tracked file (`terminal-code`,
- * `TERMINAL_CODE`, `TerminalCode`, `terminalCode`), the display name, the repository's address, and the
+ * Renames the tool in one pass: every spelling of its name in every tracked file (`mode-code`,
+ * `MODE_CODE`, `ModeCode`, `modeCode`), the display name, the repository's address, and the
  * notices that call the name temporary. The old name is recorded in PREVIOUS_NAMES (src/core/app.ts), so the
  * renamed tool's installer moves an installation made under it, and a line in the changelog says so.
  * Nothing is written without --apply, and --apply needs a clean work tree: the rename is one commit.
@@ -54,7 +54,7 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
  * A kebab-case `id` written in the case of `like`, another id as some text spells it: lower, UPPER, or with
- * capitals where `like` has them (tests spell the data folder `.Terminal-Code` on purpose).
+ * capitals where `like` has them (tests spell the data folder `.Mode-Code` on purpose).
  */
 export function shaped(id: string, like: string): string {
   if (like === like.toLowerCase()) return id;
@@ -66,7 +66,7 @@ export function shaped(id: string, like: string): string {
     .join('-');
 }
 
-/** The letters before `~1` in the short name Windows gives the data folder `.<id>`: `TERMIN` for terminal-code. */
+/** The letters before `~1` in the short name Windows gives the data folder `.<id>`: `MODECO` for mode-code. */
 export function shortStem(id: string): string {
   return firstShortName(`.${id}`).replace(/~1$/, '');
 }
@@ -79,6 +79,9 @@ export function renameText(text: string, plan: RenamePlan): { text: string; coun
   let out = text;
   // The repository first: its old address holds the old id, which the next steps would turn into the new id under the old owner.
   if (plan.from.repo !== plan.to.repo) out = out.replace(new RegExp(`(?<![\\w-])${escape(plan.from.repo)}(?![\\w-])`, 'g'), () => (count++, plan.to.repo));
+  // The display name where it is not a spelling of the id (`Mode_Code` for `mode-code`): prose names the tool with it.
+  if (plan.from.name !== plan.to.name && !Object.values(a).includes(plan.from.name))
+    out = out.replace(new RegExp(`(?<![\\w-])${escape(plan.from.name)}(?![\\w-])`, 'g'), () => (count++, plan.to.name));
   out = out.replace(new RegExp(escape(a.kebab), 'gi'), (m) => (count++, shaped(b.kebab, m)));
   for (const [x, y] of [
     [a.upper, b.upper],
@@ -86,7 +89,7 @@ export function renameText(text: string, plan: RenamePlan): { text: string; coun
     [a.camel, b.camel],
   ] as const)
     out = out.replace(new RegExp(escape(x), 'g'), () => (count++, y));
-  // The data folder's 8.3 short name, as tests and documents write it (`TERMIN~1`).
+  // The data folder's 8.3 short name, as tests and documents write it (`MODECO~1`).
   const [sa, sb] = [shortStem(plan.from.id), shortStem(plan.to.id)];
   if (sa !== sb) {
     out = out.replace(new RegExp(`(?<![A-Za-z0-9])${escape(sa)}~(?=\\d)`, 'gi'), (m) => (count++, `${m === m.toLowerCase() ? sb.toLowerCase() : sb}~`));
@@ -118,13 +121,16 @@ export function renameApp(text: string, plan: RenamePlan): { text: string; count
       .replace(/,\s*([}\]])/g, '$1'),
   ) as { id: string; name: string }[];
   const marker = '\u0000PREVIOUS_NAMES\u0000';
-  const r = renameText(text.replace(m[0], marker), plan);
+  const nameMarker = '\u0000APP_NAME\u0000';
+  // The display name's statement is set below, not renamed: a quote in a name would break it.
+  const named = text.replace(m[0], marker).replace(/export const APP_NAME = '(?:[^'\\]|\\.)*';/, nameMarker);
+  const r = renameText(named, plan);
   const list = [{ id: plan.from.id, name: plan.from.name }, ...earlier.filter((e) => e.id !== plan.to.id)];
   const literal = `[${list.map((e) => `{ id: '${e.id}', name: '${e.name.replace(/'/g, "\\'")}' }`).join(', ')}]`;
   // The value is the statement's end: the first "[]" in it is the type's.
   const statement = `${m[0].slice(0, m[0].length - m[1]!.length - 1)}${literal};`;
   let out = r.text.replace(marker, () => statement);
-  out = out.replace(/export const APP_NAME = '[^']*';/, () => `export const APP_NAME = '${plan.to.name.replace(/'/g, "\\'")}';`);
+  out = out.replace(nameMarker, () => `export const APP_NAME = '${plan.to.name.replace(/'/g, "\\'")}';`);
   out = out.replace(/export const NAME_IS_FINAL = (?:true|false);/, `export const NAME_IS_FINAL = ${plan.final};`);
   return { text: out, count: r.count };
 }

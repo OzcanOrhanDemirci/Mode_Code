@@ -199,7 +199,7 @@ async function userPromptSubmit(input: Input, lang: Lang): Promise<void> {
     // Sync across computers before the handoff note is looked for: one written on another computer comes with it (docs/sync.md).
     if (local.sync) await syncShared(local, l, { trigger: 'start', session: sessionId || null, writer: 'hook' });
     const waiting = local.sync ? loadConfig(l).pending : pending;
-    if (waiting.length) toPerson = tIn(lang, 'mod.sync.pending', { keys: waiting.map((p) => p.key).join(', '), cmd: 'terminal-code sync' });
+    if (waiting.length) toPerson = tIn(lang, 'mod.sync.pending', { keys: waiting.map((p) => p.key).join(', '), cmd: 'mode-code sync' });
     if (config.memory.handoff.enabled) {
       try {
         const h = newestHandoffAt(config, l, projectKeyAt(config, str(input.cwd) ?? process.cwd()));
@@ -223,7 +223,7 @@ async function userPromptSubmit(input: Input, lang: Lang): Promise<void> {
   // Modes, flows, full autonomy and handoff notes live in the plugin; without it nothing would do them, and the person must know.
   if (isModeKeyword(kw.kind) || kw.kind === 'flow' || kw.kind === 'approve' || kw.kind === 'fullAuto' || kw.kind === 'handoff') {
     notes.push(
-      `[terminal-code] The person's message ${kw.standalone ? 'is' : 'ends with'} "${kw.text}", a terminal-code keyword for modes, flows, full autonomy or handoff notes. They need the terminal-code plugin, which is not loaded in this session, so nothing does them here. Tell the person in one line (terminal-code doctor shows why the plugin is not loaded); the safety belt still runs.`,
+      `[mode-code] The person's message ${kw.standalone ? 'is' : 'ends with'} "${kw.text}", a mode-code keyword for modes, flows, full autonomy or handoff notes. They need the mode-code plugin, which is not loaded in this session, so nothing does them here. Tell the person in one line (mode-code doctor shows why the plugin is not loaded); the safety belt still runs.`,
     );
     return say();
   }

@@ -304,7 +304,7 @@ export function readClaudeEnv(cwd: string, opts: ClaudeEnvOptions = {}): ClaudeE
     ...(homeIsProject ? [] : [readSettings('project', join(cwd, '.claude', 'settings.json'))]),
     readSettings('local', join(cwd, '.claude', 'settings.local.json')),
   ];
-  const marker = opts.ourMarker ?? '.terminal-code';
+  const marker = opts.ourMarker ?? '.mode-code';
   const global = (() => {
     const text = readText(opts.globalConfig ?? (process.env.CLAUDE_CONFIG_DIR ? join(dir, '.claude.json') : join(homedir(), '.claude.json')));
     try {

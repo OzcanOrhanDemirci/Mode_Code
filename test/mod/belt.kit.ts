@@ -102,10 +102,10 @@ test('a note ("warn") lets the call run and tells the model', async ($, on) => {
 test('on Windows: every spelling of the data folder is refused, its 8.3 short name too', async ($, on) => {
   const w = world(on, { windows: true });
   for (const p of [
-    'C:/Users/ada/.terminal-code/config.json',
-    'C:\\Users\\ada\\.terminal-code\\config.json',
-    '/c/Users/ada/.terminal-code/config.json',
-    'C:/Users/ada/TERMIN~1/config.json',
+    'C:/Users/ada/.mode-code/config.json',
+    'C:\\Users\\ada\\.mode-code\\config.json',
+    '/c/Users/ada/.mode-code/config.json',
+    'C:/Users/ada/MODECO~1/config.json',
   ]) {
     const r: any = await $.tool.call({ tool: 'Write', file_path: p, content: '{}' } as any);
     expect(String(r.deny ?? r.text), p).toMatch(/self\.tool-files/);

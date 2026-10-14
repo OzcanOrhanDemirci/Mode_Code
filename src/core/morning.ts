@@ -4,7 +4,7 @@
  * measured; and the notes full-autonomy runs left for the memory, which wait for the person's approval.
  * Pure: lines in the person's language, one summary line, and the decisions on notes.
  */
-import { APP_NAME } from './app.js';
+import { APP_NAME, CLI_NAME } from './app.js';
 import { tIn, type Lang } from './i18n/index.js';
 import type { MemoryPlace } from './config.js';
 import { percent } from './format.js';
@@ -126,7 +126,7 @@ export function morningSummary(f: MorningFacts, lang: Lang): string | null {
   const news = (f.elsewhere ?? []).filter((e) => e.runs.length || e.flows);
   if (news.length) parts.push(L('morning.sum.elsewhere', { names: news.map((e) => e.machine).join(', ') }));
   if (f.syncPending) parts.push(L('morning.sum.pending', { n: f.syncPending }));
-  return parts.length ? L('morning.sum', { what: parts.join(' · '), cmd: `${APP_NAME} morning` }) : null;
+  return parts.length ? L('morning.sum', { what: parts.join(' · '), cmd: `${CLI_NAME} morning` }) : null;
 }
 
 // ── notes from full-autonomy runs ─────────────────────────────────────────────────────────────────

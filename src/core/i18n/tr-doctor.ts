@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-/** Bakım denetiminin (`terminal-code doctor`) Türkçe iletileri. */
+/** Bakım denetiminin (`mode-code doctor`) Türkçe iletileri. */
 import type { enDoctor } from './en-doctor.js';
 
 export const trDoctor: Record<keyof typeof enDoctor, string> = {
@@ -8,7 +8,7 @@ export const trDoctor: Record<keyof typeof enDoctor, string> = {
   'doc.notInstalled': 'Kurulu değil.',
   'doc.notMeasured': 'Burada ölçülmedi.',
   'doc.windowsOnly': 'Yalnız Windows için.',
-  'doc.reportHint': 'Bu senin yaptığın bir şeyden değil. Aracın düzeltilmesi için lütfen bildir: terminal-code doctor --report gönderilecek metni yazar.',
+  'doc.reportHint': 'Bu senin yaptığın bir şeyden değil. Aracın düzeltilmesi için lütfen bildir: mode-code doctor --report gönderilecek metni yazar.',
   'doc.checkCrashed': 'Bir denetim çalışamadı: {error}',
 
   // ── Node.js ──
@@ -59,7 +59,7 @@ export const trDoctor: Record<keyof typeof enDoctor, string> = {
     "Bu aracın önceki adı {name} hâlâ {path} klasöründen kurulu (ayarlarında {hooks} hook'u var): emniyet kemeri bununkinin yanında çalışıyor.",
   'doc.install.previous.hint': "{cmd} çalıştır: ayarlarını ve geçmişini getirir, hook'larını bunlarla değiştirir, eklentisini ve klasörünü kaldırır.",
   'doc.install.previous.left': '{path}, bu aracın önceki adı {name} ile tutulanları barındırıyor; hiçbir parçası çalışmıyor. Gerek kalmayınca klasörü sil.',
-  'doc.install.hint': 'Kurmak için "terminal-code install" komutunu çalıştır.',
+  'doc.install.hint': 'Kurmak için "mode-code install" komutunu çalıştır.',
   'doc.install.otherData': 'Kurulum kaydı başka bir veri klasörünü gösteriyor ({recorded}); bu çalıştırma {now} klasörünü kullanıyor.',
   'doc.install.hook.ok': 'Hook programı bu sürümle aynı (sha256 {hash}…).',
   'doc.install.hook.missing': 'Hook programı yok: {path}.',
@@ -198,8 +198,8 @@ export const trDoctor: Record<keyof typeof enDoctor, string> = {
   'doc.repairs.title': 'Onarımlar',
   'doc.repairs.offer': '{n} sorun kendiliğinden onarılabilir:',
   'doc.repairs.ask': 'Şimdi onarılsın mı? Değişen her dosyanın önce yedeği alınır. [e/H]',
-  'doc.repairs.hint': 'Onarmak için "terminal-code doctor --fix" çalıştır.',
-  'doc.repairs.refused': 'Bu komutu bir ajan çalıştırdığı için onarılmadı: {what}. "terminal-code doctor --fix" komutunu kendin çalıştır.',
+  'doc.repairs.hint': 'Onarmak için "mode-code doctor --fix" çalıştır.',
+  'doc.repairs.refused': 'Bu komutu bir ajan çalıştırdığı için onarılmadı: {what}. "mode-code doctor --fix" komutunu kendin çalıştır.',
   'doc.repairs.verified': 'onarıldı ve yeniden denetlendi',
   'doc.repairs.unverified': 'yapıldı, ama denetim hâlâ geçmiyor',
   'doc.repairs.failed': 'onarılamadı: {detail}',
@@ -253,7 +253,7 @@ export const trDoctor: Record<keyof typeof enDoctor, string> = {
   'doc.fault.loose-permissions': 'Ayar dosyasını başkaları da yazabiliyor',
 
   // ── rapor ──
-  'doc.report.title': 'terminal-code sorun raporu',
+  'doc.report.title': 'Mode_Code sorun raporu',
   'doc.report.intro':
     '{url} adresinde yeni bir kayıt (issue) açıp bunu yapıştır. Yalnız sürümler ve denetim sonuçları var: adının geçtiği yollar, komutlar ya da dosya içerikleri yok.',
 };

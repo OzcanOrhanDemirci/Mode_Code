@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Box, Text } from 'ink';
 import { homedir } from 'node:os';
-import { APP_NAME, APP_VERSION, NAME_IS_FINAL, REPO_URL } from '../../core/app.js';
+import { APP_NAME, APP_VERSION, CLI_NAME, NAME_IS_FINAL, REPO_URL } from '../../core/app.js';
 import { LANGUAGES, type MessageKey } from '../../core/i18n/index.js';
 import { keywordTables } from '../../core/settings-view.js';
 import { ago, shortPath } from '../../core/format.js';
@@ -265,7 +265,7 @@ export function MemoryStore({ width, open }: ScreenProps) {
         {v.handoff ? <Row label={t('mcli.handoff')}>{`${ago(v.handoff.note.at, now, lang)} · ${nextOf(v.handoff.note, width - 40)}`}</Row> : null}
         {v.pendingNotes ? (
           <Row label={t('mcli.notes')} color={theme.warn}>
-            {t('mcli.notes.pending', { n: v.pendingNotes, cmd: `${APP_NAME} memory notes` })}
+            {t('mcli.notes.pending', { n: v.pendingNotes, cmd: `${CLI_NAME} memory notes` })}
           </Row>
         ) : null}
       </Box>
@@ -316,11 +316,11 @@ export function Sync({ width, open }: ScreenProps) {
           </Row>
         ))}
         {v.pending.length ? (
-          <Row label="">{t('scli.pending.hint', { approve: `${APP_NAME} sync approve <setting>`, ignore: `${APP_NAME} sync ignore <setting>` })}</Row>
+          <Row label="">{t('scli.pending.hint', { approve: `${CLI_NAME} sync approve <setting>`, ignore: `${CLI_NAME} sync ignore <setting>` })}</Row>
         ) : null}
         {v.applied.length ? <Row label={t('scli.applied')}>{t('scli.applied.text', { n: v.applied.length })}</Row> : null}
         {v.homeless.length ? (
-          <Row label={t('scli.projects')}>{t('scli.projects.text', { ids: v.homeless.join(', '), cmd: `${APP_NAME} sync project` })}</Row>
+          <Row label={t('scli.projects')}>{t('scli.projects.text', { ids: v.homeless.join(', '), cmd: `${CLI_NAME} sync project` })}</Row>
         ) : null}
         {s ? <Row label={t('scli.handoffs')}>{t(`scli.handoffs.${v.handoffs}` as MessageKey)}</Row> : null}
       </Box>
@@ -563,7 +563,7 @@ export function Maintenance({ width }: ScreenProps) {
           <Box key={cmd}>
             <Box width={34} flexShrink={0}>
               <Text color={theme.accent}>
-                {APP_NAME} {cmd}
+                {CLI_NAME} {cmd}
               </Text>
             </Box>
             <Muted>{t(key)}</Muted>

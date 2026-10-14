@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * The sync setup (docs/sync.md): a short conversation that decides where the shared copy of terminal-code's
+ * The sync setup (docs/sync.md): a short conversation that decides where the shared copy of mode-code's
  * settings and history lives (a private repository on the person's GitHub, named by them, or a folder another
  * service keeps in sync), what this computer is called there, and whether handoff notes go there too. It shows
  * every change and asks once; the questions go through the same SetupIO as the memory setup, every program
@@ -71,7 +71,7 @@ export interface SyncPlan {
   identity: { name: string; email: string } | null;
   machine: { id: string; name: string };
   handoffs: boolean;
-  /** Handoff notes in terminal-code's own folder to bring into the shared place. */
+  /** Handoff notes in mode-code's own folder to bring into the shared place. */
   moveNotes: number;
 }
 
@@ -83,7 +83,7 @@ export interface SyncOutcome {
 }
 
 const STOP: SyncOutcome = { ok: false, plan: null, config: null, record: null };
-const CMD = 'terminal-code sync setup';
+const CMD = 'mode-code sync setup';
 
 /** The computers already in a shared place, as their own folders say. */
 export function machinesIn(dir: string): { id: string; name: string; platform: string }[] {
@@ -200,7 +200,7 @@ export async function syncSetup(io: SetupIO, env: SyncSetupEnv): Promise<SyncOut
     // ── 3 · the repository, named by the person ──
     if (login && ghTool) {
       for (;;) {
-        const typed = (await io.ask(T('ssetup.ask.repo', { owner: login.login }), current?.repo ?? 'terminal-code-sync')).trim();
+        const typed = (await io.ask(T('ssetup.ask.repo', { owner: login.login }), current?.repo ?? 'mode-code-sync')).trim();
         const name = typed.includes('/') ? typed.split('/').pop()! : typed;
         const owner = typed.includes('/') ? typed.split('/')[0]! : login.login;
         const problems = repoNameProblems(name);
@@ -224,10 +224,10 @@ export async function syncSetup(io: SetupIO, env: SyncSetupEnv): Promise<SyncOut
         } else if (await ghHasPath(env.runner, ghTool.command, full, MACHINES_DIR)) {
           io.say(T('ssetup.repo.synced', { repo: full }));
         } else {
-          // A repository with other files in it (a memory, a project): terminal-code keeps to a folder of it.
+          // A repository with other files in it (a memory, a project): mode-code keeps to a folder of it.
           io.say(T('ssetup.repo.other', { repo: full }));
           const before = current?.place === 'github' && current.repo === full ? await placeOf(env.runner, gitTool.command, current) : null;
-          subfolder = await askSubfolder(io, T, before && before.sub !== '.' ? before.sub : 'terminal-code');
+          subfolder = await askSubfolder(io, T, before && before.sub !== '.' ? before.sub : 'mode-code');
         }
         break;
       }
@@ -248,7 +248,7 @@ export async function syncSetup(io: SetupIO, env: SyncSetupEnv): Promise<SyncOut
           if (!(await io.confirm(T('msetup.url.confirm', { url }), false))) continue;
           remote = url;
           repo = githubRepoOf(url);
-          if (ls.out.trim()) subfolder = await askSubfolder(io, T, 'terminal-code');
+          if (ls.out.trim()) subfolder = await askSubfolder(io, T, 'mode-code');
           break;
         }
     }
@@ -297,7 +297,7 @@ export async function syncSetup(io: SetupIO, env: SyncSetupEnv): Promise<SyncOut
   } else {
     // ── 2 · a folder another service keeps in sync ──
     for (;;) {
-      dir = res(await io.ask(T('ssetup.ask.folder'), current?.place === 'folder' ? current.dir : joinPath(env.home, 'terminal-code-sync')));
+      dir = res(await io.ask(T('ssetup.ask.folder'), current?.place === 'folder' ? current.dir : joinPath(env.home, 'mode-code-sync')));
       if (isUnder(dir, env.layout.root, env.platform)) {
         io.say(T('ssetup.folder.inData', { dir }));
         continue;
@@ -345,7 +345,7 @@ export async function syncSetup(io: SetupIO, env: SyncSetupEnv): Promise<SyncOut
     const n = await run(env.runner, [gitTool.command, 'config', '--get', 'user.name'], at);
     const e = await run(env.runner, [gitTool.command, 'config', '--get', 'user.email'], at);
     if (!n.out.trim() || !e.out.trim())
-      identity = login ? { name: login.login, email: noreplyEmail(login.login, login.id) } : { name: 'terminal-code', email: 'sync@localhost' };
+      identity = login ? { name: login.login, email: noreplyEmail(login.login, login.id) } : { name: 'mode-code', email: 'sync@localhost' };
   }
 
   const plan: SyncPlan = {
@@ -422,7 +422,7 @@ export async function applySyncPlan(io: SetupIO, env: SyncSetupEnv, p: SyncPlan)
   const now = env.now();
 
   if (p.createRepo && p.repo && p.ghCommand) {
-    const err = await ghCreatePrivate(env.runner, p.ghCommand, p.repo, 'terminal-code sync: settings and history between computers');
+    const err = await ghCreatePrivate(env.runner, p.ghCommand, p.repo, 'mode-code sync: settings and history between computers');
     if (err) return fail(T('msetup.plan.create', { repo: p.repo }), err);
     ok(T('msetup.plan.create', { repo: p.repo }));
   }

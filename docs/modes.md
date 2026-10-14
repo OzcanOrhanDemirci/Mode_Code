@@ -117,7 +117,7 @@ Write the task and end the message with the keyword ("Add two-factor sign-in to 
 
 The rules of a flow:
 
-- **No step is skipped.** Claude finishes a step by calling the tool `mcp__terminal-code__flow_step` with the step's name; the plugin refuses a step that is not the current one.
+- **No step is skipped.** Claude finishes a step by calling the tool `mcp__mode-code__flow_step` with the step's name; the plugin refuses a step that is not the current one.
 - **Claude cannot leave the flow.** Only the person pauses, resumes or cancels it.
 - **Each step's definition of done is checked by code** (below). A step that fails the check stays open, and Claude reads exactly what is missing.
 - **The approval is the person's**, given in a dialog, in Claude Code's plan dialog, or by typing `approve` / `onay`. A message from Claude, a tool result or a file cannot approve.
@@ -191,11 +191,11 @@ After a quota reset, autonomous work resumes by itself as before, except while a
 
 ### Where the files are
 
-| What                                               | Where                                                                    | Written by      |
-| -------------------------------------------------- | ------------------------------------------------------------------------ | --------------- |
-| work files (the report and plan drafts)            | `<temporary folder>/terminal-code/flows/<id>/` (setting `modes.workDir`) | Claude          |
-| the flow's record                                  | `~/.terminal-code/flows/<id>/flow.json`                                  | the plugin only |
-| checked copies of the report and the approved plan | `~/.terminal-code/flows/<id>/research.md`, `plan.md`                     | the plugin only |
+| What                                               | Where                                                                | Written by      |
+| -------------------------------------------------- | -------------------------------------------------------------------- | --------------- |
+| work files (the report and plan drafts)            | `<temporary folder>/mode-code/flows/<id>/` (setting `modes.workDir`) | Claude          |
+| the flow's record                                  | `~/.mode-code/flows/<id>/flow.json`                                  | the plugin only |
+| checked copies of the report and the approved plan | `~/.mode-code/flows/<id>/research.md`, `plan.md`                     | the plugin only |
 
 The record and the copies live in the tool's own folder, which the safety belt keeps Claude from writing: what was checked and approved stays as it was checked and approved.
 
@@ -203,7 +203,7 @@ The record and the copies live in the tool's own folder, which the safety belt k
 
 - Under the prompt: the step (`📐 plan · flow 2/4`); above the prompt, while a plan waits for approval, one line that says so and how to approve.
 - The control center: Home lists plans waiting for approval; Projects › Flows lists every flow with its steps, evidence and files.
-- `terminal-code flow` and `terminal-code flow show <id>` (also `--json`).
+- `mode-code flow` and `mode-code flow show <id>` (also `--json`).
 
 ## Limits
 
@@ -224,7 +224,7 @@ All on the author's Windows 11 machine with Claude Code 2.1.296, 2026-10-13.
 
 | What                                         | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The classifier over 30 days of real sessions | 29,825 shell commands: 42% only read (they run in every mode), 4% write named files, 45% change things around their folder, 5% reach outside, 4% unknown or not readable in full. `terminal-code belt replay` prints the same line for your own sessions.                                                                                                                                                                                                                                                               |
+| The classifier over 30 days of real sessions | 29,825 shell commands: 42% only read (they run in every mode), 4% write named files, 45% change things around their folder, 5% reach outside, 4% unknown or not readable in full. `mode-code belt replay` prints the same line for your own sessions.                                                                                                                                                                                                                                                                   |
 | Forms the classifier knows                   | 297 command forms, each with its class, reason, files and folder, reviewed one by one and kept as a test                                                                                                                                                                                                                                                                                                                                                                                                                |
 | Reading commands in restricted modes         | 162 reading commands (137 Bash, 25 PowerShell) run in chat, research and plan mode on Windows, macOS and Linux: no false alarm. 110 changing commands: none passes as a read                                                                                                                                                                                                                                                                                                                                            |
 | Mutation testing of the deciding code        | 483 of 483 changes caught in the classifier, modes, guard, flow and flow checks; 15 equivalents explained in `test/mutation-equivalents.json`                                                                                                                                                                                                                                                                                                                                                                           |
@@ -244,7 +244,7 @@ The plan this page was written from (2026-10-12), kept as a checklist:
 - [x] Core: the flow state machine (start, step done, approval, revision, pause, resume, cancel), its record, and the checks of the report and the plan.
 - [x] Plugin: the `flow_step` tool, the approval dialog, running the verification commands, Claude Code's plan dialog as an approval, plan-mode notes, labels and the approval line, flows across sessions and through compaction, quota resume that waits for approval.
 - [x] Safety-net hook: records Claude Code's permission mode; says when a mode keyword cannot be honoured because the plugin is not loaded.
-- [x] `terminal-code flow`, Projects › Flows, pending approvals on Home.
+- [x] `mode-code flow`, Projects › Flows, pending approvals on Home.
 - [x] Tests in every layer of [testing.md](testing.md): unit, properties (no sequence of events completes a step out of order or without its check), the false-alarm corpus for the classifier, the engine's test kit, live sessions; mutation targets and coverage floors for the new deciding code.
 - [x] Measured: the classifier over real sessions, the cost of the tool definition in tokens.
 - [x] An interactive session, driven by hand: Claude Code's plan dialog as the approval, the plugin's dialog.

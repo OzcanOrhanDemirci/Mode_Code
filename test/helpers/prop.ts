@@ -37,6 +37,6 @@ export const shellish = fc
 
 /** A path segment: plain names, dots, Turkish letters, spaces, 8.3-looking names. */
 export const segment = fc.oneof(
-  fc.constantFrom('a', 'src', '.claude', '.terminal-code', 'Program Files', 'çağrı', 'İstanbul', 'node_modules', 'TERMIN~1', 'x.y.z', '..', '.'),
+  fc.constantFrom('a', 'src', '.claude', '.mode-code', 'Program Files', 'çağrı', 'İstanbul', 'node_modules', 'MODECO~1', 'x.y.z', '..', '.'),
   fc.stringMatching(/^[A-Za-z0-9._ -]{1,12}$/),
 );

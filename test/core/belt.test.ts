@@ -20,7 +20,7 @@ function win(over: Partial<BeltContext> = {}, config: RuleConfig = {}): BeltCont
     cwd: 'C:/dev/app',
     projectDir: 'C:/dev/app',
     env: { TEMP: 'C:/Users/ada/AppData/Local/Temp', APPDATA: 'C:/Users/ada/AppData/Roaming' },
-    dataDir: 'C:/Users/ada/.terminal-code',
+    dataDir: 'C:/Users/ada/.mode-code',
     memoryDirs: ['C:/dev/mem/hafiza'],
     managedSettingsFiles: ['C:/Program Files/ClaudeCode/managed-settings.json'],
     lang: 'en',
@@ -38,7 +38,7 @@ function linux(over: Partial<BeltContext> = {}): BeltContext {
     cwd: '/home/ada/app',
     projectDir: '/home/ada/app',
     env: {},
-    dataDir: '/home/ada/.terminal-code',
+    dataDir: '/home/ada/.mode-code',
     memoryDirs: [],
     managedSettingsFiles: ['/etc/claude-code/managed-settings.json'],
     ...over,
@@ -240,7 +240,7 @@ describe('self-protection and configuration', () => {
       ['echo {} > ~/.claude/settings.json', 'deny'],
       ['cp x.json C:/Users/ada/.claude/settings.local.json', 'deny'],
       ['echo x >> ~/.claude.json', 'deny'],
-      ['rm -rf ~/.terminal-code', 'deny'],
+      ['rm -rf ~/.mode-code', 'deny'],
       ['echo x > .claude/settings.local.json', 'ask'],
       ['tee .mcp.json < servers.json', 'ask'],
       ['sed -i "s/a/b/" ~/.claude/settings.json', 'deny'],
@@ -261,9 +261,9 @@ describe('self-protection and configuration', () => {
 
   test('the plugin, nested sessions and Claude configuration commands', async () => {
     await cases(win(), [
-      ['claude plugin disable terminal-code', 'deny'],
-      ['claude plugin uninstall terminal-code@terminal-code-local', 'deny'],
-      ['claude plugin marketplace remove terminal-code-local', 'deny'],
+      ['claude plugin disable mode-code', 'deny'],
+      ['claude plugin uninstall mode-code@mode-code-local', 'deny'],
+      ['claude plugin marketplace remove mode-code-local', 'deny'],
       ['claude plugin install some-plugin@x', 'ask'],
       ['claude mcp add docs -- npx docs-server', 'ask'],
       ['claude mcp list', 'allow'],
@@ -290,7 +290,7 @@ describe('self-protection and configuration', () => {
       (await evaluateToolCall('Edit', { file_path: 'C:/Users/ada/.claude/settings.json', old_string: 'a', new_string: 'b' }, win())).verdict,
       'deny',
     );
-    assert.equal((await evaluateToolCall('Write', { file_path: 'C:/Users/ada/.terminal-code/config.json', content: '{}' }, win())).verdict, 'deny');
+    assert.equal((await evaluateToolCall('Write', { file_path: 'C:/Users/ada/.mode-code/config.json', content: '{}' }, win())).verdict, 'deny');
     assert.equal((await evaluateToolCall('Write', { file_path: 'C:/dev/app/src/index.ts', content: 'x' }, win())).verdict, 'allow');
     assert.equal((await evaluateToolCall('Write', { file_path: 'C:/Users/ada/.bashrc', content: 'x' }, win())).verdict, 'ask');
   });

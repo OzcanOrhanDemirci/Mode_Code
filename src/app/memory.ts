@@ -102,7 +102,7 @@ export function lastSync(ctx: Pick<AppContext, 'layout'>): SyncRecord | null {
   return newestRecord((['mod', 'hook', 'cli'] as const).map((w) => parseSyncRecord(readText(memorySyncFile(ctx.layout, w)))));
 }
 
-/** Where the memory stands, for `terminal-code memory` and Settings › Memory. */
+/** Where the memory stands, for `mode-code memory` and Settings › Memory. */
 export function memoryView(ctx: AppContext, cwd = ctx.cwd): MemoryView {
   const store = ctx.config.memory.store;
   const setting = readMemorySetting(claudeDir());

@@ -88,7 +88,7 @@ test('notifications are never keywords, and keywords are reserved', () => {
 test("a paste is the person's material, not their words: the keyword typed around it still counts", () => {
   const paste = (body: string, id = '025f') => `<pasted_content id="${id}">\n${body}\n</pasted_content id="${id}">`;
   // Word for word the message that went unseen (2026-10-13): its handoff note was filed under the folder's name.
-  const seen = d(`terminal devam (\n\n${paste(' terminal-code │\n $.process.run(wt.exe) failed to start: …')}\n\n)`);
+  const seen = d(`terminal devam (\n\n${paste(' mode-code │\n $.process.run(wt.exe) failed to start: …')}\n\n)`);
   assert.deepEqual([seen?.kind, seen?.project, seen?.standalone], ['continue', 'terminal_code', false]);
   for (const text of [
     `terminal devam\n${paste('log')}`,

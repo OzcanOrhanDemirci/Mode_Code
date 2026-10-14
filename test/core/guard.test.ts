@@ -77,9 +77,9 @@ test('outward tools: MCP writes and Claude Code tools that act outside are refus
   assert.equal(verdict('EnterWorktree', {}, 'research'), 'tool');
   assert.equal(verdict('Artifact', { action: 'publish' }, 'plan'), 'tool');
   assert.equal(verdict('Artifact', { action: 'read' }, 'plan'), 'allow');
-  assert.equal(verdict('mcp__terminal-code__flow_step', { step: 'research' }, 'research'), 'allow');
+  assert.equal(verdict('mcp__mode-code__flow_step', { step: 'research' }, 'research'), 'allow');
   // This tool's own tools are its own, whatever their names say.
-  assert.equal(verdict('mcp__terminal-code__update_notes', {}, 'chat'), 'allow');
+  assert.equal(verdict('mcp__mode-code__update_notes', {}, 'chat'), 'allow');
   assert.equal(verdict('mcp__other__update_notes', {}, 'chat'), 'tool');
   assert.equal(verdict('WebSearch', { query: 'x' }, 'research'), 'allow');
   assert.equal(verdict('Agent', { prompt: 'x' }, 'research'), 'allow');

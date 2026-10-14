@@ -42,11 +42,11 @@ export interface WorldOptions {
 }
 
 export const HOME = '/home/ada';
-export const DATA = '/home/ada/.terminal-code';
+export const DATA = '/home/ada/.mode-code';
 export const PROJECT = '/home/ada/dev/app';
 export const SESSION = 'kit-session-1';
 /** The same machine on Windows. */
-export const WIN = { HOME: 'C:/Users/ada', DATA: 'C:/Users/ada/.terminal-code', PROJECT: 'C:/dev/app' };
+export const WIN = { HOME: 'C:/Users/ada', DATA: 'C:/Users/ada/.mode-code', PROJECT: 'C:/dev/app' };
 
 /**
  * The engine hands file paths over in the host's own form (C:\home\ada\x on Windows): back to /home/ada/x. A
@@ -69,8 +69,8 @@ export function world(on: any, opts: WorldOptions = {}) {
   const at = opts.windows ? WIN : { HOME, DATA, PROJECT };
   mock.env(on, {
     ...(opts.windows ? { USERPROFILE: at.HOME, OS: 'Windows_NT', TEMP: `${at.HOME}/AppData/Local/Temp` } : { HOME: at.HOME }),
-    TERMINAL_CODE_HOME: at.DATA,
-    TERMINAL_CODE_LANG: opts.lang ?? 'en',
+    MODE_CODE_HOME: at.DATA,
+    MODE_CODE_LANG: opts.lang ?? 'en',
     ...(opts.env ?? {}),
   });
   const write = (path: string, text: string) => files.set(norm(path), { text, mtimeMs: clock.now() });
@@ -172,7 +172,7 @@ export function world(on: any, opts: WorldOptions = {}) {
   });
   on('tool.register', (_$: any, e: any) => {
     registered.push(e);
-    return { value: { tool: `mcp__terminal-code__${e.name}` } };
+    return { value: { tool: `mcp__mode-code__${e.name}` } };
   });
   // The safety-net hook's record of each prompt (UserPromptSubmit runs beneath every plugin's prompt hook).
   const hook = { mode: opts.promptMode ?? null, prompts: 0 };

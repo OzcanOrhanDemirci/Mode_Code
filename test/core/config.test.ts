@@ -50,11 +50,11 @@ test('unknown keys are reported, not fatal', () => {
 test('projects need unique kebab-case ids; keyword phrases are kept per language', () => {
   const r = parseConfig(
     JSON.stringify({
-      projects: [{ id: 'terminal-code', names: ['terminal'] }, { id: 'Bad Id' }, { id: 'terminal-code', names: [] }],
+      projects: [{ id: 'mode-code', names: ['terminal'] }, { id: 'Bad Id' }, { id: 'mode-code', names: [] }],
       keywords: { extra: { tr: { continue: ['sürdür'] }, xx: {} } },
     }),
   );
-  assert.deepEqual(r.config.projects, [{ id: 'terminal-code', names: ['terminal'] }]);
+  assert.deepEqual(r.config.projects, [{ id: 'mode-code', names: ['terminal'] }]);
   assert.deepEqual(r.config.keywords.extra.tr, { continue: ['sürdür'] });
   assert.equal(r.problems.length, 3);
 });

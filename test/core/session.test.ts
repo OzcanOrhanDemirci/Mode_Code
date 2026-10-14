@@ -24,8 +24,8 @@ test('continue names the project and clears a wrap-up; the mode and the way of w
   // The person, 2026-10-13: chat and manual on the strip, then "terminal devam" turned them into free and autonomous.
   for (const mode of ['chat', 'research', 'plan', 'code', 'free'] as const)
     for (const interaction of ['default', 'manual', 'autonomous'] as const) {
-      const s = applyKeyword({ ...s0, wrapUp: true, mode, interaction }, kw({ kind: 'continue', project: 'terminal-code' }), null);
-      assert.deepEqual([s.mode, s.interaction, s.wrapUp, s.project], [mode, interaction, false, 'terminal-code'], `${mode} ${interaction}`);
+      const s = applyKeyword({ ...s0, wrapUp: true, mode, interaction }, kw({ kind: 'continue', project: 'mode-code' }), null);
+      assert.deepEqual([s.mode, s.interaction, s.wrapUp, s.project], [mode, interaction, false, 'mode-code'], `${mode} ${interaction}`);
     }
   // With a budget too ("terminal devam kota 40").
   const budget = applyKeyword({ ...s0, mode: 'chat', interaction: 'manual' }, kw({ kind: 'continue', budget: { n: 40, plus: false } }), 40);

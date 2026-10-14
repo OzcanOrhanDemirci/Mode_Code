@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * The memory store (docs/memory.md): the folder Claude Code keeps its auto memory in, where it lives (this
- * computer, the person's GitHub, or both), and what terminal-code adds to it (handoff notes, a README, a
+ * computer, the person's GitHub, or both), and what mode-code adds to it (handoff notes, a README, a
  * .gitignore). Pure: names, paths, checks and texts; the git work is in memory-sync.ts, the disk and the
  * network in the node layer.
  */
-import { APP_NAME, PREVIOUS_NAMES } from './app.js';
+import { APP_ID, APP_NAME, PREVIOUS_NAMES } from './app.js';
 import type { Config } from './config.js';
 import { tIn, type Lang } from './i18n/index.js';
 import { joinPath } from './paths.js';
 import { maskSecrets } from './secrets/scan.js';
 import { truncate } from './text.js';
 
-/** Folders terminal-code keeps inside the store. */
+/** Folders mode-code keeps inside the store. */
 export const HANDOFF_DIR = 'handoffs';
 export const PROJECTS_DIR = 'projects';
 
@@ -111,18 +111,21 @@ export function storeReadme(place: 'local' | 'github' | 'both'): string {
     '',
     "This folder is Claude Code's auto memory (its `autoMemoryDirectory`): `MEMORY.md` is the index Claude reads at the start of every session, the other files are its notes.",
     '',
-    `It is managed with terminal-code${place === 'local' ? '' : ' and kept in sync with a private GitHub repository'}. \`${HANDOFF_DIR}/\` holds handoff notes, written when a session ends or compacts so that the next one can go on; they are not memory entries. \`${PROJECTS_DIR}/\` holds memories brought in from Claude Code's per-project folders.`,
+    `It is managed with ${APP_NAME}${place === 'local' ? '' : ' and kept in sync with a private GitHub repository'}. \`${HANDOFF_DIR}/\` holds handoff notes, written when a session ends or compacts so that the next one can go on; they are not memory entries. \`${PROJECTS_DIR}/\` holds memories brought in from Claude Code's per-project folders.`,
     '',
-    'Keep secrets out of this folder: terminal-code holds back a file that looks like it holds a key or a token, but it cannot recognise every secret.',
+    `Keep secrets out of this folder: ${APP_NAME} holds back a file that looks like it holds a key or a token, but it cannot recognise every secret.`,
     '',
   ].join('\n');
 }
 
 /**
- * A store's README says terminal-code set the folder up (storeReadme), under this name or an earlier one:
- * it is terminal-code's to keep in sync.
+ * A store's README says mode-code set the folder up (storeReadme), under this name or an earlier one:
+ * it is mode-code's to keep in sync.
  */
-export function managedByUs(readme: string | null, names: readonly string[] = [APP_NAME, ...PREVIOUS_NAMES.map((p) => p.name)]): boolean {
+export function managedByUs(
+  readme: string | null,
+  names: readonly string[] = [...new Set([APP_NAME, APP_ID, ...PREVIOUS_NAMES.flatMap((p) => [p.name, p.id])])],
+): boolean {
   return readme !== null && /^# Claude Code memory\r?\n/.test(readme) && names.some((n) => readme.includes(`It is managed with ${n}`));
 }
 
@@ -130,9 +133,9 @@ export function managedByUs(readme: string | null, names: readonly string[] = [A
 export const HANDOFF_README = [
   '# Handoff notes',
   '',
-  'Written by terminal-code when a session ends, compacts, or is asked to hand off: where the work on a project stands, so that the next session can go on. One folder per project, one file per note, newest last by name.',
+  `Written by ${APP_NAME} when a session ends, compacts, or is asked to hand off: where the work on a project stands, so that the next session can go on. One folder per project, one file per note, newest last by name.`,
   '',
-  'These are not memory entries: do not add them to MEMORY.md and do not edit them. terminal-code keeps the newest ones and hands the right one to a new session.',
+  `These are not memory entries: do not add them to MEMORY.md and do not edit them. ${APP_NAME} keeps the newest ones and hands the right one to a new session.`,
   '',
 ].join('\n');
 
@@ -182,7 +185,7 @@ export function isDeletion(c: StoreChange): boolean {
   return c.status.includes('D');
 }
 
-/** The message of a commit terminal-code makes in the store, in the person's language: what changed, in which session. */
+/** The message of a commit mode-code makes in the store, in the person's language: what changed, in which session. */
 export function commitMessage(counts: { added: number; changed: number; removed: number }, session: string | null, lang: Lang): string {
   const parts: string[] = [];
   if (counts.added) parts.push(tIn(lang, 'memory.commit.added', { n: counts.added }));
@@ -207,7 +210,7 @@ export function changeCounts(changes: readonly StoreChange[]): { added: number; 
 
 /**
  * Where handoff notes are kept: in the memory store when it keeps them, else in the sync's shared place when
- * it takes them (docs/sync.md), else in terminal-code's own folder.
+ * it takes them (docs/sync.md), else in mode-code's own folder.
  */
 export function handoffRoot(config: Pick<Config, 'memory' | 'sync'>, fallback: string): string {
   const store = config.memory.store;

@@ -490,7 +490,7 @@ async function hookAgreement(d: DoctorEnv, node: string, hook: string): Promise<
       temp: toolPath(tmpdir()),
       outside: joinPath(d.home, `.tc-doctor-outside-${process.pid}`),
     };
-    const env: NodeJS.ProcessEnv = { ...d.env, TERMINAL_CODE_HOME: d.layout.root, CLAUDE_PROJECT_DIR: places.project };
+    const env: NodeJS.ProcessEnv = { ...d.env, MODE_CODE_HOME: d.layout.root, CLAUDE_PROJECT_DIR: places.project };
     for (const k of Object.keys(env)) if (k.startsWith('CLAUDE_CODE_') || k === 'CLAUDECODE') delete env[k];
     const ctx = beltContext({ cwd: places.project, projectDir: places.project, config: d.config, layout: d.layout, lang: d.lang, env });
     const samples = samplesFor(d.platform).filter((s) => s.tool !== 'Read');

@@ -63,7 +63,7 @@ test("a handoff note goes into the shared place; the belt keeps Claude out of th
   });
   await $.prompt.submit(typed('Wrapping up. devir'));
   const done: any = await $.tool.call({
-    tool: 'mcp__terminal-code__handoff',
+    tool: 'mcp__mode-code__handoff',
     summary: 'The sync is in.',
     open: 'Its tests.',
     decisions: 'One folder per computer.',
@@ -71,6 +71,6 @@ test("a handoff note goes into the shared place; the belt keeps Claude out of th
   } as any);
   expect(String(done.result)).toMatch(/The handoff note is written: \/home\/ada\/iCloud\/tc\/handoffs\//);
   const refused: any = await $.tool.call({ tool: 'Write', file_path: `${SHARED}/machines/mac-0000/settings.json`, content: '{}' } as any);
-  expect(JSON.stringify(refused)).toMatch(/terminal-code|own files/);
+  expect(JSON.stringify(refused)).toMatch(/mode-code|own files/);
   expect(w.read(`${SHARED}/machines/mac-0000/settings.json`)).toBeNull();
 });

@@ -39,7 +39,7 @@ test('a protected folder that is a link is reported with the place it leads to; 
 
     const home = toolPath(join(root, 'home'));
     const base = process.platform === 'win32' ? winCtx : process.platform === 'darwin' ? macCtx : linuxCtx;
-    const ctx = base({ home, cwd: toolPath(root), projectDir: toolPath(root), dataDir: `${home}/.terminal-code`, aliases });
+    const ctx = base({ home, cwd: toolPath(root), projectDir: toolPath(root), dataDir: `${home}/.mode-code`, aliases });
     const d = await evaluateToolCall('Write', { file_path: `${aliases[0]!.real}/settings.json`, content: '{}' }, ctx);
     assert.equal(summary(d), 'deny self.claude-settings');
   } finally {

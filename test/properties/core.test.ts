@@ -116,7 +116,7 @@ test('isUnder: a folder holds itself and what is joined to it; case counts only 
 });
 
 test('8.3 expansion never touches a path without a short segment, and settles after one pass', () => {
-  const known = ['C:/Users/ada', 'C:/Users/ada/.claude', 'C:/Users/ada/.terminal-code', 'C:/dev/app'];
+  const known = ['C:/Users/ada', 'C:/Users/ada/.claude', 'C:/Users/ada/.mode-code', 'C:/dev/app'];
   fc.assert(
     fc.property(fc.array(segment, { maxLength: 6 }), (segs) => {
       const p = resolvePath('C:/' + segs.join('/'), WIN);

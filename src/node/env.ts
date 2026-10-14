@@ -17,9 +17,9 @@ export function toolPath(p: string, cwd = process.cwd()): string {
   return resolvePath(p, { platform, home: homedir(), cwd });
 }
 
-/** The data folder: TERMINAL_CODE_HOME when set (tests, portable installs), else ~/.terminal-code. */
+/** The data folder: MODE_CODE_HOME when set (tests, portable installs), else ~/.mode-code. */
 export function dataRoot(env: NodeJS.ProcessEnv = process.env): string {
-  const override = env.TERMINAL_CODE_HOME;
+  const override = env.MODE_CODE_HOME;
   return override ? toolPath(override) : joinPath(home(), DATA_DIR_NAME);
 }
 

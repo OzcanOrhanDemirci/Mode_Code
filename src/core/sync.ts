@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Sync across computers (docs/sync.md): what of terminal-code's settings and history the computers share,
+ * Sync across computers (docs/sync.md): what of mode-code's settings and history the computers share,
  * how their settings meet, and what counts as lowering a protection, which never applies without the
  * person. Pure: the shared place's layout, the settings each computer sends with the time each changed,
  * the merge that every computer comes to the same value from, and the summaries of history it reads.
@@ -59,7 +59,7 @@ export function syncReadme(): string {
     '',
     `\`${MACHINES_DIR}/<computer>/\` is each computer's own: its settings with the time each changed, its history (the belt's and the keywords' events, summaries of runs and flows). Each computer writes only its own folder. \`handoffs/\` holds handoff notes, when your memory does not keep them.`,
     '',
-    'Change settings in terminal-code, not here: each computer writes its own file from its settings, over any edit made to it.',
+    'Change settings in Mode_Code, not here: each computer writes its own file from its settings, over any edit made to it.',
     '',
   ].join('\n');
 }

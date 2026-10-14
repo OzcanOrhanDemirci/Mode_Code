@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * `terminal-code doctor`: the maintenance check. Measures, checks, offers the safe repairs (or makes them
+ * `mode-code doctor`: the maintenance check. Measures, checks, offers the safe repairs (or makes them
  * with --fix), measures again. --self-check tests the doctor itself in a sandbox; --report prints a
  * problem report to paste into an issue; --json prints everything for scripts.
  */
@@ -31,7 +31,7 @@ async function confirm(question: string): Promise<boolean> {
 }
 
 function json(schema: string, data: object): void {
-  process.stdout.write(JSON.stringify({ schema: `terminal-code.${schema}/1`, version: APP_VERSION, ...data }, null, 2) + '\n');
+  process.stdout.write(JSON.stringify({ schema: `mode-code.${schema}/1`, version: APP_VERSION, ...data }, null, 2) + '\n');
 }
 
 export async function cmdDoctor(a: Args): Promise<number> {

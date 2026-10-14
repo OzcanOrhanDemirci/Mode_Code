@@ -59,7 +59,7 @@ test('handoff notes of every project, newest first; files that are not notes are
   } finally {
     s.done();
   }
-  // Without a store the notes are in terminal-code's own folder.
+  // Without a store the notes are in mode-code's own folder.
   const n = setup(false);
   try {
     assert.equal(allHandoffs(n.ctx).length, 3);

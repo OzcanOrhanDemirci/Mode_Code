@@ -12,7 +12,7 @@ const ctx = (cwd: string): BeltContext => ({
   projectDir: cwd,
   knownProjects: ['C:/dev/app'],
   env: {},
-  dataDir: 'C:/Users/ada/.terminal-code',
+  dataDir: 'C:/Users/ada/.mode-code',
   memoryDirs: [],
   managedSettingsFiles: ['C:/Program Files/ClaudeCode/managed-settings.json'],
   lang: 'en',

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * The built-in self-test suites. Each sample has one known answer; the suites run in a few milliseconds
- * and touch nothing outside memory. CI runs them as unit tests; `terminal-code doctor` runs them on the
+ * and touch nothing outside memory. CI runs them as unit tests; `mode-code doctor` runs them on the
  * person's machine, where another JavaScript engine version or another locale could change an answer.
  */
 import type { Platform } from '../paths.js';
@@ -124,12 +124,12 @@ export function secretSuite(): Promise<SuiteResult> {
 
 /** Keywords: the spellings people type, including the Turkish letters keyboards swap. */
 export function keywordSuite(): Promise<SuiteResult> {
-  const projects = [{ id: 'terminal-code', names: ['terminal'] }];
+  const projects = [{ id: 'mode-code', names: ['terminal'] }];
   const cases: [string, string][] = [
-    ['terminal devam', 'continue terminal-code'],
-    ['TERMİNAL DEVAM', 'continue terminal-code'],
-    ['termınal devam', 'continue terminal-code'],
-    ['Terminal devam.', 'continue terminal-code'],
+    ['terminal devam', 'continue mode-code'],
+    ['TERMİNAL DEVAM', 'continue mode-code'],
+    ['termınal devam', 'continue mode-code'],
+    ['Terminal devam.', 'continue mode-code'],
     ['devam', 'continue'],
     ['kota +5', 'quota'],
     ['terminal devam ederken bir şey sorayım', 'none'],

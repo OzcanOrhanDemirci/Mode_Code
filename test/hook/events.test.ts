@@ -20,7 +20,7 @@ function run(event: string, input: object | string, home: string): { out: Record
     cwd: root,
     input: typeof input === 'string' ? input : JSON.stringify(input),
     encoding: 'utf8',
-    env: { ...process.env, TERMINAL_CODE_HOME: home, TERMINAL_CODE_LANG: 'en' },
+    env: { ...process.env, MODE_CODE_HOME: home, MODE_CODE_LANG: 'en' },
     timeout: 30_000,
   });
   const raw = (r.stdout ?? '').trim();

@@ -15,14 +15,14 @@ body:
   - type: textarea
     id: doctor
     attributes:
-      label: Output of `terminal-code doctor`
+      label: Output of `mode-code doctor`
       description: It contains no personal data, but please look it over before pasting.
       render: text
   - type: input
     id: versions
     attributes:
       label: Versions
-      description: terminal-code, Claude Code, Node.js, operating system
+      description: mode-code, Claude Code, Node.js, operating system
       placeholder: 0.1.0 · Claude Code 2.1.296 · Node 24.15 · Windows 11
     validations:
       required: true

@@ -1,12 +1,12 @@
 # Security policy
 
-terminal-code includes a safety belt that stands between Claude Code and risky commands, so a weakness in it matters. Thank you for reporting one responsibly.
+Mode_Code includes a safety belt that stands between Claude Code and risky commands, so a weakness in it matters. Thank you for reporting one responsibly.
 
 ## Reporting a vulnerability
 
 **Please do not open a public issue.** Use GitHub's private vulnerability reporting: on the repository page, open **Security › Advisories › Report a vulnerability**. Only the maintainer sees the report.
 
-Include what you can: the version (`terminal-code --version`), your operating system, Claude Code's version, what you did, what happened and what you expected. For a way around the belt, describe the class of command or input; a minimal example is enough, and please do not include anything that could cause harm if it ran.
+Include what you can: the version (`mode-code --version`), your operating system, Claude Code's version, what you did, what happened and what you expected. For a way around the belt, describe the class of command or input; a minimal example is enough, and please do not include anything that could cause harm if it ran.
 
 You will get an answer within a week. Once a fix is ready, a release with notes is published and, if you wish, you are credited.
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * The memory store on disk (docs/memory.md): Claude Code's autoMemoryDirectory setting (read, and written
- * with a backup), the memories Claude Code keeps per project, a folder's facts, the files terminal-code
+ * with a backup), the memories Claude Code keeps per project, a folder's facts, the files mode-code
  * adds to a new store, and bringing existing notes in. Nothing here deletes or moves a note.
  */
 import { copyFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
@@ -115,7 +115,7 @@ export function perProjectMemories(claudeDir: string): { slug: string; dir: stri
   return out;
 }
 
-/** The files terminal-code adds to a store, each only when it is missing: a README, a .gitignore, the handoffs folder's README. */
+/** The files mode-code adds to a store, each only when it is missing: a README, a .gitignore, the handoffs folder's README. */
 export function scaffoldStore(dir: string, place: MemoryPlace, what: { readme: boolean; handoffs: boolean } = { readme: true, handoffs: true }): string[] {
   const p = storePaths(dir);
   ensureDir(dir);

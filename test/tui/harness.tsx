@@ -55,7 +55,7 @@ export const SESSION: SessionRow = {
 };
 
 export class FakeData implements DataSource {
-  readonly layout = layout('C:/Users/test/.terminal-code');
+  readonly layout = layout('C:/Users/test/.mode-code');
   readonly cwd = 'C:/work/app';
   saved: { path: string; value: unknown }[] = [];
   seen: number | null = null;
@@ -113,7 +113,7 @@ export class FakeData implements DataSource {
             matcher: 'Bash',
             type: 'command',
             command: 'node',
-            args: ['C:/Users/test/.terminal-code/bin/hook.mjs', 'PreToolUse'],
+            args: ['C:/Users/test/.mode-code/bin/hook.mjs', 'PreToolUse'],
             timeout: 15,
             onFailure: 'block',
             ours: true,

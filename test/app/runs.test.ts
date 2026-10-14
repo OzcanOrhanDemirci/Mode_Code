@@ -104,7 +104,7 @@ test("the checks from the person's terminal: what a session measures reads as me
     };
     const g = autonomyCheck({ layout: l, config }, root, {
       platform: 'linux',
-      env: { WSL_DISTRO_NAME: 'terminal-code' },
+      env: { WSL_DISTRO_NAME: 'mode-code' },
       readProc: (p) => procs[p] ?? null,
       exists: (p) => p in procs,
       claude: strict,
@@ -131,7 +131,7 @@ test("the checks from the person's terminal: what a session measures reads as me
     // Installed: a manifest, and hook entries that run the hook program of this data folder (wherever it is),
     // read as the doctor reads them; entries of another program do not count.
     mkdirSync(join(l.root, 'install'), { recursive: true });
-    writeFileSync(l.manifest, JSON.stringify({ v: 1, app: 'terminal-code', version: 'dev', hooks: {} }));
+    writeFileSync(l.manifest, JSON.stringify({ v: 1, app: 'mode-code', version: 'dev', hooks: {} }));
     const program = (event: string): HookEntry => ({
       ...hook(event),
       command: '/usr/bin/node',

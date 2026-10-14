@@ -2,28 +2,28 @@
 
 Claude Code's **auto memory** is a folder of markdown notes Claude keeps for itself: a `MEMORY.md` index loaded into every session (its first 200 lines or 25 KB) and one topic file per memory, read when needed. By default it lives under `~/.claude/projects/<project>/memory/`, one folder per repository, on one machine only ([How Claude remembers your project](https://code.claude.com/docs/en/memory#auto-memory)).
 
-terminal-code lets you choose where that memory lives, keeps it in sync, and carries your work from one session to the next with **handoff notes** kept inside the same memory. It guides you through the setup and does the parts that can be done for you; it never publishes your memory, and it holds anything that looks like a secret back from GitHub.
+Mode_Code lets you choose where that memory lives, keeps it in sync, and carries your work from one session to the next with **handoff notes** kept inside the same memory. It guides you through the setup and does the parts that can be done for you; it never publishes your memory, and it holds anything that looks like a secret back from GitHub.
 
 ## Where your memory lives
 
 You pick one of three places:
 
-|                          | 1 · This computer only                                                          | 2 · Your GitHub only                                                                                                          | 3 · This computer and your GitHub                                     |
-| ------------------------ | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Where the notes are      | a folder you choose (`~/claude-memory` by default)                              | a private repository in your GitHub account                                                                                   | a folder you choose, and a private repository it is kept in sync with |
-| On this computer         | the folder, with its own change history (git, local only) when git is installed | a working copy terminal-code keeps in its own data folder (`~/.terminal-code/memory/<repository>`); you never need to open it | the folder                                                            |
-| When you are offline     | nothing changes                                                                 | sessions work from the working copy; changes go up when the network is back                                                   | sessions work from the folder; changes go up when the network is back |
-| On a new computer        | nothing to bring                                                                | run the setup, pick the same repository: everything comes back                                                                | run the setup, pick the same repository and an empty folder           |
-| If this computer is lost | the memory is lost with it                                                      | nothing is lost                                                                                                               | nothing is lost                                                       |
+|                          | 1 · This computer only                                                          | 2 · Your GitHub only                                                                                                  | 3 · This computer and your GitHub                                     |
+| ------------------------ | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Where the notes are      | a folder you choose (`~/claude-memory` by default)                              | a private repository in your GitHub account                                                                           | a folder you choose, and a private repository it is kept in sync with |
+| On this computer         | the folder, with its own change history (git, local only) when git is installed | a working copy Mode_Code keeps in its own data folder (`~/.mode-code/memory/<repository>`); you never need to open it | the folder                                                            |
+| When you are offline     | nothing changes                                                                 | sessions work from the working copy; changes go up when the network is back                                           | sessions work from the folder; changes go up when the network is back |
+| On a new computer        | nothing to bring                                                                | run the setup, pick the same repository: everything comes back                                                        | run the setup, pick the same repository and an empty folder           |
+| If this computer is lost | the memory is lost with it                                                      | nothing is lost                                                                                                       | nothing is lost                                                       |
 
-Claude Code reads memory from files on the computer it runs on, so with GitHub there is always a copy here: in choice 2 it is terminal-code's to manage, in choice 3 it is a folder of yours. The repository is always **private**; the setup refuses to use a public one.
+Claude Code reads memory from files on the computer it runs on, so with GitHub there is always a copy here: in choice 2 it is Mode_Code's to manage, in choice 3 it is a folder of yours. The repository is always **private**; the setup refuses to use a public one.
 
 All three make Claude Code use **one memory for all your projects**: the folder is set as Claude Code's `autoMemoryDirectory` in your user settings. One index keeps what you teach Claude in one project available in the others; per-project memories you already have are brought in under `projects/<name>/` (below).
 
 ## Setting it up
 
 ```
-terminal-code memory setup
+mode-code memory setup
 ```
 
 or in the control center: Settings › Memory › Where it lives, then `s` (the control center steps aside for the setup and comes back to the same page). The setup is a short conversation in your terminal; it changes nothing until you have seen the whole list of changes and said yes once.
@@ -36,25 +36,25 @@ or in the control center: Settings › Memory › Where it lives, then `s` (the 
 6. **The repository** (2 and 3): a name in your account, `claude-memory` by default, or `owner/name`. A name GitHub would not take is explained with what it would become (`my memory` → `my-memory`). A repository that does not exist is created **private**; an existing private one is used (empty, or holding the memory of another computer, which then comes down here); a public one is refused. A folder that is already a clone of a repository is kept that way. Without the GitHub CLI you can give the address of an empty private repository instead; its privacy cannot be checked then, and the setup asks you to confirm it.
 7. **Memory you already have:** the notes in the folder Claude Code used until now are copied into the new place, and Claude Code's per-project memories under `projects/<name>/`, with a line for each in `MEMORY.md`. Nothing is moved or deleted; the old folders stay as they were.
 8. **Protection:** whether the safety belt protects the folder as memory (Claude cannot delete notes; shrinking the index asks you first).
-9. **The list of changes**, then one confirmation. What can be on it: creating the repository; letting git use your GitHub sign-in (`gh auth setup-git`); bringing the repository down or starting the history; the commit name and address in this folder only (GitHub's private `…@users.noreply.github.com` address when you are signed in), when git has none; a README, a `.gitignore` and the `handoffs/` folder; the copied notes; the first commit and push (a file that looks like it holds a secret is held back); Claude Code's `autoMemoryDirectory` (your settings file is backed up first, and a settings file that is not valid JSON is left alone); the protection; your choices in terminal-code's settings.
+9. **The list of changes**, then one confirmation. What can be on it: creating the repository; letting git use your GitHub sign-in (`gh auth setup-git`); bringing the repository down or starting the history; the commit name and address in this folder only (GitHub's private `…@users.noreply.github.com` address when you are signed in), when git has none; a README, a `.gitignore` and the `handoffs/` folder; the copied notes; the first commit and push (a file that looks like it holds a secret is held back); Claude Code's `autoMemoryDirectory` (your settings file is backed up first, and a settings file that is not valid JSON is left alone); the protection; your choices in Mode_Code's settings.
 
-If a step fails, the setup stops there and says what was done; running it again picks up from what is there. It runs only in your own terminal: inside a Claude Code session it refuses, as the other commands that change protections do. `terminal-code memory` shows where things stand at any time.
+If a step fails, the setup stops there and says what was done; running it again picks up from what is there. It runs only in your own terminal: inside a Claude Code session it refuses, as the other commands that change protections do. `mode-code memory` shows where things stand at any time.
 
 ## Keeping it in sync
 
 With a git history (all three, when git is installed):
 
-| When                                       | What terminal-code does                                                                                                                                                            |
+| When                                       | What Mode_Code does                                                                                                                                                                |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | A session starts                           | records what was left from before, brings in what changed on GitHub (`git pull --rebase --autostash`) and sends what is new; what came in is told to Claude with your first prompt |
 | A turn ended and the memory folder changed | records the change (a commit that says what changed and in which session) and, with GitHub, sends it (`git push`)                                                                  |
-| You run `terminal-code memory sync`        | the same, at once, and says where things stand                                                                                                                                     |
+| You run `mode-code memory sync`            | the same, at once, and says where things stand                                                                                                                                     |
 
 - **Only the memory's own files.** A memory folder inside a larger repository commits only its own files.
-- **Secrets and large files are held back.** Before a commit, each changed file is scanned with the secret scanner; one that looks like it holds a key or a token is not committed, nor is a file over 1 MB, and you are told which file (once per session, and in `terminal-code memory`).
-- **Nothing is forced.** When the same note changed here and on another computer and git cannot join the changes, the pull is undone, your files stay as they are, and `terminal-code memory` says which files need you. A push the remote rejects (it moved on) is pulled once and sent again. terminal-code never force-pushes or rewrites the memory's history.
+- **Secrets and large files are held back.** Before a commit, each changed file is scanned with the secret scanner; one that looks like it holds a key or a token is not committed, nor is a file over 1 MB, and you are told which file (once per session, and in `mode-code memory`).
+- **Nothing is forced.** When the same note changed here and on another computer and git cannot join the changes, the pull is undone, your files stay as they are, and `mode-code memory` says which files need you. A push the remote rejects (it moved on) is pulled once and sent again. Mode_Code never force-pushes or rewrites the memory's history.
 - **Offline is normal.** A pull or push that cannot reach GitHub is tried again at the next turn or session.
-- **A memory you keep in sync yourself.** When the folder already has a git history the setup did not start, the setup asks how terminal-code should look after it: everything (as above), **only bring in** changes when a session starts and only when that needs no merge (`git pull --ff-only`; you commit and push), or **leave git to you** (status only; `terminal-code memory sync` does everything when you ask). Such a folder gets no README or `.gitignore`, and handoff notes go into it only when you say so. In every mode, what arrived since this computer's last session, whoever brought it in, is told to Claude. See [sync.md](sync.md#memory-you-already-keep-in-sync).
+- **A memory you keep in sync yourself.** When the folder already has a git history the setup did not start, the setup asks how Mode_Code should look after it: everything (as above), **only bring in** changes when a session starts and only when that needs no merge (`git pull --ff-only`; you commit and push), or **leave git to you** (status only; `mode-code memory sync` does everything when you ask). Such a folder gets no README or `.gitignore`, and handoff notes go into it only when you say so. In every mode, what arrived since this computer's last session, whoever brought it in, is told to Claude. See [sync.md](sync.md#memory-you-already-keep-in-sync).
 - **Claude hears what came in.** Claude Code loads the index (`MEMORY.md`) as a session starts, and the pull at the start can land after that: measured once in WSL2, where a session answered from the old index although the pull had landed 0.7 s before the prompt. So what a pull brings in is told to Claude with your next prompt (the first one waits for the start's pull): the files, and the lines the index lost and gained, up to 30. Past that, or when the lines cannot be read, Claude is asked to read the index again.
 - **Who does it.** The plugin, inside Claude Code. Where the plugin is not loaded, the safety-net hook does the same at the session's first prompt and at the end of each turn. Each keeps a record of its last sync.
 
@@ -66,24 +66,24 @@ A **handoff note** says where the work stands so that the next session, here or 
 
 **When one is written:**
 
-| When                                                                               | Who writes it                                                                                                                                                                                     |
-| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| You type `handoff` / `devir` (alone or at the end of a message)                    | Claude writes the four parts through the tool `mcp__terminal-code__handoff`; code checks that each is there, not too long and free of secrets, adds what it measured, keeps the note and syncs it |
-| You type `wrap up` / `toparla`                                                     | the same, as part of wrapping up                                                                                                                                                                  |
-| Before Claude Code compacts the conversation                                       | the compaction's own summary, with what code measured: no extra model call                                                                                                                        |
-| On `/clear` and when the session ends, if it changed something since its last note | what code measured and your last request (no summary: there is no one left to write it)                                                                                                           |
-| A session closed without ending (its window shut), when the next session starts    | the next session, from what the closed one kept as it went (when it started, when it last changed something, its project, your last request) and what code measures in its folder now             |
-| When a full-autonomy run pauses or ends                                            | the run's state, with the path of its report                                                                                                                                                      |
+| When                                                                               | Who writes it                                                                                                                                                                                 |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| You type `handoff` / `devir` (alone or at the end of a message)                    | Claude writes the four parts through the tool `mcp__mode-code__handoff`; code checks that each is there, not too long and free of secrets, adds what it measured, keeps the note and syncs it |
+| You type `wrap up` / `toparla`                                                     | the same, as part of wrapping up                                                                                                                                                              |
+| Before Claude Code compacts the conversation                                       | the compaction's own summary, with what code measured: no extra model call                                                                                                                    |
+| On `/clear` and when the session ends, if it changed something since its last note | what code measured and your last request (no summary: there is no one left to write it)                                                                                                       |
+| A session closed without ending (its window shut), when the next session starts    | the next session, from what the closed one kept as it went (when it started, when it last changed something, its project, your last request) and what code measures in its folder now         |
+| When a full-autonomy run pauses or ends                                            | the run's state, with the path of its report                                                                                                                                                  |
 
-**Where it is kept:** in the memory, under `handoffs/<project>/`, one file per note named by its time (UTC) and session, synced like the rest; without a memory set up, in terminal-code's own folder. `<project>` is the project you named in the session (`terminal devam`), else the project registered for the folder, else its GitHub repository (`owner-repo`), else its folder's name, so the same project on two computers shares its handoffs. The newest 20 per project stay in the folder; older ones leave it at the next session's start and remain in the memory's git history.
+**Where it is kept:** in the memory, under `handoffs/<project>/`, one file per note named by its time (UTC) and session, synced like the rest; without a memory set up, in Mode_Code's own folder. `<project>` is the project you named in the session (`terminal devam`), else the project registered for the folder, else its GitHub repository (`owner-repo`), else its folder's name, so the same project on two computers shares its handoffs. The newest 20 per project stay in the folder; older ones leave it at the next session's start and remain in the memory's git history.
 
-**How the next session takes it.** On the session's first prompt, Claude is told in one line that a note is waiting: when and where it was written, why, its next step, and its path. When you type `<project> continue` / `<proje> devam`, the whole note goes to Claude with your prompt. A session is not offered its own note, and notes older than 14 days are not offered. `terminal-code memory handoff` prints the newest, `--all` lists them; the control center lists them under Projects › Handoffs.
+**How the next session takes it.** On the session's first prompt, Claude is told in one line that a note is waiting: when and where it was written, why, its next step, and its path. When you type `<project> continue` / `<proje> devam`, the whole note goes to Claude with your prompt. A session is not offered its own note, and notes older than 14 days are not offered. `mode-code memory handoff` prints the newest, `--all` lists them; the control center lists them under Projects › Handoffs.
 
 Handoff notes are not memory entries: they are not added to `MEMORY.md`, and Claude is told not to index them.
 
 ## The morning report
 
-When you come back after a while (6 hours by default), the first prompt shows one line of what happened while you were away and what waits for you, the control center's Home shows it first, and `terminal-code morning` shows it in full:
+When you come back after a while (6 hours by default), the first prompt shows one line of what happened while you were away and what waits for you, the control center's Home shows it first, and `mode-code morning` shows it in full:
 
 - full-autonomy runs that ended, paused or got stuck, with their reports, and the steps they deferred to you;
 - flows whose plans wait for your approval;
@@ -94,20 +94,20 @@ When you come back after a while (6 hours by default), the first prompt shows on
 
 ## Notes from full-autonomy runs
 
-During a full-autonomy run Claude does not write the memory (the run's guard refuses it); its notes go to the run's notes file instead. They wait for you: `terminal-code memory notes` shows them, `approve <id>` hands the notes to the next session, where Claude merges them into the memory by the memory's own rules, and `discard <id>` leaves them out. Each is handed over once. Nothing from an unattended run enters your memory without you, and an agent cannot approve.
+During a full-autonomy run Claude does not write the memory (the run's guard refuses it); its notes go to the run's notes file instead. They wait for you: `mode-code memory notes` shows them, `approve <id>` hands the notes to the next session, where Claude merges them into the memory by the memory's own rules, and `discard <id>` leaves them out. Each is handed over once. Nothing from an unattended run enters your memory without you, and an agent cannot approve.
 
 ## Commands
 
-| Command                                                  | What it does                                                     |
-| -------------------------------------------------------- | ---------------------------------------------------------------- |
-| `terminal-code memory`                                   | where the memory lives, its sync state, the newest handoff here  |
-| `terminal-code memory setup`                             | the setup above                                                  |
-| `terminal-code memory sync`                              | record, pull and push now                                        |
-| `terminal-code memory handoff [--all] [--project <key>]` | the newest handoff note (or all of them)                         |
-| `terminal-code memory notes [approve\|discard <id>]`     | notes from full-autonomy runs waiting for you, and your decision |
-| `terminal-code morning [--hours N]`                      | the morning report                                               |
+| Command                                              | What it does                                                     |
+| ---------------------------------------------------- | ---------------------------------------------------------------- |
+| `mode-code memory`                                   | where the memory lives, its sync state, the newest handoff here  |
+| `mode-code memory setup`                             | the setup above                                                  |
+| `mode-code memory sync`                              | record, pull and push now                                        |
+| `mode-code memory handoff [--all] [--project <key>]` | the newest handoff note (or all of them)                         |
+| `mode-code memory notes [approve\|discard <id>]`     | notes from full-autonomy runs waiting for you, and your decision |
+| `mode-code morning [--hours N]`                      | the morning report                                               |
 
-Each takes `--json`. In the control center: Settings › Memory (where it lives, handoffs and morning report, protected folders), Projects › Handoffs, Home. `terminal-code doctor` checks the store too: whether Claude Code uses it, its history and remote, and its last sync.
+Each takes `--json`. In the control center: Settings › Memory (where it lives, handoffs and morning report, protected folders), Projects › Handoffs, Home. `mode-code doctor` checks the store too: whether Claude Code uses it, its history and remote, and its last sync.
 
 ## Settings
 

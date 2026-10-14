@@ -75,7 +75,7 @@ export interface DataSource {
   scanMemory(): { findings: SecretFinding[]; files: number; skipped: number };
   lastSeen(): number | null;
   markSeen(at: number): void;
-  /** The last maintenance check's summary, written by `terminal-code doctor`. */
+  /** The last maintenance check's summary, written by `mode-code doctor`. */
   doctorSummary(): DoctorSummary | null;
   /** Every flow on record, the most recently changed first. */
   flows(): Flow[];

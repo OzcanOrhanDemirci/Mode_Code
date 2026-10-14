@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * The built-in self-tests, run here exactly as `terminal-code doctor` runs them on a person's machine.
+ * The built-in self-tests, run here exactly as `mode-code doctor` runs them on a person's machine.
  * A failing sample is printed with what was expected and what came back.
  */
 import { test } from 'node:test';
