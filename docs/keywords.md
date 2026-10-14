@@ -1,6 +1,6 @@
 # Keywords
 
-A keyword is a short phrase that steers the session. The tool detects it in code and adds a note for Claude that quotes your words and says what they mean, so the behavior does not depend on Claude remembering a convention. The mode and the way of working also have slash commands (`/1` … `/9`, `/0`, `/devam`, `/kota`) and a strip above the prompt: see [modes.md](modes.md#session-controls).
+A keyword is a short phrase that steers the session. The tool detects it in code and adds a note for Claude that quotes your words and says what they mean, so the behavior does not depend on Claude remembering a convention. The mode and the way of working also have slash commands (`/1` … `/9`, `/0`, `/00`, `/devam`, `/kota`) and a strip above the prompt: see [modes.md](modes.md#session-controls).
 
 ## Rules
 
