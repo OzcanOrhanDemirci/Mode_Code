@@ -1,8 +1,13 @@
 name: CI
 
+# Actions minutes are counted on a private repository (a Windows minute as two), and a month's were spent in two
+# days of frequent pushes (2026-10). So while the repository is private a push runs the newest Node on Linux and
+# Windows; Node.js 22 and the rename rehearsal run at night when something changed (nightly.yml), and on pull
+# requests and on demand. A push that changes only documentation runs at night too. Public, all of it runs here.
 on:
   push:
     branches: [main]
+    paths-ignore: ['docs/**', '**/*.md']
   pull_request:
   workflow_dispatch:
 
@@ -21,7 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        node: [22.x, 24.x]
+        node: ${{ fromJSON(github.event.repository.private && github.event_name == 'push' && '["24.x"]' || '["22.x", "24.x"]') }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -49,6 +54,7 @@ jobs:
   # A rename, rehearsed: today's build installed, a renamed copy built, tested and installed over it (docs/release.md).
   rename:
     name: rename rehearsal · ubuntu-latest · Node 24.x
+    if: ${{ !github.event.repository.private || github.event_name != 'push' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

@@ -59,6 +59,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Publishing and deploying with `--dry-run` are no longer asked about.
 - When an agent runs `doctor`, repairs that would put code into the protection are refused and left to the person.
 - Text widths are measured the way the terminal draws them (emoji and symbols such as 🛡 ⚪ ✅ ⛔ included), so no line is cut or wraps.
+- While the repository is private, CI spends fewer Actions minutes: a push runs Node.js 24 on Linux and Windows (Node.js 22 and the rename rehearsal run at night), a push that changes only documentation waits for the night, and the nightly tests run only when something changed since the night before. Pull requests run everything. A month's minutes had gone in two days of frequent pushes.
 
 ### Fixed
 

@@ -92,13 +92,13 @@ A property test that fails prints its seed and the smallest input that fails; `T
 
 ## Where each layer runs
 
-| When                       | What runs                                                                                                                                                                   |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Every change (CI)          | L0–L7 and L9 on Windows and Linux with Node.js 22 and 24; coverage floors on Windows with Node.js 24; macOS on demand while the repository is private, then on every change |
-| Every night (CI)           | the newest Claude Code release against this build (L8); the property tests with a fresh seed and 50,000 cases, on Linux and Windows                                         |
-| Every week (CI)            | mutation testing (L11)                                                                                                                                                      |
-| Before a release (by hand) | `npm run verify -- --live` on Windows and macOS                                                                                                                             |
-| On your machine            | `terminal-code doctor`: the assumptions, the installation and the built-in self-tests                                                                                       |
+| When                       | What runs                                                                                                                                                                                                                                                                                                                      |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Every change (CI)          | L0–L7 and L9 on Windows and Linux with Node.js 22 and 24; coverage floors on Windows with Node.js 24; macOS on demand while the repository is private, then on every change. While it is private, to save Actions minutes, a push runs Node.js 24 only and skips a change to the documentation alone; pull requests run it all |
+| Every night (CI)           | the newest Claude Code release against this build (L8). When something changed since the night before: the property tests with a fresh seed and 50,000 cases, on Linux and Windows, and while the repository is private, Node.js 22 on both and the rename rehearsal                                                           |
+| Every week (CI)            | mutation testing (L11), when something changed that week                                                                                                                                                                                                                                                                       |
+| Before a release (by hand) | `npm run verify -- --live` on Windows and macOS                                                                                                                                                                                                                                                                                |
+| On your machine            | `terminal-code doctor`: the assumptions, the installation and the built-in self-tests                                                                                                                                                                                                                                          |
 
 A night or week that fails sends the repository owner GitHub's failure mail; nothing fails quietly.
 

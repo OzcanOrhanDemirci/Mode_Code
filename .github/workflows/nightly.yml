@@ -1,7 +1,11 @@
 name: Nightly
 
 # What a push cannot show: the newest Claude Code release against this build, the property tests with a
-# fresh seed and many more cases, and (weekly) mutation testing. A failure here is mailed to the owner.
+# fresh seed and many more cases, and (weekly) mutation testing. While the repository is private, also what a
+# push leaves out to save minutes (ci.yml): Node.js 22 on Linux and Windows, which runs the whole suite and so
+# checks a change to the documentation too, and the rename rehearsal. Each runs only when something changed
+# since the night before (the mutation testing: since the week before), except the newest Claude Code, which
+# is new without a change here. A failure here is mailed to the owner.
 on:
   schedule:
     - cron: '17 3 * * *' # every night
@@ -12,8 +16,64 @@ permissions:
   contents: read
 
 jobs:
+  # Whether anything was committed since the last run: a night with nothing new spends one short Linux job. The
+  # nightly jobs run on the nightly schedule only, the mutation testing on Sunday's: each once.
+  changed:
+    name: changes since the last run
+    runs-on: ubuntu-latest
+    outputs:
+      day: ${{ steps.since.outputs.day }}
+      week: ${{ steps.since.outputs.week }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: since
+        run: |
+          echo "day=$([ -n "$(git log --since='26 hours ago' --format=%h -1)" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "week=$([ -n "$(git log --since='8 days ago' --format=%h -1)" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  node22:
+    name: ${{ matrix.os }} · Node 22.x
+    needs: changed
+    if: ${{ (github.event.schedule == '17 3 * * *' && needs.changed.outputs.day == 'true') || github.event_name == 'workflow_dispatch' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.x
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run format:check
+      - run: npm run build
+      - run: npm test
+      - run: npm run test:package
+
+  rename:
+    name: rename rehearsal · ubuntu-latest · Node 24.x
+    needs: changed
+    if: ${{ (github.event.schedule == '17 3 * * *' && needs.changed.outputs.day == 'true') || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:rename
+
   claude-code-latest:
     name: newest Claude Code · mod engine tests
+    # Once a day: the Sunday mutation run is a second run of this workflow.
+    if: ${{ github.event.schedule != '41 4 * * 0' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -29,6 +89,8 @@ jobs:
 
   properties:
     name: property tests · fresh seed
+    needs: changed
+    if: ${{ (github.event.schedule == '17 3 * * *' && needs.changed.outputs.day == 'true') || github.event_name == 'workflow_dispatch' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -50,7 +112,8 @@ jobs:
 
   mutation:
     name: mutation testing
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.schedule == '41 4 * * 0' }}
+    needs: changed
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.schedule == '41 4 * * 0' && needs.changed.outputs.week == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
