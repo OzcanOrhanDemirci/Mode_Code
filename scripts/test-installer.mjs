@@ -13,7 +13,7 @@
  * Exit: 0 passed · 1 failed.
  */
 import { spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
@@ -37,6 +37,17 @@ const check = (ok, msg) => {
 };
 
 const tmp = mkdtempSync(join(tmpdir(), 'tc-installer-'));
+// A path as one place on disk: macOS's temporary folder is under /var, a link to /private/var, and the program
+// records where it really is, as it does for a home folder reached through a link.
+const placeKey = (p) => {
+  let real = p;
+  try {
+    real = realpathSync(p);
+  } catch {
+    /* compared as written */
+  }
+  return real.replace(/\\/g, '/').toLowerCase();
+};
 const results = [];
 
 /** Every variable of the session this may run in that would change what the installer does. */
@@ -244,10 +255,7 @@ function caseFull(shell, pkg, mirror, version) {
     if (isWin) check(w.userPath().toLowerCase().includes(w.bin.toLowerCase()), `the user PATH does not hold ${w.bin}: ${w.userPath()}`);
     else check(readFileSync(w.rc, 'utf8').includes('# Added by the Mode_Code installer'), `${w.rc} has no PATH line`);
     const m = w.manifest();
-    check(
-      m && m.cli && m.cli.replace(/\\/g, '/').toLowerCase() === rec.program.replace(/\\/g, '/').toLowerCase(),
-      `the installation record names ${m?.cli}, not ${rec.program}`,
-    );
+    check(m && m.cli && placeKey(m.cli) === placeKey(rec.program), `the installation record names ${m?.cli}, not ${rec.program}`);
     check(
       w.claudeCalls().some((c) => c.startsWith('plugin install mode-code')),
       `the plugin was not installed: ${w.claudeCalls().join(' | ')}`,
@@ -303,7 +311,7 @@ function casePrivateNode(shell, pkg, mirror) {
     check(v.code === 0, `the command failed with the downloaded Node.js (exit ${v.code}): ${v.out}`);
     // The hooks run on that Node.js too.
     const m = w.manifest();
-    check(m && m.node.replace(/\\/g, '/').toLowerCase().startsWith(w.programHome.replace(/\\/g, '/').toLowerCase()), `the hooks run on ${m?.node}`);
+    check(m && placeKey(m.node).startsWith(placeKey(w.programHome)), `the hooks run on ${m?.node}`);
     // A second run keeps the Node.js it has when it is the newest.
     const again = install(shell, w, isUnixShell(shell) ? ['--yes'] : ['-Yes']);
     check(again.code === 0 && again.out.includes(`Node.js ${NODE_VERSION} (Mode_Code için tutulan)`), `the second run did not keep Node.js:\n${again.out}`);
