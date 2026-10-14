@@ -342,6 +342,13 @@ export const trTui: Record<keyof typeof enTui, string> = {
   'mod.notifications.help': 'Yalnız sana gereken şeyler için: kota duruşu ya da yeniden başlama.',
   'mod.quietWork': 'Sessiz uzun iş',
   'mod.quietWork.help': 'Claude Code\'un "kullanıcı uzun süredir haber alamadı" hatırlatmalarını dışarıda bırakır; uzun iş ara mesaj yazmaz.',
+  'mod.mascot': 'Maskot Mo',
+  'mod.mascot.help':
+    "İstem satırının üstündeki şeridin solunda duran küçük bir robot: Claude'un ne yaptığını bir bakışta gösterir (düşünüyor, araç kullanıyor, seni bekliyor, kemer bir çağrıyı engelledi). Burada da seni karşılar.",
+  'mo.center.idle': 'Mo nöbette.',
+  'mo.center.auto': 'Mo: tam otonom bir koşu sürüyor.',
+  'mo.center.low': 'Mo: kota sınıra yakın.',
+  'mo.center.error': 'Mo: korumaya bakmak gerek.',
   'mod.beltNote': 'Emniyet kemeri bu listede yok: her zaman açıktır. Kuralları Güvenlik › Emniyet kemeri kuralları altından değiştirilebilir.',
   'set.footerMode': 'Alt satırlar',
   'set.footerModeHelp':

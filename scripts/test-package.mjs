@@ -36,6 +36,7 @@ export const EXPECTED_FILES = [
   'dist/plugin/NOTICE',
   'dist/plugin/hooks/hooks.json',
   'dist/plugin/hooks/register.js',
+  'dist/plugin/hooks/mo-strip.js',
   'dist/plugin/types/index.d.ts',
   'package.json',
 ];

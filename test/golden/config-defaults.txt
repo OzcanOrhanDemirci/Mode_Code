@@ -10,7 +10,8 @@
     "status": true,
     "notifications": true,
     "quietWork": true,
-    "modes": true
+    "modes": true,
+    "mascot": true
   },
   "belt": {
     "disabled": [],

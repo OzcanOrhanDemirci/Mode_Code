@@ -11,7 +11,7 @@
  */
 import type { EngineInterface, EventName, Hook, On } from 'claude-code';
 import { atom, read, update } from 'claude-code';
-import type { ModeCodeFooters, ModeCodeLabels } from './contract.js';
+import type { ModeCodeFooters, ModeCodeLabels, ModeCodeMo } from './contract.js';
 import { APP_ID, APP_NAME, APP_VERSION, CLI_NAME, DATA_DIR_NAME, PLUGIN_NAME } from '../core/app.js';
 import { parseConfig, type Config } from '../core/config.js';
 import { layout, sessionFile, eventsFile, flowDir, memorySeenFile, memorySyncFile, runDir, syncRecordFile, type Layout } from '../core/layout.js';
@@ -55,6 +55,7 @@ import { ago, percent, shortPath } from '../core/format.js';
 import { centerProgram, commandLine, LAUNCH_ENV, OPENS, terminalLaunch, windowsAppsDir, windowsTerminalProgram } from '../core/launch.js';
 import { closeTabArgv, closeTabOutcome, type CloseTab } from '../core/close.js';
 import { fold } from '../core/text.js';
+import { MARK_W } from '../core/mo/marks.js';
 import {
   conflictContext,
   continueFolderContext,
@@ -274,6 +275,17 @@ interface Ctx {
   /** `/00` is closing the session; `closed` once its end steps ran, so the end itself does not run them again. */
   closing: boolean;
   closed: boolean;
+  /** What Mo shows (src/core/mo/state.ts): the main conversation's calls running now, and when things last happened. */
+  mo: {
+    tools: number;
+    agents: number;
+    asking: number;
+    blockAt: number | null;
+    errorAt: number | null;
+    doneAt: number | null;
+    stoppedAt: number | null;
+    backdrop: 'dark' | 'light';
+  };
 }
 
 /**
@@ -296,6 +308,27 @@ let ctxPromise: Promise<Ctx> | null = null;
 /** Session state the drawings read (kept by Claude Code across reloads of this module). */
 const footersAtom = atom({ plugin: 'mode-code', key: 'footers' } as const, {} as ModeCodeFooters);
 const labelsAtom = atom({ plugin: 'mode-code', key: 'labels' } as const, { modes: [], tail: '', band: '', strip: null } as ModeCodeLabels);
+/** Below this width the strip keeps its room for the controls, and Mo steps aside. */
+const MO_MIN_COLUMNS = 72;
+const moAtom = atom(
+  { plugin: 'mode-code', key: 'mo' } as const,
+  {
+    show: false,
+    still: false,
+    backdrop: 'dark',
+    tools: 0,
+    agents: 0,
+    asking: 0,
+    waiting: false,
+    auto: false,
+    low: false,
+    blockAt: null,
+    errorAt: null,
+    doneAt: null,
+    stoppedAt: null,
+    at: 0,
+  } as ModeCodeMo,
+);
 
 /** Environment variables the belt may need to expand in paths; the API reads them one literal name at a time. */
 async function readEnv($: $): Promise<Record<string, string | undefined>> {
@@ -467,7 +500,31 @@ async function load($: $): Promise<Ctx> {
     sharedStart: null,
     sharedSyncing: false,
     sharedWarned: new Set(),
+    mo: {
+      tools: 0,
+      agents: 0,
+      asking: 0,
+      blockAt: null,
+      errorAt: null,
+      doneAt: null,
+      stoppedAt: null,
+      backdrop: await backdropOf($, home, env, platform, cwd),
+    },
   };
+}
+
+/**
+ * The terminal's background as Claude Code's theme names it ("light", "light-daltonized", or a dark one):
+ * Mo's faint light fades into it. Read once as the session loads; dark when the setting cannot be read.
+ */
+async function backdropOf($: $, home: string, env: Record<string, string | undefined>, platform: Platform, cwd: string): Promise<'dark' | 'light'> {
+  try {
+    const dir = env.CLAUDE_CONFIG_DIR ? resolvePath(env.CLAUDE_CONFIG_DIR, { platform, home, cwd }) : home;
+    const m = /"theme"\s*:\s*"([^"]*)"/.exec((await readFile($, joinPath(dir, '.claude.json'))) ?? '');
+    return m?.[1]?.startsWith('light') ? 'light' : 'dark';
+  } catch {
+    return 'dark';
+  }
 }
 
 function parseReading(text: string | null): QuotaReading | null {
@@ -913,6 +970,7 @@ async function askApproval($: $, c: Ctx, f: Flow, steps: number, verification: r
   const revise = tIn(c.lang, 'flow.ask.revise');
   const pause = tIn(c.lang, 'flow.ask.pause');
   let answer: string | null = null;
+  await moCount($, 'asking', 1);
   try {
     answer = await $.ui.ask(
       tIn(c.lang, 'flow.ask.question', {
@@ -927,6 +985,8 @@ async function askApproval($: $, c: Ctx, f: Flow, steps: number, verification: r
     );
   } catch {
     answer = null;
+  } finally {
+    await moCount($, 'asking', -1);
   }
   const now = await $.clock.now();
   if (answer === approve) {
@@ -2115,6 +2175,7 @@ async function refreshStatus($: $, c: Ctx): Promise<void> {
   const strip = c.config.modules.modes ? { ...viewOf(c), lang: c.lang } : null;
   if (!c.config.modules.status) {
     await update($, labelsAtom, () => ({ modes: [], tail: '', band: '', strip }));
+    await publishMo($, c);
     return;
   }
   const q = await quotaNow($, c);
@@ -2156,6 +2217,85 @@ async function refreshStatus($: $, c: Ctx): Promise<void> {
         : tIn(c.lang, 'status.week', { n: Math.round(q.week.used) }),
     );
   await update($, labelsAtom, () => ({ modes, tail: quota.length ? `🛡 ${quota.join(' · ')}` : '🛡', band, strip }));
+  await publishMo($, c);
+}
+
+/**
+ * What Mo knows, for the strip to draw (src/mod/mo-strip.ts). Mo is a picture: whatever fails here is left
+ * out, and nothing it does stands in the way of a call, a turn or the belt.
+ */
+async function publishMo($: $, c: Ctx): Promise<void> {
+  try {
+    const m = c.mo;
+    const value: ModeCodeMo = {
+      show: c.config.modules.mascot && !c.config.accessibility.plain,
+      still: c.config.accessibility.reduceMotion,
+      backdrop: m.backdrop,
+      tools: m.tools,
+      agents: m.agents,
+      asking: m.asking,
+      waiting: c.flow?.status === 'waiting',
+      auto: autoRunning(c) !== null,
+      low: c.announced !== 'ok',
+      blockAt: m.blockAt,
+      errorAt: m.errorAt,
+      doneAt: m.doneAt,
+      stoppedAt: m.stoppedAt,
+      at: await $.clock.now(),
+    };
+    await update($, moAtom, () => value);
+  } catch {
+    /* the strip keeps the last picture */
+  }
+}
+
+/** One more (or one fewer) of the main conversation's calls running, or of the questions waiting for the person. */
+async function moCount($: $, kind: 'tools' | 'agents' | 'asking', by: 1 | -1): Promise<void> {
+  try {
+    const c = await ctxOf($);
+    c.mo[kind] = Math.max(0, c.mo[kind] + by);
+    await publishMo($, c);
+  } catch {
+    /* a picture only */
+  }
+}
+
+/** Something happened that Mo shows for a few seconds: a refusal, a failed, stopped or finished turn. */
+async function moMark($: $, c: Ctx, what: 'blockAt' | 'errorAt' | 'doneAt' | 'stoppedAt'): Promise<void> {
+  try {
+    c.mo[what] = await $.clock.now();
+    await publishMo($, c);
+  } catch {
+    /* a picture only */
+  }
+}
+
+/** What a call of the main conversation is to Mo: an agent at work, a question to the person, or a tool. */
+function moKind(tool: string): 'tools' | 'agents' | 'asking' {
+  if (tool === 'Agent' || tool === 'Task') return 'agents';
+  if (tool === 'AskUserQuestion' || tool === 'ExitPlanMode') return 'asking';
+  return 'tools';
+}
+
+/** The gate of every call (onToolCall), with Mo counting the main conversation's call while it runs and showing a refusal. */
+async function onToolCallWithMo($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<'tool.call'> {
+  const kind = e.agentId === undefined ? moKind(String(e.tool)) : null;
+  if (kind) await moCount($, kind, 1);
+  try {
+    const result = await onToolCall($, e, next);
+    if (kind && result.deny !== undefined) await moRefused($);
+    return result;
+  } finally {
+    if (kind) await moCount($, kind, -1);
+  }
+}
+
+async function moRefused($: $): Promise<void> {
+  try {
+    await moMark($, await ctxOf($), 'blockAt');
+  } catch {
+    /* a picture only */
+  }
 }
 
 /**
@@ -2235,6 +2375,7 @@ async function askPerson($: $, c: Ctx, tool: string, d: BeltDecision): Promise<'
     .join(' ');
   const allow = tIn(c.lang, 'belt.ask.allow');
   const block = tIn(c.lang, 'belt.ask.block');
+  await moCount($, 'asking', 1);
   try {
     const answer = await $.ui.ask(tIn(c.lang, 'belt.ask.question', { tool, reasons }), {
       options: [allow, block],
@@ -2243,6 +2384,8 @@ async function askPerson($: $, c: Ctx, tool: string, d: BeltDecision): Promise<'
     return answer === allow ? 'allow' : 'block';
   } catch {
     return 'none';
+  } finally {
+    await moCount($, 'asking', -1);
   }
 }
 
@@ -2759,6 +2902,9 @@ async function onTurnComplete($: $, e: In<'turn.complete'>, next: Nx<'turn.compl
   if (e.agentId !== undefined) return result;
   const c = await ctxOf($);
   if (c.turnId === e.turnId) c.turnId = null;
+  // The turn is over, so none of its calls runs any more; Mo shows how it ended for a few seconds.
+  c.mo = { ...c.mo, tools: 0, agents: 0, asking: 0 };
+  await moMark($, c, e.reason === 'answer' ? 'doneAt' : e.reason === 'error' ? 'errorAt' : 'stoppedAt');
   if (e.reason !== 'answer') return result;
   try {
     const cwdNow = await $.session.cwd();
@@ -4000,7 +4146,7 @@ async function restoreLast($: $, c: Ctx): Promise<void> {
 
 export function register(on: On): void {
   on('session.start', onSessionStart);
-  on('tool.call', onToolCall).catch(refuseToolCall);
+  on('tool.call', onToolCallWithMo).catch(refuseToolCall);
   on('prompt.submit', onPromptSubmit);
   on('session.measure', onMeasure);
   on('turn.complete', onTurnComplete);
@@ -4065,7 +4211,13 @@ export function register(on: On): void {
         { key: `strip-${it.id}`, plain: true, onPress: onPress(it.id), ...(it.active ? { variant: 'primary' } : {}) },
         h(Text, { bold: it.active, inverse: it.active, dimColor: it.dim && !it.active }, it.label),
       );
-    const rows = strip ? stripRows(strip as StripView, strip.lang as Lang, columns) : [];
+    // Mo at the strip's left, where there is room and the surface draws a module (the terminal, the desktop app;
+    // not a phone): a small Mo beside a strip of two rows, its face beside a strip of one (src/mod/mo-strip.ts).
+    const els = $.ui.resolve(e);
+    const Client = 'Client' in els ? els.Client : undefined;
+    const mo = strip && Client ? await read($, moAtom) : null;
+    const withMo = mo !== null && mo.show && columns >= MO_MIN_COLUMNS;
+    const rows = strip ? stripRows(strip as StripView, strip.lang as Lang, withMo ? columns - MARK_W - 2 : columns) : [];
     const lines = rows.map((row, r) =>
       h(
         Box,
@@ -4077,8 +4229,26 @@ export function register(on: On): void {
         ]),
       ),
     );
-    if (labels.band) lines.push(h(Text, { key: 'band' }, labels.band));
-    const tree = h(Box, { flexDirection: 'column' }, ...lines);
+    const shown =
+      withMo && Client && lines.length
+        ? [
+            h(
+              Box,
+              { key: 'strip', flexDirection: 'row' },
+              h(Client, {
+                key: 'mo',
+                module: './mo-strip.js',
+                width: MARK_W,
+                height: lines.length > 1 ? 2 : 1,
+                props: { ...mo, working: (e.props as { isWorking?: boolean }).isWorking === true, rows: lines.length > 1 ? 2 : 1 },
+              }),
+              h(Text, { key: 'mo-gap' }, '  '),
+              h(Box, { key: 'strip-rows', flexDirection: 'column' }, ...lines),
+            ),
+          ]
+        : lines;
+    if (labels.band) shown.push(h(Text, { key: 'band' }, labels.band));
+    const tree = h(Box, { flexDirection: 'column' }, ...shown);
     return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
   });
   // The list `/devam` printed: each row pressable, as `/devam <n>` is.

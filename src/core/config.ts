@@ -108,6 +108,8 @@ export interface Config {
     quietWork: boolean;
     /** Modes (chat, research, plan, code) and mode flows, enforced by code. */
     modes: boolean;
+    /** Mo, the mascot: in the strip above the prompt it shows what Claude is doing; it greets in the control center. */
+    mascot: boolean;
   };
   belt: RuleConfig;
   memory: {
@@ -177,7 +179,7 @@ export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
   version: CONFIG_VERSION,
   language: 'auto',
   view: 'recommended',
-  modules: { keywords: true, footer: true, quota: true, secrets: true, status: true, notifications: true, quietWork: true, modes: true },
+  modules: { keywords: true, footer: true, quota: true, secrets: true, status: true, notifications: true, quietWork: true, modes: true, mascot: true },
   belt: {
     disabled: [],
     verdicts: {},

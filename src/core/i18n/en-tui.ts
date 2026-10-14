@@ -349,6 +349,13 @@ export const enTui = {
   'mod.notifications.help': 'Only for things that need you: a quota stop or a resume.',
   'mod.quietWork': 'Quiet long work',
   'mod.quietWork.help': 'Leaves out Claude Code\'s "the user has not heard from you" reminders, so long work does not send status messages.',
+  'mod.mascot': 'Mo, the mascot',
+  'mod.mascot.help':
+    'A small robot at the left of the strip above the prompt that shows at a glance what Claude is doing: thinking, using a tool, waiting for you, a call the belt refused. It greets you here too.',
+  'mo.center.idle': 'Mo is on watch.',
+  'mo.center.auto': 'Mo: a full-autonomy run is going.',
+  'mo.center.low': 'Mo: the quota is near its limit.',
+  'mo.center.error': 'Mo: protection needs a look.',
   'mod.beltNote': 'The safety belt is not on this list: it is always on. Its rules can be changed under Security › Safety belt rules.',
   'set.footerMode': 'Footer lines',
   'set.footerModeHelp':
