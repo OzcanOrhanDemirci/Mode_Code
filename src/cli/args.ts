@@ -13,6 +13,7 @@ const BOOLEAN = new Set([
   'y',
   'dry-run',
   'purge',
+  'keep-program',
   'help',
   'h',
   'version',

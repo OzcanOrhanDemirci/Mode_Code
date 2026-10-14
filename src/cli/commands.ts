@@ -16,6 +16,7 @@ import { maskSecrets } from '../core/secrets/scan.js';
 import { beltContext } from '../node/context.js';
 import { readText, writeAtomic } from '../node/fsx.js';
 import { applyInstall, applyUninstall, distDir, hookGroups, planInstall, readManifest, stableNodePath, underAgent } from '../node/install.js';
+import { programReceipt, removeProgram, type ProgramReceipt, type ProgramStep } from '../node/program.js';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { cacheHitRate } from '../node/index-db.js';
@@ -281,6 +282,8 @@ export async function cmdUninstall(a: Args): Promise<number> {
   const ctx = appContext();
   const m = readManifest(ctx.layout);
   const purge = flag(a, 'purge');
+  // The program itself, when the one-line installer put it here: removed last, once Claude Code is clean.
+  const prog = flag(a, 'keep-program') ? null : programReceipt(distDir());
   if (underAgent()) {
     if (flag(a, 'json')) json('uninstall', { ok: false, steps: [], error: 'refused inside a Claude Code session' });
     else say(red(T(ctx, 'cli.agentRefused')));
@@ -298,8 +301,10 @@ export async function cmdUninstall(a: Args): Promise<number> {
       return 0;
     }
     const r = applyUninstall(ctx.layout);
-    json('uninstall', r as unknown as object);
-    return r.ok ? 0 : 1;
+    const program = prog && r.ok ? removeProgram(prog) : [];
+    const ok = r.ok && program.every((s) => s.ok);
+    json('uninstall', { ...r, ok, program });
+    return ok ? 0 : 1;
   }
   say(bold(T(ctx, 'uninstall.title')));
   say();
@@ -307,6 +312,7 @@ export async function cmdUninstall(a: Args): Promise<number> {
   say(`  - ${T(ctx, 'uninstall.plugin')}`);
   say(`  - ${T(ctx, 'uninstall.hooks', { file: shortPath(m?.settingsFile ?? '~/.claude/settings.json', homedir()) })}`);
   say(`  - ${T(ctx, 'uninstall.files')}`);
+  if (prog) say(`  - ${T(ctx, 'uninstall.program', { dir: shortPath(prog.home, homedir()), cmd: CLI_NAME })}`);
   say(
     purge
       ? red(`  - ${T(ctx, 'uninstall.purge', { dir: shortPath(ctx.layout.root, homedir()) })}`)
@@ -325,9 +331,25 @@ export async function cmdUninstall(a: Args): Promise<number> {
   const r = applyUninstall(ctx.layout, { purge });
   for (const s of r.steps)
     say(`  ${s.ok ? green('✓') : red('✗')} ${T(ctx, `uninstall.step.${s.what}` as MessageKey)}${s.detail && !s.ok ? dim(' · ' + s.detail) : ''}`);
+  let ok = r.ok;
+  if (prog && !r.ok) say(dim(`  ${T(ctx, 'uninstall.programKept', { cmd: `${CLI_NAME} uninstall` })}`));
+  else if (prog)
+    for (const s of removeProgram(prog)) {
+      ok &&= s.ok;
+      say(`  ${s.ok ? green('✓') : red('✗')} ${programStepText(ctx, s, prog)}${s.detail && !s.ok ? dim(' · ' + s.detail) : ''}`);
+    }
   say();
-  say(r.ok ? green(T(ctx, 'uninstall.done')) : red(T(ctx, 'uninstall.partial')));
-  return r.ok ? 0 : 1;
+  say(ok ? green(T(ctx, 'uninstall.done')) : red(T(ctx, 'uninstall.partial')));
+  return ok ? 0 : 1;
+}
+
+function programStepText(ctx: AppContext, s: ProgramStep, prog: ProgramReceipt): string {
+  if (s.what === 'command')
+    return s.kept
+      ? T(ctx, 'uninstall.step.commandKept', { file: shortPath(prog.command, homedir()) })
+      : T(ctx, s.later ? 'uninstall.step.commandLater' : 'uninstall.step.command', { cmd: CLI_NAME });
+  if (s.what === 'path') return s.kept ? T(ctx, 'uninstall.step.pathKept', { dir: shortPath(s.detail ?? '', homedir()) }) : T(ctx, 'uninstall.step.path');
+  return T(ctx, s.later ? 'uninstall.step.programLater' : 'uninstall.step.program');
 }
 
 // ── quota ──
@@ -1043,26 +1065,27 @@ export function helpText(lang: Lang): string {
     '',
     `${bold(L('help.usage'))}  ${CLI_NAME} ${dim('[' + L('help.command') + ']')}`,
     '',
-    `  ${c(CLI_NAME.padEnd(28))}${L('help.open')}`,
-    `  ${c('open <address>'.padEnd(28))}${L('help.openAt')}`,
-    `  ${c('status'.padEnd(28))}${L('help.status')}`,
-    `  ${c('doctor'.padEnd(28))}${L('help.doctor')}`,
-    `  ${c('install [--dry-run]'.padEnd(28))}${L('help.install')}`,
-    `  ${c('uninstall [--purge]'.padEnd(28))}${L('help.uninstall')}`,
-    `  ${c('try'.padEnd(28))}${L('help.try')}`,
-    `  ${c('quota'.padEnd(28))}${L('help.quota')}`,
-    `  ${c('tokens [--days N] [--by …]'.padEnd(28))}${L('help.tokens')}`,
-    `  ${c('sessions [search]'.padEnd(28))}${L('help.sessions')}`,
-    `  ${c('report [--week]'.padEnd(28))}${L('help.report')}`,
-    `  ${c('flow [show <id>] [--all]'.padEnd(28))}${L('help.flow')}`,
-    `  ${c('autonomy [check|show|…]'.padEnd(28))}${L('help.autonomy')}`,
-    `  ${c('memory [setup|sync|…]'.padEnd(28))}${L('help.memory')}`,
-    `  ${c('morning [--hours N]'.padEnd(28))}${L('help.morning')}`,
-    `  ${c('sync [setup|now|approve|…]'.padEnd(28))}${L('help.sync')}`,
-    `  ${c('template list|apply|remove'.padEnd(28))}${L('help.template')}`,
-    `  ${c('belt rules|events|test|replay'.padEnd(28))}${L('help.belt')}`,
-    `  ${c('secrets [path…]'.padEnd(28))}${L('help.secrets')}`,
-    `  ${c('config get|set|path'.padEnd(28))}${L('help.config')}`,
+    `  ${c(CLI_NAME.padEnd(31))}${L('help.open')}`,
+    `  ${c('open <address>'.padEnd(31))}${L('help.openAt')}`,
+    `  ${c('status'.padEnd(31))}${L('help.status')}`,
+    `  ${c('doctor'.padEnd(31))}${L('help.doctor')}`,
+    `  ${c('install [--dry-run]'.padEnd(31))}${L('help.install')}`,
+    `  ${c('uninstall [--purge]'.padEnd(31))}${L('help.uninstall')}`,
+    `  ${c('  [--keep-program]'.padEnd(31))}${L('help.uninstallKeep')}`,
+    `  ${c('try'.padEnd(31))}${L('help.try')}`,
+    `  ${c('quota'.padEnd(31))}${L('help.quota')}`,
+    `  ${c('tokens [--days N] [--by …]'.padEnd(31))}${L('help.tokens')}`,
+    `  ${c('sessions [search]'.padEnd(31))}${L('help.sessions')}`,
+    `  ${c('report [--week]'.padEnd(31))}${L('help.report')}`,
+    `  ${c('flow [show <id>] [--all]'.padEnd(31))}${L('help.flow')}`,
+    `  ${c('autonomy [check|show|…]'.padEnd(31))}${L('help.autonomy')}`,
+    `  ${c('memory [setup|sync|…]'.padEnd(31))}${L('help.memory')}`,
+    `  ${c('morning [--hours N]'.padEnd(31))}${L('help.morning')}`,
+    `  ${c('sync [setup|now|approve|…]'.padEnd(31))}${L('help.sync')}`,
+    `  ${c('template list|apply|remove'.padEnd(31))}${L('help.template')}`,
+    `  ${c('belt rules|events|test|replay'.padEnd(31))}${L('help.belt')}`,
+    `  ${c('secrets [path…]'.padEnd(31))}${L('help.secrets')}`,
+    `  ${c('config get|set|path'.padEnd(31))}${L('help.config')}`,
     '',
     dim(L('help.json')),
     dim(L('help.privacy')),

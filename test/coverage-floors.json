@@ -546,6 +546,11 @@
       "branches": 68,
       "functions": 87
     },
+    "src/node/program.ts": {
+      "lines": 76,
+      "branches": 77,
+      "functions": 64
+    },
     "src/node/sync.ts": {
       "lines": 90,
       "branches": 64,

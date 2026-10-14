@@ -77,6 +77,16 @@ const layers = [
     counts: (o) => (/^rename-rehearsal: (.*)$/m.exec(o)?.[1] ?? '').trim(),
   },
   {
+    name: 'L14 one-line installer',
+    cmd: node,
+    args: ['scripts/test-installer.mjs'],
+    counts: (o) => {
+      const head = /^test-installer: (.*)$/m.exec(o)?.[1] ?? '';
+      const shells = [...new Set([...o.matchAll(/^ {2}✓ (\S+) ·/gm)].map((m) => m[1]))];
+      return head ? `${head.trim()}${shells.length ? ` in ${shells.join(', ')}` : ''}` : '';
+    },
+  },
+  {
     name: 'doctor self-check',
     cmd: node,
     args: ['dist/cli.mjs', 'doctor', '--self-check', '--json'],
