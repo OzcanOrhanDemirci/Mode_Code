@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-14
+
 ### Added
 
 - Safety belt: 39 rules over bash, PowerShell and cmd commands and file writes, with locked self-protection rules; runs in the in-process plugin and in a safety-net hook that blocks on failure.
