@@ -5,23 +5,37 @@
  * terminal's own background shows: the cell becomes a lower half block, or a space. Runs join the cells of
  * one style, for Ink's `Text` and for escape sequences.
  */
-import type { Picture, Rgb } from './art.js';
+import { GLASS, type Picture, type Rgb } from './art.js';
 
 export type Run = { text: string; fg: string | null; bg: string | null };
 
 const two = (n: number): string => n.toString(16).padStart(2, '0');
 export const hexOf = (c: Rgb): string => `#${two(c[0])}${two(c[1])}${two(c[2])}`;
 
-/** The picture's rows of cells, each row a list of runs of one style. */
-export function runsOf(p: Picture): Run[][] {
+/** How much color there is in a color: Mo's lights have much, its steel and glass little. */
+const chroma = (c: Rgb): number => Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]);
+
+/**
+ * The picture's rows of cells, each row a list of runs of one style.
+ *
+ * With `headroom`, the first row leaves the top eighth of its cells to the terminal's background, so a hair of
+ * room parts Mo from the line above it (Claude Code's spinner, its tips; the person, 2026-10-14). A cell holds
+ * two colors and the room takes one, so such a cell is a lower seven-eighths block of one color: the pixel with
+ * more color in it, so a light (an eye, the antenna, a battery's red cell) wins over steel and glass. Where the
+ * upper pixel is the glass itself and the lower one is not, the cell stays two pixels, so a shape on the glass
+ * (a shut eye) keeps its form: the glass is all but the dark background.
+ */
+export function runsOf(p: Picture, headroom = false): Run[][] {
   const rows: Run[][] = [];
   for (let y = 0; y < p.h; y += 2) {
     const row: Run[] = [];
     for (let x = 0; x < p.w; x++) {
       const top = p.px[y]?.[x] ?? null;
       const bottom = p.px[y + 1]?.[x] ?? null;
-      const cell: Run =
-        top && bottom
+      const roomy = headroom && y === 0 && top !== null && (!bottom || hexOf(top) === hexOf(bottom) || hexOf(top) !== hexOf(GLASS));
+      const cell: Run = roomy
+        ? { text: '▇', fg: hexOf(bottom && chroma(bottom) > chroma(top) ? bottom : top), bg: null }
+        : top && bottom
           ? { text: '▀', fg: hexOf(top), bg: hexOf(bottom) }
           : top
             ? { text: '▀', fg: hexOf(top), bg: null }

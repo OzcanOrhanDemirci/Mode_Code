@@ -30,7 +30,7 @@ Claude Code's own permission question is not a separate look: the plugin learns 
 
 ## Where Mo is drawn
 
-- **The strip above the prompt.** A small Mo (two rows) beside a strip of two rows, only its face (one row) beside a strip that fits on one. Drawn by a surface module Claude Code runs on its own clock (`src/mod/mo-strip.ts`), so its frames cost the session nothing. Not on a phone, and not in a strip narrower than 72 columns, where the controls need the room.
+- **The strip above the prompt.** A small Mo (two rows) beside a strip of two rows, only its face (one row) beside a strip that fits on one. Drawn by a surface module Claude Code runs on its own clock (`src/mod/mo-strip.ts`), so its frames cost the session nothing. A hair of room, an eighth of a row, parts it from the line above (Claude Code's spinner, a tip): a cell there holds one color, so the small Mo leaves its head's top edge out and only its antenna stands up. Not on a phone, and not in a strip narrower than 72 columns, where the controls need the room.
 - **The control center.** On the first screen, beside the Home category: the whole body where there is room, the small Mo where there is not, with a line that says what it shows (resting, a full-autonomy run, a quota near its limit, protection that needs a look).
 - **The installer.** A still Mo beside "Installed.", in a terminal that draws colors.
 - **This repository.** The README, this page and the social preview; drawn from the same pixels by `npm run mo-art`.

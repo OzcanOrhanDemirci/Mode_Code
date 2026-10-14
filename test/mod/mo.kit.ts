@@ -25,7 +25,7 @@ test("Mo sits at the strip's left: its face beside a strip of one row, a small M
   const face = await wide.find({ key: 'mo' });
   expect(face?.type).toBe('Client');
   expect(face?.props).toMatchObject({ module: expect.stringMatching(/mo-strip\.js$/), width: 22, height: 1, props: { rows: 1, show: true } });
-  expect((await wide.findAll({ type: 'Text', in: 'mo' })).map((t: any) => t.text).join('')).toMatch(/[▀▄]/);
+  expect((await wide.findAll({ type: 'Text', in: 'mo' })).map((t: any) => t.text).join('')).toMatch(/[▀▄▇]/);
   // The controls are still there, beside it.
   expect(await wide.find({ key: 'strip-0' })).toBeDefined();
   await wide.unmount();

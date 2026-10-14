@@ -196,7 +196,12 @@ const BATTERY = ['####.', '#r..#', '####.'];
 //   X the antenna's light   g glass   L R the hands (drawn where the state holds them)
 const MINI = ['..345555543X..', '..4gggggggg2..', 'L.4gggggggg2.R', '..3222222221..'];
 
-export function mark2(state: MoState, t: number, backdrop: Backdrop = 'dark'): Picture {
+/**
+ * With `headroom` (the strip, where the cells keep a hair of room above them: src/core/mo/cells.ts) the head's
+ * top edge is left out and its antenna stands up alone: a cell there holds one color, and the edge would bury
+ * the eyes' top half or the glass. The head then sits half a row below the line above.
+ */
+export function mark2(state: MoState, t: number, backdrop: Backdrop = 'dark', headroom = false): Picture {
   const { px, set, fx } = canvas(4, backdrop);
   const f = face(state, t);
   const mx = 3 + f.shake;
@@ -226,7 +231,7 @@ export function mark2(state: MoState, t: number, backdrop: Backdrop = 'dark'): P
 
   MINI.forEach((row, y) =>
     [...row].forEach((ch, x) => {
-      if (ch === '.' || ch === 'L' || ch === 'R' || (lifted && y === 3)) return;
+      if (ch === '.' || ch === 'L' || ch === 'R' || (lifted && y === 3) || (headroom && y === 0 && ch !== 'X')) return;
       set(mx + x, y, ch === 'g' ? GLASS : ch === 'X' ? glow(f.tip[0], f.tip[1]) : STEEL[Number(ch)]!);
     }),
   );

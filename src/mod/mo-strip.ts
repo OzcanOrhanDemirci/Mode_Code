@@ -40,11 +40,12 @@ const MoStrip: ClientModule<MoStripProps, Local> = (p: MoStripProps, s: ClientSu
   if (state !== next.state) next = { ...next, state, since: next.tick };
   if (next !== s.state) s.setState(next);
   const t = p.still ? STILL_AT[state] : ((next.tick - next.since) * step) / 1000;
-  const picture = p.rows === 2 ? mark2(state, t, p.backdrop) : mark1(state, t, p.backdrop);
+  const picture = p.rows === 2 ? mark2(state, t, p.backdrop, true) : mark1(state, t, p.backdrop);
+  // A hair of room above Mo: the line over the strip (Claude Code's spinner, a tip) does not touch it.
   const tree = h(
     Box,
     { flexDirection: 'column' },
-    ...runsOf(picture).map((row, y) =>
+    ...runsOf(picture, true).map((row, y) =>
       h(
         Box,
         { key: `mo-${y}`, flexDirection: 'row' },

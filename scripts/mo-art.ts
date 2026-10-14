@@ -108,7 +108,7 @@ const tiles = MO_STATES.map((s, i) => {
   const t = STILL_AT[s];
   return (
     paths(frame(s, t), x, y) +
-    paths(mark2(s, t), x + 9, y + 35) +
+    paths(mark2(s, t, 'dark', true), x + 9, y + 35) +
     paths(mark1(s, t), x + 9, y + 40) +
     `<text x="${x + 20}" y="${y + 46.5}" text-anchor="middle">${NAMES[s]}</text>`
   );

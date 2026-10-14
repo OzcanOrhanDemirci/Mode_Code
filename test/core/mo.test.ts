@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ART_H, ART_W, frame, MO_STATES, type MoState, type Picture } from '../../src/core/mo/art.js';
+import { ART_H, ART_W, GLASS, frame, mix, MO_STATES, type MoState, type Picture, type Rgb } from '../../src/core/mo/art.js';
 import { MARK_W, mark1, mark2 } from '../../src/core/mo/marks.js';
 import { moState, NO_FACTS, SHOW_FOR, STILL_AT, type MoFacts } from '../../src/core/mo/state.js';
 import { ansiOf, hexOf, runsOf, xterm256 } from '../../src/core/mo/cells.js';
@@ -54,6 +54,8 @@ test('in the strip every state looks unlike every other, in both sizes (the pers
     for (const b of MO_STATES) {
       if (a >= b) continue;
       assert.ok(apart(mark2, a, b) >= 12, `${a} and ${b} look alike in two rows (${apart(mark2, a, b)} pixels apart)`);
+      const roomy = (s: MoState, t: number) => mark2(s, t, 'dark', true);
+      assert.ok(apart(roomy, a, b) >= 12, `${a} and ${b} look alike in two rows with headroom (${apart(roomy, a, b)} pixels apart)`);
       assert.ok(apart(mark1, a, b) >= 6, `${a} and ${b} look alike in one row (${apart(mark1, a, b)} pixels apart)`);
     }
 });
@@ -142,6 +144,54 @@ test('cells: two pixels make one, a missing one leaves the background; runs of o
   assert.deepEqual(runsOf({ w: 1, h: 1, px: [[red]] }), [[{ text: '▀', fg: '#ff0000', bg: null }]]);
   for (const s of MO_STATES) for (const row of runsOf(mark2(s, 1))) assert.equal(row.map((r) => r.text).join('').length, MARK_W);
   assert.equal(hexOf([1, 171, 255]), '#01abff');
+});
+
+test('cells with headroom: the first row leaves its top eighth to the background, one color a cell (the person, 2026-10-14)', () => {
+  const red = [255, 0, 0] as const;
+  const blue = [0, 0, 255] as const;
+  const dim = mix(GLASS, red, 0.1);
+  const p: Picture = {
+    w: 9,
+    h: 4,
+    px: [
+      [red, red, GLASS, GLASS, red, dim, null, [40, 10, 10], [120, 120, 120]],
+      [null, red, GLASS, red, GLASS, blue, red, [10, 40, 10], red],
+      [red, null, null, null, null, null, null, null, null],
+      [red, null, null, null, null, null, null, null, null],
+    ],
+  };
+  const seven = (c: Rgb) => ({ text: '▇', fg: hexOf(c), bg: null });
+  assert.deepEqual(runsOf(p, true)[0], [
+    { text: '▇▇', fg: '#ff0000', bg: null }, // alone, or both pixels alike
+    { text: '▇', fg: hexOf(GLASS), bg: null }, // the glass on its own
+    { text: '▀', fg: hexOf(GLASS), bg: '#ff0000' }, // a shape on the glass keeps its form
+    seven(red), // a light over the glass stands out
+    seven(blue), // of a dim light and a bright one, the bright one
+    { text: '▄', fg: '#ff0000', bg: null }, // nothing above: the half block's room is there already
+    seven([40, 10, 10]), // as much color in each: the upper one
+    seven(red), // a light under steel (the battery's red cell) still shows
+  ]);
+  // Only the first row: the rest, and the same picture without headroom, are two pixels a cell.
+  assert.deepEqual(runsOf(p, true)[1], runsOf(p)[1]);
+  assert.deepEqual(runsOf(p)[0]![0], { text: '▀', fg: '#ff0000', bg: null });
+  assert.deepEqual(runsOf(p, true)[1]![0], { text: '▀', fg: '#ff0000', bg: '#ff0000' });
+});
+
+test('in the strip nothing but the glass touches the line above, and the two-row Mo lets its head down', () => {
+  for (const s of MO_STATES)
+    for (const t of TIMES)
+      for (const b of ['dark', 'light'] as const) {
+        for (const p of [mark1(s, t, b), mark2(s, t, b, true)])
+          for (const r of runsOf(p, true)[0]!) if (r.text.includes('▀')) assert.equal(r.fg, hexOf(GLASS), `${s} at ${t}: ${r.fg} touches the line above`);
+        // Without the head's top edge, only the antenna (and what goes around) is on the first pixel row.
+        const roomy = mark2(s, t, b, true);
+        const plain = mark2(s, t, b);
+        assert.deepEqual(roomy.px.slice(1), plain.px.slice(1));
+        // (The drones of 'agent' fly over it.)
+        if (s !== 'agent') for (let x = 6; x <= 12; x++) assert.equal(roomy.px[0]![x], null, `${s} at ${t}: the head's edge at ${x}`);
+      }
+  assert.notEqual(mark2('idle', 1, 'dark', true).px[0]![14], null);
+  assert.notEqual(mark2('idle', 1).px[0]![10], null);
 });
 
 test('escape sequences: 24-bit where the terminal takes them, the nearest of 256 colors elsewhere; a line ends reset', () => {
