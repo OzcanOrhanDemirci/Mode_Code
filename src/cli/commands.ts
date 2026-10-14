@@ -34,10 +34,13 @@ import { claudeDir as claudeDirOf } from '../node/env.js';
 import { appliedTemplates, repoKey, TEMPLATES, templateById, withTemplates } from '../core/templates.js';
 import { git } from '../node/git.js';
 import { autonomyCheck, findRun, loadRuns, runFiles } from '../app/runs.js';
+import { mark2 } from '../core/mo/marks.js';
+import { ansiOf } from '../core/mo/cells.js';
+import { STILL_AT } from '../core/mo/state.js';
 import { activeTime, nextStep as nextRunStep, progress as runProgress, type Run } from '../core/run.js';
 import { durationText, rollbackCommands } from '../core/run-report.js';
 import { flag, intValue, value, values, type Args } from './args.js';
-import { bold, dim, green, red, yellow, gray, cyan, table } from './style.js';
+import { bold, dim, green, red, yellow, gray, cyan, table, colorDepth, colorOn } from './style.js';
 
 type Out = (s?: string) => void;
 const say: Out = (s = '') => process.stdout.write(s + '\n');
@@ -240,8 +243,10 @@ export async function cmdInstall(a: Args): Promise<number> {
     say(T(ctx, 'install.failedHint', { cmd: `${CLI_NAME} uninstall`, repo: `${REPO_URL}/issues` }));
     return 1;
   }
-  say(green(bold(T(ctx, 'install.done'))));
-  say(T(ctx, 'install.next', { cmd: cyan(CLI_NAME) }));
+  // Mo greets the new install, a still picture beside the two lines, where the terminal draws colors.
+  const mo = colorOn() && ctx.config.modules.mascot ? ansiOf(mark2('done', STILL_AT.done), colorDepth()) : [];
+  say(`${mo[0] ? `${mo[0]}  ` : ''}${green(bold(T(ctx, 'install.done')))}`);
+  say(`${mo[1] ? `${mo[1]}  ` : ''}${T(ctx, 'install.next', { cmd: cyan(CLI_NAME) })}`);
   return 0;
 }
 

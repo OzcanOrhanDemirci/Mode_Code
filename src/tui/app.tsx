@@ -14,6 +14,7 @@ import { allEntries, CATEGORY_IDS, resolve, searchEntries, visible, type NavNode
 import type { DataSource } from './store.js';
 import { buildTree } from './tree.js';
 import { makeTheme, stateColor, type Theme } from './theme.js';
+import { MoGreeting } from './mo.js';
 import { dispatchKey, EnvContext, KeyHints, KeyScopeContext, ListView, Muted, type Env, type KeyScope, type LeaveAction, type ListItem } from './ui.js';
 
 export interface AppProps {
@@ -436,7 +437,23 @@ export function App(props: AppProps) {
         </Box>
         {cW > 10 ? (
           <Box width={cW} flexDirection="column" borderStyle={theme.border} borderColor={theme.muted} paddingX={1} overflow="hidden">
-            {selected ? <Preview node={selected} width={cW - 4} height={bodyH - 2} theme={theme} t={t} /> : null}
+            {selected ? (
+              <Preview
+                node={selected}
+                width={cW - 4}
+                height={bodyH - 2}
+                theme={theme}
+                t={t}
+                below={
+                  // Mo greets beside the first screen: the home category, before anything was opened.
+                  !chain.length && selected.id === 'home'
+                    ? (room: number) => (
+                        <MoGreeting data={data} width={cW - 4} height={room} plain={theme.plain} still={theme.reduceMotion || !!props.now} t={t} />
+                      )
+                    : undefined
+                }
+              />
+            ) : null}
           </Box>
         ) : null}
       </Box>
@@ -456,9 +473,26 @@ export function App(props: AppProps) {
   );
 }
 
-function Preview({ node, width, height, theme, t }: { node: NavNode; width: number; height: number; theme: Theme; t: (k: MessageKey) => string }) {
+function Preview({
+  node,
+  width,
+  height,
+  theme,
+  t,
+  below,
+}: {
+  node: NavNode;
+  width: number;
+  height: number;
+  theme: Theme;
+  t: (k: MessageKey) => string;
+  /** What goes under the list, given the rows left for it. */
+  below?: ((room: number) => React.ReactNode) | undefined;
+}) {
   if (node.children && !node.screen) {
     const kids = node.children();
+    const shown = Math.min(kids.length, Math.max(1, height - 4));
+    const descRows = node.description ? Math.ceil(node.description.length / Math.max(1, width)) : 0;
     return (
       <Box flexDirection="column" width={width}>
         <Box flexDirection="column" flexShrink={0}>
@@ -476,6 +510,7 @@ function Preview({ node, width, height, theme, t }: { node: NavNode; width: numb
           {kids.length > height - 4 ? <Muted>{`+${kids.length - (height - 4)}`}</Muted> : null}
           {!kids.length ? <Muted>{t('nav.empty')}</Muted> : null}
         </Box>
+        {below ? <Box marginTop={1}>{below(height - 3 - descRows - shown - (kids.length > height - 4 ? 1 : 0))}</Box> : null}
       </Box>
     );
   }

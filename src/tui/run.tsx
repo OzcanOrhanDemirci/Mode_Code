@@ -40,6 +40,8 @@ export async function runControlCenter(opts: { address: string | null; plain: bo
       alternateScreen: true,
       exitOnCtrlC: true,
       patchConsole: true,
+      // Only the lines that changed are written again: Mo moves without the whole screen being redrawn.
+      incrementalRendering: true,
     });
     try {
       await instance.waitUntilExit();

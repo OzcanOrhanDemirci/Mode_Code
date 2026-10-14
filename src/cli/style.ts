@@ -16,6 +16,16 @@ export function colorOn(): boolean {
   return enabled;
 }
 
+/**
+ * Whether the terminal takes 24-bit colors: those that say so (COLORTERM), and the ones known to (Windows
+ * Terminal, iTerm2, WezTerm, VS Code, Ghostty). Elsewhere (macOS Terminal among them) the 256-color palette.
+ */
+export function colorDepth(env: NodeJS.ProcessEnv = process.env): 'truecolor' | '256' {
+  if (env.COLORTERM === 'truecolor' || env.COLORTERM === '24bit') return 'truecolor';
+  if (env.WT_SESSION) return 'truecolor';
+  return ['iTerm.app', 'WezTerm', 'vscode', 'ghostty'].includes(env.TERM_PROGRAM ?? '') ? 'truecolor' : '256';
+}
+
 const wrap = (open: number, close: number) => (s: string) => (enabled ? `\u001B[${open}m${s}\u001B[${close}m` : s);
 
 export const bold = wrap(1, 22);
