@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Question
+  - name: Question or idea to discuss
     url: https://github.com/OzcanOrhanDemirci/Mode_Code/discussions
-    about: Ask in Discussions.
+    about: Ask, share how you use it, or talk an idea through before it becomes an issue.
   - name: Security problem
     url: https://github.com/OzcanOrhanDemirci/Mode_Code/security/advisories/new
     about: Report it privately, never in a public issue.

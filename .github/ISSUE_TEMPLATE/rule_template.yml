@@ -1,0 +1,36 @@
+name: Rule template
+description: Propose ready-made rules for a kind of project (a stack, a way of working).
+labels: [rule template]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A rule template is a few lines Claude reads in a project's CLAUDE.md, and sometimes belt settings that only tighten (see the seven in Claude Code › Rule templates). Short, concrete and true for most projects of the kind is what makes one useful.
+  - type: input
+    id: kind
+    attributes:
+      label: For which projects
+      placeholder: Python packages with uv · a Go service · Docker Compose on a server …
+    validations:
+      required: true
+  - type: textarea
+    id: rules
+    attributes:
+      label: The rules
+      description: The lines Claude should read, a handful at most.
+      placeholder: |
+        - Run the tests with `uv run pytest` before saying a change works.
+        - …
+    validations:
+      required: true
+  - type: textarea
+    id: belt
+    attributes:
+      label: Anything the belt should enforce
+      description: Optional. For example a branch that only changes through pull requests.
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contributing
+      options:
+        - label: I would like to add it myself (src/core/templates.ts; see CONTRIBUTING.md).

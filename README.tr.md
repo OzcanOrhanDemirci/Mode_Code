@@ -1,17 +1,94 @@
 <p align="right"><a href="README.md">English</a> · <b>Türkçe</b></p>
 
-# Mode_Code
+<h1 align="center">Mode_Code</h1>
 
-**Claude Code için yerel bir yol arkadaşı: Claude Code'un içinde bir emniyet kemeri ve davranış katmanı, terminalinde bir kontrol merkezi.** Her şey kendi makinelerinde kalır ya da yalnız senin gönderdiğin yere gider. Telemetri yok.
+<p align="center">
+  <b>Claude Code için yerel bir yol arkadaşı.</b><br>
+  Claude Code'un içinde bir emniyet kemeri, modlar ve kota bekçisi; terminalinde bir kontrol merkezi.<br>
+  Her şey kendi makinelerinde kalır. Telemetri yok.
+</p>
 
-[![Lisans: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-![Node.js 22.13 ve sonrası](https://img.shields.io/badge/node-%E2%89%A522.13-brightgreen.svg)
+<p align="center">
+  <a href="https://github.com/OzcanOrhanDemirci/Mode_Code/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/OzcanOrhanDemirci/Mode_Code/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/OzcanOrhanDemirci/Mode_Code/releases/latest"><img alt="Son sürüm" src="https://img.shields.io/github/v/release/OzcanOrhanDemirci/Mode_Code?sort=semver"></a>
+  <a href="LICENSE"><img alt="Lisans: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
+  <img alt="Windows, macOS ve Linux" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg">
+</p>
+
+<p align="center">
+  <img src="docs/images/control-center-tr.svg" width="872" alt="Programın kendi çizdiği Mode_Code kontrol merkezi: ana ekran, emniyet kemeri kuralları, kemerde sınanan bir komut, kota ve kural şablonları">
+</p>
+
+## Kurulum
+
+> [!TIP]
+> **Tek bir satırı kopyalayıp terminaline yapıştır ve Enter'a bas.** Kurulum Mode_Code'un ihtiyaç duyduğu her şeyi getirir, Node.js yoksa onu da; sen onay vermeden Claude Code'da hiçbir şeyi değiştirmez.
+
+**macOS ve Linux**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/OzcanOrhanDemirci/Mode_Code/main/install.sh | sh
+```
+
+**Windows** (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/OzcanOrhanDemirci/Mode_Code/main/install.ps1 | iex
+```
+
+Sonra yeni bir Claude Code oturumu başlat (`claude`). İstem satırının üstündeki şerit modu ve çalışma biçimini gösterir: Mode_Code açık. Kontrol merkezi için orada `/0` yaz.
+
+- **Güncellemek:** aynı satırı yeniden çalıştır.
+- **Kaldırmak:** `mode-code uninstall`. Kurulanı tam olarak kaldırır, program ve komutu dahil; ayarlarını ve geçmişini de silmek için `--purge` ekle.
+
+<details>
+<summary><b>Kurulum ne yapar</b>, seçenekleri ve başka kurulum yolları</summary>
+
+<br>
+
+1. **Node.js.** PATH'teki Node.js 22.13 ya da sonrasını kullanır. Yoksa nodejs.org'dan resmî Node.js 24 derlemesini indirir, nodejs.org'un SHA-256 listesiyle doğrular ve yalnız Mode_Code için tutar: yönetici hakkı yok, sudo yok, sisteme hiçbir şey kurulmaz.
+2. **Paket.** En yeni [sürümü](https://github.com/OzcanOrhanDemirci/Mode_Code/releases) indirir ve sürümün `SHA256SUMS` dosyasıyla doğrular. Eşleşmeyen bir indirme asla kurulmaz.
+3. **Program.** `~/.local/share/mode-code` klasörüne (Windows: `%LOCALAPPDATA%\mode-code`), `mode-code` komutu da `~/.local/bin` klasörüne (Windows: `%USERPROFILE%\.local\bin`) gider. Bu klasör PATH'te değilse eklenir: kabuğunun başlangıç dosyasına işaretli tek bir satır ya da Windows'ta kullanıcı PATH'in.
+4. **Claude Code.** `mode-code install` çalışır: Claude Code'da yapacağı her değişikliği gösterir, bir kez sorar, ayarlarını yedekler ve kendini sınar. Claude Code yoksa önce [Anthropic'in resmî kurulumunu](https://code.claude.com/docs/en/setup) çalıştırmayı önerir.
+
+Çalıştırmadan önce oku: [install.sh](install.sh) · [install.ps1](install.ps1).
+
+| Ne için                         | macOS ve Linux                                | Windows                                                 |
+| ------------------------------- | --------------------------------------------- | ------------------------------------------------------- |
+| seçenek vermek                  | `curl -fsSL <adres> \| sh -s -- <seçenekler>` | `& ([scriptblock]::Create((irm <adres>))) <seçenekler>` |
+| her soruya evet (betikler için) | `--yes`                                       | `-Yes`                                                  |
+| belirli bir sürümü kurmak       | `--version 1.0.0`                             | `-Version 1.0.0`                                        |
+| PATH'e dokunmamak               | `--no-modify-path`                            | `-NoModifyPath`                                         |
+| yalnız programı kurmak          | `--no-setup`                                  | `-NoSetup`                                              |
+
+**Önce denemek için** `--no-setup` (Windows: `-NoSetup`) ile kur, sonra `mode-code try` çalıştır: her şey yüklü tek bir Claude Code oturumu başlatır ve Claude Code yapılandırmanda hiçbir şeyi değiştirmez.
+
+**Kaynaktan** (Node.js 22.13 ya da sonrası):
+
+```sh
+git clone https://github.com/OzcanOrhanDemirci/Mode_Code.git
+cd Mode_Code && npm ci && npm run build
+node dist/cli.mjs install
+```
+
+</details>
+
+## İlk adımlar
+
+| Bunu yap                                                       | Şunu gör                                                                    |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `mode-code belt test --command "git push --force origin main"` | emniyet kemerinin bir komutla ne yapacağı, hiçbir şey çalıştırılmadan       |
+| Claude Code'da `/3`, sonra `/4` yaz                            | modun 📐 plana (planın dışında hiçbir şey değişemez), sonra 🔨 koda geçmesi |
+| Bir mesajı `projem devam kota 40` ile bitir                    | Claude'un projeyi kaldığı yerden, haftalık kotanın %40'ına kadar sürdürmesi |
+| `/0` yaz ya da `mode-code` çalıştır                            | kontrol merkezi: `/0` onu oturumun yanında yeni bir sekmede açar            |
+| `mode-code doctor`                                             | her özelliğin sağlığı ve çalışmayanın nasıl düzeleceği                      |
+
+Projelerine Ayarlar › Projeler ve anahtar kelimeler altından ad ver; geri kalan her şey hiçbir ayar yapmadan çalışır.
 
 ## İçindekiler
 
 - [Ne yapar](#ne-yapar)
 - [Neden](#neden)
-- [Hızlı başlangıç](#hızlı-başlangıç)
 - [Gereksinimler](#gereksinimler)
 - [Kontrol merkezi](#kontrol-merkezi)
 - [Anahtar kelimeler](#anahtar-kelimeler)
@@ -103,52 +180,15 @@ Yazarın Windows 11 makinesinde, Claude Code 2.1.296 ve Node.js 24.15 ile ölç�
 - **Güvenlik ağı ucuz.** Hook programı Windows'ta denetlenen her araç çağrısına yaklaşık 0,1 saniye ekler; bunun çoğu Node.js'in açılışı. Claude Code'un içinde eklenti aynı çağrıyı süreç içinde denetler.
 - **Düz izin kuralları farklı yazımları kaçırır.** `Bash(git push --force*)` gibi bir kural `git -C . push --force` ile eşleşmez; kemer komutu git'in okuduğu gibi okur.
 
-## Hızlı başlangıç
-
-Paket henüz npm'de değil (nihai ad belli değil); kaynaktan kur:
-
-```sh
-git clone https://github.com/OzcanOrhanDemirci/Mode_Code.git
-cd Mode_Code && npm ci && npm run build
-node dist/cli.mjs install
-```
-
-Hiçbir şey kurmadan önce denemek için `node dist/cli.mjs try` çalıştır: her şey yüklü tek bir Claude Code oturumu başlatır ve Claude Code yapılandırmanda hiçbir şeyi değiştirmez.
-
-Kurulum önce yapacağı her değişikliği gösterir ve hiçbir şeyi değiştirmeden önce bir kez sorar. Sonra yeni bir Claude Code oturumu başlat; kontrol merkezini `node dist/cli.mjs` ile aç.
-
-Kaldırmak için: `node dist/cli.mjs uninstall` (ayarlarını ve geçmişini de silmek için `--purge` ekle). Kaldırma, kurulumun kaydettiğini tam olarak geri alır.
-
 ## Gereksinimler
 
-- **Node.js 22.13 ya da sonrası** (oturum dizini Node'un yerleşik SQLite'ını kullanır).
 - Güvenlik ağı hook'u için **Claude Code 2.1.295 ya da sonrası**; süreç içi eklenti **2.1.290 ve sonrasında** çalışır. Daha eski bir Claude Code'da kemeri ve anahtar kelimeleri hook tek başına yürütür.
-- Windows, macOS ya da Linux. Windows 11'de geliştirildi; testler Windows ve Linux'ta (Node.js 22 ve 24) ve macOS'ta (Node.js 24) geçiyor.
+- **Node.js 22.13 ya da sonrası** (oturum dizini Node'un yerleşik SQLite'ını kullanır). Yoksa kurulum kendi Node.js'ini getirir.
+- Windows 10 (1803) ya da sonrası, macOS ya da Linux (glibc; Alpine'de önce `apk add nodejs` ile Node.js kur). Windows 11'de geliştirildi; testler Windows ve Linux'ta (Node.js 22 ve 24) ve macOS'ta (Node.js 24) geçiyor.
 
 ## Kontrol merkezi
 
-`mode-code` açar. Üç sütun: geldiğin yer, bulunduğun yer ve seçili olan. Her ekranın bir adresi var (`security/rules`, `measure/quota`); `mode-code open <adres>` de aynı adresi alır.
-
-```
-mode-code › Ana ekran                                             🛡 çalışıyor  hafta %27  5s %21
-╭──────────────────╮╭───────────────────────────────╮╭─────────────────────────────────────────────╮
-│▸ Ana ekran 1 ye… ││▸ Genel bakış                  ││ Genel bakış                                 │
-│  Projeler        ││  Sen yokken olanlar         1 ││ Her şeyin durumu tek bakışta.               │
-│  Oturumlar       ││                               ││                                             │
-│  Ölçüm           ││                               ││ Koruma                                      │
-│  Güvenlik bugün… ││                               ││ ✓ çalışıyor · her şey çalışıyor             │
-│  Claude Code     ││                               ││                                             │
-│  Ayarlar         ││                               ││ Kota                                        │
-│                  ││                               ││ 5 saatlik     ██▏    %21 · 3 sa 50 dk sonra │
-│                  ││                               ││                      sıfırlanır             │
-│                  ││                               ││ Haftalık      ██▊     %27 · 6 gün sonra     │
-│                  ││                               ││                      sıfırlanır             │
-╰──────────────────╯╰───────────────────────────────╯╰─────────────────────────────────────────────╯
-Adres: home/overview
-↑↓ gez  → aç  ← geri  1-7 kategoriler  / süz  Ctrl+K git  ? yardım  q çık
-```
-
-<sub>Projenin kendi sınama düzeneğiyle örnek veriden çizildi.</sub>
+`mode-code` açar; Claude Code'un içinde `/0` onu terminalinin yeni bir sekmesinde açar. Üç sütun: geldiğin yer, bulunduğun yer ve seçili olan. Her ekranın bir adresi var (`security/rules`, `measure/quota`); `mode-code open <adres>` de aynı adresi alır. Bu sayfanın başındaki resim, programın kendi ekranlarını örnek veriden çizmesidir (`npm run screenshots`).
 
 Tuşlar her yerde aynı: `↑↓` gez, `→` aç, `←` geri, `1`-`7` kategoriye atla, `/` listeyi süz, `Ctrl+K` adıyla herhangi bir ekrana git (iki dilde de), `?` terimlerin açıklandığı yardım, `q` çık. Üç görünüm seviyesi (Sade, Önerilen, Ayrıntılı) neyin gösterildiğini değiştirir, neyin korunduğunu asla. Düz metin (çerçevesiz, ASCII simgeler) ve yüksek kontrast Ayarlar › Erişilebilirlik altında.
 
@@ -199,7 +239,8 @@ Ayrıntı: [docs/safety-belt.md](docs/safety-belt.md).
 
 - **Sen göndermedikçe hiçbir şey makinenden çıkmaz.** Telemetri yok, analitik yok. Hafıza ve eşitleme yalnız senin kurduğun yere gider: git ve GitHub CLI ile kendi özel depona ya da seçtiğin bir klasöre. Yaptığı tek model çağrısı, tam otonom bir koşunun kilometre taşlarının bağımsız incelemesidir; Claude Code'un kendi istemcisiyle, oturumunun zaten kullandığı sağlayıcıya gider.
 - **Ne okur:** Claude Code'un ayar dosyalarını ve kayıtlarını (salt okunur), hafıza klasörlerini (git durumu ve sır taraması için).
-- **Ne yazar:** kendi veri klasörünü (`~/.mode-code`) ve kurulumda senin onayınla Claude Code kullanıcı ayarlarına dört hook kaydı (yedeği alınır). Eklenti Claude Code'un kendi `claude plugin` komutuyla kurulur.
+- **Ne yazar:** kendi veri klasörünü (`~/.mode-code`) ve kurulumda senin onayınla Claude Code kullanıcı ayarlarına dört hook kaydı (yedeği alınır). Eklenti Claude Code'un kendi `claude plugin` komutuyla kurulur. Tek satırlık kurulum ayrıca program klasörünü, `mode-code` komutunu ve gerekirse tek bir PATH kaydını yazar; her biri `mode-code uninstall` komutunun okuduğu kayıtta listelenir.
+- **Ne indirir:** yalnız kurulumu çalıştırdığında: GitHub'dan sürümü ve yoksa nodejs.org'dan Node.js'i; her biri SHA-256 ile doğrulanır. Sürümler bir [derleme kaynağı kanıtı](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations) taşır: `gh attestation verify mode-code.tgz --repo OzcanOrhanDemirci/Mode_Code`.
 - **Ne saklar:** sayılar (token, araç sayısı, süre) ve kısa metinler (oturum başlıkları, ilk istemler); sırlar yazılmadan önce maskelenir.
 - **Kaldırma:** `mode-code uninstall` kurulumun kaydettiğini tam olarak geri alır. Bir korumayı azaltan komutlar bir Claude Code oturumunun içinden çalışmayı reddeder.
 
@@ -207,12 +248,13 @@ Bir güvenlik açığı mı buldun? Lütfen gizli bildir: [SECURITY.md](SECURITY
 
 ## Nasıl test ediliyor
 
-Bir ajanla makinen arasında duran bir araç güveni kanıtla kazanmalı. Kodun kendisiyle ilgili kurallardan gerçek Claude Code oturumlarına kadar on iki katman var; her biri neyi kanıtladığını ve neyi kanıtlayamadığını söylüyor ([docs/testing.md](docs/testing.md), İngilizce). 2026-10-13 ölçümü:
+Bir ajanla makinen arasında duran bir araç güveni kanıtla kazanmalı. Kodun kendisiyle ilgili kurallardan gerçek Claude Code oturumlarına ve tek satırlık kuruluma kadar on beş katman var; her biri neyi kanıtladığını ve neyi kanıtlayamadığını söylüyor ([docs/testing.md](docs/testing.md), İngilizce). 2026-10-14 ölçümü:
 
-- Windows, Linux ve macOS'ta, Node.js 22 ve 24 ile ve bir WSL2 dağıtımında **684 test**; koda dönüşen satırlarda ortalama satır kapsamı **%93,8**, her dosya bir tabana bağlı.
+- **776 test**, Windows 11'de ve Linux'ta (WSL2'de Ubuntu 24.04) hepsi geçiyor; CI onları Windows, Linux ve macOS'ta Node.js 22 ve 24 ile çalıştırır. Koda dönüşen satırlarda ortalama satır kapsamı **%94,0**, her dosya bir tabana bağlı.
 - **Yanlış alarm da hata sayılır.** 197 günlük komut her platformda kemerden tek bir soru sorulmadan geçmek, 162 okuma komutu da sohbet, araştırma ve plan modunda çalışmak zorunda. Yazarın son 30 gününde (36.658 araç çağrısı) kemer günde 4,4 kez sorardı.
-- **Testlerin kendisi de test ediliyor.** Mutasyon testi karar veren koda, kemere, modlara, tam otonoma, hafızanın eşitlemesine ve bilgisayarlar arası eşitlemeye 2.078 küçük, bilerek yapılmış değişiklik uygular; testler 2.078'ini de yakalıyor. Bakım denetimi bir deneme ortamını 13 şekilde bozar; 13'ünü de fark etmesi ve onarılabilecek olanları onarması gerekir.
+- **Testlerin kendisi de test ediliyor.** Mutasyon testi karar veren koda, kemere, modlara, tam otonoma, hafızanın eşitlemesine ve bilgisayarlar arası eşitlemeye 2.378 küçük, bilerek yapılmış değişiklik uygular; testler 2.378'ini de yakalıyor. Bakım denetimi bir deneme ortamını 14 şekilde bozar; 14'ünü de fark etmesi ve onarılabilecek 13'ünü onarması gerekir.
 - **Gerçek motorun içinde.** Eklenti Claude Code'un kendi test takımıyla, her gece en yeni Claude Code sürümüne karşı ve gerçek başsız oturumlarda sınanıyor.
+- **Kurulum, senin çalıştırdığın gibi sınanıyor.** sh, bash, Windows PowerShell 5.1 ve PowerShell 7'de, her biri kendine ait bir ev klasöründe: Node.js varken ve yokken, sağlama toplamı tutması gereken bir sürümden; sonra güncellenir, çalıştırılır ve kaldırılır. Bir sürüm ancak taşıdığı kurulum betiği yayınlayacağı paketin ta kendisini Linux, macOS ve Windows'ta kurduktan sonra yayınlanır.
 - **Testler gerçek hatalar buldu**, her biri düzeltildi ve bir testle düzeltilmiş kalıyor: Windows kısa adlarıyla (`MODECO~1`) ya da sonda bir noktayla erişilebilen korumalı dosyalar, macOS'ta ev klasörü altındaki her özyinelemeli silmenin engellenmesi, `__proto__` sözcüğünde ayrıştırıcının çökmesi.
 
 Kendi makinende `mode-code doctor` aynı denetimleri yapar: Node.js, Claude Code ve ayarları, hook'lar ve eklenti, Git Bash, PowerShell ve zsh, terminal, dosya sistemi, git ve aracın kendi verisi. Güvenle onarabileceğini onarır, önce yedek alır, sonra yeniden denetler, sana kalanı tam olarak söyler. `npm run verify` bir makinede çalışabilen her katmanı koşar ve her katman için tek satır yazar.
@@ -226,6 +268,8 @@ Kendi makinende `mode-code doctor` aynı denetimleri yapar: Node.js, Claude Code
 
 ## Sık sorulanlar
 
+**İnternetten bir betiği kabuğuma aktarmak güvenli mi?** Önce oku: [install.sh](install.sh) ve [install.ps1](install.ps1) kısa ve açıklamalıdır; betiğin tamamı fonksiyonlardan oluşur ve onları son satır çalıştırır, yani yarıda kesilen bir indirme hiçbir şey çalıştırmaz. İndirdikleri, kullanılmadan önce SHA-256 ile doğrulanır; asla yönetici hakkı istemezler ve yerleştirdiklerini `mode-code uninstall` kaldırır. Aktarmak istemezsen betiği indir, oku ve dosya olarak çalıştır.
+
 **Claude Code'un çalışma biçimini değiştirir mi?** Yalnız gördüğün yerlerde: kemerin kararları, bir anahtar kelimenin eklediği bağlam, alt satırlar ve durum satırı. Herhangi bir özelliği Ayarlar › Özellikler altından kapatabilirsin; kemer kalır.
 
 **Claude Code'u yavaşlatır mı?** Hook, Windows'ta denetlenen her araç çağrısına yaklaşık 0,1 saniye ekler (başka sistemlerde daha az); eklentinin denetimi süreç içinde yapılır.
@@ -234,17 +278,43 @@ Kendi makinende `mode-code doctor` aynı denetimleri yapar: Node.js, Claude Code
 
 **Claude masaüstü uygulamasıyla çalışır mı?** Eklenti ve hook'lar, Claude Code kullanıcı ayarlarınla nerede çalışıyorsa orada yüklenir; kontrol merkezi bir terminal programıdır.
 
+**Anthropic mi yaptı?** Hayır. Claude Code ile çalışan bağımsız, açık kaynak bir proje.
+
 ## Yol haritası
 
-Sıradakiler, bu sırayla:
+Sıradakiler:
 
-- **Yayın:** nihai adla, kaynağı doğrulanabilir biçimde npm'de.
+- **npm**, `npx mode-code` da çalışsın diye, kaynağı doğrulanabilir biçimde.
+- **Daha çok kural şablonu**: Python ve Go'dan Docker Compose'a yaygın yığınlar.
+- **Daha çok dil**: arayüz için İngilizce ve Türkçenin yanına.
+- Tek satırlık kurulumda **musl Linux** (Alpine).
 
-Önceki yol haritasından tamamlananlar: bilgisayarlar arası eşitleme ve sahibinin eşitlediği hafıza ([docs/sync.md](docs/sync.md)), devir notları ve sabah raporuyla hafızanın kurulumu ve eşitlenmesi ([docs/memory.md](docs/memory.md)), bitti tanımıyla, WSL2'de tam otonom çalışma ([docs/autonomy.md](docs/autonomy.md)), modlar ve akışlar ([docs/modes.md](docs/modes.md)), kural şablonları (yedi tane), kota geçmişi, günlük ve haftalık rapor, bakım denetimi (`doctor`) ve [docs/testing.md](docs/testing.md) belgesinde anlatılan test süreci.
+Tamamlananlar: tek satırlık kurulum, bilgisayarlar arası eşitleme ve sahibinin eşitlediği hafıza ([docs/sync.md](docs/sync.md)), devir notları ve sabah raporuyla hafızanın kurulumu ve eşitlenmesi ([docs/memory.md](docs/memory.md)), bitti tanımıyla, WSL2'de tam otonom çalışma ([docs/autonomy.md](docs/autonomy.md)), modlar, akışlar ve oturum kontrolleri ([docs/modes.md](docs/modes.md)), kural şablonları (yedi tane), kota geçmişi, günlük ve haftalık rapor, bakım denetimi (`doctor`) ve [docs/testing.md](docs/testing.md) belgesinde anlatılan test süreci.
+
+Bir fikrin mi var? [Bir tartışma başlat](https://github.com/OzcanOrhanDemirci/Mode_Code/discussions) ya da [öner](https://github.com/OzcanOrhanDemirci/Mode_Code/issues/new/choose).
 
 ## Katkı
 
-Katkılar hoş karşılanır: kayıtlar, fikirler, kural şablonları, çeviriler, kod. Lütfen [CONTRIBUTING.tr.md](CONTRIBUTING.tr.md) dosyasını oku; commit'ler [Developer Certificate of Origin](https://developercertificate.org/) altında imzalanır (`git commit -s`). Katılarak [Davranış Kuralları](CODE_OF_CONDUCT.md)'nı kabul etmiş olursun.
+Mode_Code açıkta geliştiriliyor ve her boyuttaki katkı hoş karşılanır. Başlamak için iyi yerler:
+
+- **Gördüğünü anlat.** Kemerin yanlış alarmı, kaçırdığı riskli bir komut, kafanı karıştıran bir mesaj: [bir kayıt aç](https://github.com/OzcanOrhanDemirci/Mode_Code/issues/new/choose). `mode-code doctor --report` işe yarayanı toplar.
+- **Bir kaydı üstlen:** [good first issue](https://github.com/OzcanOrhanDemirci/Mode_Code/labels/good%20first%20issue) ya da [help wanted](https://github.com/OzcanOrhanDemirci/Mode_Code/labels/help%20wanted) etiketli olanlar.
+- **Bir kural şablonu ekle**: iyi bildiğin bir yığın için ([src/core/templates.ts](src/core/templates.ts)).
+- **Çevir**: arayüzü kendi diline ([src/core/i18n](src/core/i18n)).
+- **Kendi platformunda dene**: bir macOS ya da Linux terminali, denemediğimiz bir kabuk; nasıl gittiğini anlat.
+- **Sor ya da paylaş**: [Tartışmalar](https://github.com/OzcanOrhanDemirci/Mode_Code/discussions).
+
+Çalışan bir kopya üç komutla kurulur:
+
+```sh
+git clone https://github.com/OzcanOrhanDemirci/Mode_Code.git && cd Mode_Code
+npm ci
+npm run check   # tür denetimi, biçim denetimi, derleme, testler
+```
+
+[CONTRIBUTING.tr.md](CONTRIBUTING.tr.md) kodun nasıl düzenlendiğini, bir değişikliğin nasıl sınandığını ve commit'lerin [Developer Certificate of Origin](https://developercertificate.org/) altında nasıl imzalandığını anlatır (`git commit -s`; CLA yok). Katkıda bulunan herkese sürüm notlarında teşekkür edilir. Katılarak [Davranış Kuralları](CODE_OF_CONDUCT.md)'nı kabul etmiş olursun.
+
+Kod yazmıyor musun? Bir yıldız, projeyi başkalarının bulmasına yardım eder; Claude Code kullanan birine anlatmak da öyle.
 
 ## Lisans
 

@@ -4,7 +4,9 @@ labels: [bug]
 body:
   - type: markdown
     attributes:
-      value: Thank you for reporting. For security problems, use the private report instead (see SECURITY.md).
+      value: |
+        Thank you for reporting. For a security problem, use the private report instead (see [SECURITY.md](https://github.com/OzcanOrhanDemirci/Mode_Code/blob/main/SECURITY.md)).
+        A false alarm from the safety belt, or a risky command it let through, is a bug too: say which command, and what you expected.
   - type: textarea
     id: what
     attributes:
@@ -13,16 +15,45 @@ body:
     validations:
       required: true
   - type: textarea
+    id: steps
+    attributes:
+      label: How to see it again
+      description: The smallest steps that show it, if you know them.
+      placeholder: |
+        1. In a Claude Code session, type …
+        2. …
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - WSL
+    validations:
+      required: true
+  - type: dropdown
+    id: installed
+    attributes:
+      label: How Mode_Code was installed
+      options:
+        - The one-line installer (install.sh or install.ps1)
+        - From source (git clone)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: '`mode-code --version`, `claude --version`, `node --version`'
+      placeholder: 1.0.0 · Claude Code 2.1.299 · Node 24.21
+    validations:
+      required: true
+  - type: textarea
     id: doctor
     attributes:
       label: Output of `mode-code doctor`
       description: It contains no personal data, but please look it over before pasting.
       render: text
-  - type: input
-    id: versions
-    attributes:
-      label: Versions
-      description: mode-code, Claude Code, Node.js, operating system
-      placeholder: 0.1.0 · Claude Code 2.1.296 · Node 24.15 · Windows 11
-    validations:
-      required: true

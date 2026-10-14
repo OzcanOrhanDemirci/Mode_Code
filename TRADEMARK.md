@@ -2,8 +2,6 @@
 
 The code in this repository is open source under the [Apache License 2.0](LICENSE). The license covers the code. It does not grant rights to the project's name or logo (Apache-2.0, section 6). This page says how the name may be used, so that people who see it know what they are getting.
 
-The project name is not final yet; this policy applies to the current name and to the final one.
-
 ## You may
 
 - Refer to the project by name in a factual way: in articles, talks, documentation, package lists, comparisons and reviews ("works with Mode_Code", "a fork of Mode_Code").

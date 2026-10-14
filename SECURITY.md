@@ -18,4 +18,9 @@ Known limits, documented and not treated as vulnerabilities: on native Windows t
 
 ## Supported versions
 
-Until the first stable release, only the latest version receives fixes.
+| Version          | Fixes |
+| ---------------- | ----- |
+| 1.x, the newest  | yes   |
+| older than 1.0.0 | no    |
+
+Fixes come in a new release. Mode_Code never looks for updates by itself: watch the repository's releases (**Watch** › **Custom** › **Releases**) to hear of one, and run the install line again to update.

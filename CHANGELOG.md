@@ -6,8 +6,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [1.0.0] - 2026-10-14
 
+The first public release: the safety belt, keywords, modes and flows, full autonomy, the memory and its sync, the quota guard and the control center, installed with one line.
+
 ### Added
 
+- One-line installers: `curl -fsSL …/install.sh | sh` on macOS and Linux, `irm …/install.ps1 | iex` in Windows PowerShell 5.1 and PowerShell 7. They use the Node.js on PATH, or download the official Node.js 24 build for Mode_Code alone (checked against nodejs.org's SHA-256 list; no administrator rights, no sudo); download the newest release and check it against its `SHA256SUMS`; put the program in `~/.local/share/mode-code` (`%LOCALAPPDATA%\mode-code`) and the `mode-code` command in `~/.local/bin`, adding that folder to PATH once, marked; then run `mode-code install`. Without Claude Code they offer Anthropic's official installer. Running one again updates; `--yes`, `--version`, `--no-modify-path` and `--no-setup` (`-Yes`, `-Version`, `-NoModifyPath`, `-NoSetup`) for scripts. Inside a Claude Code session they refuse, and a `mode-code` command they did not write is never replaced.
+- `mode-code uninstall` also removes what the one-line installer put in place, from the record it left: the program folder, the `mode-code` command and its PATH entry, the entry only when no other program in that folder needs it. On Windows, the Node.js running the removal is deleted by a helper the moment it ends. `--keep-program` leaves the program.
+- Releases from a version tag: the tag, `package.json`, the changelog and the installers must agree, every check passes, and the installers install the very package the release carries on Linux, macOS and Windows before the release is made, with `SHA256SUMS` and a build provenance attestation.
+- The README's pictures are drawn by the control center itself from sample data (`npm run screenshots`).
 - Safety belt: 39 rules over bash, PowerShell and cmd commands and file writes, with locked self-protection rules; runs in the in-process plugin and in a safety-net hook that blocks on failure.
 - Keywords in English and Turkish (`continue`/`devam`, `quota 40`/`kota 40`, `chat`/`sohbet`, `wrap up`/`toparla`, `stop`/`dur` …), robust to Turkish keyboards and typos.
 - Quota guard: wraps up at the budget, stops at the limit, resumes autonomous work after the reset.
@@ -63,7 +69,6 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Publishing and deploying with `--dry-run` are no longer asked about.
 - When an agent runs `doctor`, repairs that would put code into the protection are refused and left to the person.
 - Text widths are measured the way the terminal draws them (emoji and symbols such as 🛡 ⚪ ✅ ⛔ included), so no line is cut or wraps.
-- While the repository is private, CI spends fewer Actions minutes: a push runs Node.js 24 on Linux and Windows (Node.js 22 and the rename rehearsal run at night), a push that changes only documentation waits for the night, and the nightly tests run only when something changed since the night before. Pull requests run everything. A month's minutes had gone in two days of frequent pushes.
 
 ### Fixed
 
@@ -88,3 +93,6 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Scripts run by Claude Code's Monitor tool were not checked by the belt; they are now read like Bash commands, in the plugin and in the safety-net hook. Found by `doctor` on the author's machine.
 - A session started in the home folder counted the user's own settings twice, as user and as project settings, and the doctor reported the safety-net hooks as duplicated.
 - The doctor called a hook program from an earlier build of the same version "changed after installation". The installation now records the program's fingerprint, so an earlier build and a change are told apart; an older hook matcher is named as such, with the tools it does not check.
+
+[Unreleased]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/OzcanOrhanDemirci/Mode_Code/releases/tag/v1.0.0

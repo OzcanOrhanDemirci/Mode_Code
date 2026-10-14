@@ -1,17 +1,94 @@
 <p align="right"><b>English</b> · <a href="README.tr.md">Türkçe</a></p>
 
-# Mode_Code
+<h1 align="center">Mode_Code</h1>
 
-**A local companion for Claude Code: a safety belt and a behavior layer inside Claude Code, and a control center in your terminal.** Everything stays on your machines, or goes only where you send it. No telemetry.
+<p align="center">
+  <b>A local companion for Claude Code.</b><br>
+  A safety belt, modes and a quota guard inside Claude Code, and a control center in your terminal.<br>
+  Everything stays on your machines. No telemetry.
+</p>
 
-[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-![Node.js 22.13 or newer](https://img.shields.io/badge/node-%E2%89%A522.13-brightgreen.svg)
+<p align="center">
+  <a href="https://github.com/OzcanOrhanDemirci/Mode_Code/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/OzcanOrhanDemirci/Mode_Code/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/OzcanOrhanDemirci/Mode_Code/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/OzcanOrhanDemirci/Mode_Code?sort=semver"></a>
+  <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
+  <img alt="Windows, macOS and Linux" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg">
+</p>
+
+<p align="center">
+  <img src="docs/images/control-center.svg" width="872" alt="The Mode_Code control center, drawn by the program itself: home, the safety belt's rules, a command tested against the belt, quota and rule templates">
+</p>
+
+## Install
+
+> [!TIP]
+> **Copy one line into your terminal and press Enter.** The installer brings everything Mode_Code needs, Node.js included when you have none, and changes nothing in Claude Code until you say yes.
+
+**macOS and Linux**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/OzcanOrhanDemirci/Mode_Code/main/install.sh | sh
+```
+
+**Windows** (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/OzcanOrhanDemirci/Mode_Code/main/install.ps1 | iex
+```
+
+Then start a new Claude Code session (`claude`). The strip above the prompt shows the mode and the way of working: Mode_Code is on. Type `/0` there for the control center.
+
+- **Update:** run the same line again.
+- **Remove:** `mode-code uninstall`. It takes out exactly what was installed, the program and its command included; add `--purge` to delete your settings and history too.
+
+<details>
+<summary><b>What the installer does</b>, its options, and other ways to install</summary>
+
+<br>
+
+1. **Node.js.** It uses Node.js 22.13 or newer from your PATH. Without one, it downloads the official Node.js 24 build from nodejs.org, checks it against nodejs.org's SHA-256 list and keeps it for Mode_Code alone: no administrator rights, no sudo, nothing installed system-wide.
+2. **The package.** It downloads the newest [release](https://github.com/OzcanOrhanDemirci/Mode_Code/releases) and checks it against the release's `SHA256SUMS`. A download that does not match is never installed.
+3. **The program.** It goes to `~/.local/share/mode-code` (Windows: `%LOCALAPPDATA%\mode-code`), and the `mode-code` command to `~/.local/bin` (Windows: `%USERPROFILE%\.local\bin`). When that folder is not on your PATH yet, it is added: one marked line in your shell's startup file, or your user PATH on Windows.
+4. **Claude Code.** It runs `mode-code install`, which shows every change it will make to Claude Code, asks once, backs up your settings and tests itself. Without Claude Code it offers to run [Anthropic's official installer](https://code.claude.com/docs/en/setup) first.
+
+Read them before you run them: [install.sh](install.sh) · [install.ps1](install.ps1).
+
+| To                                     | macOS and Linux                              | Windows                                                |
+| -------------------------------------- | -------------------------------------------- | ------------------------------------------------------ |
+| pass options                           | `curl -fsSL <address> \| sh -s -- <options>` | `& ([scriptblock]::Create((irm <address>))) <options>` |
+| answer yes to every question (scripts) | `--yes`                                      | `-Yes`                                                 |
+| install a given version                | `--version 1.0.0`                            | `-Version 1.0.0`                                       |
+| leave PATH alone                       | `--no-modify-path`                           | `-NoModifyPath`                                        |
+| install the program only               | `--no-setup`                                 | `-NoSetup`                                             |
+
+**Try it first.** Install with `--no-setup` (Windows: `-NoSetup`), then run `mode-code try`: it starts one Claude Code session with everything loaded and changes nothing in your Claude Code configuration.
+
+**From source** (Node.js 22.13 or newer):
+
+```sh
+git clone https://github.com/OzcanOrhanDemirci/Mode_Code.git
+cd Mode_Code && npm ci && npm run build
+node dist/cli.mjs install
+```
+
+</details>
+
+## First steps
+
+| Do this                                                        | And see                                                                           |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `mode-code belt test --command "git push --force origin main"` | what the safety belt would do with a command, without running anything            |
+| Type `/3` in Claude Code, then `/4`                            | the mode switch to 📐 plan (nothing outside the plan can change), then to 🔨 code |
+| End a message with `myproject continue quota 40`               | Claude picks the project up where it stopped, within 40% of your weekly quota     |
+| Type `/0`, or run `mode-code`                                  | the control center: `/0` opens it in a new tab beside the session                 |
+| `mode-code doctor`                                             | every feature's health, and how to fix what is not working                        |
+
+Name your projects under Settings › Projects and keywords; everything else works without setting anything up.
 
 ## Contents
 
 - [What it does](#what-it-does)
 - [Why](#why)
-- [Quick start](#quick-start)
 - [Requirements](#requirements)
 - [The control center](#the-control-center)
 - [Keywords](#keywords)
@@ -101,51 +178,15 @@ Measured on the author's Windows 11 machine with Claude Code 2.1.296 and Node.js
 - **The safety net is cheap.** The hook program adds about 0.1 s to each checked tool call on Windows, most of it Node.js start-up. Inside Claude Code the plugin checks the same call in-process.
 - **Plain permission rules miss spellings.** A rule like `Bash(git push --force*)` does not match `git -C . push --force`; the belt reads the command the way git does.
 
-## Quick start
-
-The package is not on npm yet (the final name is still open), so install from source:
-
-```sh
-git clone https://github.com/OzcanOrhanDemirci/Mode_Code.git
-cd Mode_Code && npm ci && npm run build
-node dist/cli.mjs install
-```
-
-To try it first without installing anything, run `node dist/cli.mjs try`: it starts one Claude Code session with everything loaded and changes nothing in your Claude Code configuration.
-
-The installer first shows every change it will make and asks once before it changes anything. Then start a new Claude Code session, and open the control center with `node dist/cli.mjs`.
-
-To remove it: `node dist/cli.mjs uninstall` (add `--purge` to delete its settings and history too). Removal undoes exactly what the installation recorded.
-
 ## Requirements
 
-- **Node.js 22.13 or newer** (the session index uses Node's built-in SQLite).
 - **Claude Code 2.1.295 or newer** for the safety-net hook; **2.1.290 or newer** runs the in-process plugin. With an older Claude Code the hook alone runs the belt and the keywords.
-- Windows, macOS or Linux. Developed on Windows 11; the test suite passes on Windows and Linux (Node.js 22 and 24) and on macOS (Node.js 24).
+- **Node.js 22.13 or newer** (the session index uses Node's built-in SQLite). The installer brings its own when you have none.
+- Windows 10 (1803) or newer, macOS, or Linux (glibc; on Alpine, install Node.js with `apk add nodejs` first). Developed on Windows 11; the test suite passes on Windows and Linux (Node.js 22 and 24) and on macOS (Node.js 24).
 
 ## The control center
 
-`mode-code` opens it. Three columns: where you came from, where you are, and what is selected. Every screen has an address (`security/rules`, `measure/quota`), which `mode-code open <address>` also takes.
-
-```
-mode-code › Security › Safety belt rules                             🛡 working  week 27%  5h 21%
-╭──────────────────╮╭───────────────────────────────╮╭─────────────────────────────────────────────╮
-│  Protection stat…││▸ Force-push to a prote… block ││ Force-push to a protected branch            │
-│▸ Safety belt… 39 ││  Force-push               ask ││ Force-pushing a protected branch (main,     │
-│  What the belt d…││  Delete a protected re… block ││ master, release/*), which rewrites shared   │
-│  Test a command  ││  Delete a remote branch   ask ││ history.                                    │
-│  Secrets in memo…││  Mirror or prune remote…  ask ││                                             │
-│                  ││  Push past pull reques… block ││ Action                block                 │
-│                  ││  New branch in a one-b… block ││ Group                 Git                   │
-│                  ││  Rewrite history          ask ││ Locked                no                    │
-│                  ││  Change the git hooks…  block ││ Last 30 days          0 times               │
-│                  ││  Skip git checks         note ││                                             │
-╰──────────────────╯╰───────────────────────────────╯╰─────────────────────────────────────────────╯
-Address: security/rules/git.force-push-protected
-↑↓ move  → open  ← back  1-7 categories  / filter  Ctrl+K go to  ? help  q quit
-```
-
-<sub>Drawn from sample data by the project's own test harness.</sub>
+`mode-code` opens it; inside Claude Code, `/0` opens it in a new tab of your terminal. Three columns: where you came from, where you are, and what is selected. Every screen has an address (`security/rules`, `measure/quota`), which `mode-code open <address>` also takes. The picture at the top of this page is the program drawing its own screens from sample data (`npm run screenshots`).
 
 The same keys work everywhere: `↑↓` move, `→` open, `←` back, `1`-`7` jump to a category, `/` filter the list, `Ctrl+K` go to any screen by name (in either language), `?` help with the terms explained, `q` quit. Three view levels (Simple, Recommended, Detailed) change what is shown, never what is protected. Plain mode (no box drawing, ASCII symbols) and high contrast are under Settings › Accessibility.
 
@@ -196,7 +237,8 @@ Details: [docs/safety-belt.md](docs/safety-belt.md).
 
 - **Nothing leaves your machine unless you send it.** No telemetry, no analytics. The memory and sync go only where you set them up to go: a private repository of yours, through git and the GitHub CLI, or a folder you chose. The one model call it makes is the independent review of a full-autonomy run's milestones, through Claude Code's own client, to the provider your session already uses.
 - **What it reads:** Claude Code's settings files and transcripts (read-only), your memory folders (for git status and secret scans).
-- **What it writes:** its data folder (`~/.mode-code`), and, with your approval at install, four hook entries in your Claude Code user settings (a backup is kept). The plugin is installed through Claude Code's own `claude plugin` command.
+- **What it writes:** its data folder (`~/.mode-code`), and, with your approval at install, four hook entries in your Claude Code user settings (a backup is kept). The plugin is installed through Claude Code's own `claude plugin` command. The one-line installer also writes the program folder, the `mode-code` command and, when needed, one PATH entry, each listed in the record `mode-code uninstall` reads.
+- **What it downloads:** only when you run the installer: the release from GitHub and, when you have none, Node.js from nodejs.org, each checked against its SHA-256. Releases carry a [build provenance attestation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations): `gh attestation verify mode-code.tgz --repo OzcanOrhanDemirci/Mode_Code`.
 - **What it stores:** numbers (tokens, tool counts, times) and short texts (session titles, first prompts) with secrets masked before they are written.
 - **Removal:** `mode-code uninstall` undoes exactly what the installation recorded. Commands that lower a protection refuse to run from inside a Claude Code session.
 
@@ -204,12 +246,13 @@ Found a vulnerability? Please report it privately: see [SECURITY.md](SECURITY.md
 
 ## How it is tested
 
-A tool that stands between an agent and your machine has to earn trust with evidence. Twelve layers, from rules about the code itself to real Claude Code sessions, each saying what it proves and what it cannot ([docs/testing.md](docs/testing.md)). Measured on 2026-10-13:
+A tool that stands between an agent and your machine has to earn trust with evidence. Fifteen layers, from rules about the code itself to real Claude Code sessions and the one-line installer, each saying what it proves and what it cannot ([docs/testing.md](docs/testing.md)). Measured on 2026-10-14:
 
-- **684 tests** on Windows, Linux and macOS, Node.js 22 and 24, and in a WSL2 distribution; mean line coverage **93.8%** of the lines that compile to code, every file held to a floor.
+- **776 tests**, passing on Windows 11 and on Linux (Ubuntu 24.04 in WSL2); CI runs them on Windows, Linux and macOS with Node.js 22 and 24. Mean line coverage **94.0%** of the lines that compile to code, every file held to a floor.
 - **False alarms count as bugs.** 197 everyday commands must pass the belt without a single question on every platform, and 162 reading commands must run in chat, research and plan mode. Over the author's last 30 days (36,658 tool calls) the belt would have asked 4.4 times a day.
-- **The tests are tested.** Mutation testing makes 2,078 small deliberate changes to the code that decides, the belt, the modes, full autonomy, the memory's sync and sync across computers alike; the tests catch all 2,078. The maintenance check breaks a sandbox in 13 ways and must notice all 13 and repair what can be repaired.
+- **The tests are tested.** Mutation testing makes 2,378 small deliberate changes to the code that decides, the belt, the modes, full autonomy, the memory's sync and sync across computers alike; the tests catch all 2,378. The maintenance check breaks a sandbox in 14 ways and must notice all 14 and repair the 13 that can be repaired.
 - **Inside the real engine.** The plugin is tested with Claude Code's own test kit, every night against the newest Claude Code release, and in live headless sessions.
+- **The installer is tested as you run it.** In sh, bash, Windows PowerShell 5.1 and PowerShell 7, each in a home of its own: with and without Node.js, from a release whose checksum must match, then updated, run and removed. A release is made only after the installer it carries has installed the very package it publishes on Linux, macOS and Windows.
 - **The tests found real bugs**, each fixed with a test that keeps it fixed: protected files reachable under Windows short names (`MODECO~1`) or with a trailing dot, every recursive delete under the home folder blocked on macOS, a parser crash on `__proto__`.
 
 On your machine, `mode-code doctor` runs the same checks: Node.js, Claude Code and its settings, the hooks and the plugin, Git Bash, PowerShell and zsh, the terminal, the file system, git and the tool's own data. It repairs what it safely can, backs up first, checks again, and says exactly what is left for you. `npm run verify` runs every layer that can run on a machine and prints one line per layer.
@@ -223,6 +266,8 @@ On your machine, `mode-code doctor` runs the same checks: Node.js, Claude Code a
 
 ## FAQ
 
+**Is it safe to pipe a script from the internet into my shell?** Read it first: [install.sh](install.sh) and [install.ps1](install.ps1) are short and commented, and the whole script is functions run by its last line, so a download cut short runs nothing. What they download is checked against SHA-256 before it is used, they never ask for administrator rights, and `mode-code uninstall` removes what they put in place. If you would rather not pipe, download the script, read it, and run it as a file.
+
 **Does it change how Claude Code works?** Only where you see it: the belt's decisions, the context a keyword adds, the footer and the status line entry. Turn any feature off under Settings › Features; the belt stays.
 
 **Will it slow Claude Code down?** The hook adds about 0.1 s per checked tool call on Windows (less elsewhere); the plugin's checks run in-process.
@@ -231,17 +276,43 @@ On your machine, `mode-code doctor` runs the same checks: Node.js, Claude Code a
 
 **Does it work with the Claude desktop app?** The plugin and hooks load wherever Claude Code runs with your user settings; the control center is a terminal program.
 
+**Is it made by Anthropic?** No. It is an independent open-source project that works with Claude Code.
+
 ## Roadmap
 
-Next, in this order:
+Next:
 
-- **Publication** on npm under the final name, with provenance.
+- **npm**, so `npx mode-code` works too, with provenance.
+- **More rule templates**: the common stacks, from Python and Go to Docker Compose.
+- **More languages** for the interface, beside English and Turkish.
+- **Linux on musl** (Alpine) in the one-line installer.
 
-Shipped from the earlier roadmap: sync across computers, and the memory kept in sync by its owner ([docs/sync.md](docs/sync.md)), the memory's setup and sync with handoff notes and a morning report ([docs/memory.md](docs/memory.md)), full autonomy with a definition of done, in WSL2 ([docs/autonomy.md](docs/autonomy.md)), modes and flows ([docs/modes.md](docs/modes.md)), rule templates (seven), quota history, the day and week report, the maintenance check (`doctor`) and the test process described in [docs/testing.md](docs/testing.md).
+Shipped: the one-line installer, sync across computers, and the memory kept in sync by its owner ([docs/sync.md](docs/sync.md)), the memory's setup and sync with handoff notes and a morning report ([docs/memory.md](docs/memory.md)), full autonomy with a definition of done, in WSL2 ([docs/autonomy.md](docs/autonomy.md)), modes, flows and session controls ([docs/modes.md](docs/modes.md)), rule templates (seven), quota history, the day and week report, the maintenance check (`doctor`) and the test process described in [docs/testing.md](docs/testing.md).
+
+Have an idea? [Start a discussion](https://github.com/OzcanOrhanDemirci/Mode_Code/discussions) or [suggest it](https://github.com/OzcanOrhanDemirci/Mode_Code/issues/new/choose).
 
 ## Contributing
 
-Contributions are welcome: issues, ideas, rule templates, translations, code. Please read [CONTRIBUTING.md](CONTRIBUTING.md); commits are signed off under the [Developer Certificate of Origin](https://developercertificate.org/) (`git commit -s`). By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
+Mode_Code is built in the open, and contributions of every size are welcome. Good places to start:
+
+- **Tell us what you see.** A false alarm from the belt, a risky command it missed, a message that confused you: [open an issue](https://github.com/OzcanOrhanDemirci/Mode_Code/issues/new/choose). `mode-code doctor --report` gathers what helps.
+- **Pick up an issue** marked [good first issue](https://github.com/OzcanOrhanDemirci/Mode_Code/labels/good%20first%20issue) or [help wanted](https://github.com/OzcanOrhanDemirci/Mode_Code/labels/help%20wanted).
+- **Add a rule template** for a stack you know well ([src/core/templates.ts](src/core/templates.ts)).
+- **Translate** the interface into your language ([src/core/i18n](src/core/i18n)).
+- **Try it on your platform**: a macOS or Linux terminal, a shell we have not tried, and tell us how it went.
+- **Ask or share** in [Discussions](https://github.com/OzcanOrhanDemirci/Mode_Code/discussions).
+
+Three commands set up a working copy:
+
+```sh
+git clone https://github.com/OzcanOrhanDemirci/Mode_Code.git && cd Mode_Code
+npm ci
+npm run check   # type check, format check, build, tests
+```
+
+[CONTRIBUTING.md](CONTRIBUTING.md) explains how the code is organized, how a change is tested and how commits are signed off under the [Developer Certificate of Origin](https://developercertificate.org/) (`git commit -s`; there is no CLA). Everyone who contributes is thanked in the release notes. By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+Not writing code? A star helps others find the project, and so does telling someone who uses Claude Code.
 
 ## License
 
