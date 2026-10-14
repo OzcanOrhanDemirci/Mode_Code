@@ -1,0 +1,124 @@
+name: Release
+
+# A version tag (v1.2.3) becomes a GitHub release (docs/release.md). The tag, package.json, the changelog and
+# the installers must agree; every check passes; the package is built once; the one-line installer installs
+# that very package on Linux, macOS and Windows, update and removal included; only then is the release made,
+# with the package, the two installers, their SHA-256 sums and a build provenance attestation. Publishing to
+# npm is a job of its own, off until the repository variable NPM_PUBLISH is "true".
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: An existing version tag to release again (v1.2.3)
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  build:
+    name: check and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - run: node scripts/release.mjs check --tag "$TAG"
+      - run: npm run typecheck
+      - run: npm run format:check
+      - run: npm run build
+      - run: npm test
+      - run: npm run test:package
+      - run: node scripts/release.mjs pack --out release
+      - run: node scripts/release.mjs notes --tag "$TAG" > notes.md
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release
+          path: |
+            release/
+            notes.md
+          if-no-files-found: error
+
+  installer:
+    name: installer · ${{ matrix.os }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+      - uses: actions/download-artifact@v7
+        with:
+          name: release
+      # The package the release will carry, installed by the installers the release will carry.
+      - run: node scripts/test-installer.mjs --package release/mode-code.tgz
+
+  publish:
+    name: GitHub release
+    needs: [build, installer]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: release
+      - uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: |
+            release/*.tgz
+            release/install.sh
+            release/install.ps1
+      - name: Create the release, or replace its files when it exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" release/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" release/* --repo "$GITHUB_REPOSITORY" --title "Mode_Code ${TAG#v}" --notes-file notes.md --verify-tag
+          fi
+
+  npm:
+    name: npm
+    needs: publish
+    if: ${{ vars.NPM_PUBLISH == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: release
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+          registry-url: https://registry.npmjs.org
+      # With npm's trusted publishing set up for this workflow no token is needed; NPM_TOKEN otherwise.
+      - run: npm publish "release/mode-code-${TAG#v}.tgz" --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

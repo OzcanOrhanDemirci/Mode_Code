@@ -21,6 +21,8 @@ jobs:
         run: |
           missing=0
           for c in $(git rev-list --no-merges "$BASE..$HEAD"); do
+            # Dependabot and other GitHub bots cannot sign off; what they change is a dependency's version.
+            case "$(git show -s --format=%ae "$c")" in *'[bot]@users.noreply.github.com') continue ;; esac
             if ! git show -s --format=%B "$c" | grep -q '^Signed-off-by: '; then
               echo "::error::Commit $c is not signed off. Use git commit -s (see CONTRIBUTING.md)."
               missing=1
