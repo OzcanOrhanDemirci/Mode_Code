@@ -4,7 +4,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-10-14
+## [1.0.0] - 2026-10-15
 
 The first public release: the safety belt, keywords, modes and flows, full autonomy, the memory and its sync, the quota guard and the control center, installed with one line.
 
