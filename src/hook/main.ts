@@ -39,6 +39,7 @@ import { looksOnly, syncPlan } from '../core/memory-sync.js';
 import { pulledContext } from '../core/memory.js';
 import type { SyncResult } from '../core/memory-sync.js';
 import { newestHandoffAt, projectKeyAt, pruneHandoffs } from '../node/handoffs.js';
+import { withHost } from '../node/host.js';
 
 type Input = Record<string, unknown>;
 
@@ -139,7 +140,8 @@ function recordPrompt(l: ReturnType<typeof dataLayout>, sessionId: string, mode:
   if (sessionId === SELF_TEST_SESSION) return 0;
   const file = sessionFile(l, sessionId, 'hook');
   if (!file) return 0;
-  const state = parseHookState(readText(file), sessionId);
+  // The process too, for a session that was running before the hook recorded it at the start.
+  const state = withHost(parseHookState(readText(file), sessionId));
   const changed = !!mode && mode !== state.permissionMode;
   try {
     writeJsonAtomic(file, { ...state, ...(changed ? { permissionMode: mode, permissionModeAt: now } : {}), promptAt: now });
@@ -354,7 +356,8 @@ function sessionStart(input: Input, lang: Lang): void {
   }
   const hookFile = sessionFile(l, sessionId, 'hook');
   if (hookFile) {
-    const state = parseHookState(readText(hookFile), sessionId);
+    // The process the session runs in: whether it still runs tells later whether the session is still open.
+    const state = withHost(parseHookState(readText(hookFile), sessionId));
     state.lastRunAt = Date.now();
     // A session started in plan mode (--permission-mode plan) is known before its first prompt.
     const mode = str(input.permission_mode);

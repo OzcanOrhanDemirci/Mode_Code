@@ -173,6 +173,24 @@ test('home warns when two sessions work in the same folder', async () => {
   }
 });
 
+test('home does not count a session that ended, or one closed without ending, as working', async () => {
+  class Closed extends FakeData {
+    override modStates() {
+      const s = (id: string) => ({ ...newModState(id, 'dev', NOW - 60_000), cwd: 'C:/work/app' });
+      return [s('one'), { ...s('ended'), endedAt: NOW - 30_000 }, s('shut')];
+    }
+    override closedSessions() {
+      return new Set(['shut']);
+    }
+  }
+  const s = await draw(new Closed(), { address: 'home/overview' });
+  try {
+    assert.doesNotMatch(s.text(), /sessions are working in the same folder/);
+  } finally {
+    s.close();
+  }
+});
+
 test('the help explains keys and terms and closes with Esc', async () => {
   const s = await draw(new FakeData());
   try {

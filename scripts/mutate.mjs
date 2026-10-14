@@ -89,6 +89,8 @@ const TARGETS = {
   'src/core/launch.ts': ['test/core/launch.test.ts'],
   // What a keyword does to the session: the mode and the way of working change only where the person names them.
   'src/core/session.ts': ['test/core/session.test.ts', 'test/core/modes.test.ts'],
+  // Whether a session is still open: its process looked up, the answer read, a freed number told apart.
+  'src/core/host.ts': ['test/core/host.test.ts'],
 };
 
 // ── finding mutation sites in TypeScript without a parser: code outside strings, comments and regexes ──

@@ -182,6 +182,9 @@ export class FakeData implements DataSource {
   modStates(): ModSessionState[] {
     return [];
   }
+  closedSessions(): ReadonlySet<string> {
+    return new Set();
+  }
   totals() {
     return totals;
   }

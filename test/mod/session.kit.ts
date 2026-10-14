@@ -5,7 +5,7 @@
  * long work. The world beneath is in memory (see world.ts).
  */
 import { test, expect, mock } from 'claude-code/testing';
-import { world } from './world.ts';
+import { DATA, PROJECT, SESSION, WIN, world } from './world.ts';
 
 const PROJECTS = { projects: [{ id: 'terminal-code', names: ['terminal'] }] };
 const typed = (text: string) => ({ text, wait: false, origin: { kind: 'composer' } }) as any;
@@ -66,6 +66,79 @@ test('only the person types keywords: a prompt from somewhere else is left alone
   const r: any = await $.prompt.submit({ text: 'terminal devam', wait: false, origin: { kind: 'task-notification' } } as any);
   expect((r.context ?? []).join('\n')).not.toMatch(/Keyword/);
   expect(w.modState()?.interaction ?? 'default').not.toBe('autonomous');
+});
+
+/** Another session's record, and its hook's record of the process it runs in when there is one. */
+const other = (w: any, data: string, id: string, aliveAt: number, cwd: string, extra: Record<string, unknown> = {}, host?: { pid: number; name: string }) => {
+  w.write(`${data}/state/sessions/${id}.mod.json`, JSON.stringify({ v: 1, sessionId: id, aliveAt, cwd, ...extra }));
+  if (host) w.write(`${data}/state/sessions/${id}.hook.json`, JSON.stringify({ v: 1, sessionId: id, lastRunAt: aliveAt, blocks: {}, host }));
+};
+
+test('another session in the folder is said while it runs; one that ended, or whose window was shut, is not', async ($, on) => {
+  // The person, 2026-10-14: two sessions closed minutes before were said to be working in the folder.
+  const w = world(on, {
+    config: PROJECTS,
+    programs: (argv) => (argv[0] === 'ps' ? (argv[4] === '111' ? { exitCode: 0, stdout: 'claude\n' } : { exitCode: 1, stdout: '' }) : undefined),
+  });
+  const now = w.clock.now();
+  other(w, DATA, 'running', now - 60_000, PROJECT, {}, { pid: 111, name: 'claude' });
+  other(w, DATA, 'ended', now - 7_000, PROJECT, { endedAt: now - 7_000 }, { pid: 111, name: 'claude' });
+  other(w, DATA, 'shut', now - 7_000, PROJECT, {}, { pid: 222, name: 'claude' });
+  other(w, DATA, 'unknown', now - 60_000, PROJECT); // no record of its process: it is kept as working
+  const r: any = await $.prompt.submit(typed('hello'));
+  expect(r.context.join('\n')).toMatch(/2 other Claude Code sessions are working in this same folder right now/);
+  const said = w.events().find((e: any) => e.kind === 'conflict');
+  expect([...said.sessions].sort()).toEqual(['running', 'unknown']);
+  expect(w.toasts.some((t) => /2/.test(t))).toBe(true);
+  // An ended one is not looked up; the process of one found gone is not looked up again.
+  expect(
+    w.ran
+      .filter((a) => a[0] === 'ps')
+      .map((a) => a[4])
+      .sort(),
+  ).toEqual(['111', '222']);
+  await $.prompt.submit(typed('and now?'));
+  expect(w.ran.filter((a) => a[0] === 'ps' && a[4] === '222').length).toBe(1);
+});
+
+test('on Windows a process number handed to another program is a session gone; a lookup that fails keeps it', async ($, on) => {
+  const rows: Record<string, string> = { '111': '"claude.exe","111","Console","1","500 K"', '333': '"notepad.exe","333","Console","1","9 K"' };
+  let fails = false;
+  const w = world(on, {
+    windows: true,
+    config: PROJECTS,
+    programs: (argv) => {
+      if (!/\\System32\\tasklist\.exe$/.test(argv[0]!)) return undefined;
+      if (fails) return { exitCode: 1, stdout: '', stderr: 'ERROR: access denied' };
+      const pid = /^PID eq (\d+)$/.exec(argv[2]!)?.[1] ?? '';
+      return { exitCode: 0, stdout: (rows[pid] ?? 'INFO: No tasks are running which match the specified criteria.') + '\r\n' };
+    },
+  });
+  const now = w.clock.now();
+  other(w, WIN.DATA, 'running', now - 60_000, WIN.PROJECT, {}, { pid: 111, name: 'claude.exe' });
+  other(w, WIN.DATA, 'reused', now - 60_000, WIN.PROJECT, {}, { pid: 333, name: 'claude.exe' });
+  other(w, WIN.DATA, 'shut', now - 60_000, WIN.PROJECT, {}, { pid: 444, name: 'claude.exe' });
+  const r: any = await $.prompt.submit(typed('hello'));
+  expect(r.context.join('\n')).toMatch(/Another Claude Code session is working in this same folder right now/);
+  expect(w.events().find((e: any) => e.kind === 'conflict').sessions).toEqual(['running']);
+  expect(w.ran.every((a) => a[0] === 'C:\\Windows\\System32\\tasklist.exe')).toBe(true);
+  // When the lookup cannot run or answer, the session stays counted: a warning too many, never one too few.
+  fails = true;
+  other(w, WIN.DATA, 'quiet', now - 60_000, WIN.PROJECT, {}, { pid: 555, name: 'claude.exe' });
+  const r2: any = await $.prompt.submit(typed('again'));
+  expect(r2.context.join('\n')).toMatch(/2 other Claude Code sessions are working/);
+});
+
+test("a session's end marks it ended before anything else; resumed, it is open again", async ($, on) => {
+  const w = world(on, { config: PROJECTS });
+  on('session.end', (_$: any, e: any) => ({ sessionId: e.sessionId }));
+  on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }));
+  await $.prompt.submit(typed('hello'));
+  expect(w.modState().endedAt).toBe(null);
+  await $.session.end({ reason: 'other', sessionId: SESSION, resume: {} } as any);
+  expect(w.modState().endedAt).toBe(w.clock.now());
+  await $.session.start({ source: 'resume', cwd: PROJECT } as any);
+  expect(w.modState().endedAt).toBe(null);
 });
 
 test('the quota guard: at 96% of the 5-hour window it asks to wrap up, once, and says so to the model', async ($, on) => {

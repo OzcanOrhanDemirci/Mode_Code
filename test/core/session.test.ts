@@ -8,10 +8,12 @@ import {
   LIVE_WINDOW_MS,
   isApproved,
   newModState,
+  noteOwed,
   parseHookState,
   parseModState,
   sameFolderSessions,
   withRun,
+  workingNow,
 } from '../../src/core/session.js';
 import { detectKeyword, type KeywordMatch } from '../../src/core/keywords.js';
 
@@ -77,6 +79,53 @@ test('two live sessions in one folder are found; old ones, other folders and sel
     ['a'],
   );
   assert.deepEqual(sameFolderSessions(me, others, now, false), []); // case matters on Linux
+});
+
+test('a session that ended is not working, however recently it was alive; a resumed one is again', () => {
+  // The person, 2026-10-14: a session closed seconds before the next one opened was said to be working.
+  const now = 1_000_000_000;
+  const me = { ...newModState('me', '1', now), cwd: 'C:/work/app' };
+  const ended = { ...newModState('a', '1', now - 7_000), cwd: 'C:/work/app', endedAt: now - 7_000 };
+  const open = { ...newModState('b', '1', now - 7_000), cwd: 'C:/work/app' };
+  assert.deepEqual(
+    sameFolderSessions(me, [ended, open], now, true).map((s) => s.sessionId),
+    ['b'],
+  );
+  assert.equal(workingNow(ended, now), false);
+  assert.equal(workingNow({ ...ended, endedAt: null }, now), true);
+  assert.equal(workingNow(open, now - 7_000 + LIVE_WINDOW_MS - 1), true);
+  assert.equal(workingNow(open, now - 7_000 + LIVE_WINDOW_MS), false);
+});
+
+test('a note is owed for another session that changed something after its last note, while the note would be offered', () => {
+  const now = 1_000_000_000;
+  const work = { startedAt: now - 3600_000, changedAt: now - 600_000, handoffAt: 0, project: 'app', request: 'Fix it.' };
+  const s = { ...newModState('other', '1', now - 600_000), work };
+  assert.equal(noteOwed(s, 'me', now, 14), true);
+  assert.equal(noteOwed(s, 'other', now, 14), false); // its own
+  assert.equal(noteOwed({ ...s, work: null }, 'me', now, 14), false); // never changed anything
+  assert.equal(noteOwed({ ...s, work: { ...work, handoffAt: work.changedAt } }, 'me', now, 14), false); // its note is written
+  assert.equal(noteOwed({ ...s, work: { ...work, handoffAt: work.changedAt - 1 } }, 'me', now, 14), true);
+  assert.equal(noteOwed({ ...s, aliveAt: now - 14 * 86_400_000 }, 'me', now, 14), true);
+  assert.equal(noteOwed({ ...s, aliveAt: now - 14 * 86_400_000 - 1 }, 'me', now, 14), false); // too old to be offered
+});
+
+test("the ended time, the work kept and the hook's process round-trip; anything of another shape is dropped", () => {
+  const work = { startedAt: 1, changedAt: 3, handoffAt: 2, project: 'app', request: 'Fix it.' };
+  const s = { ...s0, endedAt: 9, work };
+  assert.deepEqual(parseModState(JSON.stringify(s)), s);
+  const odd = parseModState(JSON.stringify({ ...s0, endedAt: '9', work: { startedAt: 1, changedAt: 3 } }))!;
+  assert.deepEqual([odd.endedAt, odd.work], [null, null]);
+  const loose = parseModState(JSON.stringify({ ...s0, work: { startedAt: 1, changedAt: 3, handoffAt: 0, project: '', request: 5 } }))!;
+  assert.deepEqual(loose.work, { startedAt: 1, changedAt: 3, handoffAt: 0, project: null, request: null });
+  for (const k of ['startedAt', 'changedAt', 'handoffAt'] as const)
+    assert.equal(parseModState(JSON.stringify({ ...s0, work: { ...work, [k]: 'x' } }))!.work, null, k);
+  assert.equal(parseModState(JSON.stringify({ ...s0, work: [1] }))!.work, null);
+  const hook = { v: 1, sessionId: 's1', lastRunAt: 5, blocks: {}, host: { pid: 25820, name: 'claude.exe' } };
+  assert.deepEqual(parseHookState(JSON.stringify(hook), 's1').host, { pid: 25820, name: 'claude.exe' });
+  assert.equal(parseHookState(JSON.stringify({ ...hook, host: { pid: 'x' } }), 's1').host, null);
+  assert.equal(parseHookState(JSON.stringify({ ...hook, host: undefined }), 's1').host, null);
+  assert.equal(parseHookState(null, 's1').host, null);
 });
 
 test('state files that are missing, torn or foreign parse to nothing', () => {

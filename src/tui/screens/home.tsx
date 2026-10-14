@@ -7,7 +7,7 @@ import { ago, compact, dateTime, percent, until, shortPath } from '../../core/fo
 import type { MessageKey } from '../../core/i18n/index.js';
 import { healthCounts } from '../../app/health.js';
 import type { ToolEvent } from '../../app/data.js';
-import { LIVE_WINDOW_MS, type ModSessionState } from '../../core/session.js';
+import { workingNow, type ModSessionState } from '../../core/session.js';
 import type { ScreenProps } from '../nav.js';
 import { Empty, Gauge, Muted, Note, Row, Section, StateMark, useEnv, useT } from '../ui.js';
 import { LinkList, type Link } from '../widgets.js';
@@ -26,7 +26,9 @@ export function Overview({ width, height, open }: ScreenProps) {
   const blocked = todayEvents.filter((e) => e.kind === 'belt' && e.verdict === 'deny').length;
   const asked = todayEvents.filter((e) => e.kind === 'belt' && e.verdict === 'ask').length;
   const totals = data.totalsSince(day.getTime());
-  const live = data.sessions({ limit: 50 }).filter((s) => now - s.lastTs < 15 * 60_000);
+  // A session that ended, or whose window was shut, is not running, however recent its last line.
+  const closed = data.closedSessions();
+  const live = data.sessions({ limit: 50 }).filter((s) => now - s.lastTs < 15 * 60_000 && !closed.has(s.id));
   const unseen = inboxEvents(data.events(14), data.lastSeen());
   const gw = Math.max(10, Math.min(30, width - 34));
   // Plans waiting for the person first, then the rest that are still open.
@@ -132,7 +134,10 @@ export function Overview({ width, height, open }: ScreenProps) {
         </Section>
       ) : null}
       <Section title={t('home.live')}>
-        {sameFolderGroups(data.modStates(), now).map((g) => (
+        {sameFolderGroups(
+          data.modStates().filter((s) => !closed.has(s.sessionId)),
+          now,
+        ).map((g) => (
           <Note key={g.folder} kind="warn">
             {t('home.conflict', { n: g.count, folder: shortPath(g.folder, homedir(), Math.max(20, width - 40)) })}
           </Note>
@@ -147,7 +152,7 @@ export function Overview({ width, height, open }: ScreenProps) {
 export function sameFolderGroups(states: readonly ModSessionState[], now: number): { folder: string; count: number }[] {
   const groups = new Map<string, { folder: string; count: number }>();
   for (const s of states) {
-    if (!s.cwd || now - s.aliveAt >= LIVE_WINDOW_MS) continue;
+    if (!s.cwd || !workingNow(s, now)) continue;
     const key = s.cwd.replace(/\\/g, '/').toLowerCase();
     const g = groups.get(key) ?? { folder: s.cwd, count: 0 };
     g.count++;

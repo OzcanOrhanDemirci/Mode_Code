@@ -16,12 +16,14 @@
  *   8. the memory: a change made elsewhere is pulled at the start and reaches Claude before it answers, the
  *      handoff keyword has Claude write a note that is kept and sent, and the next session is told about it;
  *   9. sync across computers: one computer's plugin sends a softened belt rule and a handoff note, the other
- *      takes the note over, and the rule waits for the person.
+ *      takes the note over, and the rule waits for the person;
+ *  10. a session closed without ending (its process killed, as a shut window does): while it runs, the next
+ *      session in its folder is told of it; once it is gone, the next is not, and writes the note it owed.
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
  *        add --keep to leave the sessions' folders and the full-autonomy sessions' streams in place
  */
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -32,7 +34,7 @@ const dist = join(root, 'dist');
 const fwd = (p) => p.replace(/\\/g, '/');
 if (!process.argv.includes('--yes')) {
   console.log(
-    'test-live: opt-in. Runs eleven short headless Claude Code sessions, thirteen where full autonomy can run (cheapest model, capped spend), with this build loaded. Run with --yes.',
+    'test-live: opt-in. Runs fourteen short headless Claude Code sessions, sixteen where full autonomy can run (cheapest model, capped spend), with this build loaded. Run with --yes.',
   );
   process.exit(0);
 }
@@ -79,7 +81,40 @@ writeFileSync(
  * One headless session. `prompt` is the prompt, or a list of messages sent one after the other into the same
  * session (stream-json input): a slash command, then a task.
  */
-function session(prompt, settingsFile = settings, tools = 'Bash,Write,Read,Edit,Glob,Grep,mcp__terminal-code__flow_step', extraEnv = {}) {
+function session(prompt, settingsFile = settings, tools = 'Bash,Write,Read,Edit,Glob,Grep,mcp__terminal-code__flow_step', extraEnv = {}, cwd = project) {
+  const { args, input } = sessionArgs(prompt, settingsFile, tools);
+  const runEnv = { ...env, ...extraEnv };
+  let r = spawnSync('claude', args, { cwd, env: runEnv, encoding: 'utf8', timeout: 240_000, windowsHide: true, input });
+  if (r.error && process.platform === 'win32') {
+    const q = (a) => (/^[\w@./:=,-]+$/.test(a) ? a : `"${a.replace(/"/g, '\\"')}"`);
+    r = spawnSync(['claude', ...args.map(q)].join(' '), {
+      cwd,
+      env: runEnv,
+      encoding: 'utf8',
+      timeout: 240_000,
+      windowsHide: true,
+      shell: true,
+      input,
+    });
+  }
+  const events = (r.stdout ?? '')
+    .split('\n')
+    .filter((l) => l.startsWith('{'))
+    .map((l) => {
+      try {
+        return JSON.parse(l);
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+  const final = events.find((e) => e.type === 'result');
+  const id = events.find((e) => e.session_id)?.session_id ?? null;
+  return { status: r.status, events, final, id, text: JSON.stringify(events), stderr: r.stderr ?? '' };
+}
+
+/** The command line of a headless session, and its input when the prompt is a list of messages. */
+function sessionArgs(prompt, settingsFile, tools) {
   const many = Array.isArray(prompt);
   const args = [
     '-p',
@@ -101,34 +136,86 @@ function session(prompt, settingsFile = settings, tools = 'Bash,Write,Read,Edit,
     '--verbose',
     '--no-session-persistence',
   ];
-  const runEnv = { ...env, ...extraEnv };
   const input = many ? prompt.map((text) => JSON.stringify({ type: 'user', message: { role: 'user', content: text } })).join('\n') + '\n' : undefined;
-  let r = spawnSync('claude', args, { cwd: project, env: runEnv, encoding: 'utf8', timeout: 240_000, windowsHide: true, input });
-  if (r.error && process.platform === 'win32') {
-    const q = (a) => (/^[\w@./:=,-]+$/.test(a) ? a : `"${a.replace(/"/g, '\\"')}"`);
-    r = spawnSync(['claude', ...args.map(q)].join(' '), {
-      cwd: project,
-      env: runEnv,
-      encoding: 'utf8',
-      timeout: 240_000,
-      windowsHide: true,
-      shell: true,
-      input,
+  return { args, input };
+}
+
+/**
+ * 10. A session closed without ending. Its process is killed mid-turn, after it changed a file, as a window
+ * shut by its close button does: nothing of its own end runs. While it runs, a session started in the same
+ * folder is told another is working there; once it is gone, the next session is not, and it writes the note
+ * the closed one owed, from what that one kept as it went.
+ */
+async function closedCases() {
+  const dir = join(work, 'project-closed');
+  mkdirSync(dir);
+  spawnSync('git', ['init', '-q', dir], { windowsHide: true });
+  const sessionsDir = join(data, 'state', 'sessions');
+  const read = (f) => (existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null);
+  const eventsOf = (id) =>
+    readdirSync(join(data, 'events'))
+      .flatMap((m) => {
+        const f = join(data, 'events', m, `${id}.mod.jsonl`);
+        return existsSync(f) ? readFileSync(f, 'utf8').split('\n').filter(Boolean) : [];
+      })
+      .map((l) => JSON.parse(l));
+  const { args } = sessionArgs(
+    'Do exactly two things, in this order. First use the Write tool to write the text hi to the file a.txt in the current folder. Then use the Bash tool to run this exact command and wait for it to finish: sleep 100 . Then reply with the single word DONE.',
+    settings,
+    'Bash,Write,Read',
+  );
+  const x = spawn('claude', args, { cwd: dir, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  let out = '';
+  x.stdout.on('data', (d) => (out += d));
+  x.stderr.on('data', () => {});
+  let failed = false;
+  const exited = new Promise((resolve) => {
+    x.on('close', resolve);
+    x.on('error', () => {
+      failed = true;
+      resolve();
     });
+  });
+  const idOf = () => /"session_id":"([^"]+)"/.exec(out)?.[1] ?? null;
+  // Until it has changed something: its record keeps that at the change itself.
+  const deadline = Date.now() + 150_000;
+  let mine = null;
+  while (Date.now() < deadline && x.exitCode === null && !failed) {
+    const id = idOf();
+    mine = id ? read(join(sessionsDir, `${id}.mod.json`)) : null;
+    if (mine?.work?.changedAt > 0 && existsSync(join(dir, 'a.txt'))) break;
+    await new Promise((r) => setTimeout(r, 1000));
   }
-  const events = (r.stdout ?? '')
-    .split('\n')
-    .filter((l) => l.startsWith('{'))
-    .map((l) => {
-      try {
-        return JSON.parse(l);
-      } catch {
-        return null;
-      }
-    })
-    .filter(Boolean);
-  const final = events.find((e) => e.type === 'result');
-  return { status: r.status, events, final, text: JSON.stringify(events), stderr: r.stderr ?? '' };
+  const id = idOf();
+  const host = id ? read(join(sessionsDir, `${id}.hook.json`))?.host : null;
+  check(
+    "closed: the hook recorded the session's own process, Claude Code's",
+    !!host && host.pid === x.pid && !/^(cmd|bash|sh|zsh|dash|powershell|pwsh)(\.exe)?$/i.test(host.name ?? ''),
+    host ? `${host.pid} ${host.name} · spawned ${x.pid}` : `no record (${out.slice(0, 120)})`,
+  );
+  check('closed: the turn kept its change before it ended', mine?.work?.changedAt > 0, mine?.work ? '' : 'no change kept');
+  const during = session('Reply with the single word OK.', settings, 'Read', {}, dir);
+  const toldDuring = during.id ? eventsOf(during.id).some((e) => e.kind === 'conflict' && e.sessions.includes(id)) : false;
+  check('closed: while it runs, a session in the same folder is told of it', toldDuring, during.id ?? during.stderr.slice(0, 120));
+  // Its window shut: the process ends at once, nothing of its own end runs.
+  if (process.platform === 'win32') spawnSync('taskkill', ['/F', '/T', '/PID', String(x.pid)], { windowsHide: true });
+  else x.kill('SIGKILL');
+  await exited;
+  const after = session('Reply with the single word OK.', settings, 'Read', {}, dir);
+  const logged = after.id ? eventsOf(after.id) : [];
+  const notes = existsSync(join(data, 'handoffs'))
+    ? readdirSync(join(data, 'handoffs')).flatMap((k) => readdirSync(join(data, 'handoffs', k)).map((n) => join(data, 'handoffs', k, n)))
+    : [];
+  const note = notes.find((n) => id && n.endsWith(`-${id.replace(/[^A-Za-z0-9]/g, '').slice(0, 8)}.md`));
+  check(
+    'closed: once it is gone, the next session is not told of it, and writes the note it owed',
+    !logged.some((e) => e.kind === 'conflict') &&
+      logged.some((e) => e.kind === 'handoff' && e.trigger === 'closed' && e.of === id) &&
+      !!note &&
+      /trigger: closed\n/.test(readFileSync(note, 'utf8')),
+    `${after.id ?? after.stderr.slice(0, 80)} · ${logged.map((e) => e.kind).join(' ')} · ${note ? 'note' : 'no note'}`,
+  );
+  return [during, after];
 }
 
 /**
@@ -496,11 +583,14 @@ try {
     record?.status === 'done' && record.steps[0].evidence?.kind === 'research' && existsSync(join(data, 'flows', flows[0], 'research.md')),
     record ? `${record.status}, ${record.history.map((h) => h.event).join(' ')}` : (five.final?.result?.slice?.(0, 80) ?? five.stderr.slice(0, 200)),
   );
+  const ten = await closedCases();
   const six = fullAutonomy();
   const seven = stopTurnedBack();
   const eight = memoryCases();
   const nine = syncCases();
-  const cost = [one, two, three, plan, four, five, six, seven, ...eight, ...nine].filter(Boolean).reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
+  const cost = [one, two, three, plan, four, five, six, seven, ...eight, ...nine, ...ten]
+    .filter(Boolean)
+    .reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
   console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
 } finally {
   if (process.argv.includes('--keep')) console.log(`test-live: kept ${fwd(work)}`);

@@ -116,6 +116,111 @@ test('a session that changed something leaves a note from what code measured whe
   expect(text).toMatch(/- Last request: Fix the bug\./);
 });
 
+test('a turn that changed something keeps what its note would be written from, should its window be shut', async ($, on) => {
+  const w = world(on, { config: {}, git: repoGit() });
+  on('turn.complete', (_$: any, e: any) => ({ text: e.answer }));
+  await $.prompt.submit(typed('Look around.'));
+  await $.turn.complete({ answer: 'Looked.', durationMs: 5, isAborted: false, turnId: 't0', reason: 'answer' } as any);
+  expect(w.modState().work).toBe(null);
+  await $.prompt.submit(typed('Fix the login.'));
+  await $.tool.call({ tool: 'Read', file_path: `${PROJECT}/src/a.ts` } as any);
+  expect(w.modState().work).toBe(null);
+  // Kept at the change itself, not only when the turn ends: a window shut mid-turn loses nothing.
+  await w.clock.advance(1000);
+  await $.tool.call({ tool: 'Write', file_path: `${PROJECT}/src/a.ts`, content: 'x' } as any);
+  expect(w.modState().work).toEqual({ startedAt: NOW, changedAt: NOW + 1000, handoffAt: 0, project: 'ada-app', request: 'Fix the login.' });
+  await w.clock.advance(1000);
+  await $.turn.complete({ answer: 'Fixed.', durationMs: 5, isAborted: false, turnId: 't1', reason: 'answer' } as any);
+  expect(w.modState().work).toEqual({ startedAt: NOW, changedAt: NOW + 2000, handoffAt: 0, project: 'ada-app', request: 'Fix the login.' });
+  // A note written since: the record says so, and a next session owes it nothing.
+  await $.prompt.submit(typed('devir'));
+  await $.tool.call({ tool: TOOL, ...PARTS } as any);
+  expect(w.modState().work.handoffAt).toBe(NOW + 2000);
+});
+
+test('a session closed without ending still leaves its note: the next session writes it, once, and is told of it', async ($, on) => {
+  const SESSIONS = `${DATA}/state/sessions`;
+  // ps knows process 111 (a session still running); every other number is gone.
+  const w = world(on, {
+    config: {},
+    git: repoGit(),
+    programs: (argv) => (argv[0] === 'ps' ? (argv[4] === '111' ? { exitCode: 0, stdout: 'claude\n' } : { exitCode: 1, stdout: '' }) : undefined),
+  });
+  on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }));
+  const work = (changedAt: number, extra: Record<string, unknown> = {}) => ({
+    startedAt: NOW - 3600_000,
+    changedAt,
+    handoffAt: 0,
+    project: 'ada-app',
+    request: 'Fix the login.',
+    ...extra,
+  });
+  const other = (id: string, state: Record<string, unknown>, pid?: number) => {
+    w.write(`${SESSIONS}/${id}.mod.json`, JSON.stringify({ v: 1, sessionId: id, aliveAt: NOW - 600_000, cwd: PROJECT, ...state }));
+    if (pid) w.write(`${SESSIONS}/${id}.hook.json`, JSON.stringify({ v: 1, sessionId: id, lastRunAt: 0, blocks: {}, host: { pid, name: 'claude' } }));
+  };
+  other('shut0001', { work: work(NOW - 300_000) }, 222); // its window shut: gone
+  other('running1', { work: work(NOW - 300_000) }, 111); // still running: left alone
+  other('endedjus', { endedAt: NOW - 10_000, work: work(NOW - 300_000) }, 222); // its own end may still be writing
+  other('endedcut', { endedAt: NOW - 120_000, work: work(NOW - 300_000) }, 222); // its end was cut short
+  other('noted001', { work: work(NOW - 300_000, { handoffAt: NOW - 200_000 }) }, 222); // wrote its note
+  other('neverchg', {}, 222); // changed nothing
+  other('nohost01', { work: work(NOW - 300_000) }); // no record of its process: cannot tell
+  await $.session.start({ source: 'startup', cwd: PROJECT } as any);
+  const r: any = await $.prompt.submit(typed('Where were we?'));
+  const notes = [...w.files.keys()].filter((p) => p.startsWith(`${HANDOFFS}/ada-app/`)).sort();
+  expect(notes).toEqual([`${HANDOFFS}/ada-app/20261012-095500-endedcut.md`, `${HANDOFFS}/ada-app/20261012-095500-shut0001.md`]);
+  const text = w.read(notes[1]!)!;
+  expect(text).toMatch(/^---\ntype: handoff\nproject: ada-app\n/);
+  expect(text).toMatch(/session: shut0001\nat: 2026-10-12T09:55:00\.000Z\ntrigger: closed\n/);
+  expect(text).toMatch(/- Last request: Fix the login\./);
+  expect(text).toMatch(/### Commits in this session\n\n- ccccccc feat: the store\n/);
+  expect(text).toMatch(/### Uncommitted\n\n- src\/a\.ts\n/);
+  expect(
+    w
+      .events()
+      .filter((e: any) => e.kind === 'handoff' && e.trigger === 'closed')
+      .map((e: any) => e.of)
+      .sort(),
+  ).toEqual(['endedcut', 'shut0001']);
+  // The first prompt waits for them, and is told of the newest.
+  expect(r.context.join('\n')).toMatch(
+    /A handoff note for this project is waiting, written 2026-10-12 09:55 UTC .*\(after its session was closed without ending, by the next session, from what code measured\)/,
+  );
+  // A next session finds the notes there and writes none again.
+  await $.session.start({ source: 'startup', cwd: PROJECT } as any);
+  await $.prompt.submit(typed('Again.'));
+  expect([...w.files.keys()].filter((p) => p.startsWith(`${HANDOFFS}/`)).length).toBe(2);
+  expect(w.events().filter((e: any) => e.kind === 'handoff' && e.trigger === 'closed').length).toBe(2);
+});
+
+test('with end notes turned off, no note is written for a closed session either', async ($, on) => {
+  const w = world(on, {
+    config: { memory: { handoff: { onEnd: false } } },
+    git: repoGit(),
+    programs: (argv) => (argv[0] === 'ps' ? { exitCode: 1, stdout: '' } : undefined),
+  });
+  on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }));
+  w.write(
+    `${DATA}/state/sessions/shut0001.mod.json`,
+    JSON.stringify({
+      v: 1,
+      sessionId: 'shut0001',
+      aliveAt: NOW - 600_000,
+      cwd: PROJECT,
+      work: { startedAt: 0, changedAt: NOW - 300_000, handoffAt: 0, project: 'ada-app', request: null },
+    }),
+  );
+  w.write(
+    `${DATA}/state/sessions/shut0001.hook.json`,
+    JSON.stringify({ v: 1, sessionId: 'shut0001', lastRunAt: 0, blocks: {}, host: { pid: 222, name: 'claude' } }),
+  );
+  await $.session.start({ source: 'startup', cwd: PROJECT } as any);
+  await $.prompt.submit(typed('Where were we?'));
+  expect([...w.files.keys()].filter((p) => p.startsWith(`${HANDOFFS}/`)).length).toBe(0);
+  expect(w.events().some((e: any) => e.kind === 'handoff')).toBe(false);
+});
+
 test('after a turn the store is synced: a quick look first, then commit and send; a problem is told once', async ($, on) => {
   const STORE = '/home/ada/claude-memory';
   const calls: string[] = [];

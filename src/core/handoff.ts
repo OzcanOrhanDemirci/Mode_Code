@@ -13,10 +13,13 @@ const P = `[${APP_NAME}]`;
 
 export const HANDOFF_TOOL = 'mcp__terminal-code__handoff';
 
-/** What made the note: the person's keyword or wrap-up, a compaction, a /clear or the session's end, a run. */
-export type HandoffTrigger = 'keyword' | 'wrapUp' | 'compact' | 'clear' | 'end' | 'run';
+/**
+ * What made the note: the person's keyword or wrap-up, a compaction, a /clear or the session's end, a run; or
+ * the session was closed without ending (its window shut) and the next session wrote its end note.
+ */
+export type HandoffTrigger = 'keyword' | 'wrapUp' | 'compact' | 'clear' | 'end' | 'closed' | 'run';
 
-export const HANDOFF_TRIGGERS: readonly HandoffTrigger[] = ['keyword', 'wrapUp', 'compact', 'clear', 'end', 'run'];
+export const HANDOFF_TRIGGERS: readonly HandoffTrigger[] = ['keyword', 'wrapUp', 'compact', 'clear', 'end', 'closed', 'run'];
 
 /** What code measures for a note. */
 export interface HandoffFacts {
@@ -213,6 +216,7 @@ const TRIGGER_WORDS: Record<HandoffTrigger, string> = {
   compact: 'before a compaction, from its summary',
   clear: 'on /clear, from what code measured',
   end: 'when the session ended, from what code measured',
+  closed: 'after its session was closed without ending, by the next session, from what code measured',
   run: 'by a full-autonomy run',
 };
 

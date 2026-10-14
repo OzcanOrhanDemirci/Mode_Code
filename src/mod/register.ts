@@ -74,14 +74,18 @@ import {
 import {
   addApproval,
   applyKeyword,
+  END_GRACE_MS,
   LIVE_WINDOW_MS,
   newModState,
+  noteOwed,
   parseHookState,
   parseModState,
   sameFolderSessions,
   withRun,
+  workingNow,
   type ModSessionState,
 } from '../core/session.js';
+import { hostGone, hostQuery, readHost } from '../core/host.js';
 import { effectiveMode, isRestricted, MODE_ICON, tempZones, type ModeZones, type WorkMode } from '../core/modes.js';
 import {
   approvePlan,
@@ -204,12 +208,15 @@ interface Ctx {
   reading: QuotaReading | null;
   /** The level the quota guard last announced, so each change is announced once. */
   announced: QuotaAssessment['level'];
-  turn: { startedAt: number | null; uses: ToolUse[] };
+  /** The person's turn: when it started, the main session's calls that ran, and whether one changed something. */
+  turn: { startedAt: number | null; uses: ToolUse[]; changed: boolean };
   events: string[];
   eventsPath: string | null;
   resumeTimer: { cancel(): void } | null;
   /** Sessions in the same folder already announced, so each is said once. */
   conflictsSeen: Set<string>;
+  /** Sessions whose Claude Code was found gone: a process that ended does not come back. */
+  gone: Set<string>;
   /** Protected places that are links, measured at most once a minute (see BeltContext.aliases). */
   aliases: { at: number; list: PathAlias[] } | null;
   /** The flow this session works on (its record is the mod's to write). */
@@ -246,6 +253,8 @@ interface Ctx {
   sharedWarned: Set<string>;
   /** The sync at the session's start while it runs: the first prompt waits for it. */
   memStart: Promise<unknown> | null;
+  /** The notes of sessions closed without ending, written at the start: the first prompt waits for them. */
+  closedStart: Promise<void> | null;
   /** What syncs brought in from elsewhere since the last prompt, told to Claude with the next one. */
   memPulled: Pulled | null;
   // ── the controls (docs/modes.md, "Controls") ──
@@ -394,7 +403,9 @@ async function load($: $): Promise<Ctx> {
   const path = sessionFile(l, sessionId, 'mod');
   const previous = path ? parseModState(await readFile($, path)) : null;
   const state: ModSessionState =
-    previous && previous.sessionId === sessionId ? { ...previous, aliveAt: now, modVersion: APP_VERSION } : newModState(sessionId, APP_VERSION, now);
+    previous && previous.sessionId === sessionId
+      ? { ...previous, aliveAt: now, endedAt: null, modVersion: APP_VERSION }
+      : newModState(sessionId, APP_VERSION, now);
   state.cwd = resolvePath(cwd, { platform, home, cwd });
   const reading = parseReading(await readFile($, l.quota));
   const eventsPath = eventsFile(l, sessionId, 'mod', now);
@@ -414,11 +425,12 @@ async function load($: $): Promise<Ctx> {
     state,
     reading,
     announced: 'ok',
-    turn: { startedAt: null, uses: [] },
+    turn: { startedAt: null, uses: [], changed: false },
     events: existing ? existing.split('\n').filter(Boolean) : [],
     eventsPath,
     resumeTimer: null,
     conflictsSeen: new Set(),
+    gone: new Set(),
     aliases: null,
     flow: flow && isOpen(flow) ? flow : null,
     run: run && !isTerminal(run) ? run : null,
@@ -433,6 +445,7 @@ async function load($: $): Promise<Ctx> {
     memSyncing: false,
     memWarned: new Set(),
     memStart: null,
+    closedStart: null,
     memPulled: null,
     fresh: !(previous && previous.sessionId === sessionId),
     restored: false,
@@ -495,7 +508,9 @@ async function sameFolderNotes($: $, c: Ctx): Promise<string[]> {
     const s = parseModState(await readFile($, joinPath(c.layout.sessionsDir, x.name)));
     if (s) others.push(s);
   }
-  const found = sameFolderSessions(c.state, others, now, c.platform === 'win32' || c.platform === 'darwin');
+  const found: ModSessionState[] = [];
+  for (const s of sameFolderSessions(c.state, others, now, c.platform === 'win32' || c.platform === 'darwin'))
+    if (!(await sessionGone($, c, s.sessionId))) found.push(s);
   const fresh = found.filter((s) => !c.conflictsSeen.has(s.sessionId));
   for (const s of fresh) c.conflictsSeen.add(s.sessionId);
   if (fresh.length) {
@@ -520,8 +535,39 @@ async function refreshConfig($: $, c: Ctx): Promise<void> {
   await refreshStatus($, c);
 }
 
+/**
+ * Another session's Claude Code is surely gone: its window was shut without the session ending (host.ts). The
+ * process its hook recorded is looked up; a session with no record, or a lookup that cannot tell, is kept.
+ */
+async function sessionGone($: $, c: Ctx, sessionId: string): Promise<boolean> {
+  if (c.gone.has(sessionId)) return true;
+  const path = sessionFile(c.layout, sessionId, 'hook');
+  const host = path ? parseHookState(await readFile($, path), sessionId).host : null;
+  if (!host) return false;
+  let gone = false;
+  try {
+    const r = await $.process.run(hostQuery(c.platform, host.pid, c.env.SYSTEMROOT ?? c.env.WINDIR), { timeoutMs: 5000 });
+    gone = hostGone(host, readHost(c.platform, host.pid, r.exitCode, r.stdout), c.platform);
+  } catch {
+    /* the lookup could not run: the session is kept as working */
+  }
+  if (gone) c.gone.add(sessionId);
+  return gone;
+}
+
+/** Another session works on it now: open, alive within the window, and its Claude Code still running. */
+async function workingElsewhere($: $, c: Ctx, other: ModSessionState): Promise<boolean> {
+  return workingNow(other, await $.clock.now()) && !(await sessionGone($, c, other.sessionId));
+}
+
 async function saveState($: $, c: Ctx): Promise<void> {
   const path = sessionFile(c.layout, c.sessionId, 'mod');
+  // What a note would be written from, should the session be closed without ending (closedNotes).
+  if (c.changedAt > 0)
+    c.state = {
+      ...c.state,
+      work: { startedAt: c.startedAt, changedAt: c.changedAt, handoffAt: c.handoffAt, project: c.state.work?.project ?? null, request: c.lastPrompt },
+    };
   if (path) await $.fs.write(path, JSON.stringify(c.state, null, 2) + '\n');
 }
 
@@ -743,7 +789,7 @@ async function heldElsewhere($: $, c: Ctx, f: Flow): Promise<boolean> {
   if (!f.sessionId || f.sessionId === c.sessionId || !isRunning(f)) return false;
   const path = sessionFile(c.layout, f.sessionId, 'mod');
   const other = path ? parseModState(await readFile($, path)) : null;
-  return !!other && other.flowId === f.id && (await $.clock.now()) - other.aliveAt < LIVE_WINDOW_MS;
+  return !!other && other.flowId === f.id && (await workingElsewhere($, c, other));
 }
 
 /** The open flow a "continue" picks up: the named project's, else the one of this folder. */
@@ -1165,7 +1211,7 @@ async function runHeldElsewhere($: $, c: Ctx, r: Run): Promise<boolean> {
   if (!r.sessionId || r.sessionId === c.sessionId || r.status !== 'active') return false;
   const path = sessionFile(c.layout, r.sessionId, 'mod');
   const other = path ? parseModState(await readFile($, path)) : null;
-  return !!other && other.runId === r.id && (await $.clock.now()) - other.aliveAt < LIVE_WINDOW_MS;
+  return !!other && other.runId === r.id && (await workingElsewhere($, c, other));
 }
 
 /** The open run a "continue" picks up: the attached one, else the named project's or this folder's. */
@@ -2250,7 +2296,14 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   const result = await next(e);
   // The footer counts what ran: a refused call changed nothing, and neither did a file tool that failed.
   const ran = result.deny === undefined && !(result.isError === true && isFileTool(tool));
-  if (ran && e.agentId === undefined) c.turn.uses.push({ name: tool, input });
+  if (ran && e.agentId === undefined) {
+    c.turn.uses.push({ name: tool, input });
+    // The turn's first change is kept at once: a session whose window is shut mid-turn still owes its note.
+    if (!c.turn.changed) {
+      const acts = classifyTurn([{ name: tool, input }], classifyEnvFor(c, cwd));
+      if (acts.files + acts.shell + acts.settings > 0) await keepChange($, c);
+    }
+  }
   if (tool === 'EnterPlanMode' && ran && !result.isError) {
     c.state = { ...c.state, nativePlan: { on: true, planFile: c.state.nativePlan?.planFile ?? null, at: await $.clock.now() } };
     await saveState($, c);
@@ -2289,7 +2342,7 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   const human = kind === 'composer' || kind === 'bridge' || kind === 'sdk' || ours;
   const extra: string[] = [];
   if (human) {
-    c.turn = { startedAt: await $.clock.now(), uses: [] };
+    c.turn = { startedAt: await $.clock.now(), uses: [], changed: false };
     // A start asked for at an earlier prompt and never taken up lapses: each prompt asks anew.
     c.pendingStart = null;
     c.prompts++;
@@ -2677,6 +2730,21 @@ async function memoryStatusFor($: $, c: Ctx, cwd: string): Promise<MemoryStatus>
   return { state: pushed ? 'pushed' : 'unchanged' };
 }
 
+/** A change in this turn: when, and what a note would be written from should the window be shut (closedNotes), kept at once. */
+async function keepChange($: $, c: Ctx): Promise<void> {
+  c.changedAt = await $.clock.now();
+  c.turn.changed = true;
+  try {
+    if (!c.state.work?.project && c.config.memory.handoff.enabled) {
+      const p = await projectOfSession($, c);
+      c.state = { ...c.state, work: { startedAt: c.startedAt, changedAt: c.changedAt, handoffAt: c.handoffAt, project: p.key, request: c.lastPrompt } };
+    }
+    await saveState($, c);
+  } catch {
+    /* kept with the next save */
+  }
+}
+
 async function onTurnComplete($: $, e: In<'turn.complete'>, next: Nx<'turn.complete'>): Out<'turn.complete'> {
   const result = await next(e);
   if (e.agentId !== undefined || e.reason !== 'answer') return result;
@@ -2684,7 +2752,7 @@ async function onTurnComplete($: $, e: In<'turn.complete'>, next: Nx<'turn.compl
   try {
     const cwdNow = await $.session.cwd();
     const acts = classifyTurn(c.turn.uses, classifyEnvFor(c, cwdNow));
-    if (acts.files + acts.shell + acts.settings > 0) c.changedAt = await $.clock.now();
+    if (acts.files + acts.shell + acts.settings > 0) await keepChange($, c);
     await memorySync($, c, 'turn');
     await sharedSync($, c, 'turn');
   } catch {
@@ -2749,6 +2817,7 @@ async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.st
   // may have loaded the index already, and what came in is told with that first prompt.
   c.memStart = memorySync($, c, 'start');
   c.sharedStart = c.memStart.then(() => sharedSync($, c, 'start'));
+  c.closedStart = c.memStart.then(() => closedNotes($, c));
   if (c.fresh && c.config.modules.modes) await restoreLast($, c);
   await saveState($, c);
   if (c.state.resumeAt) await scheduleResume($, c);
@@ -2806,6 +2875,9 @@ async function planNote($: $, on: boolean, named: string | undefined): Promise<v
 async function onSessionEnd($: $, e: In<'session.end'>, next: Nx<'session.end'>): Out<'session.end'> {
   try {
     const c = await ctxOf($);
+    // First, as the rest takes time Claude Code may not give: other sessions no longer count this one as working.
+    c.state = { ...c.state, endedAt: await $.clock.now() };
+    await saveState($, c);
     if (c.flow && isRunning(c.flow) && c.config.modules.modes) {
       const p = pauseFlow(c.flow, `session ${String(e.reason ?? 'ended')}`, await $.clock.now());
       if (p.ok) await saveFlow($, c, p.flow);
@@ -3042,13 +3114,17 @@ async function memoryLook($: $, c: Ctx, dir: string): Promise<void> {
 
 /** The project a note belongs to: the one the person named in this session, else the folder's (settings id, origin, name). */
 async function projectOfSession($: $, c: Ctx): Promise<{ key: string; folder: string }> {
-  const cwd = await $.session.cwd();
+  return projectOf($, c, await $.session.cwd(), c.state.project);
+}
+
+/** The project of a folder: the one named, else the folder's (settings id, origin, name). */
+async function projectOf($: $, c: Ctx, cwd: string, named: string | null): Promise<{ key: string; folder: string }> {
   const env = pathEnv(c, cwd);
   const top = await gitIn($, cwd, ['rev-parse', '--show-toplevel'], 5000);
   const folder = top.ok && top.out ? resolvePath(top.out, env) : env.cwd;
   const registered = c.config.projects.find((p) => p.path && pathKey(resolvePath(p.path, env), c.platform) === pathKey(folder, c.platform));
   const remote = top.ok ? await gitIn($, folder, ['config', '--get', 'remote.origin.url'], 5000) : null;
-  return { key: projectKey({ id: c.state.project ?? registered?.id ?? null, remote: remote?.ok ? remote.out : null, folder }), folder };
+  return { key: projectKey({ id: named ?? registered?.id ?? null, remote: remote?.ok ? remote.out : null, folder }), folder };
 }
 
 /** What code measures for a handoff note. */
@@ -3101,6 +3177,7 @@ async function writeHandoff($: $, c: Ctx, trigger: HandoffTrigger, body: { parts
     return null;
   }
   c.handoffAt = f.at;
+  await saveState($, c);
   await logEvent($, c, { kind: 'handoff', trigger, project: f.project });
   return path;
 }
@@ -3183,6 +3260,81 @@ async function endHandoff($: $, c: Ctx, trigger: 'clear' | 'end'): Promise<void>
   if (!c.config.memory.handoff.onEnd || c.changedAt === 0 || c.handoffAt >= c.changedAt) return;
   const path = await writeHandoff($, c, trigger, {});
   if (path) await memorySync($, c, 'turn');
+}
+
+/**
+ * The end notes of sessions closed without ending (their window shut, or their end cut short): written here,
+ * from what they kept as they went (SessionWork) and what code measures now, under the time they last changed
+ * something. A session still running is left alone; a note already there is not written again.
+ */
+async function closedNotes($: $, c: Ctx): Promise<void> {
+  const h = c.config.memory.handoff;
+  if (!h.enabled || !h.onEnd) return;
+  try {
+    const now = await $.clock.now();
+    const entries = (await $.fs.list(c.layout.sessionsDir))
+      .filter((x) => x.name.endsWith('.mod.json') && now - x.mtimeMs <= h.maxAgeDays * 86_400_000)
+      .sort((a, b) => b.mtimeMs - a.mtimeMs)
+      .slice(0, 60);
+    let wrote = 0;
+    for (const x of entries) {
+      const s = parseModState(await readFile($, joinPath(c.layout.sessionsDir, x.name)));
+      if (!s || !s.work || !s.cwd || !noteOwed(s, c.sessionId, now, h.maxAgeDays)) continue;
+      const at = Math.max(s.aliveAt, s.work.changedAt);
+      const project = s.work.project ?? (await projectOf($, c, s.cwd, s.project)).key;
+      const path = joinPath(handoffRoot(c.config, c.layout.handoffsDir), project, handoffName(at, s.sessionId));
+      if (await $.fs.exists(path)) continue;
+      const closed = s.endedAt !== null ? now - s.endedAt >= END_GRACE_MS : await sessionGone($, c, s.sessionId);
+      if (!closed) continue;
+      try {
+        await $.fs.write(path, composeHandoff(await closedFacts($, c, s, project, at), {}));
+      } catch {
+        continue;
+      }
+      wrote++;
+      await logEvent($, c, { kind: 'handoff', trigger: 'closed', project, of: s.sessionId });
+    }
+    if (wrote) await memorySync($, c, 'turn');
+  } catch {
+    /* tried again at the next session's start */
+  }
+}
+
+/** What code measures for a closed session's note: its folder now, its commits since it started, what it kept. */
+async function closedFacts($: $, c: Ctx, s: ModSessionState, project: string, at: number): Promise<HandoffFacts> {
+  const w = s.work!;
+  const top = await gitIn($, s.cwd!, ['rev-parse', '--show-toplevel'], 5000);
+  const folder = top.ok && top.out ? resolvePath(top.out, pathEnv(c, s.cwd!)) : s.cwd!;
+  const isRepo = top.ok && !!top.out;
+  const branch = isRepo ? await gitIn($, folder, ['symbolic-ref', '--quiet', '--short', 'HEAD'], 5000) : null;
+  const head = isRepo ? await gitIn($, folder, ['rev-parse', 'HEAD'], 5000) : null;
+  const log = isRepo ? await gitIn($, folder, ['log', `--since=${new Date(w.startedAt).toISOString()}`, '--format=%h %s', '-n', '40'], 10_000) : null;
+  const status = isRepo ? await gitIn($, folder, ['status', '--porcelain=v1'], 10_000) : null;
+  const fdir = s.flowId ? flowDir(c.layout, s.flowId) : null;
+  const flow = fdir ? parseFlow(await readFile($, joinPath(fdir, 'flow.json'))) : null;
+  const rdir = s.runId ? runDir(c.layout, s.runId) : null;
+  const run = rdir ? parseRun(await readFile($, joinPath(rdir, 'run.json'))) : null;
+  return {
+    project,
+    cwd: folder,
+    machine: c.env.COMPUTERNAME || c.env.HOSTNAME || c.env.WSL_DISTRO_NAME || '',
+    session: s.sessionId,
+    at,
+    trigger: 'closed',
+    branch: branch?.ok && branch.out ? branch.out : null,
+    head: head?.ok && head.out ? head.out : null,
+    commits: log?.ok ? log.out.split('\n').filter(Boolean) : [],
+    uncommitted: status?.ok
+      ? status.out
+          .split('\n')
+          .map((l) => /^[ MADRCUT?!]{1,2} (.+)$/.exec(l)?.[1] ?? '')
+          .filter(Boolean)
+      : [],
+    flow: flow && isOpen(flow) ? `${flow.id}: ${stepName(currentStep(flow)?.kind ?? 'research', c.lang)} (${flow.status})` : null,
+    run: run && rdir ? { id: run.id, status: run.status, report: joinPath(rdir, 'report.md') } : null,
+    quota: null,
+    request: w.request,
+  };
 }
 
 /** A compaction's summary kept as a handoff note, when the conversation was compacted (not only computed ahead). */
@@ -3320,6 +3472,10 @@ async function memoryPromptContext($: $, c: Ctx, kw: KeywordMatch | null): Promi
   c.memPulled = null;
   if (pulled) out.push(pulled);
   const first = c.prompts === 1;
+  if (c.closedStart) {
+    await c.closedStart;
+    c.closedStart = null;
+  }
   if (kw?.kind === 'continue' || (first && c.config.memory.handoff.enabled)) {
     const h = await waitingHandoff($, c);
     if (h && kw?.kind === 'continue') out.push(handoffFull(h.text, h.path));

@@ -15,7 +15,17 @@ import { claudeDir } from '../node/env.js';
 import type { SessionIndex, SessionRow, TokenTotals, ToolStat, FolderRow } from '../node/index-db.js';
 import { readClaudeEnv, type ClaudeEnv, type PluginInfo } from '../node/claude-env.js';
 import { appContext, reloadConfig, type AppContext } from '../app/context.js';
-import { loadEvents, loadQuota, openIndex, recentModStates, scanPaths, type QuotaView, type ToolEvent, type SecretFinding } from '../app/data.js';
+import {
+  closedSessionIds,
+  loadEvents,
+  loadQuota,
+  openIndex,
+  recentModStates,
+  scanPaths,
+  type QuotaView,
+  type ToolEvent,
+  type SecretFinding,
+} from '../app/data.js';
 import { checkHealth, type Health } from '../app/health.js';
 import { buildReport, type Report } from '../app/report.js';
 import { loadSummary, type DoctorSummary } from '../app/doctor/doctor.js';
@@ -46,6 +56,8 @@ export interface DataSource {
   quota(): QuotaView;
   events(days: number): ToolEvent[];
   modStates(): ModSessionState[];
+  /** Sessions over though their record is recent: ended, or closed without ending (their Claude Code gone). */
+  closedSessions(): ReadonlySet<string>;
   totals(days: number): TokenTotals | null;
   totalsSince(since: number): TokenTotals | null;
   breakdown(by: 'day' | 'model' | 'cwd', days: number): (TokenTotals & { key: string })[];
@@ -152,6 +164,10 @@ export class LiveData implements DataSource {
   }
   modStates(): ModSessionState[] {
     return this.memo('mods', 5_000, () => recentModStates(this.ctx, 50));
+  }
+  closedSessions(): ReadonlySet<string> {
+    // Looking processes up takes a moment each: less often than the rest.
+    return this.memo('closed', 30_000, () => closedSessionIds(this.ctx));
   }
   totals(days: number): TokenTotals | null {
     return this.memo(`totals:${days}`, 30_000, () => this.index()?.totals(Date.now() - days * 86400_000) ?? null);

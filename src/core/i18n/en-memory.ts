@@ -243,6 +243,7 @@ export const enMemory = {
   'handoff.trigger.compact': 'before a compaction, from its summary',
   'handoff.trigger.clear': 'on /clear, from what code measured',
   'handoff.trigger.end': 'when the session ended, from what code measured',
+  'handoff.trigger.closed': 'the session was closed without ending; the next one wrote it from what code measured',
   'handoff.trigger.run': 'a full-autonomy run paused or ended',
   'handoff.empty': 'No handoff note yet. A handoff note says where the work on a project stands, so that the next session goes on from there.',
   'handoff.howTo':

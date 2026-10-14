@@ -221,6 +221,11 @@
       "branches": 86,
       "functions": 94
     },
+    "src/core/host.ts": {
+      "lines": 100,
+      "branches": 100,
+      "functions": 100
+    },
     "src/core/i18n/en-auto.ts": {
       "lines": 94,
       "branches": 92,
@@ -505,6 +510,11 @@
       "lines": 92,
       "branches": 76,
       "functions": 94
+    },
+    "src/node/host.ts": {
+      "lines": 92,
+      "branches": 57,
+      "functions": 100
     },
     "src/node/index-db.ts": {
       "lines": 83,

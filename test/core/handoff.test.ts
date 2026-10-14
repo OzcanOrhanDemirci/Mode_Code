@@ -154,6 +154,10 @@ test('what Claude is told: one line on the first prompt, the whole note on conti
   );
   assert.doesNotMatch(handoffLine(parseHandoff(composeHandoff(facts({ request: null, machine: '' }), {}))!, '/p'), /Next:|UTC on/);
   assert.match(handoffLine(parseHandoff(composeHandoff(facts({ trigger: 'compact' }), { summary: 's' }))!, '/p'), /before a compaction, from its summary/);
+  // A session closed without ending: its note, written by the next one, reads back as such.
+  const closed = parseHandoff(composeHandoff(facts({ trigger: 'closed' }), {}))!;
+  assert.equal(closed.trigger, 'closed');
+  assert.match(handoffLine(closed, '/p'), /\(after its session was closed without ending, by the next session, from what code measured\)/);
   const full = handoffFull('---\nnote\n', '/p');
   assert.match(full, /The last handoff note \(\/p\), word for word:\n\n---\nnote\n\nGo on from its next step/);
   assert.ok(handoffAskContext(false).includes(`The person asked for a handoff note: call ${HANDOFF_TOOL} with summary`));

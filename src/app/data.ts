@@ -7,11 +7,12 @@ import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { assessQuota, type QuotaAssessment, type QuotaReading } from '../core/quota.js';
 import { budgetOf } from '../core/settings-view.js';
-import { parseModState, type ModSessionState } from '../core/session.js';
+import { LIVE_WINDOW_MS, parseModState, type ModSessionState } from '../core/session.js';
 import { scanSecrets, type SecretMatch } from '../core/secrets/scan.js';
 import { readJson, readText } from '../node/fsx.js';
 import { claudeDir } from '../node/env.js';
 import { SessionIndex } from '../node/index-db.js';
+import { sessionGone } from '../node/host.js';
 import type { AppContext } from './context.js';
 
 export interface QuotaView {
@@ -54,6 +55,16 @@ export function recentModStates(ctx: AppContext, limit = 50, since = 0): ModSess
     .sort((a, b) => b.t - a.t)
     .slice(0, limit);
   return withTime.map((x) => parseModState(readText(x.p))).filter((s): s is ModSessionState => s !== null);
+}
+
+/**
+ * Sessions whose record is recent but which are over: ended, or closed without ending (their window shut), as
+ * their Claude Code is gone (node/host.ts).
+ */
+export function closedSessionIds(ctx: AppContext, now = Date.now()): Set<string> {
+  const out = new Set<string>();
+  for (const s of recentModStates(ctx, 50, now - LIVE_WINDOW_MS)) if (s.endedAt !== null || sessionGone(ctx.layout, s.sessionId)) out.add(s.sessionId);
+  return out;
 }
 
 export interface ToolEvent {

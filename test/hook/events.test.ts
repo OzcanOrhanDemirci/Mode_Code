@@ -155,6 +155,21 @@ test('session start: the checked footer is taught in the person language; otherw
   }
 });
 
+test('the process a session runs in: recorded at its start, or with a prompt where the start was missed', () => {
+  const home = fresh();
+  try {
+    run('SessionStart', { ...base(home), hook_event_name: 'SessionStart', source: 'startup' }, home);
+    const host = (id: string) => JSON.parse(readFileSync(join(home, 'state', 'sessions', `${id}.hook.json`), 'utf8')).host;
+    // The hook's parent: here this test, in Claude Code the session's own process (exec form, no shell between).
+    assert.equal(host('ev-session').pid, process.pid);
+    assert.match(String(host('ev-session').name), /^node(\.exe)?$/i);
+    run('UserPromptSubmit', { ...base(home), session_id: 'ev-late', hook_event_name: 'UserPromptSubmit', prompt: 'hello' }, home);
+    assert.deepEqual(host('ev-late'), host('ev-session'));
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test('keywords through the hook: off when the module is off, left to the mod when it runs', () => {
   const off = fresh({ modules: { keywords: false }, projects: [{ id: 'app', names: ['app'] }] });
   const withMod = fresh({ projects: [{ id: 'app', names: ['app'] }] });

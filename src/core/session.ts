@@ -5,6 +5,7 @@
  */
 import { isModeKeyword, isStyleKeyword, MODE_KEYWORDS, STYLE_KEYWORDS, type KeywordMatch } from './keywords.js';
 import { isWorkMode, type WorkMode } from './modes.js';
+import { parseHost, type Host } from './host.js';
 
 export type { WorkMode } from './modes.js';
 
@@ -23,11 +24,29 @@ export interface Approval {
   rules: string[];
 }
 
+/**
+ * What a session's end note is written from, kept as the session goes: should its window be shut, the
+ * session ends without writing it, and the next session writes it from this (docs/memory.md).
+ */
+export interface SessionWork {
+  /** When the session started: its commits are those since. */
+  startedAt: number;
+  /** When a turn last changed something, and when the session last wrote a note (0: never). */
+  changedAt: number;
+  handoffAt: number;
+  /** The project key its notes go under, once known. */
+  project: string | null;
+  /** The person's last request, secrets masked. */
+  request: string | null;
+}
+
 export interface ModSessionState {
   v: 1;
   sessionId: string;
   /** When the mod last confirmed it is running in this session (epoch ms). */
   aliveAt: number;
+  /** When the session ended (Claude Code's session end; a /clear too), or null while it is open. */
+  endedAt: number | null;
   /** The folder the session works in (resolved), to tell when two sessions work in the same place. */
   cwd?: string;
   modVersion: string;
@@ -57,6 +76,8 @@ export interface ModSessionState {
   approvals: Approval[];
   /** How many times each rule blocked in this session, to stop an agent that keeps trying. */
   blocks: Record<string, number>;
+  /** Kept once a turn changed something; null before. */
+  work: SessionWork | null;
 }
 
 export interface HookSessionState {
@@ -77,6 +98,8 @@ export interface HookSessionState {
   autoStop: { runId: string | null; fingerprint: string | null; streak: number } | null;
   /** The last stop of a run the hook let through, and why (the plugin pauses the run accordingly). */
   autoAllowed: { runId: string; why: string; at: number } | null;
+  /** The process the session runs in (the hook's parent: Claude Code), to tell later whether it still runs. */
+  host: Host | null;
 }
 
 export function newModState(sessionId: string, modVersion: string, now: number): ModSessionState {
@@ -84,6 +107,7 @@ export function newModState(sessionId: string, modVersion: string, now: number):
     v: 1,
     sessionId,
     aliveAt: now,
+    endedAt: null,
     modVersion,
     mode: 'free',
     turnMode: null,
@@ -99,6 +123,7 @@ export function newModState(sessionId: string, modVersion: string, now: number):
     resumeAt: null,
     approvals: [],
     blocks: {},
+    work: null,
   };
 }
 
@@ -129,10 +154,23 @@ export function parseModState(text: string | null): ModSessionState | null {
           : null,
       approvals: Array.isArray(s.approvals) ? s.approvals.filter((a) => isObj(a) && typeof a.toolUseId === 'string') : [],
       blocks: isObj(s.blocks) ? (s.blocks as Record<string, number>) : {},
+      endedAt: typeof s.endedAt === 'number' ? s.endedAt : null,
+      work: parseWork(s.work),
     };
   } catch {
     return null;
   }
+}
+
+function parseWork(x: unknown): SessionWork | null {
+  if (!isObj(x) || typeof x.startedAt !== 'number' || typeof x.changedAt !== 'number' || typeof x.handoffAt !== 'number') return null;
+  return {
+    startedAt: x.startedAt,
+    changedAt: x.changedAt,
+    handoffAt: x.handoffAt,
+    project: typeof x.project === 'string' && x.project ? x.project : null,
+    request: typeof x.request === 'string' ? x.request : null,
+  };
 }
 
 export function parseHookState(text: string | null, sessionId: string): HookSessionState {
@@ -146,6 +184,7 @@ export function parseHookState(text: string | null, sessionId: string): HookSess
     promptAt: 0,
     autoStop: null,
     autoAllowed: null,
+    host: null,
   };
   if (!text) return fresh;
   try {
@@ -170,6 +209,7 @@ export function parseHookState(text: string | null, sessionId: string): HookSess
         isObj(o.autoAllowed) && typeof o.autoAllowed.runId === 'string' && typeof o.autoAllowed.why === 'string' && typeof o.autoAllowed.at === 'number'
           ? { runId: o.autoAllowed.runId, why: o.autoAllowed.why, at: o.autoAllowed.at }
           : null,
+      host: parseHost(o.host),
     };
   } catch {
     return fresh;
@@ -188,6 +228,26 @@ export function addApproval(s: ModSessionState, a: Approval): ModSessionState {
 export const LIVE_WINDOW_MS = 15 * 60 * 1000;
 
 /**
+ * Working now, as its own record tells: alive within the window and not ended. One whose window was shut still
+ * reads as working here; its process tells the rest (host.ts).
+ */
+export function workingNow(s: Pick<ModSessionState, 'aliveAt' | 'endedAt'>, now: number): boolean {
+  return s.endedAt === null && now - s.aliveAt < LIVE_WINDOW_MS;
+}
+
+/**
+ * A session whose note is still to be written by another: it changed something after its last note, its note
+ * would still be offered, and it is not this one. Whether it closed (ended a minute ago or more, so its own end
+ * is not raced; or its process gone) the caller finds out.
+ */
+export function noteOwed(s: ModSessionState, self: string, now: number, maxAgeDays: number): boolean {
+  return s.sessionId !== self && !!s.work && s.work.changedAt > s.work.handoffAt && now - s.aliveAt <= maxAgeDays * 86_400_000;
+}
+
+/** An ended session's own end had its minute: what it did not write by then, it will not. */
+export const END_GRACE_MS = 60_000;
+
+/**
  * Other sessions working in the same folder right now: two agents editing one tree is how work gets lost.
  * Folders compare case-insensitively where the file system does (Windows, macOS).
  */
@@ -203,7 +263,7 @@ export function sameFolderSessions(
     return caseInsensitive ? s.toLowerCase() : s;
   };
   const mine = key(self.cwd);
-  return others.filter((o) => o.sessionId !== self.sessionId && o.cwd && key(o.cwd) === mine && now - o.aliveAt < LIVE_WINDOW_MS);
+  return others.filter((o) => o.sessionId !== self.sessionId && o.cwd && key(o.cwd) === mine && workingNow(o, now));
 }
 
 export function isApproved(s: ModSessionState | null, toolUseId: string | undefined, now: number): boolean {
