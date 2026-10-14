@@ -77,9 +77,21 @@ Add a language by copying `src/core/i18n/en-ui.ts`, `en-tui.ts` and the strings 
 
 ## Commits
 
-- [Conventional Commits](https://www.conventionalcommits.org): `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`; English, imperative ("add", not "added"), one change per commit.
+- [Conventional Commits](https://www.conventionalcommits.org): `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`; English, imperative ("add", not "added"), one logical change per commit: it builds and passes the tests on its own, and a change with its tests and docs is one commit.
+- The subject is at most 72 characters. The body says why the change was needed, how the problem was found, what changed and which test keeps it so, in lines of at most 72 characters.
 - **Sign off every commit** (`git commit -s`). This certifies the [Developer Certificate of Origin](https://developercertificate.org/): you wrote the change or have the right to submit it under the project's license. There is no separate CLA. A check on every pull request looks for the sign-off.
 - Contributions are licensed under Apache-2.0 (section 5 of the license).
+
+### AI assistance
+
+You may use AI tools; you stay responsible for every line, as the sign-off says. Say so with an `Assisted-by:` trailer naming the tool, above your sign-off:
+
+```
+Assisted-by: Claude Code
+Signed-off-by: Your Name <you@example.com>
+```
+
+Only a person signs off. This project is built with Claude Code: its commits carry `Assisted-by: Claude Code`, and those up to `15fbce7` carry the equivalent `Co-Authored-By: Claude` and `Claude-Session` trailers.
 
 ## Pull requests
 

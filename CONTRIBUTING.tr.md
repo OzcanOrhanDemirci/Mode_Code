@@ -77,9 +77,21 @@ Yeni bir dil eklemek için `src/core/i18n/en-ui.ts`, `en-tui.ts` ve `en.ts` içi
 
 ## Commit'ler
 
-- [Conventional Commits](https://www.conventionalcommits.org): `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`; İngilizce, emir kipinde ("add", "added" değil), commit başına tek değişiklik.
+- [Conventional Commits](https://www.conventionalcommits.org): `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`; İngilizce, emir kipinde ("add", "added" değil), commit başına tek mantıksal değişiklik: tek başına derlenir ve testleri geçer; bir değişiklik, testleri ve belgesiyle birlikte tek commit'tir.
+- Konu satırı en çok 72 karakterdir. Gövde, değişikliğin neden gerektiğini, sorunun nasıl bulunduğunu, neyin değiştiğini ve hangi testin bunu koruduğunu en çok 72 karakterlik satırlarla anlatır.
 - **Her commit'i imzala** (`git commit -s`). Bu, [Developer Certificate of Origin](https://developercertificate.org/) beyanıdır: değişikliği sen yazdın ya da projenin lisansıyla sunma hakkın var. Ayrı bir CLA yok. Her pull request'te bir denetim imzayı arar.
 - Katkılar Apache-2.0 ile lisanslanır (lisansın 5. bölümü).
+
+### Yapay zekâ desteği
+
+Yapay zekâ araçları kullanabilirsin; imzanın da söylediği gibi her satırın sorumluluğu sende kalır. Bunu, imzanın üstüne aracın adını yazan bir `Assisted-by:` satırıyla belirt:
+
+```
+Assisted-by: Claude Code
+Signed-off-by: Adın Soyadın <sen@example.com>
+```
+
+İmzayı yalnız bir insan atar. Bu proje Claude Code ile geliştiriliyor: commit'leri `Assisted-by: Claude Code` taşır; `15fbce7`'ye kadarki commit'ler aynı anlama gelen `Co-Authored-By: Claude` ve `Claude-Session` satırlarını taşır.
 
 ## Pull request'ler
 
