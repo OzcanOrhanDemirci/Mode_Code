@@ -15,7 +15,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Colors are decided when the color library loads: ask for them before the program is imported.
-process.env.FORCE_COLOR = '1';
+// 24-bit colors: Mo is drawn in them (the named colors of the rest stay the 16 basic ones).
+process.env.FORCE_COLOR = '3';
 delete process.env.NO_COLOR;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -161,6 +162,17 @@ function frameSvg(lines: Run[][]): string {
       const x = PAD + r.col * CELL;
       if (bg) out.push(`<rect x="${x.toFixed(1)}" y="${y}" width="${(r.width * CELL).toFixed(1)}" height="${LINE}" fill="${bg}"/>`);
       if (r.text.trim() === '') continue;
+      if (/^[▀▄]+$/.test(r.text)) {
+        // Half blocks (Mo is made of them) are drawn as the halves they are: crisp whatever the font.
+        [...r.text].forEach((ch, i) => {
+          const cx = (x + i * CELL).toFixed(1);
+          const top = ch === '▀' ? fg : bg;
+          const bottom = ch === '▀' ? bg : fg;
+          if (top) out.push(`<rect x="${cx}" y="${y}" width="${CELL.toFixed(1)}" height="${LINE / 2}" fill="${top}"/>`);
+          if (bottom) out.push(`<rect x="${cx}" y="${y + LINE / 2}" width="${CELL.toFixed(1)}" height="${LINE / 2}" fill="${bottom}"/>`);
+        });
+        continue;
+      }
       const attrs = [
         `x="${x.toFixed(1)}"`,
         `y="${y + 13}"`,
@@ -207,6 +219,7 @@ async function main() {
   const { textWidth } = await import('../src/node/width.js');
   // The tour: the screens a newcomer looks at first, each reached the way a person reaches it.
   const tour: { address: string | null; type?: string; keys: string[] }[] = [
+    { address: null, keys: [] },
     { address: null, keys: ['right'] },
     { address: 'security/rules', keys: [] },
     { address: 'security/test', type: 'git push --force origin main', keys: ['enter'] },
@@ -215,8 +228,16 @@ async function main() {
   ];
   mkdirSync(join(root, 'docs', 'images'), { recursive: true });
   for (const [lang, file, title] of [
-    ['en', 'control-center.svg', 'The Mode_Code control center: home, the safety belt rules, a command tested against the belt, quota and rule templates'],
-    ['tr', 'control-center-tr.svg', 'Mode_Code kontrol merkezi: ana ekran, emniyet kemeri kuralları, kemerde sınanan bir komut, kota ve kural şablonları'],
+    [
+      'en',
+      'control-center.svg',
+      'The Mode_Code control center: Mo greeting on the first screen, home, the safety belt rules, a command tested against the belt, quota and rule templates',
+    ],
+    [
+      'tr',
+      'control-center-tr.svg',
+      'Mode_Code kontrol merkezi: ilk ekranda karşılayan Mo, ana ekran, emniyet kemeri kuralları, kemerde sınanan bir komut, kota ve kural şablonları',
+    ],
   ] as const) {
     const frames: Run[][][] = [];
     for (const shot of tour) {

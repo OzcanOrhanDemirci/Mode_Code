@@ -67,7 +67,17 @@ Commands that change your Claude Code setup, lower a protection or widen what a 
 {
   "language": "auto",
   "view": "recommended",
-  "modules": { "keywords": true, "footer": true, "quota": true, "secrets": true, "status": true, "notifications": true, "quietWork": true, "modes": true },
+  "modules": {
+    "keywords": true,
+    "footer": true,
+    "quota": true,
+    "secrets": true,
+    "status": true,
+    "notifications": true,
+    "quietWork": true,
+    "modes": true,
+    "mascot": true
+  },
   "belt": {
     "disabled": [],
     "verdicts": { "git.force-push": "deny" },

@@ -1,6 +1,6 @@
 # Name and logo policy
 
-The code in this repository is open source under the [Apache License 2.0](LICENSE). The license covers the code. It does not grant rights to the project's name or logo (Apache-2.0, section 6). This page says how the name may be used, so that people who see it know what they are getting.
+The code in this repository is open source under the [Apache License 2.0](LICENSE). The license covers the code. It does not grant rights to the project's name, logo or mascot, Mo (Apache-2.0, section 6). This page says how the name may be used, so that people who see it know what they are getting.
 
 ## You may
 
@@ -11,8 +11,8 @@ The code in this repository is open source under the [Apache License 2.0](LICENS
 ## Please do not
 
 - Publish a modified version under this project's name, or under a name that can be confused with it. A fork is welcome; give it its own name and keep the `NOTICE` file, as the license requires.
-- Use the name or the logo in a way that suggests the project endorses, sponsors or maintains your product, service or fork.
-- Use the logo as your own product's logo or icon.
+- Use the name, the logo or Mo in a way that suggests the project endorses, sponsors or maintains your product, service or fork.
+- Use the logo or Mo as your own product's logo, icon or mascot.
 
 ## Questions
 

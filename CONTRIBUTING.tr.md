@@ -31,14 +31,15 @@ npm run check   # tür denetimi, biçim denetimi, derleme, testler
 
 Node.js 22.13 ya da sonrası. `npm test` her şeyi Claude Code olmadan ve ağa çıkmadan çalıştırır. Eklentiyi gerçek bir oturumda denemek için derle ve Claude Code'u `claude --plugin-dir dist/plugin` ile başlat ya da `node dist/cli.mjs try` çalıştır.
 
-| Komut                    | Ne yapar                                                                                        |
-| ------------------------ | ----------------------------------------------------------------------------------------------- |
-| `npm run check`          | bir pull request'in geçmesi gereken her şey: türler, biçim, derleme, testler                    |
-| `npm test`               | testler (önce derle: bazıları `dist/` içindeki programları çalıştırır)                          |
-| `npm run format`         | kodu Prettier ile biçimlendirir                                                                 |
-| `npm run test:installer` | tek satırlık kurulumu, bu derlemenin ürettiği pakete karşı, sende olan her kabukta çalıştırır   |
-| `npm run screenshots`    | bir ekranı değiştirdikten sonra README resimlerini kontrol merkezinin kendisinden yeniden çizer |
-| `npm run verify`         | makinende çalışabilen her test katmanı, her biri tek satır ([docs/testing.md](docs/testing.md)) |
+| Komut                    | Ne yapar                                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------- |
+| `npm run check`          | bir pull request'in geçmesi gereken her şey: türler, biçim, derleme, testler                      |
+| `npm test`               | testler (önce derle: bazıları `dist/` içindeki programları çalıştırır)                            |
+| `npm run format`         | kodu Prettier ile biçimlendirir                                                                   |
+| `npm run test:installer` | tek satırlık kurulumu, bu derlemenin ürettiği pakete karşı, sende olan her kabukta çalıştırır     |
+| `npm run screenshots`    | bir ekranı değiştirdikten sonra README resimlerini kontrol merkezinin kendisinden yeniden çizer   |
+| `npm run mo-art`         | Mo'yu değiştirdikten sonra Mo'nun resimlerini (README, docs/mo.md, sosyal önizleme) yeniden çizer |
+| `npm run verify`         | makinende çalışabilen her test katmanı, her biri tek satır ([docs/testing.md](docs/testing.md))   |
 
 ## Kodun düzeni
 

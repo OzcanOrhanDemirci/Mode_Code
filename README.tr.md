@@ -1,5 +1,9 @@
 <p align="right"><a href="README.md">English</a> · <b>Türkçe</b></p>
 
+<p align="center">
+  <img src="docs/images/mo.svg" width="200" alt="Mode_Code'un maskotu Mo: zırhlı küçük bir robot; dinleniyor, düşünüyor, çalışıyor, bitirdi">
+</p>
+
 <h1 align="center">Mode_Code</h1>
 
 <p align="center">
@@ -16,7 +20,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/control-center-tr.svg" width="872" alt="Programın kendi çizdiği Mode_Code kontrol merkezi: ana ekran, emniyet kemeri kuralları, kemerde sınanan bir komut, kota ve kural şablonları">
+  <img src="docs/images/control-center-tr.svg" width="872" alt="Programın kendi çizdiği Mode_Code kontrol merkezi: ilk ekranda karşılayan Mo, ana ekran, emniyet kemeri kuralları, kemerde sınanan bir komut, kota ve kural şablonları">
 </p>
 
 ## Kurulum
@@ -109,6 +113,7 @@ Projelerine Ayarlar › Projeler ve anahtar kelimeler altından ad ver; geri kal
 - **Anahtar kelimeler.** Mesajını `devam`, `manuel devam`, `sohbet`, `kota 40`, `toparla`, `dur`, `durum` ya da `yardım` ile bitir (İngilizceleri de geçerli), araç Claude'a ne demek istediğini tam olarak söyler. `projem devam kota 40` o projeyi, haftalık kotanın %40'ına kadar, senin seçtiğin mod ve çalışma biçimiyle sürdürür.
 - **Modlar**, kodla uygulanır: 💬 sohbet, 🔍 araştırma, 📐 plan ve 🔨 kod. Sohbet, araştırma ve plan; geçici klasör, çalışma klasörü ya da plan dosyası dışında hiçbir şeyi değiştirmez: bir kabuk komutunun çalıştırdığı her program sınıflandırılır (yalnız okur, adı verilen dosyaları yazar, klasöründe bir şeyi değiştirir, dışarıya uzanır, bilinmiyor) ve sınıflandırılamayan reddedilir, nedeni söylenir. Claude Code'un kendi plan modu 📐 plana köprülenir.
 - **Oturum kontrolleri.** Mod ve çalışma biçimi (manuel, otonom, tam otonom) istemin üstündeki şeritte hep görünür ve tek adımda değişir: şeride tıkla, `/3` (plan) ya da `/7` (otonom) yaz ya da kelimeyi tek başına yaz. `/2 önbelleğe bak` modu değiştirip metni gönderir; `/devam` devam edilebilecek her projeyi ve klasörü listeler; `/kota` bütçe sorar; `/9` akış; `/0` kontrol merkezini yeni sekmede açar; `/00` oturumu sekmesiyle birlikte düzgünce kapatır. Claude çalışırken de anında etkili olurlar: fren. Yeni bir oturum, klasörü en son bıraktığın gibi açılır. Bkz. [docs/modes.md](docs/modes.md#session-controls).
+- **Mo.** O şeridin solundaki küçük robot, projenin maskotu. Claude'un ne yaptığını (düşünüyor, araç kullanıyor, ajanlarla çalışıyor, tam otonomda, seni bekliyor) ve az önce ne olduğunu (bitti, durduruldu, hata verdi, kemer bir çağrıyı engelledi) bir bakışta gösterir; kontrol merkezinde de seni karşılar. Ayarlardan kapanır, "daha az hareket" ile kıpırdamadan durur. Bkz. [docs/mo.md](docs/mo.md).
 - **Akışlar.** Bir görevi `akış` ile bitir; 🔍 araştırma ▶ 📐 plan → ⏸ onay → 🔨 kod olarak yürür. Hiçbir adım atlanmaz ve her birini kod denetler: bulguları var olan kaynaklara dayanan bir rapor, kabul ölçütleri ve doğrulama komutları olan bir plan, bir iletişim kutusunda (ya da Claude Code'un plan penceresinde) senin onayın ve eklenti çalıştırdığında geçen doğrulama komutları. Akışlar duraklatılır, yeni bir oturumda sürer ve kontrol merkezinde görünür. Ayrıntı: [docs/modes.md](docs/modes.md) (İngilizce).
 - **Tam otonom.** Bir görevi `projem tam otonom kota +10` ile bitir; sen yokken sonuna kadar yürür: doğrulama komutları yalnız artan bir plan, her adım için geri dönebileceğin bir commit üzerinde bir kilometre taşı, her birinin bağımsız incelemesi (isteğini ve farkı gören, sohbeti asla görmeyen ayrı bir model çağrısı) ve ancak her doğrulama komutu geçtiğinde sayılan bir bitiş. Hiçbir şey sorulmaz: sana ait olanlar (korunan dallara push, birleştirme, sürüm, kemerin soracakları) birebir komutuyla kaydedilip koşunun raporunda bekler. Yalnız kodun önce ölçtüğü bir sınırın içinde başlar: Windows'ta, Windows'a geri dönüş yolu olmayan bir WSL2 dağıtımı; her yerde, Claude Code'un sıkı biçimdeki kum havuzu. Sen açana kadar kapalı. Ayrıntı: [docs/autonomy.md](docs/autonomy.md) (İngilizce).
 - **Hafıza ve devir notları.** `mode-code memory setup`, Claude Code'un hafızasının nerede duracağını sorar: bu bilgisayarda, GitHub'ında özel bir depoda ya da ikisinde. İstersen git'i ve GitHub CLI'ı kurar, giriş yaptırır, özel depoyu adlandırıp açar, var olan hafızanı yanında getirir, her değişikliği gösterip bir kez sorar. Bundan sonra hafıza her oturum başında çekilir, onu değiştiren bir turdan sonra gönderilir; sır içeriyor gibi görünen dosya bekletilir. `devir` (ya da `handoff`) yazınca Claude o hafızaya bir devir notu yazar; notlar sıkıştırmadan önce ve oturum biterken de yazılır, sonraki oturum (bu bilgisayarda ya da başkasında) oradan sürer. Bir süre yokken, sabah raporu neler olduğunu söyler. Ayrıntı: [docs/memory.md](docs/memory.md) (İngilizce).

@@ -38,6 +38,7 @@ Node.js 22.13 or newer. `npm test` runs everything without Claude Code and witho
 | `npm run format`         | formats the code with Prettier                                                                    |
 | `npm run test:installer` | the one-line installer, run against the package this build makes, in every shell you have         |
 | `npm run screenshots`    | redraws the README's pictures from the control center itself, after you change a screen           |
+| `npm run mo-art`         | redraws Mo's pictures (the README, docs/mo.md, the social preview), after you change Mo           |
 | `npm run verify`         | every test layer that can run on your machine, one line each ([docs/testing.md](docs/testing.md)) |
 
 ## How the code is organized

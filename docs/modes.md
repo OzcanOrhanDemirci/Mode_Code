@@ -16,7 +16,7 @@ Chat, research and plan are the **restricted modes**. The safety belt and the pr
 
 "Outward actions" are tool calls that act on something outside the machine: MCP tools whose names say they send, create, update, delete, publish or post, and Claude Code tools that create worktrees or schedule work.
 
-The mode and the way of working are always in view: on the strip above the prompt, and beside Claude Code's own mode labels under it (💬 chat, 🔍 research, 📐 plan, 🔨 code, free; manual, autonomous, full auto), with the flow's progress when a flow runs. They are changed from the keyboard, the strip or a phone alike: see [Session controls](#session-controls).
+The mode and the way of working are always in view: on the strip above the prompt, and beside Claude Code's own mode labels under it (💬 chat, 🔍 research, 📐 plan, 🔨 code, free; manual, autonomous, full auto), with the flow's progress when a flow runs. They are changed from the keyboard, the strip or a phone alike: see [Session controls](#session-controls). At the strip's left sits [Mo](mo.md), the mascot, who shows at a glance what Claude is doing.
 
 ### How a shell command is judged in a restricted mode
 

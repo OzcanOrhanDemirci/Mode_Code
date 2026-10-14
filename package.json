@@ -52,6 +52,7 @@
     "test:package": "node scripts/test-package.mjs",
     "test:installer": "node scripts/test-installer.mjs",
     "screenshots": "node --import tsx scripts/screenshots.ts",
+    "mo-art": "node --import tsx scripts/mo-art.ts",
     "test:rename": "node scripts/rename-rehearsal.mjs",
     "rename": "node --import tsx scripts/rename.ts",
     "test:mutation": "node scripts/mutate.mjs",

@@ -18,14 +18,14 @@
 
 ## Layers
 
-| Layer                  | Where it runs                                          | Source               | Built to                        |
-| ---------------------- | ------------------------------------------------------ | -------------------- | ------------------------------- |
-| Core                   | everywhere; pure TypeScript, no Node APIs              | `src/core`           | bundled into the three programs |
-| Mod (plugin)           | inside Claude Code, through its `$` interface; no Node | `src/mod`            | `dist/plugin/hooks/register.js` |
-| Hook                   | a short Node process per event                         | `src/hook`           | `dist/hook.mjs`                 |
-| Node adapters          | the hook and the CLI                                   | `src/node`           |                                 |
-| App services           | the CLI and the control center                         | `src/app`            |                                 |
-| CLI and control center | your terminal (Ink + React)                            | `src/cli`, `src/tui` | `dist/cli.mjs`                  |
+| Layer                  | Where it runs                                          | Source               | Built to                                       |
+| ---------------------- | ------------------------------------------------------ | -------------------- | ---------------------------------------------- |
+| Core                   | everywhere; pure TypeScript, no Node APIs              | `src/core`           | bundled into the three programs                |
+| Mod (plugin)           | inside Claude Code, through its `$` interface; no Node | `src/mod`            | `dist/plugin/hooks/register.js`, `mo-strip.js` |
+| Hook                   | a short Node process per event                         | `src/hook`           | `dist/hook.mjs`                                |
+| Node adapters          | the hook and the CLI                                   | `src/node`           |                                                |
+| App services           | the CLI and the control center                         | `src/app`            |                                                |
+| CLI and control center | your terminal (Ink + React)                            | `src/cli`, `src/tui` | `dist/cli.mjs`                                 |
 
 The core holds every decision: the shell parsers and the belt, keywords, quota assessment, footer lines, settings parsing, session state transitions, messages in both languages. The mod and the hook only adapt it to their environment, so they decide identically.
 
@@ -67,6 +67,7 @@ Every runtime file has exactly one writer, so no two processes race on a file; w
 - **A flow's record has one writer.** Only the plugin writes `flows/<id>/`, which the belt keeps the model from writing; the model finishes a step through a tool the plugin registers (`mcp__mode-code__flow_step`, served in-process), and the plugin checks the step before the record moves. The verification commands run through Claude Code's own shell tool, so the belt and the permission rules see them as any command.
 - **Claude Code's permission mode comes from the hooks.** Claude Code hands `permission_mode` to settings hooks, not to plugins: the safety-net hook records it in its own state file, and the plugin reads it, together with the plan-mode notes Claude Code adds to the conversation. The order matters: Claude Code runs the plugin's prompt hook before the settings hooks' `UserPromptSubmit`, and `SessionStart` carries no permission mode (measured, Claude Code 2.1.296), so what the hook records with a prompt is there for the plugin only from that prompt's first tool call on. A full-autonomy start therefore measures the mode at the run's first step, against the time the hook recorded the prompt.
 - **Whether a session is still open is asked of its process.** A session marks itself ended first thing when it ends, but a window shut by its close button ends it without that, so its record alone would read as working for the next 15 minutes. The safety-net hook is Claude Code's child (exec form), so its parent is the session's own process: it records that process and its program when the session starts. Whoever counts another session as working (the same-folder warning, taking over a flow or a run, Home) looks the process up first: `tasklist` by its full path on Windows, `ps` elsewhere. Windows hands a freed process number out again soon, so there the program must match too. A lookup that cannot tell keeps the session counted: a warning too many, never one too few.
+- **Mo moves on Claude Code's clock, not the hooks'.** The hooks only say what they know (calls running, a question open, when something last happened) in one value of the session's state; a surface module (`src/mod/mo-strip.ts`) that Claude Code draws on its own frame clock works out the look on every tick and draws it. So an animation costs no hook calls, what just happened gives way by itself, and nothing Mo does can stand in the way of a call: its bookkeeping in the tool hook catches every failure. See [mo.md](mo.md).
 - **Tokens counted per API message.** Transcripts repeat a message's usage on each content block; the index deduplicates by message id.
 - **No runtime dependencies.** Each program is one bundled file; bundled third-party code is listed in `THIRD_PARTY_NOTICES.md`, and the build fails on a license outside the allowed list.
 

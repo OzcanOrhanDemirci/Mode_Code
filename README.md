@@ -1,5 +1,9 @@
 <p align="right"><b>English</b> · <a href="README.tr.md">Türkçe</a></p>
 
+<p align="center">
+  <img src="docs/images/mo.svg" width="200" alt="Mo, the Mode_Code mascot: a small armored robot, resting, thinking, at work, done">
+</p>
+
 <h1 align="center">Mode_Code</h1>
 
 <p align="center">
@@ -16,7 +20,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/control-center.svg" width="872" alt="The Mode_Code control center, drawn by the program itself: home, the safety belt's rules, a command tested against the belt, quota and rule templates">
+  <img src="docs/images/control-center.svg" width="872" alt="The Mode_Code control center, drawn by the program itself: Mo greeting on the first screen, home, the safety belt's rules, a command tested against the belt, quota and rule templates">
 </p>
 
 ## Install
@@ -109,6 +113,7 @@ Name your projects under Settings › Projects and keywords; everything else wor
 - **Keywords.** End a message with `continue`, `manual continue`, `chat`, `quota 40`, `wrap up`, `stop`, `status` or `help` (or their Turkish forms: `devam`, `kota 40`, `toparla`, `dur` …) and the tool tells Claude exactly what you mean. `myproject continue quota 40` picks that project up within 40% of your weekly quota, in the mode and the way of working you chose.
 - **Modes**, enforced by code: 💬 chat, 🔍 research, 📐 plan and 🔨 code. Chat, research and plan change nothing outside a temporary folder, the work folder or the plan file: every program a shell command runs is placed (reads, writes named files, changes around its folder, changes outside, unknown) and what cannot be placed is refused, with the reason. Claude Code's own plan mode is bridged to 📐 plan.
 - **Session controls.** The mode and the way of working (manual, autonomous, full auto) are always in view on a strip above the prompt, and change in one step: click the strip, type `/3` (plan) or `/7` (autonomous), or type the word alone. `/2 look into the cache` switches and sends the text; `/devam` lists every project and folder to continue; `/kota` asks for a budget; `/9` a flow; `/0` opens the control center in a new tab; `/00` closes the session cleanly, its tab too. They act at once, while Claude works too: the brake. A new session starts as you last left the folder. See [docs/modes.md](docs/modes.md#session-controls).
+- **Mo.** The small robot at the left of that strip, the project's mascot. It shows at a glance what Claude is doing (thinking, at a tool, with agents, in full autonomy, waiting for you) and what just happened (done, stopped, failed, a call the belt refused), and it greets you in the control center. Off in the settings, still with reduced motion. See [docs/mo.md](docs/mo.md).
 - **Flows.** End a task with `flow` and it runs as 🔍 research ▶ 📐 plan → ⏸ approval → 🔨 code. No step is skipped, and code checks each one: a report whose findings cite sources that exist, a plan with acceptance criteria and verification commands, your approval in a dialog (or Claude Code's plan dialog), and the verification commands passing when the plugin runs them. Flows pause, resume in a new session and show in the control center. See [docs/modes.md](docs/modes.md).
 - **Full autonomy.** End a task with `myproject full auto quota +10` and it runs to its end while you are away: a plan whose verification commands only grow, a milestone per step on a commit you can return to, an independent review of each one (a separate model call that sees your request and the diff, never the conversation), and a finish that counts only when every verification command passes. Nothing is asked: what needs you (pushes to protected branches, merges, releases, what the belt would ask) waits, recorded with its exact command, in the run's report. It starts only behind a boundary code measures first: on Windows, a WSL2 distribution with no road back to Windows; everywhere, Claude Code's sandbox in its strict form. Off until you turn it on. See [docs/autonomy.md](docs/autonomy.md).
 - **Memory and handoffs.** `mode-code memory setup` asks where Claude Code's memory should live: on this computer, in a private repository on your GitHub, or both. It installs git and the GitHub CLI if you want, signs you in, names and creates the private repository, brings the memory you already have along, shows every change and asks once. From then on the memory is pulled when a session starts and sent after a turn that changed it, with anything that looks like a secret held back. Type `handoff` (or `devir`) and Claude writes a handoff note into that memory; notes are also written before a compaction and when a session ends, and the next session, on this computer or another, goes on from there. After a while away, a morning report says what happened. See [docs/memory.md](docs/memory.md).
