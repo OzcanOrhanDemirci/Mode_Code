@@ -273,6 +273,13 @@ async function main(argv) {
     say(p.ok, p.ok ? 'private vulnerability reporting on' : `private vulnerability reporting failed: ${p.err}`);
   }
 
+  // The runs made while the repository was private stopped for billing, not for the code; the README's
+  // badge shows the newest run of main, so a fresh one is started the moment the repository is public.
+  if (goPublic && !isPrivate) {
+    const r = gh(['workflow', 'run', 'ci.yml', '--repo', name, '--ref', repo.json.default_branch ?? 'main']);
+    say(r.ok, r.ok ? 'CI started on main, so the badge shows the code as it is' : `starting CI failed: ${r.err}`);
+  }
+
   if (!apply) return pending ? 2 : 0;
   return steps.includes(false) ? 1 : 0;
 }
