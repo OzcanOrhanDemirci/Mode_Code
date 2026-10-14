@@ -342,7 +342,7 @@ export function mark1(state: MoState, t: number, backdrop: Backdrop = 'dark'): P
 
   switch (state) {
     case 'think':
-      for (let i = 0; i < 3; i++) fx(18 + i * 2, 1, VIOLET, Math.floor(((t / 1.2) % 1) * 3) === i ? 1 : 0.32);
+      for (let i = 0; i < 3; i++) fx(17 + i * 2, 1, VIOLET, Math.floor(((t / 1.2) % 1) * 3) === i ? 1 : 0.32);
       break;
     case 'auto': {
       // A jet behind the face: white at the face, cooling and flickering away from it.

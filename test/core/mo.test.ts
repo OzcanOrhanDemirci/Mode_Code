@@ -60,6 +60,24 @@ test('in the strip every state looks unlike every other, in both sizes (the pers
     }
 });
 
+test("thinking, three dots light in turn beside Mo in both sizes, the last one inside the mark's 22 columns", () => {
+  const sum = (c: Rgb | null | undefined) => (c ? c[0] + c[1] + c[2] : -1);
+  for (const [mark, y] of [
+    [mark1, 1],
+    [mark2, 1],
+  ] as const)
+    for (const [t, lit] of [
+      [0.1, 0],
+      [0.5, 1],
+      [0.9, 2],
+    ] as const) {
+      const dots = [17, 19, 21].map((x) => mark('think', t).px[y]![x]);
+      assert.ok(dots.every(Boolean), `${mark.name} at ${t}: a dot is missing`);
+      const brightest = dots.map(sum).indexOf(Math.max(...dots.map(sum)));
+      assert.equal(brightest, lit, `${mark.name} at ${t}: dot ${lit} should be the lit one`);
+    }
+});
+
 test('the light of effects fades into the background: a light terminal draws the shield differently, the body the same', () => {
   const dark = frame('block', 1.6, 'dark');
   const light = frame('block', 1.6, 'light');
