@@ -438,10 +438,10 @@ export function choicesText(choices: readonly ContinueChoice[], lang: Lang, shor
 /**
  * The mode and way of working the person last used in `cwd`, from the other sessions' records, newest
  * first; null when no session worked there. A full-autonomy run is never taken over: it starts only when
- * asked for, so its way of working comes back as autonomous.
+ * asked for, so its way of working comes back as the one before the run (autonomous when that is unknown).
  */
 export function lastChoice(
-  states: readonly Pick<ModSessionState, 'sessionId' | 'cwd' | 'mode' | 'interaction' | 'aliveAt'>[],
+  states: readonly (Pick<ModSessionState, 'sessionId' | 'cwd' | 'mode' | 'interaction' | 'aliveAt'> & Partial<Pick<ModSessionState, 'interactionBefore'>>)[],
   cwd: string,
   platform: Platform,
   self: string,
@@ -449,5 +449,6 @@ export function lastChoice(
   const here = pathKey(cwd, platform);
   const last = states.filter((s) => s.sessionId !== self && s.cwd && pathKey(s.cwd, platform) === here).sort((a, b) => b.aliveAt - a.aliveAt)[0];
   if (!last) return null;
-  return { mode: last.mode, interaction: last.interaction === 'full' ? 'autonomous' : last.interaction };
+  // A run never comes back by itself: its session is taken up as it was before the run (autonomous if unknown).
+  return { mode: last.mode, interaction: last.interaction === 'full' ? (last.interactionBefore ?? 'autonomous') : last.interaction };
 }

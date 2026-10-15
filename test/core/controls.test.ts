@@ -310,7 +310,7 @@ test('the list /devam prints: numbered, registered ones starred, the folder and 
   assert.match(text, /\/devam 3 kota 29/);
 });
 
-test("the folder's last choice: the newest other session there; a run comes back as autonomous", () => {
+test("the folder's last choice: the newest other session there; a run comes back as the way of working before it", () => {
   const s = (id: string, cwd: string | undefined, at: number, mode: any, interaction: any) => ({ sessionId: id, cwd, aliveAt: at, mode, interaction });
   const states = [
     s('a', 'C:/dev/app', 10, 'plan', 'autonomous'),
@@ -322,6 +322,11 @@ test("the folder's last choice: the newest other session there; a run comes back
   assert.deepEqual(lastChoice(states, 'C:/dev/app', 'win32', 'self'), { mode: 'code', interaction: 'autonomous' });
   assert.equal(lastChoice(states, 'C:/dev/app', 'linux', 'self')?.mode, 'plan', 'case matters on Linux');
   assert.equal(lastChoice(states, 'C:/dev/none', 'win32', 'self'), null);
+  // A run gives back the way of working it took over: the folder is taken up as it was before the run.
+  assert.deepEqual(lastChoice([{ ...s('e', 'C:/dev/app', 40, 'code', 'full'), interactionBefore: 'manual' as const }], 'C:/dev/app', 'win32', 'self'), {
+    mode: 'code',
+    interaction: 'manual',
+  });
 });
 
 test("a row's width: a title, its items a space apart, segments two apart", () => {

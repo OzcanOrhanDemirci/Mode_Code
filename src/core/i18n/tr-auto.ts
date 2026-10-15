@@ -208,7 +208,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.guard.fenceRead': '🤖 Tam otonom: koşu sırasında kimlik bilgisi dosyaları okunmaz ({what}).',
   'auto.guard.memory': '🤖 Tam otonom: koşu sırasında hafıza klasörlerine yazılmaz. Notu {notes} dosyasına koy; kişi rapordan karar verir.',
   'auto.guard.escape': '🤖 Tam otonom: komutlar yalnız kum havuzunda çalışır; dangerouslyDisableSandbox reddedilir.',
-  'auto.guard.stalled': '🤖 Tam otonom: ölçülebilir ilerleme yok; koşu duraklatıldı. Yapılanları raporla ve dur.',
+  'auto.guard.stalled': '🤖 Tam otonom: koşu duraklatıldı ({reason}). Yapılanları raporla ve dur.',
   'auto.guard.heldForStart': '🤖 Tam otonom: {tool} bekletildi; önce son başlangıç denetimleri çalıştı. Hâlâ gerekiyorsa yeniden çağır.',
 
   // ── durma ──

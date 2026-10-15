@@ -206,7 +206,7 @@ export const enAuto = {
   'auto.guard.fenceRead': '🤖 Full autonomy: credential files are not read during a run ({what}).',
   'auto.guard.memory': '🤖 Full autonomy: memory folders are not written during a run. Put the note in {notes}; the person decides from the report.',
   'auto.guard.escape': '🤖 Full autonomy: commands run inside the sandbox only; dangerouslyDisableSandbox is refused.',
-  'auto.guard.stalled': '🤖 Full autonomy: no measurable progress; the run is paused. Report what was done and stop.',
+  'auto.guard.stalled': '🤖 Full autonomy: the run is paused ({reason}). Report what was done and stop.',
   'auto.guard.heldForStart': '🤖 Full autonomy: {tool} was held; the last start checks ran first. Call it again if it is still needed.',
 
   // ── stopping ──

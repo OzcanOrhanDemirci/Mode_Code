@@ -5,6 +5,7 @@ import {
   acceptMilestone,
   acceptPlan,
   activeTime,
+  limitTime,
   addBlocker,
   addDeferred,
   cancelRun,
@@ -226,6 +227,19 @@ test('pausing stops the clock, resuming starts it again in the new session, and 
   assert.equal((addBlocker(p, 'other', 'x', T) as { error: string }).error, 'paused');
   assert.equal((acceptMilestone(p, ms(1, 'b'), T) as { error: string }).error, 'paused');
   assert.equal(ok(cancelRun(p, T + 400 * MIN)).status, 'canceled');
+});
+
+test('resumed after its time ran out, a run gets a fresh time limit; any other resume keeps the limit it had', () => {
+  // Before: "continue" after a time-limit pause resumed a run that paused again at its next call.
+  const r = working();
+  const timedOut = ok(pauseRun(r, 'timeout', T + 120 * MIN));
+  const back = ok(resumeRun(timedOut, 's2', T + 200 * MIN));
+  assert.deepEqual([back.limitFrom, limitTime(back, T + 210 * MIN), activeTime(back, T + 210 * MIN)], [120 * MIN, 10 * MIN, 130 * MIN]);
+  const quota = ok(pauseRun(back, 'quota', T + 230 * MIN));
+  const again = ok(resumeRun(quota, 's3', T + 300 * MIN));
+  assert.equal(again.limitFrom, 120 * MIN, 'a pause for another reason keeps the limit running');
+  assert.equal(limitTime(again, T + 300 * MIN), 30 * MIN);
+  assert.equal(start().limitFrom, 0);
 });
 
 test('the heartbeat is written at most once a minute and is not progress', () => {

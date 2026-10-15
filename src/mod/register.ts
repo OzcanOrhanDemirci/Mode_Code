@@ -167,6 +167,7 @@ import {
   acceptMilestone,
   acceptPlan,
   activeTime,
+  limitTime,
   addBlocker,
   addDeferred,
   cancelRun,
@@ -290,6 +291,8 @@ interface Ctx {
   heldPress: { notes: Partial<Record<'mode' | 'style' | 'flow', string[]>>; gen: number };
   /** Bypass's ten-minute warning was given (once per bypass). */
   bypassWarned: boolean;
+  /** When the settings file was last read (refreshConfig). */
+  configReadAt: number;
   /** A folder chosen with `/devam` that is not a registered project: the "continue" just submitted is about it. */
   pendingContinue: { key: string; folder: string; label: string } | null;
   /** The text this plugin last sent as the person's (sendAsPerson): already applied, so not again if it comes back. */
@@ -515,6 +518,7 @@ async function load($: $): Promise<Ctx> {
     armed: null,
     heldPress: { notes: {}, gen: 0 },
     bypassWarned: false,
+    configReadAt: 0,
     pendingContinue: null,
     selfSent: null,
     turnId: null,
@@ -614,6 +618,7 @@ async function sameFolderNotes($: $, c: Ctx): Promise<string[]> {
 
 /** Settings changed in the control center take effect at the next prompt, without restarting the session. */
 async function refreshConfig($: $, c: Ctx): Promise<void> {
+  c.configReadAt = await $.clock.now();
   const text = await readFile($, c.layout.config);
   const { config: local } = parseConfig(text);
   const merged = await settingsInEffect(modSyncFs($), local, c.layout.syncIgnored);
@@ -2103,7 +2108,9 @@ async function autoGuard($: $, c: Ctx, tool: string, input: Record<string, unkno
   if (!r) return null;
   const now = await $.clock.now();
   if (r.status === 'active') {
-    if (activeTime(r, now) >= c.config.autonomy.maxHours * 3_600_000) await pauseAuto($, c, 'timeout');
+    // Turned off in the settings while it ran: it pauses at this step, as docs/autonomy.md says.
+    if (!c.config.autonomy.enabled) await pauseAuto($, c, 'disabled');
+    else if (limitTime(r, now) >= c.config.autonomy.maxHours * 3_600_000) await pauseAuto($, c, 'timeout');
     else if (now - lastProgressAt(r) >= 2 * c.config.autonomy.stallMinutes * 60_000) await pauseAuto($, c, 'stalled', 'no milestone');
   }
   const run = c.run;
@@ -2112,7 +2119,8 @@ async function autoGuard($: $, c: Ctx, tool: string, input: Record<string, unkno
     // A run paused by code (stalled, time limit) reports and stops: nothing more changes until the person resumes it.
     if (run.pause && ['stalled', 'timeout', 'disabled', 'gate'].includes(run.pause.reason) && isBeltTool(tool)) {
       const acts = classifyTurn([{ name: tool, input }], classifyEnvFor(c, cwd));
-      if (acts.files + acts.settings + acts.shell + acts.external > 0) return { deny: tIn(c.lang, 'auto.guard.stalled') };
+      if (acts.files + acts.settings + acts.shell + acts.external > 0)
+        return { deny: tIn(c.lang, 'auto.guard.stalled', { reason: tIn(c.lang, `auto.pause.${run.pause.reason}` as MessageKey) }) };
     }
     return null;
   }
@@ -2525,6 +2533,9 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   if (c.pendingStart && e.agentId === undefined && tool !== `mcp__${PLUGIN_NAME}__${AUTO_TOOL.name}`)
     return { deny: `${tIn(c.lang, 'auto.guard.heldForStart', { tool })}\n\n${await completeStart($, c)}` };
 
+  // The settings, read again at most once a minute between prompts: full autonomy or bypass turned off in the
+  // control center takes hold during a long turn too, not only at the next prompt.
+  if ((c.state.bypass || c.run) && (await $.clock.now()) - c.configReadAt >= 60_000) await refreshConfig($, c);
   await bypassClock($, c);
   const ctx = await beltContextFor($, c);
   const d = await evaluateToolCall(tool, input, ctx);

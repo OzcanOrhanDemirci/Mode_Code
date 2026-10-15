@@ -332,7 +332,7 @@ test('a stop the safety-net hook let through for no progress pauses the run and 
   expect(w.notes.some((n) => /paused \(no measurable progress\)/.test(n))).toBe(true);
   // Paused by code: nothing more changes until the person resumes it.
   const edit: any = await $.tool.call({ tool: 'Write', file_path: `${PROJECT}/a.ts`, content: 'x' } as any);
-  expect(edit.deny).toMatch(/no measurable progress; the run is paused/);
+  expect(edit.deny).toMatch(/the run is paused \(no measurable progress\)/);
   // Resumed by the person: the plugin's own probe is a start check and passes the paused run's guard.
   const back = await begin($, 'app continue');
   expect(back.start).toMatch(/^The run resumed at its plan phase: every start check passed again\./);
@@ -419,4 +419,16 @@ test('a plan whose verification would wait for the person is refused: it could n
   const r: any = await $.tool.call(auto('plan'));
   expect(String(r.result)).toMatch(/The verification command `git push origin main` could not run during the run \(pushes to the protected branch main\)/);
   expect(run().phase).toBe('plan');
+});
+
+test('turned off in the settings while a run works, the run pauses at its next step and says why', async ($, on) => {
+  // docs/autonomy.md said so; nothing did it before 1.1.0.
+  const { w, run } = ready(on);
+  await begin($, 'Add rate limiting. app full auto quota +10');
+  expect(run().status).toBe('active');
+  w.write(`${DATA}/config.json`, JSON.stringify({ version: 1, autonomy: { enabled: false }, projects: [{ id: 'app', names: ['app'], path: PROJECT }] }));
+  await w.clock.advance(61_000);
+  const call: any = await $.tool.call({ tool: 'Write', file_path: `${PROJECT}/src/limit.ts`, content: 'x', tool_use_id: 'toolu_w' } as any);
+  expect([run().status, run().pause.reason]).toEqual(['paused', 'disabled']);
+  expect(String(call.deny)).toBe('🤖 Full autonomy: the run is paused (full autonomy turned off). Report what was done and stop.');
 });

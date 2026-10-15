@@ -26,6 +26,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 - Repositories cloned over SSH (`git@github.com:me/app.git`) escaped the pull-request-only and one-branch rules: the remote kept its colon and matched no `github.com/me/app` rule. Every spelling of a remote is now the same repository, on both sides of the comparison.
 - Package runners in PowerShell (`npx`, `pnpm dlx`, `bunx`) were not read as the program they run, so `npx firebase database:remove` in PowerShell went unchecked; in bash it was.
+- Full autonomy turned off while a run worked did not pause it, though the documentation said it would; it pauses at its next step now, and the settings are read again at most once a minute during a run or bypass, not only at the next prompt.
+- A run resumed after its time limit paused again at its very next step: the limit kept counting from the start. Resuming after a time-limit pause starts a fresh limit; the running time itself goes on counting.
+- A run paused by code said "no measurable progress" whatever the reason; it names the reason (time limit, turned off, …).
+- After a full-autonomy run, the next session in that folder started autonomous even when the person had worked manually before it; it starts as the way of working before the run.
 - Two messages named the way to let a full-autonomy run go "full auto flow cancel" ("tam otonom akış iptal"); the keyword is "full auto cancel" ("tam otonom iptal").
 
 - Chat, research and plan mode no longer refuse reading commands that ask about machine-wide packages (`npm root -g`, `npm ls -g`, `npm outdated -g`): `-g` counted as a machine-wide install before the reading subcommand was looked at. They also run this tool's own commands that only print (`mode-code status`, `mode-code belt rules`, `mode-code memory handoff`, `mode-code config get` …); `mode-code` on its own, `doctor`, and the commands that change settings or the session index are still refused there. `pnpm store prune` is no longer taken for a read.
