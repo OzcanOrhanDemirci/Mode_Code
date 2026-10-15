@@ -74,7 +74,7 @@ test(
         first?.hookSpecificOutput?.additionalContext ?? '',
         /A handoff note for this project is waiting, .* on MacBook .* Next: "Ship the release\."/,
       );
-      assert.match(first?.systemMessage ?? '', /A setting from another computer waits for you; it would lower a protection here: belt\.verdicts/);
+      assert.match(first?.systemMessage ?? '', /Another computer's setting waits for you; it lowers a protection: belt\.verdicts/);
       assert.ok(!/belt\.verdicts/.test(first?.hookSpecificOutput?.additionalContext ?? ''), "what waits is the person's, not Claude's");
       assert.ok(existsSync(join(s.shared, 'machines', 'pc-0000', 'settings.json')));
       assert.equal(JSON.parse(readFileSync(join(s.home, 'state', 'sync.hook.json'), 'utf8')).trigger, 'start');

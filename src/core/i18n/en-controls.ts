@@ -39,7 +39,7 @@ export const enControls = {
   'ctl.bypass.yes': 'Turn on',
   'ctl.bypass.no': 'Cancel',
   'ctl.bypass.started': 'Bypass on until {until} ({hours} h). /bypass, or ⚡ on the strip, turns it off.',
-  'bypass.summary': 'Bypass ended: {count} calls went through without asking in {minutes} min. Each one: control center › Automation › Done without asking.',
+  'bypass.summary': 'Bypass ended: {count} calls without asking in {minutes} min. Each one: Automation › Done without asking.',
   'bypass.toast.soon': 'Bypass ends in {minutes} min.',
   // ── descriptions in the slash-command menu ──
   'ctl.desc.mode.chat': 'Mode: 💬 chat. Talk only: the project and the memory do not change',
@@ -67,10 +67,11 @@ export const enControls = {
   'ctl.flow.ask': 'Which flow? Its steps run in this order and each is checked by code.',
   'ctl.flow.armed': 'Flow ready: {steps}. Your next message is its task.',
   'ctl.flow.closed': 'Flow closed. Its record stays under Projects › Flows; 6 starts a new one.',
-  'ctl.flow.notResumed': 'The paused flow cannot go on here: another session holds it. Now: {controls}',
+  'ctl.flow.notResumed': 'Another session holds the paused flow. Now: {controls}',
   'ctl.flow.disarmed': 'Flow put away: your next message is an ordinary one.',
   // ── full autonomy ──
   'ctl.auto.refused': 'Full autonomy cannot start here:',
+  'ctl.auto.refusedToast': 'Full autonomy cannot start: {checks}. Type {cmd} to see why.',
   'ctl.auto.budgetAsk': 'Full autonomy needs a weekly budget. The week is at {week} now. How much may it use?',
   'ctl.auto.confirm': 'Start full autonomy with a budget of {budget}? It works to the end without asking; what needs you waits in its report.',
   'ctl.auto.start': 'Start',
@@ -94,10 +95,10 @@ export const enControls = {
   'ctl.continue.started': 'Continuing {label}',
   // ── closing ──
   'ctl.close.going': 'The session is closing: the handoff note and the sync first, then Claude Code exits and its tab closes.',
-  'ctl.close.goingNoTab': 'The session is closing: the handoff note and the sync first, then Claude Code exits. The tab stays open; close it yourself.',
+  'ctl.close.goingNoTab': 'The session is closing: the handoff note and the sync first, then Claude Code exits. Close the tab yourself.',
   'ctl.close.busy': 'Claude is working right now. Stop it and close the session?',
   'ctl.close.yes': 'Close',
   'ctl.close.no': 'Cancel',
   'ctl.close.already': 'The session is already closing.',
-  'ctl.close.failed': 'Claude Code did not exit ({reason}). /exit closes it.',
+  'ctl.close.failed': 'Claude Code did not exit; /exit closes it. ({reason})',
 } as const;

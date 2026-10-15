@@ -41,7 +41,7 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.bypass.yes': 'Aç',
   'ctl.bypass.no': 'Vazgeç',
   'ctl.bypass.started': 'Bypass {until} saatine kadar açık ({hours} saat). /bypass ya da şeritteki ⚡ kapatır.',
-  'bypass.summary': 'Bypass kapandı: {minutes} dakikada {count} çağrı sorulmadan geçti. Tek tek: kontrol merkezi › Otomasyon › İzinsiz yapılanlar.',
+  'bypass.summary': 'Bypass kapandı: {minutes} dakikada {count} çağrı sorulmadan geçti. Liste: Otomasyon › İzinsiz yapılanlar.',
   'bypass.toast.soon': 'Bypass {minutes} dakika sonra kapanacak.',
   // ── / menüsündeki açıklamalar ──
   'ctl.desc.mode.chat': 'Mod: 💬 sohbet. Yalnız konuşma: proje ve hafıza değişmez',
@@ -69,10 +69,11 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.flow.ask': 'Hangi akış? Adımlar bu sırayla koşar ve her birini kod denetler.',
   'ctl.flow.armed': 'Akış hazır: {steps}. Sonraki mesajın görevi olacak.',
   'ctl.flow.closed': 'Akış kapandı. Kaydı Projeler › Akışlar altında duruyor; 6 yenisini başlatır.',
-  'ctl.flow.notResumed': 'Duraklatılmış akış burada sürdürülemiyor: başka bir oturum tutuyor. Şimdi: {controls}',
+  'ctl.flow.notResumed': 'Duraklatılmış akışı başka bir oturum tutuyor. Şimdi: {controls}',
   'ctl.flow.disarmed': 'Akıştan vazgeçildi: bir sonraki mesajın sıradan bir mesaj.',
   // ── tam otonom ──
   'ctl.auto.refused': 'Tam otonom burada başlayamaz:',
+  'ctl.auto.refusedToast': 'Tam otonom başlayamaz: {checks}. Nedenini görmek için {cmd} yaz.',
   'ctl.auto.budgetAsk': 'Tam otonom bir haftalık bütçe ister. Hafta şu an {week}. Ne kadarını kullanabilir?',
   'ctl.auto.confirm': '{budget} bütçeyle tam otonom başlasın mı? Hiç sormadan sonuna kadar çalışır; seni bekleyen işler raporunda kalır.',
   'ctl.auto.start': 'Başlat',
@@ -96,10 +97,10 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.continue.started': '{label} ile devam',
   // ── kapatma ──
   'ctl.close.going': 'Oturum kapanıyor: önce devir notu ve eşitleme, sonra Claude Code çıkar ve sekmesi kapanır.',
-  'ctl.close.goingNoTab': 'Oturum kapanıyor: önce devir notu ve eşitleme, sonra Claude Code çıkar. Sekme açık kalır; onu sen kapatırsın.',
+  'ctl.close.goingNoTab': 'Oturum kapanıyor: önce devir notu ve eşitleme, sonra Claude Code çıkar. Sekmeyi sen kapatırsın.',
   'ctl.close.busy': 'Claude şu an çalışıyor. Yarıda kesip oturumu kapatayım mı?',
   'ctl.close.yes': 'Kapat',
   'ctl.close.no': 'Vazgeç',
   'ctl.close.already': 'Oturum zaten kapanıyor.',
-  'ctl.close.failed': 'Claude Code kapanmadı ({reason}). /exit yazarak kapatabilirsin.',
+  'ctl.close.failed': 'Claude Code kapanmadı; /exit yazarak kapatabilirsin. ({reason})',
 };

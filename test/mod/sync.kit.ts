@@ -41,7 +41,7 @@ test("the session's start writes this computer's files; the first prompt waits f
   expect(w.read(`${SHARED}/machines/pc-0000/settings.json`)).toMatch(/"modules.keywords"/);
   expect(w.read(`${SHARED}/machines/pc-0000/events/2026-10/old-session.mod.jsonl`)).toMatch(/"keyword"/);
   expect(w.json(`${DATA}/state/sync.mod.json`).trigger).toBe('start');
-  expect(w.toasts.filter((t) => /A setting from another computer waits for you; it would lower a protection here: belt\.verdicts/.test(t)).length).toBe(1);
+  expect(w.toasts.filter((t) => /Another computer's setting waits for you; it lowers a protection: belt\.verdicts/.test(t)).length).toBe(1);
   expect((r.context ?? []).join('\n')).not.toMatch(/belt\.verdicts/);
   // The keywords the Mac switched off are off here too: a handoff keyword asks for nothing. What waits is said once.
   const second: any = await $.prompt.submit(typed('Bugünlük bu kadar. devir'));

@@ -106,7 +106,7 @@ test('on the strip: ⚡ once turned on, red and unfilled while on with the calls
   await ui.press({ key: 'strip-bypass' });
   await ui.unmount();
   expect(w.modState().bypass).toBe(null);
-  expect(w.toasts.at(-1)).toBe('Bypass ended: 1 calls went through without asking in 1 min. Each one: control center › Automation › Done without asking.');
+  expect(w.toasts.at(-1)).toBe('Bypass ended: 1 calls without asking in 1 min. Each one: Automation › Done without asking.');
 });
 
 test('a reminder with each prompt; ten minutes before its time a warning; at its time it ends by itself and says so', async ($, on) => {
@@ -121,7 +121,7 @@ test('a reminder with each prompt; ten minutes before its time a warning; at its
   await w.clock.advance(10 * 60_000);
   await settle();
   expect(w.modState().bypass).toBe(null);
-  expect(w.toasts.at(-1)).toMatch(/^Bypass ended: 0 calls went through without asking in 120 min\./);
+  expect(w.toasts.at(-1)).toMatch(/^Bypass ended: 0 calls without asking in 120 min\./);
   expect(
     session
       .appended()

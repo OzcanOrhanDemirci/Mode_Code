@@ -361,7 +361,8 @@ test('the strip above the prompt: every control, those in effect marked; full au
   for (let i = 0; i < 20; i++) await Promise.resolve();
   expect(said().some((t: string) => /The person chose \\"code\\" on Mode_Code's mode strip/.test(t))).toBe(true);
   await ui.press({ key: 'strip-full-auto' });
-  expect(w.toasts.at(-1)).toMatch(/^Full autonomy cannot start here:/);
+  // A toast is one line: what failed, and where the reasons are.
+  expect(w.toasts.at(-1)).toBe('Full autonomy cannot start: Safety net, Project. Type /full-auto to see why.');
   await ui.unmount();
 });
 
@@ -635,7 +636,7 @@ test('/00 while Claude works, confirmed: the turn is stopped, then the session c
   await $.turn.start({ text: 'Refactor it.', turnId: 't7' } as any);
   const r = await run($, '00');
   expect(w.asked).toEqual(['Claude is working right now. Stop it and close the session?']);
-  expect(r.text).toBe('The session is closing: the handoff note and the sync first, then Claude Code exits. The tab stays open; close it yourself.');
+  expect(r.text).toBe('The session is closing: the handoff note and the sync first, then Claude Code exits. Close the tab yourself.');
   await closed(w, () => cc.exits.length > 0);
   expect(cc.aborted).toEqual(['t7']);
   expect(cc.exits.length).toBe(1);
@@ -656,7 +657,7 @@ test('"00" on the strip closes too, from the phone as well; an exit Claude Code 
   expect(w.toasts.at(-1)).toMatch(/^The session is closing: /);
   await closed(w, () => w.toasts.length > 1);
   // A hook that throws is skipped, so here the engine says why no exit ran: the reason is passed on as it came.
-  expect(w.toasts.at(-1)).toMatch(/^Claude Code did not exit \(.+\)\. \/exit closes it\.$/);
+  expect(w.toasts.at(-1)).toMatch(/^Claude Code did not exit; \/exit closes it\. \(.+\)$/);
   expect(w.events().filter((e: any) => e.kind === 'close')).toEqual([expect.objectContaining({ via: 'strip' })]);
   refuse = false;
   expect((await run($, '00')).text).toMatch(/^The session is closing: /);
@@ -677,6 +678,6 @@ test('a keyword typed with a slash is applied and said so; one typo from a keywo
   await run($, '4');
   const near: any = await $.prompt.submit(typed('serbes'));
   expect(w.modState().mode).toBe('code');
-  expect(w.toasts.at(-1)).toMatch(/"serbes" bir anahtar kelimeye benziyor: "serbest" mi demek istedin\?/);
+  expect(w.toasts.at(-1)).toMatch(/"serbes": "serbest" mi demek istedin\?/);
   expect((near.context ?? []).join('\n')).toMatch(/looks like the keyword "serbest" with a typo; it was not applied/);
 });

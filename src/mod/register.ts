@@ -40,6 +40,7 @@ import {
   CHOICE_LINE,
   choicesText,
   commandNamed,
+  commandOf,
   COMMANDS,
   continueChoices,
   continuePhrase,
@@ -3940,7 +3941,8 @@ async function press($: $, name: string, args = '', surface?: string): Promise<v
       if (kind === 'mode' || kind === 'style' || kind === 'flow') await holdPressNotes($, kind, r.context);
       else await appendNotes($, r.context);
     }
-    $.ui.toast(name === '0' ? r.text.split('\n')[0]! : r.text, { timeoutMs: 8000 });
+    // A toast is one line in a small box, cut after three (test/core/toasts.test.ts).
+    $.ui.toast(r.toast ?? r.text.split('\n')[0]!, { timeoutMs: 8000 });
   } catch {
     /* a press that cannot act shows nothing; the slash command says why */
   }
@@ -4166,7 +4168,7 @@ async function openCenter($: $, c: Ctx): Promise<{ ok: true; opens: 'tab' | 'win
 
 /**
  * A control, by its command's name: what `/3` and a press on the strip both do. Answers the line to show and
- * the notes for the model.
+ * the notes for the model; a press shows its first line as a toast, or `toast` where that line alone says less.
  */
 async function control(
   $: $,
@@ -4175,7 +4177,7 @@ async function control(
   via: 'command' | 'strip',
   where: 'here' | 'remote' = 'here',
   origin?: string,
-): Promise<{ text: string; context?: string[] }> {
+): Promise<{ text: string; context?: string[]; toast?: string }> {
   const action = commandNamed(name)!;
   const c = await ctxOf($);
   // Bypass and full autonomy are the person's alone: a press, or their own Enter here or on the phone. A command
@@ -4184,7 +4186,7 @@ async function control(
   if ((action.kind === 'bypass' || action.kind === 'fullAuto') && !person) return { text: tIn(c.lang, 'ctl.personOnly', { cmd: `/${name}` }) };
   const args = given.trim();
   const lang = c.lang;
-  const say = (text: string, context?: string[]) => ({ text, ...(context?.length ? { context } : {}) });
+  const say = (text: string, context?: string[], toast?: string) => ({ text, ...(context?.length ? { context } : {}), ...(toast ? { toast } : {}) });
   if (!c.config.modules.modes && (action.kind === 'mode' || action.kind === 'style' || action.kind === 'flow' || action.kind === 'fullAuto'))
     return say(tIn(lang, 'ctl.modesOff'));
   const letRunGo = `${tIn(lang, 'kw.kind.fullAuto')} ${tIn(lang, 'kw.word.cancel')}`;
@@ -4317,12 +4319,15 @@ async function control(
       // What can be measured now: on native Windows this says why at once, before any question.
       const pre = await autoGate($, c, { explicit: true, target: 100, source: '+1' }, null, null);
       const failed = pre.result.checks.filter((k) => k.ok === false && k.id !== 'budget');
-      if (failed.length)
+      if (failed.length) {
+        const names = failed.map((k) => tIn(lang, `auto.gate.name.${k.id}` as MessageKey));
         return say(
-          [tIn(lang, 'ctl.auto.refused'), ...failed.map((k) => `- ${tIn(lang, `auto.gate.name.${k.id}` as MessageKey)}: ${tIn(lang, k.key, k.params)}`)].join(
-            '\n',
-          ),
+          [tIn(lang, 'ctl.auto.refused'), ...failed.map((k, i) => `- ${names[i]}: ${tIn(lang, k.key, k.params)}`)].join('\n'),
+          undefined,
+          // On the strip a toast: what failed, in a line, and where the reasons are.
+          tIn(lang, 'ctl.auto.refusedToast', { checks: names.join(', '), cmd: `/${commandOf({ kind: 'fullAuto' }, lang)}` }),
         );
+      }
       let budget = given;
       if (!budget) {
         const q = await quotaNow($, c);
