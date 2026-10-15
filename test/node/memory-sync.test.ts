@@ -4,7 +4,7 @@
  * stands for GitHub, two clones for two computers. Commits, pulls, pushes, a push rejected and retried, a
  * conflict undone, a secret held back, a store inside a larger repository, an unreachable remote.
  */
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -20,7 +20,9 @@ import { readText } from '../../src/node/fsx.js';
 const hasGit = spawnSync('git', ['--version']).status === 0;
 // The person's own git settings (core.autocrlf on Windows, signing, hooks) stay out: every git here, the
 // sync's own included, reads an empty global file and no system one.
-const globalConfig = join(mkdtempSync(join(tmpdir(), 'tc-gitcfg-')), 'gitconfig');
+const gitHome = mkdtempSync(join(tmpdir(), 'tc-gitcfg-'));
+after(() => rmSync(gitHome, { recursive: true, force: true }));
+const globalConfig = join(gitHome, 'gitconfig');
 writeFileSync(globalConfig, '');
 process.env.GIT_CONFIG_GLOBAL = globalConfig;
 process.env.GIT_CONFIG_NOSYSTEM = '1';

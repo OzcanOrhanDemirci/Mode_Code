@@ -5,7 +5,7 @@
  * standing for a sync service. Settings meet, history and handoff notes travel, secrets stay home, nothing
  * of the person's is touched in a repository that holds more than the shared place.
  */
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -19,7 +19,9 @@ import { lastShared, mergedConfig, pruneShared, sharedDue, syncShared } from '..
 const hasGit = spawnSync('git', ['--version']).status === 0;
 const skip = !hasGit && 'git is not installed';
 
-const globalConfig = join(mkdtempSync(join(tmpdir(), 'tc-syncgit-')), 'gitconfig');
+const gitHome = mkdtempSync(join(tmpdir(), 'tc-syncgit-'));
+after(() => rmSync(gitHome, { recursive: true, force: true }));
+const globalConfig = join(gitHome, 'gitconfig');
 writeFileSync(globalConfig, '[user]\n\tname = Ada\n\temail = ada@example.com\n[commit]\n\tgpgsign = false\n[init]\n\tdefaultBranch = main\n');
 process.env.GIT_CONFIG_GLOBAL = globalConfig;
 process.env.GIT_CONFIG_NOSYSTEM = '1';

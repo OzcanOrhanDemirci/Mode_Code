@@ -122,6 +122,8 @@ console.log(`test-mod: validate --strict passed · tool.call guard fails closed 
 
 // ── the tests, in the engine ──
 const work = mkdtempSync(join(tmpdir(), 'tc-modtest-'));
+// The exit waits for the cleanup: process.exit inside the try would skip the finally and leave the copy behind.
+let status = 1;
 try {
   cpSync(plugin, work, { recursive: true });
   mkdirSync(join(work, 'tests'));
@@ -130,7 +132,8 @@ try {
   for (const f of readdirSync(join(root, 'test', 'mod')).filter((x) => x.endsWith('.ts') && !x.endsWith('.kit.ts')))
     cpSync(join(root, 'test', 'mod', f), join(work, 'tests', f));
   const r = claude(['plugin', 'test', work], { stdio: 'inherit' });
-  process.exit(r.status ?? 1);
+  status = r.status ?? 1;
 } finally {
   rmSync(work, { recursive: true, force: true });
 }
+process.exit(status);
