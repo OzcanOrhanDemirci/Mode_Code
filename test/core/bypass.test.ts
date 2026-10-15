@@ -72,6 +72,11 @@ test('the strip: no bypass until it is turned on; then ⚡, lit in red while on,
     { id: 'bypass', label: '⚡ bypass · 3', active: true, alert: true },
   );
   assert.equal(items(on, 50).find((i) => i.id === 'bypass')?.label, '⚡3');
+  // A count only while on, and only once something went through.
+  assert.equal(items({ ...base, bypass: { shown: true, on: true, count: 0 } }).find((i) => i.id === 'bypass')?.label, '⚡ bypass');
+  assert.equal(items({ ...base, bypass: { shown: true, on: false, count: 3 } }).find((i) => i.id === 'bypass')?.label, '⚡ bypass');
+  // Turned on for this computer, off in this session: the menu lists it, not in bold.
+  assert.match(menuText(shown, 'tr', '—'), /\/8 otonom · \/bypass$/m);
   assert.equal(controlsLine(on, 'en'), '🔨 code · manual · ⚡ bypass · 3');
   assert.match(menuText(on, 'tr', '—'), /\*\*\/bypass\*\*/);
   assert.doesNotMatch(menuText(base, 'tr', '—'), /bypass/);
