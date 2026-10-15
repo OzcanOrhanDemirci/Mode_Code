@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-15
+
+One roof for every guard, and bypass: the safety belt takes over the permission lists and command guards that stood beside it and covers what they missed, a session can lift it for a while on the person's word with every call recorded, the strip shows the flow as a mode whose working step breathes, and the control center gains Automation.
+
 ### Added
 
 - A keyword typed with a slash in front (`/akış iptal`) is that keyword, and a notice says how it was read; a message one typo from a keyword (`akış iptl`, `serbes`) is offered ("did you mean …?") and never applied.
@@ -19,6 +23,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
+- Checked against Claude Code 2.1.300: the plugin type-checks against its declarations, the engine's own test kit passes, and the live sessions run on it.
 - Deleting or moving this tool's folder or Claude Code's folder is self-protection (`self.tool-files`, `self.claude-settings`), no longer a critical folder: no setting and no bypass opens it.
 - Deleting a Docker volume (the optional pack), outside the project, a `.git` folder or staging a secrets file are asked even with bypass on.
 - The strip's numbers: `6` is the flow, `7` manual, `8` autonomous. Full autonomy has no number (`/tam-otonom`, `/full-auto`) and is on the strip only once turned on, no longer gray for everyone; `9` is free.
@@ -129,5 +134,6 @@ The first public release: the safety belt, keywords, modes and flows, full auton
 - A session started in the home folder counted the user's own settings twice, as user and as project settings, and the doctor reported the safety-net hooks as duplicated.
 - The doctor called a hook program from an earlier build of the same version "changed after installation". The installation now records the program's fingerprint, so an earlier build and a change are told apart; an older hook matcher is named as such, with the tools it does not check.
 
-[Unreleased]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/OzcanOrhanDemirci/Mode_Code/releases/tag/v1.0.0
