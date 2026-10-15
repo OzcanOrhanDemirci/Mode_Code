@@ -16,9 +16,7 @@ One roof for every guard, and bypass: the safety belt takes over the permission 
 - Bypass tiers in the rule catalog (`docs/safety-belt.md`, "Bypass"): self-protection and secrets never lift; deleting a drive root, a system folder or cloud data, formatting a disk and turning security software off are blocked without bypass and asked with it; the rest is let through with bypass on and recorded. A block of the second tier says how bypass changes it.
 - The rules of an older setup folded into the belt, each with a sample it must ask about or block: 78 permission rules from Claude Code's managed settings and a memory system's command guards (`test/corpus/automation-parity.test.ts`).
 - The flow is one of the modes on the strip (`6`), the one that moves between the others by itself. While it works it is lit and the mode of its step breathes, drawn on Claude Code's own clock; waiting for approval nothing breathes; paused for another mode its button shows `⏸`. Pressed: off, it asks which steps; on, it closes the flow (its record stays); paused, it goes on. With less motion asked for, and on a phone, the step's mode is marked instead.
-
 - Bypass (`docs/autonomy.md`, "Bypass"): lifts the safety belt in one session for a while (`bypass.maxHours`, 2 by default), turned on per computer first and then by the person in each session (`/bypass` or `⚡ bypass` on the strip, asked once). Only the person can switch it, or full autonomy: a command stamped as coming from elsewhere is refused. What it lets through is recorded call by call and counted on the strip in red; Claude Code's own mode questions are answered too, while a rule in Claude Code's settings keeps its question. Claude is told it has full authority and full responsibility, with a reminder each prompt. It ends at its time (warned ten minutes before), with the session, or when the setting is turned off, with a summary line. The safety-net hook reads it from the session's record, so both layers agree.
-
 - The control center's eighth category, Automation: full autonomy (moved from Settings), its runs (moved from Projects), bypass, and Done without asking, every call bypass let through with what it passed, by whom and how it went. Digits 1-8 jump to the categories.
 
 ### Changed
@@ -38,12 +36,9 @@ One roof for every guard, and bypass: the safety belt takes over the permission 
 - A run paused by code said "no measurable progress" whatever the reason; it names the reason (time limit, turned off, …).
 - After a full-autonomy run, the next session in that folder started autonomous even when the person had worked manually before it; it starts as the way of working before the run.
 - Two messages named the way to let a full-autonomy run go "full auto flow cancel" ("tam otonom akış iptal"); the keyword is "full auto cancel" ("tam otonom iptal").
-
 - Chat, research and plan mode no longer refuse reading commands that ask about machine-wide packages (`npm root -g`, `npm ls -g`, `npm outdated -g`): `-g` counted as a machine-wide install before the reading subcommand was looked at. They also run this tool's own commands that only print (`mode-code status`, `mode-code belt rules`, `mode-code memory handoff`, `mode-code config get` …); `mode-code` on its own, `doctor`, and the commands that change settings or the session index are still refused there. `pnpm store prune` is no longer taken for a read.
 
 ## [1.0.0] - 2026-10-15
-
-- Two messages named the way to let a full-autonomy run go "full auto flow cancel" ("tam otonom akış iptal"); the keyword is "full auto cancel" ("tam otonom iptal").
 
 The first public release: the safety belt, keywords, modes and flows, full autonomy, the memory and its sync, the quota guard and the control center, installed with one line.
 
