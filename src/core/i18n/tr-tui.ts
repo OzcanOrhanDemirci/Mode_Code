@@ -231,7 +231,7 @@ export const trTui: Record<keyof typeof enTui, string> = {
   'protect.limit':
     'Kemer komutları çalışmadan önce okur. Bir kaza önleyicidir, güvenlik sınırı değildir: izleyemediği kod (çalışırken üretilen) güvenli kanıtlanmaz, sorulur.',
   'protect.limitWin':
-    "Yerel Windows'ta kemer bir kaza önleyicidir, güvenlik sınırı değil: kum havuzu yok ve bir betik, bir komutun yapamadığını yapabilir. Gözetimsiz otonom iş için WSL2 kullan.",
+    "Yerel Windows'ta kemer bir kaza önleyicidir, güvenlik sınırı değil: kum havuzu yok ve bir betik, bir komutun yapamadığını yapabilir. Gözetimsiz işin çevresinde gerçek bir sınır için WSL2 kullan.",
   'protect.self':
     'Kendini koruma: ajan bu aracı, ayarlarını, Claude Code ayarlarını ya da hafıza geçmişini değiştiremez. Sohbette onay vermek yetmez; bu değişiklikler yalnız kendi terminalinden yapılır.',
   'rule.action': 'İşlem',

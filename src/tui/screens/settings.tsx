@@ -432,7 +432,7 @@ export function Autonomy({ width, open }: ScreenProps) {
             <Box width={20} flexShrink={0}>
               <Text>{t(`auto.gate.name.${c.id}` as MessageKey)}</Text>
             </Box>
-            <Text wrap="truncate-end" {...(c.ok === null ? { color: theme.muted } : {})}>
+            <Text wrap="wrap" {...(c.ok === null ? { color: theme.muted } : {})}>
               {t(c.key, c.params)}
             </Text>
           </Box>

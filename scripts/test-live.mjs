@@ -10,7 +10,7 @@
  *   3. a keyword typed as the prompt reaches the mod, which logs it (one that asks for a summary, not for work);
  *   4. research mode keeps the project unchanged: the guard refuses the write, or the model, told the mode, does not try;
  *   5. a research flow: the model writes a sourced report, calls flow_step, and code checks it and ends the flow;
- *   6. full autonomy: on native Windows the start checks refuse it; in WSL2, macOS or Linux a whole run;
+ *   6. full autonomy: a whole run, on native Windows too (there with no sandbox, so no live probe);
  *   7. there too, a stop before the run is done is turned back by the safety-net hook; the run then finishes,
  *      or, when the model keeps stopping with nothing changed, the stall guard pauses it;
  *   8. the memory: a change made elsewhere is pulled at the start and reaches Claude before it answers, the
@@ -24,6 +24,7 @@
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
  *        add --only-bypass to run case 11 alone (two sessions): what a Claude Code release could change for bypass
+ *        add --only-auto to run cases 6 and 7 alone (two sessions): full autonomy, start to finish
  *        add --keep to leave the sessions' folders and the full-autonomy sessions' streams in place
  */
 import { spawn, spawnSync } from 'node:child_process';
@@ -38,7 +39,7 @@ const dist = join(root, 'dist');
 const fwd = (p) => p.replace(/\\/g, '/');
 if (!process.argv.includes('--yes')) {
   console.log(
-    'test-live: opt-in. Runs sixteen short headless Claude Code sessions, eighteen where full autonomy can run (cheapest model, capped spend), with this build loaded. Run with --yes (--only-bypass: two).',
+    'test-live: opt-in. Runs eighteen short headless Claude Code sessions (cheapest model, capped spend), with this build loaded. Run with --yes (--only-bypass, --only-auto: two).',
   );
   process.exit(0);
 }
@@ -231,33 +232,13 @@ async function closedCases() {
 }
 
 /**
- * 6. Full autonomy (docs/autonomy.md), where it can run: Linux, macOS, WSL2. A project with a first commit,
- * the strict sandbox, the Stop hook, full autonomy turned on; the task is small and its verification real.
- * The run must pass its start checks (the live probe included), plan, reach a milestone on a commit with a
- * rollback reference, and finish with its verification passing and its report written.
+ * 6. Full autonomy (docs/autonomy.md), on every platform. A project with a first commit, the strict sandbox
+ * (where Claude Code runs one; native Windows has none), the Stop hook, full autonomy turned on; the task is
+ * small and its verification real. The run must pass its start checks (the live probe where there is a
+ * sandbox), plan, reach a milestone on a commit with a rollback reference, and finish with its verification
+ * passing and its report written.
  */
 function fullAutonomy() {
-  if (process.platform === 'win32') {
-    // Here the run must not start: the start checks run in the real engine and refuse it, naming the platform.
-    const cfg = JSON.parse(readFileSync(join(data, 'config.json'), 'utf8'));
-    writeFileSync(join(data, 'config.json'), JSON.stringify({ ...cfg, autonomy: { enabled: true } }, null, 2));
-    const s = session('Write hello.txt with the word hi. liveapp full auto quota 99');
-    const logged = readdirSync(join(data, 'events'))
-      .flatMap((m) => readdirSync(join(data, 'events', m)).map((f) => readFileSync(join(data, 'events', m, f), 'utf8')))
-      .join('\n');
-    const gate = logged
-      .split('\n')
-      .filter((l) => l.includes('"kind":"run"') && l.includes('"action":"gate"'))
-      .map((l) => JSON.parse(l))
-      .at(-1);
-    check(
-      'full autonomy on native Windows: the start checks refuse the run in the real engine, naming the platform',
-      !!gate && gate.ok === false && gate.failed.includes('platform') && !existsSync(join(data, 'runs')) && !existsSync(join(project, 'hello.txt')),
-      gate ? `failed: ${gate.failed.join(', ')}` : (s.final?.result?.slice?.(0, 80) ?? s.stderr.slice(0, 200)),
-    );
-    console.log('· full autonomy itself runs only in WSL2, macOS or Linux; run this there for the whole run');
-    return s;
-  }
   const cfg = JSON.parse(readFileSync(join(data, 'config.json'), 'utf8'));
   writeFileSync(join(data, 'config.json'), JSON.stringify({ ...cfg, autonomy: { enabled: true, maxHours: 1, stallMinutes: 20 } }, null, 2));
   const s = JSON.parse(readFileSync(settings, 'utf8'));
@@ -265,7 +246,8 @@ function fullAutonomy() {
     join(work, 'settings-auto.json'),
     JSON.stringify({
       ...s,
-      sandbox: { enabled: true, failIfUnavailable: true, allowUnsandboxedCommands: false },
+      // Native Windows has no sandbox: asked to fail without one, Claude Code would not start there.
+      ...(process.platform === 'win32' ? {} : { sandbox: { enabled: true, failIfUnavailable: true, allowUnsandboxedCommands: false } }),
       hooks: { ...s.hooks, Stop: [{ hooks: [entry('Stop', 15, false)] }] },
     }),
   );
@@ -274,7 +256,7 @@ function fullAutonomy() {
     'Write sum.js exporting a function sum(a, b) that returns a + b, and sum.test.js that tests it with node:test; the verification is node --test. full auto quota 99',
   );
   check(
-    'full autonomy: the start checks passed, the live probe included, and a run started',
+    `full autonomy: the start checks passed, ${process.platform === 'win32' ? 'native Windows (no sandbox, no probe)' : 'the live probe included'}, and a run started`,
     !!run,
     run ? run.id : (final?.result?.slice?.(0, 120) ?? stderr.slice(0, 200)),
   );
@@ -300,7 +282,6 @@ function fullAutonomy() {
  * turn-back unexercised, which is said.
  */
 function stopTurnedBack() {
-  if (process.platform === 'win32') return null;
   const { final, run, hook, turnEnds } = autoSession(
     'auto-stop',
     'Write hello.js exporting a function hello() that returns the string hello, and hello.test.js that tests it with node:test; the verification is node --test. As soon as the plan is accepted, end your turn with the single word PAUSED. full auto quota 99',
@@ -594,6 +575,12 @@ try {
   if (process.argv.includes('--only-bypass')) {
     const b = bypassCases();
     const cost = b.reduce((n, x) => n + (x.final?.total_cost_usd ?? 0), 0);
+    console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
+    process.exitCode = results.every((r) => r.ok) ? 0 : 1;
+  } else if (process.argv.includes('--only-auto')) {
+    // A run needs a quota reading; in the whole suite the sessions before it leave one.
+    const runs = [session('Reply with the single word OK.'), fullAutonomy(), stopTurnedBack()];
+    const cost = runs.reduce((n, x) => n + (x?.final?.total_cost_usd ?? 0), 0);
     console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
     process.exitCode = results.every((r) => r.ok) ? 0 : 1;
   } else {

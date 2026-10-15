@@ -328,15 +328,16 @@ test('a keyword after /6 is that keyword: nothing starts', async ($, on) => {
   expect(w.modState().flowId ?? null).toBe(null);
 });
 
-test('/tam-otonom on native Windows says at once why it cannot start, and asks nothing', async ($, on) => {
+test('/tam-otonom says at once why it cannot start, and asks nothing; on native Windows the platform is no reason', async ($, on) => {
   const w = world(on, { windows: true, answer: 'allow' });
   const r = await runFrom($, 'full-auto', { kind: 'composer' });
   expect(r.text).toMatch(/^Full autonomy cannot start here:\n- /);
-  expect(r.text).toMatch(/Windows/);
+  expect(r.text).toMatch(/Turned on/);
+  expect(r.text).not.toMatch(/Platform/);
   expect(w.asked).toEqual([]);
 });
 
-test('the strip above the prompt: every control, those in effect marked; full autonomy only once turned on, dim on Windows; a press runs the command', async ($, on) => {
+test('the strip above the prompt: every control, those in effect marked; full autonomy only once turned on, on Windows too; a press runs the command', async ($, on) => {
   const w = world(on, { windows: true, config: { autonomy: { enabled: true } } });
   const session = mock.session(on);
   await run($, '3');
@@ -345,7 +346,7 @@ test('the strip above the prompt: every control, those in effect marked; full au
   expect(keys).toEqual(['strip-1', 'strip-2', 'strip-3', 'strip-4', 'strip-5', 'strip-6', 'strip-7', 'strip-8', 'strip-full-auto', 'strip-0', 'strip-00']);
   expect((await ui.find({ key: 'strip-3' }))?.props.variant).toBe('primary');
   expect((await ui.find({ key: 'strip-4' }))?.props.variant).toBeUndefined();
-  expect((await ui.find({ type: 'Text', text: 'full auto' }))?.props.dimColor).toBe(true);
+  expect((await ui.find({ type: 'Text', text: 'full auto' }))?.props.dimColor).toBeFalsy();
   await ui.press({ key: 'strip-4' });
   expect(w.modState().mode).toBe('code');
   expect(w.toasts.at(-1)).toBe('Now: 🔨 code · manual');

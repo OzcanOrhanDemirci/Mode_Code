@@ -35,7 +35,6 @@ const view: StripView = {
   style: 'autonomous',
   flow: null,
   fullAutoShown: false,
-  fullAutoHere: false,
   bypass: { shown: false, on: false, count: 0 },
 };
 
@@ -211,17 +210,15 @@ test('the strip: every control on every layout, one row when it fits, never wide
     .flat()
     .flatMap((s) => s.items.filter((i) => i.active).map((i) => i.id));
   assert.deepEqual(active, ['3', '8']);
-  // Full autonomy is on the strip only once turned on; on native Windows it is dim (it cannot start there).
+  // Full autonomy is on the strip only once turned on, and pressable as any other control (native Windows too).
   const items = (v: StripView, lang: 'tr' | 'en' = 'en') =>
     stripRows(v, lang, 200)
       .flat()
       .flatMap((s) => s.items);
   assert.ok(!items(view).some((i) => i.id === 'full-auto'));
   assert.deepEqual(
-    items({ ...view, fullAutoShown: true })
-      .filter((i) => i.dim)
-      .map((i) => i.id),
-    ['full-auto'],
+    items({ ...view, fullAutoShown: true }).find((i) => i.id === 'full-auto'),
+    { id: 'full-auto', label: 'full auto', active: false },
   );
   assert.deepEqual(items({ ...view, fullAutoShown: true }, 'tr').find((i) => i.id === 'tam-otonom')?.label, 'tam otonom');
   assert.ok(
@@ -230,7 +227,7 @@ test('the strip: every control on every layout, one row when it fits, never wide
   );
   // Closing comes last, after the menu, never highlighted.
   const last = (rows: ReturnType<typeof stripRows>) => rows.flat().at(-1)!.items.at(-1)!;
-  assert.deepEqual(last(stripRows(view, 'tr', 200)), { id: '00', label: '00 ✕ kapat', active: false, dim: false });
+  assert.deepEqual(last(stripRows(view, 'tr', 200)), { id: '00', label: '00 ✕ kapat', active: false });
   assert.equal(last(stripRows(view, 'en', 200)).label, '00 ✕ close');
   assert.equal(last(stripRows(view, 'tr', 50)).label, '00✕');
 });
@@ -330,7 +327,7 @@ test("the folder's last choice: the newest other session there; a run comes back
 });
 
 test("a row's width: a title, its items a space apart, segments two apart", () => {
-  const item = (label: string) => ({ id: label, label, active: false, dim: false });
+  const item = (label: string) => ({ id: label, label, active: false });
   assert.equal(rowCells([{ title: 'Mod', items: [item('1 a'), item('2 b')] }]), 11);
   assert.equal(rowCells([{ title: '', items: [item('1 a'), item('2 b')] }]), 7);
   assert.equal(

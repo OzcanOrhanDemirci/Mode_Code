@@ -146,9 +146,16 @@ test("the checks from the person's terminal: what a session measures reads as me
     assert.deepEqual([installed.checks.find((c) => c.id === 'hook')!.ok, installed.checks.find((c) => c.id === 'hook')!.key], [true, 'auto.cli.hookInstalled']);
     const other = autonomyCheck({ layout: l, config }, root, { platform: 'darwin', env: {}, claude: { ...strict, hooks: [hook('Stop'), hook('PreToolUse')] } });
     assert.equal(other.checks.find((c) => c.id === 'hook')!.key, 'auto.cli.hookMissing');
-    // Native Windows: the platform says why, and the sandbox checks do not apply.
+    // Native Windows: the platform passes and says what guards the run there; the sandbox checks do not apply.
     const win = autonomyCheck({ layout: l, config }, root, { platform: 'win32', env: {}, claude: strict });
-    assert.equal(win.checks.find((c) => c.id === 'platform')!.key, 'auto.gate.platform.windows');
+    assert.deepEqual(
+      ['platform', 'sandbox', 'probe'].map((id) => [win.checks.find((c) => c.id === id)!.ok, win.checks.find((c) => c.id === id)!.key]),
+      [
+        [true, 'auto.gate.platform.windows'],
+        [null, 'auto.gate.sandbox.notHere'],
+        [null, 'auto.gate.probe.notHere'],
+      ],
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

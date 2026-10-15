@@ -29,8 +29,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.gate.budget.noReading': 'Henüz kota ölçümü yok; Claude Code ölçsün diye herhangi bir mesaj gönder, sonra başlat.',
   'auto.gate.budget.reached': 'Bütçe zaten dolmuş: haftalık %{used}, bütçe %{target}.',
   'auto.gate.budget.ok': '%{target} bütçenin haftalık %{used} kısmı kullanıldı.',
-  'auto.gate.platform.windows':
-    'Yerel Windows komutları kum havuzu olmadan çalıştırıyor; bu yüzden tam otonom yalnız WSL2 içinde çalışır. docs/autonomy.md içinde "Setting up WSL2" bölümüne bak.',
+  'auto.gate.platform.windows': 'Yerel Windows: kum havuzu yok; koşuyu emniyet kemeri ve çit korur. İkisi kazayı önler, sınır değildir.',
   'auto.gate.platform.ok': 'Platform: {platform}.',
   'auto.gate.wsl.notWsl': 'WSL değil.',
   'auto.gate.wsl.unreadable': "WSL'in kendi dosyaları okunamadı (/proc/sys/kernel/osrelease, /proc/mounts).",
@@ -250,8 +249,9 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.cli.warnTitle': 'Tam otonom: açmak ne demek',
   'auto.cli.warnBody':
     'Bir koşu, klavyenin başında kimse yokken tek bir görevi sonuna kadar götürür. Claude koşu sırasında sana hiçbir şey sormaz.\n' +
-    'Yalnız bir bütçeyle başlar ("<görev>. <proje> tam otonom kota +10") ve yalnız kodun önce ölçtüğü bir sınırın içinde:\n' +
+    'Yalnız bir bütçeyle başlar ("<görev>. <proje> tam otonom kota +10"), kod nerede çalıştığını denetledikten sonra:\n' +
     "Windows'a geri dönüş yolu olmayan WSL2, ya da Claude Code'un kum havuzu sıkı biçimdeyken Linux ve macOS.\n" +
+    "Yerel Windows'ta kum havuzu yok: koşuyu yalnız emniyet kemeri ve çit korur.\n" +
     'Sana ait olanlar (korunan dallara push, birleştirme, sürüm, yayın, emniyet kemerinin soracakları) bekler;\n' +
     "birebir komutuyla kaydedilir ve koşunun raporunda listelenir. Her kilometre taşı geri dönebileceğin bir commit'tir.\n" +
     'Koşu bitti tanımı geçince, tıkanınca, hiçbir şey değişmeyince, süre ya da bütçe sınırında, ya da sen dur yazınca durur.\n' +

@@ -256,7 +256,9 @@ test('full autonomy: turning it on shows what it means and needs a second Enter;
   const s = await draw(data, { address: 'automation/full-auto' });
   try {
     assert.match(s.text(), /Start checks, measured from here/);
-    assert.match(s.text(), /✗\s+Platform\s+Native Windows runs commands without a sandbox/);
+    // A check's line wraps, never cut short: the pane says it in full.
+    assert.match(s.text(), /✓\s+Platform\s+Native Windows: no sandbox, so the belt and the fence/);
+    assert.match(s.text(), /│\s+boundary\.\s/);
     await s.press(KEY.enter);
     assert.equal(data.saved.length, 0, 'not yet');
     // The warning wraps over several lines of the pane: read it as one text.

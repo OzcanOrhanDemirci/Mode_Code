@@ -28,8 +28,7 @@ export const enAuto = {
   'auto.gate.budget.noReading': 'There is no quota reading yet; send any message so Claude Code measures it, then start.',
   'auto.gate.budget.reached': 'The budget is already reached: weekly {used}%, budget {target}%.',
   'auto.gate.budget.ok': 'Weekly {used}% of a {target}% budget.',
-  'auto.gate.platform.windows':
-    'Native Windows runs commands without a sandbox, so full autonomy runs only inside WSL2. See "Setting up WSL2" in docs/autonomy.md.',
+  'auto.gate.platform.windows': 'Native Windows: no sandbox, so the belt and the fence guard the run. They prevent accidents; they are no boundary.',
   'auto.gate.platform.ok': 'Platform: {platform}.',
   'auto.gate.wsl.notWsl': 'Not WSL.',
   'auto.gate.wsl.unreadable': "WSL's own files could not be read (/proc/sys/kernel/osrelease, /proc/mounts).",
@@ -249,8 +248,9 @@ export const enAuto = {
   'auto.cli.warnTitle': 'Full autonomy: what turning it on means',
   'auto.cli.warnBody':
     'A run takes one task to its end while nobody is at the keyboard. Claude does not ask you anything during it.\n' +
-    'It starts only with a budget ("<task>. <project> full auto quota +10") and only inside a boundary code measures first:\n' +
+    'It starts only with a budget ("<task>. <project> full auto quota +10"), after code has checked where it runs:\n' +
     "WSL2 with no road back to Windows, or Linux and macOS, with Claude Code's sandbox in its strict form.\n" +
+    'On native Windows there is no sandbox: the run is guarded by the safety belt and the fence alone.\n' +
     'What needs you (pushes to protected branches, merges, releases, publishing, what the safety belt would ask) waits,\n' +
     "recorded with its exact command, and is listed in the run's report. Every milestone is a commit you can return to.\n" +
     'A run stops when its definition of done passes, when it is stuck, when nothing changes, at its time limit or budget,\n' +

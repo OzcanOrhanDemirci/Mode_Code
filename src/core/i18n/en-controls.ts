@@ -49,7 +49,7 @@ export const enControls = {
   'ctl.desc.mode.free': 'Mode: free. Only the safety belt applies',
   'ctl.desc.style.manual': 'Working: manual. One step at a time, then it waits for you',
   'ctl.desc.style.autonomous': 'Working: autonomous. Goes on without asking; stops for your decisions',
-  'ctl.desc.fullAuto': 'Working: full auto. To the end without asking (WSL2, macOS, Linux)',
+  'ctl.desc.fullAuto': 'Working: full auto. To the end without asking',
   'ctl.desc.flow': 'Flow: research ▶ plan → approval → code, steps checked by code',
   'ctl.desc.menu': 'Opens the control center in a new tab; says where this session stands',
   'ctl.desc.continue': 'Continue a project or a folder: lists them all when none is given',
@@ -77,7 +77,6 @@ export const enControls = {
   'ctl.auto.cancel': 'Cancel',
   'ctl.auto.armed': 'Full autonomy ready, budget {budget}. Your next message is its task.',
   'ctl.auto.starting': 'Full autonomy, budget {budget}: the last start checks run with the task.',
-  'ctl.auto.notHere': "Full autonomy runs only in a WSL2 distribution, or on macOS and Linux inside Claude Code's sandbox (docs/autonomy.md).",
   // ── quota ──
   'ctl.quota.ask': 'Weekly budget? The week is at {week} now.',
   'ctl.quota.set': 'Weekly budget: {target}%.',

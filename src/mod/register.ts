@@ -3845,7 +3845,6 @@ function viewOf(c: Ctx): StripView {
     style,
     flow: flowView(c),
     fullAutoShown: c.config.autonomy.enabled || style === 'full',
-    fullAutoHere: c.platform !== 'win32',
     bypass: { shown: c.config.bypass.enabled, on: c.config.bypass.enabled && !!c.state.bypass, count: c.state.bypass?.count ?? 0 },
   };
 }
@@ -4502,7 +4501,6 @@ export function register(on: On): void {
                 bold: it.active || !!it.pulse,
                 underline: !!it.pulse,
                 inverse: it.active,
-                dimColor: it.dim && !it.active,
                 ...(it.alert ? { color: 'error' } : {}),
               },
               it.label,

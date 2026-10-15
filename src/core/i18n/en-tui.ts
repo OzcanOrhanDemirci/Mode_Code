@@ -236,7 +236,7 @@ export const enTui = {
   'protect.limit':
     'The belt reads commands before they run. It is an accident preventer, not a security boundary: code it cannot follow (built at run time) is asked about, not proven safe.',
   'protect.limitWin':
-    'On native Windows the belt is an accident preventer, not a security boundary: there is no sandbox, and a script can do what a command cannot. For unattended autonomous work, use WSL2.',
+    'On native Windows the belt is an accident preventer, not a security boundary: there is no sandbox, and a script can do what a command cannot. For a real boundary around unattended work, use WSL2.',
   'protect.self':
     'Self-protection: the agent cannot change this tool, its settings, your Claude Code settings or your memory history. Agreeing in the chat is not enough; such changes run only from your own terminal.',
   'rule.action': 'Action',

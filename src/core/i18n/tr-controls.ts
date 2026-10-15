@@ -51,7 +51,7 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.desc.mode.free': 'Mod: serbest. Yalnız emniyet kemeri geçerli',
   'ctl.desc.style.manual': 'Çalışma: manuel. Bir adım yapar, sonra seni bekler',
   'ctl.desc.style.autonomous': 'Çalışma: otonom. Sormadan ilerler; senin kararında durur',
-  'ctl.desc.fullAuto': 'Çalışma: tam otonom. Hiç sormadan sonuna kadar (WSL2, macOS, Linux)',
+  'ctl.desc.fullAuto': 'Çalışma: tam otonom. Hiç sormadan sonuna kadar',
   'ctl.desc.flow': 'Akış: araştırma ▶ plan → onay → kod, adımları kod denetler',
   'ctl.desc.menu': 'Kontrol merkezini yeni sekmede açar; oturumun durumunu söyler',
   'ctl.desc.continue': 'Bir projeye ya da klasöre devam: verilmezse hepsini listeler',
@@ -79,7 +79,6 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.auto.cancel': 'Vazgeç',
   'ctl.auto.armed': 'Tam otonom hazır, bütçe {budget}. Sonraki mesajın görevi olacak.',
   'ctl.auto.starting': 'Tam otonom, bütçe {budget}: son başlangıç denetimleri görevle birlikte koşar.',
-  'ctl.auto.notHere': "Tam otonom yalnız bir WSL2 dağıtımında ya da macOS ve Linux'ta Claude Code'un sandbox'ı içinde çalışır (docs/autonomy.md).",
   // ── kota ──
   'ctl.quota.ask': 'Haftalık bütçe? Hafta şu an {week}.',
   'ctl.quota.set': 'Haftalık bütçe: %{target}.',

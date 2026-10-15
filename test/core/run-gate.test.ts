@@ -122,14 +122,22 @@ test('WSL versions and Windows drive mounts in every form WSL writes them', () =
   assert.equal(checkGate({ ...good(), wsl: null }).ok, true);
 });
 
-test('native Windows is refused, with the way to WSL2; the sandbox checks do not apply there', () => {
+test('native Windows runs with the belt and the fence alone: the platform says so, the sandbox checks do not apply', () => {
   const g = checkGate({ ...good(), platform: 'win32', wsl: null, probe: null });
-  assert.equal(g.ok, false);
-  assert.deepEqual(failed({ ...good(), platform: 'win32', wsl: null, probe: null }), ['platform:auto.gate.platform.windows']);
+  assert.equal(g.ok, true, 'no probe to wait for where there is no sandbox');
+  assert.deepEqual(failed({ ...good(), platform: 'win32', wsl: null, probe: null }), []);
+  assert.deepEqual(
+    g.checks.find((c) => c.id === 'platform'),
+    { id: 'platform', ok: true, key: 'auto.gate.platform.windows' },
+  );
   assert.deepEqual(
     g.checks.filter((c) => c.ok === null).map((c) => c.id),
     ['wsl', 'sandbox', 'probe'],
   );
+  // The permission mode is still measured at the first step, there as everywhere.
+  assert.equal(checkGate({ ...good(), platform: 'win32', wsl: null, probe: null, permissionMeasured: false }).ok, false);
+  // Elsewhere an unmeasured probe still holds the run.
+  assert.equal(checkGate({ ...good(), probe: null }).ok, false);
 });
 
 test('the sandbox must be strict: every gap is named by its setting', () => {

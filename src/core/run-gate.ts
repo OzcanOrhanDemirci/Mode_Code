@@ -189,7 +189,9 @@ export function checkGate(f: GateFacts): GateResult {
   const checks: GateCheck[] = [
     f.enabled ? pass('enabled', 'auto.gate.enabled.ok') : no('enabled', 'auto.gate.enabled.off'),
     budgetCheck(f.budget),
-    f.platform === 'win32' ? no('platform', 'auto.gate.platform.windows') : pass('platform', 'auto.gate.platform.ok', { platform: f.platform }),
+    // Native Windows has no sandbox: a run there leans on the belt and the fence alone, which the person
+    // accepted when turning full autonomy on (docs/autonomy.md, "Where it runs").
+    f.platform === 'win32' ? pass('platform', 'auto.gate.platform.windows') : pass('platform', 'auto.gate.platform.ok', { platform: f.platform }),
     wslCheck(f),
     f.platform === 'win32'
       ? skip('sandbox', 'auto.gate.sandbox.notHere')
@@ -220,7 +222,9 @@ export function checkGate(f: GateFacts): GateResult {
             : pass('alone', 'auto.gate.alone.ok'),
   ];
   // The probe and the permission mode are measured only at the run's first step: unmeasured is not passed.
-  const ok = checks.every((c) => c.ok !== false) && AT_FIRST_STEP.every((id) => checks.find((c) => c.id === id)?.ok === true);
+  // Where there is no sandbox (native Windows) there is no probe to wait for.
+  const needed = AT_FIRST_STEP.filter((id) => !(id === 'probe' && f.platform === 'win32'));
+  const ok = checks.every((c) => c.ok !== false) && needed.every((id) => checks.find((c) => c.id === id)?.ok === true);
   return { ok, checks };
 }
 

@@ -260,7 +260,7 @@ export class FakeData implements DataSource {
     ok: false,
     checks: [
       { id: 'enabled', ok: true, key: 'auto.gate.enabled.ok' },
-      { id: 'platform', ok: false, key: 'auto.gate.platform.windows' },
+      { id: 'platform', ok: true, key: 'auto.gate.platform.windows' },
       { id: 'budget', ok: null, key: 'auto.cli.atStart' },
     ],
   };

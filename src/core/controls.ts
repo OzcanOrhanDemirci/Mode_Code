@@ -229,8 +229,6 @@ export interface StripItem {
   id: string;
   label: string;
   active: boolean;
-  /** Drawn dim: pressing it says why it cannot be used here (full autonomy on native Windows). */
-  dim: boolean;
   /** Breathing: the mode a running flow's step works in (the flow itself is the one lit). */
   pulse?: boolean;
   /** Drawn in the colour of danger: bypass while it is on. */
@@ -264,8 +262,6 @@ export interface StripView {
   flow: FlowView | null;
   /** Full autonomy is turned on (Automation), or a run is attached: only then is it on the strip. */
   fullAutoShown: boolean;
-  /** Full autonomy can start here (it never can on native Windows). */
-  fullAutoHere: boolean;
   /** Bypass: on the strip once turned on (Automation); on in this session; the calls it let through so far. */
   bypass: { shown: boolean; on: boolean; count: number };
 }
@@ -336,11 +332,10 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
             label: tight ? `${d}${MODE_ICON[m] || tIn(lang, 'ctl.strip.freeShort')}` : `${d} ${modeLabel(m, lang)}`,
             // While a flow is on it is the one lit; the mode its working step is in breathes.
             active: !on && v.mode === m,
-            dim: false,
             ...(v.flow?.state === 'running' && v.mode === m ? { pulse: true } : {}),
           };
         }),
-        { id: flowDigit, label: `${flowDigit}${tight ? '' : ' '}${flowText(v.flow, lang, tight)}`, active: on, dim: false },
+        { id: flowDigit, label: `${flowDigit}${tight ? '' : ' '}${flowText(v.flow, lang, tight)}`, active: on },
       ],
     },
     {
@@ -350,7 +345,6 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
           id: STYLE_DIGIT[s],
           label: `${STYLE_DIGIT[s]}${tight ? tIn(lang, `ctl.style.short.${s}` as MessageKey) : ` ${tIn(lang, `ctl.style.${s}` as MessageKey)}`}`,
           active: v.style === s,
-          dim: false,
         })),
         ...(v.fullAutoShown || v.style === 'full'
           ? [
@@ -358,7 +352,6 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
                 id: commandOf({ kind: 'fullAuto' }, lang),
                 label: tIn(lang, tight ? 'ctl.style.short.full' : 'ctl.style.full'),
                 active: v.style === 'full',
-                dim: !v.fullAutoHere && v.style !== 'full',
               },
             ]
           : []),
@@ -368,13 +361,12 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
                 id: commandOf({ kind: 'bypass' }, lang),
                 label: bypassText(v.bypass, tight),
                 active: v.bypass.on,
-                dim: false,
                 ...(v.bypass.on ? { alert: true } : {}),
               },
             ]
           : []),
-        { id: '0', label: tight ? '0≡' : `0 ${tIn(lang, 'ctl.strip.menu')}`, active: false, dim: false },
-        { id: '00', label: tight ? '00✕' : `00 ✕ ${tIn(lang, 'ctl.strip.close')}`, active: false, dim: false },
+        { id: '0', label: tight ? '0≡' : `0 ${tIn(lang, 'ctl.strip.menu')}`, active: false },
+        { id: '00', label: tight ? '00✕' : `00 ✕ ${tIn(lang, 'ctl.strip.close')}`, active: false },
       ],
     },
   ];
