@@ -46,6 +46,7 @@ test('a fresh sandbox installation, measured: healthy in every fact the checks r
     assert.equal(f.hookAgreement.error, null);
     assert.equal(f.hookAgreement.agreed, f.hookAgreement.samples, JSON.stringify(f.hookAgreement.differences));
     assert.ok(f.hookAgreement.samples >= 25);
+    assert.deepEqual(f.bypass, { enabled: false, maxHours: 2, onNow: 0, floorWeakened: [] });
   } finally {
     rmSync(sb.root, { recursive: true, force: true });
   }

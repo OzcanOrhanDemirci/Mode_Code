@@ -553,3 +553,18 @@ test('sync across computers: not set up, missing, without git or origin, a sync 
   assert.equal(at({ pending: ['belt.verdicts'] }), 'warn doc.sync.pending');
   assert.equal(check('data.sync', healthyFacts({ sync: { ...sync, pending: ['a', 'b'] } })).summary.params?.keys, 'a, b');
 });
+
+test('bypass: off is a note; on, for how long and in how many sessions; a weakened floor rule is a warning', () => {
+  assert.equal(brief(check('protection.bypass', healthyFacts())), 'info doc.bypass.off');
+  const on = (onNow: number) => healthyFacts({ bypass: { enabled: true, maxHours: 2, onNow, floorWeakened: [] } });
+  assert.equal(brief(check('protection.bypass', on(0))), 'info doc.bypass.on');
+  assert.equal(brief(check('protection.bypass', on(2))), 'info doc.bypass.onNow');
+  assert.deepEqual(check('protection.bypass', on(2)).summary.params, { n: 2, hours: 2 });
+  const weak = check('protection.bypass', healthyFacts({ bypass: { enabled: false, maxHours: 2, onNow: 0, floorWeakened: ['data.delete-cloud'] } }));
+  assert.equal(brief(weak), 'warn doc.bypass.floorWeakened');
+  assert.equal(weak.protection, true);
+  assert.deepEqual(
+    weak.details?.map((d) => d.params?.text),
+    ['data.delete-cloud'],
+  );
+});

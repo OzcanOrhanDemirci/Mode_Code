@@ -1,7 +1,7 @@
 ## Problem report for Mode_Code
 
 - Mode_Code dev · Node.js 24.15.0 · win32 x64 10.0.26200 · Claude Code 2.1.295
-- 29 ok · 4 notes · 2 warnings · 3 problems · 3 skipped
+- 29 ok · 5 notes · 2 warnings · 3 problems · 3 skipped
 
 | check | status | result |
 | --- | --- | --- |
@@ -25,6 +25,7 @@
 | protect.links | ok | No protected folder is a link. |
 | protect.shortNames | ok | The belt protects the short names Windows gave the protected places (1). |
 | protect.memory | ok | Memory folders are protected and are git repositories (1). |
+| protection.bypass | info | Bypass is off: no session can lift the safety belt. |
 | shell.gitBash | ok | Git Bash (C:/Program Files/Git/bin/bash.exe) maps /tmp to your Temp folder, as the belt assumes. |
 | shell.powershell | ok | PowerShell 7.6.6. |
 | shell.terminal | info | Terminal: Windows Terminal, 120 columns, code page 65001. |

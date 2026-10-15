@@ -281,6 +281,11 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'doc.autonomy.off': 'Tam otonom kapalı (mode-code autonomy enable ile açılır).',
   'doc.autonomy.ready': 'Tam otonom açık ve burada ölçülenlerden hiçbiri bir koşuya engel değil.',
   'doc.autonomy.notReady': 'Tam otonom açık ama burada {n} başlangıç denetimi geçmez:',
+  'doc.bypass.off': 'Bypass kapalı: hiçbir oturum emniyet kemerini kaldıramaz.',
+  'doc.bypass.on': 'Bypass bir oturumda senin tarafından açılabilir, en çok {hours} saatliğine; şu an hiçbir oturumda açık değil.',
+  'doc.bypass.onNow': 'Bypass şu an {n} oturumda açık (her biri en çok {hours} saat); geçirdikleri Otomasyon › İzinsiz yapılanlar altında.',
+  'doc.bypass.floorWeakened': 'Bypass açıkken de sorulması gereken {n} kural ayarlardan kapatılmış ya da izne çevrilmiş:',
+  'doc.bypass.floorHint': 'Güvenlik › Emniyet kemeri kuralları altından ya da mode-code config set belt.verdicts.<kural> ask ile geri al.',
 
   // ── kontrol merkezi ──
   'home.runs': 'Tam otonom koşular',

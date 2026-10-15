@@ -17,7 +17,10 @@ import { evaluateToolCall } from '../../core/belt/evaluate.js';
 import { fillSample, samplesFor, type SamplePlaces } from '../../core/belt/samples.js';
 import { safeId, type Layout } from '../../core/layout.js';
 import { joinPath, pathKey, type Platform } from '../../core/paths.js';
-import { parseModState } from '../../core/session.js';
+import { bypassOn, parseModState } from '../../core/session.js';
+import { effectiveVerdict, RULE_IDS, RULES } from '../../core/belt/rules.js';
+import { VERDICT_ORDER } from '../../core/belt/types.js';
+import { beltConfigOf } from '../../core/settings-view.js';
 import { runAllSuites } from '../../core/selftest/suites.js';
 import { transcriptShape } from '../../core/transcript.js';
 import type { Lang } from '../../core/i18n/index.js';
@@ -233,6 +236,30 @@ function pluginFiles(dist: string, installed: string): Facts['pluginFiles'] {
     else if (sha256(target) !== sha256(join(shippedDir, f))) different.push(f);
   }
   return { dir: installed, missing, different, shipped: true };
+}
+
+/**
+ * Bypass as it stands here: the setting, the sessions it is on in now (their records, newest twenty), and the
+ * floor rules (never lifted, or asked even with bypass on) the settings have switched off or turned to allow.
+ */
+function bypassFacts(l: Layout, config: Config, now: number): Facts['bypass'] {
+  let onNow = 0;
+  try {
+    for (const n of readdirSync(l.sessionsDir)
+      .filter((x) => x.endsWith('.mod.json'))
+      .slice(-200)) {
+      const s = parseModState(readText(join(l.sessionsDir, n)));
+      if (s && s.endedAt === null && bypassOn(s, now)) onNow++;
+    }
+  } catch {
+    /* no sessions yet */
+  }
+  const belt = beltConfigOf(config);
+  const floorWeakened = RULE_IDS.filter((id) => RULES[id].bypass !== 'allow').filter((id) => {
+    const v = effectiveVerdict(id, belt);
+    return RULES[id].pack ? v !== null && VERDICT_ORDER[v] < VERDICT_ORDER.ask : v === null || VERDICT_ORDER[v] < VERDICT_ORDER.ask;
+  });
+  return { enabled: config.bypass.enabled, maxHours: config.bypass.maxHours, onNow: config.bypass.enabled ? onNow : 0, floorWeakened };
 }
 
 function modSeen(l: Layout): Facts['modSeen'] {
@@ -699,6 +726,7 @@ export async function gatherFacts(d0: DoctorEnv, now = Date.now()): Promise<Fact
     transcripts: wants(d, 'transcripts') ? transcriptFacts(d.claudeDir, now) : { files: 0, shape: null, badSessionIds: [] },
     selftest: await runAllSuites(),
     hookAgreement: !wants(d, 'agreement') || !hookExists || !realPathOf(node) ? null : await hookAgreement(d, node, hookFile),
+    bypass: bypassFacts(l, d.config, now),
     autonomy: {
       enabled: d.config.autonomy.enabled,
       checks: d.config.autonomy.enabled ? autonomyCheck({ layout: l, config: d.config }, d.cwd, { platform: d.platform, env: d.env, claude: env }).checks : [],

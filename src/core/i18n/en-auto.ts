@@ -280,6 +280,11 @@ export const enAuto = {
   'doc.autonomy.off': 'Full autonomy is off (mode-code autonomy enable turns it on).',
   'doc.autonomy.ready': 'Full autonomy is on, and nothing measured here stands in the way of a run.',
   'doc.autonomy.notReady': 'Full autonomy is on, but {n} start check(s) would fail here:',
+  'doc.bypass.off': 'Bypass is off: no session can lift the safety belt.',
+  'doc.bypass.on': 'Bypass can be switched on in a session by you, for up to {hours} h; it is off in every session now.',
+  'doc.bypass.onNow': 'Bypass is on in {n} session(s) now (for up to {hours} h each); what it lets through is under Automation › Done without asking.',
+  'doc.bypass.floorWeakened': '{n} rule(s) bypass should keep asking about are switched off or set to allow in the settings:',
+  'doc.bypass.floorHint': 'Set them back under Security › Safety belt rules, or with mode-code config set belt.verdicts.<rule> ask.',
 
   // ── the control center ──
   'home.runs': 'Full-autonomy runs',

@@ -20,6 +20,7 @@ protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
+protection.bypass info doc.bypass.off
 shell.gitBash ok protection doc.shell.gitBash.ok {"path":"C:/Program Files/Git/bin/bash.exe"}
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
 shell.posix skip doc.notMeasured
@@ -64,6 +65,7 @@ protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
+protection.bypass info doc.bypass.off
 shell.gitBash ok protection doc.shell.gitBash.ok {"path":"C:/Program Files/Git/bin/bash.exe"}
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
 shell.posix skip doc.notMeasured
@@ -107,6 +109,7 @@ protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames skip protection doc.windowsOnly
 protect.memory ok doc.protect.memory.ok {"n":1}
+protection.bypass info doc.bypass.off
 shell.gitBash skip protection doc.windowsOnly
 shell.powershell skip doc.notMeasured
 shell.posix info doc.shell.posix.info {"shell":"/bin/zsh","version":"zsh 5.9"}
@@ -157,6 +160,7 @@ protect.links info protection doc.protect.links.some {"n":1}
 protect.shortNames fail protection hint=doc.reportHint doc.protect.shortNames.missed {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/CLAUDE~1","long":"C:/Users/ada/.claude"}
 protect.memory warn doc.protect.memory.missing {"path":"C:/notes"}
+protection.bypass info doc.bypass.off
 shell.gitBash fail protection hint=doc.reportHint doc.shell.gitBash.tmpDiffers {"tmp":"C:/msys/tmp","expected":"C:/Users/ada/AppData/Local/Temp"}
 shell.powershell info doc.shell.pwsh.only51
 shell.posix skip doc.notMeasured
@@ -205,6 +209,7 @@ protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames skip protection doc.windowsOnly
 protect.memory ok doc.protect.memory.ok {"n":1}
+protection.bypass info doc.bypass.off
 shell.gitBash skip protection doc.windowsOnly
 shell.powershell skip doc.notMeasured
 shell.posix info doc.shell.posix.unknown
@@ -249,6 +254,7 @@ protect.agreement skip protection doc.protect.agreement.notRun
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.none
 protect.memory info doc.protect.memory.none
+protection.bypass info doc.bypass.off
 shell.gitBash warn hint=doc.shell.gitBash.hint doc.shell.gitBash.missing
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
 shell.posix skip doc.notMeasured
@@ -293,6 +299,7 @@ protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory info doc.protect.memory.noGit {"n":1}
+protection.bypass info doc.bypass.off
 shell.gitBash warn protection doc.shell.gitBash.noTmp {"path":"C:/Git/bin/bash.exe","error":"timeout"}
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
 shell.posix skip doc.notMeasured
@@ -341,6 +348,7 @@ protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames skip protection doc.windowsOnly
 protect.memory ok doc.protect.memory.ok {"n":1}
+protection.bypass info doc.bypass.off
 shell.gitBash skip protection doc.windowsOnly
 shell.powershell skip doc.notMeasured
 shell.posix info doc.shell.posix.info {"shell":"/bin/zsh","version":"?"}
@@ -388,6 +396,7 @@ protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
+protection.bypass info doc.bypass.off
 shell.gitBash ok protection doc.shell.gitBash.ok {"path":"C:/Program Files/Git/bin/bash.exe"}
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
 shell.posix skip doc.notMeasured
@@ -432,6 +441,7 @@ protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
+protection.bypass info doc.bypass.off
 shell.gitBash ok protection doc.shell.gitBash.ok {"path":"C:/Program Files/Git/bin/bash.exe"}
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
 shell.posix skip doc.notMeasured
@@ -476,6 +486,7 @@ protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
+protection.bypass info doc.bypass.off
 shell.gitBash ok protection doc.shell.gitBash.ok {"path":"C:/Program Files/Git/bin/bash.exe"}
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
 shell.posix skip doc.notMeasured
@@ -520,6 +531,7 @@ protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
+protection.bypass info doc.bypass.off
 shell.gitBash ok protection doc.shell.gitBash.ok {"path":"C:/Program Files/Git/bin/bash.exe"}
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
 shell.posix skip doc.notMeasured
@@ -564,6 +576,7 @@ protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
+protection.bypass info doc.bypass.off
 shell.gitBash ok protection doc.shell.gitBash.ok {"path":"C:/Program Files/Git/bin/bash.exe"}
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
 shell.posix skip doc.notMeasured
@@ -608,6 +621,7 @@ protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
+protection.bypass info doc.bypass.off
 shell.gitBash ok protection doc.shell.gitBash.ok {"path":"C:/Program Files/Git/bin/bash.exe"}
 shell.powershell ok doc.shell.pwsh.ok {"v":"7.6.6"}
 shell.posix skip doc.notMeasured
