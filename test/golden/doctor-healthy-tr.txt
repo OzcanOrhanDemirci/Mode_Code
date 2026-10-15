@@ -22,6 +22,7 @@ Koruma
   ✓ Kemer, Windows'un korunan yerlere verdiği 1 kısa adı da koruyor.
       ~/MODECO~1 = ~/.mode-code.
   ✓ 1 hafıza klasörü korunuyor ve git deposu.
+  · Bypass kapalı: hiçbir oturum emniyet kemerini kaldıramaz.
 Kabuklar ve terminal
   ✓ Git Bash (C:/Program Files/Git/bin/bash.exe), kemerin varsaydığı gibi /tmp'yi Temp klasörüne bağlıyor.
   ✓ PowerShell 7.6.6.
@@ -47,4 +48,4 @@ Veri
 Öz-sınama
   ✓ 1 paketteki 30 yerleşik örneğin hepsi beklenen cevabı verdi.
 
-2.1 sn içinde 41 denetim: 34 tamam, 0 uyarı, 0 sorun.
+2.1 sn içinde 42 denetim: 34 tamam, 0 uyarı, 0 sorun.

@@ -5,7 +5,7 @@
  * reason to let it end: the run is over or paused, the budget is reached, the time limit is up, or nothing
  * has changed through three attempts to stop. Pure: the hook supplies the facts and keeps the counter.
  */
-import { activeTime, lastProgressAt, nextStep, recordKey, type Run } from './run.js';
+import { lastProgressAt, limitTime, nextStep, recordKey, type Run } from './run.js';
 
 /**
  * What changed, in one short string: the commit, the work tree (`git status --porcelain`, untracked files
@@ -65,7 +65,7 @@ export function stopDecision(run: Run | null, f: StopFacts, mem: StopMemory): St
   if (run.status === 'paused') return { allow: true, why: 'paused', memory: fresh };
   if (f.quotaLevel !== 'ok') return { allow: true, why: 'budget', memory: fresh };
   if (f.background > 0) return { allow: true, why: 'waiting', memory: fresh };
-  if (activeTime(run, f.now) >= f.maxHours * 3_600_000) return { allow: true, why: 'timeout', memory: fresh };
+  if (limitTime(run, f.now) >= f.maxHours * 3_600_000) return { allow: true, why: 'timeout', memory: fresh };
   // Twice the stall time without a milestone: the first span warns (the plugin says so on tool calls), the second ends it.
   if (f.now - lastProgressAt(run) >= 2 * f.stallMinutes * 60_000) return { allow: true, why: 'stalled', memory: fresh };
   const same = mem.runId === run.id && mem.fingerprint === f.fingerprint;

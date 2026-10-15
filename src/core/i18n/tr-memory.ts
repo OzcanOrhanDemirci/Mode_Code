@@ -112,10 +112,10 @@ export const trMemory: Record<keyof typeof enMemory, string> = {
 
   'mod.memory.conflict': "🧠 Hafıza: {files} hem burada hem GitHub'da değişti; hiçbir şey zorlanmadı. mode-code memory gösterir.",
   'mod.memory.held': "🧠 Hafıza: sır içeriyor gibi göründüğü için GitHub'a gönderilmedi: {files}.",
-  'mod.memory.auth': '🧠 Hafıza: GitHub girişi kabul etmedi ({detail}). gh auth login, sonra mode-code memory sync.',
+  'mod.memory.auth': '🧠 Hafıza: GitHub girişi kabul etmedi. gh auth login, sonra mode-code memory sync. ({detail})',
   'mod.memory.rejected': "🧠 Hafıza: GitHub'da bu bilgisayarın henüz birleştiremediği değişiklikler var: mode-code memory sync.",
   'mod.memory.identity': '🧠 Hafıza: git commitler için bir ad ve adres istiyor: mode-code memory setup.',
-  'mod.memory.diverged': '🧠 Hafıza: bu kopya da GitHub da ilerlemiş, bu yüzden hiçbir şey alınmadı. Onları sen birleştir (git pull).',
+  'mod.memory.diverged': '🧠 Hafıza: bu kopya da GitHub da ilerlemiş; hiçbir şey alınmadı. Sen birleştir (git pull).',
   'mod.memory.failed': '🧠 Hafıza: eşitleme olmadı: {detail}',
   'mod.handoff.agent': 'Devir notunu yalnız ana oturum yazar; bir alt ajan bu aracı çağıramaz.',
   'mod.handoff.refused': 'Devir notu henüz yazılmadı:',

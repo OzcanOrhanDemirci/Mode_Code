@@ -15,9 +15,12 @@ export type ModeCodeLabels = {
   strip: {
     mode: 'free' | 'chat' | 'research' | 'plan' | 'code';
     style: 'manual' | 'autonomous' | 'full';
-    flow: string | null;
-    fullAutoHere: boolean;
+    flow: { at: string; state: 'running' | 'approval' | 'paused' | 'armed' } | null;
+    fullAutoShown: boolean;
+    bypass: { shown: boolean; on: boolean; count: number };
     lang: 'en' | 'tr';
+    /** The person asked for less motion: the flow's step is marked, not breathing. */
+    still: boolean;
   } | null;
 };
 
@@ -45,8 +48,21 @@ export type ModeCodeMo = {
   at: number;
 };
 
+/**
+ * The window where full autonomy is started (a pane): the budgets it offers and the one picked, the week's
+ * reading they are measured from, a line saying what is missing, the language. The task's text is the plugin's
+ * own while it is typed (a redraw on every key would fight the typing), drawn into the field on each redraw.
+ */
+export type ModeCodeAutoPane = {
+  lang: 'en' | 'tr';
+  budgets: string[];
+  budget: string;
+  week: number | null;
+  error: string | null;
+};
+
 declare module 'claude-code' {
   interface PluginState {
-    'mode-code': { footers: ModeCodeFooters; labels: ModeCodeLabels; mo: ModeCodeMo };
+    'mode-code': { footers: ModeCodeFooters; labels: ModeCodeLabels; mo: ModeCodeMo; autoPane: ModeCodeAutoPane };
   }
 }

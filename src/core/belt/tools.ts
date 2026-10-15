@@ -5,6 +5,8 @@
  * files and is missing here goes unchecked; the doctor reports any such tool it finds in the transcripts.
  */
 
+import { PLUGIN_NAME } from '../app.js';
+
 /** Tools that run a shell command, and the shell that reads it. Monitor runs its script in the Bash tool's shell. */
 const SHELL_TOOLS: Readonly<Record<string, 'bash' | 'powershell'>> = { Bash: 'bash', PowerShell: 'powershell', Monitor: 'bash' };
 
@@ -28,4 +30,13 @@ export function isFileTool(tool: string): boolean {
 
 export function isBeltTool(tool: string): boolean {
   return BELT_TOOLS.includes(tool);
+}
+
+/**
+ * Tools of connected services (MCP servers: mail, calendars, drives …), not this tool's own. The plugin
+ * checks what they send, share and delete; the safety-net hook stays on commands and file writes, so a
+ * service call does not start a program each time.
+ */
+export function isOutwardTool(tool: string): boolean {
+  return tool.startsWith('mcp__') && !tool.startsWith(`mcp__${PLUGIN_NAME}__`);
 }

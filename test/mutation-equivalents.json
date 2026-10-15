@@ -400,6 +400,30 @@
       "line": "for (let i = 1; i < words.length; i++) if (listHas(t.research",
       "kind": "equivalent",
       "why": "the extra turn tries an empty plan phrase, and no keyword list holds an empty phrase (empty phrases are dropped when the tables are built)"
+    },
+    {
+      "file": "src/core/keywords.ts",
+      "from": "<",
+      "to": "<=",
+      "line": "d < best.d",
+      "kind": "equivalent",
+      "why": "every offer is one edit away, so a later one only replaces an earlier one at the same distance: both are keywords one typo away, either is a right offer"
+    },
+    {
+      "file": "src/node/clipboard.ts",
+      "from": "true",
+      "to": "false",
+      "line": "windowsHide: true",
+      "kind": "equivalent",
+      "why": "whether a console window flashes up for the copying program is seen on a desktop, not by a test; the copy is the same"
+    },
+    {
+      "file": "src/core/session.ts",
+      "from": ">=",
+      "to": ">",
+      "line": "x.count >= 0 ? Math.floor(x.count) : 0",
+      "kind": "equivalent",
+      "why": "a count of 0 reads as 0 either way"
     }
   ]
 }

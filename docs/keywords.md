@@ -1,6 +1,6 @@
 # Keywords
 
-A keyword is a short phrase that steers the session. The tool detects it in code and adds a note for Claude that quotes your words and says what they mean, so the behavior does not depend on Claude remembering a convention. The mode and the way of working also have slash commands (`/1` … `/9`, `/0`, `/00`, `/devam`, `/kota`) and a strip above the prompt: see [modes.md](modes.md#session-controls).
+A keyword is a short phrase that steers the session. The tool detects it in code and adds a note for Claude that quotes your words and says what they mean, so the behavior does not depend on Claude remembering a convention. The mode and the way of working also have slash commands (`/1` … `/8`, `/0`, `/00`, `/devam`, `/kota`, `/tam-otonom`) and a strip above the prompt: see [modes.md](modes.md#session-controls).
 
 ## Rules
 
@@ -8,8 +8,10 @@ A keyword is a short phrase that steers the session. The tool detects it in code
 - The words that switch the **mode** (`plan`, `kod`, `sohbet`, `araştırma`, `serbest`) or the **way of working** (`manuel`, `otonom`), and `stop` / `dur`, `wrap up` / `toparla` and `approve` / `onay`, count **only as the whole message**: they are everyday words, and "Bu bir plan." must not switch modes.
 - Matching ignores case, accents and Turkish keyboard variants: `termınal devam`, `TERMİNAL DEVAM` and `terminal  devam` are the same. (The trap this avoids: in JavaScript `"İ".toLowerCase()` is `i` followed by a combining dot.)
 - A project name one letter away from a registered one is **suggested, never taken**: Claude is asked to confirm in one line.
+- **A keyword one typo away is offered too, never taken.** A short message (three words at most) one letter from a keyword of two words or of five letters or more (`akış iptl`, `serbes`, `flow cancle`) changes nothing; a notice asks whether you meant the keyword, and Claude is told the same. Short words (`kot`, `pln`) are left alone: everyday typing would set them off.
+- **A slash in front is forgiven.** A keyword typed as a slash command (`/akış iptal`, `/plan`) is that keyword when it is the whole message, and a notice says how it was read. Claude Code's own commands and this tool's (`/3`, `/devam`) never arrive as a message, so nothing is taken from them.
 - The detected keyword is shown as a short notice, so you see what the tool understood.
-- **The mode and the way of working change only when you name them**: a mode or `manuel` / `otonom` typed alone, `manuel` in `manuel <proje> devam`, the strip or `/1` … `/8`. `continue`, a budget and `stop` leave both as the strip shows them; a session nobody set works manually, as Claude Code does by default.
+- **The mode and the way of working change only when you name them**: a mode or `manuel` / `otonom` typed alone, `manuel` in `manuel <proje> devam`, the strip or `/1` … `/5`, `/7`, `/8`. `continue`, a budget and `stop` leave both as the strip shows them; a session nobody set works manually, as Claude Code does by default.
 - **A paste is material, not your words.** A keyword typed before or after a paste counts as it would at the end of the message (`terminal devam (<paste>)`); what is inside the paste never does, and a paste beside a word that counts only alone (`plan`, `dur`) keeps it a word.
 
 ## Table

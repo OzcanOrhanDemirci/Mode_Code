@@ -39,6 +39,11 @@ const input = (over: Partial<SyncInput> = {}): SyncInput => ({
   ...over,
 });
 
+/** A pull in two steps: a fetch that leaves FETCH_HEAD alone, then a join with the upstream by name. */
+const FETCH = 'fetch --quiet --no-write-fetch-head';
+const REBASE = 'rebase --autostash --quiet';
+const MERGE = 'merge --ff-only --quiet @{upstream}';
+
 /** A repository at /m with an upstream, nothing changed, nothing to send: each test overrides what it needs. */
 const base =
   (over: Record<string, Answer> = {}): Script =>
@@ -48,7 +53,7 @@ const base =
     if (a === 'rev-parse --show-toplevel') return { stdout: '/m\n' };
     if (a.startsWith('status')) return { stdout: '' };
     if (a === 'rev-parse --abbrev-ref --symbolic-full-name @{upstream}') return { stdout: 'origin/main\n' };
-    if (a === 'pull --rebase --autostash --quiet') return {};
+    if (a === FETCH || a === REBASE || a === MERGE) return {};
     if (a === 'rev-list --count @{upstream}..HEAD') return { stdout: '0\n' };
     if (a === 'rev-list --left-right --count @{upstream}...HEAD') return { stdout: '0\t0\n' };
     return undefined;
@@ -172,13 +177,14 @@ test('the upstream: taken as git reports it; a branch without one follows origin
 });
 
 test('the pull: a conflict is undone with its files named; a rebase left half done is undone; failures are sorted', async () => {
-  const pull = 'pull --rebase --autostash --quiet';
+  const pull = REBASE;
   const conflicted = fake(
     base({ [pull]: { exitCode: 1, stderr: 'CONFLICT (content)' }, 'diff --name-only --diff-filter=U': { stdout: 'MEMORY.md\nb.md\n' }, 'rebase --abort': {} }),
   );
   const c = await syncMemory(conflicted.runner, input());
   assert.deepEqual([c.pull, c.conflicts, c.push, c.detail], ['conflict', ['MEMORY.md', 'b.md'], 'skipped', 'could not join the changes in MEMORY.md, b.md']);
   assert.ok(conflicted.calls.includes('rebase --abort'));
+  assert.equal(conflicted.calls.filter((c) => c === REBASE).length, 1, 'a conflict is not a lock: no second try');
   const half = fake(
     base({
       [pull]: { exitCode: 1, stderr: 'error: cannot rebase' },
@@ -190,12 +196,12 @@ test('the pull: a conflict is undone with its files named; a rebase left half do
   const h = await syncMemory(half.runner, input());
   assert.deepEqual([h.pull, h.detail], ['failed', 'cannot rebase']);
   assert.ok(half.calls.includes('rebase --abort'));
-  const sorted = async (stderr: string, stdout = '') =>
+  const sorted = async (stderr: string, stdout = '', step = FETCH) =>
     (
       await syncMemory(
         fake(
           base({
-            [pull]: { exitCode: 1, stderr, stdout },
+            [step]: { exitCode: 1, stderr, stdout },
             'diff --name-only --diff-filter=U': { exitCode: 1 },
             'rev-parse --verify --quiet REBASE_HEAD': { exitCode: 1 },
           }),
@@ -206,8 +212,51 @@ test('the pull: a conflict is undone with its files named; a rebase left half do
   assert.equal(await sorted('fatal: Could not resolve host: github.com'), 'offline');
   assert.equal(await sorted('fatal: Authentication failed'), 'auth');
   assert.equal(await sorted('fatal: index.lock'), 'busy');
+  assert.equal(await sorted("error: cannot lock ref 'refs/remotes/origin/main': is at abc but expected def"), 'busy');
+  assert.equal(await sorted('fatal: index.lock', '', pull), 'busy', 'a join that keeps meeting a lock');
   assert.equal(await sorted('', 'Updates were rejected'), 'failed', 'what a pull cannot be is sorted as a plain failure');
   assert.equal(await sorted('*** Please tell me who you are.'), 'failed');
+  assert.ok(!conflicted.calls.some((c) => c.startsWith('pull')), 'never git pull: it reads FETCH_HEAD');
+});
+
+test('the pull in two steps: another fetch at the same moment is waited out, an old git fetches without the flag', async () => {
+  // A second session fetched the same commits at the same moment: the lock is the other's. Once more, after it.
+  const tries = new Map<string, number>();
+  const raced = (step: string, stderr: string) =>
+    fake((args) => {
+      const a = args.join(' ');
+      if (a !== step) return base()(args);
+      tries.set(step, (tries.get(step) ?? 0) + 1);
+      return tries.get(step) === 1 ? { exitCode: 1, stderr } : {};
+    });
+  const f = await syncMemory(
+    raced(FETCH, "error: cannot lock ref 'refs/remotes/origin/main': Unable to create '/m/.git/refs/remotes/origin/main.lock': File exists.").runner,
+    input(),
+  );
+  const j = await syncMemory(raced(REBASE, "fatal: Unable to create '/m/.git/index.lock': File exists.").runner, input());
+  const m = await syncMemory(
+    raced(MERGE, "fatal: Unable to create '/m/.git/index.lock': File exists.").runner,
+    input({ pullMode: 'ff-only', steps: { commit: false, pull: true, push: false } }),
+  );
+  assert.deepEqual([f.pull, j.pull, m.pull, f.detail, j.detail], ['ok', 'ok', 'ok', '', '']);
+  assert.deepEqual([tries.get(FETCH), tries.get(REBASE), tries.get(MERGE)], [2, 2, 2]);
+  // Only a lock is tried again: a network that is down is not asked twice.
+  const down = fake(base({ [FETCH]: { exitCode: 128, stderr: 'fatal: Could not resolve host: github.com' } }));
+  assert.equal((await syncMemory(down.runner, input())).pull, 'offline');
+  assert.equal(down.calls.filter((c) => c.startsWith('fetch')).length, 1);
+  // git before 2.29 does not know --no-write-fetch-head: a plain fetch, then the join.
+  const old = fake(base({ [FETCH]: { exitCode: 129, stderr: "error: unknown option `no-write-fetch-head'\nusage: git fetch" }, 'fetch --quiet': {} }));
+  assert.equal((await syncMemory(old.runner, input())).pull, 'ok');
+  assert.deepEqual(
+    old.calls.filter((c) => c.startsWith('fetch') || c.startsWith('rebase')),
+    [FETCH, 'fetch --quiet', REBASE],
+  );
+  const oldDown = fake(
+    base({ [FETCH]: { exitCode: 129, stderr: 'error: unknown option' }, 'fetch --quiet': { exitCode: 128, stderr: 'fatal: Authentication failed' } }),
+  );
+  assert.equal((await syncMemory(oldDown.runner, input())).pull, 'auth');
+  // A fetch that did not go through is not followed by a join.
+  assert.ok(!down.calls.includes(REBASE));
 });
 
 test('the push: nothing to send, a first push, a rejection pulled once and sent again, a rejection that cannot be joined', async () => {
@@ -218,7 +267,7 @@ test('the push: nothing to send, a first push, a rejection pulled once and sent 
   const sending = fake(base({ ...ahead(2), 'push --quiet': {} }));
   const sent = await syncMemory(sending.runner, input({ steps: { commit: true, pull: false, push: true } }));
   assert.deepEqual([sent.repo, sent.push], [true, 'ok']);
-  assert.ok(!sending.calls.some((c) => c.startsWith('pull')), 'a push that went through is not followed by a pull');
+  assert.ok(!sending.calls.some((c) => c.startsWith('fetch') || c.startsWith('rebase')), 'a push that went through is not followed by a pull');
   assert.equal(sending.calls.filter((c) => c.endsWith('@{upstream}')).length, 1, 'an upstream known before the push is not asked for again');
   // No upstream: a first push when there is a commit, nothing without one.
   const up = 'rev-parse --abbrev-ref --symbolic-full-name @{upstream}';
@@ -244,13 +293,17 @@ test('the push: nothing to send, a first push, a rejection pulled once and sent 
   });
   const g = await syncMemory(again.runner, input({ steps: { commit: true, pull: false, push: true } }));
   assert.deepEqual([g.push, tries, g.pull], ['ok', 2, 'skipped']);
-  assert.ok(again.calls.includes('pull --rebase --autostash --quiet'), 'pulled once, even on a turn that does not pull');
+  assert.deepEqual(
+    again.calls.filter((c) => c === FETCH || c === REBASE),
+    [FETCH, REBASE],
+    'pulled once, even on a turn that does not pull',
+  );
   // Rejected and the pull cannot join: the push stays rejected, nothing is forced.
   const stuck = fake(
     base({
       ...ahead(1),
       'push --quiet': { exitCode: 1, stderr: ' ! [rejected] (fetch first)' },
-      'pull --rebase --autostash --quiet': { exitCode: 1 },
+      [REBASE]: { exitCode: 1 },
       'diff --name-only --diff-filter=U': { stdout: 'MEMORY.md\n' },
       'rebase --abort': {},
     }),
@@ -264,7 +317,7 @@ test('the push: nothing to send, a first push, a rejection pulled once and sent 
     base({
       ...ahead(1),
       'push --quiet': { exitCode: 1, stderr: ' ! [rejected] (fetch first)' },
-      'pull --rebase --autostash --quiet': { exitCode: 1, stderr: 'Could not resolve host' },
+      [FETCH]: { exitCode: 1, stderr: 'Could not resolve host' },
       'diff --name-only --diff-filter=U': { exitCode: 1 },
       'rev-parse --verify --quiet REBASE_HEAD': { exitCode: 1 },
     }),
@@ -280,7 +333,7 @@ test('the push: nothing to send, a first push, a rejection pulled once and sent 
   // A push refused for another reason than a rejection is not followed by a pull and a second try.
   const down = fake(base({ ...ahead(1), 'push --quiet': { exitCode: 1, stderr: 'fatal: Could not resolve host' } }));
   await syncMemory(down.runner, input({ steps: { commit: true, pull: false, push: true } }));
-  assert.deepEqual([down.calls.filter((c) => c === 'push --quiet').length, down.calls.some((c) => c.startsWith('pull'))], [1, false]);
+  assert.deepEqual([down.calls.filter((c) => c === 'push --quiet').length, down.calls.some((c) => c.startsWith('fetch'))], [1, false]);
   const said = await syncMemory(fake(base({ ...ahead(1), 'push --quiet': { exitCode: 1, stderr: '', stdout: 'remote said no' } })).runner, input());
   assert.equal(said.detail, 'remote said no', 'a refusal printed to stdout is the detail');
   assert.equal(await refused('Please tell me who you are'), 'failed');
@@ -299,17 +352,17 @@ test('the counts after a sync, a remote that hangs, the first problem kept as th
     [null, null],
   );
   // A call that runs out of time on the network is the network's; any other error is a failure.
-  const hang = await syncMemory(fake(base({ 'pull --rebase --autostash --quiet': new Error('timed out after 60000 ms: git pull') })).runner, input());
+  const hang = await syncMemory(fake(base({ [FETCH]: new Error('timed out after 60000 ms: git fetch') })).runner, input());
   assert.equal(hang.pull, 'offline');
   assert.match(hang.detail, /^operation timed out: /);
-  const broke = await syncMemory(fake(base({ 'pull --rebase --autostash --quiet': new Error('spawn git ENOENT') })).runner, input());
+  const broke = await syncMemory(fake(base({ [FETCH]: new Error('spawn git ENOENT') })).runner, input());
   assert.deepEqual([broke.pull, broke.detail], ['failed', 'spawn git ENOENT']);
   // Only the first problem is the detail.
   const two = await syncMemory(
     fake(
       base({
         'status --porcelain=v1 -z --untracked-files=all -- .': { exitCode: 1, stderr: 'fatal: first' },
-        'pull --rebase --autostash --quiet': { exitCode: 1, stderr: 'fatal: second' },
+        [FETCH]: { exitCode: 1, stderr: 'fatal: second' },
         'diff --name-only --diff-filter=U': { exitCode: 1 },
         'rev-parse --verify --quiet REBASE_HEAD': { exitCode: 1 },
       }),
@@ -326,7 +379,7 @@ test('the counts after a sync, a remote that hangs, the first problem kept as th
 
 test('what the pulls brought in: the files and the index lines, from where the store stood before them to where they left it', async () => {
   const head = 'rev-parse --verify --quiet HEAD';
-  const pull = 'pull --rebase --autostash --quiet';
+  const pull = REBASE;
   const names = 'diff --name-only --no-renames --relative -z abc def -- .';
   const lines = 'diff --unified=0 --no-color --no-ext-diff --relative abc def -- MEMORY.md';
   /** HEAD is abc until a pull goes through, def after. */
@@ -408,7 +461,7 @@ test('what arrived by another hand since this computer last saw the store is rep
         at = 'c0m';
         return {};
       }
-      if (k === 'pull --rebase --autostash --quiet') {
+      if (k === REBASE) {
         at = 'def';
         return {};
       }
@@ -439,19 +492,29 @@ test('what arrived by another hand since this computer last saw the store is rep
 });
 
 test('only a fast-forward, for a store its owner commits: nothing of theirs is committed, rebased or sent', async () => {
-  const ff = 'pull --ff-only --quiet';
-  const run = async (answer: Answer) => {
-    const a = fake(base({ [ff]: answer }));
+  const ff = MERGE;
+  let calls: string[] = [];
+  const run = async (answer: Answer, step = ff) => {
+    const a = fake(base({ [step]: answer }));
     const r = await syncMemory(a.runner, input({ pullMode: 'ff-only', steps: { commit: false, pull: true, push: false } }));
-    assert.ok(
-      !a.calls.some((c) => c.startsWith('pull --rebase') || c.startsWith('commit') || c.startsWith('push') || c.startsWith('rebase')),
-      a.calls.join('|'),
-    );
+    assert.ok(!a.calls.some((c) => c.startsWith('pull') || c.startsWith('commit') || c.startsWith('push') || c.startsWith('rebase')), a.calls.join('|'));
+    calls = a.calls;
     return r;
   };
   assert.equal((await run({})).pull, 'ok');
+  assert.deepEqual(
+    calls.filter((c) => c.startsWith('fetch') || c.startsWith('merge')),
+    [FETCH, MERGE],
+    'a join that went through is not made again',
+  );
+  // A fetch that did not go through: what git said is the detail, and nothing is joined.
+  const unreachable = await run({ exitCode: 128, stderr: 'fatal: unable to access: Could not resolve host: github.com' }, FETCH);
+  assert.deepEqual([unreachable.pull, unreachable.detail], ['offline', 'unable to access: Could not resolve host: github.com']);
+  assert.ok(!calls.includes(MERGE));
+  assert.equal((await run({ exitCode: 1, stdout: 'remote said no' }, FETCH)).detail, 'remote said no', 'printed to stdout');
   const diverged = await run({ exitCode: 128, stderr: "hint: Diverging branches can't be fast-forwarded\nfatal: Not possible to fast-forward, aborting." });
   assert.deepEqual([diverged.pull, diverged.detail], ['diverged', "Diverging branches can't be fast-forwarded"]);
+  assert.equal(calls.filter((c) => c === MERGE).length, 1, 'only a lock is tried again');
   assert.equal((await run({ exitCode: 128, stderr: 'fatal: Not possible to fast-forward, aborting.' })).pull, 'diverged');
   const dirty = await run({
     exitCode: 1,
@@ -465,22 +528,12 @@ test('only a fast-forward, for a store its owner commits: nothing of theirs is c
       'error: The following untracked working tree files would be overwritten by merge:\n\tnew.md\nPlease move or remove them before you merge.\nAborting',
   });
   assert.deepEqual([untracked.pull, untracked.conflicts], ['conflict', ['new.md']]);
-  assert.equal((await run({ exitCode: 1, stderr: 'fatal: unable to access: Could not resolve host: github.com' })).pull, 'offline');
-  assert.equal((await run({ exitCode: 1, stderr: 'remote: Repository not found.' })).pull, 'auth');
+  assert.equal((await run({ exitCode: 1, stderr: 'fatal: unable to access: Could not resolve host: github.com' }, FETCH)).pull, 'offline');
+  assert.equal((await run({ exitCode: 1, stderr: 'remote: Repository not found.' }, FETCH)).pull, 'auth');
+  assert.equal((await run(new Error('timed out after 60000 ms'), FETCH)).pull, 'offline');
   assert.equal((await run({ exitCode: 128, stderr: "fatal: Unable to create '/m/.git/index.lock': File exists." })).pull, 'busy');
   assert.equal((await run({ exitCode: 1, stderr: 'fatal: something else' })).pull, 'failed');
-  assert.equal((await run(new Error('timed out after 60000 ms'))).pull, 'offline');
-  // Another pull at the same moment leaves several heads behind: once more, and level is level (measured, 2026-10-13).
-  let tries = 0;
-  const raced = fake((args) => {
-    if (args.join(' ') !== ff) return base({})(args);
-    tries++;
-    return tries === 1 ? { exitCode: 128, stderr: 'fatal: Cannot fast-forward to multiple branches.' } : {};
-  });
-  const r2 = await syncMemory(raced.runner, input({ pullMode: 'ff-only', steps: { commit: false, pull: true, push: false } }));
-  assert.deepEqual([r2.pull, r2.detail, tries], ['ok', '', 2]);
-  const stuck = await run({ exitCode: 128, stderr: 'fatal: Cannot fast-forward to multiple branches.' });
-  assert.equal(stuck.pull, 'diverged', 'twice in a row: as git says');
+  assert.equal((await run(new Error('spawn git ENOENT'))).pull, 'failed');
   // A pull that could not join is not followed by a push, even when one was asked for.
   const both = fake(base({ [ff]: { exitCode: 128, stderr: 'fatal: Not possible to fast-forward, aborting.' } }));
   const b = await syncMemory(both.runner, input({ pullMode: 'ff-only' }));

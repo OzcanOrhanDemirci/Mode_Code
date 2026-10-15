@@ -3,7 +3,7 @@
  * The controls of a session: its mode and its way of working, the heart of the tool, always in view on the
  * strip above the prompt and changed in three ways that do the same thing: a slash command (`/3`), a press
  * on the strip, or a keyword typed as the whole message ("plan"). Commands that need a value (`/devam`,
- * `/kota`, `/9`, `/8`) ask for it when it is not given and apply it at once when it is. `/00` closes the
+ * `/kota`, `/6`, `/tam-otonom`) ask for it when it is not given and apply it at once when it is. `/00` closes the
  * session cleanly (src/core/close.ts). Pure: the plugin (src/mod/register.ts) asks, draws and applies.
  */
 import type { KeywordMatch, KeywordKind, FlowVariant } from './keywords.js';
@@ -24,7 +24,8 @@ export type ControlAction =
   | { kind: 'menu' }
   | { kind: 'continue' }
   | { kind: 'quota' }
-  | { kind: 'close' };
+  | { kind: 'close' }
+  | { kind: 'bypass' };
 
 /** Every slash command, by name: a number for everything on the strip, a word for those that take a value and for closing. */
 export const COMMANDS: readonly { name: string; action: ControlAction }[] = [
@@ -33,10 +34,9 @@ export const COMMANDS: readonly { name: string; action: ControlAction }[] = [
   { name: '3', action: { kind: 'mode', mode: 'plan' } },
   { name: '4', action: { kind: 'mode', mode: 'code' } },
   { name: '5', action: { kind: 'mode', mode: 'free' } },
-  { name: '6', action: { kind: 'style', style: 'manual' } },
-  { name: '7', action: { kind: 'style', style: 'autonomous' } },
-  { name: '8', action: { kind: 'fullAuto' } },
-  { name: '9', action: { kind: 'flow' } },
+  { name: '6', action: { kind: 'flow' } },
+  { name: '7', action: { kind: 'style', style: 'manual' } },
+  { name: '8', action: { kind: 'style', style: 'autonomous' } },
   { name: '0', action: { kind: 'menu' } },
   { name: '00', action: { kind: 'close' } },
   { name: 'devam', action: { kind: 'continue' } },
@@ -45,6 +45,11 @@ export const COMMANDS: readonly { name: string; action: ControlAction }[] = [
   { name: 'quota', action: { kind: 'quota' } },
   { name: 'akis', action: { kind: 'flow' } },
   { name: 'flow', action: { kind: 'flow' } },
+  // Full autonomy has no number: a special way of working, shown only once turned on (Automation).
+  { name: 'tam-otonom', action: { kind: 'fullAuto' } },
+  { name: 'full-auto', action: { kind: 'fullAuto' } },
+  // Bypass has no number either: on the strip only once turned on (Automation), switched by the person alone.
+  { name: 'bypass', action: { kind: 'bypass' } },
   { name: 'kapat', action: { kind: 'close' } },
   { name: 'close', action: { kind: 'close' } },
 ];
@@ -52,6 +57,13 @@ export const COMMANDS: readonly { name: string; action: ControlAction }[] = [
 /** The number of the command that does `action` on the strip. */
 export function digitOf(action: ControlAction): string {
   return COMMANDS.find((c) => /^\d+$/.test(c.name) && JSON.stringify(c.action) === JSON.stringify(action))!.name;
+}
+
+/** The command that does `action`: its number, or for one without (full autonomy) its word in `lang`. */
+export function commandOf(action: ControlAction, lang: Lang): string {
+  if (action.kind === 'fullAuto') return lang === 'tr' ? 'tam-otonom' : 'full-auto';
+  if (action.kind === 'bypass') return 'bypass';
+  return digitOf(action);
 }
 
 export function commandNamed(name: string): ControlAction | null {
@@ -217,31 +229,79 @@ export interface StripItem {
   id: string;
   label: string;
   active: boolean;
-  /** Drawn dim: pressing it says why it cannot be used here (full autonomy on native Windows). */
-  dim: boolean;
+  /** Breathing: the mode a running flow's step works in (the flow itself is the one lit). */
+  pulse?: boolean;
+  /** Drawn in the colour of danger: bypass while it is on. */
+  alert?: boolean;
 }
 
-/** A titled group of controls: the mode, or the way of working with the flow, the menu and closing. */
+/**
+ * A group of controls: the mode with the flow and the way of working, each titled; and the menu with
+ * closing, which belong to no way of working: untitled, at the row's far end, as a window's own buttons.
+ */
 export interface StripSegment {
   title: string;
   items: StripItem[];
+  /** Drawn at the far end of its row, the room before it left empty (at least a segment's gap). */
+  end?: boolean;
 }
 
 /** One row of the strip: its segments side by side. */
 export type StripRow = StripSegment[];
 
+/**
+ * A flow on the strip. running: a step works, in its mode · approval: the plan waits for the person ·
+ * paused: the person chose another mode, and pressing the flow goes on from here · armed: chosen, the next
+ * message is its task.
+ */
+export interface FlowView {
+  /** Its place, "2/4". */
+  at: string;
+  state: 'running' | 'approval' | 'paused' | 'armed';
+}
+
 export interface StripView {
+  /** The mode in effect: a running flow's step's mode while it works. */
   mode: WorkMode;
   style: Style;
-  /** The running flow's place ("2/4"), or null. */
-  flow: string | null;
-  /** Full autonomy can start here (it never can on native Windows). */
-  fullAutoHere: boolean;
+  flow: FlowView | null;
+  /** Full autonomy is turned on (Automation), or a run is attached: only then is it on the strip. */
+  fullAutoShown: boolean;
+  /** Bypass: on the strip once turned on (Automation); on in this session; the calls it let through so far. */
+  bypass: { shown: boolean; on: boolean; count: number };
+}
+
+/** "⚡ bypass", and while it is on the calls it let through: "⚡ bypass · 3". */
+function bypassText(b: StripView['bypass'], tight: boolean): string {
+  const count = b.on && b.count > 0 ? (tight ? `${b.count}` : ` · ${b.count}`) : '';
+  return tight ? `⚡${count}` : `⚡ bypass${count}`;
 }
 
 const MODES: readonly WorkMode[] = ['chat', 'research', 'plan', 'code', 'free'];
-const STYLES: readonly Style[] = ['manual', 'autonomous', 'full'];
-const STYLE_DIGIT: Record<Style, string> = { manual: '6', autonomous: '7', full: '8' };
+const STYLES: readonly ('manual' | 'autonomous')[] = ['manual', 'autonomous'];
+const STYLE_DIGIT: Record<'manual' | 'autonomous', string> = { manual: '7', autonomous: '8' };
+
+/** The flow while it is on: lit itself, the modes not (its step's breathes). */
+function flowOn(v: StripView): boolean {
+  return v.flow !== null && v.flow.state !== 'paused';
+}
+
+/** The flow's words: "flow", "flow 2/4", "flow · approve?", "flow ⏸ 2/4", "flow …". */
+function flowText(f: FlowView | null, lang: Lang, tight: boolean): string {
+  const word = tight ? '⇢' : tIn(lang, 'ctl.strip.flow');
+  const sep = tight ? '' : ' ';
+  if (!f) return word;
+  switch (f.state) {
+    case 'running':
+      return `${word}${sep}${f.at}`;
+    case 'approval':
+      return tight ? `${word}✓?` : tIn(lang, 'ctl.strip.flowApproval');
+    case 'paused':
+      return `${word}${sep}⏸${sep}${f.at}`;
+    case 'armed':
+      return `${word}${sep}…`;
+  }
+}
 
 /** Columns a text takes in the terminal: pictographs take two. */
 export function cells(text: string): number {
@@ -260,22 +320,29 @@ function modeLabel(m: WorkMode, lang: Lang): string {
 }
 
 /**
- * The strip's rows for `columns`: one row when it fits, else the mode and the way of working on a row each,
- * else numbers and icons only. Every layout carries every control, the number of each in its label.
+ * The strip's rows for `columns`: one row when it fits, else the mode on one and the way of working on the
+ * next, else numbers and icons only. The menu and closing end the last row, apart from the way of working.
+ * Every layout carries every control, the number of each in its label.
  */
 export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[] {
-  const segments = (tight: boolean): [StripSegment, StripSegment] => [
+  const on = flowOn(v);
+  const flowDigit = digitOf({ kind: 'flow' });
+  const segments = (tight: boolean): [StripSegment, StripSegment, StripSegment] => [
     {
       title: tight ? '' : tIn(lang, 'ctl.strip.mode'),
-      items: MODES.map((m) => {
-        const d = digitOf({ kind: 'mode', mode: m });
-        return {
-          id: d,
-          label: tight ? `${d}${MODE_ICON[m] || tIn(lang, 'ctl.strip.freeShort')}` : `${d} ${modeLabel(m, lang)}`,
-          active: v.mode === m,
-          dim: false,
-        };
-      }),
+      items: [
+        ...MODES.map((m) => {
+          const d = digitOf({ kind: 'mode', mode: m });
+          return {
+            id: d,
+            label: tight ? `${d}${MODE_ICON[m] || tIn(lang, 'ctl.strip.freeShort')}` : `${d} ${modeLabel(m, lang)}`,
+            // While a flow is on it is the one lit; the mode its working step is in breathes.
+            active: !on && v.mode === m,
+            ...(v.flow?.state === 'running' && v.mode === m ? { pulse: true } : {}),
+          };
+        }),
+        { id: flowDigit, label: `${flowDigit}${tight ? '' : ' '}${flowText(v.flow, lang, tight)}`, active: on },
+      ],
     },
     {
       title: tight ? '' : tIn(lang, 'ctl.strip.style'),
@@ -284,30 +351,49 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
           id: STYLE_DIGIT[s],
           label: `${STYLE_DIGIT[s]}${tight ? tIn(lang, `ctl.style.short.${s}` as MessageKey) : ` ${tIn(lang, `ctl.style.${s}` as MessageKey)}`}`,
           active: v.style === s,
-          dim: s === 'full' && !v.fullAutoHere && v.style !== 'full',
         })),
-        {
-          id: '9',
-          label: tight ? `9${v.flow ?? '⇢'}` : `9 ${v.flow ? tIn(lang, 'ctl.strip.flowAt', { at: v.flow }) : tIn(lang, 'ctl.strip.flow')}`,
-          active: v.flow !== null,
-          dim: false,
-        },
-        { id: '0', label: tight ? '0≡' : `0 ${tIn(lang, 'ctl.strip.menu')}`, active: false, dim: false },
-        { id: '00', label: tight ? '00✕' : `00 ✕ ${tIn(lang, 'ctl.strip.close')}`, active: false, dim: false },
+        ...(v.fullAutoShown || v.style === 'full'
+          ? [
+              {
+                id: commandOf({ kind: 'fullAuto' }, lang),
+                label: tIn(lang, tight ? 'ctl.style.short.full' : 'ctl.style.full'),
+                active: v.style === 'full',
+              },
+            ]
+          : []),
+        ...(v.bypass.shown || v.bypass.on
+          ? [
+              {
+                id: commandOf({ kind: 'bypass' }, lang),
+                label: bypassText(v.bypass, tight),
+                active: v.bypass.on,
+                ...(v.bypass.on ? { alert: true } : {}),
+              },
+            ]
+          : []),
+      ],
+    },
+    {
+      title: '',
+      end: true,
+      items: [
+        { id: '0', label: tight ? '0≡' : `0 ≡ ${tIn(lang, 'ctl.strip.menu')}`, active: false },
+        { id: '00', label: tight ? '00✕' : `00 ✕ ${tIn(lang, 'ctl.strip.close')}`, active: false },
       ],
     },
   ];
-  const [mode, style] = segments(false);
-  if (rowCells([mode, style]) <= columns) return [[mode, style]];
-  if (Math.max(rowCells([mode]), rowCells([style])) <= columns) return [[mode], [style]];
-  const [m, s] = segments(true);
-  return rowCells([m, s]) <= columns ? [[m, s]] : [[m], [s]];
+  const [mode, style, app] = segments(false);
+  if (rowCells([mode, style, app]) <= columns) return [[mode, style, app]];
+  if (Math.max(rowCells([mode]), rowCells([style, app])) <= columns) return [[mode], [style, app]];
+  const [m, s, a] = segments(true);
+  return rowCells([m, s, a]) <= columns ? [[m, s, a]] : [[m], [s, a]];
 }
 
 /** The session's controls in one line: "📐 plan · otonom", with the flow when one runs. */
 export function controlsLine(v: StripView, lang: Lang): string {
   const style = tIn(lang, `ctl.style.${v.style}` as MessageKey);
-  return `${modeLabel(v.mode, lang)} · ${style}${v.flow ? ` · ${tIn(lang, 'ctl.strip.flowAt', { at: v.flow })}` : ''}`;
+  const flow = v.flow ? ` · ${flowText(v.flow, lang, false)}` : '';
+  return `${modeLabel(v.mode, lang)} · ${style}${flow}${v.bypass.on ? ` · ${bypassText(v.bypass, false)}` : ''}`;
 }
 
 /**
@@ -316,11 +402,17 @@ export function controlsLine(v: StripView, lang: Lang): string {
  */
 export function menuText(v: StripView, lang: Lang, quota: string): string {
   const mark = (on: boolean, text: string) => (on ? `**${text}**` : text);
-  const modes = MODES.map((m) => mark(v.mode === m, `/${digitOf({ kind: 'mode', mode: m })} ${modeLabel(m, lang)}`)).join(' · ');
-  const styles = STYLES.map((s) => mark(v.style === s, `/${STYLE_DIGIT[s]} ${tIn(lang, `ctl.style.${s}` as MessageKey)}`)).join(' · ');
-  const other = [`/9 ${tIn(lang, 'ctl.strip.flow')}`, '/devam', '/kota', `/0 ${tIn(lang, 'ctl.strip.menu')}`, `/00 ${tIn(lang, 'ctl.strip.close')}`].join(
-    ' · ',
-  );
+  const lit = flowOn(v);
+  const modes = [
+    ...MODES.map((m) => mark(!lit && v.mode === m, `/${digitOf({ kind: 'mode', mode: m })} ${modeLabel(m, lang)}`)),
+    mark(lit, `/${digitOf({ kind: 'flow' })} ${flowText(v.flow, lang, false)}`),
+  ].join(' · ');
+  const styles = [
+    ...STYLES.map((s) => mark(v.style === s, `/${STYLE_DIGIT[s]} ${tIn(lang, `ctl.style.${s}` as MessageKey)}`)),
+    ...(v.fullAutoShown || v.style === 'full' ? [mark(v.style === 'full', `/${commandOf({ kind: 'fullAuto' }, lang)}`)] : []),
+    ...(v.bypass.shown || v.bypass.on ? [mark(v.bypass.on, `/bypass`)] : []),
+  ].join(' · ');
+  const other = ['/devam', '/kota', `/0 ${tIn(lang, 'ctl.strip.menu')}`, `/00 ${tIn(lang, 'ctl.strip.close')}`].join(' · ');
   return [
     tIn(lang, 'ctl.menu.now', { controls: controlsLine(v, lang), quota }),
     '',
@@ -350,10 +442,10 @@ export function choicesText(choices: readonly ContinueChoice[], lang: Lang, shor
 /**
  * The mode and way of working the person last used in `cwd`, from the other sessions' records, newest
  * first; null when no session worked there. A full-autonomy run is never taken over: it starts only when
- * asked for, so its way of working comes back as autonomous.
+ * asked for, so its way of working comes back as the one before the run (autonomous when that is unknown).
  */
 export function lastChoice(
-  states: readonly Pick<ModSessionState, 'sessionId' | 'cwd' | 'mode' | 'interaction' | 'aliveAt'>[],
+  states: readonly (Pick<ModSessionState, 'sessionId' | 'cwd' | 'mode' | 'interaction' | 'aliveAt'> & Partial<Pick<ModSessionState, 'interactionBefore'>>)[],
   cwd: string,
   platform: Platform,
   self: string,
@@ -361,5 +453,6 @@ export function lastChoice(
   const here = pathKey(cwd, platform);
   const last = states.filter((s) => s.sessionId !== self && s.cwd && pathKey(s.cwd, platform) === here).sort((a, b) => b.aliveAt - a.aliveAt)[0];
   if (!last) return null;
-  return { mode: last.mode, interaction: last.interaction === 'full' ? 'autonomous' : last.interaction };
+  // A run never comes back by itself: its session is taken up as it was before the run (autonomous if unknown).
+  return { mode: last.mode, interaction: last.interaction === 'full' ? (last.interactionBefore ?? 'autonomous') : last.interaction };
 }

@@ -119,7 +119,7 @@ export function looksOnly(p: SyncPlan): boolean {
 /** Sorts a failed git call by what the person can do about it. */
 export function classifyGitError(stderr: string): 'offline' | 'auth' | 'rejected' | 'busy' | 'identity' | 'failed' {
   const s = stderr;
-  if (/index\.lock|unable to create '.*\.lock'|Another git process/i.test(s)) return 'busy';
+  if (/index\.lock|unable to create '.*\.lock'|Another git process|cannot lock ref/i.test(s)) return 'busy';
   if (/please tell me who you are|unable to auto-detect email|empty ident/i.test(s)) return 'identity';
   if (/\[rejected\]|non-fast-forward|fetch first|updates were rejected/i.test(s)) return 'rejected';
   if (
@@ -307,8 +307,44 @@ async function adoptUpstream(git: Git): Promise<string | null> {
   return set.ok ? `origin/${name}` : null;
 }
 
+/**
+ * Brings the upstream's commits in, without `git pull`: a pull reads FETCH_HEAD, which another fetch at the
+ * same moment (the person's own start hook, a second session) fills with several heads, and git then refuses
+ * with "Cannot fast-forward to multiple branches" or "Cannot rebase onto multiple branches" though both sides
+ * are level (measured on the author's machine, 2026-10-13 and 2026-10-15). A fetch that leaves FETCH_HEAD
+ * alone, then a join with the upstream branch by name, neither trips on another's fetch nor trips another's pull.
+ */
+async function fetchUpstream(git: Git): Promise<{ ok: boolean; out: string; err: string }> {
+  const once = async () => {
+    const f = await git(['fetch', '--quiet', '--no-write-fetch-head'], 60_000);
+    // git before 2.29 does not know the flag: a plain fetch.
+    return !f.ok && /unknown option/i.test(f.err) ? git(['fetch', '--quiet'], 60_000) : f;
+  };
+  const f = await once();
+  // Two fetches moving the same remote branch at once: one finds the other's lock. Once more, after it.
+  return !f.ok && classifyGitError(f.err + f.out) === 'busy' ? once() : f;
+}
+
+/** A join that met another git's lock (a second session joining the same commits) is made once more. */
+async function joinOnce(git: Git, args: readonly string[]): Promise<{ ok: boolean; out: string; err: string }> {
+  const j = await git(args, 60_000);
+  return !j.ok && classifyGitError(j.err + j.out) === 'busy' ? git(args, 60_000) : j;
+}
+
+/** What a pull that could not be made is, by what the person can do about it. */
+function pullFailure(text: string): PullOutcome {
+  const k = classifyGitError(text);
+  return k === 'offline' || k === 'auth' || k === 'busy' ? k : 'failed';
+}
+
 async function pullStep(git: Git, res: SyncResult, note: (s: string) => void): Promise<PullOutcome> {
-  const pull = await git(['pull', '--rebase', '--autostash', '--quiet'], 60_000);
+  const fetched = await fetchUpstream(git);
+  if (!fetched.ok) {
+    note(fetched.err || fetched.out);
+    return pullFailure(fetched.err + fetched.out);
+  }
+  // Without an argument, rebase takes the configured upstream and its fork point, as `git pull --rebase` does.
+  const pull = await joinOnce(git, ['rebase', '--autostash', '--quiet']);
   if (pull.ok) return 'ok';
   const conflicted = await git(['diff', '--name-only', '--diff-filter=U']);
   const files = conflicted.ok
@@ -327,8 +363,7 @@ async function pullStep(git: Git, res: SyncResult, note: (s: string) => void): P
   const inRebase = await git(['rev-parse', '--verify', '--quiet', 'REBASE_HEAD']);
   if (inRebase.ok) await git(['rebase', '--abort']);
   note(pull.err || pull.out);
-  const k = classifyGitError(pull.err + pull.out);
-  return k === 'offline' || k === 'auth' || k === 'busy' ? k : 'failed';
+  return pullFailure(pull.err + pull.out);
 }
 
 /** What changed in the store from one commit to another: the files (store-relative, renames as a removal and an addition), and the index's lines. */
@@ -347,15 +382,13 @@ async function broughtIn(git: Git, from: string, to: string): Promise<Pulled | n
  * merged. Local changes in the way, or both sides having moved, leave the folder as it was and say so.
  */
 async function fastForward(git: Git, res: SyncResult, note: (s: string) => void): Promise<PullOutcome> {
-  let pull = await git(['pull', '--ff-only', '--quiet'], 60_000);
-  if (pull.ok) return 'ok';
-  // Another pull at the same moment (the person's own start hook, say) leaves several heads in FETCH_HEAD and
-  // git refuses with "Cannot fast-forward to multiple branches": once more, after it. Measured on the author's
-  // machine (2026-10-13): reported as diverged though both sides were level.
-  if (/multiple branches/i.test(pull.err + pull.out)) {
-    pull = await git(['pull', '--ff-only', '--quiet'], 60_000);
-    if (pull.ok) return 'ok';
+  const fetched = await fetchUpstream(git);
+  if (!fetched.ok) {
+    note(fetched.err || fetched.out);
+    return pullFailure(fetched.err + fetched.out);
   }
+  const pull = await joinOnce(git, ['merge', '--ff-only', '--quiet', '@{upstream}']);
+  if (pull.ok) return 'ok';
   const text = pull.err + pull.out;
   note(text);
   // git names the files a fast-forward would overwrite, one per line, indented.
@@ -367,8 +400,7 @@ async function fastForward(git: Git, res: SyncResult, note: (s: string) => void)
     return 'conflict';
   }
   if (/not possible to fast-forward|diverging branches|cannot fast-forward/i.test(text)) return 'diverged';
-  const k = classifyGitError(text);
-  return k === 'offline' || k === 'auth' || k === 'busy' ? k : 'failed';
+  return pullFailure(text);
 }
 
 async function pushStep(git: Git, upstream: string | null, res: SyncResult, note: (s: string) => void): Promise<PushOutcome> {

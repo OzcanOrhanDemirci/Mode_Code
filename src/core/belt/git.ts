@@ -161,19 +161,28 @@ export function isProtectedBranch(branch: string | null, patterns: readonly stri
 }
 
 /** Normalises a remote URL for substring matching: lower-case, no .git suffix, no credentials. */
+/**
+ * A remote as `host/owner/name`, whatever way it is spelled: `https://github.com/ada/app.git`,
+ * `ssh://git@github.com/ada/app`, `git@github.com:ada/app.git`. The last, how SSH clones are written, kept its
+ * colon before and so matched no `github.com/ada/app` rule: every SSH clone escaped the repository rules.
+ */
 export function normalizeRemote(url: string): string {
-  return url
+  const u = url
     .trim()
     .toLowerCase()
-    .replace(/\/\/[^@/]+@/, '//')
-    .replace(/\.git$/, '')
+    .replace(/\.git\/?$/, '')
     .replace(/\/$/, '');
+  // user@host:path (a host of two letters or more: `c:/repo` is a Windows path, not a host).
+  const scp = /^(?:[^@/\s]+@)?([^:/\s]{2,}):(?!\/\/)\/?(.+)$/.exec(u);
+  if (scp && !u.includes('://')) return `${scp[1]}/${scp[2]}`;
+  return u.replace(/^[a-z][a-z0-9+.-]*:\/\//, '').replace(/^[^@/]+@/, '');
 }
 
 export function remoteMatches(url: string | null, patterns: readonly string[] | undefined): boolean {
   if (!url || !patterns?.length) return false;
   const n = normalizeRemote(url);
-  return patterns.some((p) => n.includes(p.toLowerCase()));
+  // A rule written in either spelling (`github.com:me/app` from an SSH clone) means the same repository.
+  return patterns.some((p) => n.includes(normalizeRemote(p)));
 }
 
 export function looksLikeUrl(s: string): boolean {

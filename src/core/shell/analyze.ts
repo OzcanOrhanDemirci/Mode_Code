@@ -273,7 +273,8 @@ function expand(cmd: SimpleCommand, argv: readonly Word[], via: string[], depth:
   const at = (i: number) => rest[i]?.text;
 
   // ── wrappers: the real command follows ─────────────────────────────────────────────────────────────
-  if (cmd.dialect !== 'powershell') {
+  // PowerShell has no sudo, env or nohup, but package runners are programs there too: `npx rimraf C:\`.
+  if (cmd.dialect !== 'powershell' || PACKAGE_RUNNERS.test(program)) {
     const wrapper = unwrap(program, rest);
     if (wrapper) {
       if (wrapper.issue) out.issues.push(wrapper.issue);
@@ -571,6 +572,9 @@ function unwrap(program: string, rest: readonly Word[]): Unwrapped | null {
 }
 
 const RUNNER_VALUE = new Set(['-p', '--package', '--cache', '--registry', '--userconfig', '-w', '--workspace']);
+
+/** The package runners, which run the program of the package they name in every shell. */
+const PACKAGE_RUNNERS = /^(?:npx|pnpx|bunx|pnpm|yarn|bun)$/;
 
 /**
  * A package runner (`npx`, `pnpm dlx`, `bunx`) runs the program of the package it names: `npx rimraf@5 x`

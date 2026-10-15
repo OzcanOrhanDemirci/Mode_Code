@@ -3,11 +3,11 @@
 
 export const enSync = {
   // ── in a session ──
-  'mod.sync.pending': '⚙ A setting from another computer waits for you; it would lower a protection here: {keys}. {cmd} shows it.',
+  'mod.sync.pending': "⚙ Another computer's setting waits for you; it lowers a protection: {keys}. {cmd} shows it.",
   'mod.sync.conflict': '🔄 Sync: {files} could not be joined; nothing was forced. mode-code sync shows it.',
   'mod.sync.diverged': '🔄 Sync: this copy and GitHub have both moved; nothing was changed. mode-code sync shows it.',
   'mod.sync.held': '🔄 Sync: held back from GitHub, it looks like it holds a secret: {files}.',
-  'mod.sync.auth': '🔄 Sync: GitHub refused the sign-in ({detail}). gh auth login, then mode-code sync now.',
+  'mod.sync.auth': '🔄 Sync: GitHub refused the sign-in. gh auth login, then mode-code sync now. ({detail})',
   'mod.sync.rejected': '🔄 Sync: GitHub has changes this computer cannot join yet: mode-code sync now.',
   'mod.sync.identity': '🔄 Sync: git needs a name and an address for commits: mode-code sync setup.',
   'mod.sync.failed': '🔄 Sync: it failed: {detail}',

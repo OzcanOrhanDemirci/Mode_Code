@@ -1009,7 +1009,7 @@ export async function cmdAutonomy(a: Args): Promise<number> {
 // ── config ──
 
 /** Settings an agent's shell may not change: they lower a protection or widen what a session does unasked. */
-const PROTECTIVE = /^(?:belt|memory|modules\.(?:quota|secrets)|autonomy|projects|sync)(?:\.|$)/;
+const PROTECTIVE = /^(?:belt|memory|modules\.(?:quota|secrets)|autonomy|bypass|projects|sync)(?:\.|$)/;
 
 export async function cmdConfig(a: Args): Promise<number> {
   const ctx = appContext();

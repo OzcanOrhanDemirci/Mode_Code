@@ -80,7 +80,16 @@ export const SYNC_MAX_BYTES = 8_000_000;
 // ── settings ─────────────────────────────────────────────────────────────────────────────────────
 
 /** Settings that are each computer's own: where things are on it, full autonomy switched on, the sync itself. */
-export const LOCAL_KEYS: readonly string[] = ['version', 'memory.dirs', 'memory.store', 'modes.workDir', 'autonomy.enabled', 'sync', 'projects'];
+export const LOCAL_KEYS: readonly string[] = [
+  'version',
+  'memory.dirs',
+  'memory.store',
+  'modes.workDir',
+  'autonomy.enabled',
+  'bypass.enabled',
+  'sync',
+  'projects',
+];
 
 /** Settings shared as one value, though they are objects: two computers changing parts of one keep the newer whole. */
 const ATOMIC_KEYS = new Set(['belt.verdicts', 'keywords.extra']);
@@ -362,6 +371,7 @@ const LOWER_IF_UP = new Set([
   'quota.staleMinutes',
   'autonomy.maxHours',
   'autonomy.stallMinutes',
+  'bypass.maxHours',
 ]);
 const PROTECTIVE_MODULES = new Set(['modules.quota', 'modules.secrets', 'modules.modes']);
 const SHRINKING_LISTS = new Set(['belt.protectedBranches', 'belt.prOnlyRepos', 'belt.singleBranchRepos']);

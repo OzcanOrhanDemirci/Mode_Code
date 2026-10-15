@@ -156,6 +156,16 @@ test('package runners run the program of the package they name', () => {
   assert.deepEqual(programs('npx'), ['npx']);
 });
 
+test('package runners run the program they name in PowerShell too; bash wrappers stay bash', () => {
+  const programs = (c: string) => analyzeCommand(c, 'powershell').invocations.map((i) => `${i.program} ${i.args.join(' ')}`.trim());
+  assert.deepEqual(programs('npx rimraf C:/Users/ada'), ['rimraf C:/Users/ada']);
+  assert.deepEqual(programs('pnpm dlx rimraf dist'), ['rimraf dist']);
+  assert.deepEqual(programs('bunx eslint .'), ['eslint .']);
+  assert.deepEqual(programs('pnpm install'), ['pnpm install']);
+  // PowerShell has no sudo or env: those names are programs of their own there.
+  assert.deepEqual(programs('sudo rm x'), ['sudo rm x']);
+});
+
 test('names every JavaScript object has are ordinary words to the parsers and the belt', async () => {
   const { evaluateToolCall } = await import('../../src/core/belt/evaluate.js');
   const { winCtx } = await import('../helpers/belt.js');

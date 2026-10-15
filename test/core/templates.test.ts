@@ -51,3 +51,14 @@ test('a recorded remote matches the same repository over https and ssh', () => {
   const sshKey = repoKey('git@github.com:me/app.git');
   assert.ok(remoteMatches('git@github.com:me/app.git', [sshKey]));
 });
+
+test('a repository is the same however it was cloned, on both sides of a rule', () => {
+  // An SSH clone kept its colon and matched no `github.com/ada/app` rule: it escaped them all.
+  const ways = ['https://github.com/Ada/App.git', 'git@github.com:ada/app.git', 'ssh://git@github.com/ada/app', 'https://ada:tok@github.com/ada/app.git/'];
+  for (const url of ways) {
+    assert.equal(repoKey(url), 'github.com/ada/app', url);
+    for (const rule of ['github.com/ada/app', 'github.com:ada/app', 'ada/app']) assert.ok(remoteMatches(url, [rule]), `${url} ~ ${rule}`);
+  }
+  assert.equal(remoteMatches('git@github.com:ada/app-old.git', ['github.com/ada/application']), false);
+  assert.equal(repoKey('C:/repos/app'), 'c:/repos/app', 'a Windows path is not host:path');
+});

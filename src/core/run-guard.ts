@@ -7,7 +7,8 @@
  * credential read, a memory folder, the sandbox's escape hatch). Pure.
  *
  * Like the belt it is an accident preventer; the boundary is the operating system's (the WSL distribution,
- * Claude Code's sandbox). It judges what a call says, never runs it.
+ * Claude Code's sandbox). On native Windows there is none, so there it also holds the writes a command names.
+ * It judges what a call says, never runs it.
  */
 import { analyzeCommand, type Invocation } from './shell/analyze.js';
 import { commandEffects } from './shell/effects.js';
@@ -315,9 +316,17 @@ function shellVerdict(tool: string, input: Readonly<Record<string, unknown>>, di
     if (PUBLISHERS.test(inv.program) && positional(inv.args, DOCKER_VALUE_FLAGS)[0] === 'push')
       return defer('publish', inv.raw, 'pushes an image to a registry');
   }
-  if (e.memoryDirs.length) {
+  // Where no sandbox holds commands (native Windows), the fence holds the writes a command names, as it does
+  // a file tool's: outside the project, the temporary folders and the run's folder they are refused.
+  const fenced = e.platform === 'win32';
+  if (e.memoryDirs.length || fenced) {
     const fx = commandEffects(command, dialect, { ...e, env: e.env });
-    for (const x of fx.effects) for (const t of x.targets) if (t !== null && under(t, e.memoryDirs, e)) return refuse('memory', t);
+    for (const x of fx.effects)
+      for (const t of x.targets) {
+        if (t === null) continue;
+        if (under(t, e.memoryDirs, e)) return refuse('memory', t);
+        if (fenced && x.kind === 'write' && !under(t, e.writable, e)) return refuse('fence-write', t);
+      }
   }
   return ALLOW;
 }

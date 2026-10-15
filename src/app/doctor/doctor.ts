@@ -98,6 +98,7 @@ const ORDER: RepairId[] = [
   'restore-hooks',
   'remove-duplicate-hooks',
   'restore-plugin-files',
+  'update-plugin',
   'reinstall-plugin',
   'enable-plugin',
   'record-cli',

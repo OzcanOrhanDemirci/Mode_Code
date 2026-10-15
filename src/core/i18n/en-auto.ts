@@ -28,8 +28,7 @@ export const enAuto = {
   'auto.gate.budget.noReading': 'There is no quota reading yet; send any message so Claude Code measures it, then start.',
   'auto.gate.budget.reached': 'The budget is already reached: weekly {used}%, budget {target}%.',
   'auto.gate.budget.ok': 'Weekly {used}% of a {target}% budget.',
-  'auto.gate.platform.windows':
-    'Native Windows runs commands without a sandbox, so full autonomy runs only inside WSL2. See "Setting up WSL2" in docs/autonomy.md.',
+  'auto.gate.platform.windows': 'Native Windows: no sandbox, so the belt and the fence guard the run. They prevent accidents; they are no boundary.',
   'auto.gate.platform.ok': 'Platform: {platform}.',
   'auto.gate.wsl.notWsl': 'Not WSL.',
   'auto.gate.wsl.unreadable': "WSL's own files could not be read (/proc/sys/kernel/osrelease, /proc/mounts).",
@@ -64,7 +63,7 @@ export const enAuto = {
   'auto.gate.hook.missing': 'The safety-net hook has not run in this session; run mode-code doctor in your own terminal.',
   'auto.gate.modes.ok': 'Modes are on.',
   'auto.gate.modes.off': 'Modes are off (modules.modes); full autonomy plans in plan mode.',
-  'auto.gate.project.noGit': 'The session does not run in a git work tree ({cwd}); a run needs commits to return to.',
+  'auto.gate.project.noGit': "This folder is not a git project ({cwd}): a run needs commits to return to. Start Claude Code in the project's folder.",
   'auto.gate.project.notTop': 'Start Claude Code at the top of the project ({top}), so the sandbox and the run see the same folder.',
   'auto.gate.project.dirty': '{n} tracked file(s) have uncommitted changes: commit or stash them first, so the run starts from a commit.',
   'auto.gate.project.ok': 'Git work tree {top}, nothing uncommitted.',
@@ -73,6 +72,29 @@ export const enAuto = {
   'auto.gate.alone.elsewhere': 'Another live session runs one in this folder.',
   'auto.gate.alone.ok': 'Nothing else runs here.',
   'auto.gate.alone.paused': 'A paused run waits in this folder ({id}): resume it with "{cont}", or end it with "{cancel}".',
+  // ── a start check's reason as a toast: plain words and what to do, one per way a check fails ──
+  'auto.refuse.enabled.off': 'Full autonomy is off. Turn it on in your own terminal: mode-code autonomy enable.',
+  'auto.refuse.wsl.unreadable': "Full autonomy cannot start: WSL's own files could not be read. Type {cmd} for details.",
+  'auto.refuse.wsl.v1': 'Full autonomy cannot start: this is WSL1, it needs WSL2. Type {cmd} for the fix.',
+  'auto.refuse.wsl.interop': 'Full autonomy cannot start: WSL can start Windows programs. Type {cmd} for the fix.',
+  'auto.refuse.wsl.mounts': 'Full autonomy cannot start: Windows drives are mounted in WSL. Type {cmd} for the fix.',
+  'auto.refuse.wsl.both': 'Full autonomy cannot start: WSL reaches Windows programs and drives. Type {cmd} for the fix.',
+  'auto.refuse.sandbox.unreadable': "Full autonomy cannot start: Claude Code's settings could not be read.",
+  'auto.refuse.sandbox.gaps': "Full autonomy cannot start: Claude Code's sandbox is not strict enough. Type {cmd} for the fix.",
+  'auto.refuse.probe.didNotRun': 'Full autonomy cannot start: the sandbox could not be tested. Type {cmd} for details.',
+  'auto.refuse.probe.wrote': 'Full autonomy cannot start: the sandbox let a write outside the project through.',
+  'auto.refuse.permission.network': "Full autonomy cannot start: Claude Code's permission mode would ask. Type {cmd} for the fix.",
+  'auto.refuse.permission.asks': "Full autonomy cannot start: Claude Code's permission mode would ask. Type {cmd} for the fix.",
+  'auto.refuse.permission.unknown': 'Full autonomy cannot start: the permission mode did not arrive. Run mode-code doctor --fix.',
+  'auto.refuse.hook.missing': 'Full autonomy cannot start: the safety net did not run. Run mode-code doctor in your terminal.',
+  'auto.refuse.modes.off': 'Full autonomy cannot start: modes are turned off. Type {cmd} for details.',
+  'auto.refuse.project.noGit': "Full autonomy cannot start: this folder is not a git project. Open Claude Code in the project's folder.",
+  'auto.refuse.project.notTop': 'Full autonomy cannot start: this is a subfolder. Open Claude Code at the top of the project.',
+  'auto.refuse.project.dirty': 'Full autonomy cannot start: {n} file(s) have uncommitted changes. Commit or stash them first.',
+  'auto.refuse.alone.flow': 'Full autonomy cannot start: a flow is open in this session. Finish or cancel it first.',
+  'auto.refuse.alone.run': 'Full autonomy cannot start: this session already has a run.',
+  'auto.refuse.alone.elsewhere': 'Full autonomy cannot start: another session runs one in this folder.',
+  'auto.refuse.alone.paused': 'Full autonomy cannot start: a paused run waits in this folder. Type {cmd} for details.',
   'auto.mode.tailPlan':
     'The full-autonomy run is planning: write the plan at {path} and call mcp__mode-code__autonomy with action "plan"; the project changes once the plan is accepted.',
 
@@ -206,7 +228,7 @@ export const enAuto = {
   'auto.guard.fenceRead': '🤖 Full autonomy: credential files are not read during a run ({what}).',
   'auto.guard.memory': '🤖 Full autonomy: memory folders are not written during a run. Put the note in {notes}; the person decides from the report.',
   'auto.guard.escape': '🤖 Full autonomy: commands run inside the sandbox only; dangerouslyDisableSandbox is refused.',
-  'auto.guard.stalled': '🤖 Full autonomy: no measurable progress; the run is paused. Report what was done and stop.',
+  'auto.guard.stalled': '🤖 Full autonomy: the run is paused ({reason}). Report what was done and stop.',
   'auto.guard.heldForStart': '🤖 Full autonomy: {tool} was held; the last start checks ran first. Call it again if it is still needed.',
 
   // ── stopping ──
@@ -249,8 +271,9 @@ export const enAuto = {
   'auto.cli.warnTitle': 'Full autonomy: what turning it on means',
   'auto.cli.warnBody':
     'A run takes one task to its end while nobody is at the keyboard. Claude does not ask you anything during it.\n' +
-    'It starts only with a budget ("<task>. <project> full auto quota +10") and only inside a boundary code measures first:\n' +
+    'It starts only with a budget ("<task>. <project> full auto quota +10"), after code has checked where it runs:\n' +
     "WSL2 with no road back to Windows, or Linux and macOS, with Claude Code's sandbox in its strict form.\n" +
+    'On native Windows there is no sandbox: the run is guarded by the safety belt and the fence alone.\n' +
     'What needs you (pushes to protected branches, merges, releases, publishing, what the safety belt would ask) waits,\n' +
     "recorded with its exact command, and is listed in the run's report. Every milestone is a commit you can return to.\n" +
     'A run stops when its definition of done passes, when it is stuck, when nothing changes, at its time limit or budget,\n' +
@@ -280,6 +303,11 @@ export const enAuto = {
   'doc.autonomy.off': 'Full autonomy is off (mode-code autonomy enable turns it on).',
   'doc.autonomy.ready': 'Full autonomy is on, and nothing measured here stands in the way of a run.',
   'doc.autonomy.notReady': 'Full autonomy is on, but {n} start check(s) would fail here:',
+  'doc.bypass.off': 'Bypass is off: no session can lift the safety belt.',
+  'doc.bypass.on': 'Bypass can be switched on in a session by you, for up to {hours} h; it is off in every session now.',
+  'doc.bypass.onNow': 'Bypass is on in {n} session(s) now (for up to {hours} h each); what it lets through is under Automation › Done without asking.',
+  'doc.bypass.floorWeakened': '{n} rule(s) bypass should keep asking about are switched off or set to allow in the settings:',
+  'doc.bypass.floorHint': 'Set them back under Security › Safety belt rules, or with mode-code config set belt.verdicts.<rule> ask.',
 
   // ── the control center ──
   'home.runs': 'Full-autonomy runs',
@@ -290,8 +318,8 @@ export const enAuto = {
   'run.missing': 'This run is no longer on record.',
   'run.rollbackHint': 'Back to a milestone: mode-code autonomy rollback {id} <n>',
   'runs.empty': 'No full-autonomy run yet. A run takes one task to its end while nobody is at the keyboard, inside a boundary code measures first.',
-  'runs.howTo': 'Turn it on under Settings › Autonomy, then end a message with "<project> full auto quota +10" (see docs/autonomy.md).',
-  'page.autonomy': 'Autonomy',
+  'runs.howTo': 'Turn it on under Automation › Full autonomy, then end a message with "<project> full auto quota +10" (see docs/autonomy.md).',
+  'page.autonomy': 'Full autonomy',
   'desc.autonomy': 'Full autonomy: on or off, its limits, and the start checks measured from here.',
   'set.autonomy.enabled': 'Full autonomy',
   'set.autonomy.enabledHelp': 'Runs that take one task to its end without asking you. Off until you turn it on; Claude cannot turn it on.',
@@ -302,6 +330,46 @@ export const enAuto = {
   'set.autonomy.stallMinutesHelp': 'Minutes without a milestone after which Claude is told; twice as long and the run pauses as stalled.',
   'set.autonomy.check': 'Start checks, measured from here',
   'set.autonomy.note': "The rest (the budget, the live sandbox probe, the session's permission mode) is measured when a run starts.",
+  // ── Automation › Bypass, Done without asking ──
+  'desc.automation': 'The special ways of working, off until you turn them on: full autonomy, its runs, bypass and what bypass let through.',
+  'page.bypass': 'Bypass',
+  'desc.bypass': 'Bypass: lifts the safety belt in one session for a while, when you switch it on there. Off until you turn it on here.',
+  'page.bypassed': 'Done without asking',
+  'desc.bypassed': 'Every call bypass let through that would have been asked about or blocked, one by one; and when it went on and off.',
+  'set.bypass.enabled': 'Bypass can be switched on',
+  'set.bypass.enabledHelp':
+    'Off: /bypass and ⚡ on the strip are not there. On: you switch it on in a session yourself (/bypass, asked once), for the time below; Claude cannot.',
+  'set.bypass.confirm':
+    'Bypass lets Claude act without asking: what the safety belt would ask about or block goes through, recorded call by call. Your files, your settings, your memory and secrets stay protected; irreversible deletions are still asked. Switch it on in a session only when you mean it. Press Enter again to allow it on this computer.',
+  'set.bypass.maxHours': 'Hours it lasts',
+  'set.bypass.maxHoursHelp': 'After this long in a session bypass ends by itself, with a warning ten minutes before (1 to 24).',
+  'set.bypass.tiers': 'What it lifts',
+  'set.bypass.tier.never': "Never: changing this tool, Claude Code's settings or your memory; sending a secret off the computer.",
+  'set.bypass.tier.asked':
+    'Blocked without bypass, asked with it: deleting a drive root, a system folder or data in the cloud; formatting a disk; turning security software off.',
+  'set.bypass.tier.always': 'Asked as always: deletes outside the project, a .git folder, a database reset, staging a secrets file.',
+  'set.bypass.tier.through':
+    "Everything else goes through without a question, and so does what Claude Code's own mode would ask; a rule in Claude Code's settings keeps its question.",
+  'set.bypass.note': 'Each session starts without it, it ends with the session, and it never comes from another computer.',
+  'bypassed.empty': 'Bypass has let nothing through in the last 30 days.',
+  'bypassed.on': 'bypass on ({hours} h)',
+  'bypassed.off': 'bypass off: {count} calls in {minutes} min ({why})',
+  'bypassed.why.person': 'turned off',
+  'bypassed.why.time': 'its time ran out',
+  'bypassed.why.disabled': 'turned off in the settings',
+  'bypassed.why.session': 'the session ended',
+  'bypassed.agent': 'by an agent',
+  'bypassed.outcome.ran': 'ran',
+  'bypassed.outcome.failed': 'failed',
+  'bypassed.outcome.refused': 'refused further on',
+  // ── Automation › Recent tasks ──
+  'page.autoPrompts': 'Recent tasks',
+  'desc.autoPrompts': "The last three tasks you gave full autonomy, from the strip's window or typed, kept so none is lost: copy one to use it again.",
+  'prompts.empty': 'No task yet. The tasks you give full autonomy (in its window on the strip, or typed) are kept here, the last three.',
+  'prompts.keys': '↑↓ pick · Enter or c copies the whole task',
+  'prompts.meta': '{ago} · budget {budget}',
+  'prompts.copied': 'Copied: paste it wherever you like.',
+  'prompts.copiedTerminal': 'Sent to the terminal; if nothing pastes, select the text.',
   'event.run.start': 'Full-autonomy run started: {run}',
   'event.run.finish': 'Full-autonomy run done: {run}',
   'event.run.stuck': 'Full-autonomy run stuck: {run}',

@@ -35,6 +35,8 @@ import { flowFiles, loadFlows, type FlowFiles } from '../app/flows.js';
 import { autonomyCheck, loadRuns, runFiles, type RunFiles } from '../app/runs.js';
 import type { Run } from '../core/run.js';
 import type { GateResult } from '../core/run-gate.js';
+import { parseAutoPrompts, type AutoPrompt } from '../core/auto-prompts.js';
+import { copyText, type CopyResult } from '../node/clipboard.js';
 import { allHandoffs, memoryView, recentMorning, type HandoffItem, type MemoryView } from '../app/memory.js';
 import { morningLines } from '../core/morning.js';
 import { syncView, type SyncView } from '../app/sync.js';
@@ -87,6 +89,10 @@ export interface DataSource {
   runFiles(r: Run): RunFiles;
   /** The start checks of full autonomy that can be measured from here (see app/runs.ts). */
   autonomyCheck(): GateResult;
+  /** The last tasks given full autonomy, newest first (src/core/auto-prompts.ts). */
+  autoPrompts(): AutoPrompt[];
+  /** Puts a text on the clipboard (src/node/clipboard.ts). */
+  copy(text: string): CopyResult;
   /** Where the memory lives and how it stands (docs/memory.md). */
   memory(): MemoryView;
   /** Every project's handoff notes, newest first. */
@@ -248,6 +254,12 @@ export class LiveData implements DataSource {
   }
   autonomyCheck(): GateResult {
     return this.memo('autonomyCheck', 30_000, () => autonomyCheck(this.ctx, this.cwd));
+  }
+  autoPrompts(): AutoPrompt[] {
+    return this.memo('autoPrompts', 3_000, () => parseAutoPrompts(readText(this.ctx.layout.autoPrompts)));
+  }
+  copy(text: string): CopyResult {
+    return copyText(text);
   }
   memory(): MemoryView {
     return this.memo('memory', 5_000, () => memoryView(this.ctx, this.cwd));

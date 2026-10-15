@@ -27,6 +27,7 @@ export type RepairId =
   | 'restore-hook-program'
   | 'repoint-node'
   | 'restore-plugin-files'
+  | 'update-plugin'
   | 'reinstall-plugin'
   | 'record-cli'
   | 'enable-plugin'
@@ -185,4 +186,9 @@ export interface Facts {
   hookAgreement: { samples: number; agreed: number; differences: { call: string; mine: string; theirs: string }[]; error: string | null } | null;
   /** Full autonomy: whether it is on, and the start checks measurable from here (app/runs.ts). */
   autonomy: { enabled: boolean; checks: GateCheck[] };
+  /**
+   * Bypass (docs/autonomy.md): whether a session may switch it on, for how long, in how many sessions it is on
+   * now, and the rules it never lifts or only turns into a question that the settings have weakened.
+   */
+  bypass: { enabled: boolean; maxHours: number; onNow: number; floorWeakened: string[] };
 }

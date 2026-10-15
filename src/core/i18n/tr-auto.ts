@@ -29,8 +29,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.gate.budget.noReading': 'Henüz kota ölçümü yok; Claude Code ölçsün diye herhangi bir mesaj gönder, sonra başlat.',
   'auto.gate.budget.reached': 'Bütçe zaten dolmuş: haftalık %{used}, bütçe %{target}.',
   'auto.gate.budget.ok': '%{target} bütçenin haftalık %{used} kısmı kullanıldı.',
-  'auto.gate.platform.windows':
-    'Yerel Windows komutları kum havuzu olmadan çalıştırıyor; bu yüzden tam otonom yalnız WSL2 içinde çalışır. docs/autonomy.md içinde "Setting up WSL2" bölümüne bak.',
+  'auto.gate.platform.windows': 'Yerel Windows: kum havuzu yok; koşuyu emniyet kemeri ve çit korur. İkisi kazayı önler, sınır değildir.',
   'auto.gate.platform.ok': 'Platform: {platform}.',
   'auto.gate.wsl.notWsl': 'WSL değil.',
   'auto.gate.wsl.unreadable': "WSL'in kendi dosyaları okunamadı (/proc/sys/kernel/osrelease, /proc/mounts).",
@@ -65,7 +64,8 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.gate.hook.missing': "Güvenlik ağı hook'u bu oturumda çalışmadı; kendi terminalinde mode-code doctor çalıştır.",
   'auto.gate.modes.ok': 'Modlar açık.',
   'auto.gate.modes.off': 'Modlar kapalı (modules.modes); tam otonom plan modunda planlar.',
-  'auto.gate.project.noGit': "Oturum bir git çalışma ağacında değil ({cwd}); koşunun dönülecek commit'lere ihtiyacı var.",
+  'auto.gate.project.noGit':
+    "Bu klasör bir git projesi değil ({cwd}): koşunun geri dönebileceği commit'lere ihtiyacı var. Claude Code'u projenin klasöründe aç.",
   'auto.gate.project.notTop': "Claude Code'u projenin en üst klasöründe başlat ({top}); kum havuzu ve koşu aynı klasörü görsün.",
   'auto.gate.project.dirty': "{n} izlenen dosyada commit'lenmemiş değişiklik var: önce commit'le ya da kenara koy (stash), koşu bir commit'ten başlasın.",
   'auto.gate.project.ok': "Git çalışma ağacı {top}, commit'lenmemiş bir şey yok.",
@@ -74,6 +74,29 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.gate.alone.elsewhere': 'Bu klasörde canlı başka bir oturum bir koşu yürütüyor.',
   'auto.gate.alone.ok': 'Burada başka bir şey çalışmıyor.',
   'auto.gate.alone.paused': 'Bu klasörde duraklatılmış bir koşu bekliyor ({id}): "{cont}" ile sürdür ya da "{cancel}" ile bitir.',
+  // ── başlangıç denetiminin nedeni bildirim olarak: sade sözle ve ne yapılacağıyla, denetimin her kalış biçimi için ──
+  'auto.refuse.enabled.off': 'Tam otonom kapalı. Kendi terminalinde aç: mode-code autonomy enable.',
+  'auto.refuse.wsl.unreadable': "Tam otonom açılamıyor: WSL'in kendi dosyaları okunamadı. Ayrıntı için {cmd} yaz.",
+  'auto.refuse.wsl.v1': 'Tam otonom açılamıyor: bu WSL1, WSL2 gerekiyor. Çözüm için {cmd} yaz.',
+  'auto.refuse.wsl.interop': 'Tam otonom açılamıyor: WSL, Windows programı başlatabiliyor. Çözüm için {cmd} yaz.',
+  'auto.refuse.wsl.mounts': "Tam otonom açılamıyor: WSL'e Windows sürücüleri bağlı. Çözüm için {cmd} yaz.",
+  'auto.refuse.wsl.both': 'Tam otonom açılamıyor: WSL, Windows programlarına ve sürücülerine açık. Çözüm için {cmd} yaz.',
+  'auto.refuse.sandbox.unreadable': "Tam otonom açılamıyor: Claude Code'un ayarları okunamadı.",
+  'auto.refuse.sandbox.gaps': "Tam otonom açılamıyor: Claude Code'un kum havuzu yeterince sıkı değil. Çözüm için {cmd} yaz.",
+  'auto.refuse.probe.didNotRun': 'Tam otonom açılamıyor: kum havuzu sınanamadı. Ayrıntı için {cmd} yaz.',
+  'auto.refuse.probe.wrote': 'Tam otonom açılamıyor: kum havuzu proje dışına yazmayı engellemedi.',
+  'auto.refuse.permission.network': "Tam otonom açılamıyor: Claude Code'un izin modu soru sorar. Çözüm için {cmd} yaz.",
+  'auto.refuse.permission.asks': "Tam otonom açılamıyor: Claude Code'un izin modu soru sorar. Çözüm için {cmd} yaz.",
+  'auto.refuse.permission.unknown': 'Tam otonom açılamıyor: izin modu okunamadı. Kendi terminalinde: mode-code doctor --fix.',
+  'auto.refuse.hook.missing': 'Tam otonom açılamıyor: güvenlik ağı çalışmadı. Kendi terminalinde: mode-code doctor.',
+  'auto.refuse.modes.off': 'Tam otonom açılamıyor: modlar kapalı. Ayrıntı için {cmd} yaz.',
+  'auto.refuse.project.noGit': "Tam otonom açılamıyor: bu klasör bir git projesi değil. Claude Code'u projenin klasöründe aç.",
+  'auto.refuse.project.notTop': "Tam otonom açılamıyor: projenin alt klasöründesin. Claude Code'u projenin en üst klasöründe aç.",
+  'auto.refuse.project.dirty': "Tam otonom açılamıyor: {n} dosyada commit'lenmemiş değişiklik var. Önce commit'le ya da stash'le.",
+  'auto.refuse.alone.flow': 'Tam otonom açılamıyor: bu oturumda açık bir akış var. Önce bitir ya da iptal et.',
+  'auto.refuse.alone.run': 'Tam otonom açılamıyor: bu oturumun zaten bir koşusu var.',
+  'auto.refuse.alone.elsewhere': 'Tam otonom açılamıyor: bu klasörde başka bir oturum koşu yürütüyor.',
+  'auto.refuse.alone.paused': 'Tam otonom açılamıyor: bu klasörde duraklatılmış bir koşu bekliyor. Ayrıntı için {cmd} yaz.',
   'auto.mode.tailPlan':
     'Tam otonom koşu planlıyor: planı {path} dosyasına yaz ve mcp__mode-code__autonomy aracını "plan" eylemiyle çağır; proje, plan kabul edilince değişir.',
 
@@ -208,7 +231,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.guard.fenceRead': '🤖 Tam otonom: koşu sırasında kimlik bilgisi dosyaları okunmaz ({what}).',
   'auto.guard.memory': '🤖 Tam otonom: koşu sırasında hafıza klasörlerine yazılmaz. Notu {notes} dosyasına koy; kişi rapordan karar verir.',
   'auto.guard.escape': '🤖 Tam otonom: komutlar yalnız kum havuzunda çalışır; dangerouslyDisableSandbox reddedilir.',
-  'auto.guard.stalled': '🤖 Tam otonom: ölçülebilir ilerleme yok; koşu duraklatıldı. Yapılanları raporla ve dur.',
+  'auto.guard.stalled': '🤖 Tam otonom: koşu duraklatıldı ({reason}). Yapılanları raporla ve dur.',
   'auto.guard.heldForStart': '🤖 Tam otonom: {tool} bekletildi; önce son başlangıç denetimleri çalıştı. Hâlâ gerekiyorsa yeniden çağır.',
 
   // ── durma ──
@@ -250,8 +273,9 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.cli.warnTitle': 'Tam otonom: açmak ne demek',
   'auto.cli.warnBody':
     'Bir koşu, klavyenin başında kimse yokken tek bir görevi sonuna kadar götürür. Claude koşu sırasında sana hiçbir şey sormaz.\n' +
-    'Yalnız bir bütçeyle başlar ("<görev>. <proje> tam otonom kota +10") ve yalnız kodun önce ölçtüğü bir sınırın içinde:\n' +
+    'Yalnız bir bütçeyle başlar ("<görev>. <proje> tam otonom kota +10"), kod nerede çalıştığını denetledikten sonra:\n' +
     "Windows'a geri dönüş yolu olmayan WSL2, ya da Claude Code'un kum havuzu sıkı biçimdeyken Linux ve macOS.\n" +
+    "Yerel Windows'ta kum havuzu yok: koşuyu yalnız emniyet kemeri ve çit korur.\n" +
     'Sana ait olanlar (korunan dallara push, birleştirme, sürüm, yayın, emniyet kemerinin soracakları) bekler;\n' +
     "birebir komutuyla kaydedilir ve koşunun raporunda listelenir. Her kilometre taşı geri dönebileceğin bir commit'tir.\n" +
     'Koşu bitti tanımı geçince, tıkanınca, hiçbir şey değişmeyince, süre ya da bütçe sınırında, ya da sen dur yazınca durur.\n' +
@@ -281,6 +305,11 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'doc.autonomy.off': 'Tam otonom kapalı (mode-code autonomy enable ile açılır).',
   'doc.autonomy.ready': 'Tam otonom açık ve burada ölçülenlerden hiçbiri bir koşuya engel değil.',
   'doc.autonomy.notReady': 'Tam otonom açık ama burada {n} başlangıç denetimi geçmez:',
+  'doc.bypass.off': 'Bypass kapalı: hiçbir oturum emniyet kemerini kaldıramaz.',
+  'doc.bypass.on': 'Bypass bir oturumda senin tarafından açılabilir, en çok {hours} saatliğine; şu an hiçbir oturumda açık değil.',
+  'doc.bypass.onNow': 'Bypass şu an {n} oturumda açık (her biri en çok {hours} saat); geçirdikleri Otomasyon › İzinsiz yapılanlar altında.',
+  'doc.bypass.floorWeakened': 'Bypass açıkken de sorulması gereken {n} kural ayarlardan kapatılmış ya da izne çevrilmiş:',
+  'doc.bypass.floorHint': 'Güvenlik › Emniyet kemeri kuralları altından ya da mode-code config set belt.verdicts.<kural> ask ile geri al.',
 
   // ── kontrol merkezi ──
   'home.runs': 'Tam otonom koşular',
@@ -292,8 +321,8 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'run.rollbackHint': 'Bir kilometre taşına dönüş: mode-code autonomy rollback {id} <n>',
   'runs.empty':
     'Henüz tam otonom koşu yok. Bir koşu, klavyenin başında kimse yokken tek bir görevi sonuna kadar götürür; kodun önce ölçtüğü bir sınırın içinde.',
-  'runs.howTo': 'Ayarlar › Otonomi altında aç, sonra bir mesajı "<proje> tam otonom kota +10" ile bitir (docs/autonomy.md).',
-  'page.autonomy': 'Otonomi',
+  'runs.howTo': 'Otomasyon › Tam otonom altında aç, sonra bir mesajı "<proje> tam otonom kota +10" ile bitir (docs/autonomy.md).',
+  'page.autonomy': 'Tam otonom',
   'desc.autonomy': 'Tam otonom: açık ya da kapalı, sınırları ve buradan ölçülen başlangıç denetimleri.',
   'set.autonomy.enabled': 'Tam otonom',
   'set.autonomy.enabledHelp': 'Sana sormadan tek bir görevi sonuna kadar götüren koşular. Sen açana kadar kapalı; Claude açamaz.',
@@ -304,6 +333,46 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'set.autonomy.stallMinutesHelp': 'Kilometre taşı gelmeyen bu kadar dakikadan sonra Claude uyarılır; iki katında koşu takıldı diye duraklar.',
   'set.autonomy.check': 'Buradan ölçülen başlangıç denetimleri',
   'set.autonomy.note': 'Gerisi (bütçe, canlı kum havuzu sınaması, oturumun izin modu) koşu başlarken ölçülür.',
+  // ── Otomasyon › Bypass, İzinsiz yapılanlar ──
+  'desc.automation': "Özel çalışma biçimleri, sen açana kadar kapalı: tam otonom, koşuları, bypass ve bypass'ın geçirdikleri.",
+  'page.bypass': 'Bypass',
+  'desc.bypass': 'Bypass: bir oturumda, sen orada açınca, emniyet kemerini bir süre kaldırır. Burada açılana kadar kapalı.',
+  'page.bypassed': 'İzinsiz yapılanlar',
+  'desc.bypassed': "Bypass'ın sorulmadan ya da engellenmeden geçirdiği her çağrı, tek tek; ne zaman açılıp kapandığı da.",
+  'set.bypass.enabled': 'Bypass açılabilir',
+  'set.bypass.enabledHelp':
+    'Kapalı: /bypass ve şeritteki ⚡ yok. Açık: bir oturumda kendin açarsın (/bypass, bir kez sorulur), aşağıdaki süre kadar; Claude açamaz.',
+  'set.bypass.confirm':
+    "Bypass, Claude'un sormadan iş yapmasını sağlar: emniyet kemerinin soracağı ya da engelleyeceği şeyler geçer, çağrı çağrı kaydedilir. Dosyaların, ayarların, hafızan ve sırların korunmaya devam eder; geri alınamaz silmeler yine sorulur. Bir oturumda yalnız gerçekten istediğinde aç. Bu bilgisayarda izin vermek için Enter'a bir kez daha bas.",
+  'set.bypass.maxHours': 'Kaç saat sürer',
+  'set.bypass.maxHoursHelp': 'Bir oturumda bu süre dolunca bypass kendiliğinden kapanır; on dakika önce uyarır (1 ile 24 arası).',
+  'set.bypass.tiers': 'Neyi kaldırır',
+  'set.bypass.tier.never': 'Asla: bu aracı, Claude Code ayarlarını ya da hafızanı değiştirmek; bir sırrı bilgisayarın dışına göndermek.',
+  'set.bypass.tier.asked':
+    'Bypass kapalıyken engellenir, açıkken sorulur: sürücü kökünü, sistem klasörünü ya da buluttaki veriyi silmek; diski biçimlemek; güvenlik yazılımını kapatmak.',
+  'set.bypass.tier.always': "Her zamanki gibi sorulur: proje dışında silmek, .git klasörü, veritabanı sıfırlamak, sır dosyasını commit'e hazırlamak.",
+  'set.bypass.tier.through': "Gerisi soru sorulmadan geçer; Claude Code'un kendi modunun soracakları da. Claude Code ayarlarındaki bir kural sorusunu korur.",
+  'set.bypass.note': 'Her oturum onsuz başlar, oturumla biter ve başka bir bilgisayardan asla gelmez.',
+  'bypassed.empty': 'Bypass son 30 günde hiçbir şey geçirmedi.',
+  'bypassed.on': 'bypass açıldı ({hours} saat)',
+  'bypassed.off': 'bypass kapandı: {minutes} dakikada {count} çağrı ({why})',
+  'bypassed.why.person': 'kapatıldı',
+  'bypassed.why.time': 'süresi doldu',
+  'bypassed.why.disabled': 'ayarlardan kapatıldı',
+  'bypassed.why.session': 'oturum bitti',
+  'bypassed.agent': 'bir alt ajan',
+  'bypassed.outcome.ran': 'çalıştı',
+  'bypassed.outcome.failed': 'başarısız',
+  'bypassed.outcome.refused': 'sonra reddedildi',
+  // ── Otomasyon › Son görevler ──
+  'page.autoPrompts': 'Son görevler',
+  'desc.autoPrompts':
+    'Tam otonoma verdiğin son üç görev, şeritteki pencereden ya da yazarak; hiçbiri kaybolmasın diye saklanır: birini kopyalayıp yeniden kullan.',
+  'prompts.empty': 'Henüz görev yok. Tam otonoma verdiğin görevler (şeritteki penceresinden ya da yazarak) burada kalır, son üçü.',
+  'prompts.keys': '↑↓ seç · Enter ya da c görevin tamamını kopyalar',
+  'prompts.meta': '{ago} · kota {budget}',
+  'prompts.copied': 'Kopyalandı: istediğin yere yapıştırabilirsin.',
+  'prompts.copiedTerminal': 'Terminale gönderildi; yapışmazsa metni fareyle seç.',
   'event.run.start': 'Tam otonom koşu başladı: {run}',
   'event.run.finish': 'Tam otonom koşu bitti: {run}',
   'event.run.stuck': 'Tam otonom koşu tıkandı: {run}',

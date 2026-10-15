@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { layout } from '../../src/core/layout.js';
-import { applyInstall, hookGroups, planInstall, withOurHooks, withoutPrevious, type Manifest } from '../../src/node/install.js';
+import { applyInstall, distDir, hookGroups, planInstall, withOurHooks, withoutPrevious, type Manifest } from '../../src/node/install.js';
 import { copyPrevious, findPrevious, previousPlugin, rebase, rebaseJson, type PreviousInstall } from '../../src/node/previous.js';
 import type { ClaudeRunner } from '../../src/node/claude-env.js';
 import { built } from '../helpers/proc.js';
@@ -224,4 +224,61 @@ test('when both folders exist the earlier one is left as it is, but its hooks an
   } finally {
     h.done();
   }
+});
+
+test('installed over an older version: Claude Code is told to record the version now in the folder', (t) => {
+  if (!built()) return t.skip('needs the build: npm run build');
+  const inFolder = (JSON.parse(readFileSync(join(distDir(), 'plugin', '.claude-plugin', 'plugin.json'), 'utf8')) as { version: string }).version;
+  /** As Claude Code 2.1.300 does: an install over an installed plugin keeps its record; an update records anew. */
+  const claude = (recorded: string | null, updateFails = false) => {
+    const ok = (stdout = 'ok') => ({ status: 0, stdout, stderr: '' });
+    const c: ClaudeRunner & { calls: string[]; recorded: string | null } = {
+      calls: [],
+      recorded,
+      version: () => '2.1.300',
+      run(args) {
+        const a = args.join(' ');
+        c.calls.push(a);
+        if (a === 'plugin list --json')
+          return ok(JSON.stringify(c.recorded ? [{ id: 'mode-code@mode-code-local', version: c.recorded, scope: 'user', enabled: true }] : []));
+        if (a.startsWith('plugin install')) {
+          c.recorded ??= inFolder;
+          return ok('Plugin "mode-code@mode-code-local" is already installed (scope: user)');
+        }
+        if (a.startsWith('plugin update')) {
+          if (updateFails) return { status: 1, stdout: '', stderr: 'Plugin "mode-code" not found' };
+          c.recorded = inFolder;
+          return ok();
+        }
+        return ok();
+      },
+    };
+    return c;
+  };
+  const install = (c: ReturnType<typeof claude>) => {
+    const h = home();
+    try {
+      const claudeDir = `${h.dir}/.claude`;
+      mkdirSync(claudeDir);
+      const l = layout(`${h.dir}/.mode-code`);
+      const r = applyInstall(l, planInstall(l, { claude: '2.1.300', claudeDir, env: {} }), { runner: c });
+      return { ok: r.ok, detail: r.steps.find((s) => s.kind === 'plugin')?.detail ?? '' };
+    } finally {
+      h.done();
+    }
+  };
+  const over = claude('1.0.0');
+  const o = install(over);
+  assert.deepEqual(
+    [o.ok, o.detail, over.recorded],
+    [true, `Plugin "mode-code@mode-code-local" is already installed (scope: user) · recorded 1.0.0 → ${inFolder}`, inFolder],
+  );
+  assert.ok(over.calls.includes('plugin update mode-code@mode-code-local --scope user'));
+  // A first install records the version it installs: nothing to update.
+  const fresh = claude(null);
+  assert.equal(install(fresh).ok, true);
+  assert.ok(!fresh.calls.some((c) => c.startsWith('plugin update')));
+  // An update that fails leaves the record behind and says so; the plugin runs from the folder all the same.
+  const stuck = install(claude('1.0.0', true));
+  assert.deepEqual([stuck.ok, stuck.detail.split(' · ')[1]], [true, 'record left at 1.0.0: Plugin "mode-code" not found']);
 });

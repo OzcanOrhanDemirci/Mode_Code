@@ -133,9 +133,11 @@ const claudePlugin: Check = (f) => {
   const p = f.plugins.find((x) => x.id === PLUGIN_ID);
   if (!p) return result(id, 'claude', false, 'warn', m('doc.claude.plugin.missing', { id: PLUGIN_ID }), { repair: 'reinstall-plugin' });
   if (p.enabled === false || off) return result(id, 'claude', false, 'warn', m('doc.claude.plugin.disabled', { id: PLUGIN_ID }), { repair: 'enable-plugin' });
-  if (p.version && p.version !== f.appVersion && f.appVersion !== 'dev')
-    return result(id, 'claude', false, 'warn', m('doc.claude.plugin.otherVersion', { have: p.version, now: f.appVersion }), { repair: 'restore-plugin-files' });
-  return result(id, 'claude', false, 'ok', m('doc.claude.plugin.ok', { id: PLUGIN_ID, v: p.version ?? '?' }));
+  // What loads counts: a plugin read in place from its folder loads the folder's version, whatever was recorded.
+  const have = p.loads ?? p.version;
+  if (have && have !== f.appVersion && f.appVersion !== 'dev')
+    return result(id, 'claude', false, 'warn', m('doc.claude.plugin.otherVersion', { have, now: f.appVersion }), { repair: 'update-plugin' });
+  return result(id, 'claude', false, 'ok', m('doc.claude.plugin.ok', { id: PLUGIN_ID, v: have ?? '?' }));
 };
 
 // ── installation ──
@@ -581,6 +583,29 @@ const installAutonomy: Check = (f) => {
   });
 };
 
+/**
+ * Bypass (docs/autonomy.md): off, said once; on, for how long and in how many sessions now. A rule bypass never
+ * lifts or only turns into a question, switched off or set to allow in the settings, is a warning: bypass would
+ * then let through what it is meant to keep asking about.
+ */
+const protectBypass: Check = (f) => {
+  const id = 'protection.bypass';
+  const details = f.bypass.floorWeakened.map((r) => m('doc.line', { text: r }));
+  if (details.length)
+    return result(id, 'protection', true, 'warn', m('doc.bypass.floorWeakened', { n: details.length }), {
+      details,
+      hint: m('doc.bypass.floorHint'),
+    });
+  if (!f.bypass.enabled) return result(id, 'protection', false, 'info', m('doc.bypass.off'));
+  return result(
+    id,
+    'protection',
+    false,
+    'info',
+    f.bypass.onNow ? m('doc.bypass.onNow', { n: f.bypass.onNow, hours: f.bypass.maxHours }) : m('doc.bypass.on', { hours: f.bypass.maxHours }),
+  );
+};
+
 /** Every check, in the order the report shows them. */
 export const CHECKS: readonly Check[] = [
   nodeVersion,
@@ -603,6 +628,7 @@ export const CHECKS: readonly Check[] = [
   protectLinks,
   protectShortNames,
   protectMemory,
+  protectBypass,
   shellGitBash,
   shellPowerShell,
   shellPosix,

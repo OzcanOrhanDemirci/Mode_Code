@@ -5,7 +5,7 @@
  * changed, a session's start prunes old notes. Where the plugin runs, the hook leaves all of it to it.
  * Real git, run as Claude Code runs the hook (a process, the event on stdin).
  */
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -16,7 +16,9 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const hook = join(root, 'src', 'hook', 'main.ts');
 const hasGit = spawnSync('git', ['--version']).status === 0;
-const gitconfig = join(mkdtempSync(join(tmpdir(), 'tc-hookgit-')), 'gitconfig');
+const gitHome = mkdtempSync(join(tmpdir(), 'tc-hookgit-'));
+after(() => rmSync(gitHome, { recursive: true, force: true }));
+const gitconfig = join(gitHome, 'gitconfig');
 writeFileSync(gitconfig, '[user]\n\tname = Ada\n\temail = ada@example.com\n[commit]\n\tgpgsign = false\n[init]\n\tdefaultBranch = main\n');
 const ENV = { ...process.env, GIT_CONFIG_GLOBAL: gitconfig, GIT_CONFIG_NOSYSTEM: '1' };
 

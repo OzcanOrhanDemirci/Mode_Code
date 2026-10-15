@@ -165,6 +165,15 @@ export interface Config {
     /** The model of the independent reviews; null: the session's own model. */
     reviewModel: string | null;
   };
+  /**
+   * Bypass (docs/autonomy.md): a session may lift the belt for a while. Off until the person turns it on in
+   * the control center or their own terminal; then they still switch it on in each session themselves.
+   */
+  bypass: {
+    enabled: boolean;
+    /** Hours after which bypass ends by itself in a session. */
+    maxHours: number;
+  };
   accessibility: {
     /** Plain text: no box drawing, no emoji-only signals. */
     plain: boolean;
@@ -200,6 +209,7 @@ export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
   projects: [],
   modes: { workDir: null },
   autonomy: { enabled: false, maxHours: 12, stallMinutes: 90, reviewModel: null },
+  bypass: { enabled: false, maxHours: 2 },
   accessibility: { plain: false, highContrast: false, reduceMotion: false },
   sync: null,
 }) as Config;
@@ -356,6 +366,20 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
       else problems.push({ path: 'autonomy.reviewModel', kind: 'type', detail: 'expected a model name or null' });
     }
   } else if (raw.autonomy !== undefined) problems.push({ path: 'autonomy', kind: 'type', detail: 'expected an object' });
+
+  if (isObj(raw.bypass)) {
+    const b = raw.bypass;
+    for (const k of Object.keys(b))
+      if (!['enabled', 'maxHours'].includes(k)) problems.push({ path: `bypass.${k}`, kind: 'unknown-key', detail: 'not a setting' });
+    if (b.enabled !== undefined) {
+      if (typeof b.enabled === 'boolean') c.bypass.enabled = b.enabled;
+      else problems.push({ path: 'bypass.enabled', kind: 'type', detail: 'expected true or false' });
+    }
+    if (b.maxHours !== undefined) {
+      if (typeof b.maxHours === 'number' && b.maxHours >= 1 && b.maxHours <= 24) c.bypass.maxHours = Math.round(b.maxHours);
+      else problems.push({ path: 'bypass.maxHours', kind: 'range', detail: 'expected 1 to 24' });
+    }
+  } else if (raw.bypass !== undefined) problems.push({ path: 'bypass', kind: 'type', detail: 'expected an object' });
 
   if (raw.sync !== undefined && raw.sync !== null) c.sync = syncSetting(raw.sync, problems);
 

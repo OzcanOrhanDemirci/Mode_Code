@@ -61,7 +61,7 @@ export const BELT_SAMPLES: readonly BeltSample[] = [
   // ── the tool's own protections ──
   { name: "write the tool's settings", tool: 'Write', input: { file_path: '{data}/config.json', content: '{}' }, verdict: 'deny', rules: ['self.tool-files'] },
   { name: 'redirect into the data folder', tool: 'Bash', input: { command: 'echo x > {data}/config.json' }, verdict: 'deny', rules: ['self.tool-files'] },
-  { name: 'delete the data folder', tool: 'Bash', input: { command: 'rm -rf {data}' }, verdict: 'deny', rules: ['fs.delete-critical'] },
+  { name: 'delete the data folder', tool: 'Bash', input: { command: 'rm -rf {data}' }, verdict: 'deny', rules: ['self.tool-files'] },
   {
     name: "write Claude Code's settings",
     tool: 'Write',
@@ -100,8 +100,24 @@ export const BELT_SAMPLES: readonly BeltSample[] = [
     only: ['win32'],
   },
 
+  {
+    name: 'delete data in the cloud',
+    tool: 'Bash',
+    input: { command: 'firebase firestore:delete /users --recursive' },
+    verdict: 'deny',
+    rules: ['data.delete-cloud'],
+  },
+  {
+    name: 'a package runner in PowerShell',
+    tool: 'PowerShell',
+    input: { command: 'npx firebase database:remove /orders' },
+    verdict: 'deny',
+    rules: ['data.delete-cloud'],
+  },
+
   // ── questions ──
   { name: 'delete untracked files', tool: 'Bash', input: { command: 'git clean -fdx' }, verdict: 'ask', rules: ['git.clean'] },
+  { name: 'merge past the checks', tool: 'Bash', input: { command: 'gh pr merge 12 --admin' }, verdict: 'ask', rules: ['github.admin-merge'] },
   {
     name: 'recursive delete outside the project',
     tool: 'Bash',

@@ -78,6 +78,23 @@ export interface ModSessionState {
   blocks: Record<string, number>;
   /** Kept once a turn changed something; null before. */
   work: SessionWork | null;
+  /**
+   * Bypass, while the person has it on in this session (docs/autonomy.md): since when, until when, and how
+   * many calls it let through that the belt would have asked about or blocked. Never carried to another
+   * session, and turned on and off only by the person.
+   */
+  bypass: BypassState | null;
+}
+
+export interface BypassState {
+  since: number;
+  until: number;
+  count: number;
+}
+
+/** Bypass is on at `now`: turned on in this session and not past its time. */
+export function bypassOn(s: Pick<ModSessionState, 'bypass'> | null | undefined, now: number): boolean {
+  return !!s?.bypass && now < s.bypass.until;
 }
 
 export interface HookSessionState {
@@ -124,11 +141,17 @@ export function newModState(sessionId: string, modVersion: string, now: number):
     approvals: [],
     blocks: {},
     work: null,
+    bypass: null,
   };
 }
 
 function isObj(x: unknown): x is Record<string, unknown> {
   return typeof x === 'object' && x !== null && !Array.isArray(x);
+}
+
+function parseBypass(x: unknown): BypassState | null {
+  if (!isObj(x) || typeof x.since !== 'number' || typeof x.until !== 'number' || !(x.until > x.since)) return null;
+  return { since: x.since, until: x.until, count: typeof x.count === 'number' && x.count >= 0 ? Math.floor(x.count) : 0 };
 }
 
 /** Parses a mod state file; null when it is missing, torn or of another shape. */
@@ -156,6 +179,7 @@ export function parseModState(text: string | null): ModSessionState | null {
       blocks: isObj(s.blocks) ? (s.blocks as Record<string, number>) : {},
       endedAt: typeof s.endedAt === 'number' ? s.endedAt : null,
       work: parseWork(s.work),
+      bypass: parseBypass(s.bypass),
     };
   } catch {
     return null;

@@ -128,6 +128,11 @@ export interface Run {
   /** Running time so far, in milliseconds, and since when the run is running again (null while paused or over). */
   activeMs: number;
   runningSince: number | null;
+  /**
+   * The running time at which the current time limit began: 0, or where the run stood when it was resumed after
+   * its time ran out (resuming gives a fresh limit; the running time itself goes on counting).
+   */
+  limitFrom: number;
   history: RunEvent[];
 }
 
@@ -219,6 +224,7 @@ export function startRun(i: StartRunInput): Run {
     blockers: [],
     finish: null,
     activeMs: 0,
+    limitFrom: 0,
     runningSince: i.now,
     history: [{ at: i.now, event: 'start' }],
   };
@@ -259,6 +265,11 @@ export function lastProgressAt(r: Run): number {
 /** Running time in milliseconds, paused time left out. */
 export function activeTime(r: Run, now: number): number {
   return r.activeMs + (r.runningSince !== null ? Math.max(0, now - r.runningSince) : 0);
+}
+
+/** The running time the time limit counts: since the run started, or since it was resumed after its time ran out. */
+export function limitTime(r: Run, now: number): number {
+  return activeTime(r, now) - r.limitFrom;
 }
 
 /**
@@ -370,7 +381,8 @@ export function pauseRun(r: Run, reason: PauseReason, now: number, detail = ''):
 export function resumeRun(r: Run, sessionId: string, now: number): RunResult {
   if (isTerminal(r)) return fail(r, 'terminal');
   if (r.status !== 'paused') return fail(r, 'not-paused');
-  return { ok: true, run: log({ ...r, status: 'active', pause: null, sessionId, runningSince: now, aliveAt: now }, { at: now, event: 'resume' }) };
+  const limitFrom = r.pause?.reason === 'timeout' ? r.activeMs : r.limitFrom;
+  return { ok: true, run: log({ ...r, status: 'active', pause: null, sessionId, runningSince: now, aliveAt: now, limitFrom }, { at: now, event: 'resume' }) };
 }
 
 export function cancelRun(r: Run, now: number): RunResult {
@@ -506,6 +518,7 @@ export function parseRun(text: string | null): Run | null {
       .map((b) => ({ at: num(b.at), kind: BLOCKER_KINDS.has(b.kind as BlockerKind) ? (b.kind as BlockerKind) : 'other', text: str(b.text) })),
     finish,
     activeMs: num(o.activeMs),
+    limitFrom: Math.min(num(o.limitFrom), num(o.activeMs)),
     runningSince: typeof o.runningSince === 'number' && Number.isFinite(o.runningSince) ? o.runningSince : null,
     history: (Array.isArray(o.history) ? o.history : []).filter((e): e is RunEvent => isObj(e) && typeof e.at === 'number' && typeof e.event === 'string'),
   };

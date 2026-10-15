@@ -26,6 +26,7 @@ Protection
   ✓ The belt protects the short names Windows gave the protected places (1).
       ~/MODECO~1 is ~/.mode-code.
   ✓ Memory folders are protected and are git repositories (1).
+  · Bypass is off: no session can lift the safety belt.
 Shells and terminal
   ✓ Git Bash (C:/Program Files/Git/bin/bash.exe) maps /tmp to your Temp folder, as the belt assumes.
   ✓ PowerShell 7.6.6.
@@ -55,7 +56,7 @@ Data
 Self-tests
   ✓ All 30 built-in samples of 1 suites gave the expected answer.
 
-41 checks in 2.1 s: 29 ok, 2 warnings, 3 problems.
+42 checks in 2.1 s: 29 ok, 2 warnings, 3 problems.
 Problems that weaken a protection: 3.
 
 Problems that can be repaired automatically: 3.

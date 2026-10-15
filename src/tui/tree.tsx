@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-/** The seven categories and their pages, built from the current data. */
+/** The eight categories and their pages, built from the current data. */
 import { homedir } from 'node:os';
 import { RULES, RULE_IDS } from '../core/belt/rules.js';
 import type { RuleId } from '../core/belt/types.js';
@@ -15,6 +15,7 @@ import { flowTitle, statusText } from '../core/flow-view.js';
 import { Events, Protection, RuleDetail, Secrets, TestCommand } from './screens/security.js';
 import { Extensions, Hooks, Instructions, Mcp, Permissions, Plugins, SettingsSources } from './screens/claude.js';
 import { Templates } from './screens/templates.js';
+import { Bypass, Bypassed, RecentTasks } from './screens/automation.js';
 import {
   About,
   Accessibility,
@@ -140,7 +141,6 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
     ...(waiting ? { badge: { text: t('badge.waiting', { n: waiting }), state: 'gray' as const } } : {}),
     children: () => [
       flowsNode,
-      runsNode,
       handoffsNode,
       ...data.folders(90).map((f) => ({
         id: encodeURIComponent(f.cwd),
@@ -241,6 +241,40 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
     ],
   });
 
+  // Automation (the person, 2026-10-15): the special ways of working, off until turned on, in one place.
+  const bypassCalls = data.events(1).filter((e) => e.kind === 'bypass' && e.action === 'call').length;
+  const automation = n('automation', 'cat.automation', {
+    description: d('desc.automation'),
+    ...(runs.some((r) => r.status === 'active')
+      ? { badge: { text: t('badge.running', { n: runs.filter((r) => r.status === 'active').length }), state: 'info' as const } }
+      : data.config().bypass.enabled
+        ? { badge: { text: '⚡', state: 'gray' as const } }
+        : {}),
+    children: () => [
+      n('full-auto', 'page.autonomy', {
+        description: d('desc.autonomy'),
+        badge: { text: t(data.config().autonomy.enabled ? 'set.on' : 'set.off'), state: 'info' },
+        screen: (p) => <Autonomy {...p} />,
+      }),
+      n('prompts', 'page.autoPrompts', {
+        description: d('desc.autoPrompts'),
+        ...(data.autoPrompts().length ? { badge: { text: String(data.autoPrompts().length), state: 'gray' as const } } : {}),
+        screen: (p) => <RecentTasks {...p} />,
+      }),
+      runsNode,
+      n('bypass', 'page.bypass', {
+        description: d('desc.bypass'),
+        badge: { text: t(data.config().bypass.enabled ? 'set.on' : 'set.off'), state: data.config().bypass.enabled ? 'gray' : 'info' },
+        screen: (p) => <Bypass {...p} />,
+      }),
+      n('bypassed', 'page.bypassed', {
+        description: d('desc.bypassed'),
+        ...(bypassCalls ? { badge: { text: String(bypassCalls), state: 'gray' as const } } : {}),
+        screen: (p) => <Bypassed {...p} />,
+      }),
+    ],
+  });
+
   const settings = n('settings', 'cat.settings', {
     description: d('desc.settings'),
     badge: data.configProblems().length ? { text: t('badge.problems', { n: data.configProblems().length }), state: 'gray' } : undefined,
@@ -275,7 +309,6 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
         screen: (p) => <Sync {...p} />,
       }),
       n('projects', 'page.projects', { description: d('desc.projectsSet'), screen: (p) => <Projects {...p} /> }),
-      n('autonomy', 'page.autonomy', { description: d('desc.autonomy'), screen: (p) => <Autonomy {...p} /> }),
       n('keywords', 'page.keywords', { description: d('desc.keywords'), screen: (p) => <Keywords {...p} /> }),
       n('accessibility', 'page.accessibility', { description: d('desc.accessibility'), screen: (p) => <Accessibility {...p} /> }),
       n('maintenance', 'page.maintenance', { description: d('desc.maintenance'), screen: (p) => <Maintenance {...p} /> }),
@@ -283,5 +316,5 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
     ],
   });
 
-  return [home, projects, sessions, measure, security, claude, settings];
+  return [home, projects, sessions, measure, security, claude, automation, settings];
 }

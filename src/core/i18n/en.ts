@@ -69,6 +69,15 @@ export const en = {
   'belt.reason.unverifiable': 'Part of this command could not be followed ({issues}), so the safety belt cannot confirm it is safe.',
   'belt.reason.disableHooks': 'Turns hooks off or limits them to managed hooks: {command}',
   'belt.reason.secretInFile': 'Writes what looks like a secret ({kinds}) into {target}. Keep secrets out of files that may be committed or shared.',
+  'belt.reason.deleteCloud': 'Deletes data that lives in the cloud (a database, a bucket, a repository): {command}',
+  'belt.reason.writeCloud': 'Overwrites data in a live Firebase database: {command}',
+  'belt.reason.resetDatabase': 'Drops or resets a database, whose data goes with it: {command}',
+  'belt.reason.securityOff': 'Turns off or weakens security software (antivirus, firewall, account control): {command}',
+  'belt.reason.exfil': 'Sends a secret off this computer ({what}). The safety belt never lets this through, bypass included.',
+  'belt.reason.adminMerge': "Merges with admin rights, past the repository's required checks and branch rules: {command}",
+  'belt.reason.githubDelete': 'Deletes or archives something on GitHub: {command}',
+  'belt.reason.outboundSend': 'Sends, shares or invites through a connected service ({tool}): it reaches other people and cannot be taken back.',
+  'belt.reason.outboundDelete': 'Deletes or trashes something in a connected service ({tool}).',
   'belt.word.currentBranchUnknown': '(the current branch, unknown)',
   'belt.head.deny': '🛡 Blocked by the safety belt:',
   'belt.head.ask': '🛡 The safety belt asks for confirmation:',
@@ -76,6 +85,8 @@ export const en = {
   'belt.tail.deny':
     'Do not work around this (no other spelling, tool or script). Tell the user what you wanted to do and why. If it is really needed, they can run it themselves by typing ! followed by the command.',
   'belt.tail.ask': 'Approve only if this is what you meant.',
+  'belt.tail.bypass': 'With bypass on (control center › Automation › Bypass, turned on by the user) this is asked instead of blocked.',
+  'belt.tail.floor': 'Bypass is on, and this is still asked: it cannot be undone.',
   'belt.tail.repeat': 'This rule has blocked {n} attempts in this session. Do not try again: stop and report to the user.',
 
   // ── footer lines under each answer ──
@@ -129,6 +140,8 @@ export const en = {
   // ── keywords as the person sees them ──
   'kw.toast': 'Keyword: {kind}{project}',
   'kw.toast.unknownProject': 'Keyword: {kind} · "{text}" is not a registered project',
+  'kw.slashTaken': 'Read as the keyword {keyword} (typed as {typed}).',
+  'kw.didYouMean': '"{typed}": did you mean "{keyword}"? Then type it exactly; nothing was changed.',
   'kw.kind.continue': 'continue',
   'kw.kind.manual': 'manual',
   'kw.kind.manualStyle': 'manual',

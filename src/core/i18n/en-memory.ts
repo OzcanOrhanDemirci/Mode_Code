@@ -114,10 +114,10 @@ export const enMemory = {
   // ── in a session ──
   'mod.memory.conflict': '🧠 Memory: {files} changed here and on GitHub; nothing was forced. mode-code memory shows it.',
   'mod.memory.held': '🧠 Memory: held back from GitHub, it looks like it holds a secret: {files}.',
-  'mod.memory.auth': '🧠 Memory: GitHub refused the sign-in ({detail}). gh auth login, then mode-code memory sync.',
+  'mod.memory.auth': '🧠 Memory: GitHub refused the sign-in. gh auth login, then mode-code memory sync. ({detail})',
   'mod.memory.rejected': '🧠 Memory: GitHub has changes this computer cannot join yet: mode-code memory sync.',
   'mod.memory.identity': '🧠 Memory: git needs a name and an address for commits: mode-code memory setup.',
-  'mod.memory.diverged': '🧠 Memory: this copy and GitHub have both moved, so nothing was brought in. Join them yourself (git pull).',
+  'mod.memory.diverged': '🧠 Memory: this copy and GitHub have both moved; nothing was brought in. Join them (git pull).',
   'mod.memory.failed': '🧠 Memory: the sync failed: {detail}',
   'mod.handoff.agent': 'Only the main session writes a handoff note; a subagent cannot call this tool.',
   'mod.handoff.refused': 'The handoff note is not written yet:',

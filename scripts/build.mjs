@@ -83,6 +83,18 @@ const moStrip = await build({
   banner: { js: banner },
 });
 
+// The breathing control of the strip (a running flow's step): another surface module, drawn the same way.
+const stripPulse = await build({
+  ...common,
+  entryPoints: [join(root, 'src', 'mod', 'strip-pulse.ts')],
+  outfile: join(dist, 'plugin', 'hooks', 'strip-pulse.js'),
+  platform: 'neutral',
+  target: 'es2023',
+  external: ['claude-code'],
+  minify: false,
+  banner: { js: banner },
+});
+
 const manifest = {
   name: pkg.name,
   version: pkg.version,
@@ -102,7 +114,7 @@ await cp(join(root, 'src', 'mod', 'contract.d.ts'), join(dist, 'plugin', 'types'
 
 // ── third-party notices: every package that ended up in a bundle, with its license text ──
 const inputs = new Set();
-for (const r of [cli, hook, mod, moStrip]) for (const k of Object.keys(r.metafile.inputs)) inputs.add(k.replace(/\\/g, '/'));
+for (const r of [cli, hook, mod, moStrip, stripPulse]) for (const k of Object.keys(r.metafile.inputs)) inputs.add(k.replace(/\\/g, '/'));
 const packages = new Map();
 for (const input of inputs) {
   const m = /node_modules\/((?:@[^/]+\/)?[^/]+)\//.exec(input);

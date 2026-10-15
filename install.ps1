@@ -4,7 +4,7 @@
 #
 #   irm https://raw.githubusercontent.com/OzcanOrhanDemirci/Mode_Code/main/install.ps1 | iex
 #
-# With options:  & ([scriptblock]::Create((irm <the address above>))) -Yes -Version 1.0.0
+# With options:  & ([scriptblock]::Create((irm <the address above>))) -Yes -Version 1.1.0
 #
 # What it does, in this order, and nothing else:
 #   1. Finds Node.js 22.13 or newer on your PATH. Without one it downloads the official Node.js 24 build

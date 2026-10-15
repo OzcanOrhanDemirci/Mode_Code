@@ -334,7 +334,7 @@ export function RunCard({ id, width }: ScreenProps & { id: string }) {
   );
 }
 
-/** Projects › Runs before there is one: what full autonomy is, and how a run starts. */
+/** Automation › Runs before there is one: what full autonomy is, and how a run starts. */
 export function RunsEmpty({ width }: ScreenProps) {
   const t = useT();
   return (

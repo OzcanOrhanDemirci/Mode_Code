@@ -174,3 +174,36 @@ test('nothing works inside a credential folder', () => {
   assert.equal(kind(bash('cd /home/ada/.config/gh')), 'refuse:fence-read');
   assert.equal(kind(bash('cd /home/ada/.config && ls')), 'allow');
 });
+
+test('native Windows, where no sandbox holds commands: the fence holds the writes they name, in either shell', () => {
+  const home = 'C:/Users/ada';
+  const W: AutoEnv = {
+    platform: 'win32',
+    home,
+    cwd: 'C:/Users/ada/api',
+    env: { USERPROFILE: home, TEMP: 'C:/Users/ada/AppData/Local/Temp' },
+    writable: ['C:/Users/ada/api', 'C:/Users/ada/AppData/Local/Temp', 'C:/Users/ada/AppData/Local/Temp/mode-code/runs/r1'],
+    memoryDirs: [],
+    credentials: credentialPaths(home, 'C:/Users/ada/.claude'),
+    protectedBranches: ['main'],
+    branch: 'run/x',
+  };
+  const ps = (command: string) => checkAutonomy('PowerShell', { command }, W);
+  const sh = (command: string) => checkAutonomy('Bash', { command }, W);
+  // File tools, in the forms Windows writes paths.
+  assert.equal(kind(checkAutonomy('Write', { file_path: 'C:\\Users\\ada\\api\\src\\a.ts', content: '' }, W)), 'allow');
+  assert.equal(kind(checkAutonomy('Write', { file_path: 'c:/users/ada/API/src/a.ts', content: '' }, W)), 'allow', 'Windows paths ignore case');
+  assert.equal(kind(checkAutonomy('Write', { file_path: 'C:\\Users\\ada\\Desktop\\a.txt', content: '' }, W)), 'refuse:fence-write');
+  // Commands: inside the project and the temporary folder they write; outside they are refused.
+  for (const c of ['npm test', 'Set-Content -Path out.txt -Value hi', 'echo hi > build.log', 'New-Item -ItemType File $env:TEMP\\probe.txt'])
+    assert.equal(kind(ps(c)), 'allow', c);
+  assert.equal(kind(ps('Set-Content -Path C:\\Users\\ada\\Desktop\\x.txt -Value hi')), 'refuse:fence-write');
+  assert.equal(kind(ps('Copy-Item a.txt C:\\Windows\\a.txt')), 'refuse:fence-write');
+  assert.equal(kind(sh('echo hi > /c/Users/ada/Documents/x.txt')), 'refuse:fence-write');
+  assert.equal(kind(sh('touch ../other/x.ts')), 'refuse:fence-write');
+  // Credential files are refused there too.
+  assert.equal(kind(ps('Get-Content $env:USERPROFILE\\.ssh\\id_ed25519')), 'refuse:fence-read');
+  assert.equal(kind(ps('type C:\\Users\\ada\\.aws\\credentials')), 'refuse:fence-read');
+  // Elsewhere the sandbox holds commands: the fence leaves their writes to it.
+  assert.equal(kind(bash('echo hi > /home/ada/Documents/x.txt', { ...E, memoryDirs: [] })), 'allow');
+});

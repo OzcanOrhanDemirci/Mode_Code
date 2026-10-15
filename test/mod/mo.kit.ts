@@ -96,3 +96,20 @@ test('a finished turn and a stopped one are marked for Mo', async ($, on) => {
   expect(typeof ((await ui.find({ key: 'mo' }))?.props as any).props.stoppedAt).toBe('number');
   await ui.unmount();
 });
+
+test('at rest Mo stands still: its clock runs and nothing is drawn again; while Claude works it moves', async ($, on) => {
+  world(on);
+  await start($, on);
+  // Every frame Claude Code draws hides and shows the terminal's cursor: at rest, under the person's typing,
+  // a moving Mo made it flicker.
+  const rest = await mount($, 'terminal', band(160));
+  const still = await moDrawn(rest);
+  await rest.advance(3000);
+  expect(await moDrawn(rest)).toBe(still);
+  await rest.unmount();
+  const busy = await mount($, 'terminal', band(160, true));
+  const first = await moDrawn(busy);
+  await busy.advance(1000);
+  expect(await moDrawn(busy)).not.toBe(first);
+  await busy.unmount();
+});

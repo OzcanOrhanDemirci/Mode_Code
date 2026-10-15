@@ -3,11 +3,11 @@
 import type { enSync } from './en-sync.js';
 
 export const trSync: Record<keyof typeof enSync, string> = {
-  'mod.sync.pending': '⚙ Başka bir bilgisayardan gelen bir ayar seni bekliyor; burada bir korumayı azaltırdı: {keys}. {cmd} gösterir.',
+  'mod.sync.pending': '⚙ Başka bilgisayardan gelen bir ayar seni bekliyor (bir korumayı azaltır): {keys}. {cmd} gösterir.',
   'mod.sync.conflict': '🔄 Eşitleme: {files} birleştirilemedi; hiçbir şey zorlanmadı. mode-code sync gösterir.',
   'mod.sync.diverged': '🔄 Eşitleme: bu kopya da GitHub da ilerlemiş; hiçbir şey değişmedi. mode-code sync gösterir.',
   'mod.sync.held': "🔄 Eşitleme: sır içeriyor gibi göründüğü için GitHub'a gönderilmedi: {files}.",
-  'mod.sync.auth': '🔄 Eşitleme: GitHub girişi reddetti ({detail}). gh auth login, sonra mode-code sync now.',
+  'mod.sync.auth': '🔄 Eşitleme: GitHub girişi reddetti. gh auth login, sonra mode-code sync now. ({detail})',
   'mod.sync.rejected': "🔄 Eşitleme: GitHub'da bu bilgisayarın henüz birleştiremediği değişiklikler var: mode-code sync now.",
   'mod.sync.identity': '🔄 Eşitleme: git commitler için bir ad ve adres istiyor: mode-code sync setup.',
   'mod.sync.failed': '🔄 Eşitleme olmadı: {detail}',

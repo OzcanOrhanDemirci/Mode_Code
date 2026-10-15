@@ -51,7 +51,7 @@ export function Overview({ width, height, open }: ScreenProps) {
       key: r.id,
       label: `${r.status === 'paused' ? '⏸ ' : '🤖 '}${(r.task || r.id).split('\n')[0]!.slice(0, 50)}`,
       right: `${t(`auto.status.${r.status}` as MessageKey)} · ${ago(r.updatedAt, now, lang)}`,
-      address: `projects/runs/${r.id}`,
+      address: `automation/runs/${r.id}`,
     }));
   const links: Link[] = live.map((s) => ({
     key: s.id,

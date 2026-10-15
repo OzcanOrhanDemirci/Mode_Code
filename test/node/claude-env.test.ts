@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { readClaudeEnv } from '../../src/node/claude-env.js';
+import { pluginsVia, readClaudeEnv, type ClaudeRunner } from '../../src/node/claude-env.js';
 
 function sandbox() {
   const home = mkdtempSync(join(tmpdir(), 'tc-env-'));
@@ -61,4 +61,30 @@ test('a session in a project reads the project settings beside the user ones', (
   } finally {
     s.done();
   }
+});
+
+test('the plugins Claude Code lists: what loads is the folder a plugin is read from, whatever was recorded', () => {
+  const answering = (stdout: string, status = 0): ClaudeRunner => ({ version: () => null, run: () => ({ status, stdout, stderr: '' }) });
+  // As Claude Code 2.1.300 printed it after an install of 1.1.0 over 1.0.0 (2026-10-15), paths renamed.
+  const listed = JSON.stringify([
+    {
+      id: 'mode-code@mode-code-local',
+      version: '1.0.0',
+      scope: 'user',
+      enabled: true,
+      installPath: 'C:\\Users\\ada\\.claude\\plugins\\cache\\mode-code-local\\mode-code\\1.0.0',
+      readFromFolder: 'C:\\Users\\ada\\.mode-code\\marketplace\\plugins\\mode-code',
+      folderVersion: '1.1.0',
+    },
+    { id: 'other@market', version: '2.0.0', scope: 'project', enabled: false },
+    { name: 'bare', folderVersion: '3.0.0' },
+  ]);
+  assert.deepEqual(pluginsVia(answering(listed)), [
+    { id: 'mode-code@mode-code-local', enabled: true, version: '1.0.0', loads: '1.1.0', scope: 'user' },
+    { id: 'other@market', enabled: false, version: '2.0.0', loads: '2.0.0', scope: 'project' },
+    { id: 'bare', enabled: null, version: null, loads: null, scope: null },
+  ]);
+  assert.equal(pluginsVia(answering(listed, 1)), null, 'a list that failed');
+  assert.equal(pluginsVia(answering('not json')), null);
+  assert.equal(pluginsVia(answering('{"plugins":[]}')), null, 'not a list');
 });

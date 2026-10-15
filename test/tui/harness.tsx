@@ -22,6 +22,7 @@ import type { DoctorSummary } from '../../src/app/doctor/doctor.js';
 import type { Flow } from '../../src/core/flow.js';
 import type { Run } from '../../src/core/run.js';
 import type { GateResult } from '../../src/core/run-gate.js';
+import type { AutoPrompt } from '../../src/core/auto-prompts.js';
 
 export const NOW = Date.parse('2026-10-12T09:00:00Z');
 
@@ -142,8 +143,11 @@ export class FakeData implements DataSource {
     );
     return { reading, assessment: assessQuota(reading, DEFAULT_BUDGET, NOW), target: null };
   }
+  /** Events a test adds to the fixed ones. */
+  extraEvents: ToolEvent[] = [];
   events(): ToolEvent[] {
     return [
+      ...this.extraEvents,
       {
         v: 1,
         at: NOW - 600_000,
@@ -257,12 +261,22 @@ export class FakeData implements DataSource {
     ok: false,
     checks: [
       { id: 'enabled', ok: true, key: 'auto.gate.enabled.ok' },
-      { id: 'platform', ok: false, key: 'auto.gate.platform.windows' },
+      { id: 'platform', ok: true, key: 'auto.gate.platform.windows' },
       { id: 'budget', ok: null, key: 'auto.cli.atStart' },
     ],
   };
   autonomyCheck() {
     return this.check;
+  }
+  promptList: AutoPrompt[] = [];
+  autoPrompts() {
+    return this.promptList;
+  }
+  copied: string[] = [];
+  copyVia: 'system' | 'terminal' = 'system';
+  copy(text: string) {
+    this.copied.push(text);
+    return { via: this.copyVia };
   }
   memoryState: MemoryView = {
     store: null,

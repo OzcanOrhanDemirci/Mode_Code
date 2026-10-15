@@ -7,6 +7,7 @@
  */
 import { APP_ID, APP_NAME, PREVIOUS_NAMES } from './app.js';
 import type { Config } from './config.js';
+import { normalizeRemote } from './belt/git.js';
 import type { Lang } from './i18n/index.js';
 
 export interface ConfigChange {
@@ -177,14 +178,7 @@ export const TEMPLATES: readonly Template[] = [
  * so it matches however the remote is spelled (https or ssh), the way the belt compares remotes.
  */
 export function repoKey(url: string): string {
-  return url
-    .trim()
-    .toLowerCase()
-    .replace(/\/\/[^@/]+@/, '//')
-    .replace(/\.git$/, '')
-    .replace(/\/$/, '')
-    .replace(/^[a-z][a-z0-9+.-]*:\/\//, '')
-    .replace(/^[^@/]+@/, '');
+  return normalizeRemote(url);
 }
 
 export function templateById(id: string): Template | undefined {

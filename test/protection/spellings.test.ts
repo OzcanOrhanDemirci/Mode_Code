@@ -99,7 +99,7 @@ test('a data folder given by its short name (a short TEMP, as on CI machines) me
   for (const ctx of [winCtx(base), winCtx({ ...base, aliases: [{ real: long, spelled: short }] })]) {
     assert.equal(summary(await write(`${short}/config.json`, 'x', ctx)), TOOL);
     assert.equal(summary(await write(`${long}/config.json`, 'x', ctx)), TOOL);
-    assert.equal(summary(await bash(`rm -rf ${long}`, ctx)), 'deny fs.delete-critical');
+    assert.equal(summary(await bash(`rm -rf ${long}`, ctx)), TOOL, 'the folder itself is self-protection');
   }
   // And the other way round: the data folder long, the target short.
   const longData = winCtx({ home: 'C:/Users/runneradmin', dataDir: long });

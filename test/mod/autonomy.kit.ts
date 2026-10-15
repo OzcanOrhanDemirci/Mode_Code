@@ -125,7 +125,7 @@ test('nothing starts while a start check fails; each failed check is named for t
   const said = r.context.join('\n');
   expect(said).toMatch(/asked for full autonomy, but \d+ start check\(s\) failed, so no run started/);
   expect(said).toMatch(/- Turned on: Full autonomy is off\. Turn it on in your own terminal: mode-code autonomy enable\./);
-  expect(said).toMatch(/- Project: The session does not run in a git work tree/);
+  expect(said).toMatch(/- Project: This folder is not a git project/);
   expect(w.toasts.some((t) => /Full autonomy did not start/.test(t))).toBe(true);
   expect(w.modState().runId).toBe(null);
   // Nothing was written outside the project to probe a sandbox that the other checks already ruled out.
@@ -302,9 +302,93 @@ test('stop pauses the run with its report; continue runs the checks again and re
   expect(w.calls.filter((c: any) => String(c.command).startsWith('touch ')).length).toBe(2);
   await $.session.compact({ trigger: 'manual', messages: [{ role: 'user', text: 'so far', toolUses: [] }] } as any);
   expect(instructions).toMatch(/a full-autonomy run runs \(.*the person's request: "Add rate limiting to the API\."\)/);
+  // While a run is attached the way of working is the run's; the answer names the keyword that lets it go.
+  const style: any = await $.command.run({ command: '7', args: '' } as any);
+  expect(style.text).toBe('A full-autonomy run is attached to this session: "full auto cancel" lets it go first.');
   await $.prompt.submit(typed('full auto cancel'));
   expect(w.json(`${DATA}/runs/${id}/run.json`).status).toBe('canceled');
   expect(w.modState().runId).toBe(null);
+});
+
+const BAND = { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 160, scroll: { offset: 0, bodyRows: 10 } } as any;
+const PANE = { title: 'Full autonomy', isFocused: true, bodyColumns: 100, placement: 'inline', scroll: { offset: 0, bodyRows: 8 }, view: {} } as any;
+/** What a press sends on goes from a timer the moment it is done (see sendAsPerson): the clock moves it. */
+async function settle(w: { clock: { advance(ms: number): Promise<unknown> } }) {
+  await w.clock.advance(5);
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+}
+
+test('full autonomy opens with a press: its window takes the budget and the task and starts the run; pressed while it runs, it ends', async ($, on) => {
+  const { w, run } = ready(on);
+  // The strip is drawn once the session is (its first prompt).
+  await $.prompt.submit(typed('Hello.'));
+  const strip: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: BAND } as any);
+  await strip.press({ key: 'strip-full-auto' });
+  // The window says it all: no toast, no question.
+  expect(w.toasts).toEqual([]);
+  expect(w.asked).toEqual([]);
+  expect(w.panes).toEqual(['full-auto']);
+  const pane: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'Pane', requestId: 'full-auto', props: PANE } as any);
+  const budget = await pane.find({ key: 'auto-budget' });
+  expect(budget?.props.value).toBe('+10');
+  // The weekly limit each budget sets, from the week's reading (41%).
+  expect(budget?.props.options).toEqual([
+    { value: '+5', label: '+5 → 46%' },
+    { value: '+10', label: '+10 → 51%' },
+    { value: '+20', label: '+20 → 61%' },
+  ]);
+  expect((await pane.find({ key: 'auto-task' }))?.props).toMatchObject({ value: '', autoFocus: true });
+  // Started with no task: the window stays and says what is missing.
+  await pane.press({ key: 'auto-start' });
+  const missing = { type: 'Text', text: 'Write the task first.' };
+  expect((await pane.find(missing))?.props.color).toBe('error');
+  expect(w.submitted).toEqual(['Hello.']);
+  await pane.select({ key: 'auto-budget', value: '+20' });
+  expect(await pane.find(missing)).toBeUndefined();
+  await pane.input({ key: 'auto-task', text: 'Add rate limiting to the API.', kind: 'change' });
+  await pane.press({ key: 'auto-start' });
+  await settle(w);
+  // The task goes as the person's message ending in the keyword, as if typed; the window closes.
+  expect(w.submitted).toEqual(['Hello.', 'Add rate limiting to the API.\n\nfull auto quota +20']);
+  expect(w.panes).toEqual([]);
+  expect(w.json(`${DATA}/state/auto-prompts.json`).prompts).toEqual([{ text: 'Add rate limiting to the API.', budget: '+20', at: NOW }]);
+  // The model's first step: the last checks, then the run, with the window's task and budget.
+  const s: any = await $.tool.call(auto('start'));
+  expect(String(s.result)).toMatch(/^Full autonomy started: 11 start checks passed/);
+  expect(String(s.result)).toMatch(/"Add rate limiting to the API\."/);
+  const id = run().id;
+  expect(run().budget).toEqual({ weeklyTarget: 61, source: '+20' });
+  // Pressed while it runs: it ends as "full auto cancel" ends it, its record kept, the way of working given back.
+  await strip.press({ key: 'strip-full-auto' });
+  expect(w.json(`${DATA}/runs/${id}/run.json`).status).toBe('canceled');
+  expect(w.modState().runId).toBe(null);
+  expect(w.toasts.filter((t) => /canceled/.test(t))).toEqual(['🤖 Full autonomy canceled; the record stays.']);
+  await strip.unmount();
+  await pane.unmount();
+});
+
+test('the window keeps a task while it is closed, starts on Enter, and keeps the last three tasks; a typed start is kept too', async ($, on) => {
+  const { w } = ready(on);
+  await $.command.run({ command: 'full-auto', args: 'quota +5 First task', origin: { kind: 'composer' } } as any);
+  const pane: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'Pane', requestId: 'full-auto', props: PANE } as any);
+  // What was given with the command fills the window.
+  expect((await pane.find({ key: 'auto-budget' }))?.props.value).toBe('+5');
+  expect((await pane.find({ key: 'auto-task' }))?.props.value).toBe('First task');
+  // Closed with what was typed since: opened again, it is still there.
+  await pane.input({ key: 'auto-task', text: 'First task, revised', kind: 'change' });
+  await pane.press({ key: 'auto-cancel' });
+  expect(w.panes).toEqual([]);
+  await $.command.run({ command: 'full-auto', args: '', origin: { kind: 'composer' } } as any);
+  expect((await pane.find({ key: 'auto-task' }))?.props.value).toBe('First task, revised');
+  await pane.input({ key: 'auto-task', text: 'First task, revised' });
+  await settle(w);
+  expect(w.submitted.at(-1)).toBe('First task, revised\n\nfull auto quota +10');
+  await $.prompt.submit(typed('Second task. app full auto quota +10'));
+  await $.prompt.submit(typed('Third task. app full auto quota +10'));
+  await $.prompt.submit(typed('Fourth task. app full auto quota +10'));
+  const kept = w.json(`${DATA}/state/auto-prompts.json`).prompts.map((p: any) => p.text);
+  expect(kept).toEqual(['Fourth task.', 'Third task.', 'Second task.']);
+  await pane.unmount();
 });
 
 test('a stop the safety-net hook let through for no progress pauses the run and says so', async ($, on) => {
@@ -329,7 +413,7 @@ test('a stop the safety-net hook let through for no progress pauses the run and 
   expect(w.notes.some((n) => /paused \(no measurable progress\)/.test(n))).toBe(true);
   // Paused by code: nothing more changes until the person resumes it.
   const edit: any = await $.tool.call({ tool: 'Write', file_path: `${PROJECT}/a.ts`, content: 'x' } as any);
-  expect(edit.deny).toMatch(/no measurable progress; the run is paused/);
+  expect(edit.deny).toMatch(/the run is paused \(no measurable progress\)/);
   // Resumed by the person: the plugin's own probe is a start check and passes the paused run's guard.
   const back = await begin($, 'app continue');
   expect(back.start).toMatch(/^The run resumed at its plan phase: every start check passed again\./);
@@ -416,4 +500,16 @@ test('a plan whose verification would wait for the person is refused: it could n
   const r: any = await $.tool.call(auto('plan'));
   expect(String(r.result)).toMatch(/The verification command `git push origin main` could not run during the run \(pushes to the protected branch main\)/);
   expect(run().phase).toBe('plan');
+});
+
+test('turned off in the settings while a run works, the run pauses at its next step and says why', async ($, on) => {
+  // docs/autonomy.md said so; nothing did it before 1.1.0.
+  const { w, run } = ready(on);
+  await begin($, 'Add rate limiting. app full auto quota +10');
+  expect(run().status).toBe('active');
+  w.write(`${DATA}/config.json`, JSON.stringify({ version: 1, autonomy: { enabled: false }, projects: [{ id: 'app', names: ['app'], path: PROJECT }] }));
+  await w.clock.advance(61_000);
+  const call: any = await $.tool.call({ tool: 'Write', file_path: `${PROJECT}/src/limit.ts`, content: 'x', tool_use_id: 'toolu_w' } as any);
+  expect([run().status, run().pause.reason]).toEqual(['paused', 'disabled']);
+  expect(String(call.deny)).toBe('🤖 Full autonomy: the run is paused (full autonomy turned off). Report what was done and stop.');
 });

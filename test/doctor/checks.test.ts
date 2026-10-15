@@ -219,6 +219,19 @@ test('the plugin: missing, off, off for this folder only, another version, not l
   assert.equal(check('claude.plugin', healthyFacts({ manifest: null })).status, 'skip');
   const other = check('claude.plugin', healthyFacts({ plugins: [{ id: PLUGIN_ID, enabled: true, version: '0.0.1', scope: 'user' }] }));
   assert.equal(other.status, APP_VERSION === 'dev' ? 'ok' : 'warn');
+  // What loads counts: read in place from its folder, the plugin loads the folder's version whatever was
+  // recorded (an install over 1.0.0 left "1.0.0" recorded while 1.1.0 ran, measured 2026-10-15).
+  const at = (p: { version: string | null; loads?: string | null }) =>
+    check('claude.plugin', healthyFacts({ appVersion: '0.2.0', plugins: [{ id: PLUGIN_ID, enabled: true, scope: 'user', ...p }] }));
+  assert.deepEqual(
+    [brief(at({ version: '0.1.0', loads: '0.2.0' })), at({ version: '0.1.0', loads: '0.2.0' }).summary.params?.v],
+    ['ok doc.claude.plugin.ok', '0.2.0'],
+  );
+  assert.equal(brief(at({ version: '0.2.0', loads: '0.1.0' })), 'warn doc.claude.plugin.otherVersion → update-plugin');
+  assert.deepEqual(at({ version: '0.2.0', loads: '0.1.0' }).summary.params, { have: '0.1.0', now: '0.2.0' });
+  assert.equal(brief(at({ version: '0.1.0' })), 'warn doc.claude.plugin.otherVersion → update-plugin', 'no folder reported: the record is what loads');
+  assert.equal(brief(at({ version: '0.1.0', loads: null })), 'warn doc.claude.plugin.otherVersion → update-plugin');
+  assert.equal(brief(at({ version: null, loads: null })), 'ok doc.claude.plugin.ok');
 });
 
 test('installation: the hook program missing, outdated, altered; hooks missing, weakened, doubled', () => {
@@ -552,4 +565,21 @@ test('sync across computers: not set up, missing, without git or origin, a sync 
   assert.equal(at({ last: { ...last({}), result: null } }), 'ok doc.sync.ok');
   assert.equal(at({ pending: ['belt.verdicts'] }), 'warn doc.sync.pending');
   assert.equal(check('data.sync', healthyFacts({ sync: { ...sync, pending: ['a', 'b'] } })).summary.params?.keys, 'a, b');
+});
+
+test('bypass: off is a note; on, for how long and in how many sessions; a weakened floor rule is a warning', () => {
+  assert.equal(brief(check('protection.bypass', healthyFacts())), 'info doc.bypass.off');
+  assert.equal(check('protection.bypass', healthyFacts()).protection, false, 'a note, not a protection');
+  const on = (onNow: number) => healthyFacts({ bypass: { enabled: true, maxHours: 2, onNow, floorWeakened: [] } });
+  assert.equal(brief(check('protection.bypass', on(0))), 'info doc.bypass.on');
+  assert.equal(check('protection.bypass', on(2)).protection, false);
+  assert.equal(brief(check('protection.bypass', on(2))), 'info doc.bypass.onNow');
+  assert.deepEqual(check('protection.bypass', on(2)).summary.params, { n: 2, hours: 2 });
+  const weak = check('protection.bypass', healthyFacts({ bypass: { enabled: false, maxHours: 2, onNow: 0, floorWeakened: ['data.delete-cloud'] } }));
+  assert.equal(brief(weak), 'warn doc.bypass.floorWeakened');
+  assert.equal(weak.protection, true);
+  assert.deepEqual(
+    weak.details?.map((d) => d.params?.text),
+    ['data.delete-cloud'],
+  );
 });

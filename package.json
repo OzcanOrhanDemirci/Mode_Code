@@ -1,6 +1,6 @@
 {
   "name": "mode-code",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A local, open-source companion for Claude Code: a behavior layer inside Claude Code and a control center in your terminal. No telemetry.",
   "license": "Apache-2.0",
   "author": "Özcan Orhan Demirci",

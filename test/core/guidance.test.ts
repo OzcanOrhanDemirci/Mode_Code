@@ -133,6 +133,11 @@ test("flow guidance: the steps on one line, the rules, and the current step in t
   };
   assert.match(stepGuidance(plan, 'en', t), /write the plan to \/tmp\/w\/f1\/plan\.md/);
   assert.match(stepGuidance(plan, 'en', { ...t, nativePlan: true }), /then call ExitPlanMode/);
+  // Where the verification will run, so a plan for work in another folder says so in its commands.
+  for (const native of [false, true]) {
+    assert.ok(stepGuidance(plan, 'en', { ...t, nativePlan: native }).includes(`The verification commands run in ${f.cwd};`), String(native));
+    assert.ok(stepGuidance(plan, 'tr', { ...t, nativePlan: native }).includes(`Doğrulama komutları ${f.cwd} klasöründe çalışır;`), String(native));
+  }
   assert.equal(stepsLine(plan, 'tr'), '🔍 araştırma ✓ ▶ [📐 plan] → ⏸ onay → 🔨 kod');
   const waiting = { ...plan, current: 2, status: 'waiting' as const };
   assert.match(flowTurnContext(waiting, 'en', t), /waits for the person's approval \(they type "onay"\)/);

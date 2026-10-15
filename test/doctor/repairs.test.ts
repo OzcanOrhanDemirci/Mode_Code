@@ -13,6 +13,7 @@ import { cloneDefaults } from '../../src/core/config.js';
 import { REPAIRS, type RepairEnv } from '../../src/app/doctor/repairs.js';
 import { planRepairs } from '../../src/app/doctor/doctor.js';
 import { standInClaude } from '../../src/app/doctor/selfcheck.js';
+import { APP_VERSION } from '../../src/core/app.js';
 import { toolPath } from '../../src/node/env.js';
 import { hookGroups, withOurHooks } from '../../src/node/install.js';
 import type { CheckResult } from '../../src/app/doctor/types.js';
@@ -152,6 +153,27 @@ test('plugin repairs go through claude: install from the local marketplace, enab
     assert.equal(claude.plugin.enabled, true);
     assert.equal(REPAIRS['reinstall-plugin'].personOnly, true);
     assert.equal(REPAIRS['enable-plugin'].personOnly, true);
+  } finally {
+    s.done();
+  }
+});
+
+test("another version in Claude Code: this version's files are copied, then Claude Code records this version", () => {
+  const s = sandbox();
+  try {
+    const claude = s.env.runner as ReturnType<typeof standInClaude>;
+    assert.equal(REPAIRS['update-plugin'].run(s.env, healthyFacts()).ok, false, 'nothing to update before it is installed');
+    REPAIRS['reinstall-plugin'].run(s.env, healthyFacts());
+    claude.plugin.recorded = '0.1.0';
+    rmSync(`${s.env.layout.pluginDir}/hooks/register.js`);
+    const r = REPAIRS['update-plugin'].run(s.env, healthyFacts());
+    assert.deepEqual([r.ok, r.detail, claude.plugin.recorded], [true, 'Updated', APP_VERSION]);
+    assert.deepEqual(claude.calls.at(-1), ['plugin', 'update', 'mode-code@mode-code-local', '--scope', 'user']);
+    assert.equal(readFileSync(`${s.env.layout.pluginDir}/hooks/register.js`, 'utf8'), '// mod\n', 'the files came first');
+    assert.equal(REPAIRS['update-plugin'].personOnly, true);
+    rmSync(`${s.dist}/plugin`, { recursive: true, force: true });
+    const none = REPAIRS['update-plugin'].run(s.env, healthyFacts());
+    assert.deepEqual([none.ok, none.detail], [false, 'this build has no plugin files']);
   } finally {
     s.done();
   }

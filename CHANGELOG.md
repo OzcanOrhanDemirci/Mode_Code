@@ -4,6 +4,51 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-15
+
+One roof for every guard, and bypass: the safety belt takes over the permission lists and command guards that stood beside it and covers what they missed, a session can lift it for a while on the person's word with every call recorded, the strip shows the flow as a mode whose working step breathes, and the control center gains Automation.
+
+### Added
+
+- A keyword typed with a slash in front (`/akış iptal`) is that keyword, and a notice says how it was read; a message one typo from a keyword (`akış iptl`, `serbes`) is offered ("did you mean …?") and never applied.
+- Safety belt: nine rules, 48 in all. Deleting data in the cloud (Firebase, storage buckets, managed databases, cloud projects, a GitHub repository) is blocked; overwriting a live Firebase database and dropping or resetting a database are asked. Turning off or weakening security software (Defender and its exclusions, the firewall, account control, Gatekeeper, SELinux) is blocked. Merging a pull request with admin rights past the required checks, and deleting or archiving on GitHub, are asked. A secret leaving the computer (a key or credential file uploaded, a secret in a request body, a message or a document) is blocked, locked, without exception.
+- Safety belt: calls to connected services (MCP servers) are checked. Sending, replying, forwarding, sharing, inviting and calendar events are asked; deleting or trashing there is asked; reading is not.
+- Bypass tiers in the rule catalog (`docs/safety-belt.md`, "Bypass"): self-protection and secrets never lift; deleting a drive root, a system folder or cloud data, formatting a disk and turning security software off are blocked without bypass and asked with it; the rest is let through with bypass on and recorded. A block of the second tier says how bypass changes it.
+- The rules of an older setup folded into the belt, each with a sample it must ask about or block: 78 permission rules from Claude Code's managed settings and a memory system's command guards (`test/corpus/automation-parity.test.ts`).
+- The flow is one of the modes on the strip (`6`), the one that moves between the others by itself. While it works it is lit and the mode of its step breathes, gray to white and never filled, drawn on Claude Code's own clock; waiting for approval nothing breathes; paused for another mode its button shows `⏸`. Pressed: off, it asks which steps; on, it closes the flow (its record stays); paused, it goes on. With less motion asked for, and on a phone, the step's mode is marked instead.
+- Bypass (`docs/autonomy.md`, "Bypass"): lifts the safety belt in one session for a while (`bypass.maxHours`, 2 by default), turned on per computer first and then by the person in each session (`/bypass` or `⚡ bypass` on the strip, asked once). Only the person can switch it, or full autonomy: a command stamped as coming from elsewhere is refused. What it lets through is recorded call by call and counted on the strip in red letters (not filled, so the ⚡ stays visible); Claude Code's own mode questions are answered too, while a rule in Claude Code's settings keeps its question. Claude is told it has full authority and full responsibility, with a reminder each prompt. It ends at its time (warned ten minutes before), with the session, or when the setting is turned off, with a summary line. The safety-net hook reads it from the session's record, so both layers agree.
+- The control center's eighth category, Automation: full autonomy (moved from Settings), its runs (moved from Projects), bypass, and Done without asking, every call bypass let through with what it passed, by whom and how it went. Digits 1-8 jump to the categories.
+- Full autonomy opens with a click: `full auto` on the strip (or `/tam-otonom`) opens a window where the budget is picked (+5, +10 or +20, each with the weekly limit it sets) and the task written; Start or Enter sends the task as the person's message ending in the keyword, so the start checks and the run are the keyword's. Esc closes the window and keeps the task for the next time. On a phone, which draws no field, it asks as before.
+- Automation › Recent tasks: the last three tasks given full autonomy, from the window or typed, kept so none is lost; the one picked shows whole, and Enter or `c` copies it (the system's clipboard tool, else the terminal's).
+
+### Changed
+
+- Checked against Claude Code 2.1.300: the plugin type-checks against its declarations, the engine's own test kit passes, and the live sessions run on it.
+- Deleting or moving this tool's folder or Claude Code's folder is self-protection (`self.tool-files`, `self.claude-settings`), no longer a critical folder: no setting and no bypass opens it.
+- Deleting a Docker volume (the optional pack), outside the project, a `.git` folder or staging a secrets file are asked even with bypass on.
+- Full autonomy pressed on the strip while a run is attached ends the run, as `full auto cancel` does; it used to only repeat where the session stood.
+- The strip's numbers: `6` is the flow, `7` manual, `8` autonomous. Full autonomy has no number (`/tam-otonom`, `/full-auto`) and is on the strip only once turned on, no longer gray for everyone; `9` is free.
+- Full autonomy runs on native Windows too. There is no sandbox there, so a run is guarded by the safety belt and the fence alone, which turning it on says plainly; the fence also refuses a write a shell command names outside the project, the temporary folders and the run's folder, as it does a file tool's. It used to be refused there, while Automation let it be turned on and the strip showed it gray. The live sessions now run a whole run on Windows (`node scripts/test-live.mjs --yes --only-auto`).
+- A start check in Automation › Full autonomy wraps onto the next line instead of being cut short.
+- The strip's menu (`0 ≡`) and closing (`00 ✕`) stand apart at the far end of the row, as a window's own buttons, no longer as the last two of the way of working.
+- Presses on the strip close together count as the last one: the strip and the rules change at once, and Claude hears the end state once, a moment after the last press or with the next message, not every step on the way.
+
+### Fixed
+
+- A flow's verification commands run where the session's shell is, which the plan step did not say: a flow opened from the home folder for a project elsewhere had its plan's `npm run verify` fail at the code step with no word of the folder. The plan step now names the folder the commands run in and how to name another (`cd <folder> && npm test`), and a failed command says where it ran.
+- The terminal's cursor flickered under the person's typing, about seven times a second: every frame Claude Code draws hides and shows it, and Mo breathed at rest, the flow's step too between turns. Mo now moves only while Claude works and while something that just happened shows, and is not drawn again at rest; the flow's step breathes only while Claude works and is marked between turns. Measured in a pseudo console at rest: 69 cursor hide-and-show pairs in ten seconds before, 1 after.
+- Toasts were cut after three lines with "…", often where they said what to do: a press on the strip showed a control's whole answer, and full autonomy's refusal came as a list whose line breaks were drawn as marks. A press shows one line now; full autonomy's refusal says its reason in plain words with what to do ("this folder is not a git project. Open Claude Code in the project's folder", where it used to say only "Project"), or, when several checks failed, how many and where to read them; nine texts are shorter, and a detail of any length (an error) comes last. A test wraps every line the plugin shows as a toast the way the box does, in both languages (`test/core/toasts.test.ts`).
+- Repositories cloned over SSH (`git@github.com:me/app.git`) escaped the pull-request-only and one-branch rules: the remote kept its colon and matched no `github.com/me/app` rule. Every spelling of a remote is now the same repository, on both sides of the comparison.
+- Package runners in PowerShell (`npx`, `pnpm dlx`, `bunx`) were not read as the program they run, so `npx firebase database:remove` in PowerShell went unchecked; in bash it was.
+- Full autonomy turned off while a run worked did not pause it, though the documentation said it would; it pauses at its next step now, and the settings are read again at most once a minute during a run or bypass, not only at the next prompt.
+- A run resumed after its time limit paused again at its very next step: the limit kept counting from the start. Resuming after a time-limit pause starts a fresh limit; the running time itself goes on counting.
+- A run paused by code said "no measurable progress" whatever the reason; it names the reason (time limit, turned off, …).
+- After a full-autonomy run, the next session in that folder started autonomous even when the person had worked manually before it; it starts as the way of working before the run.
+- Two messages named the way to let a full-autonomy run go "full auto flow cancel" ("tam otonom akış iptal"); the keyword is "full auto cancel" ("tam otonom iptal").
+- Two sessions starting at the same moment broke the memory and settings sync ("Cannot rebase onto multiple branches", "Cannot fast-forward to multiple branches", told as both sides having moved): each ran `git pull`, which reads `FETCH_HEAD`, and two fetches at once fill it with several heads. Changes now come in with a fetch that leaves `FETCH_HEAD` alone and a join with the branch the folder follows, made once more when another git holds a lock. Three pulls at once in one clone, twenty times over: 3 of 60 went through before, 60 of 60 now.
+- Installing over an earlier version left Claude Code's record of the plugin at the earlier version, so the doctor warned, and its repair (copying the files again) could not clear it. The plugin is read in place from its folder, so the new version did run. The installer now has Claude Code record the version it installed (`claude plugin update`), and the doctor judges the version that loads; its repair for another version copies the files and updates the record.
+- Chat, research and plan mode no longer refuse reading commands that ask about machine-wide packages (`npm root -g`, `npm ls -g`, `npm outdated -g`): `-g` counted as a machine-wide install before the reading subcommand was looked at. They also run this tool's own commands that only print (`mode-code status`, `mode-code belt rules`, `mode-code memory handoff`, `mode-code config get` …); `mode-code` on its own, `doctor`, and the commands that change settings or the session index are still refused there. `pnpm store prune` is no longer taken for a read.
+
 ## [1.0.0] - 2026-10-15
 
 The first public release: the safety belt, keywords, modes and flows, full autonomy, the memory and its sync, the quota guard and the control center, installed with one line.
@@ -95,5 +140,6 @@ The first public release: the safety belt, keywords, modes and flows, full auton
 - A session started in the home folder counted the user's own settings twice, as user and as project settings, and the doctor reported the safety-net hooks as duplicated.
 - The doctor called a hook program from an earlier build of the same version "changed after installation". The installation now records the program's fingerprint, so an earlier build and a change are told apart; an older hook matcher is named as such, with the tools it does not check.
 
-[Unreleased]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/OzcanOrhanDemirci/Mode_Code/releases/tag/v1.0.0

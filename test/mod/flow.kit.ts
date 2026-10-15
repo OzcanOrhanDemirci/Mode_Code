@@ -126,7 +126,9 @@ test('a failing verification keeps the code step open and shows the end of the o
   w.write(flowOf(w).planPath, PLAN);
   await $.tool.call(step('plan'));
   const r: any = await $.tool.call(step('code'));
-  expect(String(r.result)).toMatch(/The code step is not done: `npm test` exited with code 1\. The end of its output:\nExit code 1\n1 failing/);
+  expect(String(r.result)).toMatch(
+    /The code step is not done: `npm test` exited with code 1 \(it ran in \/home\/ada\/dev\/app\)\. The end of its output:\nExit code 1\n1 failing/,
+  );
   expect(flowOf(w).status).toBe('active');
 });
 
