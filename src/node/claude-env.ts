@@ -67,7 +67,14 @@ export interface NamedFile {
 export interface PluginInfo {
   id: string;
   enabled: boolean | null;
+  /** The version Claude Code recorded when the plugin was installed or last updated. */
   version: string | null;
+  /**
+   * The version that loads. A plugin read in place from its folder (a local marketplace) loads what the
+   * folder holds, whatever was recorded: installing over an older one leaves the record behind (Claude Code
+   * 2.1.300, measured 2026-10-15).
+   */
+  loads?: string | null;
   scope: string | null;
 }
 
@@ -158,12 +165,17 @@ export function pluginsVia(runner: ClaudeRunner): PluginInfo[] | null {
     if (r.status !== 0) return null;
     const list = JSON.parse(r.stdout) as Record<string, unknown>[];
     if (!Array.isArray(list)) return null;
-    return list.map((p) => ({
-      id: String(p.id ?? p.name ?? '?'),
-      enabled: typeof p.enabled === 'boolean' ? p.enabled : null,
-      version: typeof p.version === 'string' ? p.version : null,
-      scope: typeof p.scope === 'string' ? p.scope : null,
-    }));
+    return list.map((p) => {
+      const version = typeof p.version === 'string' ? p.version : null;
+      const inPlace = typeof p.readFromFolder === 'string' && typeof p.folderVersion === 'string' ? p.folderVersion : null;
+      return {
+        id: String(p.id ?? p.name ?? '?'),
+        enabled: typeof p.enabled === 'boolean' ? p.enabled : null,
+        version,
+        loads: inPlace ?? version,
+        scope: typeof p.scope === 'string' ? p.scope : null,
+      };
+    });
   } catch {
     return null;
   }

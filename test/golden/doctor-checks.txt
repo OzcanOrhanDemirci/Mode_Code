@@ -517,7 +517,7 @@ claude.version ok protection doc.claude.ok {"v":"2.1.295","min":"2.1.295"}
 claude.installs ok doc.claude.installs.one {"path":"C:/Users/ada/.local/bin/claude.exe"}
 claude.settings ok protection doc.claude.settings.ok {"n":1}
 claude.hooksOn ok protection doc.claude.hooksOn.ok
-claude.plugin warn repair=restore-plugin-files doc.claude.plugin.otherVersion {"have":"0.1.0","now":"0.2.0"}
+claude.plugin warn repair=update-plugin doc.claude.plugin.otherVersion {"have":"0.1.0","now":"0.2.0"}
 install.manifest ok doc.install.ok {"v":"0.1.0","when":"2026-10-11"}
 install.previous skip doc.install.previous.never
 install.hookProgram warn protection repair=restore-hook-program doc.install.hook.older {"have":"0.1.0","now":"0.2.0"}

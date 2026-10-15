@@ -211,6 +211,7 @@ export const trDoctor: Record<keyof typeof enDoctor, string> = {
   'doc.repair.repoint-node': "Hook'ları çalışan bir Node.js'e yönlendir",
   'doc.repair.restore-hook-program': 'Bu sürümün hook programını geri kopyala',
   'doc.repair.restore-plugin-files': 'Bu sürümün eklenti dosyalarını geri kopyala',
+  'doc.repair.update-plugin': "Bu sürümün eklenti dosyalarını kopyala ve Claude Code'a bu sürümü kaydettir",
   'doc.repair.reinstall-plugin': "Eklentiyi Claude Code'a yeniden kur",
   'doc.repair.enable-plugin': 'Eklentiyi aç',
   'doc.repair.record-cli': '/0 için bu sürümün komut satırı programını kaydet',

@@ -210,6 +210,7 @@ export const enDoctor = {
   'doc.repair.repoint-node': 'Point the hooks at a working Node.js',
   'doc.repair.restore-hook-program': 'Copy the hook program of this version back',
   'doc.repair.restore-plugin-files': 'Copy the plugin files of this version back',
+  'doc.repair.update-plugin': "Copy this version's plugin files and have Claude Code record this version",
   'doc.repair.reinstall-plugin': 'Install the plugin into Claude Code again',
   'doc.repair.enable-plugin': 'Turn the plugin on',
   'doc.repair.record-cli': "Record this version's command-line program for /0",

@@ -219,6 +219,19 @@ test('the plugin: missing, off, off for this folder only, another version, not l
   assert.equal(check('claude.plugin', healthyFacts({ manifest: null })).status, 'skip');
   const other = check('claude.plugin', healthyFacts({ plugins: [{ id: PLUGIN_ID, enabled: true, version: '0.0.1', scope: 'user' }] }));
   assert.equal(other.status, APP_VERSION === 'dev' ? 'ok' : 'warn');
+  // What loads counts: read in place from its folder, the plugin loads the folder's version whatever was
+  // recorded (an install over 1.0.0 left "1.0.0" recorded while 1.1.0 ran, measured 2026-10-15).
+  const at = (p: { version: string | null; loads?: string | null }) =>
+    check('claude.plugin', healthyFacts({ appVersion: '0.2.0', plugins: [{ id: PLUGIN_ID, enabled: true, scope: 'user', ...p }] }));
+  assert.deepEqual(
+    [brief(at({ version: '0.1.0', loads: '0.2.0' })), at({ version: '0.1.0', loads: '0.2.0' }).summary.params?.v],
+    ['ok doc.claude.plugin.ok', '0.2.0'],
+  );
+  assert.equal(brief(at({ version: '0.2.0', loads: '0.1.0' })), 'warn doc.claude.plugin.otherVersion → update-plugin');
+  assert.deepEqual(at({ version: '0.2.0', loads: '0.1.0' }).summary.params, { have: '0.1.0', now: '0.2.0' });
+  assert.equal(brief(at({ version: '0.1.0' })), 'warn doc.claude.plugin.otherVersion → update-plugin', 'no folder reported: the record is what loads');
+  assert.equal(brief(at({ version: '0.1.0', loads: null })), 'warn doc.claude.plugin.otherVersion → update-plugin');
+  assert.equal(brief(at({ version: null, loads: null })), 'ok doc.claude.plugin.ok');
 });
 
 test('installation: the hook program missing, outdated, altered; hooks missing, weakened, doubled', () => {

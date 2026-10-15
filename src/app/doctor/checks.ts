@@ -133,9 +133,11 @@ const claudePlugin: Check = (f) => {
   const p = f.plugins.find((x) => x.id === PLUGIN_ID);
   if (!p) return result(id, 'claude', false, 'warn', m('doc.claude.plugin.missing', { id: PLUGIN_ID }), { repair: 'reinstall-plugin' });
   if (p.enabled === false || off) return result(id, 'claude', false, 'warn', m('doc.claude.plugin.disabled', { id: PLUGIN_ID }), { repair: 'enable-plugin' });
-  if (p.version && p.version !== f.appVersion && f.appVersion !== 'dev')
-    return result(id, 'claude', false, 'warn', m('doc.claude.plugin.otherVersion', { have: p.version, now: f.appVersion }), { repair: 'restore-plugin-files' });
-  return result(id, 'claude', false, 'ok', m('doc.claude.plugin.ok', { id: PLUGIN_ID, v: p.version ?? '?' }));
+  // What loads counts: a plugin read in place from its folder loads the folder's version, whatever was recorded.
+  const have = p.loads ?? p.version;
+  if (have && have !== f.appVersion && f.appVersion !== 'dev')
+    return result(id, 'claude', false, 'warn', m('doc.claude.plugin.otherVersion', { have, now: f.appVersion }), { repair: 'update-plugin' });
+  return result(id, 'claude', false, 'ok', m('doc.claude.plugin.ok', { id: PLUGIN_ID, v: have ?? '?' }));
 };
 
 // ── installation ──

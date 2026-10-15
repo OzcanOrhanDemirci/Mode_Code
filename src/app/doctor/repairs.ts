@@ -23,6 +23,7 @@ import {
   hookGroups,
   hookProgram,
   pluginInstallArgs,
+  pluginUpdateArgs,
   readManifest,
   withOurHooks,
   writeMarketplace,
@@ -129,6 +130,18 @@ export const REPAIRS: Record<RepairId, RepairInfo> = {
       if (!existsSync(join(e.distDir, 'plugin'))) return { id: 'restore-plugin-files', ok: false, detail: 'this build has no plugin files' };
       writeMarketplace(e.layout, e.distDir);
       return { id: 'restore-plugin-files', ok: true, detail: `plugin files copied to ${e.layout.pluginDir}; new sessions load them` };
+    },
+  },
+  // Another version in Claude Code: this version's files, then Claude Code's record of them (an install over an
+  // older one leaves the record behind, and a plugin not read in place loads from Claude Code's own copy).
+  'update-plugin': {
+    personOnly: true,
+    run: (e) => {
+      if (!existsSync(join(e.distDir, 'plugin'))) return { id: 'update-plugin', ok: false, detail: 'this build has no plugin files' };
+      writeMarketplace(e.layout, e.distDir);
+      const r = e.runner.run(pluginUpdateArgs(), 120_000);
+      const out = `${r.stdout}${r.stderr}`.trim().split('\n').pop() ?? '';
+      return { id: 'update-plugin', ok: r.status === 0, detail: out || `exit ${r.status}` };
     },
   },
   'reinstall-plugin': {

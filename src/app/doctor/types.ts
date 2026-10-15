@@ -27,6 +27,7 @@ export type RepairId =
   | 'restore-hook-program'
   | 'repoint-node'
   | 'restore-plugin-files'
+  | 'update-plugin'
   | 'reinstall-plugin'
   | 'record-cli'
   | 'enable-plugin'

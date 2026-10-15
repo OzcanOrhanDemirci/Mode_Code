@@ -36,7 +36,7 @@ import type { Layout } from '../core/layout.js';
 import { copyPrevious, findPrevious, movedMemorySetting, previousPlugin, type PreviousInstall } from './previous.js';
 import { ensureDir, readJson, readText, writeAtomic, writeJsonAtomic } from './fsx.js';
 import { claudeDir } from './env.js';
-import { claudeVersion, realClaude, type ClaudeRunner } from './claude-env.js';
+import { claudeVersion, pluginsVia, realClaude, type ClaudeRunner } from './claude-env.js';
 
 export const HOOK_EVENTS = ['PreToolUse', 'UserPromptSubmit', 'Stop', 'SessionStart'] as const;
 import { BELT_MATCHER } from '../core/belt/tools.js';
@@ -315,7 +315,14 @@ export function applyInstall(l: Layout, plan: InstallPlan, opts: { config?: Part
     const r = claudeCli(runner, pluginInstallArgs(l));
     if (!r.ok) throw new Error(r.out.slice(0, 500) || 'claude plugin install failed');
     pluginInstalled = true;
-    return r.out.split('\n').pop();
+    const said = r.out.split('\n').pop();
+    // Installed over an older one, Claude Code keeps the old record (it reads the folder in place) until an
+    // update records the version now in the folder (Claude Code 2.1.300, measured 2026-10-15).
+    const folder = readJson<{ version?: unknown }>(join(l.pluginDir, '.claude-plugin', 'plugin.json'))?.version;
+    const recorded = typeof folder === 'string' ? (pluginsVia(runner)?.find((p) => p.id === PLUGIN_ID)?.version ?? null) : null;
+    if (!recorded || recorded === folder) return said;
+    const u = claudeCli(runner, pluginUpdateArgs());
+    return `${said} · ${u.ok ? `recorded ${recorded} → ${folder}` : `record left at ${recorded}: ${u.out.split('\n').pop()}`}`;
   });
   let backup: string | null = null;
   const groups = hookGroups(plan.node, hook.replace(/\\/g, '/'));
@@ -401,6 +408,11 @@ export function writeMarketplace(l: Layout, dist: string): void {
 /** The command that installs the plugin from the local marketplace, at user scope. */
 export function pluginInstallArgs(l: Layout): string[] {
   return ['plugin', 'install', PLUGIN_NAME, '--marketplace', l.marketplace, '--scope', 'user'];
+}
+
+/** The command that has Claude Code record the plugin's version anew (what `plugin install` over an older one does not). */
+export function pluginUpdateArgs(): string[] {
+  return ['plugin', 'update', PLUGIN_ID, '--scope', 'user'];
 }
 
 export function readManifest(l: Layout): Manifest | null {

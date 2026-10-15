@@ -21,8 +21,11 @@ import { examine, planRepairs, repair } from './doctor.js';
 import type { RepairId } from './types.js';
 
 /** A stand-in for `claude`: answers the plugin commands the installer and the doctor use, from memory. */
-export function standInClaude(version = MIN_CLAUDE_CODE_FOR_HOOKS): ClaudeRunner & { calls: string[][]; plugin: { installed: boolean; enabled: boolean } } {
-  const plugin = { installed: false, enabled: false };
+export function standInClaude(
+  version = MIN_CLAUDE_CODE_FOR_HOOKS,
+): ClaudeRunner & { calls: string[][]; plugin: { installed: boolean; enabled: boolean; recorded: string } } {
+  // As Claude Code 2.1.300 does: an install over an installed plugin keeps its record; an update records anew.
+  const plugin = { installed: false, enabled: false, recorded: APP_VERSION };
   const calls: string[][] = [];
   return {
     calls,
@@ -34,11 +37,17 @@ export function standInClaude(version = MIN_CLAUDE_CODE_FOR_HOOKS): ClaudeRunner
       const ok = (stdout = '') => ({ status: 0, stdout, stderr: '' });
       if (a === '--version') return ok(`${version} (Claude Code)`);
       if (a.startsWith('plugin list'))
-        return ok(JSON.stringify(plugin.installed ? [{ id: PLUGIN_ID, enabled: plugin.enabled, version: APP_VERSION, scope: 'user' }] : []));
+        return ok(JSON.stringify(plugin.installed ? [{ id: PLUGIN_ID, enabled: plugin.enabled, version: plugin.recorded, scope: 'user' }] : []));
       if (a.startsWith('plugin install')) {
+        if (!plugin.installed) plugin.recorded = APP_VERSION;
         plugin.installed = true;
         plugin.enabled = true;
         return ok('Installed');
+      }
+      if (a.startsWith('plugin update')) {
+        if (!plugin.installed) return { status: 1, stdout: '', stderr: 'not installed' };
+        plugin.recorded = APP_VERSION;
+        return ok('Updated');
       }
       if (a.startsWith('plugin enable')) {
         plugin.enabled = plugin.installed;
