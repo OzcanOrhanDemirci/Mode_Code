@@ -302,6 +302,9 @@ test('stop pauses the run with its report; continue runs the checks again and re
   expect(w.calls.filter((c: any) => String(c.command).startsWith('touch ')).length).toBe(2);
   await $.session.compact({ trigger: 'manual', messages: [{ role: 'user', text: 'so far', toolUses: [] }] } as any);
   expect(instructions).toMatch(/a full-autonomy run runs \(.*the person's request: "Add rate limiting to the API\."\)/);
+  // While a run is attached the way of working is the run's; the answer names the keyword that lets it go.
+  const style: any = await $.command.run({ command: '7', args: '' } as any);
+  expect(style.text).toBe('A full-autonomy run is attached to this session: "full auto cancel" lets it go first.');
   await $.prompt.submit(typed('full auto cancel'));
   expect(w.json(`${DATA}/runs/${id}/run.json`).status).toBe('canceled');
   expect(w.modState().runId).toBe(null);

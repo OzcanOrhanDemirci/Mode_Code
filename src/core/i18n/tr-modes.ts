@@ -160,6 +160,7 @@ export const trModes: Record<keyof typeof enModes, string> = {
     '# <başlık>\n\n## Adımlar\n\n### 1. <adım>\n\n<ne değişiyor>\nKabul: <bu adımın doğru olduğunu nasıl anlarız>\n\n### 2. <adım>\n\n…\n\n## Doğrulama\n\n- `<işi doğrulayan bir komut, ör. npm test>`\n',
 
   'flow.word.cancel': 'akış iptal',
+  'kw.word.cancel': 'iptal',
   'help.flow': 'Akışlar: her biri nerede, denetimleri ve dosyaları',
   'cli.flow.none': 'Henüz akış yok. Başlatmak için Claude\'a yazdığın bir mesajı "akış" ile bitir.',
   'cli.flow.notFound': '"{id}" kimlikli bir akış yok.',

@@ -1465,7 +1465,7 @@ async function autoGate(
       ownRun: !!c.run && c.run.id !== resuming?.id,
       elsewhere: elsewhere.some(Boolean),
       paused: paused
-        ? { id: paused.id, cont: tIn(c.lang, 'kw.kind.continue'), cancel: `${tIn(c.lang, 'kw.kind.fullAuto')} ${tIn(c.lang, 'flow.word.cancel')}` }
+        ? { id: paused.id, cont: tIn(c.lang, 'kw.kind.continue'), cancel: `${tIn(c.lang, 'kw.kind.fullAuto')} ${tIn(c.lang, 'kw.word.cancel')}` }
         : null,
     },
   };
@@ -3948,7 +3948,7 @@ async function control(
   const say = (text: string, context?: string[]) => ({ text, ...(context?.length ? { context } : {}) });
   if (!c.config.modules.modes && (action.kind === 'mode' || action.kind === 'style' || action.kind === 'flow' || action.kind === 'fullAuto'))
     return say(tIn(lang, 'ctl.modesOff'));
-  const letRunGo = `${tIn(lang, 'kw.kind.fullAuto')} ${tIn(lang, 'flow.word.cancel')}`;
+  const letRunGo = `${tIn(lang, 'kw.kind.fullAuto')} ${tIn(lang, 'kw.word.cancel')}`;
   switch (action.kind) {
     case 'mode':
     case 'style': {

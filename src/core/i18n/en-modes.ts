@@ -170,6 +170,7 @@ export const enModes = {
 
   // ── what the person sees ──
   'flow.word.cancel': 'flow cancel',
+  'kw.word.cancel': 'cancel',
   'help.flow': 'Flows: where each one stands, its checks and its files',
   'cli.flow.none': 'No flows yet. End a message to Claude with "flow" to start one.',
   'cli.flow.notFound': 'No flow with the id "{id}".',
