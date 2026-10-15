@@ -102,8 +102,11 @@ test("the real system, without touching the clipboard: a program's exit decides,
   assert.equal(realClipboard.run([node, '-e', 'process.exit(0)'], ''), true);
   assert.equal(realClipboard.run([node, '-e', 'process.exit(3)'], ''), false);
   assert.equal(realClipboard.run([join(tmpdir(), 'no-such-program-mode-code')], ''), false);
-  const same = `process.stdin.setEncoding('utf8');let s='';process.stdin.on('data',(d)=>(s+=d)).on('end',()=>process.exit(s===${JSON.stringify(TEXT)}?0:4))`;
-  assert.equal(realClipboard.run([node, '-e', same], TEXT), true);
+  // The expected text goes in through the environment, so the program run is fixed code.
+  const same =
+    "process.stdin.setEncoding('utf8');let s='';process.stdin.on('data',(d)=>(s+=d)).on('end',()=>process.exit(s===process.env.MODE_CODE_COPY_EXPECT?0:4))";
+  assert.equal(realClipboard.run([node, '-e', same], TEXT, { MODE_CODE_COPY_EXPECT: TEXT }), true);
+  assert.equal(realClipboard.run([node, '-e', same], 'other', { MODE_CODE_COPY_EXPECT: TEXT }), false);
   assert.equal(realClipboard.run([node, '-e', 'process.exit(process.env.MODE_CODE_COPY_TEST === "1" ? 0 : 5)'], '', { MODE_CODE_COPY_TEST: '1' }), true);
   const file = realClipboard.temp(TEXT);
   assert.equal(readFileSync(file, 'utf8'), TEXT);
