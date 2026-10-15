@@ -33,6 +33,16 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.center.unknown': 'Kontrol merkezinin yeri kurulumda kaydedilmemiş: "{app} doctor --fix" kaydeder.',
   'ctl.center.remote': 'Kontrol merkezi bilgisayarda açılır: orada yazılan /0 onu yeni sekmede açar.',
   'ctl.runAttached': 'Bu oturuma bağlı bir tam otonom koşu var: önce "{cancel}" ile bırak.',
+  'ctl.personOnly': '{cmd} komutunu yalnız sen çalıştırabilirsin: şeritten ya da kendin yazarak, burada ya da telefonda.',
+  // ── bypass ──
+  'ctl.bypass.notEnabled': 'Bypass açılmamış. Kontrol merkezinden aç: Otomasyon › Bypass (/0 açar).',
+  'ctl.bypass.confirm':
+    "Bypass {hours} saatliğine açılsın mı? Bu oturumda hiçbir şey sorulmaz: emniyet kemeri soracağı ya da engelleyeceği şeyleri geçirir ve her çağrıyı kaydeder. Mode_Code'u, Claude Code ayarlarını ya da hafızayı değiştirmek ve bir sırrı bilgisayarın dışına göndermek yine engellenir; sürücü kökünü, sistem klasörünü ya da buluttaki veriyi silmek, diski biçimlemek ve güvenlik yazılımını kapatmak yine sorulur.",
+  'ctl.bypass.yes': 'Aç',
+  'ctl.bypass.no': 'Vazgeç',
+  'ctl.bypass.started': 'Bypass {until} saatine kadar açık ({hours} saat). /bypass ya da şeritteki ⚡ kapatır.',
+  'bypass.summary': 'Bypass kapandı: {minutes} dakikada {count} çağrı sorulmadan geçti. Tek tek: kontrol merkezi › Otomasyon › İzinsiz yapılanlar.',
+  'bypass.toast.soon': 'Bypass {minutes} dakika sonra kapanacak.',
   // ── / menüsündeki açıklamalar ──
   'ctl.desc.mode.chat': 'Mod: 💬 sohbet. Yalnız konuşma: proje ve hafıza değişmez',
   'ctl.desc.mode.research': 'Mod: 🔍 araştırma. Okur ve arar; yalnız rapor yazar',
@@ -47,6 +57,7 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.desc.continue': 'Bir projeye ya da klasöre devam: verilmezse hepsini listeler',
   'ctl.desc.quota': 'Haftalık bütçe: bir sayı (70) ya da şimdinin üstüne puan (+5)',
   'ctl.desc.close': "Oturumu düzgünce kapatır: devir notu, eşitleme, çıkış; Windows'ta sekmesiyle birlikte",
+  'ctl.desc.bypass': "Bypass: bu oturumda emniyet kemerini bir süre kaldırır, her çağrıyı kaydeder (Otomasyon'dan açıldıktan sonra)",
   'ctl.hint.text': '[metin]',
   'ctl.hint.fullAuto': '[kota +N] [görev]',
   'ctl.hint.flow': '[görev]',

@@ -68,6 +68,10 @@
     "stallMinutes": 90,
     "reviewModel": null
   },
+  "bypass": {
+    "enabled": false,
+    "maxHours": 2
+  },
   "accessibility": {
     "plain": false,
     "highContrast": false,

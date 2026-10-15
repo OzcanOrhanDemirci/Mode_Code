@@ -31,6 +31,16 @@ export const enControls = {
   'ctl.center.unknown': 'Where the control center is was not recorded at installation: "{app} doctor --fix" records it.',
   'ctl.center.remote': 'The control center opens on the computer: /0 typed there opens it in a new tab.',
   'ctl.runAttached': 'A full-autonomy run is attached to this session: "{cancel}" lets it go first.',
+  'ctl.personOnly': 'Only you can run {cmd}: from the strip, or typed by you, here or on the phone.',
+  // ── bypass ──
+  'ctl.bypass.notEnabled': 'Bypass is not turned on. Turn it on in the control center: Automation › Bypass (/0 opens it).',
+  'ctl.bypass.confirm':
+    "Turn bypass on for {hours} h? In this session nothing asks: the safety belt lets through what it would ask about or block, and records each call. Changing Mode_Code, Claude Code's settings or the memory, and sending a secret off the computer stay blocked; deleting a drive root, a system folder or cloud data, formatting a disk and turning security software off are still asked.",
+  'ctl.bypass.yes': 'Turn on',
+  'ctl.bypass.no': 'Cancel',
+  'ctl.bypass.started': 'Bypass on until {until} ({hours} h). /bypass, or ⚡ on the strip, turns it off.',
+  'bypass.summary': 'Bypass ended: {count} calls went through without asking in {minutes} min. Each one: control center › Automation › Done without asking.',
+  'bypass.toast.soon': 'Bypass ends in {minutes} min.',
   // ── descriptions in the slash-command menu ──
   'ctl.desc.mode.chat': 'Mode: 💬 chat. Talk only: the project and the memory do not change',
   'ctl.desc.mode.research': 'Mode: 🔍 research. Read and search; write reports only',
@@ -45,6 +55,7 @@ export const enControls = {
   'ctl.desc.continue': 'Continue a project or a folder: lists them all when none is given',
   'ctl.desc.quota': 'Weekly budget: a number (70) or points above now (+5)',
   'ctl.desc.close': 'Closes the session cleanly: handoff note, sync, exit; on Windows its tab too',
+  'ctl.desc.bypass': 'Bypass: lifts the safety belt in this session for a while, recording each call (once turned on under Automation)',
   'ctl.hint.text': '[text]',
   'ctl.hint.fullAuto': '[quota +N] [task]',
   'ctl.hint.flow': '[task]',

@@ -74,6 +74,7 @@ test("the commands are declared at the start, in the person's language; the mode
     'flow',
     'tam-otonom',
     'full-auto',
+    'bypass',
     'kapat',
     'close',
   ]);
@@ -329,7 +330,7 @@ test('a keyword after /6 is that keyword: nothing starts', async ($, on) => {
 
 test('/tam-otonom on native Windows says at once why it cannot start, and asks nothing', async ($, on) => {
   const w = world(on, { windows: true, answer: 'allow' });
-  const r = await run($, 'full-auto');
+  const r = await runFrom($, 'full-auto', { kind: 'composer' });
   expect(r.text).toMatch(/^Full autonomy cannot start here:\n- /);
   expect(r.text).toMatch(/Windows/);
   expect(w.asked).toEqual([]);

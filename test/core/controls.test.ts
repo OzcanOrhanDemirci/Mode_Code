@@ -30,7 +30,14 @@ import {
 import { detectKeyword } from '../../src/core/keywords.js';
 import { applyKeyword, newModState } from '../../src/core/session.js';
 
-const view: StripView = { mode: 'plan', style: 'autonomous', flow: null, fullAutoShown: false, fullAutoHere: false };
+const view: StripView = {
+  mode: 'plan',
+  style: 'autonomous',
+  flow: null,
+  fullAutoShown: false,
+  fullAutoHere: false,
+  bypass: { shown: false, on: false, count: 0 },
+};
 
 test('every control has its number, 0 to 8 and 00, and the words that take a value or close; each name once', () => {
   const names = COMMANDS.map((c) => c.name);

@@ -18,6 +18,7 @@ export type ModeCodeLabels = {
     flow: { at: string; state: 'running' | 'approval' | 'paused' | 'armed' } | null;
     fullAutoShown: boolean;
     fullAutoHere: boolean;
+    bypass: { shown: boolean; on: boolean; count: number };
     lang: 'en' | 'tr';
     /** The person asked for less motion: the flow's step is marked, not breathing. */
     still: boolean;

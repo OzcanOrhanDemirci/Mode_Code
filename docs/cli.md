@@ -45,7 +45,7 @@
 | `secrets [path…]`                                                                                      | Scans files or folders (default: the memory folders) for secrets; masked previews only                                                                                                                                                                                                                                                                                                                                                                                   | 1 when something is found            |
 | `config path` · `config get [key]` · `config set <key> <value>`                                        | Reads or changes the settings file; values are JSON (`true`, `40`, `"check"`)                                                                                                                                                                                                                                                                                                                                                                                            | 1 when a value is refused            |
 
-Commands that change your Claude Code setup, lower a protection or widen what a session does unasked (`install`, `uninstall`, `autonomy enable`, `config set` on `belt.*`, `memory.*`, `modules.quota`, `modules.secrets`, `autonomy.*`, `projects`, `sync.*`, `sync setup`, `sync approve`, `sync ignore`, `sync project`) refuse to run inside a Claude Code session: run them in your own terminal.
+Commands that change your Claude Code setup, lower a protection or widen what a session does unasked (`install`, `uninstall`, `autonomy enable`, `config set` on `belt.*`, `memory.*`, `modules.quota`, `modules.secrets`, `autonomy.*`, `bypass.*`, `projects`, `sync.*`, `sync setup`, `sync approve`, `sync ignore`, `sync project`) refuse to run inside a Claude Code session: run them in your own terminal.
 
 ## Addresses
 
@@ -93,6 +93,7 @@ Commands that change your Claude Code setup, lower a protection or widen what a 
   "projects": [{ "id": "my-app", "names": ["app"], "path": "~/dev/my-app", "verify": ["npm run check"] }],
   "modes": { "workDir": null },
   "autonomy": { "enabled": false, "maxHours": 12, "stallMinutes": 90, "reviewModel": null },
+  "bypass": { "enabled": false, "maxHours": 2 },
   "accessibility": { "plain": false, "highContrast": false, "reduceMotion": false }
 }
 ```

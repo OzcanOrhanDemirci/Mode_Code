@@ -24,7 +24,8 @@ export type ControlAction =
   | { kind: 'menu' }
   | { kind: 'continue' }
   | { kind: 'quota' }
-  | { kind: 'close' };
+  | { kind: 'close' }
+  | { kind: 'bypass' };
 
 /** Every slash command, by name: a number for everything on the strip, a word for those that take a value and for closing. */
 export const COMMANDS: readonly { name: string; action: ControlAction }[] = [
@@ -47,6 +48,8 @@ export const COMMANDS: readonly { name: string; action: ControlAction }[] = [
   // Full autonomy has no number: a special way of working, shown only once turned on (Automation).
   { name: 'tam-otonom', action: { kind: 'fullAuto' } },
   { name: 'full-auto', action: { kind: 'fullAuto' } },
+  // Bypass has no number either: on the strip only once turned on (Automation), switched by the person alone.
+  { name: 'bypass', action: { kind: 'bypass' } },
   { name: 'kapat', action: { kind: 'close' } },
   { name: 'close', action: { kind: 'close' } },
 ];
@@ -59,6 +62,7 @@ export function digitOf(action: ControlAction): string {
 /** The command that does `action`: its number, or for one without (full autonomy) its word in `lang`. */
 export function commandOf(action: ControlAction, lang: Lang): string {
   if (action.kind === 'fullAuto') return lang === 'tr' ? 'tam-otonom' : 'full-auto';
+  if (action.kind === 'bypass') return 'bypass';
   return digitOf(action);
 }
 
@@ -229,6 +233,8 @@ export interface StripItem {
   dim: boolean;
   /** Breathing: the mode a running flow's step works in (the flow itself is the one lit). */
   pulse?: boolean;
+  /** Drawn in the colour of danger: bypass while it is on. */
+  alert?: boolean;
 }
 
 /** A titled group of controls: the mode with the flow, or the way of working with the menu and closing. */
@@ -260,6 +266,14 @@ export interface StripView {
   fullAutoShown: boolean;
   /** Full autonomy can start here (it never can on native Windows). */
   fullAutoHere: boolean;
+  /** Bypass: on the strip once turned on (Automation); on in this session; the calls it let through so far. */
+  bypass: { shown: boolean; on: boolean; count: number };
+}
+
+/** "⚡ bypass", and while it is on the calls it let through: "⚡ bypass · 3". */
+function bypassText(b: StripView['bypass'], tight: boolean): string {
+  const count = b.on && b.count > 0 ? (tight ? `${b.count}` : ` · ${b.count}`) : '';
+  return tight ? `⚡${count}` : `⚡ bypass${count}`;
 }
 
 const MODES: readonly WorkMode[] = ['chat', 'research', 'plan', 'code', 'free'];
@@ -348,6 +362,17 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
               },
             ]
           : []),
+        ...(v.bypass.shown || v.bypass.on
+          ? [
+              {
+                id: commandOf({ kind: 'bypass' }, lang),
+                label: bypassText(v.bypass, tight),
+                active: v.bypass.on,
+                dim: false,
+                ...(v.bypass.on ? { alert: true } : {}),
+              },
+            ]
+          : []),
         { id: '0', label: tight ? '0≡' : `0 ${tIn(lang, 'ctl.strip.menu')}`, active: false, dim: false },
         { id: '00', label: tight ? '00✕' : `00 ✕ ${tIn(lang, 'ctl.strip.close')}`, active: false, dim: false },
       ],
@@ -363,7 +388,8 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
 /** The session's controls in one line: "📐 plan · otonom", with the flow when one runs. */
 export function controlsLine(v: StripView, lang: Lang): string {
   const style = tIn(lang, `ctl.style.${v.style}` as MessageKey);
-  return `${modeLabel(v.mode, lang)} · ${style}${v.flow ? ` · ${flowText(v.flow, lang, false)}` : ''}`;
+  const flow = v.flow ? ` · ${flowText(v.flow, lang, false)}` : '';
+  return `${modeLabel(v.mode, lang)} · ${style}${flow}${v.bypass.on ? ` · ${bypassText(v.bypass, false)}` : ''}`;
 }
 
 /**
@@ -380,6 +406,7 @@ export function menuText(v: StripView, lang: Lang, quota: string): string {
   const styles = [
     ...STYLES.map((s) => mark(v.style === s, `/${STYLE_DIGIT[s]} ${tIn(lang, `ctl.style.${s}` as MessageKey)}`)),
     ...(v.fullAutoShown || v.style === 'full' ? [mark(v.style === 'full', `/${commandOf({ kind: 'fullAuto' }, lang)}`)] : []),
+    ...(v.bypass.shown || v.bypass.on ? [mark(v.bypass.on, `/bypass`)] : []),
   ].join(' · ');
   const other = ['/devam', '/kota', `/0 ${tIn(lang, 'ctl.strip.menu')}`, `/00 ${tIn(lang, 'ctl.strip.close')}`].join(' · ');
   return [
