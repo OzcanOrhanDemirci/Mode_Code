@@ -235,10 +235,15 @@ export interface StripItem {
   alert?: boolean;
 }
 
-/** A titled group of controls: the mode with the flow, or the way of working with the menu and closing. */
+/**
+ * A group of controls: the mode with the flow and the way of working, each titled; and the menu with
+ * closing, which belong to no way of working: untitled, at the row's far end, as a window's own buttons.
+ */
 export interface StripSegment {
   title: string;
   items: StripItem[];
+  /** Drawn at the far end of its row, the room before it left empty (at least a segment's gap). */
+  end?: boolean;
 }
 
 /** One row of the strip: its segments side by side. */
@@ -315,13 +320,14 @@ function modeLabel(m: WorkMode, lang: Lang): string {
 }
 
 /**
- * The strip's rows for `columns`: one row when it fits, else the mode and the way of working on a row each,
- * else numbers and icons only. Every layout carries every control, the number of each in its label.
+ * The strip's rows for `columns`: one row when it fits, else the mode on one and the way of working on the
+ * next, else numbers and icons only. The menu and closing end the last row, apart from the way of working.
+ * Every layout carries every control, the number of each in its label.
  */
 export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[] {
   const on = flowOn(v);
   const flowDigit = digitOf({ kind: 'flow' });
-  const segments = (tight: boolean): [StripSegment, StripSegment] => [
+  const segments = (tight: boolean): [StripSegment, StripSegment, StripSegment] => [
     {
       title: tight ? '' : tIn(lang, 'ctl.strip.mode'),
       items: [
@@ -365,16 +371,22 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
               },
             ]
           : []),
-        { id: '0', label: tight ? '0≡' : `0 ${tIn(lang, 'ctl.strip.menu')}`, active: false },
+      ],
+    },
+    {
+      title: '',
+      end: true,
+      items: [
+        { id: '0', label: tight ? '0≡' : `0 ≡ ${tIn(lang, 'ctl.strip.menu')}`, active: false },
         { id: '00', label: tight ? '00✕' : `00 ✕ ${tIn(lang, 'ctl.strip.close')}`, active: false },
       ],
     },
   ];
-  const [mode, style] = segments(false);
-  if (rowCells([mode, style]) <= columns) return [[mode, style]];
-  if (Math.max(rowCells([mode]), rowCells([style])) <= columns) return [[mode], [style]];
-  const [m, s] = segments(true);
-  return rowCells([m, s]) <= columns ? [[m, s]] : [[m], [s]];
+  const [mode, style, app] = segments(false);
+  if (rowCells([mode, style, app]) <= columns) return [[mode, style, app]];
+  if (Math.max(rowCells([mode]), rowCells([style, app])) <= columns) return [[mode], [style, app]];
+  const [m, s, a] = segments(true);
+  return rowCells([m, s, a]) <= columns ? [[m, s, a]] : [[m], [s, a]];
 }
 
 /** The session's controls in one line: "📐 plan · otonom", with the flow when one runs. */

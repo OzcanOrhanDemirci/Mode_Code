@@ -347,6 +347,10 @@ test('the strip above the prompt: every control, those in effect marked; full au
   expect((await ui.find({ key: 'strip-3' }))?.props.variant).toBe('primary');
   expect((await ui.find({ key: 'strip-4' }))?.props.variant).toBeUndefined();
   expect((await ui.find({ type: 'Text', text: 'full auto' }))?.props.dimColor).toBeFalsy();
+  // The menu and closing stand apart: the room before them grows, so they end the row.
+  const pushes = (await ui.findAll({ type: 'Box' })).filter((b: any) => /^push-/.test(String(b.key)));
+  expect(pushes.map((b: any) => b.props)).toEqual([expect.objectContaining({ flexGrow: 1, minWidth: 2 })]);
+  expect((await ui.find({ key: 'strip-rows' }))?.props).toMatchObject({ flexGrow: 1 });
   await ui.press({ key: 'strip-4' });
   expect(w.modState().mode).toBe('code');
   expect(w.toasts.at(-1)).toBe('Now: 🔨 code · manual');

@@ -53,11 +53,11 @@ A mode keyword counts **only as the whole message**: `plan` switches to plan mod
 
 The mode and the **way of working** are what a person changes all the time, so they are always in view and change in one step, the same way from three places:
 
-| Where                                    | How                                                                                                                                                                    |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **The strip above the prompt**           | every control with its number, those in effect highlighted; click one (in a terminal that reports clicks), or ctrl+x tab to reach the strip, then the arrows and Enter |
-| **A slash command**                      | `/1` … `/8`, `/0`, `/00`, `/devam`, `/kota`, `/akis`, `/tam-otonom` and their English names: from the keyboard, and from a phone, where clicking is awkward            |
-| **A keyword typed as the whole message** | `plan`, `otonom`, `manuel` …: as above                                                                                                                                 |
+| Where                                    | How                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **The strip above the prompt**           | every control with its number, those in effect highlighted: the mode, the way of working, and apart from them at the far end the menu (`0 ≡`) and closing (`00 ✕`), which belong to neither; click one (in a terminal that reports clicks), or ctrl+x tab to reach the strip, then the arrows and Enter |
+| **A slash command**                      | `/1` … `/8`, `/0`, `/00`, `/devam`, `/kota`, `/akis`, `/tam-otonom` and their English names: from the keyboard, and from a phone, where clicking is awkward                                                                                                                                             |
+| **A keyword typed as the whole message** | `plan`, `otonom`, `manuel` …: as above                                                                                                                                                                                                                                                                  |
 
 | Command                      | Does                                                            | With text after it                                        |
 | ---------------------------- | --------------------------------------------------------------- | --------------------------------------------------------- |

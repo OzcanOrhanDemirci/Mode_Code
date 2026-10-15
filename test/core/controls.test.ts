@@ -228,6 +228,23 @@ test('the strip: every control on every layout, one row when it fits, never wide
   // Closing comes last, after the menu, never highlighted.
   const last = (rows: ReturnType<typeof stripRows>) => rows.flat().at(-1)!.items.at(-1)!;
   assert.deepEqual(last(stripRows(view, 'tr', 200)), { id: '00', label: '00 ✕ kapat', active: false });
+  // The menu and closing are no way of working: a group of their own, untitled, at the far end of the last
+  // row, in every layout; the way of working's group ends with its own controls.
+  for (const columns of [400, 100, 70, 50, 30]) {
+    const rows = stripRows({ ...view, fullAutoShown: true, bypass: { shown: true, on: false, count: 0 } }, 'tr', columns);
+    const end = rows.at(-1)!.at(-1)!;
+    assert.deepEqual([end.title, end.end, end.items.map((i) => i.id)], ['', true, ['0', '00']], String(columns));
+    assert.equal(rows.flat().filter((s) => s.end).length, 1, String(columns));
+    assert.deepEqual(
+      rows
+        .at(-1)!
+        .at(-2)!
+        .items.map((i) => i.id),
+      ['7', '8', 'tam-otonom', 'bypass'],
+      String(columns),
+    );
+  }
+  assert.equal(stripRows(view, 'tr', 400).flat().at(-1)!.items[0]!.label, '0 ≡ menü');
   assert.equal(last(stripRows(view, 'en', 200)).label, '00 ✕ close');
   assert.equal(last(stripRows(view, 'tr', 50)).label, '00✕');
 });

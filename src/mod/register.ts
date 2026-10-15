@@ -4517,7 +4517,8 @@ export function register(on: On): void {
         Box,
         { key: `strip-row-${r}`, flexDirection: 'row' },
         ...row.flatMap((seg, i) => [
-          ...(i ? [h(Text, { key: `gap-${r}-${i}` }, '  ')] : []),
+          // The menu and closing stand apart, at the row's far end: the room before them grows.
+          ...(i ? [seg.end ? h(Box, { key: `push-${r}-${i}`, flexGrow: 1, minWidth: 2 }) : h(Text, { key: `gap-${r}-${i}` }, '  ')] : []),
           ...(seg.title ? [h(Text, { key: `title-${r}-${i}`, dimColor: true }, `${seg.title} `)] : []),
           ...seg.items.flatMap((it, j) => [...(j ? [h(Text, { key: `sp-${it.id}` }, ' ')] : []), item(it)]),
         ]),
@@ -4537,7 +4538,7 @@ export function register(on: On): void {
                 props: { ...mo, working: (e.props as { isWorking?: boolean }).isWorking === true, rows: lines.length > 1 ? 2 : 1 },
               }),
               h(Text, { key: 'mo-gap' }, '  '),
-              h(Box, { key: 'strip-rows', flexDirection: 'column' }, ...lines),
+              h(Box, { key: 'strip-rows', flexDirection: 'column', flexGrow: 1 }, ...lines),
             ),
           ]
         : lines;

@@ -27,6 +27,7 @@ One roof for every guard, and bypass: the safety belt takes over the permission 
 - The strip's numbers: `6` is the flow, `7` manual, `8` autonomous. Full autonomy has no number (`/tam-otonom`, `/full-auto`) and is on the strip only once turned on, no longer gray for everyone; `9` is free.
 - Full autonomy runs on native Windows too. There is no sandbox there, so a run is guarded by the safety belt and the fence alone, which turning it on says plainly; the fence also refuses a write a shell command names outside the project, the temporary folders and the run's folder, as it does a file tool's. It used to be refused there, while Automation let it be turned on and the strip showed it gray. The live sessions now run a whole run on Windows (`node scripts/test-live.mjs --yes --only-auto`).
 - A start check in Automation › Full autonomy wraps onto the next line instead of being cut short.
+- The strip's menu (`0 ≡`) and closing (`00 ✕`) stand apart at the far end of the row, as a window's own buttons, no longer as the last two of the way of working.
 - Presses on the strip close together count as the last one: the strip and the rules change at once, and Claude hears the end state once, a moment after the last press or with the next message, not every step on the way.
 
 ### Fixed
