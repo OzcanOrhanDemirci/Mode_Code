@@ -100,7 +100,7 @@ const TARGETS = {
   'src/core/mo/state.ts': ['test/core/mo.test.ts'],
   'src/core/mo/cells.ts': ['test/core/mo.test.ts'],
   // What a keyword does to the session: the mode and the way of working change only where the person names them.
-  'src/core/session.ts': ['test/core/session.test.ts', 'test/core/modes.test.ts'],
+  'src/core/session.ts': ['test/core/session.test.ts', 'test/core/modes.test.ts', 'test/core/bypass.test.ts'],
   // Whether a session is still open: its process looked up, the answer read, a freed number told apart.
   'src/core/host.ts': ['test/core/host.test.ts'],
 };

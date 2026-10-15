@@ -416,6 +416,14 @@
       "line": "windowsHide: true",
       "kind": "equivalent",
       "why": "whether a console window flashes up for the copying program is seen on a desktop, not by a test; the copy is the same"
+    },
+    {
+      "file": "src/core/session.ts",
+      "from": ">=",
+      "to": ">",
+      "line": "x.count >= 0 ? Math.floor(x.count) : 0",
+      "kind": "equivalent",
+      "why": "a count of 0 reads as 0 either way"
     }
   ]
 }

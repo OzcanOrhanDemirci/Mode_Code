@@ -41,8 +41,16 @@ test("the session's record: on until its time, read back as written, anything to
   assert.equal(bypassOn(back, 5000), true);
   assert.equal(bypassOn(back, 7_201_000), false, 'its time is up');
   assert.equal(bypassOn(newModState('s2', '1.1.0', 0), 0), false, 'a new session starts without it');
-  for (const torn of [{ since: 5, until: 5 }, { since: 'x', until: 9 }, 'on', null])
+  for (const torn of [{ since: 5, until: 5 }, { since: 'x', until: 9 }, { since: '1', until: 9 }, { since: 5, until: '9' }, 'on', null])
     assert.equal(parseModState(JSON.stringify({ ...s, bypass: torn }))!.bypass, null, JSON.stringify(torn));
+  // The count of calls let through: a whole number, never below none.
+  for (const [count, want] of [
+    [-1, 0],
+    ['3', 0],
+    [2.7, 2],
+    [undefined, 0],
+  ] as const)
+    assert.equal(parseModState(JSON.stringify({ ...s, bypass: { ...s.bypass, count } }))!.bypass!.count, want, String(count));
 });
 
 test('the strip: no bypass until it is turned on; then ⚡, lit in red while on, with the calls it let through', () => {
