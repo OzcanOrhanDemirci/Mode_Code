@@ -407,7 +407,7 @@ test('presses close together: the model hears the last of each kind once, a mome
 test('the flow button: off asks and arms; armed, pressed again it is put away; on, it closes; paused, it goes on', async ($, on) => {
   const w = world(on, { answer: 'third' });
   const strip = async () => {
-    const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+    const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: { ...band, isWorking: true } } as any);
     const drawn = { six: (await ui.findAll({ type: 'Text' })).find((t: any) => /^6 flow/.test(t.text)), two: await ui.find({ key: 'strip-2' }) };
     await ui.unmount();
     return drawn;
@@ -441,7 +441,12 @@ test('the breathing control breathes on its own clock, and a press on it does wh
   const w = world(on, { answer: 'third' });
   await run($, '6');
   await $.prompt.submit(typed('Why is the cache slow?'));
-  const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+  // Between turns, where the person may be typing, it is marked, not breathing: a frame blinks the cursor.
+  const between = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+  expect((await between.find({ key: 'strip-2' }))?.type).toBe('Button');
+  expect((await between.find({ type: 'Text', text: '2 🔍 research' }))?.props).toMatchObject({ bold: true, underline: true });
+  await between.unmount();
+  const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: { ...band, isWorking: true } } as any);
   // Gray, then white, never filled: a filled control is a lit one, and the flow is the one lit.
   const look = async () => (await ui.findAll({ type: 'Text', in: 'strip-2' })).map((t: any) => [t.text, !!t.props.inverse, !!t.props.dimColor, !!t.props.bold]);
   const gray = [['2 🔍 research', false, true, false]];

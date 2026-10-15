@@ -4492,10 +4492,12 @@ export function register(on: On): void {
     const els = $.ui.resolve(e);
     const Client = 'Client' in els ? els.Client : undefined;
     const still = strip?.still === true;
+    const working = (e.props as { isWorking?: boolean }).isWorking === true;
     const item = (it: StripItem) =>
-      // The mode a running flow's step works in breathes on Claude Code's clock (src/mod/strip-pulse.ts); with
+      // The mode a running flow's step works in breathes on Claude Code's clock (src/mod/strip-pulse.ts) while
+      // Claude works; between turns (the person may be typing: every frame blinks the terminal's cursor), with
       // less motion asked for, or where no module is drawn (a phone), it is marked instead: bold, underlined.
-      it.pulse && Client && !still
+      it.pulse && Client && !still && working
         ? h(Client, { key: `strip-${it.id}`, module: './strip-pulse.js', width: cells(it.label), height: 1, props: { id: it.id, label: it.label } })
         : h(
             Button,
@@ -4540,7 +4542,7 @@ export function register(on: On): void {
                 module: './mo-strip.js',
                 width: MARK_W,
                 height: lines.length > 1 ? 2 : 1,
-                props: { ...mo, working: (e.props as { isWorking?: boolean }).isWorking === true, rows: lines.length > 1 ? 2 : 1 },
+                props: { ...mo, working, rows: lines.length > 1 ? 2 : 1 },
               }),
               h(Text, { key: 'mo-gap' }, '  '),
               h(Box, { key: 'strip-rows', flexDirection: 'column', flexGrow: 1 }, ...lines),

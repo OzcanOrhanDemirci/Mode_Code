@@ -10,19 +10,19 @@ Mo is a picture, never the only way something is said: every refusal, question a
 
 <p align="center"><img src="images/mo-states.svg" width="752" alt="Mo's eleven looks: the whole body, and below it the two-row and one-row marks of the strip"></p>
 
-| Look                                          | Mo is               | When                                                                                               |
-| --------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------- |
-| dim eyes, a slow breath, a blink now and then | resting             | no turn runs                                                                                       |
-| violet eyes looking up, three dots in turn    | thinking            | a turn runs and no tool is at work                                                                 |
-| a light sweeping the visor, the hands tapping | at a tool           | a tool call of the main conversation runs                                                          |
-| small blue drones circling                    | with agents at work | an agent (the Agent tool) runs                                                                     |
-| white-hot eyes, jets, a cyan shield           | in full autonomy    | a [full-autonomy](autonomy.md) run is active                                                       |
-| amber eyes, a raised hand                     | waiting for you     | the safety belt asks you, Claude asks a question (AskUserQuestion), a plan waits for your approval |
-| mint eyes, a sparkle                          | done                | a turn just ended with an answer (for 4 seconds)                                                   |
-| red stern eyes, a red shield                  | refusing            | the safety belt or a mode refused a call (for 4 seconds)                                           |
-| red crossed eyes, a shake, a spark            | failed              | a turn just ended in an error (for 5 seconds)                                                      |
-| eyes shut, a z rising                         | stopped             | a turn was stopped before it answered (for 6 seconds)                                              |
-| dim, a battery with one red cell              | low on quota        | the quota reached its wrap-up level and nothing runs                                               |
+| Look                                                                  | Mo is               | When                                                                                               |
+| --------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------- |
+| dim eyes (a slow breath, a blink now and then, in the control center) | resting             | no turn runs                                                                                       |
+| violet eyes looking up, three dots in turn                            | thinking            | a turn runs and no tool is at work                                                                 |
+| a light sweeping the visor, the hands tapping                         | at a tool           | a tool call of the main conversation runs                                                          |
+| small blue drones circling                                            | with agents at work | an agent (the Agent tool) runs                                                                     |
+| white-hot eyes, jets, a cyan shield                                   | in full autonomy    | a [full-autonomy](autonomy.md) run is active                                                       |
+| amber eyes, a raised hand                                             | waiting for you     | the safety belt asks you, Claude asks a question (AskUserQuestion), a plan waits for your approval |
+| mint eyes, a sparkle                                                  | done                | a turn just ended with an answer (for 4 seconds)                                                   |
+| red stern eyes, a red shield                                          | refusing            | the safety belt or a mode refused a call (for 4 seconds)                                           |
+| red crossed eyes, a shake, a spark                                    | failed              | a turn just ended in an error (for 5 seconds)                                                      |
+| eyes shut, a z rising                                                 | stopped             | a turn was stopped before it answered (for 6 seconds)                                              |
+| dim, a battery with one red cell                                      | low on quota        | the quota reached its wrap-up level and nothing runs                                               |
 
 When several hold at once, the first in this order wins: refusing, failed, waiting for you, the turn at work (full autonomy, agents, a tool, thinking), stopped, done, full autonomy between turns, low on quota, resting.
 
@@ -30,7 +30,7 @@ Claude Code's own permission question is not a separate look: the plugin learns 
 
 ## Where Mo is drawn
 
-- **The strip above the prompt.** A small Mo (two rows) beside a strip of two rows, only its face (one row) beside a strip that fits on one. Drawn by a surface module Claude Code runs on its own clock (`src/mod/mo-strip.ts`), so its frames cost the session nothing. A hair of room, an eighth of a row, parts it from the line above (Claude Code's spinner, a tip): a cell there holds one color, so the small Mo leaves its head's top edge out and only its antenna stands up. Not on a phone, and not in a strip narrower than 72 columns, where the controls need the room.
+- **The strip above the prompt.** A small Mo (two rows) beside a strip of two rows, only its face (one row) beside a strip that fits on one. Drawn by a surface module Claude Code runs on its own clock (`src/mod/mo-strip.ts`), so its frames cost the session nothing. A hair of room, an eighth of a row, parts it from the line above (Claude Code's spinner, a tip): a cell there holds one color, so the small Mo leaves its head's top edge out and only its antenna stands up. Not on a phone, and not in a strip narrower than 72 columns, where the controls need the room. Mo moves there only while Claude works and while something that just happened shows; resting, waiting for you or low on quota it stands still and is not drawn again until something changes, because every frame Claude Code draws hides and shows the terminal's cursor, and a Mo moving at rest made it flicker under your typing (seven times a second, measured).
 - **The control center.** On the first screen, beside the Home category: the whole body where there is room, the small Mo where there is not, with a line that says what it shows (resting, a full-autonomy run, a quota near its limit, protection that needs a look).
 - **The installer.** A still Mo beside "Installed.", in a terminal that draws colors.
 - **This repository.** The README, this page and the social preview; drawn from the same pixels by `npm run mo-art`.

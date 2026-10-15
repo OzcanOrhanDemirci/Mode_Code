@@ -126,7 +126,7 @@ A flow is one of the modes on the strip (`6`), the one that moves between the ot
 | waiting for you     | `6 flow · approve?`, lit | none breathes: the plan waits for your approval                 |
 | paused              | `6 flow ⏸ 2/4`           | the mode you switched to, lit                                   |
 
-Pressing it: off, it asks which steps; on, it closes the flow (its record stays under Projects › Flows); paused, it goes on from where it stopped. The breathing goes from gray to white and back, never filled as the lit flow is, and is drawn on Claude Code's own clock, as Mo is; with less motion asked for (Settings › Accessibility), and on a phone, the step's mode is marked instead, bold and underlined.
+Pressing it: off, it asks which steps; on, it closes the flow (its record stays under Projects › Flows); paused, it goes on from where it stopped. The breathing goes from gray to white and back, never filled as the lit flow is, and is drawn on Claude Code's own clock, as Mo is, while Claude works. Between turns, when you may be typing (each frame drawn blinks the terminal's cursor), with less motion asked for (Settings › Accessibility), and on a phone, the step's mode is marked instead, bold and underlined.
 
 The rules of a flow:
 

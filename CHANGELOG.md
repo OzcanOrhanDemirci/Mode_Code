@@ -32,6 +32,7 @@ One roof for every guard, and bypass: the safety belt takes over the permission 
 
 ### Fixed
 
+- The terminal's cursor flickered under the person's typing, about seven times a second: every frame Claude Code draws hides and shows it, and Mo breathed at rest, the flow's step too between turns. Mo now moves only while Claude works and while something that just happened shows, and is not drawn again at rest; the flow's step breathes only while Claude works and is marked between turns. Measured in a pseudo console at rest: 69 cursor hide-and-show pairs in ten seconds before, 1 after.
 - Toasts were cut after three lines with "…", often where they said what to do: a press on the strip showed a control's whole answer, and full autonomy's refusal came as a list whose line breaks were drawn as marks. A press shows one line now; full autonomy's refusal names the checks that failed and where to read why; nine texts are shorter, and a detail of any length (an error) comes last. A test wraps every line the plugin shows as a toast the way the box does, in both languages (`test/core/toasts.test.ts`).
 - Repositories cloned over SSH (`git@github.com:me/app.git`) escaped the pull-request-only and one-branch rules: the remote kept its colon and matched no `github.com/me/app` rule. Every spelling of a remote is now the same repository, on both sides of the comparison.
 - Package runners in PowerShell (`npx`, `pnpm dlx`, `bunx`) were not read as the program they run, so `npx firebase database:remove` in PowerShell went unchecked; in bash it was.
