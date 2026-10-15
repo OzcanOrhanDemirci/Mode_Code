@@ -93,3 +93,15 @@ test('what the model is told: free with care when it starts, a reminder with eac
   assert.match(bypassReminder(42), /Bypass is on \(42 min left\)/);
   assert.match(bypassOffNote('time'), /its time ran out/);
 });
+
+test('each part of the setting stands alone, and the hours are taken at both ends of their range', () => {
+  assert.deepEqual(parseConfig(JSON.stringify({ bypass: { maxHours: 6 } })), {
+    config: { ...cloneDefaults(), bypass: { enabled: false, maxHours: 6 } },
+    problems: [],
+  });
+  const onlyOn = parseConfig(JSON.stringify({ bypass: { enabled: true } }));
+  assert.deepEqual([onlyOn.config.bypass, onlyOn.problems], [{ enabled: true, maxHours: 2 }, []]);
+  for (const h of [1, 24]) assert.equal(parseConfig(JSON.stringify({ bypass: { maxHours: h } })).config.bypass.maxHours, h);
+  for (const h of [0, 25, '3']) assert.equal(parseConfig(JSON.stringify({ bypass: { maxHours: h } })).config.bypass.maxHours, 2, String(h));
+  assert.equal(parseConfig(JSON.stringify({ bypass: true })).problems[0]?.path, 'bypass');
+});

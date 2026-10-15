@@ -248,6 +248,27 @@ test('the texts say how bypass changes a block, and that the floor is asked even
   assert.match(decisionText(asked, win({ bypass: true })), /still asked: it cannot be undone/);
   const tr = await evaluateToolCall('Bash', { command: 'rm -rf C:/Users/ada' }, win({ lang: 'tr' }));
   assert.match(decisionText(tr, win({ lang: 'tr' })), /Bypass açıkken/);
+  // A block that bypass would not turn into a question (a rule it lets through, beside one it asks) names no way.
+  const mixed = await evaluateToolCall('Bash', { command: 'rm -rf C:/Users/ada && echo k >> C:/Users/ada/.ssh/authorized_keys' }, win());
+  assert.deepEqual(new Set(mixed.findings.map((f) => f.verdict)), new Set(['deny']));
+  assert.doesNotMatch(decisionText(mixed, win()), /bypass/i);
+  // "Still asked" is said only with bypass on, and only for the floor: not for what is asked anyway without it,
+  // nor for self-protection that asks (a project's Claude Code settings).
+  const outside = await evaluateToolCall('Bash', { command: 'rm -rf C:/Users/ada/old' }, win());
+  assert.doesNotMatch(decisionText(outside, win()), /still asked/);
+  const on = win({ bypass: true });
+  const project = await evaluateToolCall('Write', { file_path: 'C:/dev/app/.claude/settings.json', content: '{}' }, on);
+  assert.equal(project.verdict, 'ask');
+  assert.doesNotMatch(decisionText(project, on), /still asked/);
+  const both = await evaluateToolCall('Bash', { command: 'rm -rf C:/Users/ada/old && echo {} > C:/dev/app/.claude/settings.json' }, on);
+  assert.match(decisionText(both, on), /still asked: it cannot be undone/);
+  // The findings themselves carry what bypass changed; an unchanged one carries nothing.
+  const floor = await evaluateToolCall('Bash', { command: 'rm -rf C:/Users/ada' }, on);
+  assert.deepEqual(
+    floor.findings.map((f) => [f.rule, f.verdict, f.lifted]),
+    [['fs.delete-critical', 'ask', 'deny']],
+  );
+  assert.equal(Object.hasOwn(outside.findings[0]!, 'lifted'), false);
 });
 
 test('every rule has a bypass tier; self-protection keeps; locked rules never let a call through unseen', () => {

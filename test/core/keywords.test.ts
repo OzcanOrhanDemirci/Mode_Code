@@ -256,3 +256,13 @@ test('one typo from a keyword is offered, never taken; short words and longer me
   // Nothing it offers is detected as typed: an offer is never applied.
   for (const t of ['akış iptl', 'serbes', 'arastrma']) assert.equal(detectKeyword(t, projects), null, t);
 });
+
+test('the typo offer leaves alone what is not the person typing one short line, and lists that are not keywords', () => {
+  assert.equal(nearKeyword('<akış iptal'), null, 'a system row');
+  assert.equal(nearKeyword('akış iptl <pasted_content id="x">some text</pasted_content>'), null, 'a paste');
+  assert.equal(nearKeyword('akış\niptl'), null, 'two lines');
+  assert.equal(nearKeyword('flow research pl an'), null, 'more than three words');
+  assert.equal(nearKeyword('iptl'), null, '"cancel" on its own is not a keyword');
+  assert.equal(nearKeyword('quot'), null, 'nor is "quota" without its number');
+  assert.deepEqual(nearKeyword('devm'), { kind: 'continue', lang: 'tr' }, 'five letters are enough');
+});
