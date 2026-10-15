@@ -99,6 +99,9 @@ const ALLOWED = new Set([
   'command.register',
   'command.run',
   'turn.abort',
+  // Full autonomy's start window: a pane the person opens with a press or /tam-otonom, closed when it starts.
+  'ui.open',
+  'ui.close',
 ]);
 const notes = (report.contents ?? []).flatMap((c) => c.notes ?? []);
 const callsNote = notes.find((n) => / calls: /.test(n)) ?? '';

@@ -39,6 +39,8 @@ export interface WorldOptions {
    * beneath the plugin as the hook does: after the plugin's own prompt hook, so not before its next step.
    */
   promptMode?: string;
+  /** No surface places a pane (a headless session): `$.ui.open` answers that it waits undrawn. */
+  paneless?: boolean;
 }
 
 export const HOME = '/home/ada';
@@ -139,6 +141,17 @@ export function world(on: any, opts: WorldOptions = {}) {
     toasts.push(e.text);
     return { value: undefined };
   });
+  // The panes open, as the engine holds them: one per id, placed at once unless no surface places panes.
+  const panes: string[] = [];
+  on('ui.open', (_$: any, e: any) => {
+    if (!panes.includes(e.id)) panes.push(e.id);
+    return { value: opts.paneless ? { isPlaced: false, reason: 'no surface places panes' } : { isPlaced: true } };
+  });
+  on('ui.close', (_$: any, e: any) => {
+    const i = panes.indexOf(e.id);
+    if (i >= 0) panes.splice(i, 1);
+    return { value: undefined };
+  });
   on('ui.notify', (_$: any, e: any) => {
     notes.push(e.text);
     return { value: { delivered: true } };
@@ -215,6 +228,7 @@ export function world(on: any, opts: WorldOptions = {}) {
     notes,
     asked,
     submitted,
+    panes,
     read: (path: string) => files.get(norm(path))?.text ?? null,
     json: (path: string) => {
       const t = files.get(norm(path))?.text;

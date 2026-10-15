@@ -432,3 +432,58 @@ test('Automation › Done without asking: each call bypass let through, what it 
     empty.close();
   }
 });
+
+test('Automation › Recent tasks: the last tasks given full autonomy, the one picked whole; Enter or c copies it', async () => {
+  const data = new FakeData('tr');
+  data.promptList = [
+    { text: 'Hız sınırı ekle.\nSonra belgeleri güncelle.', budget: '+20', at: NOW - 120_000 },
+    { text: 'Giriş hatasını düzelt.\nTestleri de yaz.', budget: '+10', at: NOW - 3 * 3600_000 },
+  ];
+  const s = await draw(data, { address: 'automation/prompts' });
+  const flat = () =>
+    s
+      .text()
+      .replace(/[│╭╮╰╯─]/g, '')
+      .replace(/\s+/g, ' ');
+  try {
+    const t = flat();
+    assert.match(t, /↑↓ seç · Enter ya da c görevin tamamını kopyalar/);
+    assert.match(t, /kota \+20/);
+    // The one picked is whole; the others show their first line.
+    assert.match(t, /Hız sınırı ekle\. Sonra belgeleri güncelle\./);
+    assert.match(t, /Giriş hatasını düzelt\./);
+    assert.doesNotMatch(t, /Testleri de yaz\./);
+    await s.press(KEY.enter);
+    assert.deepEqual(data.copied, ['Hız sınırı ekle.\nSonra belgeleri güncelle.']);
+    assert.match(s.text(), /Kopyalandı: istediğin yere yapıştırabilirsin\./);
+    await s.press(KEY.down);
+    assert.match(flat(), /Giriş hatasını düzelt\. Testleri de yaz\./);
+    data.copyVia = 'terminal';
+    await s.type('c');
+    assert.deepEqual(data.copied.at(-1), 'Giriş hatasını düzelt.\nTestleri de yaz.');
+    assert.match(s.text(), /Terminale gönderildi; yapışmazsa metni fareyle seç\./);
+    // Past the last one, the picked one stays.
+    await s.press(KEY.down);
+    await s.type('c');
+    assert.equal(data.copied.length, 3);
+    assert.equal(data.copied.at(-1), 'Giriş hatasını düzelt.\nTestleri de yaz.');
+    await s.press(KEY.up, KEY.up);
+    await s.type('c');
+    assert.equal(data.copied.at(-1), 'Hız sınırı ekle.\nSonra belgeleri güncelle.');
+  } finally {
+    s.close();
+  }
+  const automation = await draw(data, { address: 'automation' });
+  try {
+    assert.match(automation.text(), /Son görevler\s+2/);
+  } finally {
+    automation.close();
+  }
+  const empty = await draw(new FakeData(), { address: 'automation/prompts' });
+  try {
+    assert.match(empty.text(), /No task yet\./);
+    await empty.press(KEY.enter);
+  } finally {
+    empty.close();
+  }
+});

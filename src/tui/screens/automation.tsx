@@ -1,15 +1,64 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Automation › Bypass and Automation › Done without asking (docs/autonomy.md, "Bypass"): turning bypass on
- * for this computer, its time limit, and every call it let through, one by one, for the person to review.
+ * Automation › Recent tasks, Bypass and Done without asking (docs/autonomy.md): the last tasks given full
+ * autonomy, to copy one again; turning bypass on for this computer, its time limit, and every call it let
+ * through, one by one, for the person to review.
  */
+import { useState } from 'react';
 import { Box, Text } from 'ink';
 import { ago } from '../../core/format.js';
 import type { MessageKey } from '../../core/i18n/index.js';
 import type { ToolEvent } from '../../app/data.js';
 import type { ScreenProps } from '../nav.js';
-import { Empty, Muted, Section, useEnv, useT } from '../ui.js';
+import { Empty, Muted, Section, useEnv, useScreenKeys, useT } from '../ui.js';
 import { SettingsEditor, type Field } from '../widgets.js';
+
+/**
+ * The last three tasks given full autonomy (the person, 2026-10-15: "so the prompt is not lost"): the one
+ * picked whole, the others by their first line; Enter or c copies the whole task.
+ */
+export function RecentTasks({ width, open }: ScreenProps) {
+  const { data, lang, now, theme, flash } = useEnv();
+  const t = useT();
+  const list = data.autoPrompts();
+  const [sel, setSel] = useState(0);
+  const at = Math.min(sel, Math.max(0, list.length - 1));
+  useScreenKeys((input, key) => {
+    if (!list.length) return false;
+    if (key.upArrow || input === 'k') {
+      setSel(Math.max(0, at - 1));
+      return true;
+    }
+    if (key.downArrow || input === 'j') {
+      setSel(Math.min(list.length - 1, at + 1));
+      return true;
+    }
+    if (key.return || input === 'c') {
+      const r = data.copy(list[at]!.text);
+      flash(t(r.via === 'system' ? 'prompts.copied' : 'prompts.copiedTerminal'), r.via === 'system' ? 'ok' : 'warn');
+      return true;
+    }
+    return false;
+  }, open);
+  if (!list.length) return <Empty>{t('prompts.empty')}</Empty>;
+  return (
+    <Box flexDirection="column" width={width}>
+      <Muted>{t('prompts.keys')}</Muted>
+      {list.map((p, i) => (
+        <Box key={`${p.at}-${i}`} flexDirection="column" marginTop={1}>
+          <Text bold={i === at} inverse={i === at && open} color={i === at ? undefined : theme.muted} wrap="truncate-end">
+            {i === at ? theme.sym.cursor : ' '} {t('prompts.meta', { ago: ago(p.at, now, lang), budget: p.budget })}
+          </Text>
+          <Box marginLeft={2}>
+            <Text wrap={i === at ? 'wrap' : 'truncate-end'} {...(i === at ? {} : { color: theme.muted })}>
+              {i === at ? p.text : p.text.split('\n')[0]}
+            </Text>
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  );
+}
 
 export function Bypass({ width, open }: ScreenProps) {
   const { data } = useEnv();

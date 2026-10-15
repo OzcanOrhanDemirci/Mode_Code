@@ -15,7 +15,7 @@ import { flowTitle, statusText } from '../core/flow-view.js';
 import { Events, Protection, RuleDetail, Secrets, TestCommand } from './screens/security.js';
 import { Extensions, Hooks, Instructions, Mcp, Permissions, Plugins, SettingsSources } from './screens/claude.js';
 import { Templates } from './screens/templates.js';
-import { Bypass, Bypassed } from './screens/automation.js';
+import { Bypass, Bypassed, RecentTasks } from './screens/automation.js';
 import {
   About,
   Accessibility,
@@ -255,6 +255,11 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
         description: d('desc.autonomy'),
         badge: { text: t(data.config().autonomy.enabled ? 'set.on' : 'set.off'), state: 'info' },
         screen: (p) => <Autonomy {...p} />,
+      }),
+      n('prompts', 'page.autoPrompts', {
+        description: d('desc.autoPrompts'),
+        ...(data.autoPrompts().length ? { badge: { text: String(data.autoPrompts().length), state: 'gray' as const } } : {}),
+        screen: (p) => <RecentTasks {...p} />,
       }),
       runsNode,
       n('bypass', 'page.bypass', {

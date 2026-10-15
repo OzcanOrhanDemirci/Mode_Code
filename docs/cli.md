@@ -57,7 +57,7 @@ Commands that change your Claude Code setup, lower a protection or widen what a 
 | `measure/quota`, `measure/report`, `measure/tokens`, `measure/tools`, `measure/folders`                                                   | Measure     |
 | `security/protection`, `security/rules`, `security/rules/<rule id>`, `security/events`, `security/test`, `security/secrets`               | Security    |
 | `claude-code/instructions`, `/settings`, `/hooks`, `/permissions`, `/mcp`, `/plugins`, `/templates`, `/extensions`                        | Claude Code |
-| `automation/full-auto`, `automation/runs`, `automation/runs/<run id>`, `automation/bypass`, `automation/bypassed`                         | Automation  |
+| `automation/full-auto`, `automation/prompts`, `automation/runs`, `automation/runs/<run id>`, `automation/bypass`, `automation/bypassed`   | Automation  |
 | `settings/general`, `/modules`, `/footer-quota`, `/memory`, `/sync`, `/projects`, `/keywords`, `/accessibility`, `/maintenance`, `/about` | Settings    |
 
 ## The settings file

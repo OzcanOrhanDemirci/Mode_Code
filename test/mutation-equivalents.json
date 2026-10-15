@@ -408,6 +408,14 @@
       "line": "d < best.d",
       "kind": "equivalent",
       "why": "every offer is one edit away, so a later one only replaces an earlier one at the same distance: both are keywords one typo away, either is a right offer"
+    },
+    {
+      "file": "src/node/clipboard.ts",
+      "from": "true",
+      "to": "false",
+      "line": "windowsHide: true",
+      "kind": "equivalent",
+      "why": "whether a console window flashes up for the copying program is seen on a desktop, not by a test; the copy is the same"
     }
   ]
 }

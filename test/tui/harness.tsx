@@ -22,6 +22,7 @@ import type { DoctorSummary } from '../../src/app/doctor/doctor.js';
 import type { Flow } from '../../src/core/flow.js';
 import type { Run } from '../../src/core/run.js';
 import type { GateResult } from '../../src/core/run-gate.js';
+import type { AutoPrompt } from '../../src/core/auto-prompts.js';
 
 export const NOW = Date.parse('2026-10-12T09:00:00Z');
 
@@ -266,6 +267,16 @@ export class FakeData implements DataSource {
   };
   autonomyCheck() {
     return this.check;
+  }
+  promptList: AutoPrompt[] = [];
+  autoPrompts() {
+    return this.promptList;
+  }
+  copied: string[] = [];
+  copyVia: 'system' | 'terminal' = 'system';
+  copy(text: string) {
+    this.copied.push(text);
+    return { via: this.copyVia };
   }
   memoryState: MemoryView = {
     store: null,

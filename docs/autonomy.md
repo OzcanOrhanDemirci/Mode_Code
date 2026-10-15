@@ -53,6 +53,8 @@ Add rate limiting to the public API, with tests. terminal full auto quota +10
 Herkese açık API'ye testleriyle hız sınırı ekle. terminal tam otonom kota +10
 ```
 
+Or press `full auto` on the strip (or type `/tam-otonom`): a window opens where you pick the budget, write the task and press **Start**, and the same message is sent for you. Pressed while a run is attached, it ends the run. The last three tasks you gave full autonomy, either way, are kept under Automation › Recent tasks in the control center, where Enter (or `c`) copies one back.
+
 The budget is required: full autonomy never runs on the default limit. `quota N` is an absolute weekly percentage, `quota +N` points above the current reading.
 
 Code checks every condition below, in two steps. At the prompt it checks all it can measure there: any that fails means no run, and you read each failed check with what to do about it. When none fails, Claude's first step is the autonomy tool's `start`. There the last two are measured: the permission mode this prompt came with (Claude Code hands it to the safety-net hook only after Mode_Code has read the prompt, so at the prompt the mode on record is an earlier prompt's or none) and the live probe. Every other check runs again with them, and the run starts, or you read what failed. A tool call Claude makes before `start` is held and answered with the outcome; a start Claude never takes up lapses with its turn. `mode-code autonomy check` shows the same in your terminal before you start (all but the permission mode and the live probe, which need the session).

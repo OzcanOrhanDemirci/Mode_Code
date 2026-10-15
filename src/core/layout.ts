@@ -24,6 +24,7 @@
  *   state/activity.json              the mod (when the person last typed: the morning report's gap)
  *   state/notes.json                 the command line (the person's decisions on notes from runs)
  *   state/notes-delivered.json       the mod (approved notes handed to a session)
+ *   state/auto-prompts.json          the mod (the last tasks given full autonomy, for the control center)
  */
 import { joinPath } from './paths.js';
 import { APP_ID } from './app.js';
@@ -50,6 +51,7 @@ export interface Layout {
   notes: string;
   notesDelivered: string;
   syncIgnored: string;
+  autoPrompts: string;
 }
 
 export function layout(root: string): Layout {
@@ -76,6 +78,7 @@ export function layout(root: string): Layout {
     notes: joinPath(root, 'state', 'notes.json'),
     notesDelivered: joinPath(root, 'state', 'notes-delivered.json'),
     syncIgnored: joinPath(root, 'state', 'sync-ignored.json'),
+    autoPrompts: joinPath(root, 'state', 'auto-prompts.json'),
   };
 }
 

@@ -11,7 +11,7 @@
  */
 import type { EngineInterface, EventName, Hook, On } from 'claude-code';
 import { atom, read, update } from 'claude-code';
-import type { ModeCodeFooters, ModeCodeLabels, ModeCodeMo } from './contract.js';
+import type { ModeCodeAutoPane, ModeCodeFooters, ModeCodeLabels, ModeCodeMo } from './contract.js';
 import { APP_ID, APP_NAME, APP_VERSION, CLI_NAME, DATA_DIR_NAME, PLUGIN_NAME } from '../core/app.js';
 import { parseConfig, type Config } from '../core/config.js';
 import { layout, sessionFile, eventsFile, flowDir, memorySeenFile, memorySyncFile, runDir, syncRecordFile, type Layout } from '../core/layout.js';
@@ -200,6 +200,7 @@ import { checkAutonomy, credentialPaths, type AutoEnv } from '../core/run-guard.
 import { diffSignals, parseReview, REVIEW_SYSTEM, reviewManifests, reviewPrompt } from '../core/run-review.js';
 import { checkDraft, composeReport, durationText } from '../core/run-report.js';
 import { pauseFor, type StopAllow } from '../core/run-stop.js';
+import { budgetLabel, parseAutoPrompts, rememberAutoPrompt, serializeAutoPrompts, startBudgets, type AutoPrompt } from '../core/auto-prompts.js';
 import {
   autoNoTaskContext,
   autoPendingContext,
@@ -357,6 +358,17 @@ const moAtom = atom(
     at: 0,
   } as ModeCodeMo,
 );
+/** The window full autonomy starts from: its pane's id, and what it shows besides the task (see ModeCodeAutoPane). */
+const AUTO_PANE = 'full-auto';
+const autoPaneAtom = atom(
+  { plugin: 'mode-code', key: 'autoPane' } as const,
+  { lang: 'en', budgets: ['+5', '+10', '+20'], budget: '+10', week: null, error: null } as ModeCodeAutoPane,
+);
+/**
+ * The task typed in the window, kept while it is closed until it starts. Not in the session's context: the
+ * window draws it, and a drawing may not load that context (loading writes, which a drawing may not do).
+ */
+const autoDraft = { task: '' };
 
 /** Environment variables the belt may need to expand in paths; the API reads them one literal name at a time. */
 async function readEnv($: $): Promise<Record<string, string | undefined>> {
@@ -1636,7 +1648,7 @@ async function autoKeyword($: $, c: Ctx, kw: KeywordMatch, text: string): Promis
     await saveRun($, c, r.run);
     await writeReport($, c, r.run);
     await runEvent($, c, r.run, 'cancel');
-    $.ui.toast(tIn(c.lang, 'auto.toast.canceled'));
+    if (!kw.via) $.ui.toast(tIn(c.lang, 'auto.toast.canceled'));
     return [`[${APP_NAME}] The person canceled the full-autonomy run ${r.run.id}. Stop its work and say in one line what was left where.`];
   }
   const cwd = await $.session.cwd();
@@ -1660,6 +1672,7 @@ async function autoKeyword($: $, c: Ctx, kw: KeywordMatch, text: string): Promis
     return [autoNoTaskContext()];
   }
   c.pendingStart = { at: now, resume: null, request, project: kw.project ?? c.state.project, budget: { target, source } };
+  await rememberPrompt($, c, request, source);
   await registerAutoTool($);
   $.ui.toast(tIn(c.lang, 'auto.toast.starting', { checks: passedChecks(result) }), { timeoutMs: 8000 });
   return [autoPendingContext(false)];
@@ -2643,13 +2656,16 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   // The person's own prompts, and this plugin's resume prompt (which ends with their continue keyword).
   const ours = kind === 'plugin' && (e.origin as { name?: string }).name === PLUGIN_NAME;
   const human = kind === 'composer' || kind === 'bridge' || kind === 'sdk' || ours;
+  // A text this plugin sent for the person was applied when it was sent (sendAsPerson): a start it asked for stands.
+  const applied = ours && c.selfSent !== null && String(e.text ?? '') === c.selfSent;
+  if (ours) c.selfSent = null;
   const extra: string[] = [];
   // Strip presses not told yet go with this prompt, before its own keyword's note.
   if (human) extra.push(...takePressNotes(c));
   if (human) {
     c.turn = { startedAt: await $.clock.now(), uses: [], changed: false };
     // A start asked for at an earlier prompt and never taken up lapses: each prompt asks anew.
-    c.pendingStart = null;
+    if (!applied) c.pendingStart = null;
     c.prompts++;
     if (kind !== 'plugin') c.lastPrompt = maskSecrets(String(e.text ?? '')).slice(0, 2000);
     await refreshConfig($, c);
@@ -2688,9 +2704,6 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
     if (!detectKeyword(typed, projectRefs(c.config), keywordTables(c.config)))
       typed = `${typed}\n\n${a.kind === 'flow' ? flowPhrase(a.variant, c.lang) : fullAutoPhrase(a.budget, c.lang)}`;
   }
-  // A text this plugin sent for the person was applied when it was sent (sendAsPerson).
-  const applied = ours && c.selfSent !== null && typed === c.selfSent;
-  if (ours) c.selfSent = null;
   if (human && !applied && (c.config.modules.keywords || typed !== String(e.text ?? ''))) {
     const turn = await keywordTurn($, c, typed);
     extra.push(...turn.context);
@@ -3943,8 +3956,9 @@ async function press($: $, name: string, args = '', surface?: string): Promise<v
       if (kind === 'mode' || kind === 'style' || kind === 'flow') await holdPressNotes($, kind, r.context);
       else await appendNotes($, r.context);
     }
-    // A toast is one line in a small box, cut after three (test/core/toasts.test.ts).
-    $.ui.toast(r.toast ?? r.text.split('\n')[0]!, { timeoutMs: 8000 });
+    // A toast is one line in a small box, cut after three (test/core/toasts.test.ts); none for a window opened.
+    const line = r.toast ?? r.text.split('\n')[0]!;
+    if (line) $.ui.toast(line, { timeoutMs: 8000 });
   } catch {
     /* a press that cannot act shows nothing; the slash command says why */
   }
@@ -4168,6 +4182,67 @@ async function openCenter($: $, c: Ctx): Promise<{ ok: true; opens: 'tab' | 'win
   return reason === null ? { ok: true, opens: OPENS[launch.via] } : { ok: false, text: tIn(lang, 'ctl.center.failed', { reason, cmd }) };
 }
 
+// ── full autonomy's start window ──
+
+/** The tasks kept for the control center, newest first (src/core/auto-prompts.ts). */
+async function keptPrompts($: $, c: Ctx): Promise<AutoPrompt[]> {
+  return parseAutoPrompts(await readFile($, c.layout.autoPrompts));
+}
+
+/** Keeps a task given full autonomy, three in all: what was written for a run is never lost (the person, 2026-10-15). */
+async function rememberPrompt($: $, c: Ctx, text: string, budget: string): Promise<void> {
+  try {
+    const list = rememberAutoPrompt(await keptPrompts($, c), { text, budget, at: await $.clock.now() });
+    await $.fs.write(c.layout.autoPrompts, serializeAutoPrompts(list));
+  } catch {
+    /* a convenience: the task is in the conversation too */
+  }
+}
+
+/**
+ * Opens full autonomy's start window (the person, 2026-10-15: "full auto opens with a click"): the budget
+ * picked from three (or the one given with the command), the task typed (the one given, or what was typed
+ * before the window was closed), started by its button or Enter. False where no window can be shown.
+ */
+async function openAutoPane($: $, c: Ctx, given: string | null, task: string): Promise<boolean> {
+  const q = await quotaNow($, c);
+  const { options, value } = startBudgets(given, await keptPrompts($, c));
+  if (task) autoDraft.task = task;
+  // The window takes the place of `/tam-otonom`'s wait for the next message.
+  if (c.armed?.kind === 'fullAuto') c.armed = null;
+  const week = q.usable && q.week ? Math.round(q.week.used) : null;
+  await update($, autoPaneAtom, () => ({ lang: c.lang, budgets: options, budget: value, week, error: null }));
+  try {
+    const opened = await $.ui.open({ id: AUTO_PANE, title: tIn(c.lang, 'ctl.autoPane.title'), focus: true, closeOnEscape: true, holdToasts: true, rows: 8 });
+    if (opened.isPlaced) return true;
+    await $.ui.close({ id: AUTO_PANE });
+  } catch {
+    /* no window here: the command asks instead */
+  }
+  return false;
+}
+
+/**
+ * The window's start: the task goes as the person's message ending in the keyword with the budget picked, as
+ * if typed, so the start checks and the run are the keyword's. An empty task keeps the window open and says so.
+ */
+async function startFromPane($: $, typed?: string): Promise<void> {
+  const c = await ctxOf($);
+  if (typed !== undefined) autoDraft.task = typed;
+  const task = autoDraft.task.trim();
+  const pane = await read($, autoPaneAtom);
+  const budget = parseBudget(pane.budget);
+  if (!task || !budget) {
+    await update($, autoPaneAtom, (x) => ({ ...x, error: tIn(c.lang, 'ctl.autoPane.noTask') }));
+    return;
+  }
+  await rememberPrompt($, c, task, pane.budget);
+  autoDraft.task = '';
+  await update($, autoPaneAtom, (x) => ({ ...x, error: null }));
+  await $.ui.close({ id: AUTO_PANE }).catch(() => undefined);
+  await appendNotes($, await sendAsPerson($, c, `${task}\n\n${fullAutoPhrase(budget, c.lang)}`));
+}
+
 /**
  * A control, by its command's name: what `/3` and a press on the strip both do. Answers the line to show and
  * the notes for the model; a press shows its first line as a toast, or `toast` where that line alone says less.
@@ -4188,7 +4263,12 @@ async function control(
   if ((action.kind === 'bypass' || action.kind === 'fullAuto') && !person) return { text: tIn(c.lang, 'ctl.personOnly', { cmd: `/${name}` }) };
   const args = given.trim();
   const lang = c.lang;
-  const say = (text: string, context?: string[], toast?: string) => ({ text, ...(context?.length ? { context } : {}), ...(toast ? { toast } : {}) });
+  // A toast of '' shows none: the start window opened, and says it all itself.
+  const say = (text: string, context?: string[], toast?: string) => ({
+    text,
+    ...(context?.length ? { context } : {}),
+    ...(toast !== undefined ? { toast } : {}),
+  });
   if (!c.config.modules.modes && (action.kind === 'mode' || action.kind === 'style' || action.kind === 'flow' || action.kind === 'fullAuto'))
     return say(tIn(lang, 'ctl.modesOff'));
   const letRunGo = `${tIn(lang, 'kw.kind.fullAuto')} ${tIn(lang, 'kw.word.cancel')}`;
@@ -4316,7 +4396,12 @@ async function control(
       return say(tIn(lang, 'ctl.bypass.started', { hours: c.config.bypass.maxHours, until: timeOfDay(c.state.bypass!.until, lang) }), [note]);
     }
     case 'fullAuto': {
-      if (c.run) return say(tIn(lang, 'ctl.done', { controls: controlsLine(viewOf(c), lang) }));
+      // On, pressed: the run ends as "full auto cancel" ends it, its record kept (the person, 2026-10-15).
+      if (c.run) {
+        const kw: KeywordMatch = { kind: 'fullAuto', lang, auto: 'cancel', text: `/${name}`, standalone: true, via };
+        const said = await applyKeywordTurn($, c, kw, kw.text);
+        return say(tIn(lang, 'auto.toast.canceled'), said.context);
+      }
       const { budget: given, rest } = splitBudget(args);
       // What can be measured now: on native Windows this says why at once, before any question.
       const pre = await autoGate($, c, { explicit: true, target: 100, source: '+1' }, null, null);
@@ -4330,6 +4415,10 @@ async function control(
           tIn(lang, 'ctl.auto.refusedToast', { checks: names.join(', '), cmd: `/${commandOf({ kind: 'fullAuto' }, lang)}` }),
         );
       }
+      // At the computer: the start window, where the budget is picked and the task written, then started.
+      if (where === 'here' && (await openAutoPane($, c, given ? `${given.plus ? '+' : ''}${given.n}` : null, rest)))
+        return say(tIn(lang, 'ctl.auto.window', { start: tIn(lang, 'ctl.auto.start') }), undefined, '');
+      // On the phone (no field there), or where no window can be shown: asked, as before the window.
       let budget = given;
       if (!budget) {
         const q = await quotaNow($, c);
@@ -4553,6 +4642,49 @@ export function register(on: On): void {
         : lines;
     if (labels.band) shown.push(h(Text, { key: 'band' }, labels.band));
     const tree = h(Box, { flexDirection: 'column' }, ...shown);
+    return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
+  });
+  // Full autonomy's start window: the budget, the task, start or cancel (a dialog: Esc closes it, the task stays).
+  on('ui.render', { component: 'Pane', requestId: AUTO_PANE }, async ($, e, next) => {
+    const pane = await read($, autoPaneAtom);
+    const els = $.ui.resolve(e);
+    // A surface that draws no field (a phone) never gets the window: `/tam-otonom` asks there.
+    if (!('Input' in els) || !('Select' in els)) return next(e);
+    const { Box, Text, Button, Input, Select } = els;
+    const t = (k: MessageKey) => tIn(pane.lang, k);
+    const tree = h(
+      Box,
+      { flexDirection: 'column' },
+      h(Text, { key: 'auto-what', dimColor: true }, t('ctl.autoPane.what')),
+      h(Select, {
+        key: 'auto-budget',
+        label: t('ctl.autoPane.budget'),
+        options: pane.budgets.map((v) => ({ value: v, label: budgetLabel(v, pane.week, pane.lang) })),
+        value: pane.budget,
+        onSelect: (v: string) => void update($, autoPaneAtom, (x) => ({ ...x, budget: v, error: null })),
+      }),
+      h(Input, {
+        key: 'auto-task',
+        label: t('ctl.autoPane.task'),
+        placeholder: t('ctl.autoPane.placeholder'),
+        value: autoDraft.task,
+        submitLabel: t('ctl.autoPane.submit'),
+        autoFocus: true,
+        onInput: (v: string) => {
+          autoDraft.task = v;
+        },
+        onSubmit: (v: string) => startFromPane($, v),
+      }),
+      h(
+        Box,
+        { key: 'auto-buttons', flexDirection: 'row' },
+        h(Button, { key: 'auto-start', variant: 'primary', onPress: () => startFromPane($) }, t('ctl.auto.start')),
+        h(Text, { key: 'auto-gap' }, '  '),
+        h(Button, { key: 'auto-cancel', onPress: () => $.ui.close({ id: AUTO_PANE }) }, t('ctl.auto.cancel')),
+      ),
+      ...(pane.error ? [h(Text, { key: 'auto-error', color: 'error' }, pane.error)] : []),
+      h(Text, { key: 'auto-kept', dimColor: true }, t('ctl.autoPane.kept')),
+    );
     return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
   });
   // The list `/devam` printed: each row pressable, as `/devam <n>` is.
