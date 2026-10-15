@@ -47,7 +47,7 @@ After a command runs, Claude Code itself reports whether it held the command rea
 A mode keyword counts **only as the whole message**: `plan` switches to plan mode, "Bu bir plan." is a sentence. Plan, code, chat and research are everyday words, and a mode that changes by accident is worse than one more keystroke (decided with the author, 2026-10-13). Matching ignores case, accents and Turkish keyboard variants ([keywords.md](keywords.md)).
 
 - **Outside a flow** a mode keyword sets the session's mode until another one. `continue` / `devam` keeps every mode, chat included: a mode is left by picking another (the person, 2026-10-13: "it must not change when I did not write it, or choosing it means nothing").
-- **While a flow runs** the flow sets the mode. A mode keyword is an explicit choice: the flow is paused at its step and the session switches to that mode (`continue` resumes the flow).
+- **While a flow runs** the flow sets the mode. A mode keyword is an explicit choice: the flow is paused at its step and the session switches to that mode (`continue`, or the flow on the strip, resumes the flow).
 
 ## Session controls
 
@@ -56,26 +56,26 @@ The mode and the **way of working** are what a person changes all the time, so t
 | Where                                    | How                                                                                                                                                                    |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **The strip above the prompt**           | every control with its number, those in effect highlighted; click one (in a terminal that reports clicks), or ctrl+x tab to reach the strip, then the arrows and Enter |
-| **A slash command**                      | `/1` … `/9`, `/0`, `/00`, `/devam`, `/kota`, `/akis` and their English names: from the keyboard, and from a phone, where clicking is awkward                           |
+| **A slash command**                      | `/1` … `/8`, `/0`, `/00`, `/devam`, `/kota`, `/akis`, `/tam-otonom` and their English names: from the keyboard, and from a phone, where clicking is awkward            |
 | **A keyword typed as the whole message** | `plan`, `otonom`, `manuel` …: as above                                                                                                                                 |
 
-| Command                | Does                                       | With text after it                                        |
-| ---------------------- | ------------------------------------------ | --------------------------------------------------------- |
-| `/1`                   | 💬 chat                                    | `/1 text`: switch, then send the text as your own message |
-| `/2`                   | 🔍 research                                | the same                                                  |
-| `/3`                   | 📐 plan                                    | the same                                                  |
-| `/4`                   | 🔨 code                                    | the same                                                  |
-| `/5`                   | free                                       | the same                                                  |
-| `/6`                   | way of working: **manual**                 | the same                                                  |
-| `/7`                   | way of working: **autonomous**             | the same                                                  |
-| `/8`                   | way of working: **full auto** (asks)       | `/8 kota +10 the task`: no budget question                |
-| `/9`                   | a flow (asks which steps)                  | `/9 the task`: the flow last used in this folder          |
-| `/0`                   | opens the control center in a new tab      |                                                           |
-| `/00` (`/kapat`)       | closes the session cleanly, with its tab   |                                                           |
-| `/devam` (`/continue`) | lists every project and folder to continue | `/devam 3`, `/devam terminal`, `/devam 3 kota 29`         |
-| `/kota` (`/quota`)     | asks for a weekly budget                   | `/kota 70`, `/kota +5`                                    |
+| Command                      | Does                                                            | With text after it                                        |
+| ---------------------------- | --------------------------------------------------------------- | --------------------------------------------------------- |
+| `/1`                         | 💬 chat                                                         | `/1 text`: switch, then send the text as your own message |
+| `/2`                         | 🔍 research                                                     | the same                                                  |
+| `/3`                         | 📐 plan                                                         | the same                                                  |
+| `/4`                         | 🔨 code                                                         | the same                                                  |
+| `/5`                         | free                                                            | the same                                                  |
+| `/6` (`/akis`)               | the flow: off, asks which steps; on, closes it; paused, goes on | `/6 the task`: the flow last used in this folder          |
+| `/7`                         | way of working: **manual**                                      | the same                                                  |
+| `/8`                         | way of working: **autonomous**                                  | the same                                                  |
+| `/tam-otonom` (`/full-auto`) | way of working: **full auto** (asks), once turned on            | `/tam-otonom kota +10 the task`: no budget question       |
+| `/0`                         | opens the control center in a new tab                           |                                                           |
+| `/00` (`/kapat`)             | closes the session cleanly, with its tab                        |                                                           |
+| `/devam` (`/continue`)       | lists every project and folder to continue                      | `/devam 3`, `/devam terminal`, `/devam 3 kota 29`         |
+| `/kota` (`/quota`)           | asks for a weekly budget                                        | `/kota 70`, `/kota +5`                                    |
 
-- **Ways of working.** **Manual**: Claude does what the message asks, says what it did and what would come next, and waits; it asks when something needs your decision. A session starts manual, which is how Claude Code works by default. Only you change it: `continue`, a budget, `stop` and the end of a full-autonomy run leave it as you chose it (a run gives back the way of working it took over). **Autonomous**: Claude goes on without asking between steps and stops only for a decision that is yours. **Full auto**: a run that works to its end without asking ([autonomy.md](autonomy.md)); it starts only where its checks pass, never on native Windows, where `/8` says so before asking anything.
+- **Ways of working.** **Manual**: Claude does what the message asks, says what it did and what would come next, and waits; it asks when something needs your decision. A session starts manual, which is how Claude Code works by default. Only you change it: `continue`, a budget, `stop` and the end of a full-autonomy run leave it as you chose it (a run gives back the way of working it took over). **Autonomous**: Claude goes on without asking between steps and stops only for a decision that is yours. **Full auto**: a run that works to its end without asking ([autonomy.md](autonomy.md)); it starts only where its checks pass, never on native Windows, where `/tam-otonom` says so before asking anything. It has no number and is not on the strip until it is turned on (Automation in the control center): a special way of working, not an everyday one.
 - **The control center beside the session.** `/0` (or `0` on the strip) opens the control center in a new tab of the terminal the session runs in, in the session's folder, and says where the session stands. It opens the command-line program the installation recorded (`doctor` checks the record and `doctor --fix` writes it), and it asks the terminal by the variables the terminal sets for the programs it runs:
 
   | The session runs in               | `/0` opens                                                    | Measured              |
@@ -97,8 +97,8 @@ The mode and the **way of working** are what a person changes all the time, so t
   While Claude works, `/00` asks first ("Claude is working right now. Stop it and close the session?"); only "Close" stops the turn. Idle, it closes at once. From the phone it closes the session on the computer, its tab included. Each close is in the event log, with whether the helper was started (`tab: armed`) or why not.
 
 - **A plain digit is a message.** The strip's buttons have no digit shortcuts, so typing `3` sends "3" to Claude; `/3` is the command.
-- **The brake.** The mode, the way of working, the menu, the budget and closing act at once, while Claude works too: switch to chat in the middle of a change and the next write is refused. A press on the strip puts a note into the conversation at once, which Claude reads at its next step.
-- **Values are asked when not given.** `/kota` asks for the budget (+5, +10, +20, or a number you type); `/9` asks which steps (research ▶ plan → approval → code, plan → approval → code, research only, research ▶ plan with no code) and then takes your next message as the task; `/8` runs its start checks, asks for a budget if none was given, and asks once more before anything starts. The order of a flow's steps is fixed: research comes before the plan, and the approval before any code, kept by code.
+- **The brake.** The mode, the way of working, the menu, the budget and closing act at once, while Claude works too: switch to chat in the middle of a change and the next write is refused. A press on the strip changes the strip and the rules at once; Claude is told a moment after the last press (or with your next message), and only the end state: presses close together count as the last one, so changing your mind twice is not three notes.
+- **Values are asked when not given.** `/kota` asks for the budget (+5, +10, +20, or a number you type); `/6` asks which steps (research ▶ plan → approval → code, plan → approval → code, research only, research ▶ plan with no code) and then takes your next message as the task; `/tam-otonom` runs its start checks, asks for a budget if none was given, and asks once more before anything starts. The order of a flow's steps is fixed: research comes before the plan, and the approval before any code, kept by code.
 - **Everything to continue.** `/devam` lists the registered projects first (★), then every folder Claude Code was used in, newest first, with how long ago; each row is pressable too. A folder that is not registered is continued under its own project key, so its handoff notes are found.
 - **The folder's last choice.** A new session (and the one after /clear) starts in the mode and way of working last used in the same folder, says so, and tells Claude with the first prompt. A full-autonomy run never comes back by itself: its way of working returns as autonomous.
 - **Each change is confirmed** in a line under the command ("Now: 📐 plan · autonomous"), or in a toast for a press, and Claude is told what changed in the same words a typed keyword gets.
@@ -113,7 +113,19 @@ The mode and the **way of working** are what a person changes all the time, so t
 | `flow research` / `akış araştırma`           | 🔍 research                                  |
 | `flow research plan` / `akış araştırma plan` | 🔍 research ▶ 📐 plan, no code               |
 
-Write the task and end the message with the keyword ("Add two-factor sign-in to the login page. flow"); a keyword alone starts the flow on the task under discussion. `/9` does the same with a question instead of a keyword.
+Write the task and end the message with the keyword ("Add two-factor sign-in to the login page. flow"); a keyword alone starts the flow on the task under discussion. `/6` does the same with a question instead of a keyword.
+
+A flow is one of the modes on the strip (`6`), the one that moves between the others by itself, so the strip shows it as one:
+
+| The flow            | Its button               | The modes                                                       |
+| ------------------- | ------------------------ | --------------------------------------------------------------- |
+| off                 | `6 flow`                 | the mode you chose, lit                                         |
+| chosen, no task yet | `6 flow …`, lit          | none lit: your next message is its task                         |
+| working             | `6 flow 2/4`, lit        | the mode of the step it is on **breathes**; the others are dark |
+| waiting for you     | `6 flow · approve?`, lit | none breathes: the plan waits for your approval                 |
+| paused              | `6 flow ⏸ 2/4`           | the mode you switched to, lit                                   |
+
+Pressing it: off, it asks which steps; on, it closes the flow (its record stays under Projects › Flows); paused, it goes on from where it stopped. The breathing is drawn on Claude Code's own clock, as Mo is; with less motion asked for (Settings › Accessibility), and on a phone, the step's mode is marked instead, bold and underlined.
 
 The rules of a flow:
 

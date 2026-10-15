@@ -64,7 +64,6 @@ test("the commands are declared at the start, in the person's language; the mode
     '6',
     '7',
     '8',
-    '9',
     '0',
     '00',
     'devam',
@@ -73,6 +72,8 @@ test("the commands are declared at the start, in the person's language; the mode
     'quota',
     'akis',
     'flow',
+    'tam-otonom',
+    'full-auto',
     'kapat',
     'close',
   ]);
@@ -87,7 +88,9 @@ test("the commands are declared at the start, in the person's language; the mode
   });
   expect(w.commands.find((c: any) => c.name === '00').argumentHint).toBeUndefined();
   expect(w.commands.find((c: any) => c.name === 'devam').immediate).toBeUndefined();
-  expect(w.commands.find((c: any) => c.name === '8').immediate).toBeUndefined();
+  expect(w.commands.find((c: any) => c.name === '8').immediate).toBe(true);
+  expect(w.commands.find((c: any) => c.name === '6').immediate).toBeUndefined();
+  expect(w.commands.find((c: any) => c.name === 'tam-otonom').immediate).toBeUndefined();
 });
 
 test('/3 switches to plan mode, says so in its row, tells the model; a write into the project is then refused', async ($, on) => {
@@ -112,19 +115,19 @@ test("/2 with text: research mode first, then the text goes on as the person's o
   expect(w.submitted).toContain('look into the cache');
 });
 
-test('/7 and /6 change the way of working and nothing else', async ($, on) => {
+test('/8 and /7 change the way of working and nothing else', async ($, on) => {
   const w = world(on);
   await run($, '3');
-  const auto = await run($, '7');
+  const auto = await run($, '8');
   expect(auto.text).toBe('Now: 📐 plan · autonomous');
   expect(auto.context.join('\n')).toMatch(/The way of working is now autonomous/);
   expect(w.modState()).toMatchObject({ mode: 'plan', interaction: 'autonomous' });
-  const manual = await run($, '6');
+  const manual = await run($, '7');
   expect(manual.context.join('\n')).toMatch(/The way of working is now manual: work step by step/);
   expect(w.modState()).toMatchObject({ mode: 'plan', interaction: 'manual' });
 });
 
-test('typed as the whole message, "plan" and "otonom" do what /3 and /7 do; in a sentence they are words', async ($, on) => {
+test('typed as the whole message, "plan" and "otonom" do what /3 and /8 do; in a sentence they are words', async ($, on) => {
   const w = world(on, { lang: 'tr' });
   await $.prompt.submit(typed('Bu bir plan'));
   expect(w.modState()?.mode ?? 'free').toBe('free');
@@ -142,7 +145,8 @@ test('/0 from the phone says where the session stands and lists every command; i
     const r = await runFrom($, '0', origin);
     expect(r.text).toMatch(/^Şu an: 🔨 kod · manuel/);
     expect(r.text).toMatch(/\*\*\/4 🔨 kod\*\*/);
-    expect(r.text).toMatch(/\/9 akış · \/devam · \/kota · \/0 menü · \/00 kapat/);
+    expect(r.text).toMatch(/\/5 serbest · \/6 akış$/m);
+    expect(r.text).toMatch(/\/devam · \/kota · \/0 menü · \/00 kapat/);
     expect(r.text).toMatch(/Kontrol merkezi bilgisayarda açılır: orada yazılan \/0 onu yeni sekmede açar\.$/);
   }
   expect(w.ran).toEqual([]);
@@ -294,7 +298,7 @@ test('/devam lists every registered project and every folder; a number or a name
   // Continuing picks the project; the way of working stays as the person set it.
   expect(w.modState()).toMatchObject({ interaction: 'default', mode: 'free', project: 'mode-code' });
   // A folder that is not registered: its own project key, and the model is told where it is.
-  await run($, '7');
+  await run($, '8');
   await run($, '1');
   await run($, 'continue', 'notes quota 30');
   await settle(w);
@@ -303,9 +307,9 @@ test('/devam lists every registered project and every folder; a number or a name
   expect((await run($, 'devam', 'zzz')).text).toBe('Nothing is called "zzz". /devam lists everything.');
 });
 
-test('/9 asks which flow; the next message is its task, unless it is a keyword itself', async ($, on) => {
+test('/6 asks which flow; the next message is its task, unless it is a keyword itself', async ($, on) => {
   const w = world(on, { answer: 'third' });
-  const r = await run($, '9');
+  const r = await run($, '6');
   expect(w.asked.at(-1)).toMatch(/^Which flow\?/);
   expect(r.text).toBe('Flow ready: 🔍 research only. Your next message is its task.');
   await $.prompt.submit(typed('Why is the cache slow?'));
@@ -316,39 +320,145 @@ test('/9 asks which flow; the next message is its task, unless it is a keyword i
   expect(f.task).toMatch(/Why is the cache slow\?/);
 });
 
-test('a keyword after /9 is that keyword: nothing starts', async ($, on) => {
+test('a keyword after /6 is that keyword: nothing starts', async ($, on) => {
   const w = world(on, { answer: 'allow' });
-  await run($, '9');
+  await run($, '6');
   await $.prompt.submit(typed('stop'));
   expect(w.modState().flowId ?? null).toBe(null);
 });
 
-test('/8 on native Windows says at once why it cannot start, and asks nothing', async ($, on) => {
+test('/tam-otonom on native Windows says at once why it cannot start, and asks nothing', async ($, on) => {
   const w = world(on, { windows: true, answer: 'allow' });
-  const r = await run($, '8');
+  const r = await run($, 'full-auto');
   expect(r.text).toMatch(/^Full autonomy cannot start here:\n- /);
   expect(r.text).toMatch(/Windows/);
   expect(w.asked).toEqual([]);
 });
 
-test('the strip above the prompt: every control, those in effect marked, the full-auto one dim on Windows; a press runs the command', async ($, on) => {
-  const w = world(on, { windows: true });
+test('the strip above the prompt: every control, those in effect marked; full autonomy only once turned on, dim on Windows; a press runs the command', async ($, on) => {
+  const w = world(on, { windows: true, config: { autonomy: { enabled: true } } });
   const session = mock.session(on);
   await run($, '3');
   const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
   const keys = (await ui.findAll({ type: 'Button' })).map((b: any) => b.key);
-  expect(keys).toEqual(['strip-1', 'strip-2', 'strip-3', 'strip-4', 'strip-5', 'strip-6', 'strip-7', 'strip-8', 'strip-9', 'strip-0', 'strip-00']);
+  expect(keys).toEqual(['strip-1', 'strip-2', 'strip-3', 'strip-4', 'strip-5', 'strip-6', 'strip-7', 'strip-8', 'strip-full-auto', 'strip-0', 'strip-00']);
   expect((await ui.find({ key: 'strip-3' }))?.props.variant).toBe('primary');
   expect((await ui.find({ key: 'strip-4' }))?.props.variant).toBeUndefined();
-  expect((await ui.find({ type: 'Text', text: '8 full auto' }))?.props.dimColor).toBe(true);
+  expect((await ui.find({ type: 'Text', text: 'full auto' }))?.props.dimColor).toBe(true);
   await ui.press({ key: 'strip-4' });
   expect(w.modState().mode).toBe('code');
   expect(w.toasts.at(-1)).toBe('Now: 🔨 code · manual');
-  // What the press changed goes into the conversation at once, as a row the model reads (the brake mid-turn).
-  const rows = session.appended().map((r: any) => JSON.stringify(r.message));
-  expect(rows.some((t: string) => /The person chose \\"code\\" on Mode_Code's mode strip/.test(t))).toBe(true);
-  await ui.press({ key: 'strip-8' });
+  // What the press changed reaches the model a moment later, as a row it reads (the brake mid-turn).
+  const said = () => session.appended().map((r: any) => JSON.stringify(r.message));
+  expect(said().some((t: string) => /Mode_Code's mode strip/.test(t))).toBe(false);
+  await w.clock.advance(3000);
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  expect(said().some((t: string) => /The person chose \\"code\\" on Mode_Code's mode strip/.test(t))).toBe(true);
+  await ui.press({ key: 'strip-full-auto' });
   expect(w.toasts.at(-1)).toMatch(/^Full autonomy cannot start here:/);
+  await ui.unmount();
+});
+
+test('full autonomy is not on the strip until it is turned on', async ($, on) => {
+  world(on);
+  await run($, '7');
+  const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+  const keys = (await ui.findAll({ type: 'Button' })).map((b: any) => b.key);
+  expect(keys).toEqual(['strip-1', 'strip-2', 'strip-3', 'strip-4', 'strip-5', 'strip-6', 'strip-7', 'strip-8', 'strip-0', 'strip-00']);
+  expect(await ui.find({ type: 'Text', text: 'full auto' })).toBeUndefined();
+  await ui.unmount();
+});
+
+test('presses close together: the model hears the last of each kind once, a moment after the last press, or with the next prompt', async ($, on) => {
+  const w = world(on);
+  const session = mock.session(on);
+  await run($, '5');
+  const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+  await ui.press({ key: 'strip-1' });
+  await ui.press({ key: 'strip-2' });
+  await ui.press({ key: 'strip-4' });
+  await ui.press({ key: 'strip-8' });
+  expect(w.modState()).toMatchObject({ mode: 'code', interaction: 'autonomous' });
+  expect(session.appended().length).toBe(0);
+  await w.clock.advance(3000);
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  const rows = session.appended().map((r: any) => JSON.stringify(r.message));
+  expect(rows.length).toBe(1);
+  expect(rows[0]).toMatch(/chose \\"code\\"/);
+  expect(rows[0]).toMatch(/autonomous/);
+  expect(rows[0]).not.toMatch(/chose \\"chat\\"|chose \\"research\\"/);
+  // Pressed and then a prompt sent before the moment passed: the note goes with the prompt, and only there.
+  await ui.press({ key: 'strip-3' });
+  const sent: any = await $.prompt.submit(typed('go on'));
+  expect((sent.context ?? []).join('\n')).toMatch(/chose "plan"/);
+  await w.clock.advance(3000);
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  expect(session.appended().length).toBe(1);
+  await ui.unmount();
+});
+
+test('the flow button: off asks and arms; armed, pressed again it is put away; on, it closes; paused, it goes on', async ($, on) => {
+  const w = world(on, { answer: 'third' });
+  const strip = async () => {
+    const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+    const drawn = { six: (await ui.findAll({ type: 'Text' })).find((t: any) => /^6 flow/.test(t.text)), two: await ui.find({ key: 'strip-2' }) };
+    await ui.unmount();
+    return drawn;
+  };
+  await run($, '6');
+  expect((await strip()).six).toMatchObject({ text: '6 flow …', props: { inverse: true } });
+  expect((await run($, '6')).text).toBe('Flow put away: your next message is an ordinary one.');
+  expect((await strip()).six?.text).toBe('6 flow');
+  await run($, '6');
+  await $.prompt.submit(typed('Why is the cache slow?'));
+  const id = w.modState().flowId;
+  // Working: the flow lit, research (its step's mode) breathing on the module, not a button.
+  const working = await strip();
+  expect(working.six).toMatchObject({ text: '6 flow 1/1', props: { inverse: true } });
+  expect(working.two?.type).toBe('Client');
+  expect(working.two?.props).toMatchObject({ module: expect.stringMatching(/strip-pulse\.js$/), props: { id: '2', label: '2 🔍 research' } });
+  // Another mode: the flow pauses and says so on its button; pressed, it goes on.
+  await run($, '1');
+  expect(w.json(`${DATA}/flows/${id}/flow.json`).status).toBe('paused');
+  expect((await strip()).six?.text).toBe('6 flow ⏸ 1/1');
+  await run($, '6');
+  expect(w.json(`${DATA}/flows/${id}/flow.json`).status).toBe('active');
+  // On, pressed: it closes, its record kept.
+  const closed = await run($, '6');
+  expect(closed.text).toMatch(/^Flow closed\./);
+  expect(w.json(`${DATA}/flows/${id}/flow.json`).status).toBe('canceled');
+  expect((await strip()).six?.text).toBe('6 flow');
+});
+
+test('the breathing control breathes on its own clock, and a press on it does what a press does', async ($, on) => {
+  const w = world(on, { answer: 'third' });
+  await run($, '6');
+  await $.prompt.submit(typed('Why is the cache slow?'));
+  const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+  const look = async () => (await ui.findAll({ type: 'Text', in: 'strip-2' })).map((t: any) => [t.text, !!t.props.inverse, !!t.props.dimColor]);
+  expect(await look()).toEqual([['2 🔍 research', true, false]]);
+  await (ui as any).advance(450);
+  expect(await look()).toEqual([['2 🔍 research', false, false]]);
+  await (ui as any).advance(450);
+  expect(await look()).toEqual([['2 🔍 research', false, true]]);
+  // Pressed: the same press as a button's. A mode chosen while the flow works pauses it.
+  await (ui as any).pointer({ type: 'up', x: 1, y: 0, button: 'left', in: 'strip-2' } as any);
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  expect(w.modState().mode).toBe('research');
+  expect(w.json(`${DATA}/flows/${w.modState().flowId}/flow.json`).status).toBe('paused');
+  // Anything else posted is left alone.
+  await (ui as any).post({ press: 'rm -rf /' }, { in: 'strip-2' }).catch(() => undefined);
+  expect(w.modState().mode).toBe('research');
+  await ui.unmount();
+});
+
+test('with less motion asked for, the working step is marked, not breathing', async ($, on) => {
+  world(on, { answer: 'third', config: { accessibility: { reduceMotion: true } } });
+  await run($, '6');
+  await $.prompt.submit(typed('Why is the cache slow?'));
+  const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+  expect((await ui.find({ key: 'strip-2' }))?.type).toBe('Button');
+  expect((await ui.find({ type: 'Text', text: '2 🔍 research' }))?.props).toMatchObject({ bold: true, underline: true });
   await ui.unmount();
 });
 
@@ -364,7 +474,7 @@ test('the strip yields to a question of Claude Code, and fits a narrow terminal'
   }
   expect(handedOn).toMatch(/no implementation for ui\.render/);
   const narrow = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: { ...band, bodyColumns: 50 } } as any);
-  expect((await narrow.findAll({ type: 'Button' })).length).toBe(11);
+  expect((await narrow.findAll({ type: 'Button' })).length).toBe(10);
   expect(await narrow.find({ type: 'Text', text: '3📐' })).toBeDefined();
   await narrow.unmount();
 });
@@ -545,3 +655,4 @@ test('"00" on the strip closes too, from the phone as well; an exit Claude Code 
   expect(cc.exits.length).toBe(2);
   await phone.unmount();
 });
+

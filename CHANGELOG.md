@@ -10,16 +10,20 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Safety belt: calls to connected services (MCP servers) are checked. Sending, replying, forwarding, sharing, inviting and calendar events are asked; deleting or trashing there is asked; reading is not.
 - Bypass tiers in the rule catalog (`docs/safety-belt.md`, "Bypass"): self-protection and secrets never lift; deleting a drive root, a system folder or cloud data, formatting a disk and turning security software off are blocked without bypass and asked with it; the rest is let through with bypass on and recorded. A block of the second tier says how bypass changes it.
 - The rules of an older setup folded into the belt, each with a sample it must ask about or block: 78 permission rules from Claude Code's managed settings and a memory system's command guards (`test/corpus/automation-parity.test.ts`).
+- The flow is one of the modes on the strip (`6`), the one that moves between the others by itself. While it works it is lit and the mode of its step breathes, drawn on Claude Code's own clock; waiting for approval nothing breathes; paused for another mode its button shows `⏸`. Pressed: off, it asks which steps; on, it closes the flow (its record stays); paused, it goes on. With less motion asked for, and on a phone, the step's mode is marked instead.
 
 ### Changed
 
 - Deleting or moving this tool's folder or Claude Code's folder is self-protection (`self.tool-files`, `self.claude-settings`), no longer a critical folder: no setting and no bypass opens it.
 - Deleting a Docker volume (the optional pack), outside the project, a `.git` folder or staging a secrets file are asked even with bypass on.
+- The strip's numbers: `6` is the flow, `7` manual, `8` autonomous. Full autonomy has no number (`/tam-otonom`, `/full-auto`) and is on the strip only once turned on, no longer gray for everyone; `9` is free.
+- Presses on the strip close together count as the last one: the strip and the rules change at once, and Claude hears the end state once, a moment after the last press or with the next message, not every step on the way.
 
 ### Fixed
 
 - Repositories cloned over SSH (`git@github.com:me/app.git`) escaped the pull-request-only and one-branch rules: the remote kept its colon and matched no `github.com/me/app` rule. Every spelling of a remote is now the same repository, on both sides of the comparison.
 - Package runners in PowerShell (`npx`, `pnpm dlx`, `bunx`) were not read as the program they run, so `npx firebase database:remove` in PowerShell went unchecked; in bash it was.
+- Two messages named the way to let a full-autonomy run go "full auto flow cancel" ("tam otonom akış iptal"); the keyword is "full auto cancel" ("tam otonom iptal").
 
 - Chat, research and plan mode no longer refuse reading commands that ask about machine-wide packages (`npm root -g`, `npm ls -g`, `npm outdated -g`): `-g` counted as a machine-wide install before the reading subcommand was looked at. They also run this tool's own commands that only print (`mode-code status`, `mode-code belt rules`, `mode-code memory handoff`, `mode-code config get` …); `mode-code` on its own, `doctor`, and the commands that change settings or the session index are still refused there. `pnpm store prune` is no longer taken for a read.
 

@@ -74,6 +74,7 @@ try {
           fwd(join(root, 'src', 'mod', 'contract.d.ts')),
           fwd(join(root, 'src', 'mod', 'register.ts')),
           fwd(join(root, 'src', 'mod', 'mo-strip.ts')),
+          fwd(join(root, 'src', 'mod', 'strip-pulse.ts')),
           ...tests,
         ],
       },

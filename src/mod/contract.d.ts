@@ -15,9 +15,12 @@ export type ModeCodeLabels = {
   strip: {
     mode: 'free' | 'chat' | 'research' | 'plan' | 'code';
     style: 'manual' | 'autonomous' | 'full';
-    flow: string | null;
+    flow: { at: string; state: 'running' | 'approval' | 'paused' | 'armed' } | null;
+    fullAutoShown: boolean;
     fullAutoHere: boolean;
     lang: 'en' | 'tr';
+    /** The person asked for less motion: the flow's step is marked, not breathing. */
+    still: boolean;
   } | null;
 };
 

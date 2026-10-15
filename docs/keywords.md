@@ -1,6 +1,6 @@
 # Keywords
 
-A keyword is a short phrase that steers the session. The tool detects it in code and adds a note for Claude that quotes your words and says what they mean, so the behavior does not depend on Claude remembering a convention. The mode and the way of working also have slash commands (`/1` … `/9`, `/0`, `/00`, `/devam`, `/kota`) and a strip above the prompt: see [modes.md](modes.md#session-controls).
+A keyword is a short phrase that steers the session. The tool detects it in code and adds a note for Claude that quotes your words and says what they mean, so the behavior does not depend on Claude remembering a convention. The mode and the way of working also have slash commands (`/1` … `/8`, `/0`, `/00`, `/devam`, `/kota`, `/tam-otonom`) and a strip above the prompt: see [modes.md](modes.md#session-controls).
 
 ## Rules
 
@@ -9,7 +9,7 @@ A keyword is a short phrase that steers the session. The tool detects it in code
 - Matching ignores case, accents and Turkish keyboard variants: `termınal devam`, `TERMİNAL DEVAM` and `terminal  devam` are the same. (The trap this avoids: in JavaScript `"İ".toLowerCase()` is `i` followed by a combining dot.)
 - A project name one letter away from a registered one is **suggested, never taken**: Claude is asked to confirm in one line.
 - The detected keyword is shown as a short notice, so you see what the tool understood.
-- **The mode and the way of working change only when you name them**: a mode or `manuel` / `otonom` typed alone, `manuel` in `manuel <proje> devam`, the strip or `/1` … `/8`. `continue`, a budget and `stop` leave both as the strip shows them; a session nobody set works manually, as Claude Code does by default.
+- **The mode and the way of working change only when you name them**: a mode or `manuel` / `otonom` typed alone, `manuel` in `manuel <proje> devam`, the strip or `/1` … `/5`, `/7`, `/8`. `continue`, a budget and `stop` leave both as the strip shows them; a session nobody set works manually, as Claude Code does by default.
 - **A paste is material, not your words.** A keyword typed before or after a paste counts as it would at the end of the message (`terminal devam (<paste>)`); what is inside the paste never does, and a paste beside a word that counts only alone (`plan`, `dur`) keeps it a word.
 
 ## Table

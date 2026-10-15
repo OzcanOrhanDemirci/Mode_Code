@@ -23,9 +23,17 @@ import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
 import { isBeltTool, isFileTool, shellOf } from '../core/belt/tools.js';
 import type { BeltContext, BeltDecision, GitFacts } from '../core/belt/types.js';
 import { checkGuards, type ModeGuard } from '../core/guard.js';
-import { detectKeyword, isModeKeyword, messageWithoutKeyword, MODE_KEYWORDS, type KeywordKind, type KeywordMatch } from '../core/keywords.js';
+import {
+  detectKeyword,
+  isModeKeyword,
+  messageWithoutKeyword,
+  MODE_KEYWORDS,
+  type KeywordKind,
+  type KeywordMatch,
+} from '../core/keywords.js';
 import {
   actionKeyword,
+  cells,
   CHOICE_LINE,
   choicesText,
   commandNamed,
@@ -50,6 +58,7 @@ import {
   type StartableVariant,
   type StripItem,
   type StripView,
+  type FlowView,
 } from '../core/controls.js';
 import { ago, percent, shortPath } from '../core/format.js';
 import { centerProgram, commandLine, LAUNCH_ENV, OPENS, terminalLaunch, windowsAppsDir, windowsTerminalProgram } from '../core/launch.js';
@@ -264,8 +273,13 @@ interface Ctx {
   fresh: boolean;
   /** The session took up the person's last choice in this folder: the model is told with the first prompt. */
   restored: boolean;
-  /** A flow or a full-autonomy run asked for by `/9` or `/8` without a task: the person's next message is its task. */
+  /** A flow or a full-autonomy run asked for by `/6` or `/tam-otonom` without a task: the person's next message is its task. */
   armed: { kind: 'flow'; variant: StartableVariant } | { kind: 'fullAuto'; budget: Budget } | null;
+  /**
+   * Notes of strip presses not told to Claude yet, the last of each kind: presses close together count as the
+   * last one (the person, 2026-10-15). They go a moment after the last press, or with the next prompt.
+   */
+  heldPress: { notes: Partial<Record<'mode' | 'style' | 'flow', string[]>>; gen: number };
   /** A folder chosen with `/devam` that is not a registered project: the "continue" just submitted is about it. */
   pendingContinue: { key: string; folder: string; label: string } | null;
   /** The text this plugin last sent as the person's (sendAsPerson): already applied, so not again if it comes back. */
@@ -489,6 +503,7 @@ async function load($: $): Promise<Ctx> {
     fresh: !(previous && previous.sessionId === sessionId),
     restored: false,
     armed: null,
+    heldPress: { notes: {}, gen: 0 },
     pendingContinue: null,
     selfSent: null,
     turnId: null,
@@ -2172,7 +2187,7 @@ async function autoTurnEnded($: $, c: Ctx): Promise<void> {
  * Code's own), and the quota dim at the end of the hint line. Drawn by render hooks, so no notice prefix.
  */
 async function refreshStatus($: $, c: Ctx): Promise<void> {
-  const strip = c.config.modules.modes ? { ...viewOf(c), lang: c.lang } : null;
+  const strip = c.config.modules.modes ? { ...viewOf(c), lang: c.lang, still: c.config.accessibility.reduceMotion } : null;
   if (!c.config.modules.status) {
     await update($, labelsAtom, () => ({ modes: [], tail: '', band: '', strip }));
     await publishMo($, c);
@@ -2493,6 +2508,8 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   const ours = kind === 'plugin' && (e.origin as { name?: string }).name === PLUGIN_NAME;
   const human = kind === 'composer' || kind === 'bridge' || kind === 'sdk' || ours;
   const extra: string[] = [];
+  // Strip presses not told yet go with this prompt, before its own keyword's note.
+  if (human) extra.push(...takePressNotes(c));
   if (human) {
     c.turn = { startedAt: await $.clock.now(), uses: [], changed: false };
     // A start asked for at an earlier prompt and never taken up lapses: each prompt asks anew.
@@ -2513,7 +2530,7 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   if (restoredAt >= 0) c.restored = false;
   let said: KeywordKind | null = null;
   let typed = String(e.text ?? '');
-  // `/9` or `/8` without a task: the person's next own message is the task, unless it is a keyword itself.
+  // `/6` or `/tam-otonom` without a task: the person's next own message is the task, unless it is a keyword itself.
   if (human && kind !== 'plugin' && c.armed) {
     const a = c.armed;
     c.armed = null;
@@ -3651,9 +3668,25 @@ async function memoryPromptContext($: $, c: Ctx, kw: KeywordMatch | null): Promi
 
 /** What the strip, the menu and the confirmations show: the mode in effect, the way of working, the flow's place. */
 function viewOf(c: Ctx): StripView {
-  const f = flowRunning(c);
-  const p = f ? progress(f) : null;
-  return { mode: modeNow(c), style: styleOf(c.state.interaction, !!c.run), flow: p ? `${p.at}/${p.of}` : null, fullAutoHere: c.platform !== 'win32' };
+  const style = styleOf(c.state.interaction, !!c.run);
+  return {
+    mode: modeNow(c),
+    style,
+    flow: flowView(c),
+    fullAutoShown: c.config.autonomy.enabled || style === 'full',
+    fullAutoHere: c.platform !== 'win32',
+  };
+}
+
+/** The flow as the strip shows it: working, waiting for approval, paused for another mode, or armed. */
+function flowView(c: Ctx): FlowView | null {
+  if (c.flow && isOpen(c.flow)) {
+    const p = progress(c.flow);
+    const at = `${p.at}/${p.of}`;
+    if (c.flow.status === 'paused') return { at, state: 'paused' };
+    return { at, state: currentStep(c.flow)?.kind === 'approve' ? 'approval' : 'running' };
+  }
+  return c.armed?.kind === 'flow' ? { at: '', state: 'armed' } : null;
 }
 
 const COMMAND_HINT: Record<ControlAction['kind'], MessageKey | null> = {
@@ -3722,17 +3755,46 @@ async function sendAsPerson($: $, c: Ctx, text: string): Promise<string[]> {
 
 /**
  * A press on the strip or on a row of `/devam`'s list: the same control a slash command runs. Its line shows
- * as a toast; its notes for the model go into the conversation at once (read from the running turn's next
- * request too: a press while Claude works is the brake), as rows the person does not see as typed.
+ * as a toast and the strip changes at once; its notes for the model go into the conversation as rows the
+ * person does not see as typed (read from the running turn's next request too: a press while Claude works is
+ * the brake). A mode, a way of working or the flow pressed again within a moment counts as the last press:
+ * Claude hears the end state once, not every step on the way.
  */
 async function press($: $, name: string, args = '', surface?: string): Promise<void> {
   try {
     const r = await control($, name, args, 'strip', surface === undefined || surface === 'terminal' ? 'here' : 'remote');
-    if (r.context?.length) await $.session.append({ message: { type: 'user', content: [{ type: 'text', text: r.context.join('\n\n') }] } });
+    const kind = commandNamed(name)?.kind;
+    if (r.context?.length) {
+      if (kind === 'mode' || kind === 'style' || kind === 'flow') await holdPressNotes($, kind, r.context);
+      else await appendNotes($, r.context);
+    }
     $.ui.toast(name === '0' ? r.text.split('\n')[0]! : r.text, { timeoutMs: 8000 });
   } catch {
     /* a press that cannot act shows nothing; the slash command says why */
   }
+}
+
+/** How long the strip stays still before its presses are told to Claude. */
+const PRESS_QUIET_MS = 2500;
+
+async function appendNotes($: $, notes: readonly string[]): Promise<void> {
+  if (notes.length) await $.session.append({ message: { type: 'user', content: [{ type: 'text', text: notes.join('\n\n') }] } });
+}
+
+async function holdPressNotes($: $, kind: 'mode' | 'style' | 'flow', notes: string[]): Promise<void> {
+  const c = await ctxOf($);
+  const gen = c.heldPress.gen + 1;
+  c.heldPress = { notes: { ...c.heldPress.notes, [kind]: notes }, gen };
+  $.clock.after(PRESS_QUIET_MS, () => {
+    if (c.heldPress.gen === gen) void appendNotes($, takePressNotes(c)).catch(() => undefined);
+  });
+}
+
+/** The held notes, in the strip's order, and none held after: told now (a quiet moment, or with a prompt). */
+function takePressNotes(c: Ctx): string[] {
+  const n = c.heldPress.notes;
+  c.heldPress = { notes: {}, gen: c.heldPress.gen + 1 };
+  return [...(n.mode ?? []), ...(n.flow ?? []), ...(n.style ?? [])];
 }
 
 /** Asks the person to pick one of 2-4 options (or type under "Other"); null when they dismissed it or nobody can be asked. */
@@ -3810,7 +3872,7 @@ async function continueWith($: $, c: Ctx, ch: ContinueChoice, budget: Budget | n
   return { text: tIn(c.lang, 'ctl.continue.started', { label: ch.label }), context: notes };
 }
 
-/** The flow last started in this folder: `/9 <task>` starts the same kind again. */
+/** The flow last started in this folder: `/6 <task>` starts the same kind again. */
 async function lastFlowVariant($: $, c: Ctx): Promise<StartableVariant | null> {
   const cwd = await $.session.cwd();
   const here = pathKey(resolvePath(cwd, pathEnv(c, cwd)), c.platform);
@@ -4023,9 +4085,25 @@ async function control(
       return say(went.text, went.context);
     }
     case 'flow': {
-      const running = flowRunning(c);
-      if (running)
-        return say(tIn(lang, 'ctl.flow.running', { steps: stepsLine(running, lang), cancel: `${tIn(lang, 'kw.kind.flow')} ${tIn(lang, 'flow.word.cancel')}` }));
+      // One button, three answers: an open flow closes (its record stays), a paused one goes on, none starts.
+      if (c.flow && isOpen(c.flow) && c.flow.status !== 'paused') {
+        const r = cancelFlow(c.flow, await $.clock.now());
+        await saveFlow($, c, r.flow);
+        await flowEvent($, c, r.flow, 'cancel');
+        await refreshStatus($, c);
+        return say(tIn(lang, 'ctl.flow.closed'), [flowNote('canceled', r.flow, lang, stepTexts(c, r.flow))]);
+      }
+      if (c.flow && c.flow.status === 'paused') {
+        const cwd = await $.session.cwd();
+        const ctx = await resumeFor($, c, c.state.project, cwd);
+        await refreshStatus($, c);
+        return say(tIn(lang, ctx ? 'ctl.done' : 'ctl.flow.notResumed', { controls: controlsLine(viewOf(c), lang) }), ctx ? [ctx] : []);
+      }
+      if (c.armed?.kind === 'flow') {
+        c.armed = null;
+        await refreshStatus($, c);
+        return say(tIn(lang, 'ctl.flow.disarmed'));
+      }
       if (args) {
         const variant = (await lastFlowVariant($, c)) ?? 'full';
         return say(flowPresetLine(variant, lang), await sendAsPerson($, c, `${args}\n\n${flowPhrase(variant, lang)}`));
@@ -4039,6 +4117,7 @@ async function control(
         return say(lines[0]!, await sendAsPerson($, c, `${answer}\n\n${flowPhrase('full', lang)}`));
       }
       c.armed = { kind: 'flow', variant: FLOW_PRESETS[i]! };
+      await refreshStatus($, c);
       return say(tIn(lang, 'ctl.flow.armed', { steps: lines[i]! }));
     }
     case 'fullAuto': {
@@ -4192,10 +4271,19 @@ export function register(on: On): void {
   });
   // After /clear the conversation goes on under a new session id with a fresh state; a running flow pauses.
   on('session.end', onSessionEnd);
-  // The slash commands of the controls: /0 to /9, /00, /devam, /kota, /akis, /kapat and their English names.
+  // The slash commands of the controls: /0 to /8, /00, /devam, /kota, /akis, /tam-otonom, /kapat and their English names.
   on('command.run', onCommand);
   // Above the prompt: the strip with the mode and the way of working, always in view and pressable; and while a
   // plan waits for approval, a line that says so and how to approve. A question of Claude Code's own goes first.
+  // A press on the breathing control (src/mod/strip-pulse.ts) arrives as a message from its module.
+  on('ui.message', async ($, e, next) => {
+    const data = e.data as { press?: unknown } | null;
+    if (e.module.endsWith('strip-pulse.js') && data && typeof data.press === 'string' && commandNamed(data.press)) {
+      await press($, data.press, '', e.surface);
+      return {};
+    }
+    return next(e);
+  });
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e);
     const labels = await read($, labelsAtom);
@@ -4205,16 +4293,21 @@ export function register(on: On): void {
     const props = e.props as { bodyColumns?: number };
     const columns = Number(props.bodyColumns ?? e.viewport?.columns ?? 80);
     const onPress = (id: string) => (p?: { surface?: string }) => press($, id, '', p?.surface);
-    const item = (it: StripItem) =>
-      h(
-        Button,
-        { key: `strip-${it.id}`, plain: true, onPress: onPress(it.id), ...(it.active ? { variant: 'primary' } : {}) },
-        h(Text, { bold: it.active, inverse: it.active, dimColor: it.dim && !it.active }, it.label),
-      );
-    // Mo at the strip's left, where there is room and the surface draws a module (the terminal, the desktop app;
-    // not a phone): a small Mo beside a strip of two rows, its face beside a strip of one (src/mod/mo-strip.ts).
     const els = $.ui.resolve(e);
     const Client = 'Client' in els ? els.Client : undefined;
+    const still = strip?.still === true;
+    const item = (it: StripItem) =>
+      // The mode a running flow's step works in breathes on Claude Code's clock (src/mod/strip-pulse.ts); with
+      // less motion asked for, or where no module is drawn (a phone), it is marked instead: bold, underlined.
+      it.pulse && Client && !still
+        ? h(Client, { key: `strip-${it.id}`, module: './strip-pulse.js', width: cells(it.label), height: 1, props: { id: it.id, label: it.label } })
+        : h(
+            Button,
+            { key: `strip-${it.id}`, plain: true, onPress: onPress(it.id), ...(it.active ? { variant: 'primary' } : {}) },
+            h(Text, { bold: it.active || !!it.pulse, underline: !!it.pulse, inverse: it.active, dimColor: it.dim && !it.active }, it.label),
+          );
+    // Mo at the strip's left, where there is room and the surface draws a module (the terminal, the desktop app;
+    // not a phone): a small Mo beside a strip of two rows, its face beside a strip of one (src/mod/mo-strip.ts).
     const mo = strip && Client ? await read($, moAtom) : null;
     const withMo = mo !== null && mo.show && columns >= MO_MIN_COLUMNS;
     const rows = strip ? stripRows(strip as StripView, strip.lang as Lang, withMo ? columns - MARK_W - 2 : columns) : [];
