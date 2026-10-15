@@ -184,6 +184,7 @@ test('the pull: a conflict is undone with its files named; a rebase left half do
   const c = await syncMemory(conflicted.runner, input());
   assert.deepEqual([c.pull, c.conflicts, c.push, c.detail], ['conflict', ['MEMORY.md', 'b.md'], 'skipped', 'could not join the changes in MEMORY.md, b.md']);
   assert.ok(conflicted.calls.includes('rebase --abort'));
+  assert.equal(conflicted.calls.filter((c) => c === REBASE).length, 1, 'a conflict is not a lock: no second try');
   const half = fake(
     base({
       [pull]: { exitCode: 1, stderr: 'error: cannot rebase' },
@@ -492,15 +493,28 @@ test('what arrived by another hand since this computer last saw the store is rep
 
 test('only a fast-forward, for a store its owner commits: nothing of theirs is committed, rebased or sent', async () => {
   const ff = MERGE;
+  let calls: string[] = [];
   const run = async (answer: Answer, step = ff) => {
     const a = fake(base({ [step]: answer }));
     const r = await syncMemory(a.runner, input({ pullMode: 'ff-only', steps: { commit: false, pull: true, push: false } }));
     assert.ok(!a.calls.some((c) => c.startsWith('pull') || c.startsWith('commit') || c.startsWith('push') || c.startsWith('rebase')), a.calls.join('|'));
+    calls = a.calls;
     return r;
   };
   assert.equal((await run({})).pull, 'ok');
+  assert.deepEqual(
+    calls.filter((c) => c.startsWith('fetch') || c.startsWith('merge')),
+    [FETCH, MERGE],
+    'a join that went through is not made again',
+  );
+  // A fetch that did not go through: what git said is the detail, and nothing is joined.
+  const unreachable = await run({ exitCode: 128, stderr: 'fatal: unable to access: Could not resolve host: github.com' }, FETCH);
+  assert.deepEqual([unreachable.pull, unreachable.detail], ['offline', 'unable to access: Could not resolve host: github.com']);
+  assert.ok(!calls.includes(MERGE));
+  assert.equal((await run({ exitCode: 1, stdout: 'remote said no' }, FETCH)).detail, 'remote said no', 'printed to stdout');
   const diverged = await run({ exitCode: 128, stderr: "hint: Diverging branches can't be fast-forwarded\nfatal: Not possible to fast-forward, aborting." });
   assert.deepEqual([diverged.pull, diverged.detail], ['diverged', "Diverging branches can't be fast-forwarded"]);
+  assert.equal(calls.filter((c) => c === MERGE).length, 1, 'only a lock is tried again');
   assert.equal((await run({ exitCode: 128, stderr: 'fatal: Not possible to fast-forward, aborting.' })).pull, 'diverged');
   const dirty = await run({
     exitCode: 1,
