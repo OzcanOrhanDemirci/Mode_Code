@@ -84,11 +84,13 @@ History is kept for `sync.keepMonths` (3) months per computer in the shared plac
 
 Many people keep their memory in a repository of their own and commit and push it themselves. `mode-code memory setup` now handles that as well: when the folder you pick is already kept in sync with a repository, it asks how Mode_Code should look after it.
 
-| Mode                       | When a session starts                                                                            | After a turn                   | Files Mode_Code adds to the folder    |
-| -------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------ | ------------------------------------- |
-| Everything (`auto`)        | records what was left, brings in changes (`git pull --rebase`), sends                            | records and sends what changed | handoff notes, if they are kept there |
-| Only bring in (`pull`)     | brings in changes, and only when that needs no merge (`git pull --ff-only`); you commit and push | nothing                        | none                                  |
-| Leave git to me (`manual`) | nothing                                                                                          | nothing                        | none                                  |
+| Mode                       | When a session starts                                                                                           | After a turn                   | Files Mode_Code adds to the folder    |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------ | ------------------------------------- |
+| Everything (`auto`)        | records what was left, brings in changes (a fetch, then `git rebase`), sends                                    | records and sends what changed | handoff notes, if they are kept there |
+| Only bring in (`pull`)     | brings in changes, and only when that needs no merge (a fetch, then `git merge --ff-only`); you commit and push | nothing                        | none                                  |
+| Leave git to me (`manual`) | nothing                                                                                                         | nothing                        | none                                  |
+
+Changes are brought in with a fetch that leaves `FETCH_HEAD` alone and a join with the branch the folder follows, not with `git pull`: a pull reads `FETCH_HEAD`, and when two fetch at the same moment (your own start hook, a second session) git finds several branches there and refuses ("Cannot fast-forward to multiple branches"). This way neither Mode_Code nor your own pull trips on the other.
 
 The default is **Everything** for a repository Mode_Code set up, and **Only bring in** for one of your own. In every mode, what arrived since this computer's last session (whoever brought it in: Mode_Code, your own hook, you) is **told to Claude** with the first prompt, because Claude Code may have loaded the index before it arrived.
 

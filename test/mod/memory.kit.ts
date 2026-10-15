@@ -354,12 +354,12 @@ test("what the start's pull brought in is told with the first prompt, which wait
     if (args[0] === 'status') return { exitCode: 0, stdout: '' };
     if (a === 'rev-parse --verify --quiet HEAD') return { exitCode: 0, stdout: `${moved ? 'def' : 'abc'}\n` };
     if (a === 'rev-parse --abbrev-ref --symbolic-full-name @{upstream}') return { exitCode: 0, stdout: 'origin/main\n' };
-    // The pull takes its time: the prompt comes in while it runs.
-    if (args[0] === 'pull')
-      return pulled.then(() => {
-        moved = true;
-        return { exitCode: 0, stdout: '' };
-      });
+    // The pull's fetch takes its time: the prompt comes in while it runs.
+    if (args[0] === 'fetch') return pulled.then(() => ({ exitCode: 0, stdout: '' }));
+    if (a === 'rebase --autostash --quiet') {
+      moved = true;
+      return { exitCode: 0, stdout: '' };
+    }
     if (a === 'diff --name-only --no-renames --relative -z abc def -- .') return { exitCode: 0, stdout: 'MEMORY.md\0pnpm.md\0' };
     if (a.startsWith('diff --unified=0')) return { exitCode: 0, stdout: '@@ -1,0 +2 @@\n+- [pnpm](pnpm.md) — the package manager\n' };
     if (a === 'rev-list --count @{upstream}..HEAD') return { exitCode: 0, stdout: '0\n' };
@@ -388,7 +388,7 @@ test("what the start's pull brought in is told with the first prompt, which wait
   expect(context).toMatch(/A file read earlier in this session may have changed/);
   const again: any = await $.prompt.submit(typed('And the next step?'));
   expect((again.context ?? []).join('\n')).not.toMatch(/brought up to date/);
-  expect(calls.filter((c) => c.startsWith('pull')).length).toBe(1);
+  expect(calls.filter((c) => c.startsWith('fetch') || c.startsWith('rebase'))).toEqual(['fetch --quiet --no-write-fetch-head', 'rebase --autostash --quiet']);
   expect(w.events().some((e: any) => e.kind === 'memory' && e.trigger === 'start' && e.pulled === 2)).toBe(true);
 });
 
@@ -403,7 +403,8 @@ test('a memory its owner commits: a fast-forward at the start, what arrived sinc
     if (a === 'rev-parse --show-toplevel') return { exitCode: 0, stdout: '/home/ada/notes\n' };
     if (a === 'rev-parse --verify --quiet HEAD') return { exitCode: 0, stdout: `${head}\n` };
     if (a === 'rev-parse --abbrev-ref --symbolic-full-name @{upstream}') return { exitCode: 0, stdout: 'origin/main\n' };
-    if (a === 'pull --ff-only --quiet') {
+    if (a === 'fetch --quiet --no-write-fetch-head') return { exitCode: 0, stdout: '' };
+    if (a === 'merge --ff-only --quiet @{upstream}') {
       head = 'ccccccc';
       return { exitCode: 0, stdout: '' };
     }
@@ -429,7 +430,9 @@ test('a memory its owner commits: a fast-forward at the start, what arrived sinc
   await $.session.start({ source: 'startup', cwd: PROJECT } as any);
   const r: any = await $.prompt.submit(typed('Where were we?'));
   expect(r.context.join('\n')).toMatch(/changes made elsewhere: a\.md, b\.md\. A file read earlier/);
-  expect(calls.some((c) => c.startsWith('commit') || c.startsWith('push') || c.startsWith('pull --rebase') || c.startsWith('status'))).toBe(false);
+  expect(calls.some((c) => c.startsWith('commit') || c.startsWith('push') || c.startsWith('pull') || c.startsWith('rebase') || c.startsWith('status'))).toBe(
+    false,
+  );
   expect(w.json(`${DATA}/state/memory-seen.mod.json`).head).toBe('ccccccc');
   // After a turn: one look at where it stands, nothing else.
   calls.length = 0;

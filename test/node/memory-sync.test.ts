@@ -10,7 +10,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { classifyGitError, syncMemory, type SyncInput } from '../../src/core/memory-sync.js';
+import { classifyGitError, syncMemory, type Runner, type SyncInput } from '../../src/core/memory-sync.js';
 import { commitMessage } from '../../src/core/memory.js';
 import { scanSecrets } from '../../src/core/secrets/scan.js';
 import { lookStore, nodeRunner, recordSync, seenSince, stepsFor } from '../../src/node/memory.js';
@@ -354,6 +354,42 @@ test(
       writeFileSync(join(w.root, 'blocked-file'), 'x');
       assert.doesNotThrow(() => recordSync(blocked, 'cli', 'manual', null, r));
       assert.doesNotThrow(() => lookStore(blocked, a, 'cli'));
+    } finally {
+      w.done();
+    }
+  },
+);
+
+test(
+  'another fetch at the same moment fills FETCH_HEAD with several heads: the pull neither reads it nor writes it',
+  { skip: !hasGit && 'git is not installed' },
+  async () => {
+    const w = world();
+    try {
+      const a = w.clone('a');
+      const stores = { rebase: w.clone('b'), 'ff-only': w.clone('c') } as const;
+      writeFileSync(join(a, 'MEMORY.md'), '# Memory\n- [one](one.md) — first note\n- [two](two.md) — from a\n');
+      run(a, 'commit', '-q', '-am', 'from a');
+      run(a, 'push', '-q');
+      for (const [mode, dir] of Object.entries(stores) as ['rebase' | 'ff-only', string][]) {
+        // What two fetches at once leave (measured on the author's machine, 2026-10-15): a `git pull` reading
+        // this refuses with "Cannot rebase onto multiple branches" or "Cannot fast-forward to multiple branches".
+        const fetchHead = join(dir, '.git', 'FETCH_HEAD');
+        const crowded = `${run(dir, 'rev-parse', 'HEAD')}\t\tbranch 'main' of ${w.remote}\n`.repeat(3);
+        writeFileSync(fetchHead, crowded);
+        const seen: string[] = [];
+        const watching: Runner = {
+          async run(argv, opts) {
+            const r = await nodeRunner.run(argv, opts);
+            if (argv.includes('fetch')) seen.push(readFileSync(fetchHead, 'utf8'));
+            return r;
+          },
+        };
+        const r = await syncMemory(watching, { ...input(dir, 'start'), steps: { commit: false, pull: true, push: false }, pullMode: mode });
+        assert.deepEqual([r.pull, r.detail, r.behind], ['ok', '', 0], mode);
+        assert.match(readFileSync(join(dir, 'MEMORY.md'), 'utf8'), /from a/, mode);
+        assert.deepEqual(seen, [crowded], `${mode}: one fetch, and FETCH_HEAD as the other fetch left it`);
+      }
     } finally {
       w.done();
     }
