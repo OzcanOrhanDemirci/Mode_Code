@@ -225,6 +225,18 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'rule.secrets.stage': 'Genelde sır tutan dosyaları (.env, anahtar dosyaları) commit için hazırlamak.',
   'rule.secrets.write': 'Bir dosyaya sır gibi görünen bir değer yazmak.',
   'rule.meta.unverifiable': 'Kemerin sonuna kadar izleyemediği komutlar (çalışırken üretilen kod); güvenli olduğunu doğrulayamaz.',
+  'rule.data.delete-cloud':
+    'Bulutta duran veriyi silmek: Firebase veritabanları, depolama alanları, yönetilen veritabanları, bulut projeleri, bir GitHub deposu.',
+  'rule.data.write-cloud': 'Canlı bir Firebase Realtime Database verisini komut satırından değiştirmek.',
+  'rule.data.reset-database':
+    'Bir veritabanını düşürmek ya da sıfırlamak (prisma migrate reset, supabase db reset, DROP DATABASE, FLUSHALL …), yerel ya da canlı: komut hangisi olduğunu göstermez.',
+  'rule.system.security-off': 'Güvenlik yazılımını kapatmak ya da zayıflatmak: Defender ve dışlamaları, güvenlik duvarı, hesap denetimi, Gatekeeper, SELinux.',
+  'rule.github.admin-merge': "Bir PR'ı yönetici yetkisiyle, deponun zorunlu denetimlerini atlayarak birleştirmek.",
+  'rule.github.delete': "GitHub'da silmek ya da arşivlemek: sürümler, gizli anahtarlar, değişkenler, etiketler, gist'ler, API DELETE çağrıları.",
+  'rule.outbound.send': 'Bağlı bir servisle göndermek, paylaşmak, davet etmek ya da yanıtlamak (posta, takvim etkinlikleri, sürücüler …).',
+  'rule.outbound.delete': 'Bağlı bir serviste silmek ya da çöpe atmak.',
+  'rule.secrets.exfil':
+    'Bir sırrı bilgisayarın dışına göndermek: anahtar ya da kimlik dosyası yüklemek, bir istek gövdesinde, mesajda ya da belgede sır göndermek.',
 
   'secrets.noTargets': 'Taranacak bir ya da daha fazla dosya veya klasör ver, ya da bir hafıza klasörü ayarla.',
   'secrets.clean': '{n} dosyada sır bulunmadı.',

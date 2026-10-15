@@ -130,7 +130,7 @@ Projelerine Ayarlar › Projeler ve anahtar kelimeler altından ad ver; geri kal
 | **Projeler**    | Çalıştığın her klasör: oturumlar, tokenler, git durumu; her akış, adımları, her denetimin bulduğu ve dosyaları                                                                                                            |
 | **Oturumlar**   | Bu makinedeki her oturum, aranabilir; birini sırları maskeleyerek Markdown olarak dışa aktar                                                                                                                              |
 | **Ölçüm**       | Kota pencereleri, güne ve modele göre token, önbellek isabeti, araç hata oranları                                                                                                                                         |
-| **Güvenlik**    | Her korumanın çalışıp çalışmadığı, 39 kemer kuralı, yakaladıkları, bir sınayıcı, hafızadaki sırlar                                                                                                                        |
+| **Güvenlik**    | Her korumanın çalışıp çalışmadığı, 48 kemer kuralı, yakaladıkları, bir sınayıcı, hafızadaki sırlar                                                                                                                        |
 | **Claude Code** | Kurulumunun salt okunur haritası: talimat dosyaları ve hafıza sınırı, ayar kaynakları, hook'lar, izin kuralları, MCP sunucuları, eklentiler; ve kural şablonları (herkese açık depo, üretim sunucusu, Flutter, tek dal …) |
 | **Ayarlar**     | Aracın kendi ayarları, yerinde düzenlenir                                                                                                                                                                                 |
 
@@ -234,7 +234,7 @@ Projelerine Ayarlar › Projeler ve anahtar kelimeler altından ad ver; kendi if
 
 ## Emniyet kemeri
 
-Dokuz grupta 39 kural: git, dosyalar ve diskler, kendini koruma, Claude Code yapılandırması, kendiliğinden başlayan şeyler, yayınlama, Docker (sunucular için isteğe bağlı paket), sırlar ve kemerin izleyemediği komutlar. Her kural engeller, sorar, not düşer ya da izin verir; bunu kural kural değiştirebilirsin. **Kilitli kurallar** korumanın kendisini korur (Claude Code ayarların, aracın kendi dosyaları, hafıza klasörün, hook'lar): sıkılaştırılabilir, asla gevşetilemez; sohbette onay vermek onları değiştirmeye yetmez.
+On iki grupta 48 kural: git ve GitHub, dosyalar ve diskler, kendini koruma, Claude Code yapılandırması, kendiliğinden başlayan şeyler, yayınlama, Docker (sunucular için isteğe bağlı paket), buluttaki ve veritabanlarındaki veri, güvenlik yazılımı, bağlı servisler (posta, takvim, sürücüler), sırlar (bir sırrın bilgisayardan çıkması istisnasız engellenir) ve kemerin izleyemediği komutlar. Her kural engeller, sorar, not düşer ya da izin verir; bunu kural kural değiştirebilirsin. **Kilitli kurallar** korumanın kendisini korur (Claude Code ayarların, aracın kendi dosyaları, hafıza klasörün, hook'lar): sıkılaştırılabilir, asla gevşetilemez; sohbette onay vermek onları değiştirmeye yetmez.
 
 Kemer bash, PowerShell ve cmd sözdizimini okur; `sudo`, `env`, `bash -c` ve yorumlayıcıların içine bakar; `git -C`, `-c` ve takma adları izler; çalışırken üretilen kodu güvenli kanıtlanmış saymaz, sorar. Eklenti sana sorduğunda verdiğin karar yalnız o çağrıyı kapsar.
 

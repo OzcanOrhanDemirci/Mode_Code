@@ -130,7 +130,7 @@ Name your projects under Settings › Projects and keywords; everything else wor
 | **Projects**    | Every folder you worked in: sessions, tokens, git state; and every flow, its steps, what each check found, its files                                                                                                     |
 | **Sessions**    | Every session on this machine, searchable; export one as Markdown with secrets masked                                                                                                                                    |
 | **Measure**     | Quota windows, tokens by day and model, cache hit rate, tool error rates                                                                                                                                                 |
-| **Security**    | Whether each protection runs, all 39 belt rules, what they caught, a tester, secrets in memory                                                                                                                           |
+| **Security**    | Whether each protection runs, all 48 belt rules, what they caught, a tester, secrets in memory                                                                                                                           |
 | **Claude Code** | A read-only map of your setup: instruction files and the memory limit, settings sources, hooks, permission rules, MCP servers, plugins; and rule templates (public repository, production server, Flutter, one branch …) |
 | **Settings**    | The tool's own settings, edited in place                                                                                                                                                                                 |
 
@@ -232,7 +232,7 @@ Name your projects under Settings › Projects and keywords, and add your own ph
 
 ## The safety belt
 
-39 rules in nine groups: git, files and disks, self-protection, Claude Code configuration, things that start by themselves, publishing, Docker (an optional pack for servers), secrets, and commands the belt cannot follow. Each rule blocks, asks, notes or allows; you can change that per rule. **Locked rules** protect the protection itself (your Claude Code settings, the tool's own files, your memory folder, hooks): they can be made stricter, never weaker, and agreeing in the chat is not enough to change them.
+48 rules in twelve groups: git and GitHub, files and disks, self-protection, Claude Code configuration, things that start by themselves, publishing, Docker (an optional pack for servers), data in the cloud and in databases, security software, connected services (mail, calendars, drives), secrets (a secret leaving the computer is blocked without exception), and commands the belt cannot follow. Each rule blocks, asks, notes or allows; you can change that per rule. **Locked rules** protect the protection itself (your Claude Code settings, the tool's own files, your memory folder, hooks): they can be made stricter, never weaker, and agreeing in the chat is not enough to change them.
 
 The belt reads bash, PowerShell and cmd syntax, unwraps `sudo`, `env`, `bash -c` and interpreters, follows `git -C`, `-c` and aliases, and treats code built at run time as something to ask about rather than something proven safe. When the plugin asks you, the decision covers that one call and nothing else.
 

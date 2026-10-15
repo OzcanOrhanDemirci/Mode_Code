@@ -232,6 +232,17 @@ export const enUi = {
   'rule.secrets.stage': 'Staging files that usually hold secrets (.env, key files) for a commit.',
   'rule.secrets.write': 'Writing what looks like a secret into a file.',
   'rule.meta.unverifiable': 'Commands the belt cannot follow all the way (code built at run time), so it cannot confirm they are safe.',
+  'rule.data.delete-cloud':
+    'Deleting data that lives in the cloud: Firebase databases, storage buckets, managed databases, cloud projects, a GitHub repository.',
+  'rule.data.write-cloud': 'Overwriting data in a live Firebase Realtime Database from the command line.',
+  'rule.data.reset-database':
+    'Dropping or resetting a database (prisma migrate reset, supabase db reset, DROP DATABASE, FLUSHALL …), local or live: the command does not show which.',
+  'rule.system.security-off': 'Turning off or weakening security software: Defender and its exclusions, the firewall, account control, Gatekeeper, SELinux.',
+  'rule.github.admin-merge': "Merging a pull request with admin rights, past the repository's required checks.",
+  'rule.github.delete': 'Deleting or archiving on GitHub: releases, secrets, variables, labels, gists, API DELETE calls.',
+  'rule.outbound.send': 'Sending, sharing, inviting or answering through a connected service (mail, calendar events, drives …).',
+  'rule.outbound.delete': 'Deleting or trashing in a connected service.',
+  'rule.secrets.exfil': 'Sending a secret off the computer: uploading a key or credential file, a secret in a request body, a message or a document.',
 
   // ── secrets ──
   'secrets.noTargets': 'Give one or more files or folders to scan, or set a memory folder.',

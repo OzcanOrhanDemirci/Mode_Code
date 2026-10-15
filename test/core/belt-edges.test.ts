@@ -12,13 +12,14 @@ import type { RuleId } from '../../src/core/belt/types.js';
 import { couldBeShortName, pathKey, resolvePath } from '../../src/core/paths.js';
 import { bash, linuxCtx, macCtx, summary, winCtx, write } from '../helpers/belt.js';
 
-test('the locked rules are exactly the ones that guard the guard, files and disks, and what cannot be read', () => {
+test('the locked rules are exactly the ones that guard the guard, files and disks, secrets leaving, and what cannot be read', () => {
   const locked = RULE_IDS.filter((id) => RULES[id].locked).sort();
   assert.deepEqual(locked, [
     'fs.delete-critical',
     'fs.disk',
     'fs.move-critical',
     'meta.unverifiable',
+    'secrets.exfil',
     'self.claude-settings',
     'self.claude-settings-project',
     'self.disable-hooks',

@@ -70,6 +70,15 @@ export const tr: Record<MessageKey, string> = {
   'belt.reason.disableHooks': "Hook'lar kapatılıyor ya da yalnız yönetilen hook'larla sınırlanıyor: {command}",
   'belt.reason.secretInFile':
     '{target} dosyasına sır gibi görünen bir değer yazılıyor ({kinds}). Sırları commit edilebilecek ya da paylaşılabilecek dosyalara koyma.',
+  'belt.reason.deleteCloud': 'Bulutta duran veri siliniyor (bir veritabanı, bir depolama alanı, bir depo): {command}',
+  'belt.reason.writeCloud': 'Canlı bir Firebase veritabanındaki veri değiştiriliyor: {command}',
+  'belt.reason.resetDatabase': 'Bir veritabanı düşürülüyor ya da sıfırlanıyor, içindeki veri de gidiyor: {command}',
+  'belt.reason.securityOff': 'Güvenlik yazılımı kapatılıyor ya da zayıflatılıyor (antivirüs, güvenlik duvarı, hesap denetimi): {command}',
+  'belt.reason.exfil': 'Bir sır bu bilgisayarın dışına gönderiliyor ({what}). Emniyet kemeri buna bypass dahil hiçbir zaman izin vermez.',
+  'belt.reason.adminMerge': 'Yönetici yetkisiyle, deponun zorunlu denetimleri ve dal kuralları atlanarak birleştiriliyor: {command}',
+  'belt.reason.githubDelete': "GitHub'da bir şey siliniyor ya da arşivleniyor: {command}",
+  'belt.reason.outboundSend': 'Bağlı bir servisle gönderiliyor, paylaşılıyor ya da davet ediliyor ({tool}): başkalarına ulaşır ve geri alınamaz.',
+  'belt.reason.outboundDelete': 'Bağlı bir serviste bir şey siliniyor ya da çöpe atılıyor ({tool}).',
   'belt.word.currentBranchUnknown': '(şu anki dal, bilinmiyor)',
   'belt.head.deny': '🛡 Emniyet kemeri engelledi:',
   'belt.head.ask': '🛡 Emniyet kemeri onay istiyor:',
@@ -77,6 +86,8 @@ export const tr: Record<MessageKey, string> = {
   'belt.tail.deny':
     'Bunu dolanmaya çalışma (başka yazımla, başka araçla ya da betikle). Kullanıcıya ne yapmak istediğini ve nedenini söyle. Gerçekten gerekiyorsa komutu ! önekiyle kendisi çalıştırabilir.',
   'belt.tail.ask': 'Yalnız gerçekten bunu istiyorsan onayla.',
+  'belt.tail.bypass': 'Bypass açıkken (kontrol merkezi › Otomasyon › Bypass, kullanıcı açar) bu engellenmez, sorulur.',
+  'belt.tail.floor': 'Bypass açık, bu yine de soruluyor: geri alınamaz.',
   'belt.tail.repeat': 'Bu kural bu oturumda {n} denemeyi engelledi. Yeniden deneme: dur ve kullanıcıya bildir.',
 
   'footer.yes': 'Evet',

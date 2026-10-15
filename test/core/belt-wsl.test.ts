@@ -60,7 +60,8 @@ test("deleting the distribution's root, home or system folders is refused", asyn
 
 test('the Windows drives it mounts are Windows paths, protected as on Windows; relative paths follow where wsl starts', async () => {
   const claude = await judge('wsl -d dev -- rm -rf /mnt/c/Users/ada/.claude');
-  assert.deepEqual([claude.verdict, claude.rules], ['deny', ['fs.delete-critical']]);
+  // Claude Code's own folder is self-protection, not just a critical folder: bypass never opens it.
+  assert.deepEqual([claude.verdict, claude.rules], ['deny', ['self.claude-settings']]);
   assert.equal((await judge('wsl -- rm -rf build')).verdict, 'allow', 'wsl starts in the Windows folder, inside the project');
   const cd = await judge('wsl --cd ~ -- rm -rf build');
   assert.match(cd.reasons, /\/\/wsl\.localhost\/<default>\/~\/build/);

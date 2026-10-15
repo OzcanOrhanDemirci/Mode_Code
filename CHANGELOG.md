@@ -4,7 +4,22 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- Safety belt: nine rules, 48 in all. Deleting data in the cloud (Firebase, storage buckets, managed databases, cloud projects, a GitHub repository) is blocked; overwriting a live Firebase database and dropping or resetting a database are asked. Turning off or weakening security software (Defender and its exclusions, the firewall, account control, Gatekeeper, SELinux) is blocked. Merging a pull request with admin rights past the required checks, and deleting or archiving on GitHub, are asked. A secret leaving the computer (a key or credential file uploaded, a secret in a request body, a message or a document) is blocked, locked, without exception.
+- Safety belt: calls to connected services (MCP servers) are checked. Sending, replying, forwarding, sharing, inviting and calendar events are asked; deleting or trashing there is asked; reading is not.
+- Bypass tiers in the rule catalog (`docs/safety-belt.md`, "Bypass"): self-protection and secrets never lift; deleting a drive root, a system folder or cloud data, formatting a disk and turning security software off are blocked without bypass and asked with it; the rest is let through with bypass on and recorded. A block of the second tier says how bypass changes it.
+- The rules of an older setup folded into the belt, each with a sample it must ask about or block: 78 permission rules from Claude Code's managed settings and a memory system's command guards (`test/corpus/automation-parity.test.ts`).
+
+### Changed
+
+- Deleting or moving this tool's folder or Claude Code's folder is self-protection (`self.tool-files`, `self.claude-settings`), no longer a critical folder: no setting and no bypass opens it.
+- Deleting a Docker volume (the optional pack), outside the project, a `.git` folder or staging a secrets file are asked even with bypass on.
+
 ### Fixed
+
+- Repositories cloned over SSH (`git@github.com:me/app.git`) escaped the pull-request-only and one-branch rules: the remote kept its colon and matched no `github.com/me/app` rule. Every spelling of a remote is now the same repository, on both sides of the comparison.
+- Package runners in PowerShell (`npx`, `pnpm dlx`, `bunx`) were not read as the program they run, so `npx firebase database:remove` in PowerShell went unchecked; in bash it was.
 
 - Chat, research and plan mode no longer refuse reading commands that ask about machine-wide packages (`npm root -g`, `npm ls -g`, `npm outdated -g`): `-g` counted as a machine-wide install before the reading subcommand was looked at. They also run this tool's own commands that only print (`mode-code status`, `mode-code belt rules`, `mode-code memory handoff`, `mode-code config get` …); `mode-code` on its own, `doctor`, and the commands that change settings or the session index are still refused there. `pnpm store prune` is no longer taken for a read.
 
