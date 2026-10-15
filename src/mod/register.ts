@@ -4500,7 +4500,8 @@ export function register(on: On): void {
               {
                 bold: it.active || !!it.pulse,
                 underline: !!it.pulse,
-                inverse: it.active,
+                // A control in danger's colour is not filled: on a red ground the coloured ⚡ would vanish.
+                inverse: it.active && !it.alert,
                 ...(it.alert ? { color: 'error' } : {}),
               },
               it.label,

@@ -87,7 +87,7 @@ test("Claude Code's own question: its mode's is answered and recorded; one a set
   expect(((await ($.tool as any).check({ tool: 'Edit', input: { file_path: '/etc/hosts' }, tool_use_id: 'toolu_3' })) as any).decision).toBe('ask');
 });
 
-test('on the strip: ⚡ once turned on, red while on with the calls it let through; pressed, it turns off', async ($, on) => {
+test('on the strip: ⚡ once turned on, red and unfilled while on with the calls it let through; pressed, it turns off', async ($, on) => {
   const w = world(on, { config: enabled, answer: 'allow' });
   await run($, '4');
   const strip = async () => {
@@ -99,7 +99,8 @@ test('on the strip: ⚡ once turned on, red while on with the calls it let throu
   expect((await strip())?.text).toBe('⚡ bypass');
   await run($, 'bypass');
   await bash($, 'npm publish');
-  expect(await strip()).toMatchObject({ text: '⚡ bypass · 1', props: { inverse: true, color: 'error' } });
+  // Red and bold, not filled: on a red ground the coloured ⚡ would vanish.
+  expect(await strip()).toMatchObject({ text: '⚡ bypass · 1', props: { inverse: false, bold: true, color: 'error' } });
   const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
   await ui.press({ key: 'strip-bypass' });
   await ui.unmount();
