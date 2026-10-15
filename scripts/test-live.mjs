@@ -432,9 +432,7 @@ function syncCases() {
     !/\bNONE\b/.test(told.final?.result ?? 'NONE') && words.some((w) => (told.final?.result ?? '').toLowerCase().includes(w)),
     String(told.final?.result ?? told.stderr).slice(0, 80),
   );
-  const toast = told.events.some(
-    (e) => e.type === 'system' && e.subtype === 'ui_toast' && /it would lower a protection here: belt\.verdicts/.test(e.text ?? ''),
-  );
+  const toast = told.events.some((e) => e.type === 'system' && e.subtype === 'ui_toast' && /it lowers a protection: belt\.verdicts/.test(e.text ?? ''));
   const inEffect = laptop.cli('config', 'get', 'belt.verdicts').stdout.replace(/\s+/g, '');
   check(
     'sync: the softened rule waited for the person, who was told, and is not in effect',
