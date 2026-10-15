@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { en } from '../../src/core/i18n/en.js';
 import { tr } from '../../src/core/i18n/tr.js';
 import { cells } from '../../src/core/controls.js';
+import { APP_ID, APP_NAME } from '../../src/core/app.js';
 
 /** The toast box: columns of text (a little under what was measured, for the frame) and lines before the cut. */
 const COLUMNS = 38;
@@ -79,6 +80,13 @@ const TOAST_KEYS = [
   ]),
 ].sort();
 
+/**
+ * The tool's names as long as they ship (nine letters each), written as letters a rename does not rewrite: a
+ * renamed copy (the rename rehearsal) measures the same texts, not a longer name in them.
+ */
+const SHIPPED_ID = 'i'.repeat(9);
+const SHIPPED_NAME = 'N'.repeat(9);
+
 /** Sample values: the longest a parameter usually is; anything else a word of eight letters. */
 const SAMPLE: Record<string, string> = {
   controls: '🔍 araştırma · otonom · akış 2/4 · ⚡ bypass · 12',
@@ -94,11 +102,17 @@ const SAMPLE: Record<string, string> = {
   target: '%99',
   budget: '+10',
   checks: 'Güvenlik ağı, Proje',
-  cmd: 'mode-code sync',
+  cmd: `${SHIPPED_ID} sync`,
 };
 
+/** `text` with its parameters filled and the tool's names as long as they ship. */
 function filled(text: string): string {
-  return text.replace(/\{(\w+)\}/g, (_, p: string) => SAMPLE[p] ?? 'xxxxxxxx');
+  return text
+    .split(APP_ID)
+    .join(SHIPPED_ID)
+    .split(APP_NAME)
+    .join(SHIPPED_NAME)
+    .replace(/\{(\w+)\}/g, (_, p: string) => SAMPLE[p] ?? 'xxxxxxxx');
 }
 
 /** Lines the box takes for `text`, wrapped at word boundaries as a terminal box wraps. */
