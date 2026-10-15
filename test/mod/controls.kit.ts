@@ -656,3 +656,18 @@ test('"00" on the strip closes too, from the phone as well; an exit Claude Code 
   await phone.unmount();
 });
 
+test('a keyword typed with a slash is applied and said so; one typo from a keyword is offered, not applied', async ($, on) => {
+  const w = world(on, { lang: 'tr', answer: 'third' });
+  await run($, '6');
+  await $.prompt.submit(typed('Önbellek neden yavaş?'));
+  const id = w.modState().flowId;
+  const slash: any = await $.prompt.submit(typed('/akış iptal'));
+  expect(w.json(`${DATA}/flows/${id}/flow.json`).status).toBe('canceled');
+  expect(w.toasts.some((t: string) => /akış iptal anahtar kelimesi olarak anlaşıldı \(\/akış iptal yazılmıştı\)/.test(t))).toBe(true);
+  expect((slash.context ?? []).join('\n')).toMatch(/canceled the flow/);
+  await run($, '4');
+  const near: any = await $.prompt.submit(typed('serbes'));
+  expect(w.modState().mode).toBe('code');
+  expect(w.toasts.at(-1)).toMatch(/"serbes" bir anahtar kelimeye benziyor: "serbest" mi demek istedin\?/);
+  expect((near.context ?? []).join('\n')).toMatch(/looks like the keyword "serbest" with a typo; it was not applied/);
+});

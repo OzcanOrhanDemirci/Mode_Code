@@ -296,3 +296,8 @@ export function flowNote(kind: 'canceled' | 'approved', f: Flow, lang: Lang, t: 
   if (kind === 'canceled') return `${P} The person canceled the flow ${f.id}. Stop its work and say in one line what was left where.`;
   return `${P} The person approved the plan by typing. ${stepGuidance(f, lang, t)}`;
 }
+
+/** Told to the model when the person's message is one typo from a keyword, which was therefore not applied. */
+export function nearKeywordNote(keyword: string): string {
+  return `${P} The person's message looks like the keyword "${keyword}" with a typo; it was not applied. If they meant it, they type it exactly as "${keyword}"; otherwise read the message as it is.`;
+}

@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- A keyword typed with a slash in front (`/akış iptal`) is that keyword, and a notice says how it was read; a message one typo from a keyword (`akış iptl`, `serbes`) is offered ("did you mean …?") and never applied.
 - Safety belt: nine rules, 48 in all. Deleting data in the cloud (Firebase, storage buckets, managed databases, cloud projects, a GitHub repository) is blocked; overwriting a live Firebase database and dropping or resetting a database are asked. Turning off or weakening security software (Defender and its exclusions, the firewall, account control, Gatekeeper, SELinux) is blocked. Merging a pull request with admin rights past the required checks, and deleting or archiving on GitHub, are asked. A secret leaving the computer (a key or credential file uploaded, a secret in a request body, a message or a document) is blocked, locked, without exception.
 - Safety belt: calls to connected services (MCP servers) are checked. Sending, replying, forwarding, sharing, inviting and calendar events are asked; deleting or trashing there is asked; reading is not.
 - Bypass tiers in the rule catalog (`docs/safety-belt.md`, "Bypass"): self-protection and secrets never lift; deleting a drive root, a system folder or cloud data, formatting a disk and turning security software off are blocked without bypass and asked with it; the rest is let through with bypass on and recorded. A block of the second tier says how bypass changes it.

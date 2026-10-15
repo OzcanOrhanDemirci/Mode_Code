@@ -140,6 +140,8 @@ export const en = {
   // ── keywords as the person sees them ──
   'kw.toast': 'Keyword: {kind}{project}',
   'kw.toast.unknownProject': 'Keyword: {kind} · "{text}" is not a registered project',
+  'kw.slashTaken': 'Read as the keyword {keyword} (typed as {typed}).',
+  'kw.didYouMean': '"{typed}" looks like the keyword "{keyword}". Did you mean it? Then type it exactly; nothing was changed.',
   'kw.kind.continue': 'continue',
   'kw.kind.manual': 'manual',
   'kw.kind.manualStyle': 'manual',

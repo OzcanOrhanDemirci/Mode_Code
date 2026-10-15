@@ -28,8 +28,11 @@ import {
   isModeKeyword,
   messageWithoutKeyword,
   MODE_KEYWORDS,
+  nearKeyword,
+  withoutSlash,
   type KeywordKind,
   type KeywordMatch,
+  type NearKeyword,
 } from '../core/keywords.js';
 import {
   actionKeyword,
@@ -74,6 +77,7 @@ import {
   flowStartContext,
   flowTurnContext,
   keywordContext,
+  nearKeywordNote,
   resumePrompt,
   stepGuidance,
   stepName,
@@ -2530,6 +2534,14 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   if (restoredAt >= 0) c.restored = false;
   let said: KeywordKind | null = null;
   let typed = String(e.text ?? '');
+  // A keyword typed with a slash in front (`/akış iptal`) is that keyword; the person is told how it was read.
+  if (human && kind !== 'plugin' && c.config.modules.keywords) {
+    const bare = withoutSlash(typed, projectRefs(c.config), keywordTables(c.config));
+    if (bare !== null) {
+      $.ui.toast(tIn(c.lang, 'kw.slashTaken', { typed: typed.trim(), keyword: bare }));
+      typed = bare;
+    }
+  }
   // `/6` or `/tam-otonom` without a task: the person's next own message is the task, unless it is a keyword itself.
   if (human && kind !== 'plugin' && c.armed) {
     const a = c.armed;
@@ -2545,6 +2557,15 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
     extra.push(...turn.context);
     flowSaid = turn.flow;
     said = turn.kind;
+  }
+  // One typo from a keyword: never applied, offered (the person, 2026-10-15: "others will make it too").
+  if (human && kind !== 'plugin' && said === null && c.config.modules.keywords) {
+    const near = nearKeyword(typed, keywordTables(c.config));
+    if (near) {
+      const keyword = nearLabel(near);
+      $.ui.toast(tIn(c.lang, 'kw.didYouMean', { typed: typed.trim().slice(0, 60), keyword }), { timeoutMs: 10_000 });
+      extra.push(nearKeywordNote(keyword));
+    }
   }
   if (restoredAt >= 0 && said !== 'continue' && said !== 'manual') {
     const cwd = await $.session.cwd();
@@ -2712,6 +2733,18 @@ async function resumeFor($: $, c: Ctx, project: string | null, cwd: string): Pro
   await flowEvent($, c, r.flow, 'resume');
   $.ui.toast(tIn(c.lang, 'flow.toast.resumed', { step: stepName(currentStep(r.flow)?.kind ?? 'research', c.lang) }));
   return flowResumeContext(r.flow, c.lang, stepTexts(c, r.flow));
+}
+
+/** A keyword as the person types it, in its own language: "akış iptal", "tam otonom", "serbest". */
+function nearLabel(k: NearKeyword): string {
+  const w = (key: string) => tIn(k.lang, key as MessageKey);
+  if (k.kind === 'flow') {
+    if (k.flow === 'cancel') return w('flow.word.cancel');
+    const extra = k.flow === 'plan' ? 'kw.kind.plan' : k.flow === 'research' ? 'kw.kind.research' : null;
+    return extra ? `${w('kw.kind.flow')} ${w(extra)}` : w('kw.kind.flow');
+  }
+  if (k.kind === 'fullAuto' && k.auto === 'cancel') return `${w('kw.kind.fullAuto')} ${w('kw.word.cancel')}`;
+  return w(`kw.kind.${k.kind}`);
 }
 
 /** "flow", "flow plan", "flow research", "flow cancel". */

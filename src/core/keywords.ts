@@ -351,6 +351,65 @@ export function detectKeyword(
   return null;
 }
 
+/**
+ * A keyword typed with a slash in front, as the whole message (`/akış iptal`): the person meant the keyword.
+ * Claude Code runs its own commands and this tool's, so only a slash text that is no command arrives as a
+ * message. The message without its slash when the rest is a keyword on its own, else null.
+ */
+export function withoutSlash(
+  prompt: string,
+  projects: readonly ProjectRef[] = [],
+  tables: Partial<Record<Lang, KeywordTable>> = DEFAULT_KEYWORDS,
+): string | null {
+  const m = /^\s*\/(\S[^\n]*)$/.exec(prompt.trim());
+  if (!m) return null;
+  const rest = m[1]!.trim();
+  const kw = detectKeyword(rest, projects, tables);
+  return kw && kw.standalone ? rest : null;
+}
+
+/** A keyword a message almost is (see nearKeyword): what it would have been. */
+export type NearKeyword = Pick<KeywordMatch, 'kind' | 'lang' | 'flow' | 'auto'>;
+
+/**
+ * The keyword a short message almost is: one typo from a phrase of two words or more, or of five letters or
+ * more (`akış iptl`, `/akis ipal`, `serbes`), with or without a slash. Never applied, only offered: the rule
+ * for a project name one typo away. Short words ("kot", "pln") and longer messages are left alone, or
+ * everyday typing would set it off.
+ */
+export function nearKeyword(prompt: string, tables: Partial<Record<Lang, KeywordTable>> = DEFAULT_KEYWORDS): NearKeyword | null {
+  const own = ownWords(prompt);
+  if (own.pasted || /^\s*</.test(own.text)) return null;
+  const text = fold(own.text.replace(/^\s*\//, ''))
+    .replace(/[.!?…]+$/, '')
+    .trim();
+  if (!text || /\n/.test(own.text.trim()) || text.split(' ').length > 3) return null;
+  let best: { d: number; near: NearKeyword } | null = null;
+  for (const [lang, t] of Object.entries(tables) as [Lang, KeywordTable][]) {
+    const phrases: [string, NearKeyword][] = [];
+    for (const list of KEYWORD_LISTS) {
+      if (list === 'cancel' || list === 'quota') continue;
+      const kind: KeywordKind = list === 'manual' ? 'manualStyle' : list;
+      for (const p of t[list] ?? []) phrases.push([fold(p), { kind, lang, ...(list === 'flow' ? { flow: 'full' as const } : {}) }]);
+    }
+    for (const f of t.flow ?? [])
+      for (const [rest, flow] of [
+        [t.cancel, 'cancel'],
+        [t.plan, 'plan'],
+        [t.research, 'research'],
+      ] as const)
+        for (const r of rest ?? []) phrases.push([fold(`${f} ${r}`), { kind: 'flow', lang, flow }]);
+    for (const a of t.fullAuto ?? []) for (const c of t.cancel ?? []) phrases.push([fold(`${a} ${c}`), { kind: 'fullAuto', lang, auto: 'cancel' }]);
+    for (const [p, near] of phrases) {
+      if (p === text) return null; // a keyword itself: detectKeyword's to judge
+      if (!p.includes(' ') && p.length < 5) continue;
+      const d = editDistance(text, p, 1);
+      if (d <= 1 && (!best || d < best.d)) best = { d, near };
+    }
+  }
+  return best?.near ?? null;
+}
+
 /** "araştırma plan", "research plan": the flow that researches, plans, and stops before any code. */
 function researchThenPlan(t: KeywordTable, rest: string): boolean {
   const words = rest.split(' ');

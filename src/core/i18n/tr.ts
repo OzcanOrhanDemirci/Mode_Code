@@ -136,6 +136,8 @@ export const tr: Record<MessageKey, string> = {
 
   'kw.toast': 'Anahtar kelime: {kind}{project}',
   'kw.toast.unknownProject': 'Anahtar kelime: {kind} · "{text}" kayıtlı bir proje değil',
+  'kw.slashTaken': '{keyword} anahtar kelimesi olarak anlaşıldı ({typed} yazılmıştı).',
+  'kw.didYouMean': '"{typed}" bir anahtar kelimeye benziyor: "{keyword}" mi demek istedin? Öyleyse aynen yaz; hiçbir şey değişmedi.',
   'kw.kind.continue': 'devam',
   'kw.kind.manual': 'manuel',
   'kw.kind.manualStyle': 'manuel',

@@ -1,7 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_KEYWORDS, detectKeyword, messageWithoutKeyword, ownWords, reservedWords, type ProjectRef } from '../../src/core/keywords.js';
+import {
+  DEFAULT_KEYWORDS,
+  detectKeyword,
+  messageWithoutKeyword,
+  nearKeyword,
+  ownWords,
+  reservedWords,
+  withoutSlash,
+  type ProjectRef,
+} from '../../src/core/keywords.js';
 
 const projects: ProjectRef[] = [
   { id: 'terminal_code', names: ['terminal'] },
@@ -222,4 +231,28 @@ test("a keyword table without full-autonomy phrases (a person's own table) has n
   const tables = { en: { ...DEFAULT_KEYWORDS.en, fullAuto: [] } };
   assert.equal(detectKeyword('full auto', [], tables), null);
   assert.equal(detectKeyword('continue', [], tables)?.kind, 'continue');
+});
+
+test('a keyword typed with a slash in front is that keyword; a slash before anything else is not one', () => {
+  // Measured 2026-10-15: "/akış iptal" went to Claude as a message and nothing was canceled.
+  assert.equal(withoutSlash('/akış iptal', projects), 'akış iptal');
+  assert.equal(withoutSlash('  /plan  ', projects), 'plan');
+  assert.equal(withoutSlash('/terminal devam', projects), 'terminal devam');
+  assert.equal(withoutSlash('/akış iptal ve sonra bak', projects), null, 'a keyword must be the whole message');
+  assert.equal(withoutSlash('/review the diff', projects), null);
+  assert.equal(withoutSlash('akış iptal', projects), null, 'no slash, nothing to take off');
+});
+
+test('one typo from a keyword is offered, never taken; short words and longer messages are left alone', () => {
+  assert.deepEqual(nearKeyword('akış iptl'), { kind: 'flow', lang: 'tr', flow: 'cancel' });
+  assert.deepEqual(nearKeyword('/akis ipal'), { kind: 'flow', lang: 'tr', flow: 'cancel' });
+  assert.deepEqual(nearKeyword('serbes'), { kind: 'free', lang: 'tr' });
+  assert.deepEqual(nearKeyword('arastrma'), { kind: 'research', lang: 'tr' });
+  assert.deepEqual(nearKeyword('flow cancle'), { kind: 'flow', lang: 'en', flow: 'cancel' });
+  assert.deepEqual(nearKeyword('full auto cancl'), { kind: 'fullAuto', lang: 'en', auto: 'cancel' });
+  for (const t of ['akış iptal', 'sohbet', 'kot', 'pln', 'kd', 'bu işi yarın yapalım', 'merhaba', 'akış iptl\nve başka bir satır'])
+    assert.equal(nearKeyword(t), null, t);
+  assert.equal(nearKeyword('<task-notification>akış iptl</task-notification>'), null, 'not the person typing');
+  // Nothing it offers is detected as typed: an offer is never applied.
+  for (const t of ['akış iptl', 'serbes', 'arastrma']) assert.equal(detectKeyword(t, projects), null, t);
 });
