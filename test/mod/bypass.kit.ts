@@ -39,7 +39,8 @@ test('only the person turns bypass or full autonomy on: a command from anywhere 
 test('turned on: asked once; the belt lets through and records; self-protection and secrets stay; the floor is asked', async ($, on) => {
   const w = world(on, { config: enabled, answer: 'allow' });
   const r = await run($, 'bypass');
-  expect(w.asked.at(-1)).toMatch(/^Turn bypass on for 2 h\?/);
+  // Short: the tiers are told under Automation › Bypass, not in the question.
+  expect(w.asked.at(-1)).toBe('Turn bypass on for 2 h? Claude works without asking in this session; every call is recorded.');
   expect(r.text).toMatch(/^Bypass on until .+ \(2 h\)\. \/bypass, or ⚡ on the strip, turns it off\.$/);
   expect(r.context.join('\n')).toMatch(/Bypass is on\. The person turned it on themselves, for 2 h/);
   expect(w.modState().bypass).toMatchObject({ count: 0 });

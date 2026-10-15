@@ -36,8 +36,8 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.personOnly': '{cmd} komutunu yalnız sen çalıştırabilirsin: şeritten ya da kendin yazarak, burada ya da telefonda.',
   // ── bypass ──
   'ctl.bypass.notEnabled': 'Bypass açılmamış. Kontrol merkezinden aç: Otomasyon › Bypass (/0 açar).',
-  'ctl.bypass.confirm':
-    "Bypass {hours} saatliğine açılsın mı? Bu oturumda hiçbir şey sorulmaz: emniyet kemeri soracağı ya da engelleyeceği şeyleri geçirir ve her çağrıyı kaydeder. Mode_Code'u, Claude Code ayarlarını ya da hafızayı değiştirmek ve bir sırrı bilgisayarın dışına göndermek yine engellenir; sürücü kökünü, sistem klasörünü ya da buluttaki veriyi silmek, diski biçimlemek ve güvenlik yazılımını kapatmak yine sorulur.",
+  // Kısa: neyi kaldırdığı ve neyi asla yapmadığı Otomasyon › Bypass'ta tam anlatılır.
+  'ctl.bypass.confirm': 'Bypass {hours} saatliğine açılsın mı? Claude bu oturumda sormadan çalışır; her çağrı kaydedilir.',
   'ctl.bypass.yes': 'Aç',
   'ctl.bypass.no': 'Vazgeç',
   'ctl.bypass.started': 'Bypass {until} saatine kadar açık ({hours} saat). /bypass ya da şeritteki ⚡ kapatır.',

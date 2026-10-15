@@ -34,8 +34,8 @@ export const enControls = {
   'ctl.personOnly': 'Only you can run {cmd}: from the strip, or typed by you, here or on the phone.',
   // ── bypass ──
   'ctl.bypass.notEnabled': 'Bypass is not turned on. Turn it on in the control center: Automation › Bypass (/0 opens it).',
-  'ctl.bypass.confirm':
-    "Turn bypass on for {hours} h? In this session nothing asks: the safety belt lets through what it would ask about or block, and records each call. Changing Mode_Code, Claude Code's settings or the memory, and sending a secret off the computer stay blocked; deleting a drive root, a system folder or cloud data, formatting a disk and turning security software off are still asked.",
+  // Short: what it lifts and what it never does are told in full under Automation › Bypass.
+  'ctl.bypass.confirm': 'Turn bypass on for {hours} h? Claude works without asking in this session; every call is recorded.',
   'ctl.bypass.yes': 'Turn on',
   'ctl.bypass.no': 'Cancel',
   'ctl.bypass.started': 'Bypass on until {until} ({hours} h). /bypass, or ⚡ on the strip, turns it off.',
