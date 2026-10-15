@@ -142,8 +142,11 @@ export class FakeData implements DataSource {
     );
     return { reading, assessment: assessQuota(reading, DEFAULT_BUDGET, NOW), target: null };
   }
+  /** Events a test adds to the fixed ones. */
+  extraEvents: ToolEvent[] = [];
   events(): ToolEvent[] {
     return [
+      ...this.extraEvents,
       {
         v: 1,
         at: NOW - 600_000,

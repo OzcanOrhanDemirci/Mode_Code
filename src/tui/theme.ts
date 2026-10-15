@@ -63,8 +63,8 @@ export function makeTheme(opts: { plain?: boolean; highContrast?: boolean; reduc
         }
       : { ok: '✓', warn: '◌', bad: '✗', off: '○', absent: '·', more: '›', back: '‹', lock: '🔒', dot: '•', sep: ' › ', shield: '🛡', cursor: '▸' },
     categoryIcon: plain
-      ? { home: '1', projects: '2', sessions: '3', measure: '4', security: '5', 'claude-code': '6', settings: '7' }
-      : { home: '⌂', projects: '▤', sessions: '☰', measure: '▥', security: '⛨', 'claude-code': '◆', settings: '⚙' },
+      ? { home: '1', projects: '2', sessions: '3', measure: '4', security: '5', 'claude-code': '6', automation: '7', settings: '8' }
+      : { home: '⌂', projects: '▤', sessions: '☰', measure: '▥', security: '⛨', 'claude-code': '◆', automation: '⟳', settings: '⚙' },
   };
 }
 

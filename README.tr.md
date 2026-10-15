@@ -122,7 +122,7 @@ Projelerine Ayarlar › Projeler ve anahtar kelimeler altından ad ver; geri kal
 - **Alt satırlar.** Her cevabın altında: hafıza deposu itildi mi, bir şey değişti mi, gerektiğinde kota. Git'ten, turun araç çağrılarından ve ölçülen kotadan hesaplanır, asla tahmin edilmez.
 - **Sessiz uzun iş.** Claude Code'un "kullanıcı uzun süredir haber alamadı" hatırlatmalarını dışarıda bırakır; uzun otonom iş ekranını durum satırlarıyla doldurmaz.
 
-**Terminalinde** (`mode-code`): yedi kategorili, Türkçe ve İngilizce bir kontrol merkezi; bir de kurulumu ve çevresindeki makineyi sınayıp güvenle onarabileceğini onaran bakım denetimi (`mode-code doctor`).
+**Terminalinde** (`mode-code`): sekiz kategorili, Türkçe ve İngilizce bir kontrol merkezi; bir de kurulumu ve çevresindeki makineyi sınayıp güvenle onarabileceğini onaran bakım denetimi (`mode-code doctor`).
 
 |                 |                                                                                                                                                                                                                           |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -132,6 +132,7 @@ Projelerine Ayarlar › Projeler ve anahtar kelimeler altından ad ver; geri kal
 | **Ölçüm**       | Kota pencereleri, güne ve modele göre token, önbellek isabeti, araç hata oranları                                                                                                                                         |
 | **Güvenlik**    | Her korumanın çalışıp çalışmadığı, 48 kemer kuralı, yakaladıkları, bir sınayıcı, hafızadaki sırlar                                                                                                                        |
 | **Claude Code** | Kurulumunun salt okunur haritası: talimat dosyaları ve hafıza sınırı, ayar kaynakları, hook'lar, izin kuralları, MCP sunucuları, eklentiler; ve kural şablonları (herkese açık depo, üretim sunucusu, Flutter, tek dal …) |
+| **Otomasyon**   | Özel çalışma biçimleri, sen açana kadar kapalı: tam otonom ve koşuları, bypass ve bypass'ın geçirdiği her çağrı                                                                                                           |
 | **Ayarlar**     | Aracın kendi ayarları, yerinde düzenlenir                                                                                                                                                                                 |
 
 ### Claude Code'un içinde
@@ -195,7 +196,7 @@ Yazarın Windows 11 makinesinde, Claude Code 2.1.296 ve Node.js 24.15 ile ölç�
 
 `mode-code` açar; Claude Code'un içinde `/0` onu terminalinin yeni bir sekmesinde açar. Üç sütun: geldiğin yer, bulunduğun yer ve seçili olan. Her ekranın bir adresi var (`security/rules`, `measure/quota`); `mode-code open <adres>` de aynı adresi alır. Bu sayfanın başındaki resim, programın kendi ekranlarını örnek veriden çizmesidir (`npm run screenshots`).
 
-Tuşlar her yerde aynı: `↑↓` gez, `→` aç, `←` geri, `1`-`7` kategoriye atla, `/` listeyi süz, `Ctrl+K` adıyla herhangi bir ekrana git (iki dilde de), `?` terimlerin açıklandığı yardım, `q` çık. Üç görünüm seviyesi (Sade, Önerilen, Ayrıntılı) neyin gösterildiğini değiştirir, neyin korunduğunu asla. Düz metin (çerçevesiz, ASCII simgeler) ve yüksek kontrast Ayarlar › Erişilebilirlik altında.
+Tuşlar her yerde aynı: `↑↓` gez, `→` aç, `←` geri, `1`-`8` kategoriye atla, `/` listeyi süz, `Ctrl+K` adıyla herhangi bir ekrana git (iki dilde de), `?` terimlerin açıklandığı yardım, `q` çık. Üç görünüm seviyesi (Sade, Önerilen, Ayrıntılı) neyin gösterildiğini değiştirir, neyin korunduğunu asla. Düz metin (çerçevesiz, ASCII simgeler) ve yüksek kontrast Ayarlar › Erişilebilirlik altında.
 
 Her şey komut olarak da var; her biri sürümlü `--json` çıktısı verir:
 

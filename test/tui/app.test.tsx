@@ -6,11 +6,11 @@ import { newModState } from '../../src/core/session.js';
 import { completeStep, startFlow } from '../../src/core/flow.js';
 import { acceptMilestone, acceptPlan, addDeferred, pauseRun, startRun } from '../../src/core/run.js';
 
-test('the first screen lists the seven categories and shows protection and quota at the top', async () => {
+test('the first screen lists the eight categories and shows protection and quota at the top', async () => {
   const s = await draw(new FakeData());
   try {
     const t = s.text();
-    for (const c of ['Home', 'Projects', 'Sessions', 'Measure', 'Security', 'Claude Code', 'Settings']) assert.ok(t.includes(c), c);
+    for (const c of ['Home', 'Projects', 'Sessions', 'Measure', 'Security', 'Claude Code', 'Automation', 'Settings']) assert.ok(t.includes(c), c);
     assert.match(t, /🛡 working/);
     assert.match(t, /week 27%/);
     assert.match(t, /Address: home/);
@@ -253,7 +253,7 @@ test('Projects › Flows says how to start one when there is none', async () => 
 
 test('full autonomy: turning it on shows what it means and needs a second Enter; the checks from here are listed', async () => {
   const data = new FakeData();
-  const s = await draw(data, { address: 'settings/autonomy' });
+  const s = await draw(data, { address: 'automation/full-auto' });
   try {
     assert.match(s.text(), /Start checks, measured from here/);
     assert.match(s.text(), /✗\s+Platform\s+Native Windows runs commands without a sandbox/);
@@ -273,7 +273,7 @@ test('full autonomy: turning it on shows what it means and needs a second Enter;
   }
 });
 
-test('full autonomy: Projects › Runs lists each run, its card the milestones, what waits for the person and the way back', async () => {
+test('full autonomy: Automation › Runs lists each run, its card the milestones, what waits for the person and the way back', async () => {
   const data = new FakeData('en');
   let r = startRun({
     id: '20261013-1210-rate-limit',
@@ -319,10 +319,10 @@ test('full autonomy: Projects › Runs lists each run, its card the milestones, 
   } finally {
     home.close();
   }
-  const card = await draw(data, { address: 'projects/runs/20261013-1210-rate-limit' });
+  const card = await draw(data, { address: 'automation/runs/20261013-1210-rate-limit' });
   try {
     const t = card.text();
-    assert.match(t, /Projects › Runs › ⏸ Add rate limiting to the API/);
+    assert.match(t, /Automation › Runs › ⏸ Add rate limiting to the API/);
     assert.match(t, /paused \(quota budget\) · 1\/2/);
     assert.match(t, /✓\s+1\. Limiter\s+bbbbbbbbbbbb · CONCERNS/);
     assert.match(t, /▶\s+2\. Wire it in/);
@@ -331,7 +331,7 @@ test('full autonomy: Projects › Runs lists each run, its card the milestones, 
   } finally {
     card.close();
   }
-  const empty = await draw(new FakeData('tr'), { address: 'projects/runs' });
+  const empty = await draw(new FakeData('tr'), { address: 'automation/runs' });
   try {
     assert.match(empty.text(), /Henüz tam otonom koşu yok/);
   } finally {
@@ -356,7 +356,7 @@ test('full autonomy: the runs list shows how many run, and each run its state', 
     status,
   });
   data.runList = [mk('20261013-1300-a', 'Running one', 'active'), mk('20261013-1200-b', 'Stuck one', 'stuck'), mk('20261013-1100-c', 'Paused one', 'paused')];
-  const s = await draw(data, { address: 'projects/runs' });
+  const s = await draw(data, { address: 'automation/runs' });
   try {
     const t = s.text();
     assert.match(t, /Running one/);
@@ -366,10 +366,67 @@ test('full autonomy: the runs list shows how many run, and each run its state', 
   } finally {
     s.close();
   }
-  const projects = await draw(data, { address: 'projects' });
+  const automation = await draw(data, { address: 'automation' });
   try {
-    assert.match(projects.text(), /Runs\s+1 running/);
+    assert.match(automation.text(), /Runs\s+1 running/);
   } finally {
-    projects.close();
+    automation.close();
+  }
+});
+
+test('Automation › Bypass: turning it on says what it means and needs a second Enter; its tiers are listed', async () => {
+  const data = new FakeData();
+  const s = await draw(data, { address: 'automation/bypass' });
+  try {
+    const flat = () =>
+      s
+        .text()
+        .replace(/[│╭╮╰╯─]/g, '')
+        .replace(/\s+/g, ' ');
+    assert.match(flat(), /Bypass can be switched on/);
+    assert.match(flat(), /Never: changing this tool, Claude Code's settings or your memory; sending a secret off the computer\./);
+    await s.press(KEY.enter);
+    assert.equal(data.saved.length, 0, 'not yet');
+    assert.match(flat(), /Press Enter again to allow it on this computer\./);
+    await s.press(KEY.enter);
+    assert.deepEqual(data.saved, [{ path: 'bypass.enabled', value: true }]);
+  } finally {
+    s.close();
+  }
+});
+
+test('Automation › Done without asking: each call bypass let through, what it passed, by whom and how it went; on and off', async () => {
+  const data = new FakeData();
+  const ev = (at: number, rest: Record<string, unknown>) => ({ v: 1, at, kind: 'bypass', source: 'mod', session: 's', ...rest });
+  data.extraEvents = [
+    ev(NOW - 60_000, { action: 'off', why: 'time', count: 2, minutes: 120 }),
+    ev(NOW - 120_000, {
+      action: 'call',
+      tool: 'Bash',
+      what: 'git push --force origin main',
+      rules: ['git.force-push-protected'],
+      was: ['deny'],
+      agent: null,
+      outcome: 'ran',
+    }),
+    ev(NOW - 180_000, { action: 'call', tool: 'Edit', what: '/etc/hosts', rules: ['claude.permission'], was: ['ask'], agent: 'sub-1' }),
+    ev(NOW - 7_300_000, { action: 'on', hours: 2 }),
+  ];
+  const s = await draw(data, { address: 'automation/bypassed' });
+  try {
+    const t = s.text();
+    assert.match(t, /⚡ bypass off: 2 calls in 120 min \(its time ran out\)/);
+    assert.match(t, /Bash: git push --force origin main/);
+    assert.match(t, /git\.force-push-protected \(block\) · ran/);
+    assert.match(t, /claude\.permission \(ask\) · by an agent/);
+    assert.match(t, /⚡ bypass on \(2 h\)/);
+  } finally {
+    s.close();
+  }
+  const empty = await draw(new FakeData('tr'), { address: 'automation/bypassed' });
+  try {
+    assert.match(empty.text(), /Bypass son 30 günde hiçbir şey geçirmedi\./);
+  } finally {
+    empty.close();
   }
 });

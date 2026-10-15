@@ -15,6 +15,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 - Bypass (`docs/autonomy.md`, "Bypass"): lifts the safety belt in one session for a while (`bypass.maxHours`, 2 by default), turned on per computer first and then by the person in each session (`/bypass` or `⚡ bypass` on the strip, asked once). Only the person can switch it, or full autonomy: a command stamped as coming from elsewhere is refused. What it lets through is recorded call by call and counted on the strip in red; Claude Code's own mode questions are answered too, while a rule in Claude Code's settings keeps its question. Claude is told it has full authority and full responsibility, with a reminder each prompt. It ends at its time (warned ten minutes before), with the session, or when the setting is turned off, with a summary line. The safety-net hook reads it from the session's record, so both layers agree.
 
+- The control center's eighth category, Automation: full autonomy (moved from Settings), its runs (moved from Projects), bypass, and Done without asking, every call bypass let through with what it passed, by whom and how it went. Digits 1-8 jump to the categories.
+
 ### Changed
 
 - Deleting or moving this tool's folder or Claude Code's folder is self-protection (`self.tool-files`, `self.claude-settings`), no longer a critical folder: no setting and no bypass opens it.

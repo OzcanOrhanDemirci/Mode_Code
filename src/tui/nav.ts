@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * The control center's map: seven categories, at most three levels (category › page › detail). Every
+ * The control center's map: eight categories, at most three levels (category › page › detail). Every
  * screen has an address made of its ids ("security/rules/git.clean"); the command line, the palette and
  * the "fix" links use the same addresses. Pure, so it can be tested without a terminal.
  */
@@ -94,8 +94,8 @@ export function searchEntries(entries: readonly PaletteEntry[], query: string, f
     .map((x) => x.e);
 }
 
-/** Message keys of the seven categories, in order; digits 1-7 jump to them. */
-export const CATEGORY_IDS = ['home', 'projects', 'sessions', 'measure', 'security', 'claude-code', 'settings'] as const;
+/** Message keys of the eight categories, in order; digits 1-8 jump to them. */
+export const CATEGORY_IDS = ['home', 'projects', 'sessions', 'measure', 'security', 'claude-code', 'automation', 'settings'] as const;
 export type CategoryId = (typeof CATEGORY_IDS)[number];
 
 export function categoryKey(id: CategoryId): MessageKey {

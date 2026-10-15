@@ -2,7 +2,7 @@
 /**
  * The control center. Three columns (where you came from · where you are · what is selected), a location
  * bar with the address of the screen, and the same keys everywhere:
- *   ↑↓ move · →/Enter open · ←/Esc back · 1-7 categories · / filter · Ctrl+K go anywhere · ? help · r refresh · q quit
+ *   ↑↓ move · →/Enter open · ←/Esc back · 1-8 categories · / filter · Ctrl+K go anywhere · ? help · r refresh · q quit
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useApp, useInput, useWindowSize, type Key } from 'ink';
@@ -240,7 +240,7 @@ export function App(props: AppProps) {
       showFlash(t('nav.refreshed'));
       return;
     }
-    if (/^[1-7]$/.test(input)) {
+    if (/^[1-8]$/.test(input)) {
       const id = CATEGORY_IDS[parseInt(input, 10) - 1]!;
       const i = roots.findIndex((n) => n.id === id);
       if (i >= 0) {
@@ -314,7 +314,7 @@ export function App(props: AppProps) {
         ['↑↓', t('keys.move')],
         ['→', t('keys.open')],
         ['←', t('keys.back')],
-        ['1-7', t('keys.categories')],
+        ['1-8', t('keys.categories')],
         ['/', t('keys.filter')],
         ['Ctrl+K', t('keys.palette')],
         ['?', t('keys.help')],
@@ -323,7 +323,7 @@ export function App(props: AppProps) {
   // One line of hints: on a narrow terminal the less essential ones give way (help still lists them all).
   const hintWidth = (h: [string, string][]) => h.reduce((n, [k, v]) => n + k.length + v.length + 3, 0);
   const hints = [...allHints];
-  for (const drop of ['1-7', '/', 'Ctrl+K', '←']) {
+  for (const drop of ['1-8', '/', 'Ctrl+K', '←']) {
     if (hintWidth(hints) <= columns) break;
     const i = hints.findIndex(([k]) => k === drop);
     if (i >= 0) hints.splice(i, 1);
@@ -535,7 +535,7 @@ function Help({ env, width, height }: { env: Env; width: number; height: number 
     ['↑ ↓  j k', 'help.k.move'],
     ['→ Enter l', 'help.k.open'],
     ['← Esc h', 'help.k.back'],
-    ['1 … 7', 'help.k.categories'],
+    ['1 … 8', 'help.k.categories'],
     ['/', 'help.k.filter'],
     ['Ctrl+K', 'help.k.palette'],
     ['r', 'help.k.refresh'],

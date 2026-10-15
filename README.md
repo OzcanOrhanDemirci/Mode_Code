@@ -122,7 +122,7 @@ Name your projects under Settings › Projects and keywords; everything else wor
 - **Footer lines.** Under each answer: whether your memory repository was pushed, whether anything changed, and the quota when it matters. Computed from git, the turn's tool calls and the measured quota, never guessed.
 - **Quiet long work.** Leaves out Claude Code's "the user has not heard from you" reminders, so long autonomous work does not fill your screen with status lines.
 
-**In your terminal** (`mode-code`): a control center with seven categories, in English and Turkish, and a maintenance check (`mode-code doctor`) that tests the installation and the machine around it and repairs what it safely can.
+**In your terminal** (`mode-code`): a control center with eight categories, in English and Turkish, and a maintenance check (`mode-code doctor`) that tests the installation and the machine around it and repairs what it safely can.
 
 |                 |                                                                                                                                                                                                                          |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -132,6 +132,7 @@ Name your projects under Settings › Projects and keywords; everything else wor
 | **Measure**     | Quota windows, tokens by day and model, cache hit rate, tool error rates                                                                                                                                                 |
 | **Security**    | Whether each protection runs, all 48 belt rules, what they caught, a tester, secrets in memory                                                                                                                           |
 | **Claude Code** | A read-only map of your setup: instruction files and the memory limit, settings sources, hooks, permission rules, MCP servers, plugins; and rule templates (public repository, production server, Flutter, one branch …) |
+| **Automation**  | The special ways of working, off until you turn them on: full autonomy and its runs, bypass, and every call bypass let through                                                                                           |
 | **Settings**    | The tool's own settings, edited in place                                                                                                                                                                                 |
 
 ### Inside Claude Code
@@ -193,7 +194,7 @@ Measured on the author's Windows 11 machine with Claude Code 2.1.296 and Node.js
 
 `mode-code` opens it; inside Claude Code, `/0` opens it in a new tab of your terminal. Three columns: where you came from, where you are, and what is selected. Every screen has an address (`security/rules`, `measure/quota`), which `mode-code open <address>` also takes. The picture at the top of this page is the program drawing its own screens from sample data (`npm run screenshots`).
 
-The same keys work everywhere: `↑↓` move, `→` open, `←` back, `1`-`7` jump to a category, `/` filter the list, `Ctrl+K` go to any screen by name (in either language), `?` help with the terms explained, `q` quit. Three view levels (Simple, Recommended, Detailed) change what is shown, never what is protected. Plain mode (no box drawing, ASCII symbols) and high contrast are under Settings › Accessibility.
+The same keys work everywhere: `↑↓` move, `→` open, `←` back, `1`-`8` jump to a category, `/` filter the list, `Ctrl+K` go to any screen by name (in either language), `?` help with the terms explained, `q` quit. Three view levels (Simple, Recommended, Detailed) change what is shown, never what is protected. Plain mode (no box drawing, ASCII symbols) and high contrast are under Settings › Accessibility.
 
 Everything is also available as commands, each with `--json` output whose shape is versioned:
 

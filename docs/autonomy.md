@@ -14,7 +14,7 @@ In your own terminal:
 mode-code autonomy enable
 ```
 
-or in the control center under Settings › Autonomy. Both show what it does, what it needs and its limits, and ask you to confirm. An agent cannot turn it on: the command refuses to run inside a Claude Code session, and the settings file is protected by the safety belt. `mode-code autonomy disable` turns it off; a run that is going on pauses at its next step.
+or in the control center under Automation › Full autonomy. Both show what it does, what it needs and its limits, and ask you to confirm. An agent cannot turn it on: the command refuses to run inside a Claude Code session, and the settings file is protected by the safety belt. `mode-code autonomy disable` turns it off; a run that is going on pauses at its next step.
 
 ## Where it runs
 
@@ -127,7 +127,7 @@ When a run ends or pauses, `~/.mode-code/runs/<id>/report.md` holds:
 
 To go back to a milestone: `git switch -c <name> <commit>` keeps your branch as it is; `git reset --hard <commit>` moves it. The report prints both for each milestone; `mode-code autonomy rollback <id> <n>` prints them again.
 
-Seeing runs: a notification when a run ends; the control center's Home lists runs that ended while you were away, Projects › Runs shows each run with its phases, milestones, reviews, deferred steps and report; `mode-code autonomy` and `mode-code autonomy show <id>` (also `--json`).
+Seeing runs: a notification when a run ends; the control center's Home lists runs that ended while you were away, Automation › Runs shows each run with its phases, milestones, reviews, deferred steps and report; `mode-code autonomy` and `mode-code autonomy show <id>` (also `--json`).
 
 ## Setting up WSL2 for full autonomy
 
@@ -213,7 +213,7 @@ Written 2026-10-13, kept as a checklist:
 - [x] Core: the `full auto` / `tam otonom` keyword with project and budget, `full auto cancel` / `tam otonom iptal`; the interaction level in the session state; settings `autonomy.*` and `projects[].verify`.
 - [x] Plugin: start (checks, live sandbox probe, the run record), the `autonomy` tool, rollback references and diffs through git, the review through a model call, the guard on every tool call (subagents included), permission questions answered as deferred, labels, compaction, pause and resume (new session, quota reset), notifications, the report.
 - [x] Safety-net hook: the stop decision on Stop, with its counters in the hook's own state.
-- [x] `mode-code autonomy` (list, show, check, enable, disable, rollback), Settings › Autonomy with the warning screen, Projects › Runs, Home's ended runs, doctor checks.
+- [x] `mode-code autonomy` (list, show, check, enable, disable, rollback), Automation › Full autonomy with the warning screen, Automation › Runs, Home's ended runs, doctor checks.
 - [x] Tests in every layer of [testing.md](testing.md): unit, properties (no sequence of events reaches done without its facts; a failed check never starts a run; the stop decision never lets an unfinished, progressing run stop), the engine's test kit, processes, mutation targets and coverage floors for the new deciding code.
 - [x] Measured in the WSL2 distribution: every start check on the real files, the test suite, and live runs (2026-10-13: start, plan, milestones, finish, report, a stop turned back).
 - [x] The two-step start, found in the first live run: the checks measurable at the prompt there, the permission mode this prompt came with and the live probe at Claude's first step (the autonomy tool's `start`; a call made before it is held and answered with the outcome); the safety-net hook records each prompt's time beside the mode.

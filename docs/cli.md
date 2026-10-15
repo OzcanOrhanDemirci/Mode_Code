@@ -49,15 +49,16 @@ Commands that change your Claude Code setup, lower a protection or widen what a 
 
 ## Addresses
 
-| Address                                                                                                                                                | Screen      |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
-| `home`, `home/overview`, `home/inbox`                                                                                                                  | Home        |
-| `projects`, `projects/flows`, `projects/flows/<flow id>`, `projects/runs`, `projects/runs/<run id>`, `projects/<folder, URL-encoded>`                  | Projects    |
-| `sessions`, `sessions/<session id>`                                                                                                                    | Sessions    |
-| `measure/quota`, `measure/report`, `measure/tokens`, `measure/tools`, `measure/folders`                                                                | Measure     |
-| `security/protection`, `security/rules`, `security/rules/<rule id>`, `security/events`, `security/test`, `security/secrets`                            | Security    |
-| `claude-code/instructions`, `/settings`, `/hooks`, `/permissions`, `/mcp`, `/plugins`, `/templates`, `/extensions`                                     | Claude Code |
-| `settings/general`, `/modules`, `/footer-quota`, `/memory`, `/sync`, `/projects`, `/autonomy`, `/keywords`, `/accessibility`, `/maintenance`, `/about` | Settings    |
+| Address                                                                                                                                   | Screen      |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `home`, `home/overview`, `home/inbox`                                                                                                     | Home        |
+| `projects`, `projects/flows`, `projects/flows/<flow id>`, `projects/handoffs`, `projects/<folder, URL-encoded>`                           | Projects    |
+| `sessions`, `sessions/<session id>`                                                                                                       | Sessions    |
+| `measure/quota`, `measure/report`, `measure/tokens`, `measure/tools`, `measure/folders`                                                   | Measure     |
+| `security/protection`, `security/rules`, `security/rules/<rule id>`, `security/events`, `security/test`, `security/secrets`               | Security    |
+| `claude-code/instructions`, `/settings`, `/hooks`, `/permissions`, `/mcp`, `/plugins`, `/templates`, `/extensions`                        | Claude Code |
+| `automation/full-auto`, `automation/runs`, `automation/runs/<run id>`, `automation/bypass`, `automation/bypassed`                         | Automation  |
+| `settings/general`, `/modules`, `/footer-quota`, `/memory`, `/sync`, `/projects`, `/keywords`, `/accessibility`, `/maintenance`, `/about` | Settings    |
 
 ## The settings file
 
