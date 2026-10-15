@@ -18,14 +18,18 @@
  *   9. sync across computers: one computer's plugin sends a softened belt rule and a handoff note, the other
  *      takes the note over, and the rule waits for the person;
  *  10. a session closed without ending (its process killed, as a shut window does): while it runs, the next
- *      session in its folder is told of it; once it is gone, the next is not, and writes the note it owed.
+ *      session in its folder is told of it; once it is gone, the next is not, and writes the note it owed;
+ *  11. bypass: in Claude Code's default permission mode a headless session cannot answer its question, so a
+ *      command not approved beforehand is refused; with bypass on, the plugin answers it and the command runs.
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
+ *        add --only-bypass to run case 11 alone (two sessions): what a Claude Code release could change for bypass
  *        add --keep to leave the sessions' folders and the full-autonomy sessions' streams in place
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
+import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -34,7 +38,7 @@ const dist = join(root, 'dist');
 const fwd = (p) => p.replace(/\\/g, '/');
 if (!process.argv.includes('--yes')) {
   console.log(
-    'test-live: opt-in. Runs fourteen short headless Claude Code sessions, sixteen where full autonomy can run (cheapest model, capped spend), with this build loaded. Run with --yes.',
+    'test-live: opt-in. Runs sixteen short headless Claude Code sessions, eighteen where full autonomy can run (cheapest model, capped spend), with this build loaded. Run with --yes (--only-bypass: two).',
   );
   process.exit(0);
 }
@@ -81,8 +85,16 @@ writeFileSync(
  * One headless session. `prompt` is the prompt, or a list of messages sent one after the other into the same
  * session (stream-json input): a slash command, then a task.
  */
-function session(prompt, settingsFile = settings, tools = 'Bash,Write,Read,Edit,Glob,Grep,mcp__mode-code__flow_step', extraEnv = {}, cwd = project) {
+function session(
+  prompt,
+  settingsFile = settings,
+  tools = 'Bash,Write,Read,Edit,Glob,Grep,mcp__mode-code__flow_step',
+  extraEnv = {},
+  cwd = project,
+  extraArgs = [],
+) {
   const { args, input } = sessionArgs(prompt, settingsFile, tools);
+  args.push(...extraArgs);
   const runEnv = { ...env, ...extraEnv };
   let r = spawnSync('claude', args, { cwd, env: runEnv, encoding: 'utf8', timeout: 240_000, windowsHide: true, input });
   if (r.error && process.platform === 'win32') {
@@ -508,6 +520,70 @@ function autoSession(name, prompt) {
   return { final, run, refs, hook, turnEnds, stderr: r.stderr ?? '' };
 }
 
+/**
+ * 11. Bypass in the real engine (docs/autonomy.md, "Bypass"). Claude Code in its default permission mode asks
+ * before a command that was not approved beforehand, and a headless session has no one to answer, so the command
+ * is refused. With bypass on for the session, the plugin answers Claude Code's question (tool.check) and the
+ * command runs, recorded. The answer goes through the engine, which any Claude Code release could change: this
+ * is the measurement to repeat for each one (--only-bypass).
+ */
+function bypassCases() {
+  const home = join(work, 'bypass-data');
+  mkdirSync(join(home, 'state', 'sessions'), { recursive: true });
+  writeFileSync(join(home, 'config.json'), JSON.stringify({ language: 'en', bypass: { enabled: true, maxHours: 2 } }));
+  const ask = (file) => `Use the Bash tool to run exactly this command and nothing else: echo ok > ${file} . Then reply with the single word DONE.`;
+  const run = (id, file) => session(ask(file), settings, 'Read', { MODE_CODE_HOME: home }, project, ['--session-id', id, '--permission-mode', 'default']);
+  const offId = randomUUID();
+  const off = run(offId, 'bypass-off.txt');
+  const onId = randomUUID();
+  const now = Date.now();
+  // Bypass switched on for this session as the plugin records it (a headless run cannot switch it: only the person may).
+  writeFileSync(
+    join(home, 'state', 'sessions', `${onId}.mod.json`),
+    JSON.stringify({
+      v: 1,
+      sessionId: onId,
+      aliveAt: now,
+      endedAt: null,
+      modVersion: 'live',
+      mode: 'free',
+      turnMode: null,
+      flowId: null,
+      runId: null,
+      nativePlan: null,
+      interaction: 'default',
+      interactionBefore: null,
+      project: null,
+      weeklyTarget: null,
+      weeklyTargetSource: null,
+      wrapUp: false,
+      resumeAt: null,
+      approvals: [],
+      blocks: {},
+      work: null,
+      bypass: { since: now, until: now + 3_600_000, count: 0 },
+    }),
+  );
+  const on = run(onId, 'bypass-on.txt');
+  const months = existsSync(join(home, 'events')) ? readdirSync(join(home, 'events')) : [];
+  const logged = months.flatMap((m) => readdirSync(join(home, 'events', m)).map((x) => readFileSync(join(home, 'events', m, x), 'utf8'))).join('\n');
+  check(
+    "without bypass, Claude Code's question in a headless session is refused and the command does not run",
+    !existsSync(join(project, 'bypass-off.txt')),
+    existsSync(join(project, 'bypass-off.txt')) ? 'the file was created' : '',
+  );
+  check(
+    "with bypass on, the plugin answers Claude Code's question: the command runs, and the call is recorded",
+    existsSync(join(project, 'bypass-on.txt')) && /"kind":"bypass"/.test(logged) && /claude\.permission/.test(logged),
+    existsSync(join(project, 'bypass-on.txt'))
+      ? /"kind":"bypass"/.test(logged)
+        ? ''
+        : 'ran, but no record'
+      : (on.final?.result?.slice?.(0, 120) ?? on.stderr.slice(0, 200)),
+  );
+  return [off, on];
+}
+
 const results = [];
 const check = (name, ok, detail = '') => {
   results.push({ name, ok, detail });
@@ -515,82 +591,90 @@ const check = (name, ok, detail = '') => {
 };
 
 try {
-  const one = session('Run this exact shell command with the Bash tool, nothing else: echo tc-live-ok . Then reply with the single word DONE.');
-  check('a harmless command runs', one.text.includes('tc-live-ok'), one.final?.result?.slice?.(0, 60) ?? one.stderr.slice(0, 200));
-  const sessions = existsSync(join(data, 'state', 'sessions')) ? readdirSync(join(data, 'state', 'sessions')).filter((f) => f.endsWith('.mod.json')) : [];
-  const mod = sessions.length ? JSON.parse(readFileSync(join(data, 'state', 'sessions', sessions[0]), 'utf8')) : null;
-  check('the plugin loaded in the real engine and reported itself alive', !!mod?.aliveAt, mod ? `mod ${mod.modVersion}` : 'no session state');
+  if (process.argv.includes('--only-bypass')) {
+    const b = bypassCases();
+    const cost = b.reduce((n, x) => n + (x.final?.total_cost_usd ?? 0), 0);
+    console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
+    process.exitCode = results.every((r) => r.ok) ? 0 : 1;
+  } else {
+    const one = session('Run this exact shell command with the Bash tool, nothing else: echo tc-live-ok . Then reply with the single word DONE.');
+    check('a harmless command runs', one.text.includes('tc-live-ok'), one.final?.result?.slice?.(0, 60) ?? one.stderr.slice(0, 200));
+    const sessions = existsSync(join(data, 'state', 'sessions')) ? readdirSync(join(data, 'state', 'sessions')).filter((f) => f.endsWith('.mod.json')) : [];
+    const mod = sessions.length ? JSON.parse(readFileSync(join(data, 'state', 'sessions', sessions[0]), 'utf8')) : null;
+    check('the plugin loaded in the real engine and reported itself alive', !!mod?.aliveAt, mod ? `mod ${mod.modVersion}` : 'no session state');
 
-  const probe = join(data, 'probe.txt');
-  const two = session(
-    `Use the Write tool to write the text x to the file ${fwd(probe)} . If the write is refused, reply with the single word REFUSED and do not try anything else.`,
-  );
-  check('a write into the tool data folder is refused', !existsSync(probe), existsSync(probe) ? 'the file was created' : '');
-  check('the refusal reached the model with its reason', /own files|self\.tool-files/.test(two.text), two.final?.result?.slice?.(0, 60) ?? '');
+    const probe = join(data, 'probe.txt');
+    const two = session(
+      `Use the Write tool to write the text x to the file ${fwd(probe)} . If the write is refused, reply with the single word REFUSED and do not try anything else.`,
+    );
+    check('a write into the tool data folder is refused', !existsSync(probe), existsSync(probe) ? 'the file was created' : '');
+    check('the refusal reached the model with its reason', /own files|self\.tool-files/.test(two.text), two.final?.result?.slice?.(0, 60) ?? '');
 
-  // A keyword that asks for a summary, not for work: "continue" would set a model working on its own.
-  const three = session('liveapp help');
-  const month = existsSync(join(data, 'events')) ? readdirSync(join(data, 'events')) : [];
-  const logged = month.flatMap((m) => readdirSync(join(data, 'events', m)).map((f) => readFileSync(join(data, 'events', m, f), 'utf8'))).join('\n');
-  check(
-    'a keyword typed as the prompt reached the mod',
-    /"kind":"keyword"/.test(logged) && /"keyword":"help","project":"live-app"/.test(logged),
-    three.final ? '' : three.stderr.slice(0, 200),
-  );
-  // A slash command alone: the plugin's own command, answered without a model turn (docs/modes.md, "Session controls").
-  const plan = session('/3');
-  const states = () =>
-    existsSync(join(data, 'state', 'sessions'))
-      ? readdirSync(join(data, 'state', 'sessions'))
-          .filter((f) => f.endsWith('.mod.json'))
-          .map((f) => JSON.parse(readFileSync(join(data, 'state', 'sessions', f), 'utf8')))
-      : [];
-  check(
-    '/3 switches the session to plan mode in the real engine and says so',
-    states().some((s) => s.mode === 'plan') && /📐 plan/.test(JSON.stringify(plan.events ?? plan.final ?? '')),
-    plan.final?.result?.slice?.(0, 80) ?? plan.stderr.slice(0, 200),
-  );
-  // Prompts carry no line breaks: on Windows the session starts through cmd.exe, which ends a command at one.
-  // A mode word now counts only as the whole message: "/2", then the task, in one session. (In a headless run a
-  // command is a run of its own, so "/2 <text>" sends no text there: the text is sent once an interactive session is idle.)
-  const four = session([
-    '/2',
-    'This checks a refusal: call the Write tool now to write the text x to the file note.txt in the current folder, even if you expect it to be refused, and try nothing else. Then reply with the single word REFUSED if it was refused.',
-  ]);
-  const logged4 = readdirSync(join(data, 'events'))
-    .flatMap((m) => readdirSync(join(data, 'events', m)).map((f) => readFileSync(join(data, 'events', m, f), 'utf8')))
-    .join('\n');
-  check(
-    'research mode keeps the project unchanged',
-    // The project stays as it was: the guard refused the write (logged), or the model, told the mode, did not try.
-    // The refusal itself is checked on every change in the engine's test kit (L8).
-    !existsSync(join(project, 'note.txt')) &&
-      (/"kind":"mode","tool":"Write","verdict":"deny","mode":"research"/.test(logged4) || /research mode/i.test(four.final?.result ?? '')),
-    existsSync(join(project, 'note.txt'))
-      ? 'the file was created'
-      : /"mode":"research"/.test(logged4)
-        ? 'refused by the guard'
-        : `the model did not try, citing the mode: ${(four.final?.result ?? '').slice(0, 160)} · assistant turns ${four.events.filter((e) => e.type === 'assistant').length}`,
-  );
+    // A keyword that asks for a summary, not for work: "continue" would set a model working on its own.
+    const three = session('liveapp help');
+    const month = existsSync(join(data, 'events')) ? readdirSync(join(data, 'events')) : [];
+    const logged = month.flatMap((m) => readdirSync(join(data, 'events', m)).map((f) => readFileSync(join(data, 'events', m, f), 'utf8'))).join('\n');
+    check(
+      'a keyword typed as the prompt reached the mod',
+      /"kind":"keyword"/.test(logged) && /"keyword":"help","project":"live-app"/.test(logged),
+      three.final ? '' : three.stderr.slice(0, 200),
+    );
+    // A slash command alone: the plugin's own command, answered without a model turn (docs/modes.md, "Session controls").
+    const plan = session('/3');
+    const states = () =>
+      existsSync(join(data, 'state', 'sessions'))
+        ? readdirSync(join(data, 'state', 'sessions'))
+            .filter((f) => f.endsWith('.mod.json'))
+            .map((f) => JSON.parse(readFileSync(join(data, 'state', 'sessions', f), 'utf8')))
+        : [];
+    check(
+      '/3 switches the session to plan mode in the real engine and says so',
+      states().some((s) => s.mode === 'plan') && /📐 plan/.test(JSON.stringify(plan.events ?? plan.final ?? '')),
+      plan.final?.result?.slice?.(0, 80) ?? plan.stderr.slice(0, 200),
+    );
+    // Prompts carry no line breaks: on Windows the session starts through cmd.exe, which ends a command at one.
+    // A mode word now counts only as the whole message: "/2", then the task, in one session. (In a headless run a
+    // command is a run of its own, so "/2 <text>" sends no text there: the text is sent once an interactive session is idle.)
+    const four = session([
+      '/2',
+      'This checks a refusal: call the Write tool now to write the text x to the file note.txt in the current folder, even if you expect it to be refused, and try nothing else. Then reply with the single word REFUSED if it was refused.',
+    ]);
+    const logged4 = readdirSync(join(data, 'events'))
+      .flatMap((m) => readdirSync(join(data, 'events', m)).map((f) => readFileSync(join(data, 'events', m, f), 'utf8')))
+      .join('\n');
+    check(
+      'research mode keeps the project unchanged',
+      // The project stays as it was: the guard refused the write (logged), or the model, told the mode, did not try.
+      // The refusal itself is checked on every change in the engine's test kit (L8).
+      !existsSync(join(project, 'note.txt')) &&
+        (/"kind":"mode","tool":"Write","verdict":"deny","mode":"research"/.test(logged4) || /research mode/i.test(four.final?.result ?? '')),
+      existsSync(join(project, 'note.txt'))
+        ? 'the file was created'
+        : /"mode":"research"/.test(logged4)
+          ? 'refused by the guard'
+          : `the model did not try, citing the mode: ${(four.final?.result ?? '').slice(0, 160)} · assistant turns ${four.events.filter((e) => e.type === 'assistant').length}`,
+    );
 
-  writeFileSync(join(project, 'README.md'), '# Demo\n\nA tiny demo project.\nIt prints hello.\n');
-  const five = session('What does this project do? Answer from its files. flow research');
-  const flows = existsSync(join(data, 'flows')) ? readdirSync(join(data, 'flows')) : [];
-  const record = flows.length ? JSON.parse(readFileSync(join(data, 'flows', flows[0], 'flow.json'), 'utf8')) : null;
-  check(
-    'a research flow ends only after code checked the report, and keeps a copy',
-    record?.status === 'done' && record.steps[0].evidence?.kind === 'research' && existsSync(join(data, 'flows', flows[0], 'research.md')),
-    record ? `${record.status}, ${record.history.map((h) => h.event).join(' ')}` : (five.final?.result?.slice?.(0, 80) ?? five.stderr.slice(0, 200)),
-  );
-  const ten = await closedCases();
-  const six = fullAutonomy();
-  const seven = stopTurnedBack();
-  const eight = memoryCases();
-  const nine = syncCases();
-  const cost = [one, two, three, plan, four, five, six, seven, ...eight, ...nine, ...ten]
-    .filter(Boolean)
-    .reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
-  console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
+    writeFileSync(join(project, 'README.md'), '# Demo\n\nA tiny demo project.\nIt prints hello.\n');
+    const five = session('What does this project do? Answer from its files. flow research');
+    const flows = existsSync(join(data, 'flows')) ? readdirSync(join(data, 'flows')) : [];
+    const record = flows.length ? JSON.parse(readFileSync(join(data, 'flows', flows[0], 'flow.json'), 'utf8')) : null;
+    check(
+      'a research flow ends only after code checked the report, and keeps a copy',
+      record?.status === 'done' && record.steps[0].evidence?.kind === 'research' && existsSync(join(data, 'flows', flows[0], 'research.md')),
+      record ? `${record.status}, ${record.history.map((h) => h.event).join(' ')}` : (five.final?.result?.slice?.(0, 80) ?? five.stderr.slice(0, 200)),
+    );
+    const ten = await closedCases();
+    const six = fullAutonomy();
+    const seven = stopTurnedBack();
+    const eight = memoryCases();
+    const nine = syncCases();
+    const eleven = bypassCases();
+    const cost = [one, two, three, plan, four, five, six, seven, ...eight, ...nine, ...ten, ...eleven]
+      .filter(Boolean)
+      .reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
+    console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
+  }
 } finally {
   if (process.argv.includes('--keep')) console.log(`test-live: kept ${fwd(work)}`);
   else rmSync(work, { recursive: true, force: true });
