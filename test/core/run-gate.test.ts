@@ -17,6 +17,7 @@ import {
 } from '../../src/core/run-gate.js';
 import { assessQuota, type QuotaReading } from '../../src/core/quota.js';
 import { tIn } from '../../src/core/i18n/index.js';
+import { en } from '../../src/core/i18n/en.js';
 
 const NOW = Date.parse('2026-10-13T09:00:00Z');
 const fixture = (name: string) => readFileSync(join(import.meta.dirname, '..', 'fixtures', 'wsl', name), 'utf8');
@@ -288,4 +289,29 @@ test('the edges of the checks: a target without a budget word, a budget measured
   // A Windows drive mounted over 9p without the drvfs name is still a Windows drive.
   assert.deepEqual(windowsMounts('C:\\134 /mnt/c 9p rw,noatime,cache=5 0 0\n'), ['/mnt/c']);
   assert.deepEqual(windowsMounts('incomplete line\n\n'), []);
+});
+
+test('every way a start check fails has its toast, and every toast a way to fail: a press on the strip names the reason', () => {
+  // The failures as the gate writes them: each no(...) call, with every key its arguments name.
+  const source = readFileSync(join(import.meta.dirname, '..', '..', 'src', 'core', 'run-gate.ts'), 'utf8');
+  const failures = new Set<string>();
+  for (const call of source.matchAll(/\bno\('(\w+)',([^)]*)\)/g))
+    for (const key of call[2]!.matchAll(/'auto\.gate\.([\w.]+)'/g)) if (call[1] !== 'budget') failures.add(key[1]!);
+  // Not an empty measurement: the gate fails in these many ways (budget aside: the strip asks for it in its window).
+  assert.ok(failures.size >= 20, String(failures.size));
+  const toasts = new Set(
+    Object.keys(en)
+      .filter((k) => k.startsWith('auto.refuse.'))
+      .map((k) => k.slice('auto.refuse.'.length)),
+  );
+  assert.deepEqual(
+    [...failures].filter((f) => !toasts.has(f)),
+    [],
+    'a failure without its toast',
+  );
+  assert.deepEqual(
+    [...toasts].filter((t) => !failures.has(t)),
+    [],
+    'a toast for no failure',
+  );
 });

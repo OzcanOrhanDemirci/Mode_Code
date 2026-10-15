@@ -71,7 +71,7 @@ export const enControls = {
   'ctl.flow.disarmed': 'Flow put away: your next message is an ordinary one.',
   // ── full autonomy ──
   'ctl.auto.refused': 'Full autonomy cannot start here:',
-  'ctl.auto.refusedToast': 'Full autonomy cannot start: {checks}. Type {cmd} to see why.',
+  'ctl.auto.refusedToast': 'Full autonomy cannot start, for {n} reasons. Type {cmd} to see them.',
   'ctl.auto.budgetAsk': 'Full autonomy needs a weekly budget. The week is at {week} now. How much may it use?',
   'ctl.auto.confirm': 'Start full autonomy with a budget of {budget}? It works to the end without asking; what needs you waits in its report.',
   'ctl.auto.start': 'Start',

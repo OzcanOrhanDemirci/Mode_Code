@@ -4408,11 +4408,15 @@ async function control(
       const failed = pre.result.checks.filter((k) => k.ok === false && k.id !== 'budget');
       if (failed.length) {
         const names = failed.map((k) => tIn(lang, `auto.gate.name.${k.id}` as MessageKey));
+        const cmd = `/${commandOf({ kind: 'fullAuto' }, lang)}`;
         return say(
           [tIn(lang, 'ctl.auto.refused'), ...failed.map((k, i) => `- ${names[i]}: ${tIn(lang, k.key, k.params)}`)].join('\n'),
           undefined,
-          // On the strip a toast: what failed, in a line, and where the reasons are.
-          tIn(lang, 'ctl.auto.refusedToast', { checks: names.join(', '), cmd: `/${commandOf({ kind: 'fullAuto' }, lang)}` }),
+          // On the strip a toast: the one reason in plain words and what to do, or how many there are and where they
+          // are listed. A check's name alone ("Project") told the person nothing (2026-10-15).
+          failed.length === 1
+            ? tIn(lang, `auto.refuse.${failed[0]!.key.slice('auto.gate.'.length)}` as MessageKey, { ...failed[0]!.params, cmd })
+            : tIn(lang, 'ctl.auto.refusedToast', { n: failed.length, cmd }),
         );
       }
       // At the computer: the start window, where the budget is picked and the task written, then started.

@@ -73,7 +73,7 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.flow.disarmed': 'Akıştan vazgeçildi: bir sonraki mesajın sıradan bir mesaj.',
   // ── tam otonom ──
   'ctl.auto.refused': 'Tam otonom burada başlayamaz:',
-  'ctl.auto.refusedToast': 'Tam otonom başlayamaz: {checks}. Nedenini görmek için {cmd} yaz.',
+  'ctl.auto.refusedToast': 'Tam otonom açılamıyor, {n} nedeni var. Hepsini görmek için {cmd} yaz.',
   'ctl.auto.budgetAsk': 'Tam otonom bir haftalık bütçe ister. Hafta şu an {week}. Ne kadarını kullanabilir?',
   'ctl.auto.confirm': '{budget} bütçeyle tam otonom başlasın mı? Hiç sormadan sonuna kadar çalışır; seni bekleyen işler raporunda kalır.',
   'ctl.auto.start': 'Başlat',

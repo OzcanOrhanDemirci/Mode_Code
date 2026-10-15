@@ -125,7 +125,7 @@ test('nothing starts while a start check fails; each failed check is named for t
   const said = r.context.join('\n');
   expect(said).toMatch(/asked for full autonomy, but \d+ start check\(s\) failed, so no run started/);
   expect(said).toMatch(/- Turned on: Full autonomy is off\. Turn it on in your own terminal: mode-code autonomy enable\./);
-  expect(said).toMatch(/- Project: The session does not run in a git work tree/);
+  expect(said).toMatch(/- Project: This folder is not a git project/);
   expect(w.toasts.some((t) => /Full autonomy did not start/.test(t))).toBe(true);
   expect(w.modState().runId).toBe(null);
   // Nothing was written outside the project to probe a sandbox that the other checks already ruled out.

@@ -361,8 +361,18 @@ test('the strip above the prompt: every control, those in effect marked; full au
   for (let i = 0; i < 20; i++) await Promise.resolve();
   expect(said().some((t: string) => /The person chose \\"code\\" on Mode_Code's mode strip/.test(t))).toBe(true);
   await ui.press({ key: 'strip-full-auto' });
-  // A toast is one line: what failed, and where the reasons are.
-  expect(w.toasts.at(-1)).toBe('Full autonomy cannot start: Safety net, Project. Type /full-auto to see why.');
+  // A toast is one line: how many reasons, and where they are.
+  expect(w.toasts.at(-1)).toBe('Full autonomy cannot start, for 2 reasons. Type /full-auto to see them.');
+  await ui.unmount();
+});
+
+test('a press that cannot start full autonomy for one reason says it in plain words, with what to do', async ($, on) => {
+  const w = world(on, { lang: 'tr', windows: true, promptMode: 'bypassPermissions', config: { autonomy: { enabled: true } } });
+  // A prompt runs the safety-net hook; the session's folder is no git project.
+  await $.prompt.submit(typed('merhaba'));
+  const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+  await ui.press({ key: 'strip-tam-otonom' });
+  expect(w.toasts.at(-1)).toBe("Tam otonom açılamıyor: bu klasör bir git projesi değil. Claude Code'u projenin klasöründe aç.");
   await ui.unmount();
 });
 
