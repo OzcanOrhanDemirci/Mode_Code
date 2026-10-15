@@ -437,12 +437,15 @@ test('the breathing control breathes on its own clock, and a press on it does wh
   await run($, '6');
   await $.prompt.submit(typed('Why is the cache slow?'));
   const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
-  const look = async () => (await ui.findAll({ type: 'Text', in: 'strip-2' })).map((t: any) => [t.text, !!t.props.inverse, !!t.props.dimColor]);
-  expect(await look()).toEqual([['2 🔍 research', true, false]]);
-  await (ui as any).advance(450);
-  expect(await look()).toEqual([['2 🔍 research', false, false]]);
-  await (ui as any).advance(450);
-  expect(await look()).toEqual([['2 🔍 research', false, true]]);
+  // Gray, then white, never filled: a filled control is a lit one, and the flow is the one lit.
+  const look = async () => (await ui.findAll({ type: 'Text', in: 'strip-2' })).map((t: any) => [t.text, !!t.props.inverse, !!t.props.dimColor, !!t.props.bold]);
+  const gray = [['2 🔍 research', false, true, false]];
+  const white = [['2 🔍 research', false, false, true]];
+  expect(await look()).toEqual(gray);
+  await (ui as any).advance(600);
+  expect(await look()).toEqual(white);
+  await (ui as any).advance(600);
+  expect(await look()).toEqual(gray);
   // Pressed: the same press as a button's. A mode chosen while the flow works pauses it.
   await (ui as any).pointer({ type: 'up', x: 1, y: 0, button: 'left', in: 'strip-2' } as any);
   for (let i = 0; i < 20; i++) await Promise.resolve();
