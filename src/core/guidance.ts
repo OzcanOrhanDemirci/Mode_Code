@@ -254,8 +254,8 @@ export function stepGuidance(f: Flow, lang: Lang, t: StepTexts): string {
       return tIn(lang, 'flow.step.nextResearch', { path: f.reportPath, template: tIn(lang, 'flow.template.report') });
     case 'plan':
       return t.nativePlan
-        ? tIn(lang, 'flow.step.nextPlanNative', { template: tIn(lang, 'flow.template.plan') })
-        : tIn(lang, 'flow.step.nextPlan', { path: f.planPath, template: tIn(lang, 'flow.template.plan') });
+        ? tIn(lang, 'flow.step.nextPlanNative', { template: tIn(lang, 'flow.template.plan'), cwd: f.cwd })
+        : tIn(lang, 'flow.step.nextPlan', { path: f.planPath, template: tIn(lang, 'flow.template.plan'), cwd: f.cwd });
     case 'approve':
       return tIn(lang, 'flow.step.waiting', { approve: t.approveWord });
     case 'code':

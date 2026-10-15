@@ -137,9 +137,9 @@ export const enModes = {
   'flow.step.doneResearch': 'The research step is done: {findings} and {sources} checked. The checked report is kept at {copy}.',
   'flow.step.donePlan': 'The plan is checked: {steps} with acceptance criteria, {commands}.',
   'flow.step.nextPlan':
-    'Next, 📐 plan: write the plan to {path} in this shape, then call flow_step with step "plan". If Claude Code\'s plan mode is on, write it only to the plan file Claude Code names and finish with ExitPlanMode instead; the person approves it there.\n\n{template}\nThe project does not change before the plan is approved.',
+    'Next, 📐 plan: write the plan to {path} in this shape, then call flow_step with step "plan". If Claude Code\'s plan mode is on, write it only to the plan file Claude Code names and finish with ExitPlanMode instead; the person approves it there.\n\n{template}\nThe verification commands run in {cwd}; if the work is in another folder, name it in the command (cd <folder> && npm test). The project does not change before the plan is approved.',
   'flow.step.nextPlanNative':
-    "Next, 📐 plan: Claude Code's plan mode is on, so write the plan to the plan file it names, in this shape, then call ExitPlanMode; the person approves it there:\n\n{template}",
+    "Next, 📐 plan: Claude Code's plan mode is on, so write the plan to the plan file it names, in this shape, then call ExitPlanMode; the person approves it there:\n\n{template}\nThe verification commands run in {cwd}; if the work is in another folder, name it in the command (cd <folder> && npm test).",
   'flow.step.nextResearch':
     'Now, 🔍 research: read, search, and write the report to {path} in this shape, then call flow_step with step "research":\n\n{template}\nEvery finding cites a source; a file source must exist (and a cited line lie inside it).',
   'flow.step.nextCode':
@@ -152,7 +152,7 @@ export const enModes = {
     'The plan waits for the person\'s approval. Stop here and tell them in one line: they approve by typing "{approve}", or say what to change.',
   'flow.step.pausedAtApproval': 'The person paused the flow at the approval. Stop and report.',
   'flow.step.codeFailed':
-    'The code step is not done: `{command}` exited with code {code}. The end of its output:\n{tail}\nFix the cause and call flow_step with step "code" again.',
+    'The code step is not done: `{command}` exited with code {code} (it ran in {cwd}). The end of its output:\n{tail}\nFix the cause and call flow_step with step "code" again.',
   'flow.step.codeRefused': 'The code step is not done: `{command}` could not run: {reason}',
   'flow.step.doneCode': 'The code step is done: {commands} passed in {seconds} s. The flow is complete; report to the person.',
   'flow.step.complete': 'The flow is complete; report to the person.',

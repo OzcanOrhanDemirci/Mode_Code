@@ -1070,6 +1070,8 @@ interface CommandRun {
 async function runCommands($: $, c: Ctx, commands: readonly string[]): Promise<CommandRun> {
   const tools = new Set((await $.tool.list()).map((t) => t.name));
   const shell = tools.has('Bash') ? 'Bash' : tools.has('PowerShell') ? 'PowerShell' : null;
+  // The commands run where the session's shell is: a failure says where, as a wrong folder is a common cause.
+  const cwd = (await $.session.cwd()) ?? '?';
   const started = await $.clock.now();
   const results: CommandRun['results'] = [];
   const outputs: string[] = [];
@@ -1098,7 +1100,7 @@ async function runCommands($: $, c: Ctx, commands: readonly string[]): Promise<C
       const out = String(r.text ?? r.result ?? '');
       const code = /Exit code (\d+)/.exec(out)?.[1] ?? '?';
       const tail = out.split('\n').slice(-25).join('\n').slice(-2000);
-      return done(tIn(c.lang, 'flow.step.codeFailed', { command, code, tail }));
+      return done(tIn(c.lang, 'flow.step.codeFailed', { command, code, cwd, tail }));
     }
     results.push({ command, ok: true, seconds });
     outputs.push(String(r.text ?? r.result ?? ''));

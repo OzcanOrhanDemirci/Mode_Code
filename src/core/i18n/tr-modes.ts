@@ -130,9 +130,9 @@ export const trModes: Record<keyof typeof enModes, string> = {
   'flow.step.doneResearch': 'Araştırma adımı bitti: {findings} ve {sources} denetlendi. Denetlenen rapor {copy} içinde saklanıyor.',
   'flow.step.donePlan': 'Plan denetlendi: kabul ölçütleriyle {steps}, {commands}.',
   'flow.step.nextPlan':
-    'Sırada 📐 plan: planı {path} dosyasına bu biçimde yaz, sonra flow_step aracını "plan" adımıyla çağır. Claude Code\'un plan modu açıksa planı yalnız Claude Code\'un gösterdiği plan dosyasına yaz ve bunun yerine ExitPlanMode ile bitir; kullanıcı orada onaylar.\n\n{template}\nPlan onaylanmadan proje değişmez.',
+    'Sırada 📐 plan: planı {path} dosyasına bu biçimde yaz, sonra flow_step aracını "plan" adımıyla çağır. Claude Code\'un plan modu açıksa planı yalnız Claude Code\'un gösterdiği plan dosyasına yaz ve bunun yerine ExitPlanMode ile bitir; kullanıcı orada onaylar.\n\n{template}\nDoğrulama komutları {cwd} klasöründe çalışır; iş başka bir klasördeyse komutta onu söyle (cd <klasör> && npm test). Plan onaylanmadan proje değişmez.',
   'flow.step.nextPlanNative':
-    "Sırada 📐 plan: Claude Code'un plan modu açık; planı onun gösterdiği plan dosyasına bu biçimde yaz, sonra ExitPlanMode çağır; kullanıcı orada onaylar:\n\n{template}",
+    "Sırada 📐 plan: Claude Code'un plan modu açık; planı onun gösterdiği plan dosyasına bu biçimde yaz, sonra ExitPlanMode çağır; kullanıcı orada onaylar:\n\n{template}\nDoğrulama komutları {cwd} klasöründe çalışır; iş başka bir klasördeyse komutta onu söyle (cd <klasör> && npm test).",
   'flow.step.nextResearch':
     'Şimdi 🔍 araştırma: oku, ara ve raporu {path} dosyasına bu biçimde yaz, sonra flow_step aracını "research" adımıyla çağır:\n\n{template}\nHer bulgu bir kaynağa dayanır; dosya kaynağı var olmalı (gösterilen satır da dosyanın içinde).',
   'flow.step.nextCode':
@@ -144,7 +144,7 @@ export const trModes: Record<keyof typeof enModes, string> = {
   'flow.step.waiting': 'Plan kullanıcının onayını bekliyor. Burada dur ve ona tek satırla söyle: "{approve}" yazarak onaylar ya da neyin değişeceğini söyler.',
   'flow.step.pausedAtApproval': 'Kullanıcı akışı onay adımında duraklattı. Dur ve raporla.',
   'flow.step.codeFailed':
-    'Kod adımı bitmedi: `{command}` {code} koduyla çıktı. Çıktısının sonu:\n{tail}\nNedeni düzelt ve flow_step aracını yeniden "code" adımıyla çağır.',
+    'Kod adımı bitmedi: `{command}` {code} koduyla çıktı ({cwd} klasöründe çalıştı). Çıktısının sonu:\n{tail}\nNedeni düzelt ve flow_step aracını yeniden "code" adımıyla çağır.',
   'flow.step.codeRefused': 'Kod adımı bitmedi: `{command}` çalışamadı: {reason}',
   'flow.step.doneCode': 'Kod adımı bitti: {commands} {seconds} sn içinde geçti. Akış tamamlandı; kullanıcıya raporla.',
   'flow.step.complete': 'Akış tamamlandı; kullanıcıya raporla.',
