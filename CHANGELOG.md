@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- Chat, research and plan mode no longer refuse reading commands that ask about machine-wide packages (`npm root -g`, `npm ls -g`, `npm outdated -g`): `-g` counted as a machine-wide install before the reading subcommand was looked at. They also run this tool's own commands that only print (`mode-code status`, `mode-code belt rules`, `mode-code memory handoff`, `mode-code config get` …); `mode-code` on its own, `doctor`, and the commands that change settings or the session index are still refused there. `pnpm store prune` is no longer taken for a read.
+
 ## [1.0.0] - 2026-10-15
 
 The first public release: the safety belt, keywords, modes and flows, full autonomy, the memory and its sync, the quota guard and the control center, installed with one line.

@@ -14,6 +14,7 @@ import { expandVars } from './vars.js';
 import type { Dialect, Word } from './types.js';
 import { resolvePath, type PathEnv } from '../paths.js';
 import { parseGit } from '../belt/git.js';
+import { CLI_NAME } from '../app.js';
 
 export type EffectKind = 'read' | 'write' | 'local' | 'outside' | 'unknown';
 
@@ -350,6 +351,9 @@ const READ_SUBS: Record<string, ReadonlySet<string>> = {
   nvm: wordSet(`ls list current ls-remote which version`),
   terraform: wordSet(`show validate version output providers graph`),
   claude: wordSet(`--version -v doctor`),
+  // This tool's own command line: what only prints (docs/cli.md). `doctor` saves its summary and
+  // `tokens`, `report`, `sessions` and `morning` update the session index, so they are not reads.
+  [CLI_NAME]: wordSet(`status quota secrets belt template templates flow flows autonomy memory sync config version help`),
   code: wordSet(`--list-extensions --version --help --status`),
   gcloud: wordSet(`info version help`),
   az: wordSet(`version account`),
@@ -379,6 +383,7 @@ const READ_PAIRS: Record<string, ReadonlySet<string>> = {
   'pnpm config': wordSet(`get list`),
   'yarn config': wordSet(`get list`),
   'bun pm': wordSet(`ls hash cache bin`),
+  'pnpm store': wordSet(`status path`),
   'cargo help': new Set([]),
   'flutter pub': wordSet(`deps outdated`),
   'dart pub': wordSet(`deps outdated`),
@@ -414,6 +419,16 @@ const READ_PAIRS: Record<string, ReadonlySet<string>> = {
   'uv pip': wordSet(`list show freeze tree check`),
   'uv python': wordSet(`list find dir`),
   'cargo metadata': new Set([]),
+  // The tool's groups: '' is the group on its own, which prints (`mode-code belt` lists the rules).
+  [`${CLI_NAME} belt`]: new Set(['', 'rules', 'events', 'test', 'replay']),
+  [`${CLI_NAME} template`]: new Set(['', 'list']),
+  [`${CLI_NAME} templates`]: new Set(['', 'list']),
+  [`${CLI_NAME} flow`]: new Set(['', 'list', 'show']),
+  [`${CLI_NAME} flows`]: new Set(['', 'list', 'show']),
+  [`${CLI_NAME} autonomy`]: new Set(['', 'list', 'show', 'report', 'check']),
+  [`${CLI_NAME} memory`]: new Set(['', 'status', 'handoff', 'handoffs']),
+  [`${CLI_NAME} sync`]: new Set(['', 'status']),
+  [`${CLI_NAME} config`]: wordSet(`path get`),
 };
 
 /** Programs that change something outside the machine or outside any project folder, whatever they are asked. */
@@ -785,14 +800,18 @@ function judgeTool(inv: Invocation): Judged | null {
   if (!reads && !LOCAL.has(p) && !OUTSIDE.has(p)) return null;
   const ws = words(inv);
   const args = inv.args;
-  if (args.length === 0) return LOCAL.has(p) ? L() : OUTSIDE.has(p) ? O() : R();
+  // Alone, this tool opens its control center, where settings change.
+  if (args.length === 0) return LOCAL.has(p) || p === CLI_NAME ? L() : OUTSIDE.has(p) ? O() : R();
   if (args.length === 1 && (VERSION_ONLY.has(args[0]!) || args[0] === '-v')) return R();
   // A shell given a script file runs it (a shell given its code as a string was judged before).
   if (/^(?:bash|sh|zsh|dash|ksh|fish|pwsh|powershell|cmd|source|\.)$/.test(p)) return L('script');
   // Some reading "subcommands" are flags: dpkg -l, wsl --list, dotnet --info (powercfg /list is a word).
   if (reads?.has(args[0]!) && args[0]!.startsWith('-')) return R();
   const sub = first(ws);
-  if (/^(?:npm|pnpm|yarn|bun)$/.test(p) && args.some((a) => a === '-g' || a === '--global' || a === '--location=global')) return O('global');
+  // `-g` makes a change machine-wide, and makes a read look at the machine-wide packages: `npm root -g`,
+  // `npm ls -g` and `npm outdated -g` still only read.
+  const global = /^(?:npm|pnpm|yarn|bun)$/.test(p) && args.some((a) => a === '-g' || a === '--global' || a === '--location=global');
+  if (global && !reads?.has(sub)) return O('global');
   if (
     /^(?:npm|pnpm|yarn|bun|cargo|twine|gem|poetry|dotnet|flutter|dart)$/.test(p) &&
     /^(?:publish|unpublish|deprecate|dist-tag|owner|access|login|logout|adduser|token|yank|push|nuget)$/.test(sub)
