@@ -98,6 +98,14 @@ npm run verify         # every layer that can run here, one line each; --fast le
 
 A property test that fails prints its seed and the smallest input that fails; `TC_SEED=<seed> TC_RUNS=<runs> npm test` replays it exactly.
 
+### What a task costs of the quota
+
+```sh
+node scripts/measure/tasks.mjs --days 7 [--project <part of the folder>] [--json]
+```
+
+Reads what is already on the computer and writes nothing: Claude Code's transcripts (`~/.claude/projects`, each API call once, though it takes a line per content block) and Mode_Code's quota readings (`~/.mode-code/events`). Each session is cut into tasks at the calls that commit or push; each call is priced at the API's rates for its model and weighed by what the quota was measured to count (per dollar, against a cache write: a read 0.76, output 1.92). The table gives each task's calls, largest context and quota units, and the weekly points they come to, from the units a point took between the readings of each week. Calls made elsewhere (another computer, the web) raise the readings too, so a point's units are a floor. The pure part, `scripts/measure/quota.mjs`, is tested in `test/scripts/measure.test.ts`.
+
 ## Where each layer runs
 
 | When                       | What runs                                                                                                                                                                                                                                                                                                                                                      |

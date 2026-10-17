@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- What a task costs of the quota, measured on your computer (`node scripts/measure/tasks.mjs`): every Claude Code session cut at its commits and pushes, each piece priced by model and token kind, weighed by what the quota counts, and turned into weekly points by Mode_Code's own readings. It reads the transcripts and the event log and writes nothing (`docs/testing.md`).
+
 ### Changed
 
 - Checked against Claude Code 2.1.302: the plugin type-checks against its declarations, the engine's own test kit passes, and the live sessions run on it. The live full-autonomy sessions ask for a budget above the week as it stands (`+5`), not a fixed 99, which the start check refused once the week was at 98%.
