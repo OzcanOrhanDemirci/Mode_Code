@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 // @ts-expect-error: a plain JavaScript script, run by hand
-import { boundariesOf, callsOf, costOf, jsonLines, priceOf, readingsOf, tasksOf, unitsPerPoint } from '../../scripts/measure/quota.mjs';
+import { boundariesOf, callsOf, costOf, jsonLines, priceOf, readingsOf, tasksOf, unitsPerPoint, windowOf } from '../../scripts/measure/quota.mjs';
 
 type Usage = { input?: number; write5m?: number; write1h?: number; read?: number; output?: number };
 
@@ -171,4 +171,21 @@ test('a weekly point: the units between the first and last reading of each week 
   assert.ok(Math.abs(p.units - two) < 1e-9);
   assert.ok(Math.abs(p.perPoint - two / 4) < 1e-9);
   assert.equal(unitsPerPoint(readings.slice(2), calls), null);
+});
+
+test('the days measured: calls and readings from their start, a call in two files once, as first found', () => {
+  const since = Date.parse('2026-10-17T10:00:00.000Z');
+  const first = callsOf([line('2026-10-17T11:00:00.000Z', 'a', { output: 1 }, { session: 'original' })]);
+  const copy = callsOf([line('2026-10-17T11:00:00.000Z', 'a', { output: 1 }, { session: 'fork' })]);
+  const before = callsOf([line('2026-10-17T09:59:59.000Z', 'b', { output: 1 })]);
+  const readings = [
+    { at: since - 1, week: 30, weekResetsAt: 1 },
+    { at: since, week: 40, weekResetsAt: 1 },
+  ];
+  const w = windowOf([...before, ...first, ...copy], readings, since);
+  assert.deepEqual(
+    w.calls.map((c: { key: string; session: string }) => [c.key, c.session]),
+    [['a|msg_a', 'original']],
+  );
+  assert.deepEqual(w.readings, [readings[1]]);
 });

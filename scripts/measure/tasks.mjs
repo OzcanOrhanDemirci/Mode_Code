@@ -12,7 +12,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { boundariesOf, callsOf, jsonLines, readingsOf, tasksOf, unitsPerPoint } from './quota.mjs';
+import { boundariesOf, callsOf, jsonLines, readingsOf, tasksOf, unitsPerPoint, windowOf } from './quota.mjs';
 
 /** The .jsonl files under a folder changed since `since`, at any depth (subagents keep their own). */
 function jsonlFiles(dir, since) {
@@ -57,17 +57,8 @@ export function main(argv, env = process.env) {
     calls.push(...callsOf(lines));
     boundaries.push(...boundariesOf(lines));
   }
-  // A call in two files is counted once, where it was first found.
-  const unique = [];
-  const seen = new Set();
-  for (const c of calls) {
-    if (c.at < since || seen.has(c.key)) continue;
-    seen.add(c.key);
-    unique.push(c);
-  }
-  // A file changed in these days holds older readings too: only the days' own, as for the calls, or a
-  // week's rise before them would be set against none of its calls.
-  const readings = readingsOf(jsonlFiles(join(data, 'events'), since).flatMap((f) => jsonLines(readFileSync(f, 'utf8')))).filter((r) => r.at >= since);
+  const all = readingsOf(jsonlFiles(join(data, 'events'), since).flatMap((f) => jsonLines(readFileSync(f, 'utf8'))));
+  const { calls: unique, readings } = windowOf(calls, all, since);
   const point = unitsPerPoint(readings, unique);
   const tasks = tasksOf(unique, boundaries).filter((t) => !project || t.cwd.toLowerCase().includes(project));
 

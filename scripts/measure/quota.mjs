@@ -170,6 +170,22 @@ export function tasksOf(calls, boundaries) {
   return tasks.sort((a, b) => a.from - b.from);
 }
 
+/**
+ * The calls and readings of the days measured, from `since` on. A call found in two files (a forked
+ * session copies its history) is kept once, where it was first found. A file changed in these days holds
+ * older readings too, which would set a week's earlier rise against none of its calls.
+ */
+export function windowOf(calls, readings, since) {
+  const seen = new Set();
+  const kept = [];
+  for (const c of calls) {
+    if (c.at < since || seen.has(c.key)) continue;
+    seen.add(c.key);
+    kept.push(c);
+  }
+  return { calls: kept, readings: readings.filter((r) => r.at >= since) };
+}
+
 /** The quota readings in Mode_Code's event lines, oldest first, one per moment. */
 export function readingsOf(lines) {
   const seen = new Map();
