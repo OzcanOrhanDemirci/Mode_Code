@@ -51,14 +51,23 @@ export function main(argv, env = process.env) {
 
   const calls = [];
   const boundaries = [];
-  for (const f of jsonlFiles(join(claude, 'projects'), since)) {
+  // In name order, so a call copied into another file (a forked session) is always the same one's.
+  for (const f of jsonlFiles(join(claude, 'projects'), since).sort()) {
     const lines = jsonLines(readFileSync(f, 'utf8'));
     calls.push(...callsOf(lines));
     boundaries.push(...boundariesOf(lines));
   }
-  // A call can be in two files (a resumed session copies its history): counted once, by its key.
-  const unique = [...new Map(calls.filter((c) => c.at >= since).map((c) => [c.key, c])).values()];
-  const readings = readingsOf(jsonlFiles(join(data, 'events'), since).flatMap((f) => jsonLines(readFileSync(f, 'utf8'))));
+  // A call in two files is counted once, where it was first found.
+  const unique = [];
+  const seen = new Set();
+  for (const c of calls) {
+    if (c.at < since || seen.has(c.key)) continue;
+    seen.add(c.key);
+    unique.push(c);
+  }
+  // A file changed in these days holds older readings too: only the days' own, as for the calls, or a
+  // week's rise before them would be set against none of its calls.
+  const readings = readingsOf(jsonlFiles(join(data, 'events'), since).flatMap((f) => jsonLines(readFileSync(f, 'utf8')))).filter((r) => r.at >= since);
   const point = unitsPerPoint(readings, unique);
   const tasks = tasksOf(unique, boundaries).filter((t) => !project || t.cwd.toLowerCase().includes(project));
 
