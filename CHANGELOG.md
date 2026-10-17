@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Changed
+
+- Checked against Claude Code 2.1.302: the plugin type-checks against its declarations, the engine's own test kit passes, and the live sessions run on it. The live full-autonomy sessions ask for a budget above the week as it stands (`+5`), not a fixed 99, which the start check refused once the week was at 98%.
+
 ## [1.1.0] - 2026-10-15
 
 One roof for every guard, and bypass: the safety belt takes over the permission lists and command guards that stood beside it and covers what they missed, a session can lift it for a while on the person's word with every call recorded, the strip shows the flow as a mode whose working step breathes, and the control center gains Automation.
