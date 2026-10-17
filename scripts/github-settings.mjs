@@ -130,6 +130,19 @@ export function mainRuleset(active) {
   };
 }
 
+/**
+ * What a public repository should have on and does not, by GitHub's own answers: the repository's
+ * `security_and_analysis` and `private-vulnerability-reporting`. Missing (an answer GitHub gives only to
+ * an admin) counts as off. Pure.
+ */
+export function securityGaps(analysis, reporting) {
+  const gaps = [];
+  if (analysis?.secret_scanning?.status !== 'enabled') gaps.push('secret scanning');
+  if (analysis?.secret_scanning_push_protection?.status !== 'enabled') gaps.push('push protection');
+  if (reporting?.enabled !== true) gaps.push('private vulnerability reporting');
+  return gaps;
+}
+
 /** The keys of `want` whose values differ in `have`. Pure. */
 export function differences(have, want) {
   return Object.keys(want).filter((k) => JSON.stringify(have?.[k]) !== JSON.stringify(want[k]));
@@ -263,8 +276,12 @@ async function main(argv) {
 
   // Only a public repository has these (free): secret scanning with push protection, private vulnerability reports.
   if (isPrivate) say(null, 'secret scanning, push protection and private vulnerability reporting come with --public');
-  else if (!apply) differs('public: secret scanning, push protection and private vulnerability reporting are applied with --apply');
-  else {
+  else if (!apply) {
+    const reporting = api('GET', `repos/${name}/private-vulnerability-reporting`);
+    const gaps = securityGaps(repo.json.security_and_analysis, reporting.ok ? reporting.json : null);
+    if (gaps.length) differs(`public: ${gaps.join(', ')} off (--apply turns them on)`);
+    else say(null, 'secret scanning, push protection and private vulnerability reporting on');
+  } else {
     const s = api('PATCH', `repos/${name}`, {
       security_and_analysis: { secret_scanning: { status: 'enabled' }, secret_scanning_push_protection: { status: 'enabled' } },
     });
