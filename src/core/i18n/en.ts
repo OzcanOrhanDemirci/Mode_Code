@@ -171,6 +171,7 @@ export const en = {
   'status.manual': 'manual',
   'status.free': 'free',
   'status.wrapUp': 'wrapping up',
+  'quota.boundary': '✓ {kind}: a good moment for /clear before the next task; every call reads the {tokens} of context again.',
   'status.five': '5h {n}%',
   'status.week': 'week {n}%',
   'status.weekTarget': 'week {n}/{target}%',

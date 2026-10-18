@@ -101,6 +101,7 @@ const TARGETS = {
   'src/core/update.ts': ['test/core/update.test.ts'],
   'src/core/taint.ts': ['test/core/taint.test.ts'],
   'src/core/hygiene.ts': ['test/core/hygiene.test.ts'],
+  'src/core/measure.ts': ['test/core/measure.test.ts'],
   'src/core/permissions.ts': ['test/core/permissions.test.ts'],
   'src/core/mcp-pins.ts': ['test/core/mcp-pins.test.ts'],
   'src/core/trust.ts': ['test/core/trust.test.ts'],

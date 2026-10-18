@@ -21,7 +21,8 @@ import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform 
 import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '../core/i18n/index.js';
 import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
 import { taintedAct, taintSource, withoutInvisible } from '../core/taint.js';
-import { shellReadTool, shellTrap } from '../core/hygiene.js';
+import { shellReadTool, shellTrap, wholeRead } from '../core/hygiene.js';
+import { gitSubcommands } from '../core/measure.js';
 import {
   catalogGuide,
   catalogList,
@@ -89,7 +90,7 @@ import {
   type StripView,
   type FlowView,
 } from '../core/controls.js';
-import { ago, clock as timeOfDay, percent, shortPath } from '../core/format.js';
+import { ago, clock as timeOfDay, compact, percent, shortPath } from '../core/format.js';
 import { centerProgram, commandLine, LAUNCH_ENV, OPENS, terminalLaunch, windowsAppsDir, windowsTerminalProgram } from '../core/launch.js';
 import { checkDue, newerThan, parseUpdateState } from '../core/update.js';
 import { closeTabArgv, closeTabOutcome, type CloseTab } from '../core/close.js';
@@ -113,6 +114,7 @@ import {
   mcpChangedNote,
   hygieneNote,
   trapNote,
+  wholeReadNote,
   packsOnNote,
   skillRunPreamble,
   promptSecretNote,
@@ -312,6 +314,8 @@ interface Ctx {
   sharedWarned: Set<string>;
   /** The tool hygiene hints given in this session (core/hygiene.ts): each once. */
   hinted: Set<string>;
+  /** A commit or a push ended a piece of work with a large context: the strip says /clear, until the next prompt. */
+  boundary: { kind: 'commit' | 'push'; tokens: number } | null;
   /** Notes the session's start found for the model (a changed MCP tool), told with the person's first prompt. */
   startNotes: string[];
   /** Tool packs loaded in this folder as the session started, and those whose use was logged (docs/packs.md). */
@@ -594,6 +598,7 @@ async function load($: $): Promise<Ctx> {
     sharedSyncing: false,
     sharedWarned: new Set(),
     hinted: new Set(),
+    boundary: null,
     startNotes: [],
     packsOn: new Set(),
     packsUsed: new Set(),
@@ -2419,6 +2424,7 @@ async function refreshStatus($: $, c: Ctx): Promise<void> {
       if (c.flow.status === 'waiting') band = tIn(c.lang, 'flow.band.waiting', { path: planPathOf(c, c.flow), approve: tIn(c.lang, 'kw.kind.approve') });
     }
   }
+  if (!band && c.boundary) band = tIn(c.lang, 'quota.boundary', { kind: c.boundary.kind, tokens: compact(c.boundary.tokens, c.lang) });
   if (c.run) {
     const p = runProgress(c.run);
     modes.push(
@@ -2746,12 +2752,23 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
     c.hinted.add(better);
     extra.push(hygieneNote(better));
   }
+  if (
+    ran &&
+    result.isError !== true &&
+    e.agentId === undefined &&
+    !c.hinted.has('whole-read') &&
+    wholeRead(tool, input, typeof result.text === 'string' ? result.text.length : 0)
+  ) {
+    c.hinted.add('whole-read');
+    extra.push(wholeReadNote());
+  }
   const trap = ran && e.agentId === undefined ? shellTrap(tool, input, c.platform) : null;
   if (trap && !c.hinted.has(trap)) {
     c.hinted.add(trap);
     extra.push(trapNote(trap));
   }
   if (ran && e.agentId === undefined) extra.push(...(await packNotes($, c, tool, input, result)));
+  if (ran && result.isError !== true && e.agentId === undefined) await workBoundary($, c, tool, input);
   if (d.verdict === 'warn' && result && result.deny === undefined) {
     await logEvent($, c, { kind: 'belt', tool, verdict: 'warn', rules });
     extra.push(decisionText(d, ctx));
@@ -2778,6 +2795,28 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   return extra.length && result.deny === undefined ? { ...result, context: [...(result.context ?? []), ...extra] } : result;
 }
 
+/** Below this much context a /clear saves too little to say so. */
+const CLEAR_HINT_TOKENS = 100_000;
+
+/**
+ * A commit or a push ran: a piece of work is done, and the next starts on whatever context this one left (A7 of
+ * 1.2.0). With a large context the strip says /clear would start it small; the person types it, as a hook cannot.
+ */
+async function workBoundary($: $, c: Ctx, tool: string, input: Readonly<Record<string, unknown>>): Promise<void> {
+  if (!c.config.quota.clearHint || !shellOf(tool)) return;
+  const kinds = gitSubcommands(String(input.command ?? '')).filter((k) => k === 'commit' || k === 'push');
+  if (!kinds.length) return;
+  let tokens = 0;
+  try {
+    tokens = (await $.session.usage()).context.tokens ?? 0;
+  } catch {
+    return;
+  }
+  if (tokens < CLEAR_HINT_TOKENS) return;
+  c.boundary = { kind: kinds.includes('push') ? 'push' : 'commit', tokens };
+  await refreshStatus($, c);
+}
+
 async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.submit'>): Out<'prompt.submit'> {
   const c = await ctxOf($);
   const kind = e.origin?.kind;
@@ -2802,6 +2841,8 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   }
   if (human) {
     c.turn = { startedAt: await $.clock.now(), uses: [], changed: false };
+    // The person has typed what comes next: the /clear moment has passed.
+    c.boundary = null;
     // A start asked for at an earlier prompt and never taken up lapses: each prompt asks anew.
     if (!applied) c.pendingStart = null;
     c.prompts++;

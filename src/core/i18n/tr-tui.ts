@@ -388,6 +388,9 @@ export const trTui: Record<keyof typeof enTui, string> = {
   'set.weekTargetHelp': 'Kota anahtar kelimesiyle bütçe vermediğinde kullanılır.',
   'set.autoResume': 'Sıfırlanınca sürdür',
   'set.autoResumeHelp': 'Sınırda duran otonom iş, pencere sıfırlandıktan bir dakika sonra sürer.',
+  'set.clearHint': 'Commit sonrası /clear',
+  'set.clearHintHelp':
+    '100 binden fazla token bağlamla yapılan bir commit ya da push sonrası şerit, sonraki işin /clear ile küçük başlayacağını söyler. Komutu sen yazarsın; senin yerine hiçbir şey silinmez.',
   'a11y.plain': 'Düz metin',
   'a11y.plain.help': 'ASCII simgeler, çerçeve yok: ekran okuyucular ve Unicode göstermeyen terminaller için.',
   'a11y.highContrast': 'Yüksek kontrast',

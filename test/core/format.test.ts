@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ago, bar, compact, percent, shortPath, sparkline, until } from '../../src/core/format.js';
+import { ago, bar, compact, decimal, percent, shortPath, sparkline, until } from '../../src/core/format.js';
 import { compareVersions } from '../../src/core/version.js';
 import { fitWidth, textWidth } from '../../src/node/width.js';
 
@@ -16,6 +16,10 @@ test('numbers read naturally in both languages', () => {
   assert.equal(percent(14, 'tr'), '%14');
   assert.equal(percent(98.49, 'tr', 1), '%98,5');
   assert.equal(percent(null, 'en'), '?');
+  assert.equal(decimal(1234.5, 'en'), '1,234.50');
+  assert.equal(decimal(1234.5, 'tr'), '1.234,50');
+  assert.equal(decimal(0.004, 'tr', 1), '0,0');
+  assert.equal(decimal(Number.NaN, 'en'), '?');
 });
 
 test('times are coarse and in the language of the person', () => {

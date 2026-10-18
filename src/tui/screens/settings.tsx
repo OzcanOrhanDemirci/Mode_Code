@@ -104,6 +104,7 @@ export function FooterAndQuota({ width, open }: ScreenProps) {
     n('quota.fiveHourStop', 'set.fiveStop', 'set.fiveStopHelp', c.quota.fiveHourStop),
     n('quota.defaultWeeklyTarget', 'set.weekTarget', 'set.weekTargetHelp', c.quota.defaultWeeklyTarget),
     { path: 'quota.autoResume', label: t('set.autoResume'), help: t('set.autoResumeHelp'), value: c.quota.autoResume, type: { kind: 'bool' } },
+    { path: 'quota.clearHint', label: t('set.clearHint'), help: t('set.clearHintHelp'), value: c.quota.clearHint, type: { kind: 'bool' } },
   ];
   return <SettingsEditor fields={fields} open={open} width={width} />;
 }

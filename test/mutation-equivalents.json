@@ -472,6 +472,14 @@
       "line": "while (end > 0 && (override[end - 1] === '/'",
       "kind": "equivalent",
       "why": "at 0 the character read is before the start, never a slash"
+    },
+    {
+      "file": "src/core/measure.ts",
+      "from": ">",
+      "to": ">=",
+      "line": "call.output > had.output",
+      "kind": "equivalent",
+      "why": "the lines of one call carry the same usage, folder and session: an equal one in place of another keeps the first line's time and changes nothing else"
     }
   ]
 }

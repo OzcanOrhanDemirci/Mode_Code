@@ -160,6 +160,23 @@ export const TEMPLATES: readonly Template[] = [
     },
   },
   {
+    // The plan's "Compact Instructions" (A7 of 1.2.0): what a compaction loses costs the session a retelling.
+    id: 'compact-keep',
+    name: { en: 'Compaction keeps the work', tr: 'Sıkıştırma işi korur' },
+    description: {
+      en: 'A compacted conversation keeps decisions, paths, errors and what is unverified, so nothing is told twice.',
+      tr: 'Sıkıştırılan konuşma kararları, yolları, hataları ve doğrulanmayanı korur; hiçbir şey iki kez anlatılmaz.',
+    },
+    rules: {
+      en: [
+        'When this conversation is compacted, keep in the summary: the decisions made, word for word; file paths with line ranges, not code; error messages exactly; what is not verified yet; the next step.',
+      ],
+      tr: [
+        'Bu konuşma sıkıştırılırken özette şunları koru: alınan kararlar birebir; dosya yolları satır aralıklarıyla, kod değil; hata mesajları aynen; henüz doğrulanmamış olanlar; sıradaki adım.',
+      ],
+    },
+  },
+  {
     id: 'plain-docs',
     name: { en: 'Plain writing', tr: 'Sade yazı' },
     description: {

@@ -33,6 +33,7 @@ import { cmdUpdate } from './update.js';
 import { cmdTrust } from './trust.js';
 import { cmdPacks } from './packs.js';
 import { cmdSkills } from './skills.js';
+import { cmdMeasure } from './measure.js';
 
 const MIN_NODE = [22, 13];
 
@@ -78,6 +79,8 @@ async function main(argv: string[]): Promise<number> {
       return cmdQuota(sub);
     case 'tokens':
       return cmdTokens(sub);
+    case 'measure':
+      return cmdMeasure(sub);
     case 'template':
     case 'templates':
       return cmdTemplate(sub);
