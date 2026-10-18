@@ -21,7 +21,7 @@ import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform 
 import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '../core/i18n/index.js';
 import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
 import { taintedAct, taintSource } from '../core/taint.js';
-import { shellReadTool } from '../core/hygiene.js';
+import { shellReadTool, shellTrap } from '../core/hygiene.js';
 import { isBeltTool, isFileTool, shellOf } from '../core/belt/tools.js';
 import type { BeltContext, BeltDecision, GitFacts } from '../core/belt/types.js';
 import { checkGuards, type ModeGuard } from '../core/guard.js';
@@ -86,6 +86,7 @@ import {
   bypassOnNote,
   bypassReminder,
   hygieneNote,
+  trapNote,
   promptSecretNote,
   resumePrompt,
   stepGuidance,
@@ -2666,6 +2667,11 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   if (better && !c.hinted.has(better)) {
     c.hinted.add(better);
     extra.push(hygieneNote(better));
+  }
+  const trap = ran && e.agentId === undefined ? shellTrap(tool, input, c.platform) : null;
+  if (trap && !c.hinted.has(trap)) {
+    c.hinted.add(trap);
+    extra.push(trapNote(trap));
   }
   if (d.verdict === 'warn' && result && result.deny === undefined) {
     await logEvent($, c, { kind: 'belt', tool, verdict: 'warn', rules });

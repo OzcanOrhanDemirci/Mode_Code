@@ -2,7 +2,8 @@
 // Tool hygiene (src/core/hygiene.ts): a shell command that only reads files, and the tool that does its work.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { shellReadTool } from '../../src/core/hygiene.js';
+import { spawnSync } from 'node:child_process';
+import { shellReadTool, shellTrap } from '../../src/core/hygiene.js';
 
 const bash = (command: string) => shellReadTool('Bash', { command });
 
@@ -28,4 +29,30 @@ test('anything else is no file read: a filter on a stream, a write, an edit, oth
   ])
     assert.equal(bash(c), null, c);
   assert.equal(shellReadTool('Read', { file_path: 'a.ts' }), null);
+});
+
+test('the shell traps: an unquoted heredoc with backslashes on Windows, a build piped into a filter without pipefail', () => {
+  const trap = (command: string, platform: 'win32' | 'linux' = 'win32') => shellTrap('Bash', { command }, platform);
+  assert.equal(trap('cat > a.txt <<EOF\nC:\\dev\\x\nEOF'), 'heredoc');
+  assert.equal(trap("cat > a.txt <<'EOF'\nC:\\dev\\x\nEOF"), null, 'a quoted delimiter keeps the text');
+  assert.equal(trap('cat > a.txt <<EOF\nC:\\dev\\x\nEOF', 'linux'), null, 'paths there have no backslashes');
+  assert.equal(trap('cat > a.txt <<EOF\nplain\nEOF'), null);
+  assert.equal(trap('npm test 2>&1 | tail -20', 'linux'), 'pipe');
+  assert.equal(trap('npx tsc --noEmit | head', 'linux'), 'pipe');
+  assert.equal(trap('set -o pipefail; npm test | tail -20', 'linux'), null);
+  assert.equal(trap('git log | head -5', 'linux'), null);
+  assert.equal(trap('npm test || tail log.txt', 'linux'), null);
+  assert.equal(shellTrap('PowerShell', { command: 'npm test | Select-Object -Last 5' }, 'win32'), null);
+});
+
+test('what the traps rest on, measured in bash where it is installed', (t) => {
+  // The script goes in on standard input: an argument would pass Windows' own quoting of backslashes first.
+  const run = (script: string) => spawnSync('bash', ['-s'], { input: script, encoding: 'utf8' });
+  if (run('true').status !== 0) return t.skip('bash is not installed');
+  // An unquoted heredoc turns a doubled backslash into one; a quoted one keeps both.
+  assert.equal(run('cat <<EOF\na\\\\b\nEOF').stdout, 'a\\b\n');
+  assert.equal(run("cat <<'EOF'\na\\\\b\nEOF").stdout, 'a\\\\b\n');
+  // A failure piped into a filter exits 0; with pipefail it does not.
+  assert.equal(run('false | tail -1').status, 0);
+  assert.notEqual(run('set -o pipefail; false | tail -1').status, 0);
 });

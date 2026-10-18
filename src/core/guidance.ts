@@ -302,6 +302,13 @@ export function hygieneNote(tool: 'Read' | 'Grep'): string {
   return `${P} That command read files through the shell. Claude Code's ${tool} tool does it without one and its output costs less context${tool === 'Read' ? ' (offset and limit read a part)' : ''}: prefer it. A hint, not a rule; said once.`;
 }
 
+/** Told to the model once per trap in a session when a command fell into one (core/hygiene.ts shellTrap). */
+export function trapNote(trap: 'heredoc' | 'pipe'): string {
+  return trap === 'heredoc'
+    ? `${P} That command's heredoc is unquoted, and on Windows Git Bash expands backslashes and $ in its body: what was written may not be what the file got. Quote the delimiter (<<'EOF') to keep the text as written, and check the result.`
+    : `${P} That command pipes a build or test into a filter: the pipe's exit code is the filter's, so a failure reads as a success. Use set -o pipefail, or read the exit code without the pipe, before calling it passed.`;
+}
+
 /** Told to the model when the person's message holds what looks like a key or a token (its kinds, never the value). */
 export function promptSecretNote(kinds: readonly string[]): string {
   return `${P} The person's message holds what looks like a secret (${kinds.join(', ')}). Use it only for what they asked; do not repeat it in your answer, write it into a file other than a secret store, commit it or send it anywhere. If it looks pasted by mistake, tell them to rotate it.`;
