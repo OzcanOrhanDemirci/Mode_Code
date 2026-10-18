@@ -57,6 +57,12 @@ export type TaintedAct = 'send' | 'persist' | 'memory';
 
 const SEND_FLAGS = /^(?:-d|--data(?:-\w+)?|-F|--form(?:-string)?|-T|--upload-file|--json|--post-data|--post-file|--body-data|--body-file|-body|-infile)$/i;
 const SEND_METHOD = /^(?:post|put|patch|delete)$/i;
+/** A method as a flag and its value (`-X POST`), or joined to it (`-XPOST`, `--request=PUT`, `-Method:Post`). */
+const METHOD_FLAG = /^(?:-X|--request|-method)$/i;
+const METHOD_JOINED = /^(?:-X|--request=|-method:)(\w+)$/i;
+/** httpie and xh: the method is a word of its own (`http POST url`), and `name=value`, `name:=json`, `name@file` are a body. */
+const HTTPIE = new Set(['http', 'https', 'xh']);
+const HTTPIE_ITEM = /^\w[\w.-]*(?::=|=(?!=)|@)/;
 const SENDERS = new Set(['nc', 'ncat', 'netcat', 'socat', 'telnet', 'ftp', 'sftp', 'scp', 'rsync']);
 const PERSIST_FILE =
   /(?:^|\/)(?:\.claude\/(?:settings(?:\.local)?\.json|hooks\/)|\.mcp\.json$|crontab$|\.bashrc$|\.zshrc$|\.profile$|\.bash_profile$|Microsoft\.PowerShell_profile\.ps1$|\.git\/hooks\/)/i;
@@ -64,7 +70,7 @@ const PERSIST_FILE =
 /** `host:path` or `user@host:path`: a place on another machine (a drive letter is not a host). */
 function remote(arg: string): boolean {
   const c = arg.indexOf(':');
-  if (c <= 0 || arg.startsWith('-')) return false;
+  if (c === -1 || arg.startsWith('-')) return false;
   const host = arg.slice(0, c);
   return host.length > 1 && !/[/\\]/.test(host);
 }
@@ -73,8 +79,8 @@ function sends(program: string, args: readonly string[]): boolean {
   if (SENDERS.has(program)) return program === 'rsync' || program === 'scp' ? args.some(remote) : true;
   if (FETCHERS.has(program)) {
     if (args.some((a) => SEND_FLAGS.test(a.split('=')[0]!))) return true;
-    const m = args.findIndex((a) => /^(?:-X|--request|-method)$/i.test(a));
-    return m !== -1 && SEND_METHOD.test(args[m + 1] ?? '');
+    if (HTTPIE.has(program) && args.some((a) => SEND_METHOD.test(a) || HTTPIE_ITEM.test(a))) return true;
+    return args.some((a, i) => SEND_METHOD.test(METHOD_FLAG.test(a) ? (args[i + 1] ?? '') : (METHOD_JOINED.exec(a)?.[1] ?? '')));
   }
   if (program === 'gh') {
     const [sub, verb] = args;
