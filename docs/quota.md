@@ -9,6 +9,15 @@ Claude Code reports two windows after each answer: five hours and a week. Mode_C
 - **Stop.** At the limit only reading, notes, the memory and committing what is done run.
 - **Resume.** Autonomous work that stopped at the limit goes on one minute after the window resets (`quota.autoResume`).
 
+## What costs context, and the hints
+
+Every call reads the whole context again, so a long session costs more per step than a short one doing the same work. Two hints, each said once:
+
+- **After a commit or a push**, when the context is past 100K tokens, the line above the prompt says that `/clear` would start the next task small, until you type again. You type `/clear` yourself (a plugin cannot), and a handoff note (`/devir`, `handoff`) keeps what the next task needs. Off with `quota.clearHint: false`.
+- **A large file read whole** (about 10K tokens or more, no `offset` or `limit`): Claude is told once to find the place first (Grep, `grep -n`) and read that part, the region it will edit in full. Reading through the shell (`cat`, `sed -n`, `grep -rn`) has the same hint toward Claude Code's own tools.
+
+Two of Claude Code's own help too: `/btw` asks a side question without adding it to the conversation, and `/compact` takes instructions. The `compact-keep` rule template (`mode-code template apply compact-keep`) puts a line in the project's `CLAUDE.md` asking every compaction to keep the decisions word for word, paths with line ranges, error messages exactly, what is not verified and the next step. Mode_Code also asks each compaction to keep the session's own state (mode, flow, run) and restates it after.
+
 ## What a task costs
 
 ```sh

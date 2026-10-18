@@ -319,6 +319,11 @@ export function hygieneNote(tool: 'Read' | 'Grep'): string {
   return `${P} That command read files through the shell. Claude Code's ${tool} tool does it without one and its output costs less context${tool === 'Read' ? ' (offset and limit read a part)' : ''}: prefer it. A hint, not a rule; said once.`;
 }
 
+/** Told to the model once in a session when it read a large file whole (core/hygiene.ts wholeRead). */
+export function wholeReadNote(): string {
+  return `${P} That file was read whole, and all of it now rides in the context. To change or check one part of a large file, find the place first (Grep, or grep -n) and read that part with Read's offset and limit; read the region you will edit in full. A hint, not a rule; said once.`;
+}
+
 /** Told to the model once per trap in a session when a command fell into one (core/hygiene.ts shellTrap). */
 export function trapNote(trap: 'heredoc' | 'pipe'): string {
   return trap === 'heredoc'

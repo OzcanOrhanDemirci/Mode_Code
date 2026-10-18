@@ -18,6 +18,7 @@ import {
   packsOnNote,
   promptSecretNote,
   trapNote,
+  wholeReadNote,
   keywordContext,
   quotaLine,
   restoredContext,
@@ -234,6 +235,7 @@ test('the notes of the second belt: each names what happened and what to do, and
     trapNote('heredoc'),
     trapNote('pipe'),
     promptSecretNote(['github-token']),
+    wholeReadNote(),
   ];
   for (const n of notes) assert.ok(n.startsWith('[Mode_Code] '), n);
   assert.match(notes[0]!, /2 connected MCP tool\(s\).*mcp__docs__search, mcp__docs__fetch.*not the person's/);
@@ -245,6 +247,7 @@ test('the notes of the second belt: each names what happened and what to do, and
   assert.ok(!notes[5]!.includes('offset'), 'Grep has no offset to name');
   assert.match(notes[6]!, /<<'EOF'/);
   assert.match(notes[7]!, /pipefail/);
+  assert.match(notes[9]!, /read whole.*Grep.*offset and limit/);
   assert.match(notes[8]!, /\(github-token\).*rotate/);
   assert.match(
     packsOnNote(['typst', 'ffmpeg'], 'auto'),

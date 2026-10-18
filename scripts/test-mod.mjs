@@ -102,6 +102,9 @@ const ALLOWED = new Set([
   // Full autonomy's start window: a pane the person opens with a press or /tam-otonom, closed when it starts.
   'ui.open',
   'ui.close',
+  // The end of a piece of work (A7 of 1.2.0): after a commit or a push, the size of the context, read as the status
+  // line has it. The plain call is free: no breakdown, no request.
+  'session.usage',
 ]);
 const notes = (report.contents ?? []).flatMap((c) => c.notes ?? []);
 const callsNote = notes.find((n) => / calls: /.test(n)) ?? '';

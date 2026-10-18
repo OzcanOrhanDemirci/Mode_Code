@@ -165,6 +165,7 @@ export const tr: Record<MessageKey, string> = {
   'status.manual': 'manuel',
   'status.free': 'serbest',
   'status.wrapUp': 'toparlanıyor',
+  'quota.boundary': '✓ {kind}: sonraki işe /clear ile başlamak için iyi an; her çağrı {tokens} bağlamı yeniden okur.',
   'status.five': '5s %{n}',
   'status.week': 'hafta %{n}',
   'status.weekTarget': 'hafta %{n}/{target}',

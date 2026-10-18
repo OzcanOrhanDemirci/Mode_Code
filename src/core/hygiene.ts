@@ -46,6 +46,17 @@ export function shellTrap(tool: string, input: Readonly<Record<string, unknown>>
   return null;
 }
 
+/** A file read whole that is this long (about 10K tokens) is worth reading in part. */
+export const WHOLE_READ_CHARS = 40_000;
+
+/**
+ * A large file read whole with Claude Code's Read tool (A7 of 1.2.0, targeted reading): `grep -n` finds the place and
+ * offset and limit read it, for a fraction of the context. A read with either already reads a part.
+ */
+export function wholeRead(tool: string, input: Readonly<Record<string, unknown>>, chars: number): boolean {
+  return tool === 'Read' && input.offset === undefined && input.limit === undefined && chars >= WHOLE_READ_CHARS;
+}
+
 /**
  * The Claude Code tool a shell command does the work of, when it only reads files: Read for `cat f`, `head -n 50 f`,
  * `sed -n '1,80p' f`, Grep for `grep -rn x src`. Null for anything else: a pipeline into a program that is no reader,

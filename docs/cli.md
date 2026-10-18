@@ -97,7 +97,15 @@ Commands that change your Claude Code setup, lower a protection or widen what a 
   },
   "memory": { "dirs": ["~/notes"] },
   "footer": { "mode": "draw", "showFiveFrom": 70, "showWeekFrom": 85 },
-  "quota": { "fiveHourWrapUp": 95, "fiveHourStop": 99, "defaultWeeklyTarget": 99, "defaultWeeklyWrapUp": 97, "staleMinutes": 360, "autoResume": true },
+  "quota": {
+    "fiveHourWrapUp": 95,
+    "fiveHourStop": 99,
+    "defaultWeeklyTarget": 99,
+    "defaultWeeklyWrapUp": 97,
+    "staleMinutes": 360,
+    "autoResume": true,
+    "clearHint": true
+  },
   "keywords": { "extra": { "en": { "continue": ["go on"] } } },
   "projects": [{ "id": "my-app", "names": ["app"], "path": "~/dev/my-app", "verify": ["npm run check"] }],
   "modes": { "workDir": null },

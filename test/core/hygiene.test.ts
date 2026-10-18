@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { shellReadTool, shellTrap } from '../../src/core/hygiene.js';
+import { shellReadTool, shellTrap, wholeRead, WHOLE_READ_CHARS } from '../../src/core/hygiene.js';
 
 const bash = (command: string) => shellReadTool('Bash', { command });
 
@@ -59,4 +59,12 @@ test('what the traps rest on, measured in bash where it is installed', (t) => {
   // A failure piped into a filter exits 0; with pipefail it does not.
   assert.equal(run('false | tail -1').status, 0);
   assert.notEqual(run('set -o pipefail; false | tail -1').status, 0);
+});
+
+test('a large file read whole is worth reading in part; a part, a small file or another tool is not', () => {
+  assert.equal(wholeRead('Read', { file_path: 'a.ts' }, WHOLE_READ_CHARS), true);
+  assert.equal(wholeRead('Read', { file_path: 'a.ts' }, WHOLE_READ_CHARS - 1), false);
+  assert.equal(wholeRead('Read', { file_path: 'a.ts', offset: 1 }, WHOLE_READ_CHARS * 2), false);
+  assert.equal(wholeRead('Read', { file_path: 'a.ts', limit: 50 }, WHOLE_READ_CHARS * 2), false);
+  assert.equal(wholeRead('Grep', { pattern: 'x' }, WHOLE_READ_CHARS * 2), false);
 });

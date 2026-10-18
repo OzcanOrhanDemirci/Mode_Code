@@ -148,6 +148,8 @@ export interface Config {
     staleMinutes: number;
     /** Resume autonomous work by itself one minute after the binding window resets. */
     autoResume: boolean;
+    /** After a commit or a push with a large context, the strip says /clear would start the next task small. */
+    clearHint: boolean;
   };
   keywords: {
     /** Extra phrases per language, added to the built-in ones. */
@@ -229,7 +231,7 @@ export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
     morning: { enabled: true, afterHours: 6 },
   },
   footer: { mode: 'draw', showFiveFrom: 70, showWeekFrom: 85 },
-  quota: { fiveHourWrapUp: 95, fiveHourStop: 99, defaultWeeklyTarget: 99, defaultWeeklyWrapUp: 97, staleMinutes: 360, autoResume: true },
+  quota: { fiveHourWrapUp: 95, fiveHourStop: 99, defaultWeeklyTarget: 99, defaultWeeklyWrapUp: 97, staleMinutes: 360, autoResume: true, clearHint: true },
   keywords: { extra: {} },
   projects: [],
   modes: { workDir: null },
@@ -325,10 +327,11 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
       if (typeof q.staleMinutes === 'number' && q.staleMinutes >= 5 && q.staleMinutes <= 1440) c.quota.staleMinutes = Math.round(q.staleMinutes);
       else problems.push({ path: 'quota.staleMinutes', kind: 'range', detail: 'expected 5 to 1440' });
     }
-    if (q.autoResume !== undefined) {
-      if (typeof q.autoResume === 'boolean') c.quota.autoResume = q.autoResume;
-      else problems.push({ path: 'quota.autoResume', kind: 'type', detail: 'expected true or false' });
-    }
+    for (const k of ['autoResume', 'clearHint'] as const)
+      if (q[k] !== undefined) {
+        if (typeof q[k] === 'boolean') c.quota[k] = q[k];
+        else problems.push({ path: `quota.${k}`, kind: 'type', detail: 'expected true or false' });
+      }
     if (c.quota.fiveHourWrapUp > c.quota.fiveHourStop) {
       problems.push({ path: 'quota.fiveHourWrapUp', kind: 'range', detail: 'must not be above fiveHourStop' });
       c.quota.fiveHourWrapUp = c.quota.fiveHourStop;

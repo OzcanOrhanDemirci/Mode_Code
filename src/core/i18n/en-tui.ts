@@ -395,6 +395,9 @@ export const enTui = {
   'set.weekTargetHelp': 'Used when you did not give a budget with the quota keyword.',
   'set.autoResume': 'Resume after reset',
   'set.autoResumeHelp': 'Autonomous work that stopped at the limit continues one minute after the window resets.',
+  'set.clearHint': '/clear after a commit',
+  'set.clearHintHelp':
+    'After a commit or a push with more than 100K tokens of context, the strip says /clear would start the next task small. You type it; nothing is cleared for you.',
   'a11y.plain': 'Plain text',
   'a11y.plain.help': 'ASCII symbols, no borders: for screen readers and terminals without Unicode.',
   'a11y.highContrast': 'High contrast',

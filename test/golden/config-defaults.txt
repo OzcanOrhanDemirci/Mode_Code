@@ -53,7 +53,8 @@
     "defaultWeeklyTarget": 99,
     "defaultWeeklyWrapUp": 97,
     "staleMinutes": 360,
-    "autoResume": true
+    "autoResume": true,
+    "clearHint": true
   },
   "keywords": {
     "extra": {}

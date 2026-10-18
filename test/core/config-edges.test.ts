@@ -31,6 +31,9 @@ test('stale readings: 5 to 1440 minutes, both ends included', () => {
   for (const bad of [4, 1441, '60', true]) assert.deepEqual(problems({ quota: { staleMinutes: bad } }), ['quota.staleMinutes range'], String(bad));
   assert.deepEqual(problems({ quota: { autoResume: 'yes' } }), ['quota.autoResume type']);
   assert.equal(config({ quota: { autoResume: false } }).quota.autoResume, false);
+  assert.deepEqual(problems({ quota: { clearHint: 1 } }), ['quota.clearHint type']);
+  assert.equal(config({ quota: { clearHint: false } }).quota.clearHint, false);
+  assert.equal(config({}).quota.clearHint, true);
 });
 
 test('a wrap-up level may equal its stop level but not exceed it', () => {
