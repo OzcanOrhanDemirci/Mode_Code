@@ -230,6 +230,10 @@ export const enUi = {
   'rule.publish.package': 'Publishing a package or a release.',
   'rule.publish.visibility': 'Making a repository or a gist public.',
   'rule.publish.deploy': 'Deploying to or changing live infrastructure.',
+  'rule.publish.store':
+    'Uploading a build to an app store, submitting it for review, releasing it (asc, gplay, fastlane, eas, altool): asked with bypass on too.',
+  'rule.outbound.payment':
+    'Making or changing a payment through a service (a charge, a refund, a subscription; Stripe and connected services): asked with bypass on too.',
   'rule.docker.volume-delete': 'Deleting Docker volumes or pruning Docker data (an optional pack, for servers).',
   'rule.secrets.stage': 'Staging files that usually hold secrets (.env, key files) for a commit.',
   'rule.secrets.write': 'Writing what looks like a secret into a file.',

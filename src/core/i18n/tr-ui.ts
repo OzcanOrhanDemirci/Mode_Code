@@ -223,6 +223,9 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'rule.publish.package': 'Bir paket ya da sürüm yayınlamak.',
   'rule.publish.visibility': "Bir depoyu ya da gist'i herkese açık yapmak.",
   'rule.publish.deploy': 'Canlı altyapıya dağıtım yapmak ya da altyapıyı değiştirmek.',
+  'rule.publish.store':
+    'Bir derlemeyi uygulama mağazasına yüklemek, incelemeye göndermek, yayınlamak (asc, gplay, fastlane, eas, altool): bypass açıkken de sorulur.',
+  'rule.outbound.payment': 'Bir servisle ödeme yapmak ya da değiştirmek (ücret, iade, abonelik; Stripe ve bağlı servisler): bypass açıkken de sorulur.',
   'rule.docker.volume-delete': 'Docker birimlerini silmek ya da Docker verisini budamak (isteğe bağlı paket, sunucular için).',
   'rule.secrets.stage': 'Genelde sır tutan dosyaları (.env, anahtar dosyaları) commit için hazırlamak.',
   'rule.secrets.write': 'Bir dosyaya sır gibi görünen bir değer yazmak.',

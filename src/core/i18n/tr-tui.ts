@@ -464,6 +464,8 @@ export const trTui: Record<keyof typeof enTui, string> = {
   'rulename.publish.package': 'Paket yayınlamak',
   'rulename.publish.visibility': 'Bir şeyi herkese açmak',
   'rulename.publish.deploy': 'Dağıtım yapmak',
+  'rulename.publish.store': 'Uygulama mağazasına yüklemek',
+  'rulename.outbound.payment': 'Ödeme yapmak',
   'rulename.docker.volume-delete': 'Docker birimlerini silmek',
   'rulename.secrets.stage': 'Sır dosyasını commit etmek',
   'rulename.secrets.write': 'Dosyaya sır yazmak',

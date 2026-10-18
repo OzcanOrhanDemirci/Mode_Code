@@ -66,6 +66,8 @@ export const tr: Record<MessageKey, string> = {
   'belt.reason.publish': 'Bir paket ya da sürüm yayımlanıyor: {command}',
   'belt.reason.visibility': 'Bir depo ya da gist herkese açık yapılıyor: {command}',
   'belt.reason.deploy': 'Canlı altyapıya dağıtım yapılıyor ya da altyapı değiştiriliyor: {command}',
+  'belt.reason.store': 'Bir uygulama mağazasına yükleniyor, gönderiliyor ya da yayınlanıyor: kararı kişi verir, bypass açık olsa da: {command}',
+  'belt.reason.payment': 'Bir ödeme yapılıyor ya da değiştiriliyor: kararı kişi verir, bypass açık olsa da: {what}',
   'belt.reason.unverifiable': 'Bu komutun bir kısmı izlenemedi ({issues}); emniyet kemeri güvenli olduğunu doğrulayamıyor.',
   'belt.reason.disableHooks': "Hook'lar kapatılıyor ya da yalnız yönetilen hook'larla sınırlanıyor: {command}",
   'guard.freeze.file': '❄ Düzenlemeler {folder} klasörüne donduruldu (/dondur): {path} dosyasına yazmak onun dışında. Kişiye sor ya da klasörün içinde çalış.',

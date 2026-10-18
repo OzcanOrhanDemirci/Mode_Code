@@ -894,8 +894,22 @@ function checkPublish(p: string, ws: Word[], raw: string, s: Scope): void {
   if ((p === 'terraform' || p === 'tofu') && ['apply', 'destroy', 'import'].includes(first)) return dep();
   if (p === 'pulumi' && ['up', 'destroy', 'update'].includes(first)) return dep();
   if ((p === 'serverless' || p === 'sls' || p === 'cdk') && ['deploy', 'destroy', 'remove'].includes(first)) return dep();
-  if (p === 'eas' && (first === 'submit' || a.includes('--auto-submit'))) return dep();
-  if (p === 'fastlane' || (p === 'xcrun' && first === 'altool' && a.some((x) => x.includes('upload')))) return dep();
+  // App stores: an upload, a submission, a release, a review cancelled (asc, gplay, fastlane, eas, altool).
+  const store = () => add(s, 'publish.store', 'belt.reason.store', { command: show(raw) });
+  if (p === 'eas' && (first === 'submit' || a.includes('--auto-submit'))) return store();
+  if (p === 'fastlane' || (p === 'xcrun' && first === 'altool' && a.some((x) => x.includes('upload')))) return store();
+  if (
+    p === 'asc' &&
+    (first === 'publish' ||
+      (first === 'submit' && a[1] !== 'status') ||
+      (first === 'builds' && ['upload', 'add-groups'].includes(a[1] ?? '')) ||
+      (first === 'release' && a[1] === 'stage') ||
+      a.includes('--submit'))
+  )
+    return store();
+  if (p === 'gplay' && first === 'releases' && !['list', 'get', 'status', 'show'].includes(a[1] ?? '')) return store();
+  if (p === 'stripe' && PAY_RESOURCE.test(first) && /^(?:create|update|confirm|capture|cancel|pay|finalize|void|send)$/.test(a[1] ?? ''))
+    return void add(s, 'outbound.payment', 'belt.reason.payment', { what: show(raw) });
   if (p === 'gcloud' && a.includes('deploy')) return dep();
 }
 
@@ -1288,6 +1302,12 @@ function checkGitHub(inv: Invocation, s: Scope): void {
   if (deletes) add(s, 'github.delete', 'belt.reason.githubDelete', { command: raw });
 }
 
+/** What a payment is made of, in a payment service's words (Stripe's resources, its MCP tools' names). */
+const PAY_RESOURCE = /^(?:charges?|payment_intents?|refunds?|payouts?|transfers?|invoices?|subscriptions?|checkout|payment_links?)$/;
+const PAY_TOOL =
+  /(?:^|_)(?:charges?|payments?|payment_intents?|refunds?|payouts?|transfers?|invoices?|subscriptions?|checkout|payment_links?|purchases?)(?:_|$)/;
+const PAY_ACT = /(?:^|_)(?:create|update|confirm|capture|cancel|pay|finalize|void|send|refund|purchase|buy)(?:_|$)/;
+
 /** Verbs of a connected service's tool that reach other people. */
 const OUT_SEND = new Set(['send', 'reply', 'forward', 'share', 'invite', 'respond', 'post', 'publish']);
 const OUT_DELETE = new Set(['delete', 'trash', 'remove', 'destroy', 'purge', 'wipe']);
@@ -1305,6 +1325,8 @@ export function checkOutward(tool: string, input: Readonly<Record<string, unknow
   const action = (tool.split('__').pop() ?? '').toLowerCase();
   const verbs = action.split(/[_-]+/).filter(Boolean);
   const event = verbs.includes('event') && verbs.some((v) => v === 'create' || v === 'update' || v === 'delete');
+  // A payment through a connected service (a charge, a refund, a subscription): the person's, bypass or not.
+  if (PAY_TOOL.test(action) && PAY_ACT.test(action)) add(s, 'outbound.payment', 'belt.reason.payment', { what: tool });
   if (event || verbs.some((v) => OUT_SEND.has(v))) add(s, 'outbound.send', 'belt.reason.outboundSend', { tool });
   else if (verbs.some((v) => OUT_DELETE.has(v))) add(s, 'outbound.delete', 'belt.reason.outboundDelete', { tool });
   if (OUT_WRITE.test(action)) {

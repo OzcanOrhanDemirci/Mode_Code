@@ -81,6 +81,8 @@ export const RULES: Readonly<Record<RuleId, RuleInfo>> = Object.freeze({
   'publish.package': r('publish.package', 'publish', 'ask'),
   'publish.visibility': r('publish.visibility', 'publish', 'ask'),
   'publish.deploy': r('publish.deploy', 'publish', 'ask'),
+  // An app store upload, submission or release, and a payment: the person's, bypass or not (K5 of 1.2.0).
+  'publish.store': r('publish.store', 'publish', 'ask', 'ask'),
   'docker.volume-delete': r('docker.volume-delete', 'docker', 'deny', 'ask', false, 'dockerVolumes'),
   'data.delete-cloud': r('data.delete-cloud', 'data', 'deny', 'ask'),
   'data.write-cloud': r('data.write-cloud', 'data', 'ask'),
@@ -88,6 +90,7 @@ export const RULES: Readonly<Record<RuleId, RuleInfo>> = Object.freeze({
   'system.security-off': r('system.security-off', 'system', 'deny', 'ask'),
   'outbound.send': r('outbound.send', 'outbound', 'ask'),
   'outbound.delete': r('outbound.delete', 'outbound', 'ask'),
+  'outbound.payment': r('outbound.payment', 'outbound', 'ask', 'ask'),
   // A key pushed to a public repository is leaked the moment it lands: asked about even with bypass on.
   'secrets.stage': r('secrets.stage', 'secrets', 'ask', 'ask'),
   'secrets.write': r('secrets.write', 'secrets', 'warn'),

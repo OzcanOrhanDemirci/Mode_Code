@@ -472,6 +472,8 @@ export const enTui = {
   'rulename.publish.package': 'Publish a package',
   'rulename.publish.visibility': 'Make something public',
   'rulename.publish.deploy': 'Deploy',
+  'rulename.publish.store': 'Upload to an app store',
+  'rulename.outbound.payment': 'Make a payment',
   'rulename.docker.volume-delete': 'Delete Docker volumes',
   'rulename.secrets.stage': 'Commit a secrets file',
   'rulename.secrets.write': 'Write a secret into a file',

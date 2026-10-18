@@ -131,6 +131,8 @@ export const BELT_SAMPLES: readonly BeltSample[] = [
     rules: ['meta.unverifiable'],
   },
   { name: 'delete untracked files', tool: 'Bash', input: { command: 'git clean -fdx' }, verdict: 'ask', rules: ['git.clean'] },
+  { name: 'upload to an app store', tool: 'Bash', input: { command: 'asc builds upload --ipa build/app.ipa' }, verdict: 'ask', rules: ['publish.store'] },
+  { name: 'make a payment', tool: 'Bash', input: { command: 'stripe refunds create --charge ch_123' }, verdict: 'ask', rules: ['outbound.payment'] },
   { name: 'merge past the checks', tool: 'Bash', input: { command: 'gh pr merge 12 --admin' }, verdict: 'ask', rules: ['github.admin-merge'] },
   {
     name: 'recursive delete outside the project',

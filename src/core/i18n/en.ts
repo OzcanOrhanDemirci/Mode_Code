@@ -66,6 +66,8 @@ export const en = {
   'belt.reason.publish': 'Publishes a package or a release: {command}',
   'belt.reason.visibility': 'Makes a repository or a gist public: {command}',
   'belt.reason.deploy': 'Deploys to or changes live infrastructure: {command}',
+  'belt.reason.store': 'Uploads to, submits to or releases on an app store: the person decides, bypass or not: {command}',
+  'belt.reason.payment': 'Makes or changes a payment: the person decides, bypass or not: {what}',
   'belt.reason.unverifiable': 'Part of this command could not be followed ({issues}), so the safety belt cannot confirm it is safe.',
   'belt.reason.disableHooks': 'Turns hooks off or limits them to managed hooks: {command}',
   'guard.freeze.file': '❄ The edits are frozen to {folder} (/freeze): writing {path} is outside it. Ask the person, or work inside the folder.',
