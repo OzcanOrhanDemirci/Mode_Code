@@ -252,3 +252,10 @@ test('who may change a setting: an agent never one that lowers a protection or w
     assert.ok(personOnly(p), p);
   for (const p of ['language', 'view', 'modules.keywords', 'footer.mode', 'accessibility.plain']) assert.ok(!personOnly(p), p);
 });
+
+test('a path names a setting only when it is one: a real pack or skill, never a template or a group', () => {
+  assert.equal(settingOf('packs.items.flutter')?.item, 'flutter');
+  assert.equal(settingOf('skills.items.grilling')?.id, 'skills.items.*');
+  for (const p of ['packs.items.*', 'skills.items.*', 'packs.items.nope', 'skills.items.nope', 'packs.items', 'modules', 'nope', 'packs.items.flutter.x'])
+    assert.equal(settingOf(p), null, p);
+});

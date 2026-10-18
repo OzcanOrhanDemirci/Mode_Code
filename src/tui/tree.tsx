@@ -297,7 +297,7 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
     children: () => [
       n('general', 'page.general', { description: d('desc.general'), screen: (p) => <General {...p} /> }),
       n('modules', 'page.modules', { description: d('desc.modules'), screen: (p) => <Modules {...p} /> }),
-      n('footer-quota', 'page.footerQuota', { description: d('desc.footerQuota'), minView: 'recommended', screen: (p) => <FooterAndQuota {...p} /> }),
+      n('footer-quota', 'page.footerQuota', { description: d('desc.footerQuota'), screen: (p) => <FooterAndQuota {...p} /> }),
       n('memory', 'page.memory', {
         description: d('desc.memory'),
         badge: (() => {

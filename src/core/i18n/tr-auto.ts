@@ -324,18 +324,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'runs.howTo': 'Otomasyon › Tam otonom altında aç, sonra bir mesajı "<proje> tam otonom kota +10" ile bitir (docs/autonomy.md).',
   'page.autonomy': 'Tam otonom',
   'desc.autonomy': 'Tam otonom: açık ya da kapalı, sınırları ve buradan ölçülen başlangıç denetimleri.',
-  'set.autonomy.enabled': 'Tam otonom',
-  'set.autonomy.enabledHelp': 'Sana sormadan tek bir görevi sonuna kadar götüren koşular. Sen açana kadar kapalı; Claude açamaz.',
   'set.autonomy.confirm': "Açmak için Enter'a bir kez daha bas.",
-  'set.autonomy.maxHours': 'Süre sınırı (saat)',
-  'set.autonomy.maxHoursHelp': 'Bir koşunun raporuyla duraklayacağı ya da yeni bir sınırla süreceği (aşağıda) çalışma saati.',
-  'set.autonomy.atTimeLimit': 'Süre sınırında',
-  'set.autonomy.atTimeLimitHelp':
-    'Sürsün: takılma süresi içinde kilometre taşına ulaşmış koşu yeni bir sınırla sürer, ulaşmamış olan duraklar. Duraklasın: her koşu sınırında duraklar ve seni bekler.',
-  'set.autonomy.atTimeLimit.continue': 'ilerledikçe sürsün',
-  'set.autonomy.atTimeLimit.pause': 'duraklasın',
-  'set.autonomy.stallMinutes': 'Takılma süresi (dakika)',
-  'set.autonomy.stallMinutesHelp': 'Kilometre taşı gelmeyen bu kadar dakikadan sonra Claude uyarılır; iki katında koşu takıldı diye duraklar.',
   'set.autonomy.check': 'Buradan ölçülen başlangıç denetimleri',
   'set.autonomy.note': 'Gerisi (bütçe, canlı kum havuzu sınaması, oturumun izin modu) koşu başlarken ölçülür.',
   // ── Otomasyon › Bypass, İzinsiz yapılanlar ──
@@ -344,13 +333,8 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'desc.bypass': 'Bypass: bir oturumda, sen orada açınca, emniyet kemerini bir süre kaldırır. Burada açılana kadar kapalı.',
   'page.bypassed': 'İzinsiz yapılanlar',
   'desc.bypassed': "Bypass'ın sorulmadan ya da engellenmeden geçirdiği her çağrı, tek tek; ne zaman açılıp kapandığı da.",
-  'set.bypass.enabled': 'Bypass açılabilir',
-  'set.bypass.enabledHelp':
-    'Kapalı: /bypass ve şeritteki ⚡ yok. Açık: bir oturumda kendin açarsın (/bypass, bir kez sorulur), aşağıdaki süre kadar; Claude açamaz.',
   'set.bypass.confirm':
     "Bypass, Claude'un sormadan iş yapmasını sağlar: emniyet kemerinin soracağı ya da engelleyeceği şeyler geçer, çağrı çağrı kaydedilir. Dosyaların, ayarların, hafızan ve sırların korunmaya devam eder; geri alınamaz silmeler yine sorulur. Bir oturumda yalnız gerçekten istediğinde aç. Bu bilgisayarda izin vermek için Enter'a bir kez daha bas.",
-  'set.bypass.maxHours': 'Kaç saat sürer',
-  'set.bypass.maxHoursHelp': 'Bir oturumda bu süre dolunca bypass kendiliğinden kapanır; on dakika önce uyarır (1 ile 24 arası).',
   'set.bypass.tiers': 'Neyi kaldırır',
   'set.bypass.tier.never': 'Asla: bu aracı, Claude Code ayarlarını ya da hafızanı değiştirmek; bir sırrı bilgisayarın dışına göndermek.',
   'set.bypass.tier.asked':
@@ -372,14 +356,8 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   // ── Otomasyon › Paralel ajanlar ──
   'page.agents': 'Paralel ajanlar',
   'desc.agents': "Paralel ajanlar: Claude'un kaç ajan başlatacağı, her oturumda şeritten sen belirlersin. Burada açılana kadar kapalı.",
-  'set.agents.enabled': 'Paralel ajanlar ayarlanabilir',
-  'set.agents.enabledHelp':
-    'Kapalı: bu araç hiçbir ajana dokunmaz, Claude Code onları uygun gördüğü gibi başlatır. Açık: her oturum ajanlar kapalı başlar, sen şeritten (/ajan) ayarlarsın.',
   'set.agents.confirm':
     "Bu açıkken her oturum ajanlar kapalı başlar: sen şeritten ayarlayana kadar Claude ajan başlatmaz (aşağıdaki salt okuyan yardımcılar hariç). Açmak için Enter'a bir kez daha bas.",
-  'set.agents.helpers': 'Salt okuyan yardımcılar serbest',
-  'set.agents.helpersHelp':
-    "Claude Code'un Explore ve Plan ajanları yalnız okur ve arar. Açık: ajanlar kapalıyken de çalışırlar ve sayılmazlar. Kapalı: her ajan gibi sayılırlar.",
   'set.agents.modes': 'Şeritte',
   'set.agents.mode.off': 'Kapalı: Claude ajan başlatmaz, işi kendisi yapar.',
   'set.agents.mode.free': 'Aynı anda en çok N: ne zaman başlatacağına Claude karar verir; ayar sen değiştirene kadar kalır.',

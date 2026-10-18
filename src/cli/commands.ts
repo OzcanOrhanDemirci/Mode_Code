@@ -8,7 +8,7 @@ import { createInterface } from 'node:readline/promises';
 import { homedir } from 'node:os';
 import { APP_NAME, APP_VERSION, CLI_NAME, MIN_CLAUDE_CODE_FOR_HOOKS, REPO_URL } from '../core/app.js';
 import { cloneDefaults, serializeConfig, setConfigValue, type Config } from '../core/config.js';
-import { personOnly } from '../core/ux/catalog.js';
+import { effectOf, nameOf, personOnly, valueText } from '../core/ux/catalog.js';
 import { evaluateToolCall } from '../core/belt/evaluate.js';
 import { RULES, RULE_IDS } from '../core/belt/rules.js';
 import { compact, percent, ago, until, dateTime, bar, shortPath, integer } from '../core/format.js';
@@ -244,9 +244,19 @@ export async function cmdInstall(a: Args): Promise<number> {
         const dir = m === '' ? suggestion : m === '-' ? null : m;
         if (dir) chosen.memory = { ...cloneDefaults().memory, dirs: [dir] };
       }
-      const note = [T(ctx, 'set.footerModeHelp'), T(ctx, 'install.ask.footerExample'), ...sampleFooter(ctx.lang).map((l) => `    ${l}`)];
-      const f = await choose(ctx, T(ctx, 'install.ask.footer'), [T(ctx, 'footer.mode.draw'), T(ctx, 'footer.mode.check'), T(ctx, 'footer.mode.off')], note);
-      chosen.footer = { ...cloneDefaults().footer, mode: (['draw', 'check', 'off'] as const)[f]! };
+      const modes = ['draw', 'check', 'off'] as const;
+      const note = [
+        ...modes.map((m) => `${valueText('footer.mode', m, ctx.lang)}: ${effectOf('footer.mode', m, ctx.lang)}`),
+        T(ctx, 'install.ask.footerExample'),
+        ...sampleFooter(ctx.lang).map((l) => `    ${l}`),
+      ];
+      const f = await choose(
+        ctx,
+        T(ctx, 'install.ask.footer'),
+        modes.map((m) => valueText('footer.mode', m, ctx.lang)),
+        note,
+      );
+      chosen.footer = { ...cloneDefaults().footer, mode: modes[f]! };
     }
   }
   // Nobody chose a memory folder (the simple view, --yes): the one Claude Code is set to keep is protected.
@@ -257,11 +267,11 @@ export async function cmdInstall(a: Args): Promise<number> {
   if (asking) {
     say();
     say(bold(T(ctx, 'install.summary')));
-    say(`  ${T(ctx, 'set.view')}: ${T(ctx, `view.${chosen.view ?? 'recommended'}` as MessageKey)}`);
+    say(`  ${nameOf('view', ctx.lang)}: ${valueText('view', chosen.view ?? 'recommended', ctx.lang)}`);
     if (chosen.memory) say(`  ${T(ctx, 'page.memory')}: ${chosen.memory.dirs.map((d) => shortPath(d, homedir(), 70)).join(', ')}`);
-    if (chosen.footer) say(`  ${T(ctx, 'set.footerMode')}: ${T(ctx, `footer.mode.${chosen.footer.mode}` as MessageKey)}`);
-    if (chosen.update) say(`  ${T(ctx, 'set.updateCheck')}: ${T(ctx, chosen.update.check ? 'footer.yes' : 'footer.no')}`);
-    if (chosen.packs) say(`  ${T(ctx, 'packs.autoUse')}: ${T(ctx, chosen.packs.autoUse ? 'footer.yes' : 'footer.no')}`);
+    if (chosen.footer) say(`  ${nameOf('footer.mode', ctx.lang)}: ${valueText('footer.mode', chosen.footer.mode, ctx.lang)}`);
+    if (chosen.update) say(`  ${nameOf('update.check', ctx.lang)}: ${valueText('update.check', chosen.update.check, ctx.lang)}`);
+    if (chosen.packs) say(`  ${nameOf('packs.autoUse', ctx.lang)}: ${valueText('packs.autoUse', chosen.packs.autoUse, ctx.lang)}`);
     say();
   }
   if (!flag(a, 'yes', 'y') && !(await confirm(T(ctx, 'install.confirm')))) {

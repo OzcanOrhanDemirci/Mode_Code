@@ -15,6 +15,7 @@ import { CORE_SKILLS } from '../../core/skills.js';
 import { EXTERNAL_SKILLS } from '../../core/skills-external.js';
 import { findProgram } from '../../node/packs.js';
 import { SettingsEditor, type Field } from '../widgets.js';
+import { valueIn, valueText } from '../../core/ux/catalog.js';
 
 function Cmd({ children }: { children: string }) {
   const { theme } = useEnv();
@@ -250,29 +251,15 @@ export function Packs({ width, open }: ScreenProps) {
   const c = data.config();
   // Which programs are on this computer: looked up once as the page opens.
   const [missing] = useState(() => new Map(PACKS.map((p) => [p.id, p.tools.map((x) => x.program).filter((x) => findProgram(x) === null)])));
-  const modes = (['auto', 'always', 'me', 'never'] as const).map((value) => ({ value, label: t(`packs.mode.${value}` as MessageKey) }));
   const fields: Field[] = [
-    {
-      path: 'packs.autoUse',
-      label: t('packs.autoUse'),
-      help: t('packs.autoUseHelp'),
-      value: c.packs.autoUse,
-      type: { kind: 'bool' },
-      confirmOn: { value: true, text: t('packs.autoConfirm') },
-    },
+    { path: 'packs.autoUse', value: c.packs.autoUse },
     ...PACKS.map((p): Field => ({
       path: `packs.items.${p.id}`,
-      label: p.name,
-      help: [
-        p.summary,
+      value: valueIn(c, `packs.items.${p.id}`),
+      more: [
         t('packs.itemTokens', { n: p.tokens }),
-        missing.get(p.id)?.length ? t('packs.itemMissing', { programs: missing.get(p.id)!.join(', '), pack: p.id }) : '',
-      ]
-        .filter(Boolean)
-        .join(' '),
-      value: c.packs.items[p.id] ?? 'auto',
-      type: { kind: 'enum', options: modes },
-      confirmOn: { value: 'always', text: t('packs.alwaysConfirm') },
+        ...(missing.get(p.id)?.length ? [t('packs.itemMissing', { programs: missing.get(p.id)!.join(', '), pack: p.id })] : []),
+      ],
     })),
   ];
   return (
@@ -287,17 +274,13 @@ export function Packs({ width, open }: ScreenProps) {
 
 /** Commands and skills (docs/skills.md): Mode_Code's own, and the skills of others, each off until turned on here. */
 export function Skills({ width, open }: ScreenProps) {
-  const { data } = useEnv();
+  const { data, lang } = useEnv();
   const t = useT();
   const c = data.config();
-  const states = (['off', 'me', 'on'] as const).map((value) => ({ value, label: t(`skills.state.${value}` as MessageKey) }));
-  const fields: Field[] = Object.entries(EXTERNAL_SKILLS).map(([id, s]) => ({
+  const fields = Object.entries(EXTERNAL_SKILLS).map(([id, s]): Field => ({
     path: `skills.items.${id}`,
-    label: id,
-    help: `${t(`skills.about.${id}` as MessageKey)} (${s.repo}, ${s.license}; ${t('skills.suggested', { state: t(`skills.state.${s.suggested}` as MessageKey) })})`,
-    value: c.skills.items[id] ?? 'off',
-    type: { kind: 'enum', options: states },
-    confirmOn: { value: 'on', text: t('skills.onConfirm') },
+    value: valueIn(c, `skills.items.${id}`),
+    more: [`${s.repo}, ${s.license}; ${t('skills.suggested', { state: valueText(`skills.items.${id}`, s.suggested, lang) })}`],
   }));
   const own = CORE_SKILLS.filter((s) => s.kind === 'skill').map((s) => s.id);
   return (

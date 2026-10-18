@@ -10,6 +10,8 @@
 import { DEFAULT_CONFIG, type Config } from '../config.js';
 import { LANGUAGES, tIn, type Lang, type MessageKey } from '../i18n/index.js';
 import { percent } from '../format.js';
+import { PACKS } from '../packs.js';
+import { EXTERNAL_SKILLS } from '../skills-external.js';
 
 export type Unit = 'percent' | 'hours' | 'minutes' | 'days' | 'count';
 
@@ -194,13 +196,15 @@ export type SettingPath = Exclude<SettingId, TemplateId> | `packs.items.${string
 export const SETTINGS: Readonly<Record<SettingId, SettingDef>> = S;
 export const SETTING_IDS = Object.keys(S) as SettingId[];
 
-/** The entry a config path belongs to, and the template's item when it is one. */
+/** The entry a config path belongs to, and the template's item when it is one: a pack or a skill that exists. */
 export function settingOf(path: string): { id: SettingId; def: SettingDef; item: string | null } | null {
   if (Object.hasOwn(S, path) && !path.endsWith('.*')) return { id: path as SettingId, def: SETTINGS[path as SettingId], item: null };
   const m = /^(packs|skills)\.items\.([^.]+)$/.exec(path);
   if (!m) return null;
+  const item = m[2]!;
+  if (m[1] === 'packs' ? !PACKS.some((p) => p.id === item) : !Object.hasOwn(EXTERNAL_SKILLS, item)) return null;
   const id = `${m[1]}.items.*` as SettingId;
-  return { id, def: SETTINGS[id], item: m[2]! };
+  return { id, def: SETTINGS[id], item };
 }
 
 function must(path: string) {
@@ -242,6 +246,11 @@ export function whatOf(path: SettingPath, lang: Lang): string {
   if (s.def.template === 'pack') return tIn(lang, `ux.pack.${s.item}` as MessageKey);
   if (s.def.template === 'skill') return tIn(lang, `skills.about.${s.item}` as MessageKey);
   return tIn(lang, key(s.id, 'what'));
+}
+
+/** A choice option's label by the entry's id, for a template whose item is not at hand (every skill's states read alike). */
+export function optionLabel(id: SettingId, value: unknown, lang: Lang): string {
+  return tIn(lang, key(id, `opt.${String(value)}`));
 }
 
 /** The words for one value: on / off, the option's label, or the number with its unit. */

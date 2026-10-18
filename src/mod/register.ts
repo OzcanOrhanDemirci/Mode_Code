@@ -39,6 +39,7 @@ import { SYNC_MAX_BYTES, syncCommitMessage, type Pending } from '../core/sync.js
 import { exportMachine, parseSharedRecord, settingsInEffect, syncDue, type SharedRecord, type SyncFs } from '../core/sync-export.js';
 import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform } from '../core/paths.js';
 import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '../core/i18n/index.js';
+import { optionLabel } from '../core/ux/catalog.js';
 import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
 import { beltOffForDevelopment } from '../core/dev-switch.js';
 import { taintedAct, taintSource, withoutInvisible } from '../core/taint.js';
@@ -3549,7 +3550,7 @@ async function commandsList($: $): Promise<string> {
         head: tIn(lang, 'cmds.head.others'),
         rows: Object.entries(c.config.skills.items)
           .filter(([, s]) => s !== 'off')
-          .map(([id, s]) => ({ name: `/${PLUGIN_NAME}:${id}`, text: tIn(lang, `skills.state.${s}` as MessageKey) })),
+          .map(([id, s]) => ({ name: `/${PLUGIN_NAME}:${id}`, text: optionLabel('skills.items.*', s, lang) })),
       },
     ],
     tIn(lang, 'cmds.tail'),

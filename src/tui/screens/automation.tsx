@@ -12,7 +12,7 @@ import type { MessageKey } from '../../core/i18n/index.js';
 import type { ToolEvent } from '../../app/data.js';
 import type { ScreenProps } from '../nav.js';
 import { Empty, Muted, Section, useEnv, useScreenKeys, useT } from '../ui.js';
-import { SettingsEditor, type Field } from '../widgets.js';
+import { fieldsOf, SettingsEditor } from '../widgets.js';
 
 /**
  * The last three tasks given full autonomy (the person, 2026-10-15: "so the prompt is not lost"): the one
@@ -64,24 +64,7 @@ export function RecentTasks({ width, open }: ScreenProps) {
 export function Bypass({ width, open }: ScreenProps) {
   const { data } = useEnv();
   const t = useT();
-  const b = data.config().bypass;
-  const fields: Field[] = [
-    {
-      path: 'bypass.enabled',
-      label: t('set.bypass.enabled'),
-      help: t('set.bypass.enabledHelp'),
-      value: b.enabled,
-      type: { kind: 'bool' },
-      confirmOn: { value: true, text: t('set.bypass.confirm') },
-    },
-    {
-      path: 'bypass.maxHours',
-      label: t('set.bypass.maxHours'),
-      help: t('set.bypass.maxHoursHelp'),
-      value: b.maxHours,
-      type: { kind: 'number', min: 1, max: 24 },
-    },
-  ];
+  const fields = fieldsOf(data.config(), ['bypass.enabled', 'bypass.maxHours']);
   return (
     <Box flexDirection="column" width={width}>
       <SettingsEditor fields={fields} open={open} width={width} />
@@ -108,19 +91,8 @@ export function Bypass({ width, open }: ScreenProps) {
 export function ParallelAgents({ width, open }: ScreenProps) {
   const { data, lang, now, theme } = useEnv();
   const t = useT();
-  const a = data.config().agents;
   const sessions = data.claudeSessions();
-  const fields: Field[] = [
-    {
-      path: 'agents.enabled',
-      label: t('set.agents.enabled'),
-      help: t('set.agents.enabledHelp'),
-      value: a.enabled,
-      type: { kind: 'bool' },
-      confirmOn: { value: true, text: t('set.agents.confirm') },
-    },
-    { path: 'agents.helpers', label: t('set.agents.helpers'), help: t('set.agents.helpersHelp'), value: a.helpers, type: { kind: 'bool' } },
-  ];
+  const fields = fieldsOf(data.config(), ['agents.enabled', 'agents.helpers']);
   return (
     <Box flexDirection="column" width={width}>
       <SettingsEditor fields={fields} open={open} width={width} />

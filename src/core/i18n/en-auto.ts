@@ -321,18 +321,7 @@ export const enAuto = {
   'runs.howTo': 'Turn it on under Automation › Full autonomy, then end a message with "<project> full auto quota +10" (see docs/autonomy.md).',
   'page.autonomy': 'Full autonomy',
   'desc.autonomy': 'Full autonomy: on or off, its limits, and the start checks measured from here.',
-  'set.autonomy.enabled': 'Full autonomy',
-  'set.autonomy.enabledHelp': 'Runs that take one task to its end without asking you. Off until you turn it on; Claude cannot turn it on.',
   'set.autonomy.confirm': 'Press Enter again to turn it on.',
-  'set.autonomy.maxHours': 'Time limit (hours)',
-  'set.autonomy.maxHoursHelp': 'Running hours after which a run pauses with its report, or goes on with a fresh limit (below).',
-  'set.autonomy.atTimeLimit': 'At the time limit',
-  'set.autonomy.atTimeLimitHelp':
-    'Go on: a run that reached a milestone within the stall time gets a fresh limit, and one that did not pauses. Pause: every run pauses at its limit and waits for you.',
-  'set.autonomy.atTimeLimit.continue': 'go on while it progresses',
-  'set.autonomy.atTimeLimit.pause': 'pause',
-  'set.autonomy.stallMinutes': 'Stall time (minutes)',
-  'set.autonomy.stallMinutesHelp': 'Minutes without a milestone after which Claude is told; twice as long and the run pauses as stalled.',
   'set.autonomy.check': 'Start checks, measured from here',
   'set.autonomy.note': "The rest (the budget, the live sandbox probe, the session's permission mode) is measured when a run starts.",
   // ── Automation › Bypass, Done without asking ──
@@ -341,13 +330,8 @@ export const enAuto = {
   'desc.bypass': 'Bypass: lifts the safety belt in one session for a while, when you switch it on there. Off until you turn it on here.',
   'page.bypassed': 'Done without asking',
   'desc.bypassed': 'Every call bypass let through that would have been asked about or blocked, one by one; and when it went on and off.',
-  'set.bypass.enabled': 'Bypass can be switched on',
-  'set.bypass.enabledHelp':
-    'Off: /bypass and ⚡ on the strip are not there. On: you switch it on in a session yourself (/bypass, asked once), for the time below; Claude cannot.',
   'set.bypass.confirm':
     'Bypass lets Claude act without asking: what the safety belt would ask about or block goes through, recorded call by call. Your files, your settings, your memory and secrets stay protected; irreversible deletions are still asked. Switch it on in a session only when you mean it. Press Enter again to allow it on this computer.',
-  'set.bypass.maxHours': 'Hours it lasts',
-  'set.bypass.maxHoursHelp': 'After this long in a session bypass ends by itself, with a warning ten minutes before (1 to 24).',
   'set.bypass.tiers': 'What it lifts',
   'set.bypass.tier.never': "Never: changing this tool, Claude Code's settings or your memory; sending a secret off the computer.",
   'set.bypass.tier.asked':
@@ -370,14 +354,8 @@ export const enAuto = {
   // ── Automation › Parallel agents ──
   'page.agents': 'Parallel agents',
   'desc.agents': 'Parallel agents: how many agents Claude starts, set by you on the strip for each session. Off until you turn it on here.',
-  'set.agents.enabled': 'Parallel agents can be set',
-  'set.agents.enabledHelp':
-    'Off: this tool never touches an agent, and Claude Code starts them as it sees fit. On: each session starts with agents off, and you set them on the strip (/ajan).',
   'set.agents.confirm':
     'With this on, every session starts with agents off: Claude starts no agent until you set them on the strip (the read-only helpers below aside). Press Enter again to turn it on.',
-  'set.agents.helpers': 'Read-only helpers stay free',
-  'set.agents.helpersHelp':
-    "Claude Code's Explore and Plan agents only read and search. On: they run even with agents off, and are not counted. Off: they count like any agent.",
   'set.agents.modes': 'On the strip',
   'set.agents.mode.off': 'Off: Claude starts no agent and does the work itself.',
   'set.agents.mode.free': 'At most N at once: Claude decides when; the setting stays until you change it.',

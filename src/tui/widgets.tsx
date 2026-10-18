@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-/** Interactive pieces used inside open screens: a list of links, a text field, a settings editor. */
+/** Interactive pieces used inside open screens: a list of links, a text field, a settings editor and its card. */
 import { useState } from 'react';
 import { Box, Text } from 'ink';
 import type { MessageKey } from '../core/i18n/index.js';
 import { truncate } from '../core/text.js';
-import { useEnv, useScreenKeys, useT, ListView, Muted, type ListItem } from './ui.js';
+import type { Config } from '../core/config.js';
+import { amount, asksFirst, confirmText, effectOf, explain, nameOf, nextValue, settingOf, valueIn, valueText, type SettingPath } from '../core/ux/catalog.js';
+import { useEnv, useScreenKeys, useT, ListView, Muted, Row, type ListItem } from './ui.js';
 
 export interface Link extends ListItem {
   address: string;
@@ -92,59 +94,56 @@ export function TextField({
   );
 }
 
-export type FieldKind = { kind: 'bool' } | { kind: 'enum'; options: { value: string; label: string }[] } | { kind: 'number'; min: number; max: number };
-
+/**
+ * A setting shown in an editor: its config path and its value; everything else (its name, its kind, what each value
+ * does, what asks twice) comes from the catalog (src/core/ux/catalog.ts), so no screen writes its own words.
+ */
 export interface Field {
-  path: string;
-  label: string;
-  help: string;
+  path: SettingPath;
   value: unknown;
-  type: FieldKind;
-  /** Turning this off or down lowers a protection: confirm first and say so. */
-  protective?: boolean;
-  /** Changing to this value asks for a second Enter first, with this text shown (what it means). */
-  confirmOn?: { value: unknown; text: string };
+  /** Lines this screen adds to the setting's card, under what it is (a pack's size, a program it misses). */
+  more?: string[];
 }
 
-/** Edits settings in place: ↑↓ choose, Enter changes (twice for anything that lowers a protection), numbers are typed. */
+/**
+ * Edits settings in place: ↑↓ choose, Enter or Space changes (twice for anything that lowers a protection or says
+ * what it means first), numbers are typed. Under the list the selected setting answers the four questions
+ * (docs/design.md): what it is, how it is now, what the change does before it is made, and how to take it back.
+ */
 export function SettingsEditor({ fields, open, width }: { fields: Field[]; open: boolean; width: number }) {
   const env = useEnv();
   const t = useT();
+  const lang = env.lang;
   const [sel, setSel] = useState(0);
   const [pending, setPending] = useState<{ path: string; value: unknown } | null>(null);
   const [typing, setTyping] = useState<string | null>(null);
   const cur = fields[Math.min(sel, fields.length - 1)];
+  const kindOf = (f: Field) => settingOf(f.path)!.def.kind;
 
-  const nextValue = (f: Field): unknown => {
-    if (f.type.kind === 'bool') return !f.value;
-    if (f.type.kind === 'enum') {
-      const i = f.type.options.findIndex((o) => o.value === f.value);
-      return f.type.options[(i + 1) % f.type.options.length]!.value;
-    }
-    return f.value;
-  };
-  const lowers = (f: Field, v: unknown) =>
-    (!!f.protective && (v === false || (typeof v === 'number' && typeof f.value === 'number' && v < f.value))) || (!!f.confirmOn && f.confirmOn.value === v);
-  const save = (path: string, value: unknown) => {
-    const problems = env.data.setConfig(path, value);
+  const save = (f: Field, value: unknown) => {
+    const problems = env.data.setConfig(f.path, value);
     setPending(null);
     setTyping(null);
     if (problems.length) env.flash(t('set.rejected', { detail: problems.map((p) => p.detail).join('; ') }), 'bad');
-    else env.flash(t('set.saved'), 'ok');
+    else env.flash(t('set.changed', { name: nameOf(f.path, lang), value: valueText(f.path, value, lang) }), 'ok');
+  };
+  /** Applies `v`, or holds it for a second press when it asks first. */
+  const offer = (f: Field, v: unknown) => {
+    if (asksFirst(f.path, f.value, v) && !(pending && pending.path === f.path && pending.value === v)) {
+      setPending({ path: f.path, value: v });
+      return;
+    }
+    save(f, v);
   };
 
   useScreenKeys((input, key) => {
     if (!cur) return false;
+    const k = kindOf(cur);
     if (typing !== null) {
       if (key.return) {
-        const n = Number(typing);
-        if (cur.type.kind === 'number' && Number.isFinite(n) && n >= cur.type.min && n <= cur.type.max) {
-          if (lowers(cur, n) && !(pending && pending.path === cur.path && pending.value === n)) {
-            setPending({ path: cur.path, value: n });
-            return true;
-          }
-          save(cur.path, n);
-        } else env.flash(t('set.range', { min: cur.type.kind === 'number' ? cur.type.min : 0, max: cur.type.kind === 'number' ? cur.type.max : 0 }), 'warn');
+        const n = typedNumber(typing, cur);
+        if (n !== null) offer(cur, n);
+        else env.flash(t('set.range', { min: k.kind === 'number' ? k.min : 0, max: k.kind === 'number' ? k.max : 0 }), 'warn');
         return true;
       }
       if (key.escape) {
@@ -154,10 +153,12 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
       }
       if (key.backspace || key.delete) {
         setTyping(typing.slice(0, -1));
+        setPending(null);
         return true;
       }
       if (/^\d$/.test(input)) {
         setTyping((typing + input).slice(0, 4));
+        setPending(null);
         return true;
       }
       return true;
@@ -177,66 +178,125 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
       return true;
     }
     if (key.return || input === ' ') {
-      if (cur.type.kind === 'number') {
+      if (k.kind === 'number') {
         setTyping(String(cur.value ?? ''));
         return true;
       }
-      const v = nextValue(cur);
-      if (lowers(cur, v) && !(pending && pending.path === cur.path)) {
-        setPending({ path: cur.path, value: v });
-        return true;
-      }
-      save(cur.path, pending && pending.path === cur.path ? pending.value : v);
+      offer(cur, pending && pending.path === cur.path ? pending.value : nextValue(cur.path, cur.value));
       return true;
     }
     return false;
   }, open);
 
-  const show = (f: Field): string => {
-    if (f.type.kind === 'bool') return f.value ? t('set.on') : t('set.off');
-    if (f.type.kind === 'enum') return f.type.options.find((o) => o.value === f.value)?.label ?? String(f.value);
-    return String(f.value);
-  };
   // The values stand in one column two cells past the longest label, as far as the longest value leaves room. A
   // label too long for the column is cut: run into its value, "serbest" and "açık" read as one word.
   const valueW = Math.max(
-    ...fields.map((f) =>
-      f.type.kind === 'enum'
-        ? Math.max(...f.type.options.map((o) => o.label.length))
-        : f.type.kind === 'bool'
-          ? Math.max(t('set.on').length, t('set.off').length)
-          : 5,
-    ),
+    ...fields.map((f) => {
+      const k = kindOf(f);
+      const values = k.kind === 'switch' ? [true, false] : k.kind === 'choice' ? [...k.options] : [k.max];
+      return Math.max(...values.map((v) => valueText(f.path, v, lang).length));
+    }),
   );
-  const labelW = Math.max(12, Math.min(40, width - 2 - valueW, Math.max(...fields.map((f) => f.label.length)) + 2));
+  const labelW = Math.max(12, Math.min(40, width - 2 - valueW, Math.max(...fields.map((f) => nameOf(f.path, lang).length)) + 2));
   return (
     <Box flexDirection="column" width={width}>
       {fields.map((f, i) => {
         const selected = i === sel && open;
         return (
           <Box key={f.path}>
-            <Text inverse={selected}>{(selected ? env.theme.sym.cursor : ' ') + ' ' + truncate(f.label, labelW - 2).padEnd(labelW)}</Text>
-            <Text bold color={f.type.kind === 'bool' ? (f.value ? env.theme.ok : env.theme.muted) : env.theme.accent}>
-              {typing !== null && i === sel ? typing + '▏' : show(f)}
+            <Text inverse={selected}>{(selected ? env.theme.sym.cursor : ' ') + ' ' + truncate(nameOf(f.path, lang), labelW - 2).padEnd(labelW)}</Text>
+            <Text bold color={kindOf(f).kind === 'switch' ? (f.value ? env.theme.ok : env.theme.muted) : env.theme.accent}>
+              {typing !== null && i === sel ? typing + '▏' : valueText(f.path, f.value, lang)}
             </Text>
           </Box>
         );
       })}
       {cur ? (
-        <Box marginTop={1} flexDirection="column">
-          <Muted>{cur.help}</Muted>
-          {pending && pending.path === cur.path ? (
-            <Text color={env.theme.warn} wrap="wrap">
-              {cur.confirmOn && cur.confirmOn.value === pending.value ? cur.confirmOn.text : t('set.confirmLower', { value: String(pending.value) })}
-            </Text>
-          ) : null}
-          {open ? <Muted>{t(cur.type.kind === 'number' ? 'set.hintNumber' : 'set.hint')}</Muted> : null}
+        <SettingCard
+          field={cur}
+          typed={typing === null ? null : typedNumber(typing, cur)}
+          pending={pending && pending.path === cur.path ? { value: pending.value } : null}
+          open={open}
+        />
+      ) : null}
+    </Box>
+  );
+}
+
+/** A typed number when it is one the setting takes, else null. */
+function typedNumber(typing: string, f: Field): number | null {
+  const k = settingOf(f.path)!.def.kind;
+  const n = Number(typing);
+  return typing !== '' && k.kind === 'number' && Number.isFinite(n) && n >= k.min && n <= k.max ? n : null;
+}
+
+/** The four answers for the selected setting, from the catalog, and what a press is about to do when it asks first. */
+function SettingCard({ field, typed, pending, open }: { field: Field; typed: number | null; pending: { value: unknown } | null; open: boolean }) {
+  const env = useEnv();
+  const t = useT();
+  const lang = env.lang;
+  const e = explain(env.data.config(), field.path, lang, env.place);
+  const k = settingOf(field.path)!.def.kind;
+  const w = Math.max(...(['ux.q.what', 'ux.q.now', 'ux.q.change', 'ux.q.back', 'ux.q.who'] as const).map((q) => t(q).length)) + 2;
+  const now = `${e.now} (${e.isDefault ? t('ux.default') : t('ux.defaultIs', { value: e.defaultText })})`;
+  const warning = pending
+    ? (confirmText(field.path, pending.value, lang) ?? t('set.confirmLower', { value: valueText(field.path, pending.value, lang) }))
+    : null;
+  // A press that asks first says so before anything else: on a short terminal the card's end may fall below the pane.
+  return (
+    <Box marginTop={1} flexDirection="column">
+      {warning ? (
+        <Box marginBottom={1}>
+          <Text color={env.theme.warn} wrap="wrap">
+            {warning}
+          </Text>
         </Box>
       ) : null}
+      <Row label={t('ux.q.what')} width={w}>
+        {e.what}
+      </Row>
+      {field.more?.map((m, i) => (
+        <Row key={i} label="" width={w} color={env.theme.muted}>
+          {m}
+        </Row>
+      ))}
+      <Row label={t('ux.q.now')} width={w}>
+        {`${now}. ${e.nowEffect}`}
+      </Row>
+      {e.blocked ? (
+        <Row label="" width={w} color={env.theme.warn}>
+          {e.blocked}
+        </Row>
+      ) : null}
+      {k.kind === 'number' ? (
+        <Row label={t('ux.q.change')} width={w}>
+          {typed !== null ? `${amount(typed, k.unit, lang)}: ${effectOf(field.path, typed, lang)}` : t('ux.range', { min: e.range!.min, max: e.range!.max })}
+        </Row>
+      ) : (
+        e.changes.map((c, i) => (
+          <Row key={String(c.value)} label={i === 0 ? t('ux.q.change') : ''} width={w} {...(i === 0 ? {} : { color: env.theme.muted })}>
+            {`${c.text}: ${c.effect}`}
+          </Row>
+        ))
+      )}
+      <Row label={t('ux.q.back')} width={w}>
+        {e.back}
+      </Row>
+      {e.personOnly ? (
+        <Row label={t('ux.q.who')} width={w}>
+          {t('ux.personOnly')}
+        </Row>
+      ) : null}
+      {open ? <Muted>{t(k.kind === 'number' ? 'set.hintNumber' : 'set.hint')}</Muted> : null}
     </Box>
   );
 }
 
 export function tKey(k: string): MessageKey {
   return k as MessageKey;
+}
+
+/** The fields for these settings, with their values in `config`. */
+export function fieldsOf(config: Readonly<Config>, paths: readonly SettingPath[]): Field[] {
+  return paths.map((path) => ({ path, value: valueIn(config, path) }));
 }

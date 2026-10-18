@@ -3,8 +3,6 @@
 import type { enModes } from './en-modes.js';
 
 export const trModes: Record<keyof typeof enModes, string> = {
-  'mod.modes': 'Modlar ve akışlar',
-  'mod.modes.help': 'Sohbet, araştırma, plan ve kod modları ve onları zincirleyen akışlar (araştırma ▶ plan → onay → kod); kod uygular.',
   'feature.modes': 'Modlar ve akışlar',
   'mode.name.free': 'serbest',
   'mode.name.chat': 'sohbet',

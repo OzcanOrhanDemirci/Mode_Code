@@ -142,6 +142,10 @@ export function App(props: AppProps) {
     lang,
     now,
     go,
+    place: (address) =>
+      resolve(roots, address, 'detailed')
+        .map((n) => n.label)
+        .join(' › '),
     flash: showFlash,
     tick,
     ...(props.onLeave

@@ -7,6 +7,7 @@
 import { APP_ID, APP_VERSION } from '../core/app.js';
 import { serializeConfig, setConfigValue } from '../core/config.js';
 import { tIn, type MessageKey } from '../core/i18n/index.js';
+import { optionLabel } from '../core/ux/catalog.js';
 import {
   claudeMayTurnOn,
   installLines,
@@ -126,7 +127,7 @@ export async function cmdPacks(a: Args): Promise<number> {
     if (!PACK_MODES.includes(mode)) return usage(ctx);
     // `always` turns it on in each project as a session starts there (packsFor); the others change nothing on now.
     if (!save(`packs.items.${p.id}`, mode)) return 1;
-    say(green(T('packs.cli.mode', { pack: p.id, mode: T(`packs.mode.${mode}` as MessageKey) })));
+    say(green(T('packs.cli.mode', { pack: p.id, mode: optionLabel('packs.items.*', mode, ctx.lang) })));
     return 0;
   }
   if (sub === 'on' || sub === 'off') {
@@ -149,7 +150,7 @@ function printList(ctx: AppContext, rows: readonly PackRow[], lastUse: Readonly<
   say();
   for (const r of rows) {
     const state = r.on ? green(T('packs.cli.stateOn')) : dim(T('packs.cli.stateOff'));
-    const mode = r.mode === 'auto' ? '' : yellow(` · ${T(`packs.mode.${r.mode}` as MessageKey)}`);
+    const mode = r.mode === 'auto' ? '' : yellow(` · ${optionLabel('packs.items.*', r.mode, ctx.lang)}`);
     const missing = r.pack.tools.filter((t) => !r.found.includes(t.program)).map((t) => t.program);
     const used = lastUse[r.pack.id] ? dim(` · ${T('packs.cli.lastUsed', { when: ago(lastUse[r.pack.id], Date.now(), ctx.lang) })}`) : '';
     say(`  ${r.pack.id.padEnd(11)} ${state}${mode} ${dim(`· ~${r.pack.tokens} tok`)}${used}`);

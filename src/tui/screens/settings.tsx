@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Box, Text } from 'ink';
 import { homedir } from 'node:os';
 import { APP_NAME, APP_VERSION, CLI_NAME, NAME_IS_FINAL, REPO_URL } from '../../core/app.js';
-import { LANGUAGES, type MessageKey } from '../../core/i18n/index.js';
+import type { MessageKey } from '../../core/i18n/index.js';
 import { keywordTables } from '../../core/settings-view.js';
 import { ago, shortPath } from '../../core/format.js';
 import { KEYWORD_LISTS } from '../../core/keywords.js';
@@ -12,58 +12,30 @@ import { nextOf } from '../../core/handoff.js';
 import { newerThan } from '../../core/update.js';
 import type { ScreenProps } from '../nav.js';
 import { Muted, Note, Row, Section, StateMark, useEnv, useScreenKeys, useT } from '../ui.js';
-import { SettingsEditor, TextField, type Field } from '../widgets.js';
+import { fieldsOf, SettingsEditor, TextField } from '../widgets.js';
 
 export function General({ width, open }: ScreenProps) {
   const { data } = useEnv();
-  const t = useT();
-  const c = data.config();
-  const fields: Field[] = [
-    {
-      path: 'language',
-      label: t('set.language'),
-      help: t('set.languageHelp'),
-      value: c.language,
-      type: { kind: 'enum', options: [{ value: 'auto', label: t('set.auto') }, ...Object.entries(LANGUAGES).map(([value, label]) => ({ value, label }))] },
-    },
-    {
-      path: 'view',
-      label: t('set.view'),
-      help: t('set.viewHelp'),
-      value: c.view,
-      type: {
-        kind: 'enum',
-        options: [
-          { value: 'simple', label: t('view.simple') },
-          { value: 'recommended', label: t('view.recommended') },
-          { value: 'detailed', label: t('view.detailed') },
-        ],
-      },
-    },
-    { path: 'update.check', label: t('set.updateCheck'), help: t('set.updateCheckHelp'), value: c.update.check, type: { kind: 'bool' } },
-  ];
-  return <SettingsEditor fields={fields} open={open} width={width} />;
+  return <SettingsEditor fields={fieldsOf(data.config(), ['language', 'view', 'update.check'])} open={open} width={width} />;
 }
 
 export function Modules({ width, open }: ScreenProps) {
   const { data } = useEnv();
   const t = useT();
-  const m = data.config().modules;
-  const b = (key: keyof typeof m, protective = false): Field => ({
-    path: `modules.${key}`,
-    label: t(`mod.${key}` as MessageKey),
-    help: t(`mod.${key}.help` as MessageKey),
-    value: m[key],
-    type: { kind: 'bool' },
-    protective,
-  });
+  const fields = fieldsOf(data.config(), [
+    'modules.modes',
+    'modules.keywords',
+    'modules.footer',
+    'modules.quota',
+    'modules.secrets',
+    'modules.status',
+    'modules.notifications',
+    'modules.quietWork',
+    'modules.mascot',
+  ]);
   return (
     <Box flexDirection="column" width={width}>
-      <SettingsEditor
-        fields={[b('keywords'), b('footer'), b('quota', true), b('secrets', true), b('status'), b('notifications'), b('quietWork')]}
-        open={open}
-        width={width}
-      />
+      <SettingsEditor fields={fields} open={open} width={width} />
       <Box marginTop={1}>
         <Muted>{t('mod.beltNote')}</Muted>
       </Box>
@@ -73,54 +45,28 @@ export function Modules({ width, open }: ScreenProps) {
 
 export function FooterAndQuota({ width, open }: ScreenProps) {
   const { data } = useEnv();
-  const t = useT();
-  const c = data.config();
-  const n = (path: string, label: MessageKey, help: MessageKey, value: number, protective = false): Field => ({
-    path,
-    label: t(label),
-    help: t(help),
-    value,
-    type: { kind: 'number', min: 0, max: 100 },
-    protective,
-  });
-  const fields: Field[] = [
-    {
-      path: 'footer.mode',
-      label: t('set.footerMode'),
-      help: t('set.footerModeHelp'),
-      value: c.footer.mode,
-      type: {
-        kind: 'enum',
-        options: [
-          { value: 'draw', label: t('footer.mode.draw') },
-          { value: 'check', label: t('footer.mode.check') },
-          { value: 'off', label: t('footer.mode.off') },
-        ],
-      },
-    },
-    n('footer.showFiveFrom', 'set.showFiveFrom', 'set.showFromHelp', c.footer.showFiveFrom),
-    n('footer.showWeekFrom', 'set.showWeekFrom', 'set.showFromHelp', c.footer.showWeekFrom),
-    n('quota.fiveHourWrapUp', 'set.fiveWrap', 'set.fiveWrapHelp', c.quota.fiveHourWrapUp),
-    n('quota.fiveHourStop', 'set.fiveStop', 'set.fiveStopHelp', c.quota.fiveHourStop),
-    n('quota.defaultWeeklyTarget', 'set.weekTarget', 'set.weekTargetHelp', c.quota.defaultWeeklyTarget),
-    { path: 'quota.autoResume', label: t('set.autoResume'), help: t('set.autoResumeHelp'), value: c.quota.autoResume, type: { kind: 'bool' } },
-    { path: 'quota.clearHint', label: t('set.clearHint'), help: t('set.clearHintHelp'), value: c.quota.clearHint, type: { kind: 'bool' } },
-  ];
+  const fields = fieldsOf(data.config(), [
+    'footer.mode',
+    'footer.showFiveFrom',
+    'footer.showWeekFrom',
+    'quota.fiveHourWrapUp',
+    'quota.fiveHourStop',
+    'quota.defaultWeeklyTarget',
+    'quota.autoResume',
+    'quota.clearHint',
+  ]);
   return <SettingsEditor fields={fields} open={open} width={width} />;
 }
 
 export function Accessibility({ width, open }: ScreenProps) {
   const { data } = useEnv();
-  const t = useT();
-  const a = data.config().accessibility;
-  const b = (key: keyof typeof a): Field => ({
-    path: `accessibility.${key}`,
-    label: t(`a11y.${key}` as MessageKey),
-    help: t(`a11y.${key}.help` as MessageKey),
-    value: a[key],
-    type: { kind: 'bool' },
-  });
-  return <SettingsEditor fields={[b('plain'), b('highContrast'), b('reduceMotion')]} open={open} width={width} />;
+  return (
+    <SettingsEditor
+      fields={fieldsOf(data.config(), ['accessibility.plain', 'accessibility.highContrast', 'accessibility.reduceMotion'])}
+      open={open}
+      width={width}
+    />
+  );
 }
 
 /** A list of strings edited in place: a adds (typed), x removes the selected one (asks first). */
@@ -337,31 +283,15 @@ export function Sync({ width, open }: ScreenProps) {
 /** Handoff notes and the morning report: when they are written and offered. */
 export function MemoryHandoffs({ width, open }: ScreenProps) {
   const { data } = useEnv();
-  const t = useT();
-  const m = data.config().memory;
-  const b = (path: string, label: MessageKey, help: MessageKey, value: boolean): Field => ({
-    path,
-    label: t(label),
-    help: t(help),
-    value,
-    type: { kind: 'bool' },
-  });
-  const n = (path: string, label: MessageKey, help: MessageKey, value: number, min: number, max: number): Field => ({
-    path,
-    label: t(label),
-    help: t(help),
-    value,
-    type: { kind: 'number', min, max },
-  });
-  const fields: Field[] = [
-    b('memory.handoff.enabled', 'set.handoff.enabled', 'set.handoff.enabledHelp', m.handoff.enabled),
-    b('memory.handoff.onCompact', 'set.handoff.onCompact', 'set.handoff.onCompactHelp', m.handoff.onCompact),
-    b('memory.handoff.onEnd', 'set.handoff.onEnd', 'set.handoff.onEndHelp', m.handoff.onEnd),
-    n('memory.handoff.keep', 'set.handoff.keep', 'set.handoff.keepHelp', m.handoff.keep, 1, 500),
-    n('memory.handoff.maxAgeDays', 'set.handoff.maxAgeDays', 'set.handoff.maxAgeDaysHelp', m.handoff.maxAgeDays, 1, 365),
-    b('memory.morning.enabled', 'set.morning.enabled', 'set.morning.enabledHelp', m.morning.enabled),
-    n('memory.morning.afterHours', 'set.morning.afterHours', 'set.morning.afterHoursHelp', m.morning.afterHours, 1, 72),
-  ];
+  const fields = fieldsOf(data.config(), [
+    'memory.handoff.enabled',
+    'memory.handoff.onCompact',
+    'memory.handoff.onEnd',
+    'memory.handoff.keep',
+    'memory.handoff.maxAgeDays',
+    'memory.morning.enabled',
+    'memory.morning.afterHours',
+  ]);
   return <SettingsEditor fields={fields} open={open} width={width} />;
 }
 
@@ -397,44 +327,7 @@ export function Memory({ width, open }: ScreenProps) {
 export function Autonomy({ width, open }: ScreenProps) {
   const { data, theme } = useEnv();
   const t = useT();
-  const a = data.config().autonomy;
-  const fields: Field[] = [
-    {
-      path: 'autonomy.enabled',
-      label: t('set.autonomy.enabled'),
-      help: t('set.autonomy.enabledHelp'),
-      value: a.enabled,
-      type: { kind: 'bool' },
-      confirmOn: { value: true, text: `${t('auto.cli.warnBody').replace(/\n/g, ' ')} ${t('set.autonomy.confirm')}` },
-    },
-    {
-      path: 'autonomy.maxHours',
-      label: t('set.autonomy.maxHours'),
-      help: t('set.autonomy.maxHoursHelp'),
-      value: a.maxHours,
-      type: { kind: 'number', min: 1, max: 72 },
-    },
-    {
-      path: 'autonomy.atTimeLimit',
-      label: t('set.autonomy.atTimeLimit'),
-      help: t('set.autonomy.atTimeLimitHelp'),
-      value: a.atTimeLimit,
-      type: {
-        kind: 'enum',
-        options: [
-          { value: 'continue', label: t('set.autonomy.atTimeLimit.continue') },
-          { value: 'pause', label: t('set.autonomy.atTimeLimit.pause') },
-        ],
-      },
-    },
-    {
-      path: 'autonomy.stallMinutes',
-      label: t('set.autonomy.stallMinutes'),
-      help: t('set.autonomy.stallMinutesHelp'),
-      value: a.stallMinutes,
-      type: { kind: 'number', min: 10, max: 720 },
-    },
-  ];
+  const fields = fieldsOf(data.config(), ['autonomy.enabled', 'autonomy.maxHours', 'autonomy.atTimeLimit', 'autonomy.stallMinutes']);
   const g = data.autonomyCheck();
   return (
     <Box flexDirection="column" width={width}>

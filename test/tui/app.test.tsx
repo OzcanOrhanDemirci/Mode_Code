@@ -81,8 +81,9 @@ test('turning a protective feature off needs a second confirmation; a plain one 
   const data = new FakeData();
   const s = await draw(data, { address: 'settings/modules' });
   try {
-    await s.press(KEY.enter); // keywords: not protective
+    await s.press(KEY.down, KEY.enter); // keywords: not protective
     assert.deepEqual(data.saved, [{ path: 'modules.keywords', value: false }]);
+    assert.match(s.text(), /Keywords: off\. Saved\./);
     await s.press(KEY.down, KEY.down, KEY.enter); // quota guard: protective
     assert.equal(data.saved.length, 1);
     assert.match(s.text(), /lowers a protection/);
@@ -385,7 +386,7 @@ test('Automation › Bypass: turning it on says what it means and needs a second
         .text()
         .replace(/[│╭╮╰╯─]/g, '')
         .replace(/\s+/g, ' ');
-    assert.match(flat(), /Bypass can be switched on/);
+    assert.match(flat(), /Allow bypass/);
     assert.match(flat(), /Never: changing this tool, Claude Code's settings or your memory; sending a secret off the computer\./);
     await s.press(KEY.enter);
     assert.equal(data.saved.length, 0, 'not yet');
@@ -399,14 +400,14 @@ test('Automation › Bypass: turning it on says what it means and needs a second
 
 test('Automation › Parallel agents: turning it on says sessions start with agents off and needs a second Enter; the helpers take one', async () => {
   const data = new FakeData();
-  const s = await draw(data, { address: 'automation/agents' });
+  const s = await draw(data, { address: 'automation/agents', rows: 48 });
   try {
     const flat = () =>
       s
         .text()
         .replace(/[│╭╮╰╯─]/g, '')
         .replace(/\s+/g, ' ');
-    assert.match(flat(), /Parallel agents can be set/);
+    assert.match(flat(), /I set the number of agents/);
     assert.match(flat(), /Exactly N for your next request, each with its own task, kind and model if you write one/);
     await s.press(KEY.enter);
     assert.equal(data.saved.length, 0, 'not yet');
@@ -425,7 +426,7 @@ test('Automation › Parallel agents: turning it on says sessions start with age
     { name: 'api-fc', kind: 'interactive', status: 'busy', cwd: '/home/ada/api', startedAt: NOW - 3 * 60_000, sessionId: 'a1' },
     { name: 'tidy-up', kind: 'background', status: 'idle', cwd: null, startedAt: null, sessionId: 'b2' },
   ];
-  const listed = await draw(busy, { address: 'automation/agents' });
+  const listed = await draw(busy, { address: 'automation/agents', rows: 48 });
   try {
     assert.match(listed.text(), /● api-fc · interactive · busy · 3 min ago · \/home\/ada\/api/);
     assert.match(listed.text(), /○ tidy-up · background · idle/);
@@ -434,7 +435,7 @@ test('Automation › Parallel agents: turning it on says sessions start with age
   }
   const unread = new FakeData();
   unread.sessionsRunning = null;
-  const none = await draw(unread, { address: 'automation/agents' });
+  const none = await draw(unread, { address: 'automation/agents', rows: 48 });
   try {
     assert.match(none.text(), /Could not be read: this Claude Code has no 'claude agents' command\./);
   } finally {

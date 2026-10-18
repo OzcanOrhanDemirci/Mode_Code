@@ -3,8 +3,6 @@
 
 export const enModes = {
   // ── modes ──
-  'mod.modes': 'Modes and flows',
-  'mod.modes.help': 'Chat, research, plan and code modes, and flows that chain them (research ▶ plan → approval → code), enforced by code.',
   'feature.modes': 'Modes and flows',
   'mode.name.free': 'free',
   'mode.name.chat': 'chat',
