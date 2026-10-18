@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { assessQuota, DEFAULT_BUDGET, fromModRateLimits, fromStatusLine, weeklyTargetFrom } from '../../src/core/quota.js';
-import { buildFooter, checkFooter, classifyTurn, type ClassifyEnv } from '../../src/core/footer.js';
+import { buildFooter, checkFooter, classifyTurn, shellChanges, type ClassifyEnv } from '../../src/core/footer.js';
 
 const NOW = Date.parse('2026-10-12T01:00:00Z');
 const reading = (five: number, week: number, minutesOld = 0) =>
@@ -80,6 +80,15 @@ test('listing forms of git subcommands that can change things are only reads', (
   for (const c of ['git branch -a && git remote -v && git log --oneline -3', 'git tag -l', 'git config --get user.name', 'git stash list', 'git worktree list'])
     assert.equal(shell(c), 0, c);
   for (const c of ['git branch feature', 'git tag -a v1 -m x', 'git remote add up x', 'git config user.name Ada', 'git stash']) assert.equal(shell(c), 1, c);
+});
+
+test('staging is a changing command in the footer, apart from anything else the command changes', () => {
+  assert.equal(classifyTurn([{ name: 'Bash', input: { command: 'git add -A' } }], env).shell, 1);
+  assert.equal(classifyTurn([{ name: 'Bash', input: { command: 'git stage a.ts' } }], env).shell, 1);
+  assert.deepEqual(shellChanges('git add -A && git commit -m x', 'bash', env), { git: true, staging: true, other: false });
+  assert.deepEqual(shellChanges('git stage a.ts', 'bash', env), { git: false, staging: true, other: false });
+  assert.deepEqual(shellChanges('git add a.ts; rm b.ts', 'bash', env), { git: false, staging: true, other: true });
+  assert.deepEqual(shellChanges('git status', 'bash', env), { git: false, staging: false, other: false });
 });
 
 test('the footer reads like the working rules ask, in Turkish', () => {

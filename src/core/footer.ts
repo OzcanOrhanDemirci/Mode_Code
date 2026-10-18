@@ -86,16 +86,18 @@ function ignored(path: string, env: ClassifyEnv): boolean {
   return env.ignore.some((d) => isUnder(p, resolvePath(d, env), env.platform));
 }
 
-/** True when a shell command changes something outside ignored folders. */
-function shellChanges(command: string, dialect: 'bash' | 'powershell', env: ClassifyEnv): { git: boolean; other: boolean } {
+/** What a shell command changes outside ignored folders: a commit or a push, staging for one (`git add`), anything else. */
+export function shellChanges(command: string, dialect: 'bash' | 'powershell', env: ClassifyEnv): { git: boolean; staging: boolean; other: boolean } {
   const a = analyzeCommand(command, dialect);
   let git = false;
+  let staging = false;
   let other = false;
   for (const inv of a.invocations) {
     if (inv.writes.some((w, i) => !inv.writeDynamic[i] && !ignored(w, env))) other = true;
     if (inv.program === 'git') {
       const call = parseGit(inv.args, inv.dynamic, env);
       if (call.sub === 'commit' || call.sub === 'push') git = true;
+      else if (call.sub === 'add' || call.sub === 'stage') staging = true;
       else if (MUTATING_GIT.test(call.sub) && !gitOnlyReads(call.sub, call.args)) other = true;
       continue;
     }
@@ -114,7 +116,7 @@ function shellChanges(command: string, dialect: 'bash' | 'powershell', env: Clas
     )
       other = true;
   }
-  return { git, other };
+  return { git, staging, other };
 }
 
 /** Counts what a turn changed. Blind spot, stated: a script run as `node x.js` may write files unseen. */
@@ -136,7 +138,7 @@ export function classifyTurn(uses: readonly ToolUse[], env: ClassifyEnv): TurnAc
     } else if (shell) {
       const r = shellChanges(String(u.input.command ?? ''), shell, env);
       if (r.git) acts.git++;
-      if (r.other) acts.shell++;
+      if (r.other || r.staging) acts.shell++;
     } else if (u.name.startsWith('mcp__') && OUTWARD_MCP.test(u.name)) {
       acts.external++;
     }

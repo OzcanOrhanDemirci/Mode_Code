@@ -111,5 +111,10 @@ test('quota wrap-up: no new heavy work; stop: only reads, notes and commits', ()
   assert.equal(checkGuards('Write', { file_path: '/home/u/proj/a.ts', content: '' }, null, q(99), env, 'en')?.kind, 'quota');
   assert.equal(checkGuards('Write', { file_path: '/home/u/notes/n.md', content: '' }, null, q(99), env, 'en'), null);
   assert.equal(checkGuards('Bash', { command: 'git commit -m wip' }, null, q(99), env, 'en'), null);
+  // Staging comes before the commit stopping allows (a memory repository's ritual, 2026-10-18).
+  assert.equal(checkGuards('Bash', { command: 'git -C /home/u/notes add -A && git -C /home/u/notes commit -m n' }, null, q(99), env, 'en'), null);
+  assert.equal(checkGuards('PowerShell', { command: 'git add n.md; git commit -m n' }, null, q(99), env, 'en'), null);
+  assert.equal(checkGuards('Bash', { command: 'git add -A && rm -rf build' }, null, q(99), env, 'en')?.kind, 'quota');
+  assert.equal(checkGuards('Bash', { command: 'npm install' }, null, q(99), env, 'en')?.kind, 'quota');
   assert.equal(checkGuards('Read', { file_path: '/home/u/proj/a.ts' }, null, q(99), env, 'en'), null);
 });
