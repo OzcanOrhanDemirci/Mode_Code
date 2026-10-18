@@ -119,6 +119,13 @@ test("the problem report leaves out the hooks' commands, the MCP servers' comman
   assert.match(text, /\| claude\.hooksWork \| warn \|/);
   assert.match(text, /\|  \|  \| Stop: C:\/hooks\/gone\.js is missing \|/, 'a missing file is named, its command is not');
   assert.match(text, /\| protection\.mcpPinned \| warn \| 1 MCP servers/);
+  // A pipe in a cell is written as itself, not as the table's next column.
+  const piped = healthyFacts({ setup: { ...healthyFacts().setup, deadHooks: [{ event: 'Stop', command: 'x', missing: 'C:/a|b/gone.js' }] } });
+  const pr = runChecks(piped);
+  assert.match(
+    renderReport({ facts: piped, results: pr, tally: tally(pr), ms: 1 }, { home: HOME, user: 'ada' }),
+    /\| Stop: C:\/a\\\|b\/gone\.js is missing \|/,
+  );
 });
 
 test('parameters: home written as ~, the user name hidden, "@key" values translated', () => {
