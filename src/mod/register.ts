@@ -139,6 +139,9 @@ import {
   lastSeen,
   looksOnly,
   newestRecord,
+  heldText,
+  outgoingSecrets,
+  parseAllowed,
   parseSeen,
   parseSyncRecord,
   syncMemory,
@@ -3360,6 +3363,7 @@ async function memorySync($: $, c: Ctx, trigger: 'start' | 'turn'): Promise<Sync
       message: (counts) => commitMessage(counts, c.sessionId, c.lang),
       readFile: (p) => readFile($, p),
       secrets: (t) => scanSecrets(t).length,
+      outgoing: outgoingSecrets(parseAllowed(await readFile($, c.layout.secretsAllow))),
     });
     if (r.pulled.length) c.memPulled = mergePulled(c.memPulled, { files: r.pulled, index: r.index });
     try {
@@ -3383,7 +3387,7 @@ async function memorySync($: $, c: Ctx, trigger: 'start' | 'turn'): Promise<Sync
     const problem = syncProblem(r);
     if (problem && problem !== 'offline' && !c.memWarned.has(problem)) {
       c.memWarned.add(problem);
-      const files = (problem === 'held' ? r.held.map((h) => h.path) : r.conflicts).slice(0, 4).join(', ');
+      const files = (problem === 'held' ? r.held.map(heldText) : r.conflicts).slice(0, 4).join(', ');
       $.ui.toast(tIn(c.lang, `mod.memory.${problem}` as MessageKey, { files, detail: r.detail.slice(0, 120) }), { timeoutMs: 12_000 });
     }
     return r;
@@ -3450,6 +3454,7 @@ async function sharedSync($: $, c: Ctx, trigger: 'start' | 'turn' | 'end'): Prom
         message: (counts) => syncCommitMessage(s.machine.name, counts),
         readFile: (p) => readFile($, p),
         secrets: (t) => scanSecrets(t).length,
+        outgoing: outgoingSecrets(parseAllowed(await readFile($, c.layout.secretsAllow))),
         maxBytes: SYNC_MAX_BYTES,
       });
     try {
@@ -3469,7 +3474,7 @@ async function sharedSync($: $, c: Ctx, trigger: 'start' | 'turn' | 'end'): Prom
     const problem = record.error ? 'failed' : record.result ? syncProblem(record.result) : null;
     if (problem && problem !== 'offline' && !c.sharedWarned.has(problem)) {
       c.sharedWarned.add(problem);
-      const files = record.result ? (problem === 'held' ? record.result.held.map((h) => h.path) : record.result.conflicts).slice(0, 4).join(', ') : '';
+      const files = record.result ? (problem === 'held' ? record.result.held.map(heldText) : record.result.conflicts).slice(0, 4).join(', ') : '';
       $.ui.toast(tIn(c.lang, `mod.sync.${problem}` as MessageKey, { files, detail: (record.error ?? record.result?.detail ?? '').slice(0, 120) }), {
         timeoutMs: 12_000,
       });
@@ -3808,7 +3813,7 @@ async function morningLineFor($: $, c: Ctx, from: number, now: number): Promise<
       await Promise.all((['mod', 'hook', 'cli'] as const).map(async (w) => parseSyncRecord(await readFile($, memorySyncFile(c.layout, w))))),
     );
     const r = last && last.at >= from ? last.result : null;
-    memory = { place: s.place, ahead: last?.result.ahead ?? null, conflicts: r?.conflicts ?? [], held: r?.held.map((h) => h.path) ?? [], error: null };
+    memory = { place: s.place, ahead: last?.result.ahead ?? null, conflicts: r?.conflicts ?? [], held: r?.held.map(heldText) ?? [], error: null };
   }
   return morningSummary(
     {

@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { APP_VERSION } from '../core/app.js';
 import type { Config } from '../core/config.js';
 import { syncRecordFile, type Layout } from '../core/layout.js';
-import { syncMemory, type Runner } from '../core/memory-sync.js';
+import { outgoingSecrets, parseAllowed, syncMemory, type Runner } from '../core/memory-sync.js';
 import { scanSecrets } from '../core/secrets/scan.js';
 import { joinPath } from '../core/paths.js';
 import {
@@ -157,6 +157,7 @@ export async function syncShared(
       message: (counts) => syncCommitMessage(s.machine.name, counts),
       readFile: async (p) => readText(p),
       secrets: (text) => scanSecrets(text).length,
+      outgoing: outgoingSecrets(parseAllowed(readText(l.secretsAllow))),
       maxBytes: SYNC_MAX_BYTES,
     });
   }

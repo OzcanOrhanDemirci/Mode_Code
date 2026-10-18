@@ -250,6 +250,8 @@ export const enUi = {
   'secrets.noTargets': 'Give one or more files or folders to scan, or set a memory folder.',
   'secrets.clean': 'No secrets found in {n} files.',
   'secrets.found': '{n} possible secrets in {files} scanned files:',
+  'secrets.allowUsage': 'Usage: {cmd} <fingerprint>… (the 64 hex digits a held memory push printed)',
+  'secrets.allowed': '{n} fingerprints allowed: a memory push may send those values now.',
   'secrets.note': 'Only masked previews are shown. Move real secrets out of these files and rotate any that were committed.',
 
   // ── config ──

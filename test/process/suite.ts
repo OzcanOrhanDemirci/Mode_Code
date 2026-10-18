@@ -316,6 +316,16 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       writeFileSync(join(dir, 'note.md'), 'nothing here\n');
       assert.equal(cli(w, ['secrets', dir], opt).code, 0);
       assert.equal(cli(w, ['secrets'], opt).code, 2, 'no memory folder and no path: nothing to scan');
+      // A fingerprint a held memory push printed, allowed by the person: kept once, never under an agent.
+      const fp = 'c'.repeat(64);
+      assert.equal(cli(w, ['secrets', 'allow', fp, fp], opt).code, 0);
+      assert.equal(cli(w, ['secrets', 'allow', fp], opt).code, 0);
+      assert.deepEqual(
+        JSON.parse(readFileSync(join(w.data, 'secrets-allow.json'), 'utf8')).allowed.map((a: { fingerprint: string }) => a.fingerprint),
+        [fp],
+      );
+      assert.equal(cli(w, ['secrets', 'allow', 'not-a-print'], opt).code, 2);
+      assert.equal(cli({ ...w, env: { ...w.env, CLAUDECODE: '1' } }, ['secrets', 'allow', 'd'.repeat(64)], opt).code, 1);
     } finally {
       w.done();
     }

@@ -13,6 +13,7 @@ import { RULES, RULE_IDS } from '../core/belt/rules.js';
 import { compact, percent, ago, until, dateTime, bar, shortPath, integer } from '../core/format.js';
 import { tIn, type Lang, type MessageKey } from '../core/i18n/index.js';
 import { maskSecrets } from '../core/secrets/scan.js';
+import { parseAllowed } from '../core/memory-sync.js';
 import { beltContext } from '../node/context.js';
 import { readText, writeAtomic } from '../node/fsx.js';
 import { applyInstall, applyUninstall, distDir, hookGroups, planInstall, readManifest, stableNodePath, underAgent } from '../node/install.js';
@@ -827,6 +828,7 @@ export async function cmdBelt(a: Args): Promise<number> {
 
 export async function cmdSecrets(a: Args): Promise<number> {
   const ctx = appContext();
+  if (a.positionals[0] === 'allow') return secretsAllow(ctx, a.positionals.slice(1));
   const paths = a.positionals.slice(a.positionals[0] === 'scan' ? 1 : 0);
   const targets = paths.length ? paths : ctx.config.memory.dirs;
   if (!targets.length) {
@@ -847,6 +849,36 @@ export async function cmdSecrets(a: Args): Promise<number> {
   say();
   say(dim(T(ctx, 'secrets.note')));
   return 1;
+}
+
+/**
+ * Lets a memory push send what looked like a secret and was not (docs/memory.md): its fingerprint, as the push that was
+ * held printed it, goes to secrets-allow.json; never the value. Letting a secret leave is the person's: refused under an
+ * agent, and the file is the tool's own, which the belt keeps Claude from writing.
+ */
+function secretsAllow(ctx: AppContext, prints: readonly string[]): number {
+  if (underAgent()) {
+    say(red(T(ctx, 'cli.agentRefused')));
+    return 1;
+  }
+  const bad = prints.filter((p) => !/^[0-9a-f]{64}$/.test(p));
+  if (!prints.length || bad.length) {
+    say(red(T(ctx, 'secrets.allowUsage', { cmd: `${CLI_NAME} secrets allow` })));
+    return 2;
+  }
+  let current: { allowed: { fingerprint: string; at: string }[] } = { allowed: [] };
+  try {
+    const o = JSON.parse(readText(ctx.layout.secretsAllow) ?? '{}') as { allowed?: { fingerprint: string; at: string }[] };
+    if (Array.isArray(o.allowed)) current = { allowed: o.allowed };
+  } catch {
+    /* a damaged file is written again */
+  }
+  const have = parseAllowed(JSON.stringify(current));
+  const at = new Date().toISOString();
+  const added = prints.filter((p, i) => !have.has(p) && prints.indexOf(p) === i);
+  writeAtomic(ctx.layout.secretsAllow, JSON.stringify({ allowed: [...current.allowed, ...added.map((fingerprint) => ({ fingerprint, at }))] }, null, 2) + '\n');
+  say(green(T(ctx, 'secrets.allowed', { n: added.length })));
+  return 0;
 }
 
 // ── full autonomy ──

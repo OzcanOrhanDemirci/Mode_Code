@@ -8,8 +8,19 @@ import type { Config } from '../core/config.js';
 import type { Lang } from '../core/i18n/index.js';
 import { memorySeenFile, memorySyncFile, type Layout } from '../core/layout.js';
 import { commitMessage } from '../core/memory.js';
-import { lastSeen, parseSeen, syncMemory, syncPlan, type Runner, type SyncResult, type SyncTrigger } from '../core/memory-sync.js';
+import {
+  lastSeen,
+  outgoingSecrets,
+  parseAllowed,
+  parseSeen,
+  syncMemory,
+  syncPlan,
+  type Runner,
+  type SyncResult,
+  type SyncTrigger,
+} from '../core/memory-sync.js';
 import { scanSecrets } from '../core/secrets/scan.js';
+import { dataLayout } from './env.js';
 import { readText, writeJsonAtomic } from './fsx.js';
 import { git } from './git.js';
 
@@ -109,5 +120,6 @@ export async function syncStore(
     message: (counts) => commitMessage(counts, opts.session, opts.lang),
     readFile: async (p) => readText(p),
     secrets: (text) => scanSecrets(text).length,
+    outgoing: outgoingSecrets(parseAllowed(readText(dataLayout().secretsAllow))),
   });
 }

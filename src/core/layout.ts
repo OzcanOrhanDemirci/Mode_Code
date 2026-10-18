@@ -26,6 +26,7 @@
  *   state/notes-delivered.json       the mod (approved notes handed to a session)
  *   state/auto-prompts.json          the mod (the last tasks given full autonomy, for the control center)
  *   state/update.json                the command line (the last check for a newer release: core/update.ts)
+ *   secrets-allow.json               the command line (fingerprints of secrets the person let a memory push send)
  */
 import { joinPath } from './paths.js';
 import { APP_ID } from './app.js';
@@ -54,6 +55,7 @@ export interface Layout {
   syncIgnored: string;
   autoPrompts: string;
   updateState: string;
+  secretsAllow: string;
 }
 
 export function layout(root: string): Layout {
@@ -82,6 +84,7 @@ export function layout(root: string): Layout {
     syncIgnored: joinPath(root, 'state', 'sync-ignored.json'),
     autoPrompts: joinPath(root, 'state', 'auto-prompts.json'),
     updateState: joinPath(root, 'state', 'update.json'),
+    secretsAllow: joinPath(root, 'secrets-allow.json'),
   };
 }
 
