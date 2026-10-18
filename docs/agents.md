@@ -13,14 +13,14 @@ The same in the settings file: `"agents": { "enabled": true, "helpers": true }` 
 
 ## On the strip
 
-Once turned on, the strip shows where the session stands, lit while agents may run:
+Once turned on, the strip shows where the session stands, lit while agents may run (in a narrow terminal, 👥 alone stands for the word):
 
-| On the strip         | Means                                                           |
-| -------------------- | --------------------------------------------------------------- |
-| `agents ✕`           | off: Claude starts no agent and does the work itself            |
-| `agents ≤5 · 2`      | at most 5 at once, 2 running now                                |
-| `agents =3 · 1/3`    | exactly 3 for this request, 1 started                           |
-| `agents · ultracode` | ultracode is on: Claude Code's workflows run the agents (below) |
+| On the strip            | Means                                                           |
+| ----------------------- | --------------------------------------------------------------- |
+| `👥 agents`, not lit    | off: Claude starts no agent and does the work itself            |
+| `👥 agents ≤5 · 2`      | at most 5 at once, 2 running now                                |
+| `👥 agents =3 · 1/3`    | exactly 3 for this request, 1 started                           |
+| `👥 agents · ultracode` | ultracode is on: Claude Code's workflows run the agents (below) |
 
 A press (or `/ajan`, `/parallel`) opens its window: the mode, how many, and for exactly N one row per agent with its task (empty: Claude writes it from your request), its kind and its model; then the agents running now, each with **Stop**, and **Stop all**. From a phone, or without the window: `/ajan 5` (at most 5), `/ajan tam 7` (`/parallel exact 7`), `/ajan kapat` (`off`), `/ajan dur` (`stop`). Only you set it, from the keyboard, the phone or the strip; never Claude, a scheduled prompt or another session. Every session starts with agents off.
 

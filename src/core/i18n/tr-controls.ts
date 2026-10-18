@@ -159,7 +159,7 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.close.already': 'Oturum zaten kapanıyor.',
   'ctl.close.failed': 'Claude Code kapanmadı; /exit yazarak kapatabilirsin. ({reason})',
   'ctl.strip.agents': 'ajan',
-  'ctl.strip.agentsShort': 'aj',
+  'ctl.line.agentsOff': 'ajan kapalı',
   'ctl.desc.agents': 'Paralel ajanlar: kapalı, aynı anda en çok N, ya da sonraki isteğin için tam N (Otomasyon altında açıldıktan sonra)',
   'ctl.hint.agents': '[N | tam N | kapat | dur]',
   'agents.notEnabled': 'Paralel ajanlar açılmamış. Kontrol merkezi: Otomasyon › Paralel ajanlar (/0 açar).',

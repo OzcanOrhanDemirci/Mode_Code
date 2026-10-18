@@ -53,7 +53,7 @@ test('on in the settings: every session starts with agents off; the read-only he
   world(on, { config: { agents: { enabled: true } } });
   const e = engine(on);
   await $.prompt.submit(typed('Hello.'));
-  expect(await stripText($)).toMatch(/agents ✕/);
+  expect(await stripText($)).toMatch(/👥 agents(?! ?[≤=·])/);
   expect((await spawn($, 'Explore')).deny).toBeUndefined();
   expect((await spawn($, 'Plan')).deny).toBeUndefined();
   const r = await spawn($, 'general-purpose');
@@ -120,7 +120,7 @@ test('assigned: exactly N for the next request, each fitted to its row; then no 
   expect(done).toMatch(/The assigned agents are done, and parallel agents are off again for this session/);
   expect(w.toasts.some((t) => /The assigned agents are done \(2\/2\): parallel agents are off again/.test(t))).toBe(true);
   expect(w.modState().agents.mode).toBe('off');
-  expect(await stripText($)).toMatch(/agents ✕/);
+  expect(await stripText($)).toMatch(/👥 agents(?! ?[≤=·])/);
   const after = ((await $.prompt.submit(typed('One more thing.'))) as any).context ?? [];
   expect(after.join('\n')).not.toMatch(/assigned agents are done/);
 });

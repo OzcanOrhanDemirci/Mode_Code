@@ -11,7 +11,7 @@ import type { Interaction, ModSessionState } from './session.js';
 import { MODE_ICON, type WorkMode } from './modes.js';
 import { baseName, pathKey, type Platform } from './paths.js';
 import { fold } from './text.js';
-import { stripAgents, type AgentsState } from './agents.js';
+import { AGENTS_ICON, stripAgents, type AgentsState } from './agents.js';
 import { tIn, type Lang, type MessageKey } from './i18n/index.js';
 
 export type Style = 'manual' | 'autonomous' | 'full';
@@ -392,7 +392,7 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
           ? [
               {
                 id: commandOf({ kind: 'agents' }, lang),
-                label: stripAgents(v.agents.state, v.agents.running, tIn(lang, tight ? 'ctl.strip.agentsShort' : 'ctl.strip.agents'), tight),
+                label: stripAgents(v.agents.state, v.agents.running, tIn(lang, 'ctl.strip.agents'), tight),
                 // Lit while agents may run: the person sees at a glance which way it is.
                 active: v.agents.state.mode !== 'off' || v.agents.state.ultracode,
               },
@@ -420,7 +420,13 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
 export function controlsLine(v: StripView, lang: Lang): string {
   const style = tIn(lang, `ctl.style.${v.style}` as MessageKey);
   const flow = v.flow ? ` · ${flowText(v.flow, lang, false)}` : '';
-  const agents = v.agents?.shown ? ` · ${stripAgents(v.agents.state, v.agents.running, tIn(lang, 'ctl.strip.agents'), false)}` : '';
+  const a = v.agents;
+  // Nothing is lit in a line of text: off is said in words.
+  const agents = !a?.shown
+    ? ''
+    : a.state.mode === 'off' && !a.state.ultracode
+      ? ` · ${AGENTS_ICON} ${tIn(lang, 'ctl.line.agentsOff')}`
+      : ` · ${stripAgents(a.state, a.running, tIn(lang, 'ctl.strip.agents'), false)}`;
   return `${modeLabel(v.mode, lang)} · ${style}${flow}${v.bypass.on ? ` · ${bypassText(v.bypass, false)}` : ''}${v.frozen ? ` · ❄ ${v.frozen}` : ''}${agents}`;
 }
 
