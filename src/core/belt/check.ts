@@ -1340,9 +1340,18 @@ async function checkInlineCode(inv: Invocation, cwd: string | null, s: Scope): P
   }
 }
 
-/** Mentions of disableAllHooks in a command that changes something. */
+/**
+ * The setting given a value that turns hooks off: `"disableAllHooks": true`, `.disableAllHooks = true`, `= $true`,
+ * or a value only known when it runs (`= $v`). A read (`jq '.disableAllHooks'`, `grep`) gives it none.
+ */
+const SETS_HOOKS_OFF = /(?:disableAllHooks|allowManagedHooksOnly)['"\]]*\s*[:=]\s*(?:true\b|1\b|\$\w)/i;
+
+/** disableAllHooks set by a command that changes something; a command that only reads it is left alone. */
 function checkDisableHooks(raw: string, invs: readonly Invocation[], s: Scope): void {
   if (!/disableAllHooks|allowManagedHooksOnly/i.test(raw)) return;
+  // `claude config set disableAllHooks true` and the like: Claude Code's own command sets it.
+  const byClaude = invs.some((i) => i.program === 'claude' && i.args.some((a) => /disableAllHooks|allowManagedHooksOnly/i.test(a)));
+  if (!byClaude && !SETS_HOOKS_OFF.test(raw)) return;
   const changes = invs.some(
     (i) =>
       i.writes.length > 0 ||
