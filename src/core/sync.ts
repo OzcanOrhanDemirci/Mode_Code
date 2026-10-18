@@ -391,6 +391,8 @@ const LOWER_IF_UP = new Set([
   'bypass.maxHours',
 ]);
 const PROTECTIVE_MODULES = new Set(['modules.quota', 'modules.secrets', 'modules.modes']);
+/** A pack's modes from the one that lets it least far to the one that lets it furthest. */
+const PACK_REACH = ['never', 'me', 'auto', 'always'];
 const SHRINKING_LISTS = new Set(['belt.protectedBranches', 'belt.prOnlyRepos', 'belt.singleBranchRepos']);
 
 const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
@@ -414,6 +416,9 @@ export function lowersProtection(key: string, from: unknown, to: unknown): boole
   if (key === 'belt.packs.dockerVolumes' || PROTECTIVE_MODULES.has(key)) return from === true && to !== true;
   if (LOWER_IF_UP.has(key)) return typeof to === 'number' && typeof from === 'number' ? to > from : to !== from;
   if (key === 'quota.autoResume') return from !== true && to === true;
+  // Packs: Automatic use turned on (removed: the default, on), or a pack let further than it was.
+  if (key === 'packs.autoUse') return from === false && to !== false;
+  if (key.startsWith('packs.items.')) return PACK_REACH.indexOf(String(to ?? 'auto')) > PACK_REACH.indexOf(String(from ?? 'auto'));
   if (key === 'autonomy.reviewModel') return !same(from, to);
   if (key === 'keywords.extra') {
     const phrases = (v: unknown) =>

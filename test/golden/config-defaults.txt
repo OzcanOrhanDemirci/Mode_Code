@@ -75,6 +75,10 @@
   "update": {
     "check": false
   },
+  "packs": {
+    "autoUse": true,
+    "items": {}
+  },
   "accessibility": {
     "plain": false,
     "highContrast": false,

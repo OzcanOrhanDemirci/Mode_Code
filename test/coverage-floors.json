@@ -116,6 +116,11 @@
       "branches": 57,
       "functions": 66
     },
+    "src/cli/packs.ts": {
+      "lines": 84,
+      "branches": 43,
+      "functions": 58
+    },
     "src/cli/style.ts": {
       "lines": 80,
       "branches": 36,
@@ -366,6 +371,11 @@
       "branches": 90,
       "functions": 94
     },
+    "src/core/packs.ts": {
+      "lines": 94,
+      "branches": 84,
+      "functions": 94
+    },
     "src/core/paths.ts": {
       "lines": 94,
       "branches": 89,
@@ -589,6 +599,11 @@
     "src/node/memory.ts": {
       "lines": 87,
       "branches": 68,
+      "functions": 87
+    },
+    "src/node/packs.ts": {
+      "lines": 94,
+      "branches": 79,
       "functions": 87
     },
     "src/node/program.ts": {

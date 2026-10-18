@@ -49,6 +49,7 @@ const layers = [
     },
   },
   { name: 'L8 mod types', cmd: node, args: ['scripts/typecheck-mod.mjs'], counts: (o) => (/typecheck-mod: (.*)/.exec(o)?.[1] ?? '').trim() },
+  { name: 'L8 tool packs', cmd: node, args: ['scripts/test-packs.mjs'], counts: (o) => (/test-packs: (.*)/.exec(o)?.[1] ?? '').trim() },
   {
     name: 'L8 inside Claude Code',
     cmd: node,

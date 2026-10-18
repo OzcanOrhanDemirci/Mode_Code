@@ -17,7 +17,7 @@
  */
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, readdirSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -37,6 +37,7 @@ import { copyPrevious, findPrevious, movedMemorySetting, previousPlugin, type Pr
 import { ensureDir, readJson, readText, writeAtomic, writeJsonAtomic } from './fsx.js';
 import { claudeDir } from './env.js';
 import { claudeVersion, pluginsVia, realClaude, type ClaudeRunner } from './claude-env.js';
+import { claudeIn, turnAllOff } from './packs.js';
 
 export const HOOK_EVENTS = ['PreToolUse', 'UserPromptSubmit', 'Stop', 'SessionStart'] as const;
 import { BELT_MATCHER } from '../core/belt/tools.js';
@@ -416,12 +417,25 @@ export function writeMarketplace(l: Layout, dist: string): void {
   rmSync(l.pluginDir, { recursive: true, force: true });
   cpSync(join(dist, 'plugin'), l.pluginDir, { recursive: true });
   const pkgManifest = readJson<Record<string, unknown>>(join(l.pluginDir, '.claude-plugin', 'plugin.json')) ?? {};
+  // The tool packs (docs/packs.md): each hosted pack a plugin of this marketplace, every pack's guide beside them.
+  const packsDir = join(l.marketplace, 'packs');
+  rmSync(packsDir, { recursive: true, force: true });
+  const packs: { name: string; source: string; version: unknown; description: unknown }[] = [];
+  if (existsSync(join(dist, 'packs'))) {
+    cpSync(join(dist, 'packs'), packsDir, { recursive: true });
+    const plugins = join(packsDir, 'plugins');
+    for (const name of existsSync(plugins) ? readdirSync(plugins).sort() : []) {
+      const m = readJson<Record<string, unknown>>(join(plugins, name, '.claude-plugin', 'plugin.json')) ?? {};
+      packs.push({ name, source: `./packs/plugins/${name}`, version: m.version ?? APP_VERSION, description: m.description ?? '' });
+    }
+  }
   writeJsonAtomic(join(l.marketplace, '.claude-plugin', 'marketplace.json'), {
     name: MARKETPLACE_NAME,
     owner: { name: APP_ID },
     metadata: { description: 'Local marketplace created by the mode-code installer.' },
     plugins: [
       { name: PLUGIN_NAME, source: `./plugins/${PLUGIN_NAME}`, version: pkgManifest.version ?? APP_VERSION, description: pkgManifest.description ?? '' },
+      ...packs,
     ],
   });
 }
@@ -443,15 +457,22 @@ export function readManifest(l: Layout): Manifest | null {
 
 export interface UninstallResult {
   ok: boolean;
-  steps: { what: 'plugin' | 'marketplace' | 'settings-hooks' | 'files' | 'data'; ok: boolean; detail?: string }[];
+  steps: { what: 'packs' | 'plugin' | 'marketplace' | 'settings-hooks' | 'files' | 'data'; ok: boolean; detail?: string }[];
 }
 
 /** Removes what the manifest lists. With `purge`, also the data folder (settings, history, index). */
-export function applyUninstall(l: Layout, opts: { purge?: boolean; runner?: ClaudeRunner; claudeDir?: string } = {}): UninstallResult {
+export function applyUninstall(
+  l: Layout,
+  opts: { purge?: boolean; runner?: ClaudeRunner; claudeDir?: string; runnerFor?: (project: string | null) => ClaudeRunner } = {},
+): UninstallResult {
   const steps: UninstallResult['steps'] = [];
   const runner = opts.runner ?? realClaude;
   const m = readManifest(l);
   const settingsFile = m?.settingsFile ?? join(opts.claudeDir ?? claudeDir(), 'settings.json');
+  // The packs this tool turned on, each where it was turned on, before the marketplace they come from goes.
+  const packs = turnAllOff(l, opts.runnerFor ?? ((project) => (project && !opts.runner ? claudeIn(project) : runner)));
+  if (packs.length)
+    steps.push({ what: 'packs', ok: packs.every((p) => p.ok), detail: packs.map((p) => `${p.pack}${p.ok ? '' : ` (${p.detail})`}`).join(', ') });
   const r1 = claudeCli(runner, ['plugin', 'uninstall', PLUGIN_ID, '--scope', 'user']);
   steps.push({ what: 'plugin', ok: r1.ok || /not (?:installed|found)/i.test(r1.out), detail: r1.out.split('\n').pop() });
   const r2 = claudeCli(runner, ['plugin', 'marketplace', 'remove', MARKETPLACE_NAME]);
