@@ -42,7 +42,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --import tsx --test --test-reporter=spec \"test/**/*.test.ts\" \"test/**/*.test.tsx\"",
+    "test": "node --import tsx --import ./test/helpers/clean-env.mjs --test --test-reporter=spec \"test/**/*.test.ts\" \"test/**/*.test.tsx\"",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run typecheck && npm run format:check && npm run build && npm test",
