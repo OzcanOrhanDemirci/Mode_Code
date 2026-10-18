@@ -185,3 +185,11 @@ The plan this page was written from (2026-10-12), kept as a checklist:
 - [x] L11 mutation testing.
 - [x] `npm run verify`; CI: coverage floors, a nightly run against the newest Claude Code, weekly mutation testing; README section with measured numbers.
 - [ ] macOS on every change: set up, and switches on by itself when the repository becomes public.
+
+## Claude Code versions checked
+
+Each Claude Code release Mode_Code was checked against with `node scripts/claude-compat.mjs`.
+
+| Date       | Claude Code | check | mod (types, kit) | live    |
+| ---------- | ----------- | ----- | ---------------- | ------- |
+| 2026-10-18 | 2.1.302     | pass  | pass             | not run |
