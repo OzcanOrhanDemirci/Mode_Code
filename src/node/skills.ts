@@ -9,15 +9,14 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, write
 import { join } from 'node:path';
 import type { Config } from '../core/config.js';
 import type { Layout } from '../core/layout.js';
-import { keptSkills, personOnly } from '../core/skills.js';
+import { keptSkills, memorySetUp, personOnly } from '../core/skills.js';
 
 const MARK = '.kept';
 
 /** Where the skills to keep come from: copied beside the marketplace at install (own/, external/). */
 export const skillsSource = (l: Layout) => join(l.marketplace, 'skills-source');
 
-/** Whether a memory is set up here: the memory note applies. */
-export const memorySetUp = (c: Config) => c.memory.store !== null || c.memory.dirs.length > 0;
+export { memorySetUp } from '../core/skills.js';
 
 /** The skills the settings keep that the plugin's folder lacks (the doctor's install.skills). */
 export function missingKeptSkills(l: Layout, c: Config): string[] {

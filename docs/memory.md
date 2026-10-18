@@ -93,6 +93,18 @@ When you come back after a while (6 hours by default), the first prompt shows on
 - sessions that ran, by folder, and the handoff notes they left;
 - what the safety belt blocked or asked about, and the quota used.
 
+## Lessons
+
+With `wrap up` / `toparla` and a memory set up, Claude offers a lesson for the memory only when you corrected the same thing more than once in the session: in one line, quoting your words, one at a time, and written (with the `memory-note` skill, by the memory's rules) only after you say yes. A correction made once is not a lesson yet, and nothing is written without you.
+
+## The session's start, kept small
+
+What Mode_Code adds to a session's first prompt by itself (its introduction, what the memory brought in from elsewhere, a handoff note's line, other sessions in the folder, a pack's hint) stays under 6,000 characters together, about 1,500 tokens: each note whole while it fits, then its first sentence, then left out and counted in one line. What you asked for (the whole note on `continue`, a flow's step) and what warns you (a key in your message) are never cut. A cut is recorded in the event log (`startCap`).
+
+## Opening it in Obsidian
+
+The memory is a folder of Markdown files with links between them, so it opens as an [Obsidian](https://obsidian.md) vault as it is: Open folder as vault, and pick the memory's folder (`mode-code memory` shows where it is). Obsidian keeps its settings in a `.obsidian` folder inside it, which the sync would carry to your other computers with the notes; add `.obsidian/workspace*.json` to the memory's `.gitignore` to keep each computer's window layout its own, or `.obsidian/` to keep all of it local. What you change there is committed and synced like what Claude writes, and the same rules hold: one fact per file, a short line in `MEMORY.md`, no secrets.
+
 ## Notes from full-autonomy runs
 
 During a full-autonomy run Claude does not write the memory (the run's guard refuses it); its notes go to the run's notes file instead. They wait for you: `mode-code memory notes` shows them, `approve <id>` hands the notes to the next session, where Claude merges them into the memory by the memory's own rules, and `discard <id>` leaves them out. Each is handed over once. Nothing from an unattended run enters your memory without you, and an agent cannot approve.

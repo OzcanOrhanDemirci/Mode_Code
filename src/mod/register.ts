@@ -42,7 +42,7 @@ import {
   type PackRow,
 } from '../core/packs.js';
 import { analyzeCommand } from '../core/shell/analyze.js';
-import { CORE_SKILLS, commandsText, LIST_COMMANDS, shortCommands, type CoreSkill } from '../core/skills.js';
+import { CORE_SKILLS, commandsText, LIST_COMMANDS, memorySetUp, shortCommands, type CoreSkill } from '../core/skills.js';
 import { comparePins, parsePins } from '../core/mcp-pins.js';
 import { partsAllowed, shellRules, type ShellRules } from '../core/permissions.js';
 import { isBeltTool, isFileTool, shellOf } from '../core/belt/tools.js';
@@ -115,6 +115,8 @@ import {
   hygieneNote,
   trapNote,
   wholeReadNote,
+  capStart,
+  lessonNote,
   packsOnNote,
   skillRunPreamble,
   promptSecretNote,
@@ -2832,12 +2834,19 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
     await saveState($, c);
   }
   const extra: string[] = [];
+  // What Mode_Code adds by itself, kept small together at a session's start (core/guidance.ts capStart).
+  const byItself = new Set<string>();
+  const own = (notes: readonly string[]) => {
+    for (const n of notes) byItself.add(n);
+    return notes;
+  };
   // Strip presses not told yet go with this prompt, before its own keyword's note.
-  if (human) extra.push(...takePressNotes(c), ...c.startNotes.splice(0));
+  if (human) extra.push(...takePressNotes(c), ...own(c.startNotes.splice(0)));
   // The session's first note: what Claude should know of this tool before anything happens (K12 of 1.2.0).
-  if (human && c.introDue) {
+  const starting = human && c.introDue;
+  if (starting) {
     c.introDue = false;
-    extra.unshift(introNote({ packs: true, modes: c.config.modules.modes }));
+    extra.unshift(...own([introNote({ packs: true, modes: c.config.modules.modes })]));
   }
   if (human) {
     c.turn = { startedAt: await $.clock.now(), uses: [], changed: false };
@@ -2852,7 +2861,7 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
     // A mode given for one turn ends with it.
     if (c.state.turnMode) c.state = { ...c.state, turnMode: null };
     await heartbeat($, c);
-    extra.push(...(await sameFolderNotes($, c)));
+    extra.push(...own(await sameFolderNotes($, c)));
     // Bypass, read with the settings just read: ended by its time or the settings since the last prompt, or a
     // reminder with each prompt while it is on.
     if (c.state.bypass) {
@@ -2884,7 +2893,7 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
     }
   }
   // A word of the person's that names a pack's work: a one-line hint, once per pack in a session (docs/packs.md).
-  if (human && kind !== 'plugin') for (const p of packsInWords(typed)) extra.push(...packHintOnce(c, p, 'words'));
+  if (human && kind !== 'plugin') for (const p of packsInWords(typed)) extra.push(...own(packHintOnce(c, p, 'words')));
   // A keyword typed with a slash in front (`/akış iptal`) is that keyword; the person is told how it was read.
   if (human && kind !== 'plugin' && c.config.modules.keywords) {
     const bare = withoutSlash(typed, projectRefs(c.config), keywordTables(c.config));
@@ -2933,14 +2942,19 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
         await registerHandoffTool($);
         extra.push(handoffAskContext(true));
       }
-      extra.push(...(await memoryPromptContext($, c, kw)));
+      // A lesson from the session, offered at its wrap-up when there is a memory to keep it in.
+      if (kw?.kind === 'wrapUp' && memorySetUp(c.config)) extra.push(lessonNote());
+      extra.push(...(await memoryPromptContext($, c, kw, own)));
     } catch {
       /* the memory's notes are a help, never a reason for a prompt not to go through */
     }
   }
   if (human) await refreshStatus($, c);
   extra.push(...(await quotaContext($, c)));
-  return extra.length ? next({ ...e, context: [...(e.context ?? []), ...extra] }) : next(e);
+  const notes = human && (c.prompts === 1 || starting) ? capStart(extra, (n) => byItself.has(n)) : extra;
+  if (notes !== extra && notes.join('').length < extra.join('').length)
+    await logEvent($, c, { kind: 'startCap', before: extra.join('').length, after: notes.join('').length });
+  return notes.length ? next({ ...e, context: [...(e.context ?? []), ...notes] }) : next(e);
 }
 
 /**
@@ -4290,7 +4304,7 @@ async function morningLineFor($: $, c: Ctx, from: number, now: number): Promise<
  * What the memory adds to a prompt of the person's: the morning line after a long gap (a notice), on the
  * session's first prompt the waiting handoff in one line and approved run notes, on "continue" the whole note.
  */
-async function memoryPromptContext($: $, c: Ctx, kw: KeywordMatch | null): Promise<string[]> {
+async function memoryPromptContext($: $, c: Ctx, kw: KeywordMatch | null, own: (notes: readonly string[]) => readonly string[] = (n) => n): Promise<string[]> {
   const out: string[] = [];
   const now = await $.clock.now();
   // The gap since the last prompt (any session): the morning line.
@@ -4324,7 +4338,7 @@ async function memoryPromptContext($: $, c: Ctx, kw: KeywordMatch | null): Promi
   const store = c.config.memory.store;
   const pulled = c.memPulled && store ? pulledContext(c.memPulled, store.dir) : null;
   c.memPulled = null;
-  if (pulled) out.push(pulled);
+  if (pulled) out.push(...own([pulled]));
   const first = c.prompts === 1;
   if (c.closedStart) {
     await c.closedStart;
@@ -4333,11 +4347,11 @@ async function memoryPromptContext($: $, c: Ctx, kw: KeywordMatch | null): Promi
   if (kw?.kind === 'continue' || (first && c.config.memory.handoff.enabled)) {
     const h = await waitingHandoff($, c);
     if (h && kw?.kind === 'continue') out.push(handoffFull(h.text, h.path));
-    else if (h && first) out.push(handoffLine(h.note, h.path));
+    else if (h && first) out.push(...own([handoffLine(h.note, h.path)]));
   }
   if (first) {
     const notes = await notesToDeliver($, c);
-    if (notes.length) out.push(notesContext(notes));
+    if (notes.length) out.push(...own([notesContext(notes)]));
   }
   return out;
 }

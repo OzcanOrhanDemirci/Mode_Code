@@ -19,6 +19,9 @@ import {
   promptSecretNote,
   trapNote,
   wholeReadNote,
+  capStart,
+  lessonNote,
+  START_CHARS,
   keywordContext,
   quotaLine,
   restoredContext,
@@ -236,6 +239,7 @@ test('the notes of the second belt: each names what happened and what to do, and
     trapNote('pipe'),
     promptSecretNote(['github-token']),
     wholeReadNote(),
+    lessonNote(),
   ];
   for (const n of notes) assert.ok(n.startsWith('[Mode_Code] '), n);
   assert.match(notes[0]!, /2 connected MCP tool\(s\).*mcp__docs__search, mcp__docs__fetch.*not the person's/);
@@ -254,4 +258,38 @@ test('the notes of the second belt: each names what happened and what to do, and
     /^\[Mode_Code\] Tool packs turned on in this project by Automatic use, as this project's files call for them: typst, ffmpeg\. They load when the person types \/reload-plugins/,
   );
   assert.match(packsOnNote(['typst'], 'request'), /turned on in this project as you asked: typst\./);
+});
+
+test("a session's first notes: what Mode_Code adds by itself stays under the total, first whole, then its first sentence, then counted", () => {
+  const own = (n: number, tail = '') => `[Mode_Code] Note ${n} says one thing.${tail}`;
+  const long = own(2, ' ' + 'More detail. '.repeat(400));
+  const asked = '[Mode_Code] The handoff note you asked for: ' + 'x'.repeat(5000);
+  const mine = new Set([own(1), long, own(3, ' ' + 'y'.repeat(900))]);
+  const by = (n: string) => mine.has(n);
+  // Under the total: all whole, in order.
+  assert.deepEqual(capStart([own(1), asked], by), [own(1), asked]);
+  assert.deepEqual(
+    capStart([own(1), long, asked], by),
+    [own(1), '[Mode_Code] Note 2 says one thing. (shortened)', asked],
+    'what was asked for stays whole, in its place',
+  );
+  const full = 'w'.repeat(START_CHARS - 10);
+  const out = capStart([full, own(3, ' ' + 'y'.repeat(900))], by);
+  assert.equal(out[0], full);
+  assert.ok(out[1]!.startsWith("[Mode_Code] 1 more note(s) of Mode_Code's were left out"), out[1]);
+  assert.equal(out.length, 2);
+  // A note of one sentence that does not fit is left out, not cut mid-way.
+  assert.deepEqual(
+    capStart(['z'.repeat(START_CHARS + 1)], () => true),
+    ["[Mode_Code] 1 more note(s) of Mode_Code's were left out to keep the start of the session small."],
+  );
+  assert.deepEqual(
+    capStart([], () => true),
+    [],
+  );
+  // Exactly the total fits.
+  assert.deepEqual(
+    capStart(['a'.repeat(10)], () => true, 10),
+    ['a'.repeat(10)],
+  );
 });
