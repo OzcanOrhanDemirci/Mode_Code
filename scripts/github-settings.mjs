@@ -130,6 +130,24 @@ export function mainRuleset(active) {
   };
 }
 
+/**
+ * What a public repository should have on and does not, by GitHub's own answers: the repository's
+ * `security_and_analysis` and `private-vulnerability-reporting`. A setting GitHub did not answer for (it
+ * answers an admin) is unknown, never on. Pure.
+ */
+export function securityGaps(analysis, reporting) {
+  const off = [];
+  const unknown = [];
+  const sort = (name, value, on) => {
+    if (value === undefined || value === null) unknown.push(name);
+    else if (value !== on) off.push(name);
+  };
+  sort('secret scanning', analysis?.secret_scanning?.status, 'enabled');
+  sort('push protection', analysis?.secret_scanning_push_protection?.status, 'enabled');
+  sort('private vulnerability reporting', reporting?.enabled, true);
+  return { off, unknown };
+}
+
 /** The keys of `want` whose values differ in `have`. Pure. */
 export function differences(have, want) {
   return Object.keys(want).filter((k) => JSON.stringify(have?.[k]) !== JSON.stringify(want[k]));
@@ -263,8 +281,13 @@ async function main(argv) {
 
   // Only a public repository has these (free): secret scanning with push protection, private vulnerability reports.
   if (isPrivate) say(null, 'secret scanning, push protection and private vulnerability reporting come with --public');
-  else if (!apply) differs('public: secret scanning, push protection and private vulnerability reporting are applied with --apply');
-  else {
+  else if (!apply) {
+    const reporting = api('GET', `repos/${name}/private-vulnerability-reporting`);
+    const gaps = securityGaps(repo.json.security_and_analysis, reporting.ok ? reporting.json : null);
+    if (gaps.off.length) differs(`public: ${gaps.off.join(', ')} off (--apply turns them on)`);
+    if (gaps.unknown.length) differs(`public: ${gaps.unknown.join(', ')} not readable (GitHub answers an admin's login)`);
+    if (!gaps.off.length && !gaps.unknown.length) say(null, 'secret scanning, push protection and private vulnerability reporting on');
+  } else {
     const s = api('PATCH', `repos/${name}`, {
       security_and_analysis: { secret_scanning: { status: 'enabled' }, secret_scanning_push_protection: { status: 'enabled' } },
     });

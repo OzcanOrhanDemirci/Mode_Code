@@ -4,6 +4,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- What a task costs of the quota, measured on your computer (`node scripts/measure/tasks.mjs`): every Claude Code session cut at its commits and pushes, each piece priced by model and token kind, weighed by what the quota counts, and turned into weekly points by Mode_Code's own readings. It reads the transcripts and the event log and writes nothing (`docs/testing.md`).
+
+### Changed
+
+- Checked against Claude Code 2.1.302: the plugin type-checks against its declarations, the engine's own test kit passes, and the live sessions run on it.
+
 ## [1.1.0] - 2026-10-15
 
 One roof for every guard, and bypass: the safety belt takes over the permission lists and command guards that stood beside it and covers what they missed, a session can lift it for a while on the person's word with every call recorded, the strip shows the flow as a mode whose working step breathes, and the control center gains Automation.

@@ -251,9 +251,11 @@ function fullAutonomy() {
       hooks: { ...s.hooks, Stop: [{ hooks: [entry('Stop', 15, false)] }] },
     }),
   );
+  // The budget is above the weekly quota as it stands (`+5`): a fixed one fails the start check once the
+  // person's own week has come near it (measured: 98% used, `quota 99` refused).
   const { final, run, refs, stderr } = autoSession(
     'auto',
-    'Write sum.js exporting a function sum(a, b) that returns a + b, and sum.test.js that tests it with node:test; the verification is node --test. full auto quota 99',
+    'Write sum.js exporting a function sum(a, b) that returns a + b, and sum.test.js that tests it with node:test; the verification is node --test. full auto quota +5',
   );
   check(
     `full autonomy: the start checks passed, ${process.platform === 'win32' ? 'native Windows (no sandbox, no probe)' : 'the live probe included'}, and a run started`,
@@ -284,7 +286,7 @@ function fullAutonomy() {
 function stopTurnedBack() {
   const { final, run, hook, turnEnds } = autoSession(
     'auto-stop',
-    'Write hello.js exporting a function hello() that returns the string hello, and hello.test.js that tests it with node:test; the verification is node --test. As soon as the plan is accepted, end your turn with the single word PAUSED. full auto quota 99',
+    'Write hello.js exporting a function hello() that returns the string hello, and hello.test.js that tests it with node:test; the verification is node --test. As soon as the plan is accepted, end your turn with the single word PAUSED. full auto quota +5',
   );
   const turnedBack = Math.max(0, turnEnds - 1);
   if (run && turnedBack === 0 && run.status === 'done') {
