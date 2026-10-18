@@ -1117,7 +1117,7 @@ export async function cmdConfig(a: Args): Promise<number> {
     else say(String(v));
     return v === undefined ? 1 : 0;
   }
-  if (sub === 'explain') return explainSetting(ctx, a.positionals[1]);
+  if (sub === 'explain') return explainSetting(ctx, a.positionals[1], flag(a, 'json'));
   if (sub === 'set') {
     const key = a.positionals[1];
     const raw = a.positionals[2];
@@ -1154,9 +1154,24 @@ export async function cmdConfig(a: Args): Promise<number> {
  * now, what each change does, how to take it back, who changes it), and the command that changes it. Without a name,
  * every setting page by page with its value now. An unknown name: the nearest ones, exit 2.
  */
-function explainSetting(ctx: AppContext, key: string | undefined): number {
+function explainSetting(ctx: AppContext, key: string | undefined, json: boolean): number {
   const lang = ctx.lang;
   const cols = Math.max(48, Math.min(process.stdout.columns || 100, 120));
+  if (json) {
+    const paths = key ? (settingOf(key) ? [key as SettingPath] : []) : allSettingPaths();
+    say(
+      JSON.stringify(
+        key
+          ? paths[0]
+            ? { path: key, ...explain(ctx.config, paths[0], lang, placeOf) }
+            : { error: 'not-a-setting', nearest: nearestSettings(key) }
+          : paths.map((p) => ({ path: p, ...explain(ctx.config, p, lang, placeOf) })),
+        null,
+        2,
+      ),
+    );
+    return key && !paths.length ? 2 : 0;
+  }
   if (!key) {
     let page = '';
     for (const p of allSettingPaths()) {

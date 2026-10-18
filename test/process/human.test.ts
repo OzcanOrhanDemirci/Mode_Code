@@ -146,7 +146,7 @@ test("config explain gives a setting's four answers and the command that changes
     assert.match(flat, /Bu ne Bypass, bir oturumda Claude'un bir süre sormadan çalışmasını sağlar/);
     assert.match(flat, /Şu an kapalı \(varsayılan\)\. \/bypass ve ⚡ yok/);
     assert.match(flat, /Değiştirirsen açık: Bir oturumda kendin açabilirsin/);
-    assert.match(flat, /Geri almak Hemen geçerli/);
+    assert.match(flat, /Geri almak Aynı yoldan eski hâline döndürebilirsin/);
     assert.match(flat, /Kim değiştirir Yalnız sen/);
     assert.match(flat, /Değiştirmek için: mode-code config set bypass\.enabled true\|false/);
     // No line starts with the space a break fell on, and none is wider than the terminal it was given.
@@ -175,6 +175,14 @@ test("config explain gives a setting's four answers and the command that changes
     assert.match(all.out, /Settings › Features\n\s+modules\.modes\s+Modes and flows: on/);
     assert.match(all.out, /packs\.items\.ffmpeg\s+Audio and video: automatic/);
     assert.match(cli(en, ['help']).out, /config explain \[setting\]\s+What a setting does, before you change it/);
+    const j = cli(en, ['config', 'explain', 'view', '--json']);
+    assert.equal(j.code, 0);
+    assert.equal(j.json?.path, 'view');
+    assert.equal(j.json?.now, 'Recommended');
+    assert.equal(cli(en, ['config', 'explain', '--json']).out.includes('"path": "packs.items.ffmpeg"'), true);
+    const jb = cli(en, ['config', 'explain', 'bypas', '--json']);
+    assert.equal(jb.code, 2);
+    assert.deepEqual(jb.json, { error: 'not-a-setting', nearest: ['bypass.enabled', 'bypass.maxHours'] });
   } finally {
     en.done();
   }

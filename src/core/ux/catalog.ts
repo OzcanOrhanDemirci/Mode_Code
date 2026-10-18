@@ -403,7 +403,8 @@ export function nearestSettings(query: string, limit = 5): SettingPath[] {
   if (!q) return [];
   const all = allSettingPaths();
   const containing = all.filter((p) => fold(p).includes(q));
-  const near = all.filter((p) => !containing.includes(p) && p.split('.').some((part) => editDistance(fold(part), q.split('.').at(-1)!, 2) <= 2));
+  const last = q.split('.').at(-1)!;
+  const near = last ? all.filter((p) => !containing.includes(p) && p.split('.').some((part) => editDistance(fold(part), last, 2) <= 2)) : [];
   return [...containing, ...near].slice(0, limit);
 }
 

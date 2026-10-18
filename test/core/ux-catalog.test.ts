@@ -266,6 +266,7 @@ test('the nearest settings to a partial or mistyped name: those containing it fi
   assert.ok(nearestSettings('modules.keywrods').includes('modules.keywords'));
   assert.ok(nearestSettings('FLUTTER').includes('packs.items.flutter'));
   assert.deepEqual(nearestSettings(''), []);
+  assert.deepEqual(nearestSettings('bypass.'), ['bypass.enabled', 'bypass.maxHours']);
   assert.deepEqual(nearestSettings('zzzzzzzz'), []);
   assert.ok(nearestSettings('a').length <= 5);
 });
