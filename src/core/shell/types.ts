@@ -34,6 +34,8 @@ export interface SimpleCommand {
   heredocs: { body: string; expands: boolean }[];
   /** The source text of this command, for messages. */
   raw: string;
+  /** It reads the output of the command before it (`a | b`, not `a || b`). */
+  piped?: boolean;
 }
 
 export interface ParsedScript {

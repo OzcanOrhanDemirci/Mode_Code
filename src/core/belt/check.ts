@@ -19,7 +19,7 @@ import { isProtectedBranch, looksLikeUrl, parseGit, planPush, remoteMatches } fr
 import type { BeltContext, Finding, RuleId } from './types.js';
 
 /** Issues that hide what runs: always worth asking about. */
-const STRONG_UNCERTAIN = new Set(['eval-dynamic', 'encoded-command-undecodable', 'dynamic-shell-code', 'too-deep']);
+const STRONG_UNCERTAIN = new Set(['eval-dynamic', 'encoded-command-undecodable', 'dynamic-shell-code', 'too-deep', 'stdin-code']);
 /** Issues that mean the text did not parse cleanly: worth asking about when the command looks risky. */
 const WEAK_UNCERTAIN = new Set([
   'unterminated-quote',

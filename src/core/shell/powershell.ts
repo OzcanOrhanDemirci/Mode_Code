@@ -28,6 +28,7 @@ interface Draft {
   redirects: Redirect[];
   /** An expression statement (starts with a literal, a variable or a type): words are not a command. */
   expression: boolean;
+  piped?: boolean;
 }
 
 class PsParser {
@@ -68,6 +69,7 @@ class PsParser {
           redirects: draft.redirects,
           heredocs: [],
           raw: src.slice(draft.start, this.pos).trim().replace(LEADING_OPERATOR, ''),
+          ...(draft.piped ? { piped: true } : {}),
         };
         script.commands.push(cmd);
       }
@@ -106,6 +108,7 @@ class PsParser {
       }
       if (c === '|') {
         finish();
+        draft.piped = src[this.pos + 1] !== '|';
         this.pos += src[this.pos + 1] === '|' ? 2 : 1;
         continue;
       }

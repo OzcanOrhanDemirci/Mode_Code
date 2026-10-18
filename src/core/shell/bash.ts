@@ -23,6 +23,7 @@ interface Draft {
   redirects: Redirect[];
   heredocs: { body: string; expands: boolean }[];
   skip: boolean;
+  piped?: boolean;
 }
 
 interface PendingHeredoc {
@@ -123,6 +124,7 @@ class BashParser {
           redirects: draft.redirects,
           heredocs: draft.heredocs,
           raw: src.slice(draft.start, this.pos).trim().replace(LEADING_OPERATOR, ''),
+          ...(draft.piped ? { piped: true } : {}),
         };
         // cmd.heredocs is the draft's own array, so bodies read at the next newline land on the stored command.
         script.commands.push(cmd);
@@ -173,6 +175,8 @@ class BashParser {
       }
       if (c === '|') {
         finish();
+        // `|` and `|&` hand the output on; `||` runs the next command only when this one failed.
+        draft.piped = src[this.pos + 1] !== '|';
         this.pos += src[this.pos + 1] === '|' || src[this.pos + 1] === '&' ? 2 : 1;
         continue;
       }
