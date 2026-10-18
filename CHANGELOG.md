@@ -7,6 +7,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ### Added
 
 - What a task costs of the quota, measured on your computer (`node scripts/measure/tasks.mjs`): every Claude Code session cut at its commits and pushes, each piece priced by model and token kind, weighed by what the quota counts, and turned into weekly points by Mode_Code's own readings. It reads the transcripts and the event log and writes nothing (`docs/testing.md`).
+- `mode-code sync projects`, also run by the sync setup: projects that came from another computer find their folder here by the same repository, the folder name the other computer uses or their own name, and are linked on one yes. Each computer's `machine.json` now says where it keeps its projects, with no user or token in a repository's address (`docs/sync.md`).
 
 ### Changed
 

@@ -320,7 +320,7 @@ export function Sync({ width, open }: ScreenProps) {
         ) : null}
         {v.applied.length ? <Row label={t('scli.applied')}>{t('scli.applied.text', { n: v.applied.length })}</Row> : null}
         {v.homeless.length ? (
-          <Row label={t('scli.projects')}>{t('scli.projects.text', { ids: v.homeless.join(', '), cmd: `${CLI_NAME} sync project` })}</Row>
+          <Row label={t('scli.projects')}>{t('scli.projects.text', { ids: v.homeless.join(', '), cmd: `${CLI_NAME} sync projects` })}</Row>
         ) : null}
         {s ? <Row label={t('scli.handoffs')}>{t(`scli.handoffs.${v.handoffs}` as MessageKey)}</Row> : null}
       </Box>

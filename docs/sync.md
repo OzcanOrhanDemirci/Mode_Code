@@ -48,7 +48,7 @@ or in the control center: Settings › Sync, then `s`. It is a short conversatio
 
 **The quota reading is not shared.** Rate limits belong to an account, and a reading does not say whose it is: two computers may well use two accounts. Each computer measures its own with its first answer.
 
-**A project from another computer** arrives without a folder here. It still answers to its name in keywords; give it its folder on this computer with `mode-code sync project <id> <folder>`.
+**A project from another computer** arrives without a folder here. It still answers to its name in keywords. Each computer tells the others where it keeps its projects (in its `machine.json`: the folder's name and its parent's, and the repository it belongs to with no user or token in it), so `mode-code sync projects`, which the setup also runs, looks for this computer's copy: the same repository first (and the same folder in it), then a folder with the name the others use, then one named like the project, in your home folder's usual places for projects and next to the projects you already have here. It offers only one folder for one project, shows them all and links them with one yes. A project it cannot place gets its folder with `mode-code sync project <id> <folder>`.
 
 ## How settings meet
 
@@ -106,8 +106,9 @@ The default is **Everything** for a repository Mode_Code set up, and **Only brin
 | `mode-code sync approve [<setting>…] [--all]` | takes settings from other computers that lower a protection                     |
 | `mode-code sync ignore <setting>…`            | keeps this computer's value                                                     |
 | `mode-code sync project <id> [<folder>]`      | a project's folder on this computer (the current folder unless you give one)    |
+| `mode-code sync projects [--yes]`             | finds the folders of projects from other computers and links them on one yes    |
 
-Each takes `--json`. `setup`, `approve`, `ignore` and `project` run only in your own terminal.
+Each takes `--json`. `setup`, `approve`, `ignore`, `project` and `projects` (except its `--json` list) run only in your own terminal.
 
 ## Settings
 
