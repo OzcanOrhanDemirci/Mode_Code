@@ -37,6 +37,7 @@
  *        add --only-skills to run cases 14 and 15 alone (three sessions): the skills
  *        add --only-automode to run case 16 alone (two sessions): Claude Code's auto mode with the belt
  *        add --only-agents to run case 17 alone (two sessions): parallel agents in the real engine
+ *        add --only-memory to run case 8 alone (three sessions): the memory, pulled, handed off and told
  *        add --keep to leave the sessions' folders and the full-autonomy sessions' streams in place
  */
 import { spawn, spawnSync } from 'node:child_process';
@@ -788,15 +789,19 @@ function agentsCases() {
 
   const offId = randomUUID();
   const off = run(
-    'This checks a setting. First use the Agent tool once with subagent_type general-purpose and the prompt: reply with the word PING. Whatever happens, then use the Agent tool once with subagent_type Explore and the prompt: read marker.txt and answer with the marker word only. Then reply with the marker word the Explore agent found, or NONE.',
+    'This checks a setting. First use the Agent tool once with subagent_type general-purpose and the prompt: reply with the word PING. Whatever happens, then use the Agent tool once with subagent_type Explore, run_in_background false, and the prompt: read marker.txt and answer with the marker word only. Wait for its answer, then reply with the marker word the Explore agent found, or NONE.',
     offId,
   );
   const denied = logged().filter((e) => e.action === 'deny' && e.why === 'off' && e.type === 'general-purpose').length;
-  const explored = agentCalls(off).filter((x) => x.type === 'Explore' && !x.error && /HERON-5521/.test(x.text)).length;
+  // The helper let through is the plugin's part; whether the model then waits for it (it may run it in the background
+  // and end the headless session first) is the model's, so its answer is reported, not required.
+  const explore = agentCalls(off).filter((x) => x.type === 'Explore');
+  const helperRefused = logged().filter((e) => e.action === 'deny' && e.type === 'Explore').length;
+  const answered = explore.filter((x) => !x.error && /HERON-5521/.test(x.text)).length;
   check(
     'parallel agents off: a working agent is refused with its reason, a read-only helper runs',
-    denied >= 1 && explored >= 1,
-    `${calls(off).join(' ') || 'no tool called'} · refused ${denied} · Explore answered ${explored} · ${(off.final?.result ?? off.stderr).slice(0, 80)}`,
+    denied >= 1 && explore.some((x) => !x.error) && helperRefused === 0,
+    `${calls(off).join(' ') || 'no tool called'} · refused ${denied} · Explore refused ${helperRefused}, answered ${answered} · ${(off.final?.result ?? off.stderr).slice(0, 80)}`,
   );
 
   const onId = randomUUID();
@@ -859,6 +864,11 @@ try {
   } else if (process.argv.includes('--only-automode')) {
     const a = autoModeCase();
     const cost = a.reduce((n, x) => n + (x.final?.total_cost_usd ?? 0), 0);
+    console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
+    process.exitCode = results.every((r) => r.ok) ? 0 : 1;
+  } else if (process.argv.includes('--only-memory')) {
+    const m = memoryCases();
+    const cost = m.reduce((n, x) => n + (x.final?.total_cost_usd ?? 0), 0);
     console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
     process.exitCode = results.every((r) => r.ok) ? 0 : 1;
   } else if (process.argv.includes('--only-agents')) {
