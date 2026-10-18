@@ -97,3 +97,55 @@ test('every page a setting lives on is a real page, reachable in every view; quo
   assert.ok(pages.has('settings/footer-quota'));
   for (const page of pages) assert.equal(resolve(roots, page, 'simple').length, page.split('/').length, page);
 });
+
+test('the same four answers in the other language: a Turkish switch and number, an English choice', async () => {
+  const sw = await draw(new FakeData('tr'), { address: 'automation/agents', rows: 48 });
+  try {
+    const t = flat(sw.text());
+    assert.match(t, /Bu ne Ana Claude'un yanında kaç yardımcı Claude \(ajan\) çalışacağına/);
+    assert.match(t, /Şu an kapalı \(varsayılan\)\. Mode_Code ajanlara karışmaz/);
+    assert.match(t, /Değiştirirsen açık: Her oturum ajansız başlar/);
+    assert.match(t, /Geri almak Burada hemen, Claude Code'da sonraki mesajından itibaren/);
+    assert.match(t, /Kim değiştirir Yalnız sen/);
+  } finally {
+    sw.close();
+  }
+  const num = await draw(new FakeData('tr'), { address: 'automation/bypass', rows: 48 });
+  try {
+    await num.press(KEY.down);
+    const t = flat(num.text());
+    assert.match(t, /Şu an 2 saat \(varsayılan\)\. Bypass açıldıktan 2 saat sonra kendiliğinden kapanır/);
+    assert.match(t, /Değiştirirsen 1 saat ile 24 saat arasında bir sayı yaz\./);
+    assert.match(t, /Şu an etkisiz, çünkü "Bypass'a izin ver" ayarı: kapalı \(Otomasyon › Bypass\)\./);
+  } finally {
+    num.close();
+  }
+  const ch = await draw(new FakeData(), { address: 'settings/footer-quota', rows: 44 });
+  try {
+    const t = flat(ch.text());
+    assert.match(t, /What it is How the lines under each answer are made\./);
+    assert.match(t, /Now Mode_Code draws them \(default\)\. Mode_Code draws them under the answer/);
+    assert.match(t, /If you change it Claude writes them: Claude writes them at the end of each answer .* Off: No lines under the answers\./);
+  } finally {
+    ch.close();
+  }
+});
+
+test("a pack's card says what that pack does and its size; choosing always asks first", async () => {
+  const data = new FakeData('tr');
+  const s = await draw(data, { address: 'claude-code/packs', rows: 48 });
+  try {
+    await s.press(KEY.down); // the first pack
+    const t = flat(s.text());
+    assert.match(t, /Flutter ve Dart/);
+    assert.match(t, /Bu ne Flutter ve Dart: Dart araçlarıyla analiz, test ve paketler/);
+    assert.match(t, /Açıkken oturum başına ~\d+ token\./);
+    await s.press(KEY.enter); // automatic → always on
+    assert.equal(data.saved.length, 0);
+    assert.match(flat(s.text()), /Hep açık: dosyaları ne olursa olsun çalıştığın her projede açık\. Enter tuşuna bir kez daha bas\./);
+    await s.press(KEY.enter);
+    assert.deepEqual(data.saved, [{ path: 'packs.items.flutter', value: 'always' }]);
+  } finally {
+    s.close();
+  }
+});
