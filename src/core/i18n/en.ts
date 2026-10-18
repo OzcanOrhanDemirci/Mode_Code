@@ -184,7 +184,7 @@ export const en = {
   'quota.toast.stop': 'Quota limit reached ({window} {used}%): stopping.',
   'quota.window.five_hour': '5-hour',
   'quota.window.seven_day': 'weekly',
-  'quota.notify.resume': 'The quota window reset. Work resumes now.',
+  'quota.notify.resume': 'The quota period reset. Work resumes now.',
 } as const;
 
 export type MessageKey = keyof typeof en;

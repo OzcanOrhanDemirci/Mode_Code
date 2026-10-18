@@ -178,5 +178,5 @@ export const tr: Record<MessageKey, string> = {
   'quota.toast.stop': 'Kota sınırı doldu ({window} %{used}): duruluyor.',
   'quota.window.five_hour': '5 saatlik',
   'quota.window.seven_day': 'haftalık',
-  'quota.notify.resume': 'Kota penceresi sıfırlandı. Çalışma şimdi sürüyor.',
+  'quota.notify.resume': 'Kota dönemi sıfırlandı. Çalışma şimdi sürüyor.',
 };

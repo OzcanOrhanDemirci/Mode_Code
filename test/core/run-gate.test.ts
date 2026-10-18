@@ -123,7 +123,7 @@ test('WSL versions and Windows drive mounts in every form WSL writes them', () =
   assert.equal(checkGate({ ...good(), wsl: null }).ok, true);
 });
 
-test('native Windows runs with the belt and the fence alone: the platform says so, the sandbox checks do not apply', () => {
+test('native Windows runs with the safety belt and its write limits alone: the platform says so, the sandbox checks do not apply', () => {
   const g = checkGate({ ...good(), platform: 'win32', wsl: null, probe: null });
   assert.equal(g.ok, true, 'no probe to wait for where there is no sandbox');
   assert.deepEqual(failed({ ...good(), platform: 'win32', wsl: null, probe: null }), []);
@@ -250,7 +250,7 @@ test('the project, the safety net, modes and being alone', () => {
   }).checks.find((c) => c.id === 'alone')!;
   assert.equal(
     tIn('tr', paused.key, paused.params),
-    'Bu klasörde duraklatılmış bir koşu bekliyor (r1): "devam" ile sürdür ya da "tam otonom iptal" ile bitir.',
+    'Bu klasörde duraklatılmış bir tam otonom iş bekliyor (r1): "devam" ile sürdür ya da "tam otonom iptal" ile bitir.',
   );
 });
 

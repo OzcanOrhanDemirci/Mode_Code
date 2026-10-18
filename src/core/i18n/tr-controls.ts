@@ -33,7 +33,7 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.center.noTerminal': 'Bu terminalde yeni sekme açılamıyor; kontrol merkezini kendin aç: {cmd}',
   'ctl.center.unknown': 'Kontrol merkezinin yeri kurulumda kaydedilmemiş: "{app} doctor --fix" kaydeder.',
   'ctl.center.remote': 'Kontrol merkezi bilgisayarda açılır: orada yazılan /0 onu yeni sekmede açar.',
-  'ctl.runAttached': 'Bu oturuma bağlı bir tam otonom koşu var: önce "{cancel}" ile bırak.',
+  'ctl.runAttached': 'Bu oturuma bağlı bir tam otonom iş var: önce "{cancel}" ile bırak.',
   'ctl.personOnly': '{cmd} komutunu yalnız sen çalıştırabilirsin: şeritten ya da kendin yazarak, burada ya da telefonda.',
   // ── bypass ──
   'ctl.bypass.notEnabled': 'Bypass açılmamış. Kontrol merkezinden aç: Otomasyon › Bypass (/0 açar).',
@@ -42,7 +42,7 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.bypass.yes': 'Aç',
   'ctl.bypass.no': 'Vazgeç',
   'ctl.bypass.started': 'Bypass {until} saatine kadar açık ({hours} saat). /bypass ya da şeritteki ⚡ kapatır.',
-  'bypass.summary': 'Bypass kapandı: {minutes} dakikada {count} çağrı sorulmadan geçti. Liste: Otomasyon › İzinsiz yapılanlar.',
+  'bypass.summary': 'Bypass kapandı: {minutes} dakikada {count} çağrı sorulmadan geçti. Liste: Otomasyon › Sormadan yapılanlar.',
   'bypass.toast.soon': 'Bypass {minutes} dakika sonra kapanacak.',
   // ── / menüsü: her komutun aldığı değer (satırı kataloğun, ux.ctl.*) ──
   'ctl.hint.text': '[metin]',
@@ -151,7 +151,7 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'agents.set.free': 'Paralel ajanlar: serbest, aynı anda en çok {n}.',
   'agents.set.assigned': 'Paralel ajanlar: sonraki isteğin için tam {n}; ajanlar bitince mod kendiliğinden kapanır.',
   'agents.many': " 20'nin üstünde asıl belirleyen, Claude Code'un aynı anda kaç ajan çalıştırdığı ve kota.",
-  'agents.runActive': 'Bir tam otonom koşu bağlı: işi onun planı belirliyor, bu yüzden tam N şimdi başlayamaz. En çok N çalışır.',
+  'agents.runActive': 'Bir tam otonom iş bağlı: işi onun planı belirliyor, bu yüzden tam N şimdi başlayamaz. En çok N çalışır.',
   'agents.usage':
     '/{cmd}: pencere · /{cmd} 5: aynı anda en çok 5 · /{cmd} {exact} 7: sonraki isteğin için tam 7 · /{cmd} {off}: kapalı · /{cmd} {stop}: çalışan ajanları durdur',
   'agents.word.exact': 'tam',

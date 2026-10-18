@@ -10,7 +10,7 @@ test('numbers read naturally in both languages', () => {
   assert.equal(compact(1234, 'en'), '1.2 K');
   assert.equal(compact(2_500_000, 'en'), '2.5 M');
   assert.equal(compact(3_300_000_000, 'en'), '3.3 B');
-  assert.equal(compact(1234, 'tr'), '1,2 B');
+  assert.equal(compact(1234, 'tr'), '1,2 bin');
   assert.equal(compact(2_500_000, 'tr'), '2,5 Mn');
   assert.equal(percent(14, 'en'), '14%');
   assert.equal(percent(14, 'tr'), '%14');

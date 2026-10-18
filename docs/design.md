@@ -95,22 +95,25 @@ Only the 16 basic colours, so the person's terminal theme decides the contrast; 
 
 ## Glossary
 
-| Idea                                               | English                       | Turkish                               | Not                           |
-| -------------------------------------------------- | ----------------------------- | ------------------------------------- | ----------------------------- |
-| the protection that stops risky commands           | safety belt                   | emniyet kemeri                        | belt alone, kemer alone, hook |
-| a session where the belt asks nothing              | bypass (works without asking) | bypass (sormadan çalış)               | izinsiz                       |
-| a task carried to its end alone                    | full-autonomy run             | tam otonom iş                         | koşu                          |
-| research → plan → approve → code                   | flow                          | akış (adım adım iş)                   |                               |
-| helper Claudes that run beside the main one        | agents                        | ajanlar (yardımcı Claude'lar)         | alt ajan                      |
-| Anthropic's usage limit                            | quota                         | kota                                  |                               |
-| the ceiling you set on it                          | budget                        | bütçe                                 | sınır, hedef                  |
-| the 5-hour and weekly periods                      | period                        | dönem                                 | pencere                       |
-| a summary Claude makes to shorten the conversation | summary (compaction)          | özet (sıkıştırma)                     |                               |
-| notes left for the next session                    | handoff note                  | devir notu                            |                               |
-| a part Mode_Code adds inside Claude Code           | the plugin                    | Mode_Code'un Claude Code'daki parçası | eklenti, for both meanings    |
-| Claude Code's own add-ons                          | Claude Code plugins           | Claude Code eklentileri               |                               |
-| a connection to an outside tool                    | outside tool (MCP)            | dış araç (MCP)                        |                               |
-| thousands of tokens                                | 250k tokens                   | 250 bin token                         | 250 B                         |
+| Idea                                               | English                       | Turkish                                         | Not (✓: the test refuses it)  |
+| -------------------------------------------------- | ----------------------------- | ----------------------------------------------- | ----------------------------- |
+| the protection that stops risky commands           | safety belt                   | emniyet kemeri                                  | hook (Claude Code's own part) |
+| a session where the safety belt asks nothing       | bypass (works without asking) | bypass (sormadan çalış)                         | izinsiz ✓                     |
+| a task Claude carries to its end alone             | full-autonomy task            | tam otonom iş                                   | koşu ✓                        |
+| what keeps such a task's writes in the project     | write limits                  | yazma sınırları                                 | fence ✓, çit ✓                |
+| research → plan → approve → code                   | flow                          | akış (adım adım iş)                             |                               |
+| helper Claudes that run beside the main one        | agents                        | ajanlar (yardımcı Claude'lar)                   | subagent ✓, alt ajan ✓        |
+| Anthropic's usage limit                            | quota                         | kota                                            |                               |
+| the ceiling you set on it                          | budget                        | bütçe                                           | hedef                         |
+| the 5-hour and weekly periods of the quota         | period                        | dönem                                           | window ✓, pencere ✓           |
+| a summary Claude makes to shorten the conversation | summary (compaction)          | özet (sıkıştırma)                               |                               |
+| notes left for the next session                    | handoff note                  | devir notu                                      |                               |
+| the part Mode_Code adds inside Claude Code         | the plugin                    | Mode_Code'un Claude Code'daki parçası (eklenti) |                               |
+| Claude Code's own add-ons                          | Claude Code plugins           | Claude Code eklentileri                         |                               |
+| a connection to an outside tool                    | outside tool (MCP)            | dış araç (MCP)                                  |                               |
+| thousands of tokens                                | 250K tokens                   | 250 bin token                                   | 250 B ✓                       |
+
+The rows marked ✓ live in `src/core/ux/glossary.ts`, and `test/core/ux-glossary.test.ts` reads every message of both languages against them. "Eklenti" names both the plugin and Claude Code's add-ons because Claude Code calls both plugins; where it means Mode_Code's part, the sentence says so.
 
 ## Components
 

@@ -4,11 +4,11 @@ import { tIn, type Lang } from './i18n/index.js';
 
 const locale = (lang: Lang) => (lang === 'tr' ? 'tr-TR' : 'en-US');
 
-/** 1234 → "1.2 K", 2_500_000 → "2.5 M" (Turkish: "1,2 B", "2,5 Mn"). */
+/** 1234 → "1.2 K", 2_500_000 → "2.5 M" (Turkish: "1,2 bin", "2,5 Mn": "B" read as bytes). */
 export function compact(n: number, lang: Lang): string {
   if (!Number.isFinite(n)) return '?';
   const abs = Math.abs(n);
-  const units = lang === 'tr' ? ['', ' B', ' Mn', ' Mr', ' Tn'] : ['', ' K', ' M', ' B', ' T'];
+  const units = lang === 'tr' ? ['', ' bin', ' Mn', ' Mr', ' Tn'] : ['', ' K', ' M', ' B', ' T'];
   let i = 0;
   let v = abs;
   while (v >= 1000 && i < units.length - 1) {

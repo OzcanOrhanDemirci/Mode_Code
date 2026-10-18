@@ -122,7 +122,7 @@ export const trModes: Record<keyof typeof enModes, string> = {
   'flow.step.paused': 'Akış {step} adımında duraklatıldı. Yalnız kullanıcı sürdürür ("{cont}" yazar).',
   'flow.step.terminal': 'Bu akış sona erdi ({status}).',
   'flow.step.notCurrent': 'Akış {asked} adımında değil, {current} adımında: adımlar sırayla ilerler, hiçbiri atlanmaz.',
-  'flow.step.agent': 'Akış adımlarını alt ajan değil, yalnız ana oturum bitirir.',
+  'flow.step.agent': 'Akış adımlarını bir ajan değil, yalnız ana oturum bitirir.',
   'flow.step.refused': '{step} adımı henüz bitmedi:',
   'flow.step.refusedTail': 'Bunları {path} içinde düzelt ve flow_step aracını yeniden çağır.',
   'flow.step.doneResearch': 'Araştırma adımı bitti: {findings} ve {sources} denetlendi. Denetlenen rapor {copy} içinde saklanıyor.',

@@ -258,7 +258,7 @@ test('full autonomy: turning it on shows what it means and needs a second Enter;
   try {
     assert.match(s.text(), /Start checks, measured from here/);
     // A check's line wraps, never cut short: the pane says it in full.
-    assert.match(s.text(), /✓\s+Platform\s+Native Windows: no sandbox, so the belt and the fence/);
+    assert.match(s.text(), /✓\s+Platform\s+Native Windows: no sandbox, so the safety belt and/);
     assert.match(s.text(), /│\s+boundary\.\s/);
     await s.press(KEY.enter);
     assert.equal(data.saved.length, 0, 'not yet');
@@ -336,7 +336,7 @@ test('full autonomy: Automation › Runs lists each run, its card the milestones
   }
   const empty = await draw(new FakeData('tr'), { address: 'automation/runs' });
   try {
-    assert.match(empty.text(), /Henüz tam otonom koşu yok/);
+    assert.match(empty.text(), /Henüz tam otonom iş yok/);
   } finally {
     empty.close();
   }

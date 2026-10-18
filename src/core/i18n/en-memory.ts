@@ -119,7 +119,7 @@ export const enMemory = {
   'mod.memory.identity': '🧠 Memory: git needs a name and an address for commits: mode-code memory setup.',
   'mod.memory.diverged': '🧠 Memory: this copy and GitHub have both moved; nothing was brought in. Join them (git pull).',
   'mod.memory.failed': '🧠 Memory: the sync failed: {detail}',
-  'mod.handoff.agent': 'Only the main session writes a handoff note; a subagent cannot call this tool.',
+  'mod.handoff.agent': 'Only the main session writes a handoff note; an agent cannot call this tool.',
   'mod.handoff.refused': 'The handoff note is not written yet:',
   'mod.handoff.part.missing': '{part} is missing: write a few lines (a word like "nothing" is fine).',
   'mod.handoff.part.long': '{part} is too long: keep it to a few lines.',
