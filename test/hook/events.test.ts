@@ -119,8 +119,11 @@ test('a block repeated in the session says how many times it was tried', () => {
 test('broken input: not JSON, no tool, an unknown event, an unsafe session id: no crash, no file outside the data folder', () => {
   const home = fresh();
   try {
+    // A tool call that cannot be read is refused, not judged harmless (A3-9 of 1.2.0): still no crash.
+    const garbled = run('PreToolUse', 'this is not json', home);
+    assert.equal(garbled.status, 0);
+    assert.equal(garbled.out?.hookSpecificOutput?.permissionDecision, 'deny');
     for (const [event, input] of [
-      ['PreToolUse', 'this is not json'],
       ['PreToolUse', ''],
       ['PreToolUse', { tool_name: 'Read' }],
       ['NoSuchEvent', { anything: 1 }],

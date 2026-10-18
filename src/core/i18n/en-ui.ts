@@ -256,8 +256,7 @@ export const enUi = {
   'secrets.found': '{n} possible secrets in {files} scanned files:',
   'secrets.allowUsage': 'Usage: {cmd} <fingerprint>… (the 64 hex digits a held memory push printed)',
   'secrets.allowed': '{n} fingerprints allowed: a memory push may send those values now.',
-  'secrets.inPrompt':
-    'Your message holds what looks like a secret ({kinds}): it went to the model provider with the message. If it was pasted by mistake, rotate it.',
+  'secrets.inPrompt': 'Your message held a secret ({kinds}); it went to the model. Pasted by mistake? Rotate it.',
   'secrets.note': 'Only masked previews are shown. Move real secrets out of these files and rotate any that were committed.',
 
   // ── config ──
