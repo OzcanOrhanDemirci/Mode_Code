@@ -2737,7 +2737,7 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
     const clean = withoutInvisible(result.text);
     if (clean.removed) {
       await logEvent($, c, { kind: 'invisible', tool, removed: clean.removed });
-      return { deny: `${invisibleNote(clean.removed)}\n\n${clean.text}` };
+      return { deny: [invisibleNote(clean.removed), ...extra, clean.text].join('\n\n') };
     }
   }
   return extra.length && result.deny === undefined ? { ...result, context: [...(result.context ?? []), ...extra] } : result;
