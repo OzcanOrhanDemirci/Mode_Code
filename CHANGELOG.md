@@ -19,6 +19,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Fixed
 
+- The safety-net hook refuses a tool call whose input reached it cut short or garbled, instead of letting it through unjudged.
 - The session's controls (the mode, the way of working, the budget, the menu, closing, continuing) refuse a command that Claude Code stamps as coming from a prompt Claude scheduled for itself, another session, a background notice or another plugin, as bypass and full autonomy already did; before, those could change the mode or raise the budget.
 - The safety belt asks about code piped into a shell or an interpreter (`curl … | sh`, `… | base64 -d | bash`, `… | python3 -`) and about `bash <(curl …)`, as it already did for PowerShell's `| iex`; before, those ran unasked.
 - A command that only reads the hooks-off setting (a `grep`, a `jq` lookup) is no longer blocked when something else in it changes files; giving the setting a value that turns hooks off is blocked as before.

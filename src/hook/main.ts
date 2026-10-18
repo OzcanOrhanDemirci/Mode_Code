@@ -386,11 +386,13 @@ function sessionStart(input: Input, lang: Lang): void {
 async function main(): Promise<void> {
   const event = process.argv[2] ?? '';
   let input: Input = {};
+  let unreadable = false;
   try {
     const raw = readFileSync(0, 'utf8');
     input = raw.trim() ? (JSON.parse(raw) as Input) : {};
   } catch {
     input = {};
+    unreadable = true;
   }
   let lang: Lang = 'en';
   try {
@@ -401,6 +403,11 @@ async function main(): Promise<void> {
   setLanguage(lang);
 
   if (event === 'PreToolUse') {
+    // Input cut short or garbled: the call cannot be judged, so it does not run (the belt fails closed, A3-9).
+    if (unreadable) {
+      preToolDeny(tIn(lang, 'belt.failed', { error: 'the tool call it was given could not be read' }));
+      return;
+    }
     const tool = str(input.tool_name) ?? '';
     const timer = setTimeout(() => {
       if (isBeltTool(tool)) preToolDeny(tIn(lang, 'belt.failed', { error: `no answer in ${DEADLINE_MS / 1000} s` }));
