@@ -5,7 +5,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { commandsText, CORE_SKILLS, keptSkills, LIST_COMMANDS, personOnly, shortCommands, skillHeader } from '../../src/core/skills.js';
+import { commandsText, CORE_SKILLS, keptSkills, LIST_COMMANDS, memorySetUp, personOnly, shortCommands, skillHeader } from '../../src/core/skills.js';
+import { cloneDefaults } from '../../src/core/config.js';
 import { EXTERNAL_SKILLS } from '../../src/core/skills-external.js';
 import { COMMANDS } from '../../src/core/controls.js';
 
@@ -92,4 +93,13 @@ test("the short commands: in Turkish only, the person's skills; the list of ever
     'The end.',
   );
   assert.equal(text, 'Keywords\n  continue          devam\n\nSkills\n  /plugin-x:verify  Verify.\n\nThe end.');
+});
+
+test('a memory is set up with a store, with a folder, or with both; with neither it is not', () => {
+  const c = cloneDefaults();
+  assert.equal(memorySetUp(c), false);
+  assert.equal(memorySetUp({ ...c, memory: { ...c.memory, dirs: ['/home/ada/notes'] } }), true);
+  const store = { place: 'local', dir: '/home/ada/memory', remote: null, git: true, sync: 'auto' } as unknown as NonNullable<typeof c.memory.store>;
+  assert.equal(memorySetUp({ ...c, memory: { ...c.memory, store } }), true);
+  assert.equal(memorySetUp({ ...c, memory: { ...c.memory, store, dirs: ['/x'] } }), true);
 });
