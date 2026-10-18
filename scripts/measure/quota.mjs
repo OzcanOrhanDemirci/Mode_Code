@@ -28,8 +28,10 @@ export const PRICES = {
 export const WEIGHTS = { input: 1, write: 1, read: 0.76, output: 1.92 };
 
 const COMMAND_TOOLS = new Set(['Bash', 'PowerShell']);
-// A commit or a push, with git's own options before it (`git -C dir commit`, `git -c k=v push`).
-const BOUNDARY = /\bgit(?:\s+(?:-C|-c)\s+\S+|\s+--?[\w-]+(?:=\S+)?)*\s+(commit|push)(?![\w-])/g;
+// A commit or a push run as a command: git at the start or after `;`, `&`, `|`, `(`, `{` or a line break, with
+// git's own options before it (`git -C dir commit`, `git -C "my dir" commit`, `git -c k=v push`). Inside a
+// string (`echo "git commit"`) it is text.
+const BOUNDARY = /(?:^|[;&|({\n])\s*git(?:\s+(?:-C|-c)\s+(?:"[^"]*"|'[^']*'|\S+)|\s+--?[\w-]+(?:=\S+)?)*\s+(commit|push)(?![\w-])/g;
 
 /** The JSON objects of a JSONL text; a line that is not JSON is left out. */
 export function jsonLines(text) {
@@ -135,7 +137,9 @@ export function costOf(call) {
 
 /**
  * A session's calls cut into tasks: each ends at a commit or a push (the call that ran it is the task's
- * last), and what follows the last one is a task still open. A task's context is its largest prompt.
+ * last), and what follows the last one is a task still open. A task's context is its largest prompt. A
+ * subagent's calls carry its session's id, so a commit a subagent runs ends the session's task too: the
+ * work is cut where it was committed, whoever ran the command.
  */
 export function tasksOf(calls, boundaries) {
   const sessions = new Map();
