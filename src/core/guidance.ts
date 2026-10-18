@@ -297,6 +297,11 @@ export function flowNote(kind: 'canceled' | 'approved', f: Flow, lang: Lang, t: 
   return `${P} The person approved the plan by typing. ${stepGuidance(f, lang, t)}`;
 }
 
+/** Told to the model when the person's message holds what looks like a key or a token (its kinds, never the value). */
+export function promptSecretNote(kinds: readonly string[]): string {
+  return `${P} The person's message holds what looks like a secret (${kinds.join(', ')}). Use it only for what they asked; do not repeat it in your answer, write it into a file other than a secret store, commit it or send it anywhere. If it looks pasted by mistake, tell them to rotate it.`;
+}
+
 /** Told to the model when the person's message is one typo from a keyword, which was therefore not applied. */
 export function nearKeywordNote(keyword: string): string {
   return `${P} The person's message looks like the keyword "${keyword}" with a typo; it was not applied. If they meant it, they type it exactly as "${keyword}"; otherwise read the message as it is.`;

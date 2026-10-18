@@ -247,6 +247,7 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'secrets.found': 'Taranan {files} dosyada {n} olası sır:',
   'secrets.allowUsage': 'Kullanım: {cmd} <parmak izi>… (bekletilen hafıza gönderiminin yazdığı 64 onaltılık hane)',
   'secrets.allowed': '{n} parmak izine izin verildi: hafıza gönderimi artık bu değerleri gönderebilir.',
+  'secrets.inPrompt': 'Mesajında sır gibi görünen bir değer var ({kinds}): mesajla birlikte model sağlayıcısına gitti. Yanlışlıkla yapıştırdıysan yenile.',
   'secrets.note': 'Yalnız maskeli önizlemeler gösterilir. Gerçek sırları bu dosyalardan çıkar, commit edilmiş olanları yenile.',
 
   'config.usage': 'Kullanım: config set <anahtar> <değer>, örneğin: config set footer.mode check',

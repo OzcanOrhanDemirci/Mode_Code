@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- A key or token pasted into your message is told to you (it went to the model provider with the message; rotate it if it was a mistake), and Claude is told not to repeat, store or send it. The kind only, never the value.
 - A safety-belt rule for the project's own checks: changing the settings of a linter or a formatter (ESLint, Prettier, Biome, `analysis_options.yaml` …) is asked about, by any tool (`quality.check-config`).
 - A memory push is held when a commit it would send adds a secret, a commit made by hand included; you see the file and the kind, never the value, and `mode-code secrets allow <fingerprint>` lets a false alarm go (`docs/memory.md`). The same holds for the sync across computers.
 - `mode-code update`: whether a newer release is out, read from the release's `SHA256SUMS`, and the update to it with the release's own installer, downloaded and checked against that file, run with `--yes`, then the new installation's doctor. Also `u` under Maintenance in the control center. Only you start it: never from inside a Claude Code session.

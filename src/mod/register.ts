@@ -83,6 +83,7 @@ import {
   bypassOffNote,
   bypassOnNote,
   bypassReminder,
+  promptSecretNote,
   resumePrompt,
   stepGuidance,
   stepName,
@@ -2697,6 +2698,21 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   if (restoredAt >= 0) c.restored = false;
   let said: KeywordKind | null = null;
   let typed = String(e.text ?? '');
+  // A key or token pasted into the message has gone to the model's provider with it: the person is told so, and the
+  // model is told not to spread it further (A3-9). The kinds only, never the value.
+  if (human && kind !== 'plugin' && c.config.modules.secrets) {
+    const kinds = [
+      ...new Set(
+        scanSecrets(typed)
+          .filter((m) => m.confidence === 'high')
+          .map((m) => m.kind),
+      ),
+    ];
+    if (kinds.length) {
+      $.ui.toast(tIn(c.lang, 'secrets.inPrompt', { kinds: kinds.join(', ') }), { timeoutMs: 15_000 });
+      extra.push(promptSecretNote(kinds));
+    }
+  }
   // A keyword typed with a slash in front (`/akış iptal`) is that keyword; the person is told how it was read.
   if (human && kind !== 'plugin' && c.config.modules.keywords) {
     const bare = withoutSlash(typed, projectRefs(c.config), keywordTables(c.config));
