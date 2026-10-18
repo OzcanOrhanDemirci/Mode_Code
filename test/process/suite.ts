@@ -490,6 +490,14 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       writeFileSync(join(proj, 's1.jsonl'), rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
       const tok = cli(w, ['tokens', '--json'], opt);
       assert.equal(tok.json?.total.output, 20);
+      // The same transcript, measured as tasks: one call, a task still open.
+      const mea = cli(w, ['measure', '--json'], opt);
+      assert.equal(mea.json?.schema, 'mode-code.measure/1');
+      assert.deepEqual(
+        mea.json?.tasks.map((t: { endedBy: string; calls: number }) => [t.endedBy, t.calls]),
+        [['open', 1]],
+      );
+      assert.match(cli(w, ['measure'], opt).out, /1 tasks?|1 görev/);
       assert.equal(cli(w, ['sessions', '--json'], opt).json?.sessions.length, 1);
       const rep = cli(w, ['report', '--json'], opt);
       assert.equal(rep.code, 0);

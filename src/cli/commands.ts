@@ -1150,6 +1150,7 @@ export function helpText(lang: Lang): string {
     `  ${c('try'.padEnd(31))}${L('help.try')}`,
     `  ${c('quota'.padEnd(31))}${L('help.quota')}`,
     `  ${c('tokens [--days N] [--by …]'.padEnd(31))}${L('help.tokens')}`,
+    `  ${c('measure [--days N] [--project …]'.padEnd(31))}${L('help.measure')}`,
     `  ${c('sessions [search]'.padEnd(31))}${L('help.sessions')}`,
     `  ${c('report [--week]'.padEnd(31))}${L('help.report')}`,
     `  ${c('flow [show <id>] [--all]'.padEnd(31))}${L('help.flow')}`,

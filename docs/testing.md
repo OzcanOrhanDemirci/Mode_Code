@@ -100,11 +100,7 @@ A property test that fails prints its seed and the smallest input that fails; `T
 
 ### What a task costs of the quota
 
-```sh
-node scripts/measure/tasks.mjs --days 7 [--project <part of the folder>] [--json]
-```
-
-Reads what is already on the computer and writes nothing: Claude Code's transcripts (`~/.claude/projects`, each API call once, though it takes a line per content block) and Mode_Code's quota readings (`~/.mode-code/events`). Each session is cut into tasks at the calls that commit or push; each call is priced at the API's rates for its model and weighed by what the quota was measured to count (per dollar, against a cache write: a read 0.76, output 1.92). The table gives each task's calls, largest context and quota units, and the weekly points they come to, from the units a point took between the readings of each week. Calls made elsewhere (another computer, the web) raise the readings too, so a point's units are a floor. The pure part, `scripts/measure/quota.mjs`, is tested in `test/scripts/measure.test.ts`.
+`mode-code measure` ([quota.md](quota.md)) reads the transcripts and the quota readings on the computer and writes nothing: each session cut into tasks at its commits and pushes, each call priced and weighed by what the quota was measured to count, with the traces of how the work went. The pure part, `src/core/measure.ts`, is tested in `test/core/measure.test.ts`; the disk side in `test/node/measure.test.ts`. A change meant to save quota is compared with it as [quota.md](quota.md) describes, the cost and the traces together.
 
 ## Where each layer runs
 

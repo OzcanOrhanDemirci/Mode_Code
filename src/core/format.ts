@@ -19,6 +19,12 @@ export function compact(n: number, lang: Lang): string {
   return (n < 0 ? '-' : '') + v.toLocaleString(locale(lang), { maximumFractionDigits: digits, minimumFractionDigits: 0 }) + units[i];
 }
 
+/** 1234.5 → "1,234.50" (Turkish: "1.234,50"), always `digits` after the point. */
+export function decimal(n: number, lang: Lang, digits = 2): string {
+  if (!Number.isFinite(n)) return '?';
+  return n.toLocaleString(locale(lang), { maximumFractionDigits: digits, minimumFractionDigits: digits });
+}
+
 export function integer(n: number, lang: Lang): string {
   return Math.round(n).toLocaleString(locale(lang));
 }
