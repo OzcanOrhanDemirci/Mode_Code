@@ -1,0 +1,127 @@
+// SPDX-License-Identifier: Apache-2.0
+/**
+ * Every place a message sends the person to ("Automation › Bypass", "Ayarlar › Özellikler") is a real place in the
+ * control center, in that message's language: each part a page under the one before, and a last part that may be a
+ * setting's name on that page (from the catalog). A reference that leads nowhere is the price of a renamed page.
+ */
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { en, type MessageKey } from '../../src/core/i18n/en.js';
+import { tr } from '../../src/core/i18n/tr.js';
+import type { Lang } from '../../src/core/i18n/index.js';
+import { buildTree } from '../../src/tui/tree.js';
+import type { NavNode } from '../../src/tui/nav.js';
+import { allSettingPaths, nameOf, settingOf } from '../../src/core/ux/catalog.js';
+import { FakeData, NOW } from './harness.js';
+
+/** The words a message uses for the control center itself, before its first part. */
+const CENTER = ['control center', 'kontrol merkezi'];
+
+const norm = (s: string) => s.toLocaleLowerCase('tr').replace(/\s+/g, ' ').trim();
+/** A part's words without the punctuation around a reference: brackets, quotes, a sentence's end. */
+const bare = (s: string) => s.replace(/^[\s("'`]+|[\s)"'`.,;:!?]+$/g, '');
+
+/**
+ * The forms the last part may name a place by: it ends at a comma, or before a Turkish postposition ("Otomasyon ›
+ * Tam otonom altında aç"), and its last word may carry a case ending after an apostrophe ("Bypass'ta").
+ */
+function lastForms(part: string): string[] {
+  const s = part.replace(/\s+altınd[ae]n?(?:\s.*)?$/u, '');
+  const forms = [s];
+  const m = /^(.*?\p{L})'\p{L}+(?:\s.*)?$/u.exec(s);
+  if (m) forms.push(m[1]!);
+  return forms.map(norm);
+}
+
+interface Place {
+  node: NavNode | null;
+  address: string;
+  children: NavNode[];
+}
+
+function references(text: string): { parts: string[]; whole: string }[] {
+  // A chain is two or more parts joined by " › "; it ends where a sentence or a bracket does.
+  const out: { parts: string[]; whole: string }[] = [];
+  const re = /([^.:;()"\n]*?)((?: › [^›.:;()"\n]+)+)/g;
+  for (const m of text.matchAll(re)) {
+    const left = m[1]!;
+    const rest = m[2]!.split(' › ').slice(1);
+    out.push({ parts: [left, ...rest], whole: (left + m[2]).trim() });
+  }
+  return out;
+}
+
+/** Resolves a chain against the tree: the longest tail of the first part that names a page, then each part a child. */
+function resolveChain(roots: NavNode[], parts: string[], lang: Lang): string | null {
+  const all: { node: NavNode; address: string }[] = [];
+  const walk = (nodes: NavNode[], prefix: string, depth: number) => {
+    for (const n of nodes) {
+      const address = prefix ? `${prefix}/${n.id}` : n.id;
+      all.push({ node: n, address });
+      if (depth < 3 && n.children) walk(n.children(), address, depth + 1);
+    }
+  };
+  walk(roots, '', 1);
+  const words = bare(parts[0]!).split(' ');
+  let at: Place | null = null;
+  for (let i = 0; i < words.length && !at; i++) {
+    const tail = norm(words.slice(i).join(' '));
+    if (CENTER.includes(tail)) at = { node: null, address: '', children: roots };
+    const hit = all.find((x) => norm(x.node.label) === tail);
+    if (hit) at = { node: hit.node, address: hit.address, children: hit.node.children?.() ?? [] };
+  }
+  if (!at) return `"${bare(parts[0]!)}" is no page`;
+  for (let j = 1; j < parts.length; j++) {
+    const last = j === parts.length - 1;
+    const part = last ? bare(parts[j]!.split(',')[0]!) : parts[j]!.trim();
+    const starts = last ? lastForms(part) : [norm(part)];
+    const child: NavNode | undefined = at.children.find((c) => starts.includes(norm(c.label)));
+    if (child) {
+      const address: string = at.address ? `${at.address}/${child.id}` : child.id;
+      at = { node: child, address, children: child.children?.() ?? [] };
+      continue;
+    }
+    const here: string = at.address;
+    const setting = last && allSettingPaths().find((p) => settingOf(p)!.def.page === here && starts.includes(norm(nameOf(p, lang))));
+    if (setting) return null;
+    return `"${part}" is not under ${here || 'the control center'}`;
+  }
+  return null;
+}
+
+for (const [lang, dict] of [
+  ['en', en],
+  ['tr', tr],
+] as const) {
+  test(`every "A › B" a message names is a real place (${lang})`, () => {
+    const roots = buildTree(new FakeData(lang, { view: 'detailed' }), lang, NOW);
+    const broken: string[] = [];
+    let seen = 0;
+    for (const k of Object.keys(dict) as MessageKey[])
+      for (const r of references(dict[k])) {
+        seen++;
+        const why = resolveChain(roots, r.parts, lang);
+        if (why) broken.push(`${k}: ${r.whole}: ${why}`);
+      }
+    assert.ok(seen >= 15, `only ${seen} references found: the reader of references is broken`);
+    assert.deepEqual(broken, []);
+  });
+}
+
+test('the reader of references finds a broken one, and a setting named as the last part', () => {
+  const roots = buildTree(new FakeData('en', { view: 'detailed' }), 'en', NOW);
+  const one = (text: string) => resolveChain(roots, references(text)[0]!.parts, 'en');
+  assert.equal(one('Turn it on under Automation › Full autonomy.'), null);
+  assert.equal(one('Control center: Automation › Parallel agents (/0 opens it).'), null);
+  assert.equal(one('With bypass on (control center › Automation › Bypass), it asks.'), null);
+  assert.equal(one('The daily check is off: Settings › Language and view › Check for updates daily.'), null);
+  assert.match(one('Modes are off (Settings › Moods).') ?? '', /"Moods" is not under settings/);
+  assert.match(one('See Nowhere › Bypass.') ?? '', /is no page/);
+  // A last part is the whole name, not the start of one: "Memory folders" is no page because "Memory" is.
+  assert.match(one('Add one under Settings › Memory folders.') ?? '', /"Memory folders" is not under settings/);
+  const trRoots = buildTree(new FakeData('tr', { view: 'detailed' }), 'tr', NOW);
+  const bir = (text: string) => resolveChain(trRoots, references(text)[0]!.parts, 'tr');
+  assert.equal(bir("Otomasyon › Bypass'ta ayarlanan süre için açar."), null);
+  assert.equal(bir('Otomasyon › Tam otonom altında aç, sonra yaz.'), null);
+  assert.equal(bir("Bak: Claude Code › Hook'lar."), null);
+});
