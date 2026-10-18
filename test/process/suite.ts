@@ -389,6 +389,37 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
     }
   });
 
+  test(`${mode}: skills: listed with their sources; one of others turned on, kept in the plugin's folder, and off again`, (t) => {
+    if (skip(t)) return;
+    const w = world({ lang: 'en' });
+    try {
+      const first = cli(w, ['skills', '--json'], opt);
+      assert.equal(first.code, 0, first.err);
+      assert.equal(first.json?.schema, 'mode-code.skills/1');
+      assert.ok((first.json?.own as { id: string }[]).some((s) => s.id === 'verify'));
+      const tdd = (first.json?.others as { id: string; state: string; license: string }[]).find((s) => s.id === 'tdd');
+      assert.deepEqual([tdd?.state, tdd?.license], ['off', 'MIT']);
+      // The plugin's folder as an installation leaves it, and the skills' source beside the marketplace.
+      const market = join(w.data, 'marketplace');
+      mkdirSync(join(market, 'plugins', 'mode-code', 'skills'), { recursive: true });
+      mkdirSync(join(market, 'skills-source', 'external', 'tdd'), { recursive: true });
+      writeFileSync(join(market, 'skills-source', 'external', 'tdd', 'SKILL.md'), '---\nname: tdd\ndescription: Test first.\n---\nBody\n');
+      const on = cli(w, ['skills', 'me', 'tdd'], opt);
+      assert.equal(on.code, 0, on.err + on.out);
+      assert.match(on.out, /tdd: only when I run it/);
+      assert.match(readFileSync(join(market, 'plugins', 'mode-code', 'skills', 'tdd', 'SKILL.md'), 'utf8'), /disable-model-invocation: true/);
+      assert.equal(cli(w, ['skills', 'off', 'tdd'], opt).code, 0);
+      assert.equal(existsSync(join(market, 'plugins', 'mode-code', 'skills', 'tdd')), false);
+      assert.equal(cli(w, ['skills', 'on', 'nothing'], opt).code, 2);
+      assert.equal(cli(w, ['skills', 'sometimes', 'tdd'], opt).code, 2);
+      assert.equal(cli({ ...w, env: { ...w.env, CLAUDECODE: '1' } }, ['skills', 'on', 'tdd'], opt).code, 1, 'the person turns skills on, not Claude');
+      const sync = cli(w, ['skills', 'sync', '--json'], opt);
+      assert.deepEqual([sync.code, sync.json?.added, sync.json?.removed], [0, [], []]);
+    } finally {
+      w.done();
+    }
+  });
+
   test(`${mode}: secrets: a token in a file is found and shown masked`, (t) => {
     if (skip(t)) return;
     const w = world();

@@ -13,7 +13,7 @@ import { Folders, Quota, ReportScreen, Tokens, Tools } from './screens/measure.j
 import { FlowCard, FlowsEmpty, HandoffCard, HandoffsEmpty, ProjectCard, RunCard, RunsEmpty, SessionCard, sessionLabel } from './screens/work.js';
 import { flowTitle, statusText } from '../core/flow-view.js';
 import { Events, Protection, RuleDetail, Secrets, TestCommand } from './screens/security.js';
-import { Extensions, Hooks, Instructions, Mcp, Packs, Permissions, Plugins, SettingsSources } from './screens/claude.js';
+import { Extensions, Hooks, Instructions, Mcp, Packs, Permissions, Plugins, SettingsSources, Skills } from './screens/claude.js';
 import { Templates } from './screens/templates.js';
 import { Bypass, Bypassed, RecentTasks } from './screens/automation.js';
 import {
@@ -240,6 +240,11 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
         description: d('desc.packs'),
         screen: (p) => <Packs {...p} />,
         keywords: ['paket', 'paketler', 'packs', 'automatic use', 'otomatik kullan'],
+      }),
+      n('skills', 'page.skills', {
+        description: d('desc.skills'),
+        screen: (p) => <Skills {...p} />,
+        keywords: ['beceri', 'beceriler', 'skills', 'komutlar', 'commands'],
       }),
       n('templates', 'page.templates', { description: d('desc.templates'), screen: (p) => <Templates {...p} /> }),
       n('extensions', 'page.extensions', { description: d('desc.extensions'), minView: 'recommended', screen: (p) => <Extensions {...p} /> }),

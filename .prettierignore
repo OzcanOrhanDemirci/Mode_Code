@@ -4,3 +4,5 @@ node_modules/
 LICENSE
 package-lock.json
 THIRD_PARTY_NOTICES.md
+# The skills of others, kept exactly as their authors wrote them (scripts/vendor-skills.mjs).
+/skills-external/

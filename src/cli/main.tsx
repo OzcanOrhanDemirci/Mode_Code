@@ -32,6 +32,7 @@ import { cmdSync } from './sync.js';
 import { cmdUpdate } from './update.js';
 import { cmdTrust } from './trust.js';
 import { cmdPacks } from './packs.js';
+import { cmdSkills } from './skills.js';
 
 const MIN_NODE = [22, 13];
 
@@ -107,6 +108,8 @@ async function main(argv: string[]): Promise<number> {
       return cmdTrust(sub);
     case 'packs':
       return cmdPacks(sub);
+    case 'skills':
+      return cmdSkills(sub);
     case 'version':
       process.stdout.write(`${APP_VERSION}\n`);
       return 0;

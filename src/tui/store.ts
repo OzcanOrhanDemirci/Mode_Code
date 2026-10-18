@@ -31,6 +31,7 @@ import { buildReport, type Report } from '../app/report.js';
 import { loadSummary, type DoctorSummary } from '../app/doctor/doctor.js';
 import type { UpdateState } from '../core/update.js';
 import { readUpdateState } from '../node/update.js';
+import { syncKeptSkills } from '../node/skills.js';
 import type { ModSessionState } from '../core/session.js';
 import type { Flow } from '../core/flow.js';
 import { flowFiles, loadFlows, type FlowFiles } from '../app/flows.js';
@@ -161,6 +162,14 @@ export class LiveData implements DataSource {
     writeAtomic(this.ctx.layout.config, serializeConfig(r.config));
     this.ctx = reloadConfig(this.ctx);
     this.cache.clear();
+    // A skill turned on or off, a memory set up: the plugin's folder follows (docs/skills.md).
+    if (/^(?:skills|memory)(?:\.|$)/.test(path)) {
+      try {
+        syncKeptSkills(this.ctx.layout, this.ctx.config);
+      } catch {
+        /* the next session's start puts it in line */
+      }
+    }
     return [];
   }
   health(): Health {

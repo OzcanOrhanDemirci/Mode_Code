@@ -11,6 +11,8 @@ import type { ScreenProps } from '../nav.js';
 import { Empty, Gauge, Muted, Note, Section, useEnv, useT } from '../ui.js';
 import { useState } from 'react';
 import { PACKS } from '../../core/packs.js';
+import { CORE_SKILLS } from '../../core/skills.js';
+import { EXTERNAL_SKILLS } from '../../core/skills-external.js';
 import { findProgram } from '../../node/packs.js';
 import { SettingsEditor, type Field } from '../widgets.js';
 
@@ -278,6 +280,31 @@ export function Packs({ width, open }: ScreenProps) {
       <SettingsEditor fields={fields} open={open} width={width} />
       <Box marginTop={1}>
         <Muted>{t('packs.whereOn')}</Muted>
+      </Box>
+    </Box>
+  );
+}
+
+/** Commands and skills (docs/skills.md): Mode_Code's own, and the skills of others, each off until turned on here. */
+export function Skills({ width, open }: ScreenProps) {
+  const { data } = useEnv();
+  const t = useT();
+  const c = data.config();
+  const states = (['off', 'me', 'on'] as const).map((value) => ({ value, label: t(`skills.state.${value}` as MessageKey) }));
+  const fields: Field[] = Object.entries(EXTERNAL_SKILLS).map(([id, s]) => ({
+    path: `skills.items.${id}`,
+    label: id,
+    help: `${s.description} (${s.repo}, ${s.license}; ${t('skills.suggested', { state: t(`skills.state.${s.suggested}` as MessageKey) })})`,
+    value: c.skills.items[id] ?? 'off',
+    type: { kind: 'enum', options: states },
+    confirmOn: { value: 'on', text: t('skills.onConfirm') },
+  }));
+  const own = CORE_SKILLS.filter((s) => s.kind === 'skill').map((s) => s.id);
+  return (
+    <Box flexDirection="column" width={width}>
+      <Muted>{t('skills.own', { n: CORE_SKILLS.length, skills: own.join(', ') })}</Muted>
+      <Box marginTop={1}>
+        <SettingsEditor fields={fields} open={open} width={width} />
       </Box>
     </Box>
   );

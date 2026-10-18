@@ -1072,7 +1072,7 @@ export async function cmdAutonomy(a: Args): Promise<number> {
 // ── config ──
 
 /** Settings an agent's shell may not change: they lower a protection or widen what a session does unasked. */
-const PROTECTIVE = /^(?:belt|memory|modules\.(?:quota|secrets)|autonomy|bypass|projects|sync|update|packs)(?:\.|$)/;
+const PROTECTIVE = /^(?:belt|memory|modules\.(?:quota|secrets)|autonomy|bypass|projects|sync|update|packs|skills)(?:\.|$)/;
 
 export async function cmdConfig(a: Args): Promise<number> {
   const ctx = appContext();
@@ -1157,6 +1157,7 @@ export function helpText(lang: Lang): string {
     `  ${c('update [--check] [--yes]'.padEnd(31))}${L('help.update')}`,
     `  ${c('trust'.padEnd(31))}${L('help.trust')}`,
     `  ${c('packs [on|off|set|auto|guide]'.padEnd(31))}${L('help.packs')}`,
+    `  ${c('skills [on|me|off <skill>]'.padEnd(31))}${L('help.skills')}`,
     '',
     dim(L('help.json')),
     dim(L('help.privacy')),

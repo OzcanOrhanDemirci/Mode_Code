@@ -131,6 +131,29 @@ test('tool packs: Automatic use on unless set; a mode per known pack, automatic 
   assert.deepEqual(setConfigValue(parseConfig('{}').config, 'packs.items.typst', 'me').config.packs.items, { typst: 'me' });
 });
 
+test('the skills of others: off unless set; a state per known skill, off kept as no entry', () => {
+  assert.deepEqual(parseConfig(JSON.stringify({})).config.skills, { items: {} });
+  assert.deepEqual(parseConfig(JSON.stringify({ skills: { items: { tdd: 'on', teach: 'me', humanizer: 'off' } } })).config.skills, {
+    items: { tdd: 'on', teach: 'me' },
+  });
+  assert.deepEqual(
+    parseConfig(JSON.stringify({ skills: { items: { tdd: 'always', made_up: 'on' }, x: 1 } })).problems.map((p) => [p.path, p.kind]),
+    [
+      ['skills.x', 'unknown-key'],
+      ['skills.items.tdd', 'type'],
+      ['skills.items.made_up', 'unknown-key'],
+    ],
+  );
+  assert.deepEqual(
+    parseConfig(JSON.stringify({ skills: { items: 5 } })).problems.map((p) => p.path),
+    ['skills.items'],
+  );
+  assert.deepEqual(
+    parseConfig(JSON.stringify({ skills: [] })).problems.map((p) => p.path),
+    ['skills'],
+  );
+});
+
 test('the update check: off unless set, a yes or no only', () => {
   assert.equal(parseConfig(JSON.stringify({})).config.update.check, false);
   assert.equal(parseConfig(JSON.stringify({ update: { check: true } })).config.update.check, true);
