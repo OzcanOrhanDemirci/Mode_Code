@@ -12,6 +12,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseRun } from '../core/run.js';
 import { fingerprintOf, pauseFor, STALL_STOPS, stopDecision } from '../core/run-stop.js';
+import { reminderDue, reminderNote } from '../core/agents.js';
 import { runDir } from '../core/layout.js';
 import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
 import { isBeltTool } from '../core/belt/tools.js';
@@ -293,6 +294,26 @@ function autonomyStop(input: Input, l: ReturnType<typeof dataLayout>, config: Re
   return `${first}\n${tIn(lang, 'auto.stop.tail', { streak: d.streak, max: STALL_STOPS })}`;
 }
 
+/**
+ * An assigned agent batch (core/agents.ts) that Claude ends its turn without fully starting: turned back once, with
+ * what is left (the person, 2026-10-18: "one reminder, sharp; then we do not force it"). The text, or null.
+ */
+function agentsStop(input: Input, l: ReturnType<typeof dataLayout>, config: ReturnType<typeof loadConfig>['config']): string | null {
+  if (!config.agents.enabled) return null;
+  const sessionId = str(input.session_id) ?? '';
+  const modFile = sessionFile(l, sessionId, 'mod');
+  const mod = modFile ? parseModState(readText(modFile)) : null;
+  const hookFile = sessionFile(l, sessionId, 'hook');
+  const state = parseHookState(hookFile ? readText(hookFile) : null, sessionId);
+  if (!mod || !reminderDue(mod.agents, state.agentsRemindedAt)) return null;
+  try {
+    if (hookFile) writeJsonAtomic(hookFile, { ...state, lastRunAt: Date.now(), agentsRemindedAt: mod.agents.batch!.at });
+  } catch {
+    return null; // unrecorded, the reminder could come back at every stop: better none
+  }
+  return reminderNote(mod.agents);
+}
+
 async function stop(input: Input, lang: Lang): Promise<void> {
   const l = dataLayout();
   const { config, local } = loadConfig(l);
@@ -308,6 +329,11 @@ async function stop(input: Input, lang: Lang): Promise<void> {
   if (auto) {
     // Feedback that keeps the run going, not an error: the run works as designed (docs/autonomy.md).
     out({ hookSpecificOutput: { hookEventName: 'Stop', additionalContext: auto } });
+    return;
+  }
+  const agents = agentsStop(input, l, config);
+  if (agents) {
+    out({ hookSpecificOutput: { hookEventName: 'Stop', additionalContext: agents } });
     return;
   }
   if (!config.modules.footer || config.footer.mode !== 'check') return;

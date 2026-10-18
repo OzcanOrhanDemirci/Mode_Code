@@ -6,6 +6,7 @@
 import { isModeKeyword, isStyleKeyword, MODE_KEYWORDS, STYLE_KEYWORDS, type KeywordMatch } from './keywords.js';
 import { isWorkMode, type WorkMode } from './modes.js';
 import { parseHost, type Host } from './host.js';
+import { DEFAULT_AGENTS, parseAgents, type AgentsState } from './agents.js';
 
 export type { WorkMode } from './modes.js';
 
@@ -91,6 +92,8 @@ export interface ModSessionState {
   tainted: { source: string; at: number } | null;
   /** The folder the person froze the edits to (`/dondur`, resolved), or null. */
   frozen: string | null;
+  /** Parallel agents in this session (core/agents.ts): off at every session's start. */
+  agents: AgentsState;
 }
 
 export interface BypassState {
@@ -124,6 +127,8 @@ export interface HookSessionState {
   autoAllowed: { runId: string; why: string; at: number } | null;
   /** The process the session runs in (the hook's parent: Claude Code), to tell later whether it still runs. */
   host: Host | null;
+  /** The assigned agent batch (its start time) the hook already reminded at a stop: once per batch (core/agents.ts). */
+  agentsRemindedAt: number | null;
 }
 
 export function newModState(sessionId: string, modVersion: string, now: number): ModSessionState {
@@ -151,6 +156,7 @@ export function newModState(sessionId: string, modVersion: string, now: number):
     bypass: null,
     tainted: null,
     frozen: null,
+    agents: { ...DEFAULT_AGENTS },
   };
 }
 
@@ -190,6 +196,7 @@ export function parseModState(text: string | null): ModSessionState | null {
       work: parseWork(s.work),
       bypass: parseBypass(s.bypass),
       frozen: typeof s.frozen === 'string' && s.frozen ? s.frozen : null,
+      agents: parseAgents(s.agents),
       tainted:
         isObj(s.tainted) && typeof s.tainted.source === 'string' && typeof s.tainted.at === 'number'
           ? { source: s.tainted.source.slice(0, 120), at: s.tainted.at }
@@ -223,6 +230,7 @@ export function parseHookState(text: string | null, sessionId: string): HookSess
     autoStop: null,
     autoAllowed: null,
     host: null,
+    agentsRemindedAt: null,
   };
   if (!text) return fresh;
   try {
@@ -248,6 +256,7 @@ export function parseHookState(text: string | null, sessionId: string): HookSess
           ? { runId: o.autoAllowed.runId, why: o.autoAllowed.why, at: o.autoAllowed.at }
           : null,
       host: parseHost(o.host),
+      agentsRemindedAt: typeof o.agentsRemindedAt === 'number' ? o.agentsRemindedAt : null,
     };
   } catch {
     return fresh;

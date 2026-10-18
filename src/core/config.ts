@@ -182,6 +182,15 @@ export interface Config {
     maxHours: number;
   };
   /**
+   * Parallel agents (docs/agents.md): with the mode on, every session starts with agents off and the person sets
+   * them on the strip. Off here, this tool never touches an agent.
+   */
+  agents: {
+    enabled: boolean;
+    /** Claude Code's read-only helpers (Explore, Plan) stay free while agents are off, and are not counted. */
+    helpers: boolean;
+  };
+  /**
    * Updates (docs/cli.md, `mode-code update`): whether this computer asks once a day for the newest release, one
    * small download from it. Off until the person says yes; the installer asks.
    */
@@ -246,6 +255,7 @@ export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
   modes: { workDir: null },
   autonomy: { enabled: false, maxHours: 12, stallMinutes: 90, atTimeLimit: 'continue', reviewModel: null },
   bypass: { enabled: false, maxHours: 2 },
+  agents: { enabled: false, helpers: true },
   update: { check: false },
   notify: { ntfy: null },
   packs: { autoUse: true, items: {} },
@@ -430,6 +440,17 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
       else problems.push({ path: 'bypass.maxHours', kind: 'range', detail: 'expected 1 to 24' });
     }
   } else if (raw.bypass !== undefined) problems.push({ path: 'bypass', kind: 'type', detail: 'expected an object' });
+
+  if (isObj(raw.agents)) {
+    const a = raw.agents;
+    for (const k of Object.keys(a))
+      if (k !== 'enabled' && k !== 'helpers') problems.push({ path: `agents.${k}`, kind: 'unknown-key', detail: 'not a setting' });
+    for (const k of ['enabled', 'helpers'] as const)
+      if (a[k] !== undefined) {
+        if (typeof a[k] === 'boolean') c.agents[k] = a[k];
+        else problems.push({ path: `agents.${k}`, kind: 'type', detail: 'expected true or false' });
+      }
+  } else if (raw.agents !== undefined) problems.push({ path: 'agents', kind: 'type', detail: 'expected an object' });
 
   if (isObj(raw.update)) {
     const u = raw.update;

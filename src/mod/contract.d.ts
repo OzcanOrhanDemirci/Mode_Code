@@ -66,8 +66,25 @@ export type ModeCodeAutoPane = {
   error: string | null;
 };
 
+/**
+ * The window where the person sets the session's parallel agents (src/core/agents.ts): the mode, its count as typed,
+ * an assigned batch's rows (the one being edited), whether this mode can write, whether a full-autonomy run is attached,
+ * the agents at work now, and a line saying what is wrong. The task being typed is the plugin's own while it is typed.
+ */
+export type ModeCodeAgentsPane = {
+  lang: 'en' | 'tr';
+  mode: 'off' | 'free' | 'assigned';
+  n: string;
+  rows: { task: string; kind: 'code' | 'research' | 'plan'; model: string | null }[];
+  editing: number;
+  writable: boolean;
+  runActive: boolean;
+  running: { id: string; label: string }[];
+  error: string | null;
+};
+
 declare module 'claude-code' {
   interface PluginState {
-    'mode-code': { footers: ModeCodeFooters; labels: ModeCodeLabels; mo: ModeCodeMo; autoPane: ModeCodeAutoPane };
+    'mode-code': { footers: ModeCodeFooters; labels: ModeCodeLabels; mo: ModeCodeMo; autoPane: ModeCodeAutoPane; agentsPane: ModeCodeAgentsPane };
   }
 }

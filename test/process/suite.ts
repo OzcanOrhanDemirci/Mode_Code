@@ -208,6 +208,8 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       // The update check reaches the network: turning it on is the person's; so is the update itself.
       assert.equal(cli(agent, ['config', 'set', 'update.check', 'true'], opt).code, 1);
       assert.equal(cli(agent, ['update', '--yes'], opt).code, 1);
+      // The parallel agent mode is the person's limit on Claude: never lifted from Claude's own shell.
+      assert.equal(cli(agent, ['config', 'set', 'agents.enabled', 'false'], opt).code, 1);
       // Plain settings are fine from anywhere.
       assert.equal(cli(agent, ['config', 'set', 'view', '"detailed"'], opt).code, 0);
     } finally {

@@ -107,6 +107,26 @@ test('full autonomy limits: both ends of each range are accepted', () => {
   assert.equal(parseConfig(JSON.stringify({ autonomy: { stallMinutes: 9 } })).problems[0]!.path, 'autonomy.stallMinutes');
 });
 
+test('parallel agents: off unless set, the read-only helpers free unless set; anything else is a problem', () => {
+  assert.deepEqual(parseConfig(null).config.agents, { enabled: false, helpers: true });
+  assert.deepEqual(parseConfig(JSON.stringify({ agents: { enabled: true, helpers: false } })).config.agents, { enabled: true, helpers: false });
+  const { config, problems } = parseConfig(JSON.stringify({ agents: { enabled: 'yes', helpers: 0, max: 5 } }));
+  assert.deepEqual(config.agents, { enabled: false, helpers: true });
+  assert.deepEqual(
+    problems.map((p) => [p.path, p.kind]),
+    [
+      ['agents.max', 'unknown-key'],
+      ['agents.enabled', 'type'],
+      ['agents.helpers', 'type'],
+    ],
+  );
+  assert.deepEqual(
+    parseConfig(JSON.stringify({ agents: [] })).problems.map((p) => p.path),
+    ['agents'],
+  );
+  assert.equal(setConfigValue(parseConfig('{}').config, 'agents.enabled', true).config.agents.enabled, true);
+});
+
 test('tool packs: Automatic use on unless set; a mode per known pack, automatic kept as no entry', () => {
   const d = parseConfig(JSON.stringify({})).config.packs;
   assert.deepEqual(d, { autoUse: true, items: {} });

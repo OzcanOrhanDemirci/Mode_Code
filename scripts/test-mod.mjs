@@ -105,6 +105,9 @@ const ALLOWED = new Set([
   // The end of a piece of work (A7 of 1.2.0): after a commit or a push, the size of the context, read as the status
   // line has it. The plain call is free: no breakdown, no request.
   'session.usage',
+  // Parallel agents (docs/agents.md): the session's agents and their status, for the count and the stop buttons. A
+  // read of the engine's own list; starting and stopping stay Claude Code's (the Agent tool, TaskStop).
+  'agent.list',
 ]);
 const notes = (report.contents ?? []).flatMap((c) => c.notes ?? []);
 const callsNote = notes.find((n) => / calls: /.test(n)) ?? '';

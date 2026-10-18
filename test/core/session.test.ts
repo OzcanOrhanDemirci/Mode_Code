@@ -126,6 +126,10 @@ test("the ended time, the work kept and the hook's process round-trip; anything 
   assert.equal(parseHookState(JSON.stringify({ ...hook, host: { pid: 'x' } }), 's1').host, null);
   assert.equal(parseHookState(JSON.stringify({ ...hook, host: undefined }), 's1').host, null);
   assert.equal(parseHookState(null, 's1').host, null);
+  // The agent batch the hook reminded about: its start time, or none.
+  assert.equal(parseHookState(JSON.stringify({ ...hook, agentsRemindedAt: 1_760_000_000_000 }), 's1').agentsRemindedAt, 1_760_000_000_000);
+  assert.equal(parseHookState(JSON.stringify({ ...hook, agentsRemindedAt: '1760' }), 's1').agentsRemindedAt, null);
+  assert.equal(parseHookState(JSON.stringify(hook), 's1').agentsRemindedAt, null);
 });
 
 test('a folder frozen and the outside content read: kept when they have their shape, nothing when not', () => {

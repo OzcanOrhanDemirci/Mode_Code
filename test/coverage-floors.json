@@ -156,6 +156,11 @@
       "branches": 33,
       "functions": 94
     },
+    "src/core/agents.ts": {
+      "lines": 94,
+      "branches": 91,
+      "functions": 94
+    },
     "src/core/app.ts": {
       "lines": 94,
       "branches": 0,
@@ -685,6 +690,11 @@
       "lines": 17,
       "branches": 92,
       "functions": 0
+    },
+    "src/tui/screens/automation.tsx": {
+      "lines": 93,
+      "branches": 74,
+      "functions": 94
     },
     "src/tui/screens/claude.tsx": {
       "lines": 77,

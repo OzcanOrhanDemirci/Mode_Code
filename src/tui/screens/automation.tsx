@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Automation › Recent tasks, Bypass and Done without asking (docs/autonomy.md): the last tasks given full
- * autonomy, to copy one again; turning bypass on for this computer, its time limit, and every call it let
- * through, one by one, for the person to review.
+ * Automation › Recent tasks, Bypass, Done without asking and Parallel agents (docs/autonomy.md, docs/agents.md):
+ * the last tasks given full autonomy, to copy one again; turning bypass on for this computer, its time limit, and
+ * every call it let through, one by one, for the person to review; turning the parallel agent mode on.
  */
 import { useState } from 'react';
 import { Box, Text } from 'ink';
@@ -95,6 +95,63 @@ export function Bypass({ width, open }: ScreenProps) {
         ))}
       </Section>
       <Muted wrap="wrap">{t('set.bypass.note')}</Muted>
+    </Box>
+  );
+}
+
+/**
+ * Parallel agents (docs/agents.md): whether the mode can be set in a session, and whether Claude Code's read-only
+ * helpers stay free; what each of the strip's three settings does; the Claude Code sessions running on this computer,
+ * each one's own agents beside the others' work.
+ */
+export function ParallelAgents({ width, open }: ScreenProps) {
+  const { data, lang, now, theme } = useEnv();
+  const t = useT();
+  const a = data.config().agents;
+  const sessions = data.claudeSessions();
+  const fields: Field[] = [
+    {
+      path: 'agents.enabled',
+      label: t('set.agents.enabled'),
+      help: t('set.agents.enabledHelp'),
+      value: a.enabled,
+      type: { kind: 'bool' },
+      confirmOn: { value: true, text: t('set.agents.confirm') },
+    },
+    { path: 'agents.helpers', label: t('set.agents.helpers'), help: t('set.agents.helpersHelp'), value: a.helpers, type: { kind: 'bool' } },
+  ];
+  return (
+    <Box flexDirection="column" width={width}>
+      <SettingsEditor fields={fields} open={open} width={width} />
+      <Section title={t('set.agents.modes')}>
+        {(['off', 'free', 'assigned'] as const).map((m) => (
+          <Box key={m}>
+            <Box width={3} flexShrink={0}>
+              <Text>{m === 'off' ? '✕' : m === 'free' ? '≤' : '='}</Text>
+            </Box>
+            <Text wrap="wrap">{t(`set.agents.mode.${m}` as MessageKey)}</Text>
+          </Box>
+        ))}
+      </Section>
+      <Muted wrap="wrap">{t('set.agents.note')}</Muted>
+      <Section title={t('set.agents.sessions')}>
+        {sessions === null ? (
+          <Muted wrap="wrap">{t('set.agents.sessionsUnread')}</Muted>
+        ) : !sessions.length ? (
+          <Muted>{t('set.agents.sessionsNone')}</Muted>
+        ) : (
+          sessions.map((s, i) => (
+            <Box key={s.sessionId ?? i}>
+              <Box width={2} flexShrink={0}>
+                <Text color={s.status === 'busy' ? theme.accent : theme.muted}>{s.status === 'busy' ? '●' : '○'}</Text>
+              </Box>
+              <Text wrap="truncate-end">
+                {s.name} <Muted>· {[s.kind, s.status, s.startedAt ? ago(s.startedAt, now, lang) : null, s.cwd].filter(Boolean).join(' · ')}</Muted>
+              </Text>
+            </Box>
+          ))
+        )}
+      </Section>
     </Box>
   );
 }

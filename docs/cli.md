@@ -53,20 +53,20 @@
 | `packs on <pack>` · `packs off <pack>` · `packs set <pack> auto\|always\|me\|never` · `packs auto on\|off` | Turns a pack on or off in this folder, sets its mode, turns Automatic use on or off (refused inside a Claude Code session)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | 0 · 1 refused or failed · 2 an unknown pack           |
 | `skills` · `skills on <skill>` · `skills me <skill>` · `skills off <skill>`                                | The skills ([skills.md](skills.md)): Mode_Code's own, and the skills of others it carries, each with its source, licence and state; `on` lets Claude load one of those by itself, `me` keeps it for when you run it, `off` takes it away (refused inside a Claude Code session)                                                                                                                                                                                                                                                                                                                                                                                              | 0 · 1 refused · 2 an unknown skill                    |
 
-Commands that change your Claude Code setup, lower a protection or widen what a session does unasked (`install`, `uninstall`, `autonomy enable`, `config set` on `belt.*`, `memory.*`, `modules.quota`, `modules.secrets`, `autonomy.*`, `bypass.*`, `projects`, `sync.*`, `sync setup`, `sync approve`, `sync ignore`, `sync project`, `sync projects`, `update` except `--check`, `config set` on `update.*` and `packs.*`, `packs on`, `packs off`, `packs set`, `packs auto`, `skills on`, `skills me`, `skills off`, `config set` on `skills.*`) refuse to run inside a Claude Code session: run them in your own terminal.
+Commands that change your Claude Code setup, lower a protection or widen what a session does unasked (`install`, `uninstall`, `autonomy enable`, `config set` on `belt.*`, `memory.*`, `modules.quota`, `modules.secrets`, `autonomy.*`, `bypass.*`, `agents.*`, `projects`, `sync.*`, `sync setup`, `sync approve`, `sync ignore`, `sync project`, `sync projects`, `update` except `--check`, `config set` on `update.*` and `packs.*`, `packs on`, `packs off`, `packs set`, `packs auto`, `skills on`, `skills me`, `skills off`, `config set` on `skills.*`) refuse to run inside a Claude Code session: run them in your own terminal.
 
 ## Addresses
 
-| Address                                                                                                                                   | Screen      |
-| ----------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| `home`, `home/overview`, `home/inbox`                                                                                                     | Home        |
-| `projects`, `projects/flows`, `projects/flows/<flow id>`, `projects/handoffs`, `projects/<folder, URL-encoded>`                           | Projects    |
-| `sessions`, `sessions/<session id>`                                                                                                       | Sessions    |
-| `measure/quota`, `measure/report`, `measure/tokens`, `measure/tools`, `measure/folders`                                                   | Measure     |
-| `security/protection`, `security/rules`, `security/rules/<rule id>`, `security/events`, `security/test`, `security/secrets`               | Security    |
-| `claude-code/instructions`, `/settings`, `/hooks`, `/permissions`, `/mcp`, `/plugins`, `/templates`, `/extensions`                        | Claude Code |
-| `automation/full-auto`, `automation/prompts`, `automation/runs`, `automation/runs/<run id>`, `automation/bypass`, `automation/bypassed`   | Automation  |
-| `settings/general`, `/modules`, `/footer-quota`, `/memory`, `/sync`, `/projects`, `/keywords`, `/accessibility`, `/maintenance`, `/about` | Settings    |
+| Address                                                                                                                                                      | Screen      |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
+| `home`, `home/overview`, `home/inbox`                                                                                                                        | Home        |
+| `projects`, `projects/flows`, `projects/flows/<flow id>`, `projects/handoffs`, `projects/<folder, URL-encoded>`                                              | Projects    |
+| `sessions`, `sessions/<session id>`                                                                                                                          | Sessions    |
+| `measure/quota`, `measure/report`, `measure/tokens`, `measure/tools`, `measure/folders`                                                                      | Measure     |
+| `security/protection`, `security/rules`, `security/rules/<rule id>`, `security/events`, `security/test`, `security/secrets`                                  | Security    |
+| `claude-code/instructions`, `/settings`, `/hooks`, `/permissions`, `/mcp`, `/plugins`, `/templates`, `/extensions`                                           | Claude Code |
+| `automation/full-auto`, `automation/prompts`, `automation/runs`, `automation/runs/<run id>`, `automation/bypass`, `automation/bypassed`, `automation/agents` | Automation  |
+| `settings/general`, `/modules`, `/footer-quota`, `/memory`, `/sync`, `/projects`, `/keywords`, `/accessibility`, `/maintenance`, `/about`                    | Settings    |
 
 ## The settings file
 
@@ -112,6 +112,7 @@ Commands that change your Claude Code setup, lower a protection or widen what a 
   "autonomy": { "enabled": false, "maxHours": 12, "stallMinutes": 90, "atTimeLimit": "continue", "reviewModel": null },
   "notify": { "ntfy": null },
   "bypass": { "enabled": false, "maxHours": 2 },
+  "agents": { "enabled": false, "helpers": true },
   "update": { "check": false },
   "packs": { "autoUse": true, "items": { "store": "me" } },
   "skills": { "items": { "tdd": "on", "teach": "me" } },
