@@ -184,6 +184,7 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'belt.col.why': 'Neden',
   'belt.lockedNote': '🔒 Kilitli kurallar korumanın kendisini korur: kapatılamaz, yalnız sıkılaştırılabilir.',
   'belt.testNote': '(yalnız değerlendirildi; hiçbir şey çalıştırılmadı)',
+  'belt.testNothing': 'Neyin sınanacağını söyle: mode-code belt test --command "git clean -f", ya da --path <dosya>.',
   'belt.noEvents': 'Son {n} günde hiçbir şey engellenmedi ya da sorulmadı.',
   'belt.replay.title': 'Son {n} gününde kemer',
   'belt.replay.summary': '{files} oturum, {calls} denetlenen çağrı: {asked} soru (günde {perDay}), {blocked} engel, {noted} not.',

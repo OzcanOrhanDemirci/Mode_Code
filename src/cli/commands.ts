@@ -724,8 +724,15 @@ export async function cmdBelt(a: Args): Promise<number> {
   if (sub === 'test') {
     const tool = value(a, 'tool') ?? (value(a, 'path') ? 'Write' : 'Bash');
     const input: Record<string, unknown> = {};
+    // `belt test git clean -f` reads as the command it names: before, it judged an empty call and said allow.
+    const words = a.positionals.slice(1).join(' ');
     if (value(a, 'command') !== undefined) input.command = value(a, 'command');
+    else if (words && value(a, 'path') === undefined) input.command = words;
     if (value(a, 'path') !== undefined) input.file_path = value(a, 'path');
+    if (input.command === undefined && input.file_path === undefined) {
+      process.stderr.write(T(ctx, 'belt.testNothing') + '\n');
+      return 2;
+    }
     if (value(a, 'content') !== undefined) input.content = value(a, 'content');
     if (tool === 'Write' && input.content === undefined) input.content = '';
     const d = await evaluateToolCall(tool, input, beltContext({ cwd: process.cwd(), config: ctx.config, layout: ctx.layout, lang: ctx.lang }));
