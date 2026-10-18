@@ -22,17 +22,20 @@
  *  11. bypass: in Claude Code's default permission mode a headless session cannot answer its question, so a
  *      command not approved beforehand is refused; with bypass on, the plugin answers it and the command runs;
  *  12. a compound command whose every part the project's allow rules cover runs in the default permission mode;
- *  13. the tool packs: a pack's skill loads and its use is recorded; the catalog tool, behind tool search, is found.
+ *  13. the tool packs: a pack's skill loads and its use is recorded; the catalog tool, behind tool search, is found;
+ *  14. what the skills cost: the person's own skills add nothing, or almost nothing, to the session's context;
+ *  15. a short command in Turkish reaches the plugin, which runs its skill and records it.
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
  *        add --only-bypass to run case 11 alone (two sessions): what a Claude Code release could change for bypass
  *        add --only-auto to run cases 6 and 7 alone (two sessions): full autonomy, start to finish
  *        add --only-parts to run case 12 alone (one session): a compound command whose parts are allowed
  *        add --only-packs to run case 13 alone (two sessions): the tool packs
+ *        add --only-skills to run cases 14 and 15 alone (three sessions): the skills
  *        add --keep to leave the sessions' folders and the full-autonomy sessions' streams in place
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
@@ -97,8 +100,9 @@ function session(
   extraEnv = {},
   cwd = project,
   extraArgs = [],
+  pluginDir = join(dist, 'plugin'),
 ) {
-  const { args, input } = sessionArgs(prompt, settingsFile, tools);
+  const { args, input } = sessionArgs(prompt, settingsFile, tools, pluginDir);
   args.push(...extraArgs);
   const runEnv = { ...env, ...extraEnv };
   let r = spawnSync('claude', args, { cwd, env: runEnv, encoding: 'utf8', timeout: 240_000, windowsHide: true, input });
@@ -131,13 +135,13 @@ function session(
 }
 
 /** The command line of a headless session, and its input when the prompt is a list of messages. */
-function sessionArgs(prompt, settingsFile, tools) {
+function sessionArgs(prompt, settingsFile, tools, pluginDir = join(dist, 'plugin')) {
   const many = Array.isArray(prompt);
   const args = [
     '-p',
     ...(many ? ['--input-format', 'stream-json'] : [prompt]),
     '--plugin-dir',
-    join(dist, 'plugin'),
+    pluginDir,
     '--settings',
     settingsFile,
     '--setting-sources',
@@ -651,6 +655,55 @@ function packsCases() {
   return [skill, catalog];
 }
 
+/**
+ * 14. What the skills cost (docs/skills.md). The same prompt in two sessions: with Mode_Code's skills, and with only
+ * those Claude may use itself. The difference in what the request carried is what the person's own skills add;
+ * Claude Code's documentation says their descriptions are not in the context.
+ */
+function skillsCost() {
+  const lean = join(work, 'plugin-lean');
+  cpSync(join(dist, 'plugin'), lean, { recursive: true });
+  const theirs = readdirSync(join(lean, 'skills')).filter((d) =>
+    /^disable-model-invocation:\s*true/m.test(readFileSync(join(lean, 'skills', d, 'SKILL.md'), 'utf8')),
+  );
+  for (const d of theirs) rmSync(join(lean, 'skills', d), { recursive: true, force: true });
+  const sent = (r) => {
+    const u = r.final?.usage ?? {};
+    return (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0);
+  };
+  const ask = 'Reply with the single word OK.';
+  const all = session(ask, settings, 'Read');
+  const few = session(ask, settings, 'Read', {}, project, [], lean);
+  const diff = sent(all) - sent(few);
+  check(
+    "the person's own skills add nothing, or almost nothing, to the session's context",
+    sent(all) > 0 && sent(few) > 0 && Math.abs(diff) < 10 * theirs.length,
+    `${diff} tokens for ${theirs.length} skills (${sent(all)} with them, ${sent(few)} without)`,
+  );
+  return [all, few];
+}
+
+/**
+ * 15. A short command (docs/skills.md): `/kemer` in a Turkish session reaches the plugin in the real engine, which
+ * answers that Mode_Code's `belt` skill is running and records it. The skill's text then goes as the person's message,
+ * which a headless session does not send (as with `/2 <text>`, case 4): that part is the engine kit's to check.
+ */
+function shortCommandCase() {
+  const home = join(work, 'short-data');
+  mkdirSync(home, { recursive: true });
+  writeFileSync(join(home, 'config.json'), JSON.stringify({ language: 'tr' }));
+  const r = session('/kemer', settings, 'Read', { MODE_CODE_HOME: home, MODE_CODE_LANG: 'tr' });
+  const months = existsSync(join(home, 'events')) ? readdirSync(join(home, 'events')) : [];
+  const logged = months.flatMap((m) => readdirSync(join(home, 'events', m)).map((x) => readFileSync(join(home, 'events', m, x), 'utf8'))).join('\n');
+  const ran = /"kind":"skill","skill":"mode-code:belt","via":"short"/.test(logged) && /mode-code:belt çalışıyor/.test(r.text);
+  check(
+    'a short command in Turkish reaches the plugin, which runs its skill and records it',
+    ran,
+    ran ? '' : (r.final?.result?.slice?.(0, 120) ?? r.stderr.slice(0, 200)),
+  );
+  return r;
+}
+
 const results = [];
 const check = (name, ok, detail = '') => {
   results.push({ name, ok, detail });
@@ -661,6 +714,11 @@ try {
   if (process.argv.includes('--only-bypass')) {
     const b = bypassCases();
     const cost = b.reduce((n, x) => n + (x.final?.total_cost_usd ?? 0), 0);
+    console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
+    process.exitCode = results.every((r) => r.ok) ? 0 : 1;
+  } else if (process.argv.includes('--only-skills')) {
+    const k = [...skillsCost(), shortCommandCase()];
+    const cost = k.reduce((n, x) => n + (x.final?.total_cost_usd ?? 0), 0);
     console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
     process.exitCode = results.every((r) => r.ok) ? 0 : 1;
   } else if (process.argv.includes('--only-packs')) {
@@ -756,7 +814,8 @@ try {
     const eleven = bypassCases();
     const twelve = partsCase();
     const thirteen = packsCases();
-    const cost = [one, two, three, plan, four, five, six, seven, ...eight, ...nine, ...ten, ...eleven, twelve, ...thirteen]
+    const fourteen = [...skillsCost(), shortCommandCase()];
+    const cost = [one, two, three, plan, four, five, six, seven, ...eight, ...nine, ...ten, ...eleven, twelve, ...thirteen, ...fourteen]
       .filter(Boolean)
       .reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
     console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
