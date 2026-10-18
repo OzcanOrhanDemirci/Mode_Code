@@ -233,6 +233,8 @@ export const enUi = {
   'rule.docker.volume-delete': 'Deleting Docker volumes or pruning Docker data (an optional pack, for servers).',
   'rule.secrets.stage': 'Staging files that usually hold secrets (.env, key files) for a commit.',
   'rule.secrets.write': 'Writing what looks like a secret into a file.',
+  'rule.quality.check-config':
+    "Changing the project's lint or format settings (ESLint, Prettier, Biome, analysis_options.yaml …): loosening a rule is how a failing check is made to pass.",
   'rule.meta.unverifiable': 'Commands the belt cannot follow all the way (code built at run time), so it cannot confirm they are safe.',
   'rule.data.delete-cloud':
     'Deleting data that lives in the cloud: Firebase databases, storage buckets, managed databases, cloud projects, a GitHub repository.',

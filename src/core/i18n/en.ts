@@ -68,6 +68,8 @@ export const en = {
   'belt.reason.deploy': 'Deploys to or changes live infrastructure: {command}',
   'belt.reason.unverifiable': 'Part of this command could not be followed ({issues}), so the safety belt cannot confirm it is safe.',
   'belt.reason.disableHooks': 'Turns hooks off or limits them to managed hooks: {command}',
+  'belt.reason.checkConfig':
+    "Changes the project's lint or format settings ({target}). Fix what a check finds rather than the check; say why if the settings must change.",
   'belt.reason.secretInFile': 'Writes what looks like a secret ({kinds}) into {target}. Keep secrets out of files that may be committed or shared.',
   'belt.reason.deleteCloud': 'Deletes data that lives in the cloud (a database, a bucket, a repository): {command}',
   'belt.reason.writeCloud': 'Overwrites data in a live Firebase database: {command}',

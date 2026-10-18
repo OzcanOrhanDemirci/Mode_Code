@@ -68,6 +68,8 @@ export const tr: Record<MessageKey, string> = {
   'belt.reason.deploy': 'Canlı altyapıya dağıtım yapılıyor ya da altyapı değiştiriliyor: {command}',
   'belt.reason.unverifiable': 'Bu komutun bir kısmı izlenemedi ({issues}); emniyet kemeri güvenli olduğunu doğrulayamıyor.',
   'belt.reason.disableHooks': "Hook'lar kapatılıyor ya da yalnız yönetilen hook'larla sınırlanıyor: {command}",
+  'belt.reason.checkConfig':
+    'Projenin lint ya da biçim ayarları değişiyor ({target}). Denetimin bulduğunu düzelt, denetimi değil; ayarın gerçekten değişmesi gerekiyorsa nedenini söyle.',
   'belt.reason.secretInFile':
     '{target} dosyasına sır gibi görünen bir değer yazılıyor ({kinds}). Sırları commit edilebilecek ya da paylaşılabilecek dosyalara koyma.',
   'belt.reason.deleteCloud': 'Bulutta duran veri siliniyor (bir veritabanı, bir depolama alanı, bir depo): {command}',

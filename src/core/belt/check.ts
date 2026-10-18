@@ -260,7 +260,12 @@ function checkWrite(t: Target, kind: WriteKind, s: Scope): void {
   if (paths.shellProfiles(p)) return add(s, 'persist.shell-profile', 'belt.reason.shellProfile', { target: show(p) });
   if (under(p, paths.memoryDirs, ctx.platform) && (kind === 'truncate' || kind === 'replace'))
     add(s, 'self.memory-shrink', 'belt.reason.memoryOverwrite', { target: show(p) });
+  if (CHECK_CONFIG.test(p.split('/').pop() ?? '')) add(s, 'quality.check-config', 'belt.reason.checkConfig', { target: show(p) });
 }
+
+/** The settings of a project's linters and formatters, by file name (ESLint, Prettier, Biome, Dart, Stylelint, Ruff, …). */
+const CHECK_CONFIG =
+  /^(?:\.eslintrc(?:\.(?:js|cjs|mjs|json|ya?ml))?|eslint\.config\.(?:js|cjs|mjs|ts|cts|mts)|\.prettierrc(?:\.(?:js|cjs|mjs|json|json5|ya?ml|toml))?|prettier\.config\.(?:js|cjs|mjs|ts)|biome\.jsonc?|analysis_options\.yaml|\.stylelintrc(?:\.(?:js|cjs|json|ya?ml))?|stylelint\.config\.(?:js|cjs|mjs)|\.golangci\.ya?ml|\.?ruff\.toml|\.flake8|\.pylintrc|\.rubocop\.yml|\.swiftlint\.yml|detekt\.yml)$/i;
 
 // ── per program ───────────────────────────────────────────────────────────────────────────────────────
 
