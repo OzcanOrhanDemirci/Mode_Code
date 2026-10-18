@@ -22,6 +22,7 @@ import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '..
 import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
 import { taintedAct, taintSource, withoutInvisible } from '../core/taint.js';
 import { shellReadTool, shellTrap } from '../core/hygiene.js';
+import { comparePins, parsePins } from '../core/mcp-pins.js';
 import { partsAllowed, shellRules, type ShellRules } from '../core/permissions.js';
 import { isBeltTool, isFileTool, shellOf } from '../core/belt/tools.js';
 import type { BeltContext, BeltDecision, GitFacts } from '../core/belt/types.js';
@@ -88,6 +89,7 @@ import {
   bypassReminder,
   freezeNote,
   invisibleNote,
+  mcpChangedNote,
   hygieneNote,
   trapNote,
   promptSecretNote,
@@ -287,6 +289,8 @@ interface Ctx {
   sharedWarned: Set<string>;
   /** The tool hygiene hints given in this session (core/hygiene.ts): each once. */
   hinted: Set<string>;
+  /** Notes the session's start found for the model (a changed MCP tool), told with the person's first prompt. */
+  startNotes: string[];
   /** The sync at the session's start while it runs: the first prompt waits for it. */
   memStart: Promise<unknown> | null;
   /** The notes of sessions closed without ending, written at the start: the first prompt waits for them. */
@@ -560,6 +564,7 @@ async function load($: $): Promise<Ctx> {
     sharedSyncing: false,
     sharedWarned: new Set(),
     hinted: new Set(),
+    startNotes: [],
     mo: {
       tools: 0,
       agents: 0,
@@ -2754,7 +2759,7 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   }
   const extra: string[] = [];
   // Strip presses not told yet go with this prompt, before its own keyword's note.
-  if (human) extra.push(...takePressNotes(c));
+  if (human) extra.push(...takePressNotes(c), ...c.startNotes.splice(0));
   if (human) {
     c.turn = { startedAt: await $.clock.now(), uses: [], changed: false };
     // A start asked for at an earlier prompt and never taken up lapses: each prompt asks anew.
@@ -3275,6 +3280,23 @@ const FLOW_TOOL = {
   isDeferred: false,
 } as const;
 
+/** The MCP tools' descriptions against their pins: a changed one told to the person now and to the model with the first prompt. */
+async function pinMcpTools($: $, c: Ctx): Promise<void> {
+  try {
+    const tools = (await $.tool.list()).filter((t) => t.mcp && !t.name.startsWith(`mcp__${PLUGIN_NAME}__`));
+    if (!tools.length) return;
+    const r = comparePins(parsePins(await readFile($, c.layout.mcpPins)), tools, await $.clock.now());
+    if (r.changed.length) {
+      $.ui.toast(tIn(c.lang, 'mcp.changed', { tools: r.changed.slice(0, 3).join(', '), n: r.changed.length }), { timeoutMs: 20_000 });
+      c.startNotes.push(mcpChangedNote(r.changed));
+      await logEvent($, c, { kind: 'mcpChanged', tools: r.changed.slice(0, 20) });
+    }
+    if (r.changed.length || r.added) await $.fs.write(c.layout.mcpPins, JSON.stringify(r.pins, null, 2) + '\n');
+  } catch {
+    /* the next session compares again */
+  }
+}
+
 /**
  * The daily update check (core/update.ts), when the person said yes and one is due: the installed program asks the
  * release which version is the newest and keeps the answer, which the menu and the morning report then show.
@@ -3300,6 +3322,8 @@ async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.st
   c.closedStart = c.memStart.then(() => closedNotes($, c));
   // The daily update check, when the person said yes: in the background, the session never waits for it.
   void updateCheck($, c);
+  // The MCP tools' descriptions against the ones first seen: a change is told (core/mcp-pins.ts).
+  void pinMcpTools($, c);
   if (c.fresh && c.config.modules.modes) await restoreLast($, c);
   await saveState($, c);
   if (c.state.resumeAt) await scheduleResume($, c);

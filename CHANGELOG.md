@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- The descriptions of connected MCP tools are kept as first seen (their fingerprint); one that changes later (a server rewriting its tools after you trusted it) is told to you, and to Claude with your first prompt, once.
 - Outside content (a web page, a connected service, a fetched page) that hides characters nobody sees (Unicode tags, direction overrides, zero-width spaces) reaches Claude without them, with a note saying how many were taken out; an emoji built with a joiner stays whole.
 - `/freeze <folder>` (`/dondur`): every write a call names stays inside one folder (and the temporary folders) until you end it; `❄ <folder>` on the strip while it holds. Only you set it.
 - Claude Code's question about a compound command (`cd app && npm test`, `npm run build && npm test`) is answered for you when each of its parts is one your allow rules already cover; a `cd` into the project only says where the rest runs. A part no rule covers, a redirect into a file or a nested command is asked as before.

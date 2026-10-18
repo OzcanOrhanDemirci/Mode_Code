@@ -27,6 +27,7 @@
  *   state/auto-prompts.json          the mod (the last tasks given full autonomy, for the control center)
  *   state/update.json                the command line (the last check for a newer release: core/update.ts)
  *   secrets-allow.json               the command line (fingerprints of secrets the person let a memory push send)
+ *   state/mcp-pins.json              the mod (fingerprints of the MCP tools' descriptions as first seen: core/mcp-pins.ts)
  */
 import { joinPath } from './paths.js';
 import { APP_ID } from './app.js';
@@ -56,6 +57,7 @@ export interface Layout {
   autoPrompts: string;
   updateState: string;
   secretsAllow: string;
+  mcpPins: string;
 }
 
 export function layout(root: string): Layout {
@@ -85,6 +87,7 @@ export function layout(root: string): Layout {
     autoPrompts: joinPath(root, 'state', 'auto-prompts.json'),
     updateState: joinPath(root, 'state', 'update.json'),
     secretsAllow: joinPath(root, 'secrets-allow.json'),
+    mcpPins: joinPath(root, 'state', 'mcp-pins.json'),
   };
 }
 
