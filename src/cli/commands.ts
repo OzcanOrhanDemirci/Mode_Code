@@ -8,6 +8,7 @@ import { createInterface } from 'node:readline/promises';
 import { homedir } from 'node:os';
 import { APP_NAME, APP_VERSION, CLI_NAME, MIN_CLAUDE_CODE_FOR_HOOKS, REPO_URL } from '../core/app.js';
 import { cloneDefaults, serializeConfig, setConfigValue, type Config } from '../core/config.js';
+import { personOnly } from '../core/ux/catalog.js';
 import { evaluateToolCall } from '../core/belt/evaluate.js';
 import { RULES, RULE_IDS } from '../core/belt/rules.js';
 import { compact, percent, ago, until, dateTime, bar, shortPath, integer } from '../core/format.js';
@@ -1078,9 +1079,6 @@ export async function cmdAutonomy(a: Args): Promise<number> {
 
 // ── config ──
 
-/** Settings an agent's shell may not change: they lower a protection or widen what a session does unasked. */
-const PROTECTIVE = /^(?:belt|memory|modules\.(?:quota|secrets)|autonomy|bypass|agents|projects|sync|update|packs|skills)(?:\.|$)/;
-
 export async function cmdConfig(a: Args): Promise<number> {
   const ctx = appContext();
   const sub = a.positionals[0] ?? 'get';
@@ -1103,7 +1101,7 @@ export async function cmdConfig(a: Args): Promise<number> {
       say(red(T(ctx, 'config.usage')));
       return 2;
     }
-    if (PROTECTIVE.test(key) && underAgent()) {
+    if (personOnly(key) && underAgent()) {
       say(red(T(ctx, 'cli.agentRefused')));
       return 1;
     }
