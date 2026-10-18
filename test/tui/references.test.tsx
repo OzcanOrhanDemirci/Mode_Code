@@ -51,7 +51,10 @@ function references(text: string): { parts: string[]; whole: string }[] {
   return out;
 }
 
-/** Resolves a chain against the tree: the longest tail of the first part that names a page, then each part a child. */
+/**
+ * Resolves a chain against the tree: the longest tail of the first part that names a page (any page of that name:
+ * two may share one at different depths), then each part a child of the one before. Null when one way leads through.
+ */
 function resolveChain(roots: NavNode[], parts: string[], lang: Lang): string | null {
   const all: { node: NavNode; address: string }[] = [];
   const walk = (nodes: NavNode[], prefix: string, depth: number) => {
@@ -63,26 +66,32 @@ function resolveChain(roots: NavNode[], parts: string[], lang: Lang): string | n
   };
   walk(roots, '', 1);
   const words = bare(parts[0]!).split(' ');
-  let at: Place | null = null;
-  for (let i = 0; i < words.length && !at; i++) {
+  let starts: Place[] = [];
+  for (let i = 0; i < words.length && !starts.length; i++) {
     const tail = norm(words.slice(i).join(' '));
-    if (CENTER.includes(tail)) at = { node: null, address: '', children: roots };
-    const hit = all.find((x) => norm(x.node.label) === tail);
-    if (hit) at = { node: hit.node, address: hit.address, children: hit.node.children?.() ?? [] };
+    if (CENTER.includes(tail)) starts = [{ node: null, address: '', children: roots }];
+    else starts = all.filter((x) => norm(x.node.label) === tail).map((x) => ({ node: x.node, address: x.address, children: x.node.children?.() ?? [] }));
   }
-  if (!at) return `"${bare(parts[0]!)}" is no page`;
-  for (let j = 1; j < parts.length; j++) {
-    const last = j === parts.length - 1;
-    const part = last ? bare(parts[j]!.split(',')[0]!) : parts[j]!.trim();
-    const starts = last ? lastForms(part) : [norm(part)];
-    const child: NavNode | undefined = at.children.find((c) => starts.includes(norm(c.label)));
+  if (!starts.length) return `"${bare(parts[0]!)}" is no page`;
+  const why = starts.map((from) => follow(from, parts.slice(1), lang));
+  return why.includes(null) ? null : why[0]!;
+}
+
+/** Walks the rest of a chain from one page: each part a child, the last one a child or a setting on that page. */
+function follow(from: Place, rest: string[], lang: Lang): string | null {
+  let at = from;
+  for (let j = 0; j < rest.length; j++) {
+    const last = j === rest.length - 1;
+    const part = last ? bare(rest[j]!.split(',')[0]!) : rest[j]!.trim();
+    const forms = last ? lastForms(part) : [norm(part)];
+    const child: NavNode | undefined = at.children.find((c) => forms.includes(norm(c.label)));
     if (child) {
       const address: string = at.address ? `${at.address}/${child.id}` : child.id;
       at = { node: child, address, children: child.children?.() ?? [] };
       continue;
     }
     const here: string = at.address;
-    const setting = last && allSettingPaths().find((p) => settingOf(p)!.def.page === here && starts.includes(norm(nameOf(p, lang))));
+    const setting = last && allSettingPaths().find((p) => settingOf(p)!.def.page === here && forms.includes(norm(nameOf(p, lang))));
     if (setting) return null;
     return `"${part}" is not under ${here || 'the control center'}`;
   }
