@@ -13,14 +13,18 @@ const page = readFileSync(new URL('../../docs/design.md', import.meta.url), 'utf
 
 test('every test and source file the design page names exists, unless its row names the stage that brings it', () => {
   const missing: string[] = [];
+  const stale: string[] = [];
   for (const line of page.split('\n')) {
-    const later = /\bD\d+\b/.test(line);
-    for (const m of line.matchAll(/`((?:test|src)\/[^`\s]+\.(?:ts|tsx|mjs))`/g)) {
-      const path = m[1]!;
-      if (!existsSync(root + path) && !later) missing.push(path);
-    }
+    // Only a table row names its stage; prose that mentions a stage still names files that exist.
+    const later = line.startsWith('| ') && /\bD\d+\b/.test(line);
+    const paths = [...line.matchAll(/`((?:test|src)\/[^`\s]+\.(?:ts|tsx|mjs))`/g)].map((m) => m[1]!);
+    const absent = paths.filter((p) => !existsSync(root + p));
+    if (!later) missing.push(...absent);
+    // A stage mark on a row whose files all exist is stale: the stage came, and the row should say the rule is kept.
+    else if (paths.length && !absent.length) stale.push(line.trim());
   }
   assert.deepEqual(missing, []);
+  assert.deepEqual(stale, []);
 });
 
 test('the enforcement table names a test for every rule', () => {

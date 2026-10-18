@@ -143,15 +143,15 @@ One kit, two hosts. Each component is written once against a small table of elem
 
 A row whose test is still to come names the stage that brings it; `test/core/design-doc.test.ts` holds every other path to a file that exists.
 
-| Rule                                                                         | Test                                                                                     |
-| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Four questions for every setting and every control of the strip              | `test/core/ux-catalog.test.ts`, `test/tui/settings-card.test.tsx`                        |
-| The command line gives the same answers, and names a page as the screen does | `test/process/human.test.ts`, `test/tui/settings-card.test.tsx`                          |
-| Every reference like _"Settings › Features"_ leads to a real place           | `test/tui/references.test.tsx`                                                           |
-| One idea, one name                                                           | `test/core/ux-glossary.test.ts`                                                          |
-| No wrapped line starts with a space                                          | `test/core/ux-text.test.ts` (`wrapText`); the control center's own wrap with the kit, D3 |
-| Mouse and keyboard reach the same result                                     | `test/tui/pointer.test.tsx` and the engine kit, D3                                       |
-| No state told by colour alone                                                | `test/tui/widths.test.tsx` (plain mode keeps every state's word)                         |
-| Right edges of a block line up                                               | `test/tui/grid.test.tsx`, D3                                                             |
-| Every background job writes an activity line                                 | `test/core/activity.test.ts`, D4                                                         |
-| From 60 to 200 columns                                                       | `test/tui/widths.test.tsx`, `test/core/controls.test.ts`                                 |
+| Rule                                                                         | Test                                                                                                  |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Four questions for every setting and every control of the strip              | `test/core/ux-catalog.test.ts`, `test/tui/settings-card.test.tsx`                                     |
+| The command line gives the same answers, and names a page as the screen does | `test/process/human.test.ts`, `test/tui/settings-card.test.tsx`                                       |
+| Every reference like _"Settings › Features"_ leads to a real place           | `test/tui/references.test.tsx`                                                                        |
+| One idea, one name                                                           | `test/core/ux-glossary.test.ts`                                                                       |
+| No wrapped line starts with a space                                          | `test/core/ux-text.test.ts` (`wrapText`); the control center's own wrap: `test/tui/grid.test.tsx`, D3 |
+| Mouse and keyboard reach the same result                                     | `test/tui/pointer.test.tsx` and the engine kit, D3                                                    |
+| No state told by colour alone                                                | `test/tui/widths.test.tsx` (plain mode keeps every state's word)                                      |
+| Right edges of a block line up                                               | `test/tui/grid.test.tsx`, D3                                                                          |
+| Every background job writes an activity line                                 | `test/core/activity.test.ts`, D4                                                                      |
+| From 60 to 200 columns                                                       | `test/tui/widths.test.tsx`, `test/core/controls.test.ts`                                              |

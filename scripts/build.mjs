@@ -65,8 +65,9 @@ const mod = await build({
   platform: 'neutral',
   target: 'es2023',
   external: ['claude-code'],
-  // Keep top-level function names: the engine's validator reads them, and stack traces name the function. Only the
-  // whitespace goes: Claude Code does not read a hooks module over 1 MiB, and the two languages' words fill much of it.
+  // Nothing is renamed, so the engine's validator reads the functions by their own names and stack traces name them
+  // (keepNames would only add helpers). Only the whitespace goes: Claude Code does not read a hooks module over 1 MiB,
+  // and the two languages' words fill much of it.
   keepNames: false,
   minify: false,
   minifyWhitespace: true,
