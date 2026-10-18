@@ -36,6 +36,16 @@ test('only the person turns bypass or full autonomy on: a command from anywhere 
   expect(w.asked).toEqual([]);
 });
 
+test("the other controls are the person's too, or a script of theirs: a scheduled prompt, another session or plugin is refused", async ($, on) => {
+  const w = world(on, { config: { ...enabled, autonomy: { enabled: true } }, answer: 'allow' });
+  for (const kind of ['task-notification', 'peer', 'scheduled-trigger', 'unclassified', 'plugin']) {
+    for (const command of ['3', '7', 'kota', '00', '0', 'devam']) expect((await run($, command, { kind })).text).toMatch(/^Only you can run \//);
+  }
+  expect(w.modState()?.mode ?? 'free').toBe('free');
+  // The person's Enter, the phone and their own script change the mode.
+  for (const kind of ['composer', 'bridge', 'sdk']) expect((await run($, '3', { kind })).text).not.toMatch(/^Only you/);
+});
+
 test('turned on: asked once; the belt lets through and records; self-protection and secrets stay; the floor is asked', async ($, on) => {
   const w = world(on, { config: enabled, answer: 'allow' });
   const r = await run($, 'bypass');

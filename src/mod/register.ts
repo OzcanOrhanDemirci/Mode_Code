@@ -4295,6 +4295,10 @@ async function control(
   // the engine stamps otherwise (a background notice, another session, an unclassified run) is refused.
   const person = via === 'strip' || origin === 'composer' || origin === 'bridge';
   if ((action.kind === 'bypass' || action.kind === 'fullAuto') && !person) return { text: tIn(c.lang, 'ctl.personOnly', { cmd: `/${name}` }) };
+  // Every other control is the person's too, or a script of theirs (sdk): never a prompt the model scheduled for
+  // itself, another session's message, a background notice or another plugin, which could change the mode, raise the
+  // budget or close the session the model works in. A command the engine stamps no origin on is the person's.
+  if (!person && origin !== undefined && origin !== 'sdk') return { text: tIn(c.lang, 'ctl.personOnly', { cmd: `/${name}` }) };
   const args = given.trim();
   const lang = c.lang;
   // A toast of '' shows none: the start window opened, and says it all itself.
