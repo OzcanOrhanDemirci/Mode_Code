@@ -35,6 +35,11 @@ export type ModeCodeMo = {
   still: boolean;
   /** The terminal's background as Claude Code's theme says it: what faint light fades into. */
   backdrop: 'dark' | 'light';
+  /**
+   * Mo is one row tall even beside a strip of two: in Apple's Terminal half blocks leave a gap between rows, and
+   * the two-row Mo, whose eyes cross the rows, read as two Mos stacked (the Mac, 2026-10-15).
+   */
+  oneRow: boolean;
   tools: number;
   agents: number;
   asking: number;

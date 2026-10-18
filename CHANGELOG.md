@@ -23,6 +23,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - A handoff note's next step, when it is only the last request, is named in your language on the screens and in `mode-code memory`; it said "last request" in English.
 - Uninstalling leaves Claude Code's `settings.json` as it was: the empty `enabledPlugins` and `extraKnownMarketplaces` that Claude Code leaves behind are removed with the plugin's own records.
 - A memory folder already protected under another spelling (`~/notes/` beside `/Users/you/notes`) is not added again by the memory setup, and the doctor counts each folder once.
+- In Apple's Terminal, Mo beside a strip of two rows is drawn one row tall: the half blocks of the two-row Mo leave a gap between rows there, and it read as two Mos stacked.
 
 ## [1.1.0] - 2026-10-15
 

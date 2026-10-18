@@ -35,6 +35,15 @@ test("Mo sits at the strip's left: its face beside a strip of one row, a small M
   await narrow.unmount();
 });
 
+test("in Apple's Terminal Mo stays one row tall beside a strip of two: half blocks leave a gap between rows there", async ($, on) => {
+  world(on, { env: { TERM_PROGRAM: 'Apple_Terminal' } });
+  await start($, on);
+  const narrow = await mount($, 'terminal', band(100));
+  expect((await narrow.find({ key: 'mo' }))?.props).toMatchObject({ height: 1, props: { rows: 1, oneRow: true } });
+  expect(await narrow.find({ key: 'strip-row-1' })).toBeDefined();
+  await narrow.unmount();
+});
+
 test('Mo steps aside on a phone, on a strip too narrow for it, and when the setting turns it off', async ($, on) => {
   world(on);
   await start($, on);
