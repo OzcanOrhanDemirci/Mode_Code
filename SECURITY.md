@@ -12,9 +12,9 @@ You will get an answer within a week. Once a fix is ready, a release with notes 
 
 ## Scope
 
-In scope: the safety belt's decisions, the self-protection rules, the hook and plugin, the installer (what it writes and removes), the handling of secrets in what the tool stores and exports.
+In scope: the safety belt's decisions, the self-protection rules, the hook and plugin, the installer and `mode-code update` (what they download, check, write and remove), the handling of secrets in what the tool stores, exports and pushes (the memory's push is held when a commit would send a secret), and the guards against outside content (a session that read a page, an issue or a service's data asks before it sends data out, persists or writes the memory; invisible characters are taken out of what it read; MCP tools' descriptions are pinned).
 
-Known limits, documented and not treated as vulnerabilities: on native Windows the belt is an accident preventer rather than a security boundary (there is no sandbox under Claude Code, and a script can do what a single command cannot); code built at run time is asked about, not analysed.
+Known limits, documented and not treated as vulnerabilities: on native Windows the belt is an accident preventer rather than a security boundary (there is no sandbox under Claude Code, and a script can do what a single command cannot); code built at run time, or piped into a shell or an interpreter (`curl … | sh`), is asked about, not analysed; the guards against outside content live in the plugin, not in the safety-net hook, which keeps no session; `claude --bare` runs without hooks or plugins, so without the belt.
 
 ## Supported versions
 
