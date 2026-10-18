@@ -29,6 +29,7 @@ import {
 } from '../../src/core/controls.js';
 import { detectKeyword } from '../../src/core/keywords.js';
 import { applyKeyword, newModState } from '../../src/core/session.js';
+import { DEFAULT_AGENTS, type AgentsState } from '../../src/core/agents.js';
 
 const view: StripView = {
   mode: 'plan',
@@ -379,4 +380,34 @@ test('a freeze is on the strip and in the session line only while it holds', () 
   );
   assert.match(controlsLine(frozen, 'en'), / · ❄ feature$/);
   assert.doesNotMatch(controlsLine(view, 'en'), /❄/);
+});
+
+test('parallel agents: on the strip, in the line and the menu once turned on; lit while agents may run', () => {
+  const off = { ...DEFAULT_AGENTS };
+  const free = { ...off, mode: 'free' as const, n: 5 };
+  const assigned = { ...off, mode: 'assigned' as const, n: 3, batch: { at: 1, started: [{ row: 0, toolUseId: 't0' }], sealed: false } };
+  const shown = (state: AgentsState, running = 0, on = true): StripView => ({ ...view, agents: { shown: on, state, running } });
+  const item = (v: StripView, lang: 'tr' | 'en' = 'en', columns = 200) =>
+    stripRows(v, lang, columns)
+      .flat()
+      .flatMap((s) => s.items)
+      .find((i) => i.id === commandOf({ kind: 'agents' }, lang));
+  assert.equal(item(view), undefined);
+  assert.equal(item(shown(free, 0, false)), undefined, 'not turned on');
+  assert.deepEqual(item(shown(off)), { id: 'parallel', label: 'agents ✕', active: false });
+  assert.deepEqual(item(shown(off), 'tr'), { id: 'ajan', label: 'ajan ✕', active: false });
+  assert.deepEqual(item(shown(free, 2)), { id: 'parallel', label: 'agents ≤5 · 2', active: true });
+  assert.equal(item(shown(free, 2), 'en', 40)?.label, 'ag≤5·2');
+  assert.deepEqual(item(shown(assigned, 1)), { id: 'parallel', label: 'agents =3 · 1/3', active: true });
+  assert.deepEqual(item(shown({ ...off, ultracode: true })), { id: 'parallel', label: 'agents · ultracode', active: true });
+  // Every layout still fits the room with it, and with the other optional controls beside it.
+  const full = { ...shown(assigned, 1), fullAutoShown: true, bypass: { shown: true, on: false, count: 0 }, frozen: 'feature' };
+  for (const lang of ['tr', 'en'] as const)
+    for (const columns of [50, 60, 80, 100, 120, 160, 200])
+      for (const r of stripRows(full, lang, columns)) assert.ok(rowCells(r) <= columns, `${lang} ${columns}`);
+  assert.equal(controlsLine(shown(free, 2), 'en'), '📐 plan · autonomous · agents ≤5 · 2');
+  assert.doesNotMatch(controlsLine(shown(free, 2, false), 'en'), /agents/);
+  assert.match(menuText(shown(free), 'en', '—'), /\/8 autonomous\*\* · \*\*\/parallel\*\*$/m);
+  assert.match(menuText(shown(off), 'tr', '—'), /\/8 otonom\*\* · \/ajan$/m);
+  assert.doesNotMatch(menuText(view, 'en', '—'), /parallel/);
 });

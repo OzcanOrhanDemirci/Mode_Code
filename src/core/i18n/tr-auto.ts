@@ -339,7 +339,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'set.autonomy.check': 'Buradan ölçülen başlangıç denetimleri',
   'set.autonomy.note': 'Gerisi (bütçe, canlı kum havuzu sınaması, oturumun izin modu) koşu başlarken ölçülür.',
   // ── Otomasyon › Bypass, İzinsiz yapılanlar ──
-  'desc.automation': "Özel çalışma biçimleri, sen açana kadar kapalı: tam otonom, koşuları, bypass ve bypass'ın geçirdikleri.",
+  'desc.automation': "Özel çalışma biçimleri, sen açana kadar kapalı: tam otonom, koşuları, bypass ve bypass'ın geçirdikleri, paralel ajanlar.",
   'page.bypass': 'Bypass',
   'desc.bypass': 'Bypass: bir oturumda, sen orada açınca, emniyet kemerini bir süre kaldırır. Burada açılana kadar kapalı.',
   'page.bypassed': 'İzinsiz yapılanlar',
@@ -369,6 +369,26 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'bypassed.outcome.ran': 'çalıştı',
   'bypassed.outcome.failed': 'başarısız',
   'bypassed.outcome.refused': 'sonra reddedildi',
+  // ── Otomasyon › Paralel ajanlar ──
+  'page.agents': 'Paralel ajanlar',
+  'desc.agents': "Paralel ajanlar: Claude'un kaç ajan başlatacağı, her oturumda şeritten sen belirlersin. Burada açılana kadar kapalı.",
+  'set.agents.enabled': 'Paralel ajanlar ayarlanabilir',
+  'set.agents.enabledHelp':
+    'Kapalı: bu araç hiçbir ajana dokunmaz, Claude Code onları uygun gördüğü gibi başlatır. Açık: her oturum ajanlar kapalı başlar, sen şeritten (/ajan) ayarlarsın.',
+  'set.agents.confirm':
+    "Bu açıkken her oturum ajanlar kapalı başlar: sen şeritten ayarlayana kadar Claude ajan başlatmaz (aşağıdaki salt okuyan yardımcılar hariç). Açmak için Enter'a bir kez daha bas.",
+  'set.agents.helpers': 'Salt okuyan yardımcılar serbest',
+  'set.agents.helpersHelp':
+    "Claude Code'un Explore ve Plan ajanları yalnız okur ve arar. Açık: ajanlar kapalıyken de çalışırlar ve sayılmazlar. Kapalı: her ajan gibi sayılırlar.",
+  'set.agents.modes': 'Şeritte',
+  'set.agents.mode.off': 'Kapalı: Claude ajan başlatmaz, işi kendisi yapar.',
+  'set.agents.mode.free': 'Aynı anda en çok N: ne zaman başlatacağına Claude karar verir; ayar sen değiştirene kadar kalır.',
+  'set.agents.mode.assigned': 'Sonraki isteğin için tam N, yazarsan her birinin kendi görevi, türü ve modeliyle; ajanlar bitince mod kendiliğinden kapanır.',
+  'set.agents.note':
+    "Her oturum ajanlar kapalı başlar. Ultracode ve Claude Code'un iş akışları kendi ajanlarını yönetir: ultracode açıkken mod kenara çekilir, kapanınca geri döner.",
+  'set.agents.sessions': 'Bu bilgisayardaki Claude Code oturumları',
+  'set.agents.sessionsNone': 'Çalışan yok.',
+  'set.agents.sessionsUnread': "Okunamadı: bu Claude Code'da 'claude agents' komutu yok.",
   // ── Otomasyon › Son görevler ──
   'page.autoPrompts': 'Son görevler',
   'desc.autoPrompts':

@@ -24,6 +24,7 @@ import type { Flow } from '../../src/core/flow.js';
 import type { Run } from '../../src/core/run.js';
 import type { GateResult } from '../../src/core/run-gate.js';
 import type { AutoPrompt } from '../../src/core/auto-prompts.js';
+import type { ClaudeSession } from '../../src/node/claude-env.js';
 
 export const NOW = Date.parse('2026-10-12T09:00:00Z');
 
@@ -230,6 +231,10 @@ export class FakeData implements DataSource {
   }
   plugins() {
     return [];
+  }
+  sessionsRunning: ClaudeSession[] | null = [];
+  claudeSessions() {
+    return this.sessionsRunning;
   }
   scanMemory() {
     return { findings: [], files: 3, skipped: 0 };

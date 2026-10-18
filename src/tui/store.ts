@@ -13,7 +13,7 @@ import { git } from '../node/git.js';
 import { appliedTemplates, repoKey, templateById, withTemplates } from '../core/templates.js';
 import { claudeDir } from '../node/env.js';
 import type { SessionIndex, SessionRow, TokenTotals, ToolStat, FolderRow } from '../node/index-db.js';
-import { readClaudeEnv, type ClaudeEnv, type PluginInfo } from '../node/claude-env.js';
+import { claudeSessionsVia, readClaudeEnv, realClaude, type ClaudeEnv, type ClaudeSession, type PluginInfo } from '../node/claude-env.js';
 import { appContext, reloadConfig, type AppContext } from '../app/context.js';
 import {
   closedSessionIds,
@@ -77,6 +77,8 @@ export interface DataSource {
   setTemplate(id: string, on: boolean): string | null;
   claude(): ClaudeEnv;
   plugins(): PluginInfo[] | null;
+  /** The Claude Code sessions running on this computer (`claude agents --json`), or null when unreadable. */
+  claudeSessions(): ClaudeSession[] | null;
   scanMemory(): { findings: SecretFinding[]; files: number; skipped: number };
   lastSeen(): number | null;
   markSeen(at: number): void;
@@ -246,6 +248,9 @@ export class LiveData implements DataSource {
   }
   plugins(): PluginInfo[] | null {
     return this.memo('plugins', 120_000, () => readClaudeEnv(this.ctx.cwd, { withPlugins: true }).plugins);
+  }
+  claudeSessions(): ClaudeSession[] | null {
+    return this.memo('claude-sessions', 15_000, () => claudeSessionsVia(realClaude));
   }
   scanMemory() {
     return this.memo('scan', 60_000, () => scanPaths(this.ctx.config.memory.dirs));

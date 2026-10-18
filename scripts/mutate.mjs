@@ -107,6 +107,7 @@ const TARGETS = {
   'src/core/trust.ts': ['test/core/trust.test.ts'],
   'src/core/packs.ts': ['test/core/packs.test.ts'],
   'src/core/skills.ts': ['test/core/skills.test.ts'],
+  'src/core/agents.ts': ['test/core/agents.test.ts'],
   'src/core/mo/state.ts': ['test/core/mo.test.ts'],
   'src/core/mo/cells.ts': ['test/core/mo.test.ts'],
   // What a keyword does to the session: the mode and the way of working change only where the person names them.

@@ -11,6 +11,7 @@ import type { Interaction, ModSessionState } from './session.js';
 import { MODE_ICON, type WorkMode } from './modes.js';
 import { baseName, pathKey, type Platform } from './paths.js';
 import { fold } from './text.js';
+import { stripAgents, type AgentsState } from './agents.js';
 import { tIn, type Lang, type MessageKey } from './i18n/index.js';
 
 export type Style = 'manual' | 'autonomous' | 'full';
@@ -26,7 +27,8 @@ export type ControlAction =
   | { kind: 'quota' }
   | { kind: 'close' }
   | { kind: 'bypass' }
-  | { kind: 'freeze' };
+  | { kind: 'freeze' }
+  | { kind: 'agents' };
 
 /** Every slash command, by name: a number for everything on the strip, a word for those that take a value and for closing. */
 export const COMMANDS: readonly { name: string; action: ControlAction }[] = [
@@ -54,6 +56,10 @@ export const COMMANDS: readonly { name: string; action: ControlAction }[] = [
   // Freezing the edits to one folder takes a folder, so a word: on the strip only while it holds.
   { name: 'dondur', action: { kind: 'freeze' } },
   { name: 'freeze', action: { kind: 'freeze' } },
+  // Parallel agents (core/agents.ts): on the strip once turned on (Automation), set by the person alone. Not /agents:
+  // that is Claude Code's own command for agent definitions.
+  { name: 'ajan', action: { kind: 'agents' } },
+  { name: 'parallel', action: { kind: 'agents' } },
   { name: 'kapat', action: { kind: 'close' } },
   { name: 'close', action: { kind: 'close' } },
 ];
@@ -68,6 +74,7 @@ export function commandOf(action: ControlAction, lang: Lang): string {
   if (action.kind === 'fullAuto') return lang === 'tr' ? 'tam-otonom' : 'full-auto';
   if (action.kind === 'bypass') return 'bypass';
   if (action.kind === 'freeze') return lang === 'tr' ? 'dondur' : 'freeze';
+  if (action.kind === 'agents') return lang === 'tr' ? 'ajan' : 'parallel';
   return digitOf(action);
 }
 
@@ -276,6 +283,8 @@ export interface StripView {
   bypass: { shown: boolean; on: boolean; count: number };
   /** The folder the edits are frozen to (`/dondur`), as the strip names it; null or absent while they are not. */
   frozen?: string | null;
+  /** Parallel agents: on the strip once turned on (Automation); the session's mode, and how many run now. */
+  agents?: { shown: boolean; state: AgentsState; running: number };
 }
 
 /** "⚡ bypass", and while it is on the calls it let through: "⚡ bypass · 3". */
@@ -379,6 +388,16 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
             ]
           : []),
         ...(v.frozen ? [{ id: commandOf({ kind: 'freeze' }, lang), label: tight ? '❄' : `❄ ${v.frozen}`, active: true }] : []),
+        ...(v.agents?.shown
+          ? [
+              {
+                id: commandOf({ kind: 'agents' }, lang),
+                label: stripAgents(v.agents.state, v.agents.running, tIn(lang, tight ? 'ctl.strip.agentsShort' : 'ctl.strip.agents'), tight),
+                // Lit while agents may run: the person sees at a glance which way it is.
+                active: v.agents.state.mode !== 'off' || v.agents.state.ultracode,
+              },
+            ]
+          : []),
       ],
     },
     {
@@ -401,7 +420,8 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
 export function controlsLine(v: StripView, lang: Lang): string {
   const style = tIn(lang, `ctl.style.${v.style}` as MessageKey);
   const flow = v.flow ? ` · ${flowText(v.flow, lang, false)}` : '';
-  return `${modeLabel(v.mode, lang)} · ${style}${flow}${v.bypass.on ? ` · ${bypassText(v.bypass, false)}` : ''}${v.frozen ? ` · ❄ ${v.frozen}` : ''}`;
+  const agents = v.agents?.shown ? ` · ${stripAgents(v.agents.state, v.agents.running, tIn(lang, 'ctl.strip.agents'), false)}` : '';
+  return `${modeLabel(v.mode, lang)} · ${style}${flow}${v.bypass.on ? ` · ${bypassText(v.bypass, false)}` : ''}${v.frozen ? ` · ❄ ${v.frozen}` : ''}${agents}`;
 }
 
 /**
@@ -419,6 +439,7 @@ export function menuText(v: StripView, lang: Lang, quota: string, update: string
     ...STYLES.map((s) => mark(v.style === s, `/${STYLE_DIGIT[s]} ${tIn(lang, `ctl.style.${s}` as MessageKey)}`)),
     ...(v.fullAutoShown || v.style === 'full' ? [mark(v.style === 'full', `/${commandOf({ kind: 'fullAuto' }, lang)}`)] : []),
     ...(v.bypass.shown || v.bypass.on ? [mark(v.bypass.on, `/bypass`)] : []),
+    ...(v.agents?.shown ? [mark(v.agents.state.mode !== 'off', `/${commandOf({ kind: 'agents' }, lang)}`)] : []),
   ].join(' · ');
   const other = ['/devam', '/kota', `/0 ${tIn(lang, 'ctl.strip.menu')}`, `/00 ${tIn(lang, 'ctl.strip.close')}`].join(' · ');
   return [

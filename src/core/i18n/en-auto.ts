@@ -336,7 +336,7 @@ export const enAuto = {
   'set.autonomy.check': 'Start checks, measured from here',
   'set.autonomy.note': "The rest (the budget, the live sandbox probe, the session's permission mode) is measured when a run starts.",
   // ── Automation › Bypass, Done without asking ──
-  'desc.automation': 'The special ways of working, off until you turn them on: full autonomy, its runs, bypass and what bypass let through.',
+  'desc.automation': 'The special ways of working, off until you turn them on: full autonomy, its runs, bypass and what bypass let through, parallel agents.',
   'page.bypass': 'Bypass',
   'desc.bypass': 'Bypass: lifts the safety belt in one session for a while, when you switch it on there. Off until you turn it on here.',
   'page.bypassed': 'Done without asking',
@@ -367,6 +367,27 @@ export const enAuto = {
   'bypassed.outcome.ran': 'ran',
   'bypassed.outcome.failed': 'failed',
   'bypassed.outcome.refused': 'refused further on',
+  // ── Automation › Parallel agents ──
+  'page.agents': 'Parallel agents',
+  'desc.agents': 'Parallel agents: how many agents Claude starts, set by you on the strip for each session. Off until you turn it on here.',
+  'set.agents.enabled': 'Parallel agents can be set',
+  'set.agents.enabledHelp':
+    'Off: this tool never touches an agent, and Claude Code starts them as it sees fit. On: each session starts with agents off, and you set them on the strip (/ajan).',
+  'set.agents.confirm':
+    'With this on, every session starts with agents off: Claude starts no agent until you set them on the strip (the read-only helpers below aside). Press Enter again to turn it on.',
+  'set.agents.helpers': 'Read-only helpers stay free',
+  'set.agents.helpersHelp':
+    "Claude Code's Explore and Plan agents only read and search. On: they run even with agents off, and are not counted. Off: they count like any agent.",
+  'set.agents.modes': 'On the strip',
+  'set.agents.mode.off': 'Off: Claude starts no agent and does the work itself.',
+  'set.agents.mode.free': 'At most N at once: Claude decides when; the setting stays until you change it.',
+  'set.agents.mode.assigned':
+    'Exactly N for your next request, each with its own task, kind and model if you write one; once they are done the mode turns off by itself.',
+  'set.agents.note':
+    "Every session starts with agents off. Ultracode and Claude Code's workflows run their own agents: the mode stands aside while ultracode is on, and comes back when it is off.",
+  'set.agents.sessions': 'Claude Code sessions on this computer',
+  'set.agents.sessionsNone': 'None running.',
+  'set.agents.sessionsUnread': "Could not be read: this Claude Code has no 'claude agents' command.",
   // ── Automation › Recent tasks ──
   'page.autoPrompts': 'Recent tasks',
   'desc.autoPrompts': "The last three tasks you gave full autonomy, from the strip's window or typed, kept so none is lost: copy one to use it again.",

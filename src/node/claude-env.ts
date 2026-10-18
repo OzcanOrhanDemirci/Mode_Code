@@ -190,6 +190,42 @@ export function pluginsVia(runner: ClaudeRunner): PluginInfo[] | null {
   }
 }
 
+/** A Claude Code session on this computer, as `claude agents --json` lists it. */
+export interface ClaudeSession {
+  name: string;
+  /** interactive (a terminal) or background. */
+  kind: string;
+  /** busy or idle; a background session's state. */
+  status: string;
+  cwd: string | null;
+  startedAt: number | null;
+  sessionId: string | null;
+}
+
+/**
+ * The Claude Code sessions running on this computer, interactive and background (`claude agents --json`), or null
+ * when it could not be run or read (a Claude Code without the command).
+ */
+export function claudeSessionsVia(runner: ClaudeRunner): ClaudeSession[] | null {
+  try {
+    const r = runner.run(['agents', '--json'], 15_000);
+    if (r.status !== 0) return null;
+    const list = JSON.parse(r.stdout) as Record<string, unknown>[];
+    if (!Array.isArray(list)) return null;
+    const str = (x: unknown) => (typeof x === 'string' && x ? x : null);
+    return list.map((s) => ({
+      name: str(s.name) ?? str(s.sessionId)?.slice(0, 8) ?? '?',
+      kind: str(s.kind) ?? '?',
+      status: str(s.status) ?? str(s.state) ?? '?',
+      cwd: str(s.cwd),
+      startedAt: typeof s.startedAt === 'number' ? s.startedAt : null,
+      sessionId: str(s.sessionId),
+    }));
+  } catch {
+    return null;
+  }
+}
+
 let versionCache: string | null | undefined;
 
 /** The installed Claude Code version ("2.1.296"), or null when `claude` cannot be run. Cached per process. */

@@ -397,6 +397,57 @@ test('Automation › Bypass: turning it on says what it means and needs a second
   }
 });
 
+test('Automation › Parallel agents: turning it on says sessions start with agents off and needs a second Enter; the helpers take one', async () => {
+  const data = new FakeData();
+  const s = await draw(data, { address: 'automation/agents' });
+  try {
+    const flat = () =>
+      s
+        .text()
+        .replace(/[│╭╮╰╯─]/g, '')
+        .replace(/\s+/g, ' ');
+    assert.match(flat(), /Parallel agents can be set/);
+    assert.match(flat(), /Exactly N for your next request, each with its own task, kind and model if you write one/);
+    await s.press(KEY.enter);
+    assert.equal(data.saved.length, 0, 'not yet');
+    assert.match(flat(), /every session starts with agents off: Claude starts no agent until you set them on the strip/);
+    await s.press(KEY.enter);
+    assert.deepEqual(data.saved, [{ path: 'agents.enabled', value: true }]);
+    await s.press(KEY.down, KEY.enter);
+    assert.deepEqual(data.saved.at(-1), { path: 'agents.helpers', value: false });
+    assert.match(flat(), /Claude Code sessions on this computer None running\./);
+  } finally {
+    s.close();
+  }
+  // The sessions running beside: each one's name, kind, status, age and folder; unreadable, said so.
+  const busy = new FakeData();
+  busy.sessionsRunning = [
+    { name: 'api-fc', kind: 'interactive', status: 'busy', cwd: '/home/ada/api', startedAt: NOW - 3 * 60_000, sessionId: 'a1' },
+    { name: 'tidy-up', kind: 'background', status: 'idle', cwd: null, startedAt: null, sessionId: 'b2' },
+  ];
+  const listed = await draw(busy, { address: 'automation/agents' });
+  try {
+    assert.match(listed.text(), /● api-fc · interactive · busy · 3 min ago · \/home\/ada\/api/);
+    assert.match(listed.text(), /○ tidy-up · background · idle/);
+  } finally {
+    listed.close();
+  }
+  const unread = new FakeData();
+  unread.sessionsRunning = null;
+  const none = await draw(unread, { address: 'automation/agents' });
+  try {
+    assert.match(none.text(), /Could not be read: this Claude Code has no 'claude agents' command\./);
+  } finally {
+    none.close();
+  }
+  const automation = await draw(new FakeData('tr'), { address: 'automation' });
+  try {
+    assert.match(automation.text(), /Paralel ajanlar\s+kapalı/);
+  } finally {
+    automation.close();
+  }
+});
+
 test('Automation › Done without asking: each call bypass let through, what it passed, by whom and how it went; on and off', async () => {
   const data = new FakeData();
   const ev = (at: number, rest: Record<string, unknown>) => ({ v: 1, at, kind: 'bypass', source: 'mod', session: 's', ...rest });

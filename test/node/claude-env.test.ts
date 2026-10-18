@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { pluginHooks, pluginsVia, readClaudeEnv, type ClaudeRunner } from '../../src/node/claude-env.js';
+import { claudeSessionsVia, pluginHooks, pluginsVia, readClaudeEnv, type ClaudeRunner } from '../../src/node/claude-env.js';
 
 function sandbox() {
   const home = mkdtempSync(join(tmpdir(), 'tc-env-'));
@@ -102,6 +102,34 @@ test('the plugins Claude Code lists: what loads is the folder a plugin is read f
   assert.equal(pluginsVia(answering(listed, 1)), null, 'a list that failed');
   assert.equal(pluginsVia(answering('not json')), null);
   assert.equal(pluginsVia(answering('{"plugins":[]}')), null, 'not a list');
+});
+
+test('the sessions Claude Code lists on this computer: interactive with a status, background with a state', () => {
+  let asked: readonly string[] = [];
+  const answering = (stdout: string, status = 0): ClaudeRunner => ({
+    version: () => null,
+    run: (args) => {
+      asked = args;
+      return { status, stdout, stderr: '' };
+    },
+  });
+  // As Claude Code 2.1.302 printed it with --all (2026-10-18), names and folders changed.
+  const listed = JSON.stringify([
+    { id: '52bf7d6c', cwd: 'C:\\Users\\ada', kind: 'background', startedAt: 1792062747626, sessionId: '52bf7d6c-d76e', name: 'tidy-up', state: 'done' },
+    { pid: 26404, cwd: 'C:\\dev\\api', kind: 'interactive', startedAt: 1792303304626, sessionId: 'ae17352d-4322', name: 'api-fc', status: 'busy' },
+    { sessionId: '0123456789ab' },
+    {},
+  ]);
+  assert.deepEqual(claudeSessionsVia(answering(listed)), [
+    { name: 'tidy-up', kind: 'background', status: 'done', cwd: 'C:\\Users\\ada', startedAt: 1792062747626, sessionId: '52bf7d6c-d76e' },
+    { name: 'api-fc', kind: 'interactive', status: 'busy', cwd: 'C:\\dev\\api', startedAt: 1792303304626, sessionId: 'ae17352d-4322' },
+    { name: '01234567', kind: '?', status: '?', cwd: null, startedAt: null, sessionId: '0123456789ab' },
+    { name: '?', kind: '?', status: '?', cwd: null, startedAt: null, sessionId: null },
+  ]);
+  assert.deepEqual(asked, ['agents', '--json']);
+  assert.equal(claudeSessionsVia(answering('error: unknown command', 1)), null, 'a Claude Code without it');
+  assert.equal(claudeSessionsVia(answering('not json')), null);
+  assert.equal(claudeSessionsVia(answering('{"sessions":[]}')), null, 'not a list');
 });
 
 test('instruction files count their lines as an editor does: the final newline starts no line', () => {

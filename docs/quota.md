@@ -51,6 +51,5 @@ Expect a middle of 15 to 20% from the context levers together and a wide range (
 
 ## Not yet
 
-- **Subagents on a smaller model.** Claude Code's own Explore runs on the session's model (Opus when you work with Opus; Claude Code 2.1.302 caps it there). Routing searches to Sonnet waits until the readings show what a Sonnet call weighs in the quota; `mode-code measure` shows the subagents' share by model to decide it from.
+- **Subagents on a smaller model.** Claude Code's own Explore runs on the session's model (Opus when you work with Opus; Claude Code 2.1.302 caps it there). Routing searches to Sonnet waits until the readings show what a Sonnet call weighs in the quota; `mode-code measure` shows the subagents' share by model to decide it from. Meanwhile parallel agents set to exactly N take a model per agent ([agents.md](agents.md)).
 - **A hook that filters test and build output.** Measured elsewhere with mixed results; `mode-code measure` shows how much of the context tool output takes before one is built.
-- **Running full autonomy on the API's monthly credit** waits for where its key would be kept (your decision).

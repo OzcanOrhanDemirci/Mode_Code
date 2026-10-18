@@ -77,6 +77,8 @@ test("the commands are declared at the start, in the person's language; the mode
     'bypass',
     'dondur',
     'freeze',
+    'ajan',
+    'parallel',
     'kapat',
     'close',
     'komutlar',

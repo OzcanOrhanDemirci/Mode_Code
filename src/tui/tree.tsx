@@ -15,7 +15,7 @@ import { flowTitle, statusText } from '../core/flow-view.js';
 import { Events, Protection, RuleDetail, Secrets, TestCommand } from './screens/security.js';
 import { Extensions, Hooks, Instructions, Mcp, Packs, Permissions, Plugins, SettingsSources, Skills } from './screens/claude.js';
 import { Templates } from './screens/templates.js';
-import { Bypass, Bypassed, RecentTasks } from './screens/automation.js';
+import { Bypass, Bypassed, ParallelAgents, RecentTasks } from './screens/automation.js';
 import {
   About,
   Accessibility,
@@ -281,6 +281,12 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
         description: d('desc.bypassed'),
         ...(bypassCalls ? { badge: { text: String(bypassCalls), state: 'gray' as const } } : {}),
         screen: (p) => <Bypassed {...p} />,
+      }),
+      n('agents', 'page.agents', {
+        description: d('desc.agents'),
+        badge: { text: t(data.config().agents.enabled ? 'set.on' : 'set.off'), state: 'info' },
+        screen: (p) => <ParallelAgents {...p} />,
+        keywords: ['ajan', 'ajanlar', 'agents', 'paralel', 'parallel'],
       }),
     ],
   });

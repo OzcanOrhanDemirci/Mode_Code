@@ -25,7 +25,9 @@
  *  13. the tool packs: a pack's skill loads and its use is recorded; the catalog tool, behind tool search, is found;
  *  14. what the skills cost: the person's own skills add nothing, or almost nothing, to the session's context;
  *  15. a short command in Turkish reaches the plugin, which runs its skill and records it;
- *  16. Claude Code's auto mode: a command the belt allows runs unasked, one it asks about still goes to the person.
+ *  16. Claude Code's auto mode: a command the belt allows runs unasked, one it asks about still goes to the person;
+ *  17. parallel agents: with the mode off a working agent is refused and a read-only helper runs; set to exactly N,
+ *      the person's task for a row reaches the agent word for word, whatever Claude wrote for it.
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
  *        add --only-bypass to run case 11 alone (two sessions): what a Claude Code release could change for bypass
@@ -34,6 +36,7 @@
  *        add --only-packs to run case 13 alone (two sessions): the tool packs
  *        add --only-skills to run cases 14 and 15 alone (three sessions): the skills
  *        add --only-automode to run case 16 alone (two sessions): Claude Code's auto mode with the belt
+ *        add --only-agents to run case 17 alone (two sessions): parallel agents in the real engine
  *        add --keep to leave the sessions' folders and the full-autonomy sessions' streams in place
  */
 import { spawn, spawnSync } from 'node:child_process';
@@ -48,7 +51,7 @@ const dist = join(root, 'dist');
 const fwd = (p) => p.replace(/\\/g, '/');
 if (!process.argv.includes('--yes')) {
   console.log(
-    'test-live: opt-in. Runs twenty-six short headless Claude Code sessions (cheapest model, capped spend), with this build loaded. Run with --yes (--only-bypass, --only-auto: two).',
+    'test-live: opt-in. Runs twenty-eight short headless Claude Code sessions (cheapest model, capped spend), with this build loaded. Run with --yes (--only-bypass, --only-auto: two).',
   );
   process.exit(0);
 }
@@ -738,6 +741,99 @@ function autoModeCase() {
   return [plain, asked];
 }
 
+/**
+ * 17. Parallel agents (docs/agents.md) in the real engine, where `agent.spawn` decides each agent's start. With the
+ * mode turned on and the session's default (off), a working agent is refused with its reason and a read-only helper
+ * runs. Set to exactly 1 (as the strip's window records it), the row's task reaches the agent word for word: Claude
+ * is not told the task, so the word the agent answers can only have come from the row.
+ */
+function agentsCases() {
+  const dir = join(work, 'agents-project');
+  const home = join(work, 'agents-data');
+  mkdirSync(dir);
+  mkdirSync(join(home, 'state', 'sessions'), { recursive: true });
+  spawnSync('git', ['init', '-q', dir], { windowsHide: true });
+  writeFileSync(join(dir, 'marker.txt'), 'The marker is HERON-5521.\n');
+  writeFileSync(join(home, 'config.json'), JSON.stringify({ language: 'en', agents: { enabled: true } }));
+  const tools = 'Agent,Task,Read,Glob,Grep';
+  const run = (prompt, id) => session(prompt, settings, tools, { MODE_CODE_HOME: home }, dir, ['--session-id', id]);
+  const logged = () =>
+    (existsSync(join(home, 'events')) ? readdirSync(join(home, 'events')) : [])
+      .flatMap((m) => readdirSync(join(home, 'events', m)).map((x) => readFileSync(join(home, 'events', m, x), 'utf8')))
+      .join('\n')
+      .split('\n')
+      .filter((l) => l.includes('"kind":"agents"'))
+      .map((l) => JSON.parse(l));
+  // Each Agent call the main session made, with the type it asked for and what came back to it.
+  const agentCalls = (r) => {
+    const uses = r.events.flatMap((e) =>
+      e.type === 'assistant' ? (e.message?.content ?? []).filter((b) => b.type === 'tool_use' && (b.name === 'Agent' || b.name === 'Task')) : [],
+    );
+    const back = new Map(
+      r.events
+        .flatMap((e) => (e.type === 'user' && Array.isArray(e.message?.content) ? e.message.content : []))
+        .filter((b) => b.type === 'tool_result')
+        .map((b) => [b.tool_use_id, b]),
+    );
+    return uses.map((u) => ({
+      type: u.input?.subagent_type ?? '',
+      error: back.get(u.id)?.is_error === true,
+      text: JSON.stringify(back.get(u.id)?.content ?? ''),
+    }));
+  };
+  const calls = (r) =>
+    r.events.flatMap((e) =>
+      e.type === 'assistant' ? (e.message?.content ?? []).filter((b) => b.type === 'tool_use').map((b) => `${b.name}(${b.input?.subagent_type ?? ''})`) : [],
+    );
+
+  const offId = randomUUID();
+  const off = run(
+    'This checks a setting. First use the Agent tool once with subagent_type general-purpose and the prompt: reply with the word PING. Whatever happens, then use the Agent tool once with subagent_type Explore and the prompt: read marker.txt and answer with the marker word only. Then reply with the marker word the Explore agent found, or NONE.',
+    offId,
+  );
+  const denied = logged().filter((e) => e.action === 'deny' && e.why === 'off' && e.type === 'general-purpose').length;
+  const explored = agentCalls(off).filter((x) => x.type === 'Explore' && !x.error && /HERON-5521/.test(x.text)).length;
+  check(
+    'parallel agents off: a working agent is refused with its reason, a read-only helper runs',
+    denied >= 1 && explored >= 1,
+    `${calls(off).join(' ') || 'no tool called'} · refused ${denied} · Explore answered ${explored} · ${(off.final?.result ?? off.stderr).slice(0, 80)}`,
+  );
+
+  const onId = randomUUID();
+  const now = Date.now();
+  writeFileSync(
+    join(home, 'state', 'sessions', `${onId}.mod.json`),
+    JSON.stringify({
+      v: 1,
+      sessionId: onId,
+      aliveAt: now,
+      endedAt: null,
+      modVersion: 'live',
+      mode: 'free',
+      interaction: 'default',
+      agents: {
+        mode: 'assigned',
+        n: 1,
+        rows: [{ task: 'Reply with exactly the word ZEBRA-42 and nothing else.', kind: 'code', model: 'haiku' }],
+        batch: null,
+        untold: false,
+        ultracode: false,
+      },
+    }),
+  );
+  const on = run(
+    'Use the Agent tool once with subagent_type general-purpose, run_in_background false, and the prompt: do the task you were given. Wait for its answer, then reply with exactly what the agent answered, and nothing else.',
+    onId,
+  );
+  const assigned = logged().filter((e) => e.action === 'assign' && e.row === 1 && e.of === 1 && e.task === true && e.model === 'haiku').length;
+  check(
+    "exactly N: the row's task reaches the agent word for word, with the row's model",
+    assigned === 1 && agentCalls(on).some((x) => !x.error && /ZEBRA-42/.test(x.text)),
+    `${calls(on).join(' ') || 'no tool called'} · assigned ${assigned} · ${(on.final?.result ?? on.stderr).slice(0, 80)}`,
+  );
+  return [off, on];
+}
+
 const results = [];
 const check = (name, ok, detail = '') => {
   results.push({ name, ok, detail });
@@ -762,6 +858,11 @@ try {
     process.exitCode = results.every((r) => r.ok) ? 0 : 1;
   } else if (process.argv.includes('--only-automode')) {
     const a = autoModeCase();
+    const cost = a.reduce((n, x) => n + (x.final?.total_cost_usd ?? 0), 0);
+    console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
+    process.exitCode = results.every((r) => r.ok) ? 0 : 1;
+  } else if (process.argv.includes('--only-agents')) {
+    const a = agentsCases();
     const cost = a.reduce((n, x) => n + (x.final?.total_cost_usd ?? 0), 0);
     console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
     process.exitCode = results.every((r) => r.ok) ? 0 : 1;
@@ -855,7 +956,26 @@ try {
     const thirteen = packsCases();
     const fourteen = [...skillsCost(), shortCommandCase()];
     const sixteen = autoModeCase();
-    const cost = [one, two, three, plan, four, five, six, seven, ...eight, ...nine, ...ten, ...eleven, twelve, ...thirteen, ...fourteen, ...sixteen]
+    const seventeen = agentsCases();
+    const cost = [
+      one,
+      two,
+      three,
+      plan,
+      four,
+      five,
+      six,
+      seven,
+      ...eight,
+      ...nine,
+      ...ten,
+      ...eleven,
+      twelve,
+      ...thirteen,
+      ...fourteen,
+      ...sixteen,
+      ...seventeen,
+    ]
       .filter(Boolean)
       .reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
     console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);

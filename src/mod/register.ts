@@ -11,7 +11,27 @@
  */
 import type { EngineInterface, EventName, Hook, On } from 'claude-code';
 import { atom, read, update } from 'claude-code';
-import type { ModeCodeAutoPane, ModeCodeFooters, ModeCodeLabels, ModeCodeMo } from './contract.js';
+import type { ModeCodeAgentsPane, ModeCodeAutoPane, ModeCodeFooters, ModeCodeLabels, ModeCodeMo } from './contract.js';
+import {
+  AGENT_KINDS,
+  AGENT_MODELS,
+  AGENT_MODES,
+  agentCount,
+  batchOver,
+  closeBatch,
+  countRunning,
+  decideSpawn,
+  MANY_AGENTS,
+  modeNote,
+  onPersonPrompt,
+  rowsFor,
+  setMode,
+  withStarted,
+  type AgentKind,
+  type AgentMode,
+  type AgentRow,
+  type AgentsSettings,
+} from '../core/agents.js';
 import { APP_ID, APP_NAME, APP_VERSION, CLI_NAME, DATA_DIR_NAME, PLUGIN_NAME } from '../core/app.js';
 import { parseConfig, type Config } from '../core/config.js';
 import { layout, sessionFile, eventsFile, flowDir, memorySeenFile, memorySyncFile, runDir, syncRecordFile, type Layout } from '../core/layout.js';
@@ -319,6 +339,10 @@ interface Ctx {
   hinted: Set<string>;
   /** A commit or a push ended a piece of work with a large context: the strip says /clear, until the next prompt. */
   boundary: { kind: 'commit' | 'push'; tokens: number } | null;
+  /** Ultracode, as the person set it with /effort (null: not this session), the settings say, or their prompt asks. */
+  ultracode: { command: boolean | null; settings: boolean; prompt: boolean };
+  /** Agents at work now that count toward a free mode's N, for the strip. */
+  agentsRunning: number;
   /** Notes the session's start found for the model (a changed MCP tool), told with the person's first prompt. */
   startNotes: string[];
   /** Tool packs loaded in this folder as the session started, and those whose use was logged (docs/packs.md). */
@@ -602,6 +626,8 @@ async function load($: $): Promise<Ctx> {
     sharedWarned: new Set(),
     hinted: new Set(),
     boundary: null,
+    ultracode: { command: null, settings: false, prompt: false },
+    agentsRunning: 0,
     startNotes: [],
     packsOn: new Set(),
     packsUsed: new Set(),
@@ -2424,6 +2450,15 @@ async function autoTurnEnded($: $, c: Ctx): Promise<void> {
  * Code's own), and the quota dim at the end of the hint line. Drawn by render hooks, so no notice prefix.
  */
 async function refreshStatus($: $, c: Ctx): Promise<void> {
+  // A free mode's count of agents at work, and the agents window's list, as Claude Code has them now.
+  if (c.config.agents.enabled && c.state.agents.mode !== 'off') {
+    const seen = await agentList($);
+    c.agentsRunning = countRunning(seen, agentsCfg(c));
+    await update($, agentsPaneAtom, (x) => ({
+      ...x,
+      running: seen.filter((a) => AT_WORK.has(a.status)).map((a) => ({ id: a.id, label: `${a.description || a.type} · ${a.type}` })),
+    }));
+  }
   const strip = c.config.modules.modes ? { ...viewOf(c), lang: c.lang, still: c.config.accessibility.reduceMotion } : null;
   if (!c.config.modules.status) {
     await update($, labelsAtom, () => ({ modes: [], tail: '', band: '', strip }));
@@ -2965,6 +3000,14 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
       /* the memory's notes are a help, never a reason for a prompt not to go through */
     }
   }
+  // Parallel agents: what the person set, told with this prompt; an assigned mode takes it as its batch.
+  if (human) {
+    try {
+      extra.push(...(await agentsOnPrompt($, c, String(e.text ?? ''))));
+    } catch {
+      /* the strip still shows it; the next prompt tells */
+    }
+  }
   if (human) await refreshStatus($, c);
   extra.push(...(await quotaContext($, c)));
   const notes = human && (c.prompts === 1 || starting) ? capStart(extra, (n) => byItself.has(n)) : extra;
@@ -3327,8 +3370,25 @@ async function keepChange($: $, c: Ctx): Promise<void> {
 
 async function onTurnComplete($: $, e: In<'turn.complete'>, next: Nx<'turn.complete'>): Out<'turn.complete'> {
   const result = await next(e);
-  if (e.agentId !== undefined) return result;
+  if (e.agentId !== undefined) {
+    // An agent ended its turn: an assigned batch may be done, and the strip's count changed (its status settles a moment later).
+    try {
+      const c = await ctxOf($);
+      if (c.config.agents.enabled && c.state.agents.mode !== 'off')
+        $.clock.after(1500, () => {
+          void (c.state.agents.mode === 'assigned' ? agentsCheck($, c) : refreshStatus($, c)).catch(() => undefined);
+        });
+    } catch {
+      /* the next prompt checks */
+    }
+    return result;
+  }
   const c = await ctxOf($);
+  try {
+    await agentsCheck($, c);
+  } catch {
+    /* the next prompt checks */
+  }
   if (c.turnId === e.turnId) c.turnId = null;
   // The turn is over, so none of its calls runs any more; Mo shows how it ended for a few seconds.
   c.mo = { ...c.mo, tools: 0, agents: 0, asking: 0 };
@@ -3680,6 +3740,10 @@ async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.st
   // The skills kept in the plugin's folder, in line with the settings (a memory set up, a skill turned on elsewhere).
   void centerCli($, c, ['skills', 'sync', '--json']);
   if (c.fresh && c.config.modules.modes) await restoreLast($, c);
+  if (c.config.agents.enabled) {
+    await readUltracodeSetting($, c);
+    c.state = { ...c.state, agents: { ...c.state.agents, ultracode: ultracodeOn(c) } };
+  }
   await saveState($, c);
   if (c.state.resumeAt) await scheduleResume($, c);
   await refreshStatus($, c);
@@ -4387,6 +4451,7 @@ function viewOf(c: Ctx): StripView {
     fullAutoShown: c.config.autonomy.enabled || style === 'full',
     bypass: { shown: c.config.bypass.enabled, on: c.config.bypass.enabled && !!c.state.bypass, count: c.state.bypass?.count ?? 0 },
     frozen: c.state.frozen ? (c.state.frozen.split('/').filter(Boolean).pop() ?? c.state.frozen) : null,
+    agents: { shown: c.config.agents.enabled, state: c.state.agents, running: c.agentsRunning },
   };
 }
 
@@ -4412,6 +4477,7 @@ const COMMAND_HINT: Record<ControlAction['kind'], MessageKey | null> = {
   close: null,
   bypass: null,
   freeze: 'ctl.hint.freeze',
+  agents: 'ctl.hint.agents',
 };
 
 function commandDescription(a: ControlAction, lang: Lang): string {
@@ -4429,7 +4495,7 @@ async function registerCommands($: $, c: Ctx): Promise<void> {
   await Promise.all([
     ...COMMANDS.map((cmd) => {
       const hint = COMMAND_HINT[cmd.action.kind];
-      const now = ['mode', 'style', 'menu', 'quota', 'close', 'bypass', 'freeze'].includes(cmd.action.kind);
+      const now = ['mode', 'style', 'menu', 'quota', 'close', 'bypass', 'freeze', 'agents'].includes(cmd.action.kind);
       return $.command
         .register({
           name: cmd.name,
@@ -4735,6 +4801,278 @@ async function rememberPrompt($: $, c: Ctx, text: string, budget: string): Promi
   }
 }
 
+// ── parallel agents (core/agents.ts, docs/agents.md) ──
+
+/** The window where the person sets the session's agents: its pane's id. */
+const AGENTS_PANE = 'parallel-agents';
+const agentsPaneAtom = atom(
+  { plugin: 'mode-code', key: 'agentsPane' } as const,
+  { lang: 'en', mode: 'off', n: '5', rows: [], editing: 0, writable: true, runActive: false, running: [], error: null } as ModeCodeAgentsPane,
+);
+/** The task typed for the row being edited, kept by the plugin while it is typed (a redraw per key would fight it). */
+const agentsDraft = { task: '' };
+
+function agentsCfg(c: Ctx): AgentsSettings {
+  return { enabled: c.config.agents.enabled, helpers: c.config.agents.helpers };
+}
+
+type AgentRecord = Awaited<ReturnType<$['agent']['list']>>[number];
+
+/** The session's agents as Claude Code lists them; none where it cannot say. */
+async function agentList($: $): Promise<AgentRecord[]> {
+  try {
+    return await $.agent.list();
+  } catch {
+    return [];
+  }
+}
+
+const AT_WORK = new Set(['pending', 'running', 'waiting']);
+
+/** Ultracode is on: the person's last /effort, else the settings; or the word in their prompt, for that request. */
+function ultracodeOn(c: Ctx): boolean {
+  return (c.ultracode.command ?? c.ultracode.settings) || c.ultracode.prompt;
+}
+
+/** Ultracode's state into the session's: while on, the agent mode stands aside; when it ends, the setting is back. */
+async function syncUltracode($: $, c: Ctx): Promise<void> {
+  const on = ultracodeOn(c);
+  if (on === c.state.agents.ultracode) return;
+  c.state = { ...c.state, agents: { ...c.state.agents, ultracode: on } };
+  await saveState($, c);
+  await logEvent($, c, { kind: 'agents', action: on ? 'ultracodeOn' : 'ultracodeOff' });
+  if (c.config.agents.enabled) $.ui.toast(tIn(c.lang, on ? 'agents.ultracode.on' : 'agents.ultracode.off'), { timeoutMs: 8000 });
+  await refreshStatus($, c);
+}
+
+/** Whether the settings start Claude Code in ultracode (read where they can be; a failure leaves it as it was). */
+async function readUltracodeSetting($: $, c: Ctx): Promise<void> {
+  try {
+    const s = await $.settings.read();
+    c.ultracode.settings = s.ultracode === true || s.effortLevel === 'ultracode';
+  } catch {
+    /* unknown: the commands and the prompt still tell */
+  }
+}
+
+/**
+ * An agent about to start (`agent.spawn`): let through, refused with why, or fitted to an assigned row (the person's
+ * task word for word, its kind, its model), as core/agents.ts decides. Workflows (ultracode) are never touched.
+ */
+async function onAgentSpawn($: $, e: In<'agent.spawn'>, next: Nx<'agent.spawn'>): Out<'agent.spawn'> {
+  const c = await ctxOf($);
+  const cfg = agentsCfg(c);
+  if (!cfg.enabled) return next(e);
+  const s = c.state.agents;
+  const workflow = e.workflow !== undefined;
+  const running = s.mode === 'free' && !s.ultracode && !workflow ? countRunning(await agentList($), cfg) : 0;
+  const d = decideSpawn({ type: e.subagentType, prompt: e.prompt, description: e.description, toolUseId: e.tool_use_id, workflow, running }, s, cfg);
+  if (d.kind === 'pass') {
+    const r = await next(e);
+    // The strip counts the agents at work under a free mode's N: one more now.
+    if (s.mode === 'free' && !s.ultracode && !workflow) await refreshStatus($, c);
+    return r;
+  }
+  if (d.kind === 'deny') {
+    await logEvent($, c, { kind: 'agents', action: 'deny', why: d.why, type: e.subagentType, n: s.n });
+    // Off with the helpers free: Claude is told they are still there, or it takes the refusal for all agents.
+    const key = d.why === 'off' && cfg.helpers ? 'agents.deny.offHelpers' : (`agents.deny.${d.why}` as MessageKey);
+    return { deny: tIn(c.lang, key, { n: s.n }) };
+  }
+  c.state = { ...c.state, agents: withStarted(s, d.row, e.tool_use_id) };
+  await saveState($, c);
+  await logEvent($, c, { kind: 'agents', action: 'assign', row: d.row + 1, of: s.n, type: d.type, model: d.model, task: !!s.rows[d.row]?.task.trim() });
+  await refreshStatus($, c);
+  return next({ ...e, prompt: d.prompt, subagentType: d.type, description: d.description, ...(d.model ? { model: d.model } : {}) });
+}
+
+/** An assigned batch whose agents are all done closes itself, and says so; else the strip's count is brought up to date. */
+async function agentsCheck($: $, c: Ctx): Promise<void> {
+  const s = c.state.agents;
+  if (!c.config.agents.enabled || s.mode !== 'assigned' || !s.batch) return;
+  const seen = await agentList($);
+  if (!batchOver(s, seen)) return refreshStatus($, c);
+  const started = s.batch.started.length;
+  c.state = { ...c.state, agents: closeBatch(s) };
+  await saveState($, c);
+  await logEvent($, c, { kind: 'agents', action: 'batchDone', started, of: s.n });
+  $.ui.toast(tIn(c.lang, 'agents.batchDone', { n: started, of: s.n }), { timeoutMs: 8000 });
+  await refreshStatus($, c);
+}
+
+/** The person's prompt: an assigned mode takes it as its batch (a batch before it is sealed); Claude is told what was set. */
+async function agentsOnPrompt($: $, c: Ctx, text: string): Promise<string[]> {
+  if (!c.config.agents.enabled) return [];
+  await readUltracodeSetting($, c);
+  c.ultracode.prompt = /\bultracode\b/i.test(text);
+  await syncUltracode($, c);
+  c.state = { ...c.state, agents: onPersonPrompt(c.state.agents, await $.clock.now()) };
+  await saveState($, c);
+  // A batch this prompt sealed with nothing left at work closes now, and is said with this very prompt.
+  await agentsCheck($, c);
+  const s = c.state.agents;
+  const note = s.untold && !s.ultracode ? modeNote(s, agentsCfg(c), s.untold) : null;
+  if (note) {
+    c.state = { ...c.state, agents: { ...s, untold: false } };
+    await saveState($, c);
+  }
+  return note ? [note] : [];
+}
+
+/** Stops one agent with Claude Code's own TaskStop; false where it could not. */
+async function stopAgent($: $, id: string): Promise<boolean> {
+  try {
+    const r = (await $.tool.call({ tool: 'TaskStop', task_id: id } as never)) as { deny?: unknown; isError?: unknown } | null;
+    return !!r && r.deny === undefined && r.isError !== true;
+  } catch {
+    return false;
+  }
+}
+
+/** Stops every agent at work (not the workflows'); an assigned batch takes no more. The line to show. */
+async function stopAgents($: $, c: Ctx): Promise<string> {
+  const working = (await agentList($)).filter((a) => AT_WORK.has(a.status));
+  const s = c.state.agents;
+  if (s.mode === 'assigned' && s.batch && !s.batch.sealed) {
+    c.state = { ...c.state, agents: { ...s, batch: { ...s.batch, sealed: true } } };
+    await saveState($, c);
+  }
+  if (!working.length) {
+    await agentsCheck($, c);
+    return tIn(c.lang, 'agents.none');
+  }
+  const stopped = await Promise.all(working.map((a) => stopAgent($, a.id)));
+  const ok = stopped.filter(Boolean).length;
+  await logEvent($, c, { kind: 'agents', action: 'stop', stopped: ok, failed: working.length - ok });
+  await agentsCheck($, c);
+  return [ok ? tIn(c.lang, 'agents.stopped', { n: ok }) : '', ok < working.length ? tIn(c.lang, 'agents.stopFailed', { n: working.length - ok }) : '']
+    .filter(Boolean)
+    .join(' ');
+}
+
+/**
+ * The person sets the session's agents (the window, /ajan): the line to show, and whether it was set (exactly N waits
+ * while a full-autonomy run is attached: its plan decides the work).
+ */
+async function setAgents($: $, c: Ctx, mode: AgentMode, n: number, rows: readonly AgentRow[] = []): Promise<{ line: string; set: boolean }> {
+  const lang = c.lang;
+  if (mode === 'assigned' && c.run) return { line: tIn(lang, 'agents.runActive'), set: false };
+  const writable = !isRestricted(modeNow(c));
+  c.state = { ...c.state, agents: setMode(c.state.agents, mode, n, mode === 'assigned' ? rowsFor(n, rows, writable) : []) };
+  await saveState($, c);
+  await logEvent($, c, { kind: 'agents', action: 'set', mode, n: mode === 'off' ? null : n });
+  await refreshStatus($, c);
+  return { line: mode === 'off' ? tIn(lang, 'agents.set.off') : tIn(lang, mode === 'free' ? 'agents.set.free' : 'agents.set.assigned', { n }), set: true };
+}
+
+/** How `/ajan` is used, in the person's words: a line of its own, never a toast's. */
+function agentsUsage(lang: Lang): string {
+  const word = (k: 'exact' | 'off' | 'stop') => tIn(lang, `agents.word.${k}`);
+  return tIn(lang, 'agents.usage', { cmd: commandOf({ kind: 'agents' }, lang), exact: word('exact'), off: word('off'), stop: word('stop') });
+}
+
+/** `/ajan` with words: N, exact N, off, stop; a line, or null for none (the window, or how to use it). */
+async function agentsCommand($: $, c: Ctx, args: string): Promise<string | null> {
+  const lang = c.lang;
+  const a = fold(args.trim());
+  if (!a) return null;
+  if (/^(?:kapat|off|0|kapali)$/.test(a)) return (await setAgents($, c, 'off', c.state.agents.n)).line;
+  if (/^(?:dur|stop|durdur)$/.test(a)) return stopAgents($, c);
+  const exact = /^(?:tam|exact|=)\s*(\S+)$/.exec(a);
+  const n = agentCount(exact ? exact[1] : a);
+  if (n === null) return `${tIn(lang, 'agents.bad')}\n${agentsUsage(lang)}`;
+  const r = await setAgents($, c, exact ? 'assigned' : 'free', n);
+  return r.set && n > MANY_AGENTS ? `${r.line}${tIn(lang, 'agents.many')}` : r.line;
+}
+
+/** The window's state from the session's: the mode, its count and rows, and the agents at work now. */
+async function agentsPaneFrom($: $, c: Ctx): Promise<void> {
+  const s = c.state.agents;
+  const writable = !isRestricted(modeNow(c));
+  const running = (await agentList($)).filter((a) => AT_WORK.has(a.status)).map((a) => ({ id: a.id, label: `${a.description || a.type} · ${a.type}` }));
+  await update($, agentsPaneAtom, (x) => ({
+    ...x,
+    lang: c.lang,
+    mode: s.mode,
+    n: String(s.n),
+    rows: s.mode === 'assigned' && s.rows.length ? s.rows : rowsFor(s.n, x.rows, writable),
+    editing: 0,
+    writable,
+    runActive: !!c.run,
+    running,
+    error: null,
+  }));
+  const pane = await read($, agentsPaneAtom);
+  agentsDraft.task = pane.rows[0]?.task ?? '';
+}
+
+/** Opens the window; false where no window can be shown (a phone: the command's words work there). */
+async function openAgentsPane($: $, c: Ctx): Promise<boolean> {
+  await agentsPaneFrom($, c);
+  try {
+    const opened = await $.ui.open({ id: AGENTS_PANE, title: tIn(c.lang, 'agents.pane.title'), focus: true, closeOnEscape: true, holdToasts: true, rows: 14 });
+    if (opened.isPlaced) return true;
+    await $.ui.close({ id: AGENTS_PANE });
+  } catch {
+    /* no window here */
+  }
+  return false;
+}
+
+/** The window's rows with the task being typed kept in the row it belongs to. */
+function rowsWithDraft(pane: ModeCodeAgentsPane): AgentRow[] {
+  return pane.rows.map((r, i) => (i === pane.editing ? { ...r, task: agentsDraft.task } : r));
+}
+
+/** The window's Apply: its mode, count and rows become the session's. */
+async function applyAgentsPane($: $): Promise<void> {
+  const c = await ctxOf($);
+  const pane = await read($, agentsPaneAtom);
+  const n = agentCount(pane.n);
+  if (n === null && pane.mode !== 'off') {
+    await update($, agentsPaneAtom, (x) => ({ ...x, error: tIn(c.lang, 'agents.bad') }));
+    return;
+  }
+  const r = await setAgents($, c, pane.mode, n ?? c.state.agents.n, rowsWithDraft(pane));
+  if (!r.set) {
+    await update($, agentsPaneAtom, (x) => ({ ...x, error: r.line }));
+    return;
+  }
+  await $.ui.close({ id: AGENTS_PANE }).catch(() => undefined);
+  // Above 20 the window said what decides: the toast keeps to what was set.
+  $.ui.toast(r.line, { timeoutMs: 8000 });
+}
+
+/** The agents at work now, into the window (it draws from its own state alone). */
+async function agentsPaneRunning($: $): Promise<void> {
+  const running = (await agentList($)).filter((a) => AT_WORK.has(a.status)).map((a) => ({ id: a.id, label: `${a.description || a.type} · ${a.type}` }));
+  await update($, agentsPaneAtom, (x) => ({ ...x, running }));
+}
+
+/** The window's Stop on one agent. */
+async function stopOneFromPane($: $, id: string): Promise<void> {
+  const c = await ctxOf($);
+  const ok = await stopAgent($, id);
+  await logEvent($, c, { kind: 'agents', action: 'stop', stopped: ok ? 1 : 0, failed: ok ? 0 : 1 });
+  $.ui.toast(tIn(c.lang, ok ? 'agents.stopped' : 'agents.stopFailed', { n: 1 }), { timeoutMs: 6000 });
+  await agentsPaneRunning($);
+}
+
+/** The window's Stop all. */
+async function stopAllFromPane($: $): Promise<void> {
+  const c = await ctxOf($);
+  $.ui.toast(await stopAgents($, c), { timeoutMs: 6000 });
+  await agentsPaneRunning($);
+}
+
+/** The window's rows after the count changed: kept where they were, made or cut to the new count. */
+function rowsForCount(x: ModeCodeAgentsPane, text: string): Pick<ModeCodeAgentsPane, 'n' | 'rows' | 'editing'> {
+  const n = agentCount(text);
+  if (n === null) return { n: text, rows: x.rows, editing: x.editing };
+  const rows = rowsFor(n, rowsWithDraft(x), x.writable);
+  return { n: text, rows, editing: Math.min(x.editing, n - 1) };
+}
+
 /**
  * Opens full autonomy's start window (the person, 2026-10-15: "full auto opens with a click"): the budget
  * picked from three (or the one given with the command), the task typed (the one given, or what was typed
@@ -4796,7 +5134,7 @@ async function control(
   // Bypass and full autonomy are the person's alone: a press, or their own Enter here or on the phone. A command
   // the engine stamps otherwise (a background notice, another session, an unclassified run) is refused.
   const person = via === 'strip' || origin === 'composer' || origin === 'bridge';
-  if ((action.kind === 'bypass' || action.kind === 'fullAuto' || action.kind === 'freeze') && !person)
+  if ((action.kind === 'bypass' || action.kind === 'fullAuto' || action.kind === 'freeze' || action.kind === 'agents') && !person)
     return { text: tIn(c.lang, 'ctl.personOnly', { cmd: `/${name}` }) };
   // Every other control is the person's too, or a script of theirs (sdk): never a prompt the model scheduled for
   // itself, another session's message, a background notice or another plugin, which could change the mode, raise the
@@ -4814,6 +5152,14 @@ async function control(
     return say(tIn(lang, 'ctl.modesOff'));
   const letRunGo = `${tIn(lang, 'kw.kind.fullAuto')} ${tIn(lang, 'kw.word.cancel')}`;
   switch (action.kind) {
+    case 'agents': {
+      if (!c.config.agents.enabled) return say(tIn(lang, 'agents.notEnabled'));
+      const line = await agentsCommand($, c, args);
+      if (line !== null) return say(line);
+      // At the computer: the window. Elsewhere (a phone): where it stands, and the words that set it.
+      if (where === 'here' && (await openAgentsPane($, c))) return say(tIn(lang, 'agents.pane.title'), undefined, '');
+      return say(`${controlsLine(viewOf(c), lang)}\n${agentsUsage(lang)}`);
+    }
     case 'freeze': {
       const cwd = await $.session.cwd();
       const env = pathEnv(c, cwd);
@@ -5082,6 +5428,24 @@ export function register(on: On): void {
   on('prompt.submit', onPromptSubmit);
   on('session.measure', onMeasure);
   on('turn.complete', onTurnComplete);
+  // Parallel agents (docs/agents.md): each agent's start is decided here; a hook that fails lets it start, as before.
+  on('agent.spawn', onAgentSpawn).catch(($, e, next) => next(e));
+  // /effort ultracode and back: Claude Code's workflows run the agents, and the mode stands aside meanwhile.
+  on('command.run', { command: 'effort' }, async ($, e, next) => {
+    const r = await next(e);
+    try {
+      const c = await ctxOf($);
+      const a = String(e.args ?? '')
+        .trim()
+        .toLowerCase();
+      if (/^ultracode(?:\s+on)?$/.test(a)) c.ultracode.command = true;
+      else if (/^ultracode\s+off$/.test(a) || /^(?:low|medium|high|xhigh|max|auto)$/.test(a)) c.ultracode.command = false;
+      await syncUltracode($, c);
+    } catch {
+      /* the next prompt reads the settings again */
+    }
+    return r;
+  });
   // The main loop's turn while it runs: Claude is working, and /00 asks before it stops that work.
   on('turn.start', async ($, e, next) => {
     if (e.agentId !== undefined) return next(e);
@@ -5220,6 +5584,114 @@ export function register(on: On): void {
     return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
   });
   // Full autonomy's start window: the budget, the task, start or cancel (a dialog: Esc closes it, the task stays).
+  // The parallel agents window: the mode, its count, an assigned batch's rows one at a time, and the agents at work.
+  on('ui.render', { component: 'Pane', requestId: AGENTS_PANE }, async ($, e, next) => {
+    const pane = await read($, agentsPaneAtom);
+    const els = $.ui.resolve(e);
+    if (!('Input' in els) || !('Select' in els)) return next(e);
+    const { Box, Text, Button, Input, Select } = els;
+    const t = (k: MessageKey) => tIn(pane.lang, k);
+    const row = pane.rows[pane.editing];
+    const setRow = (patch: Partial<AgentRow>) =>
+      void update($, agentsPaneAtom, (x) => ({ ...x, rows: x.rows.map((r, i) => (i === x.editing ? { ...r, task: agentsDraft.task, ...patch } : r)) }));
+    const rowLine = (r: AgentRow, i: number) => {
+      const task = (i === pane.editing ? agentsDraft.task : r.task).trim();
+      return `${i + 1} · ${t(`agents.kind.${r.kind}` as MessageKey)}${r.model ? ` · ${r.model}` : ''} · ${task ? task.slice(0, 48) : t('agents.pane.taskHint')}`;
+    };
+    const tree = h(
+      Box,
+      { flexDirection: 'column' },
+      h(Select, {
+        key: 'ag-mode',
+        label: t('agents.pane.mode'),
+        options: AGENT_MODES.filter((m) => m !== 'assigned' || !pane.runActive).map((m) => ({ value: m, label: t(`agents.mode.${m}` as MessageKey) })),
+        value: pane.mode,
+        onSelect: (v: string) => void update($, agentsPaneAtom, (x) => ({ ...x, mode: v as AgentMode, ...rowsForCount(x, x.n), error: null })),
+      }),
+      ...(pane.mode === 'off'
+        ? []
+        : [
+            h(Input, {
+              key: 'ag-n',
+              label: t(pane.mode === 'free' ? 'agents.pane.nFree' : 'agents.pane.nAssigned'),
+              value: pane.n,
+              onInput: (v: string) => void update($, agentsPaneAtom, (x) => ({ ...x, ...rowsForCount(x, v), error: null })),
+              onSubmit: () => applyAgentsPane($),
+            }),
+            ...((agentCount(pane.n) ?? 0) > MANY_AGENTS ? [h(Text, { key: 'ag-many', dimColor: true }, t('agents.many').trim())] : []),
+          ]),
+      ...(pane.mode === 'assigned' && row
+        ? [
+            h(Select, {
+              key: 'ag-row',
+              label: t('agents.pane.row'),
+              options: pane.rows.map((r, i) => ({ value: String(i), label: rowLine(r, i) })),
+              value: String(pane.editing),
+              onSelect: (v: string) =>
+                void update($, agentsPaneAtom, (x) => {
+                  const rows = rowsWithDraft(x);
+                  const editing = Number(v);
+                  agentsDraft.task = rows[editing]?.task ?? '';
+                  return { ...x, rows, editing };
+                }),
+            }),
+            h(Input, {
+              key: `ag-task-${pane.editing}`,
+              label: `${t('agents.pane.task')} ${pane.editing + 1}`,
+              placeholder: t('agents.pane.taskHint'),
+              value: agentsDraft.task,
+              onInput: (v: string) => {
+                agentsDraft.task = v;
+              },
+              onSubmit: (v: string) => {
+                agentsDraft.task = v;
+                return applyAgentsPane($);
+              },
+            }),
+            h(Select, {
+              key: 'ag-kind',
+              label: t('agents.pane.kind'),
+              options: AGENT_KINDS.filter((k) => pane.writable || k !== 'code').map((k) => ({ value: k, label: t(`agents.kind.${k}` as MessageKey) })),
+              value: row.kind,
+              onSelect: (v: string) => setRow({ kind: v as AgentKind }),
+            }),
+            h(Select, {
+              key: 'ag-model',
+              label: t('agents.pane.model'),
+              options: [{ value: '', label: t('agents.model.session') }, ...AGENT_MODELS.map((m) => ({ value: m, label: m }))],
+              value: row.model ?? '',
+              onSelect: (v: string) => setRow({ model: v || null }),
+            }),
+            ...(pane.writable ? [] : [h(Text, { key: 'ag-ro', dimColor: true }, t('agents.pane.readOnly'))]),
+          ]
+        : []),
+      h(
+        Box,
+        { key: 'ag-buttons', flexDirection: 'row' },
+        h(Button, { key: 'ag-apply', variant: 'primary', onPress: () => applyAgentsPane($) }, t('agents.pane.apply')),
+        h(Text, { key: 'ag-gap' }, '  '),
+        h(Button, { key: 'ag-close', onPress: () => $.ui.close({ id: AGENTS_PANE }) }, t('agents.pane.close')),
+      ),
+      ...(pane.error ? [h(Text, { key: 'ag-error', color: 'error' }, pane.error)] : []),
+      ...(pane.running.length
+        ? [
+            h(Text, { key: 'ag-running', bold: true }, `${t('agents.pane.running')} (${pane.running.length})`),
+            ...pane.running
+              .slice(0, 8)
+              .map((a) =>
+                h(
+                  Box,
+                  { key: `ag-r-${a.id}`, flexDirection: 'row' },
+                  h(Text, { key: 'label' }, `${a.label.slice(0, 60)}  `),
+                  h(Button, { key: 'stop', onPress: () => stopOneFromPane($, a.id) }, t('agents.pane.stop')),
+                ),
+              ),
+            h(Button, { key: 'ag-stop-all', onPress: () => stopAllFromPane($) }, t('agents.pane.stopAll')),
+          ]
+        : []),
+    );
+    return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
+  });
   on('ui.render', { component: 'Pane', requestId: AUTO_PANE }, async ($, e, next) => {
     const pane = await read($, autoPaneAtom);
     const els = $.ui.resolve(e);
