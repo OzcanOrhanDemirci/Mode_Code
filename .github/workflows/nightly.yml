@@ -75,6 +75,9 @@ jobs:
     # Once a day: the Sunday mutation run is a second run of this workflow.
     if: ${{ github.event.schedule != '41 4 * * 0' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -86,6 +89,22 @@ jobs:
       - run: npm install --global @anthropic-ai/claude-code@latest
       - run: claude --version
       - run: npm run test:mod
+      # A red night is an issue with the claude-code-compat label (one, commented on while it stays open), so a
+      # Claude Code release that breaks the plugin is seen in the repository, not only in a mail.
+      - if: ${{ failure() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          v="$(claude --version 2>/dev/null | head -n 1 || true)"
+          body="The nightly run $RUN_URL failed against Claude Code ${v:-(version unknown)}: npm run test:mod. Check with node scripts/claude-compat.mjs."
+          open="$(gh issue list --label claude-code-compat --state open --json number --jq '.[0].number // empty' || true)"
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body "$body"
+          else
+            gh label create claude-code-compat --color D93F0B --description 'A Claude Code release the plugin does not pass against' 2>/dev/null || true
+            gh issue create --title "Newest Claude Code fails the mod engine tests: ${v:-unknown}" --label claude-code-compat --body "$body"
+          fi
 
   properties:
     name: property tests · fresh seed
