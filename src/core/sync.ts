@@ -103,6 +103,7 @@ export const LOCAL_KEYS: readonly string[] = [
   'modes.workDir',
   'autonomy.enabled',
   'bypass.enabled',
+  'update.check',
   'sync',
   'projects',
 ];

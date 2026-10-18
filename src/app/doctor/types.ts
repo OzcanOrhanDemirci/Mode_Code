@@ -18,6 +18,8 @@ import type { GateCheck } from '../../core/run-gate.js';
 
 export type CheckStatus = 'ok' | 'info' | 'warn' | 'fail' | 'skip';
 
+import type { UpdateState } from '../../core/update.js';
+
 export type CheckGroup = 'node' | 'claude' | 'install' | 'protection' | 'shell' | 'files' | 'git' | 'data' | 'selftest';
 
 export const GROUP_ORDER: readonly CheckGroup[] = ['node', 'claude', 'install', 'protection', 'shell', 'files', 'git', 'data', 'selftest'];
@@ -191,4 +193,6 @@ export interface Facts {
    * now, and the rules it never lifts or only turns into a question that the settings have weakened.
    */
   bypass: { enabled: boolean; maxHours: number; onNow: number; floorWeakened: string[] };
+  /** Updates (core/update.ts): whether the daily check is on, this version, and what the last check found. */
+  update: { check: boolean; current: string; state: UpdateState | null };
 }

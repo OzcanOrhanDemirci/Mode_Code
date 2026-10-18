@@ -137,6 +137,7 @@ export function healthyFacts(over: Partial<Facts> = {}): Facts {
     hookAgreement: { samples: 30, agreed: 30, differences: [], error: null },
     autonomy: { enabled: false, checks: [] },
     bypass: { enabled: false, maxHours: 2, onNow: 0, floorWeakened: [] },
+    update: { check: true, current: '1.2.0', state: { checkedAt: 1, latest: '1.2.0', error: null } },
     ...over,
   };
 }

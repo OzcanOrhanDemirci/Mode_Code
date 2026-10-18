@@ -40,6 +40,8 @@ export interface MorningFacts {
   elsewhere?: { machine: string; runs: MorningRun[]; flows: number; sessions: number; blocked: number }[];
   /** Settings from other computers waiting for the person. */
   syncPending?: number;
+  /** A newer release the last update check found (core/update.ts). */
+  update?: string | null;
 }
 
 /** The person was away long enough for a morning report: a gap of at least `afterHours` since the last prompt. */
@@ -104,6 +106,7 @@ export function morningLines(f: MorningFacts, lang: Lang): { label: string; text
     out.push({ label: L('morning.elsewhere'), text: `${e.machine}: ${parts.join(' · ')}` });
   }
   if (f.syncPending) out.push({ label: L('morning.sync'), text: L('morning.syncPending', { n: f.syncPending }) });
+  if (f.update) out.push({ label: L('morning.update'), text: L('morning.updateText', { newer: f.update }) });
   if (f.quota && f.quota.weekTo !== null)
     out.push({ label: L('morning.quota'), text: L('morning.quotaText', { from: percent(f.quota.weekFrom, lang), to: percent(f.quota.weekTo, lang) }) });
   return out;
@@ -126,6 +129,7 @@ export function morningSummary(f: MorningFacts, lang: Lang): string | null {
   const news = (f.elsewhere ?? []).filter((e) => e.runs.length || e.flows);
   if (news.length) parts.push(L('morning.sum.elsewhere', { names: news.map((e) => e.machine).join(', ') }));
   if (f.syncPending) parts.push(L('morning.sum.pending', { n: f.syncPending }));
+  if (f.update) parts.push(L('morning.sum.update', { newer: f.update }));
   return parts.length ? L('morning.sum', { what: parts.join(' · '), cmd: `${CLI_NAME} morning` }) : null;
 }
 

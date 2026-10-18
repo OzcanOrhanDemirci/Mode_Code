@@ -66,6 +66,7 @@ import {
 } from '../core/controls.js';
 import { ago, clock as timeOfDay, percent, shortPath } from '../core/format.js';
 import { centerProgram, commandLine, LAUNCH_ENV, OPENS, terminalLaunch, windowsAppsDir, windowsTerminalProgram } from '../core/launch.js';
+import { checkDue, newerThan, parseUpdateState } from '../core/update.js';
 import { closeTabArgv, closeTabOutcome, type CloseTab } from '../core/close.js';
 import { fold } from '../core/text.js';
 import { MARK_W } from '../core/mo/marks.js';
@@ -3171,6 +3172,20 @@ const FLOW_TOOL = {
   isDeferred: false,
 } as const;
 
+/**
+ * The daily update check (core/update.ts), when the person said yes and one is due: the installed program asks the
+ * release which version is the newest and keeps the answer, which the menu and the morning report then show.
+ */
+async function updateCheck($: $, c: Ctx): Promise<void> {
+  try {
+    if (!c.config.update.check || !checkDue(parseUpdateState(await readFile($, c.layout.updateState)), await $.clock.now())) return;
+    const program = centerProgram(await readFile($, c.layout.manifest));
+    if (program) await $.process.run([...program, 'update', '--check', '--json'], { timeoutMs: 60_000 });
+  } catch {
+    /* the next session asks again */
+  }
+}
+
 async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.start'>): Out<'session.start'> {
   ctxPromise = null;
   const c = await ctxOf($);
@@ -3180,6 +3195,8 @@ async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.st
   c.memStart = memorySync($, c, 'start');
   c.sharedStart = c.memStart.then(() => sharedSync($, c, 'start'));
   c.closedStart = c.memStart.then(() => closedNotes($, c));
+  // The daily update check, when the person said yes: in the background, the session never waits for it.
+  void updateCheck($, c);
   if (c.fresh && c.config.modules.modes) await restoreLast($, c);
   await saveState($, c);
   if (c.state.resumeAt) await scheduleResume($, c);
@@ -3794,7 +3811,20 @@ async function morningLineFor($: $, c: Ctx, from: number, now: number): Promise<
     memory = { place: s.place, ahead: last?.result.ahead ?? null, conflicts: r?.conflicts ?? [], held: r?.held.map((h) => h.path) ?? [], error: null };
   }
   return morningSummary(
-    { since: from, now, runs, flows, sessions: [], handoffs: [], belt: null, quota: null, memory, notes, syncPending: c.syncPending.length },
+    {
+      since: from,
+      now,
+      runs,
+      flows,
+      sessions: [],
+      handoffs: [],
+      belt: null,
+      quota: null,
+      memory,
+      notes,
+      syncPending: c.syncPending.length,
+      update: newerThan(APP_VERSION, parseUpdateState(await readFile($, c.layout.updateState))?.latest ?? null),
+    },
     c.lang,
   );
 }
@@ -4289,12 +4319,15 @@ async function control(
     case 'menu': {
       // The control center opens beside the session; the row keeps where the session stands. From the phone, the menu.
       const quota = (await quotaTail($)).replace(/^🛡\s*/, '') || '—';
-      const menu = menuText(viewOf(c), lang, quota);
+      const newer = newerThan(APP_VERSION, parseUpdateState(await readFile($, c.layout.updateState))?.latest ?? null);
+      const menu = menuText(viewOf(c), lang, quota, newer);
       if (where === 'remote') return say(`${menu}\n\n${tIn(lang, 'ctl.center.remote')}`);
       const opened = await openCenter($, c);
       if (!opened.ok) return say(`${opened.text}\n\n${menu}`);
       const now = tIn(lang, 'ctl.menu.now', { controls: controlsLine(viewOf(c), lang), quota });
-      return say(`${tIn(lang, opened.opens === 'tab' ? 'ctl.center.tab' : 'ctl.center.window')}\n${now}`);
+      return say(
+        `${tIn(lang, opened.opens === 'tab' ? 'ctl.center.tab' : 'ctl.center.window')}\n${now}${newer ? `\n${tIn(lang, 'ctl.menu.update', { newer })}` : ''}`,
+      );
     }
     case 'quota': {
       const q = await quotaNow($, c);

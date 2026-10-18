@@ -72,6 +72,9 @@
     "enabled": false,
     "maxHours": 2
   },
+  "update": {
+    "check": false
+  },
   "accessibility": {
     "plain": false,
     "highContrast": false,

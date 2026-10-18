@@ -6,6 +6,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- `mode-code update`: whether a newer release is out, read from the release's `SHA256SUMS`, and the update to it with the release's own installer, downloaded and checked against that file, run with `--yes`, then the new installation's doctor. Also `u` under Maintenance in the control center. Only you start it: never from inside a Claude Code session.
+- A daily update check, asked at install and off until you say yes (`update.check`): one small download from the release, nothing sent. A newer release shows in the doctor, the `/0` menu, the morning report and under Maintenance.
 - What a task costs of the quota, measured on your computer (`node scripts/measure/tasks.mjs`): every Claude Code session cut at its commits and pushes, each piece priced by model and token kind, weighed by what the quota counts, and turned into weekly points by Mode_Code's own readings. It reads the transcripts and the event log and writes nothing (`docs/testing.md`).
 - `mode-code sync projects`, also run by the sync setup: projects that came from another computer find their folder here by the same repository, the folder name the other computer uses or their own name, and are linked on one yes. Each computer's `machine.json` now says where it keeps its projects, with no user or token in a repository's address (`docs/sync.md`).
 

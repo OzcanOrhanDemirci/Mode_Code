@@ -205,8 +205,40 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       // Where the shared place is decides whose settings come in: the person's, never an agent's.
       assert.equal(cli(agent, ['config', 'set', 'sync.dir', '"/elsewhere"'], opt).code, 1);
       assert.equal(cli(agent, ['uninstall', '--yes'], opt).code, 1);
+      // The update check reaches the network: turning it on is the person's; so is the update itself.
+      assert.equal(cli(agent, ['config', 'set', 'update.check', 'true'], opt).code, 1);
+      assert.equal(cli(agent, ['update', '--yes'], opt).code, 1);
       // Plain settings are fine from anywhere.
       assert.equal(cli(agent, ['config', 'set', 'view', '"detailed"'], opt).code, 0);
+    } finally {
+      w.done();
+    }
+  });
+
+  test(`${mode}: update --check asks the release named, keeps the answer; a copy the installer did not put here is not updated`, (t) => {
+    if (skip(t)) return;
+    const w = world({ lang: 'en' });
+    try {
+      const rel = join(w.root, 'release');
+      mkdirSync(rel, { recursive: true });
+      writeFileSync(join(rel, 'SHA256SUMS'), `${'a'.repeat(64)}  mode-code-99.0.0.tgz\n${'b'.repeat(64)}  mode-code.tgz\n`);
+      w.env.MODE_CODE_RELEASE_URL = rel;
+      const c = cli(w, ['update', '--check', '--json'], opt);
+      assert.equal(c.code, 0, c.out + c.err);
+      assert.equal(c.json?.latest, '99.0.0');
+      // A build from source is 'dev', which no release is newer than.
+      assert.equal(c.json?.newer, c.json?.version === 'dev' ? null : '99.0.0');
+      assert.equal(JSON.parse(readFileSync(join(w.data, 'state', 'update.json'), 'utf8')).latest, '99.0.0');
+      if (c.json?.version !== 'dev') {
+        assert.match(cli(w, ['update', '--check'], opt).out, /Mode_Code 99\.0\.0 is out/);
+        const here = cli(w, ['update', '--yes'], opt);
+        assert.equal(here.code, 1);
+        assert.match(here.out, /not put here by the installer/);
+      }
+      w.env.MODE_CODE_RELEASE_URL = join(w.root, 'nowhere');
+      const gone = cli(w, ['update', '--check', '--json'], opt);
+      assert.equal(gone.json?.latest, '99.0.0', 'the answer found before is kept');
+      assert.ok(gone.json?.error);
     } finally {
       w.done();
     }

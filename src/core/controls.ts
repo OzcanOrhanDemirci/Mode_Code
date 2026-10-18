@@ -400,7 +400,7 @@ export function controlsLine(v: StripView, lang: Lang): string {
  * The menu `/0` prints, in markdown (a command's output row is drawn as markdown): where the session stands,
  * then every command, the ones in effect in bold.
  */
-export function menuText(v: StripView, lang: Lang, quota: string): string {
+export function menuText(v: StripView, lang: Lang, quota: string, update: string | null = null): string {
   const mark = (on: boolean, text: string) => (on ? `**${text}**` : text);
   const lit = flowOn(v);
   const modes = [
@@ -415,6 +415,7 @@ export function menuText(v: StripView, lang: Lang, quota: string): string {
   const other = ['/devam', '/kota', `/0 ${tIn(lang, 'ctl.strip.menu')}`, `/00 ${tIn(lang, 'ctl.strip.close')}`].join(' · ');
   return [
     tIn(lang, 'ctl.menu.now', { controls: controlsLine(v, lang), quota }),
+    ...(update ? ['', tIn(lang, 'ctl.menu.update', { newer: update })] : []),
     '',
     `- ${tIn(lang, 'ctl.strip.mode')}: ${modes}`,
     `- ${tIn(lang, 'ctl.strip.style')}: ${styles}`,

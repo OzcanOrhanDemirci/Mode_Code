@@ -20,6 +20,7 @@ export const trControls: Record<keyof typeof enControls, string> = {
   // ── menü ve onay satırları ──
   'ctl.menu.now': 'Şu an: {controls} · {quota}',
   'ctl.menu.other': 'Diğer',
+  'ctl.menu.update': 'Mode_Code {newer} çıktı: kendi terminalinde mode-code update çalıştır.',
   'ctl.menu.hint':
     '"/2 metin" modu değiştirir ve metni gönderir. Mesajın tamamı olarak "plan" ya da "otonom" yazmak da olur. İstemin üstündeki şeritte: tıkla ya da ctrl+x tab, sonra oklar ve Enter.',
   'ctl.done': 'Şimdi: {controls}',

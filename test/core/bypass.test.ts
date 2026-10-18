@@ -88,6 +88,9 @@ test('the strip: no bypass until it is turned on; then ⚡, lit in red while on,
   assert.equal(controlsLine(on, 'en'), '🔨 code · manual · ⚡ bypass · 3');
   assert.match(menuText(on, 'tr', '—'), /\*\*\/bypass\*\*/);
   assert.doesNotMatch(menuText(base, 'tr', '—'), /bypass/);
+  // A newer release the last check found is said under where the session stands, only then.
+  assert.match(menuText(base, 'tr', '—', '1.2.1'), /^.+\n\nMode_Code 1\.2\.1 çıktı: kendi terminalinde mode-code update çalıştır\.\n\n- /);
+  assert.doesNotMatch(menuText(base, 'tr', '—', null), /çıktı/);
 });
 
 test('what the model is told: free with care when it starts, a reminder with each prompt, the belt back when it ends', () => {

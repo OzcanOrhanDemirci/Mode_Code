@@ -29,6 +29,8 @@ import {
 import { checkHealth, type Health } from '../app/health.js';
 import { buildReport, type Report } from '../app/report.js';
 import { loadSummary, type DoctorSummary } from '../app/doctor/doctor.js';
+import type { UpdateState } from '../core/update.js';
+import { readUpdateState } from '../node/update.js';
 import type { ModSessionState } from '../core/session.js';
 import type { Flow } from '../core/flow.js';
 import { flowFiles, loadFlows, type FlowFiles } from '../app/flows.js';
@@ -79,6 +81,8 @@ export interface DataSource {
   markSeen(at: number): void;
   /** The last maintenance check's summary, written by `mode-code doctor`. */
   doctorSummary(): DoctorSummary | null;
+  /** What the last check for a newer release found (`mode-code update`, the daily check). */
+  updateState(): UpdateState | null;
   /** Every flow on record, the most recently changed first. */
   flows(): Flow[];
   /** Where a flow's drafts and checked copies are. */
@@ -239,6 +243,9 @@ export class LiveData implements DataSource {
   }
   doctorSummary(): DoctorSummary | null {
     return loadSummary(this.ctx.layout);
+  }
+  updateState(): UpdateState | null {
+    return readUpdateState(this.ctx.layout);
   }
   flows(): Flow[] {
     return this.memo('flows', 3_000, () => loadFlows(this.ctx));

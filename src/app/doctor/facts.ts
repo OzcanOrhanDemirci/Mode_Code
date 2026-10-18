@@ -28,6 +28,7 @@ import { readClaudeEnv, pluginsVia, type ClaudeRunner } from '../../node/claude-
 import { cliProgram, hookProgram, isOurHook, readManifest, underAgent } from '../../node/install.js';
 import { findPrevious, previousPlugin } from '../../node/previous.js';
 import { readJson, readText, realPathOf } from '../../node/fsx.js';
+import { readUpdateState } from '../../node/update.js';
 import { beltContext, memoryDirs, protectedAliases } from '../../node/context.js';
 import { toolPath } from '../../node/env.js';
 import { readTail } from '../../node/tail.js';
@@ -727,6 +728,7 @@ export async function gatherFacts(d0: DoctorEnv, now = Date.now()): Promise<Fact
     selftest: await runAllSuites(),
     hookAgreement: !wants(d, 'agreement') || !hookExists || !realPathOf(node) ? null : await hookAgreement(d, node, hookFile),
     bypass: bypassFacts(l, d.config, now),
+    update: { check: d.config.update.check, current: APP_VERSION, state: readUpdateState(l) },
     autonomy: {
       enabled: d.config.autonomy.enabled,
       checks: d.config.autonomy.enabled ? autonomyCheck({ layout: l, config: d.config }, d.cwd, { platform: d.platform, env: d.env, claude: env }).checks : [],

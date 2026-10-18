@@ -9,6 +9,7 @@ import { keywordTables } from '../../core/settings-view.js';
 import { ago, shortPath } from '../../core/format.js';
 import { KEYWORD_LISTS } from '../../core/keywords.js';
 import { nextOf } from '../../core/handoff.js';
+import { newerThan } from '../../core/update.js';
 import type { ScreenProps } from '../nav.js';
 import { Muted, Note, Row, Section, StateMark, useEnv, useScreenKeys, useT } from '../ui.js';
 import { SettingsEditor, TextField, type Field } from '../widgets.js';
@@ -39,6 +40,7 @@ export function General({ width, open }: ScreenProps) {
         ],
       },
     },
+    { path: 'update.check', label: t('set.updateCheck'), help: t('set.updateCheckHelp'), value: c.update.check, type: { kind: 'bool' } },
   ];
   return <SettingsEditor fields={fields} open={open} width={width} />;
 }
@@ -512,14 +514,31 @@ export function Keywords({ width }: ScreenProps) {
   );
 }
 
-export function Maintenance({ width }: ScreenProps) {
-  const { data, lang, now, theme } = useEnv();
+export function Maintenance({ width, open }: ScreenProps) {
+  const { data, lang, now, theme, leave, flash } = useEnv();
   const t = useT();
   const h = data.health();
   const m = h.manifest;
   const last = data.doctorSummary();
+  const update = data.updateState();
+  const newer = newerThan(APP_VERSION, update?.latest ?? null);
+  useScreenKeys((input) => {
+    if (input !== 'u') return false;
+    if (leave) leave('update', 'settings/maintenance');
+    else flash(t('maint.updateCli', { cmd: `${CLI_NAME} update` }), 'warn');
+    return true;
+  }, open);
   return (
     <Box flexDirection="column" width={width}>
+      <Section title={t('maint.update')}>
+        <Row label={t('maint.version')} {...(newer ? { color: theme.warn } : {})}>
+          {newer ? t('maint.updateNewer', { version: APP_VERSION, newer }) : APP_VERSION}
+        </Row>
+        <Row label={t('maint.updateChecked')}>
+          {update ? `${ago(update.checkedAt, now, lang)}${update.error ? ` · ${update.error}` : ''}` : t('maint.updateNever')}
+        </Row>
+        <Muted>{t(data.config().update.check ? 'maint.updateHint' : 'maint.updateHintOff')}</Muted>
+      </Section>
       <Section title={t('maint.lastCheck')}>
         {last ? (
           <>
