@@ -423,6 +423,10 @@ export function lowersProtection(key: string, from: unknown, to: unknown): boole
   // A skill of someone else's turned on, or let Claude use it.
   if (key.startsWith('skills.items.')) return SKILL_REACH.indexOf(String(to ?? 'off')) > SKILL_REACH.indexOf(String(from ?? 'off'));
   if (key === 'autonomy.reviewModel') return !same(from, to);
+  // Notifications sent to an address another computer chose: they carry the run's task.
+  if (key === 'notify.ntfy') return to !== null && to !== undefined && !same(from, to);
+  // A run let go on past its time limit (absent: the default, continue).
+  if (key === 'autonomy.atTimeLimit') return (from ?? 'continue') !== 'continue' && (to ?? 'continue') === 'continue';
   if (key === 'keywords.extra') {
     const phrases = (v: unknown) =>
       new Set(

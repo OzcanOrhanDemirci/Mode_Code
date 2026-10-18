@@ -247,7 +247,11 @@ test('an unfinished, active run whose work keeps changing is never let stop whil
       for (const p of prints) {
         same = last === p ? same + 1 : 1;
         last = p;
-        const d = stopDecision(run, { now: 60_000, fingerprint: `f${p}`, quotaLevel: 'ok', background: 0, maxHours: 12, stallMinutes: 90 }, mem);
+        const d = stopDecision(
+          run,
+          { now: 60_000, fingerprint: `f${p}`, quotaLevel: 'ok', background: 0, maxHours: 12, stallMinutes: 90, atTimeLimit: 'pause' },
+          mem,
+        );
         mem = d.memory;
         if (d.allow) {
           assert.equal(d.why, 'noProgress');

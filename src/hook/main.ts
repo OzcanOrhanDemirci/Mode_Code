@@ -272,6 +272,7 @@ function autonomyStop(input: Input, l: ReturnType<typeof dataLayout>, config: Re
       background,
       maxHours: config.autonomy.maxHours,
       stallMinutes: config.autonomy.stallMinutes,
+      atTimeLimit: config.autonomy.atTimeLimit,
     },
     state.autoStop ?? { runId: null, fingerprint: null, streak: 0 },
   );

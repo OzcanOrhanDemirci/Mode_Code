@@ -163,10 +163,12 @@ export interface Config {
   /** Full autonomy (docs/autonomy.md). Off until the person turns it on in their own terminal. */
   autonomy: {
     enabled: boolean;
-    /** Running hours after which a run pauses. */
+    /** Running hours after which a run pauses, or goes on with a fresh limit while it reaches milestones (atTimeLimit). */
     maxHours: number;
     /** Minutes without a milestone after which the run is warned, and twice that after which it pauses. */
     stallMinutes: number;
+    /** At the time limit: `continue` while a milestone came within the stall time, else pause; `pause` always. */
+    atTimeLimit: 'continue' | 'pause';
     /** The model of the independent reviews; null: the session's own model. */
     reviewModel: string | null;
   };
@@ -185,6 +187,13 @@ export interface Config {
    */
   update: {
     check: boolean;
+  };
+  /**
+   * Notifications that reach the person away from the computer (docs/autonomy.md): a full-autonomy run that ends,
+   * pauses or gets stuck is posted to this ntfy topic's address as well; null: the desktop alone.
+   */
+  notify: {
+    ntfy: string | null;
   };
   /**
    * Tool packs (docs/packs.md). Automatic use: a project's markers turn its packs on there, and Claude may turn one
@@ -235,9 +244,10 @@ export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
   keywords: { extra: {} },
   projects: [],
   modes: { workDir: null },
-  autonomy: { enabled: false, maxHours: 12, stallMinutes: 90, reviewModel: null },
+  autonomy: { enabled: false, maxHours: 12, stallMinutes: 90, atTimeLimit: 'continue', reviewModel: null },
   bypass: { enabled: false, maxHours: 2 },
   update: { check: false },
+  notify: { ntfy: null },
   packs: { autoUse: true, items: {} },
   skills: { items: {} },
   accessibility: { plain: false, highContrast: false, reduceMotion: false },
@@ -285,6 +295,11 @@ export function cloneDefaults(): Config {
 }
 
 /** Turns any value into a valid Config, keeping what is valid and reporting the rest. */
+/** An ntfy topic's address: https with a host and one topic name, or plain http to this computer (a server of one's own). */
+export function ntfyAddress(s: string): boolean {
+  return /^(?:https:\/\/[A-Za-z0-9.-]+(?::\d{1,5})?|http:\/\/(?:localhost|127\.0\.0\.1)(?::\d{1,5})?)\/[A-Za-z0-9_-]{1,64}$/.test(s.trim());
+}
+
 export function normalizeConfig(raw: unknown): ParsedConfig {
   const problems: ConfigProblem[] = [];
   const c = cloneDefaults();
@@ -377,7 +392,7 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
   if (isObj(raw.autonomy)) {
     const a = raw.autonomy;
     for (const k of Object.keys(a))
-      if (!['enabled', 'maxHours', 'stallMinutes', 'reviewModel'].includes(k))
+      if (!['enabled', 'maxHours', 'stallMinutes', 'atTimeLimit', 'reviewModel'].includes(k))
         problems.push({ path: `autonomy.${k}`, kind: 'unknown-key', detail: 'not a setting' });
     if (a.enabled !== undefined) {
       if (typeof a.enabled === 'boolean') c.autonomy.enabled = a.enabled;
@@ -390,6 +405,10 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
     if (a.stallMinutes !== undefined) {
       if (typeof a.stallMinutes === 'number' && a.stallMinutes >= 10 && a.stallMinutes <= 720) c.autonomy.stallMinutes = Math.round(a.stallMinutes);
       else problems.push({ path: 'autonomy.stallMinutes', kind: 'range', detail: 'expected 10 to 720' });
+    }
+    if (a.atTimeLimit !== undefined) {
+      if (a.atTimeLimit === 'continue' || a.atTimeLimit === 'pause') c.autonomy.atTimeLimit = a.atTimeLimit;
+      else problems.push({ path: 'autonomy.atTimeLimit', kind: 'type', detail: 'expected continue or pause' });
     }
     if (a.reviewModel !== undefined) {
       if (a.reviewModel === null) c.autonomy.reviewModel = null;
@@ -420,6 +439,16 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
       else problems.push({ path: 'update.check', kind: 'type', detail: 'expected true or false' });
     }
   } else if (raw.update !== undefined) problems.push({ path: 'update', kind: 'type', detail: 'expected an object' });
+
+  if (isObj(raw.notify)) {
+    const n = raw.notify;
+    for (const k of Object.keys(n)) if (k !== 'ntfy') problems.push({ path: `notify.${k}`, kind: 'unknown-key', detail: 'not a setting' });
+    if (n.ntfy !== undefined) {
+      if (n.ntfy === null) c.notify.ntfy = null;
+      else if (typeof n.ntfy === 'string' && ntfyAddress(n.ntfy)) c.notify.ntfy = n.ntfy.trim();
+      else problems.push({ path: 'notify.ntfy', kind: 'type', detail: 'expected an https:// address of an ntfy topic, or null' });
+    }
+  } else if (raw.notify !== undefined) problems.push({ path: 'notify', kind: 'type', detail: 'expected an object' });
 
   if (isObj(raw.packs)) {
     const p = raw.packs;

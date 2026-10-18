@@ -34,6 +34,17 @@ test('stale readings: 5 to 1440 minutes, both ends included', () => {
   assert.deepEqual(problems({ quota: { clearHint: 1 } }), ['quota.clearHint type']);
   assert.equal(config({ quota: { clearHint: false } }).quota.clearHint, false);
   assert.equal(config({}).quota.clearHint, true);
+  assert.equal(config({}).autonomy.atTimeLimit, 'continue');
+  assert.equal(config({ autonomy: { atTimeLimit: 'pause' } }).autonomy.atTimeLimit, 'pause');
+  assert.deepEqual(problems({ autonomy: { atTimeLimit: 'stop' } }), ['autonomy.atTimeLimit type']);
+  assert.equal(config({}).notify.ntfy, null);
+  assert.equal(config({ notify: { ntfy: ' https://ntfy.sh/ada-runs ' } }).notify.ntfy, 'https://ntfy.sh/ada-runs');
+  assert.equal(config({ notify: { ntfy: 'http://localhost:8080/runs' } }).notify.ntfy, 'http://localhost:8080/runs');
+  for (const bad of ['http://ntfy.sh/runs', 'https://ntfy.sh/', 'https://ntfy.sh/a/b', 'ntfy.sh/runs', 'https://ntfy.sh/runs?x=1', 7])
+    assert.deepEqual(problems({ notify: { ntfy: bad } }), ['notify.ntfy type'], String(bad));
+  assert.equal(config({ notify: { ntfy: null } }).notify.ntfy, null);
+  assert.deepEqual(problems({ notify: { email: 'x' } }), ['notify.email unknown-key']);
+  assert.deepEqual(problems({ notify: 'x' }), ['notify type']);
 });
 
 test('a wrap-up level may equal its stop level but not exceed it', () => {
