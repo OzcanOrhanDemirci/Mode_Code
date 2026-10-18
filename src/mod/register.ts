@@ -19,7 +19,8 @@ import { SYNC_MAX_BYTES, syncCommitMessage, type Pending } from '../core/sync.js
 import { exportMachine, parseSharedRecord, settingsInEffect, syncDue, type SharedRecord, type SyncFs } from '../core/sync-export.js';
 import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform } from '../core/paths.js';
 import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '../core/i18n/index.js';
-import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
+import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
+import { taintedAct, taintSource } from '../core/taint.js';
 import { isBeltTool, isFileTool, shellOf } from '../core/belt/tools.js';
 import type { BeltContext, BeltDecision, GitFacts } from '../core/belt/types.js';
 import { checkGuards, type ModeGuard } from '../core/guard.js';
@@ -68,7 +69,7 @@ import { ago, clock as timeOfDay, percent, shortPath } from '../core/format.js';
 import { centerProgram, commandLine, LAUNCH_ENV, OPENS, terminalLaunch, windowsAppsDir, windowsTerminalProgram } from '../core/launch.js';
 import { checkDue, newerThan, parseUpdateState } from '../core/update.js';
 import { closeTabArgv, closeTabOutcome, type CloseTab } from '../core/close.js';
-import { fold } from '../core/text.js';
+import { fold, truncate } from '../core/text.js';
 import { MARK_W } from '../core/mo/marks.js';
 import {
   conflictContext,
@@ -2563,7 +2564,14 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   if ((c.state.bypass || c.run) && (await $.clock.now()) - c.configReadAt >= 60_000) await refreshConfig($, c);
   await bypassClock($, c);
   const ctx = await beltContextFor($, c);
-  const d = await evaluateToolCall(tool, input, ctx);
+  let d = await evaluateToolCall(tool, input, ctx);
+  // Outside content was read in this session: what an instruction hidden in it would ask for is asked (src/core/taint.ts).
+  const tainted = c.state.tainted ? taintedAct(tool, input, { ...pathEnv(c, cwd), memoryDirs: ctx.memoryDirs }) : null;
+  if (tainted && c.state.tainted) {
+    const act = tIn(c.lang, `belt.tainted.${tainted.act}` as MessageKey);
+    const reason = tIn(c.lang, 'belt.reason.tainted', { source: c.state.tainted.source, act, what: truncate(maskSecrets(tainted.what), 160) });
+    d = mergeDecisions(d, decide([{ rule: 'inject.tainted-act', verdict: 'ask', reason }], [], ctx));
+  }
   const rules = d.findings.map((f) => f.rule);
   // What bypass let through without a word: recorded once the call has run (or failed), for the person.
   const bypassed = d.lifted.filter((f) => f.verdict === 'allow');
@@ -2621,6 +2629,12 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
     });
   // The footer counts what ran: a refused call changed nothing, and neither did a file tool that failed.
   const ran = result.deny === undefined && !(result.isError === true && isFileTool(tool));
+  // What the call read came from outside the session (a page, an issue, a service): the session is tainted from now on.
+  const source = ran && result.isError !== true && !c.state.tainted ? taintSource(tool, input) : null;
+  if (source) {
+    c.state = { ...c.state, tainted: { source, at: await $.clock.now() } };
+    await saveState($, c);
+  }
   if (ran && e.agentId === undefined) {
     c.turn.uses.push({ name: tool, input });
     // The turn's first change is kept at once: a session whose window is shut mid-turn still owes its note.
@@ -2668,6 +2682,11 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   // A text this plugin sent for the person was applied when it was sent (sendAsPerson): a start it asked for stands.
   const applied = ours && c.selfSent !== null && String(e.text ?? '') === c.selfSent;
   if (ours) c.selfSent = null;
+  // Another session's message is outside content: the session is tainted from now on (src/core/taint.ts).
+  if (kind === 'peer' && !c.state.tainted) {
+    c.state = { ...c.state, tainted: { source: 'peer', at: await $.clock.now() } };
+    await saveState($, c);
+  }
   const extra: string[] = [];
   // Strip presses not told yet go with this prompt, before its own keyword's note.
   if (human) extra.push(...takePressNotes(c));

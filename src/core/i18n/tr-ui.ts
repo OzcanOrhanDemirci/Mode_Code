@@ -226,6 +226,8 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'rule.docker.volume-delete': 'Docker birimlerini silmek ya da Docker verisini budamak (isteğe bağlı paket, sunucular için).',
   'rule.secrets.stage': 'Genelde sır tutan dosyaları (.env, anahtar dosyaları) commit için hazırlamak.',
   'rule.secrets.write': 'Bir dosyaya sır gibi görünen bir değer yazmak.',
+  'rule.inject.tainted-act':
+    "Oturum dış içerik okuduktan sonra (bir web sayfası, bir issue, bağlı bir hizmet, başka bir oturum): dışarıya veri göndermek, kendiliğinden başlayan ya da Claude Code'u ayarlayan bir şey yazmak ve hafızaya yazmak sorulur.",
   'rule.quality.check-config':
     'Projenin lint ya da biçim ayarlarını değiştirmek (ESLint, Prettier, Biome, analysis_options.yaml …): bir kuralı gevşetmek, başarısız bir denetimi geçirmenin yoludur.',
   'rule.meta.unverifiable': 'Kemerin sonuna kadar izleyemediği komutlar (çalışırken üretilen kod); güvenli olduğunu doğrulayamaz.',

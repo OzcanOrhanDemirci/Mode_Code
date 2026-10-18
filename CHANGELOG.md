@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- Outside content taints a session: after it read a web page, an issue, a page fetched with `curl`, a connected service's data, a dependency's files or another session's message, sending data out, writing what starts by itself or configures Claude Code, and writing the memory are asked about, with bypass on too (`inject.tainted-act`, `docs/safety-belt.md`).
 - A key or token pasted into your message is told to you (it went to the model provider with the message; rotate it if it was a mistake), and Claude is told not to repeat, store or send it. The kind only, never the value.
 - A safety-belt rule for the project's own checks: changing the settings of a linter or a formatter (ESLint, Prettier, Biome, `analysis_options.yaml` …) is asked about, by any tool (`quality.check-config`).
 - A memory push is held when a commit it would send adds a secret, a commit made by hand included; you see the file and the kind, never the value, and `mode-code secrets allow <fingerprint>` lets a false alarm go (`docs/memory.md`). The same holds for the sync across computers.

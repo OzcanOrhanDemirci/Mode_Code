@@ -78,6 +78,7 @@ export type RuleId =
   | 'secrets.write'
   | 'secrets.exfil'
   | 'quality.check-config'
+  | 'inject.tainted-act'
   | 'meta.unverifiable';
 
 export interface RuleConfig {

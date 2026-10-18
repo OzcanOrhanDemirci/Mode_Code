@@ -68,6 +68,10 @@ export const tr: Record<MessageKey, string> = {
   'belt.reason.deploy': 'Canlı altyapıya dağıtım yapılıyor ya da altyapı değiştiriliyor: {command}',
   'belt.reason.unverifiable': 'Bu komutun bir kısmı izlenemedi ({issues}); emniyet kemeri güvenli olduğunu doğrulayamıyor.',
   'belt.reason.disableHooks': "Hook'lar kapatılıyor ya da yalnız yönetilen hook'larla sınırlanıyor: {command}",
+  'belt.reason.tainted': 'Bu oturum dış içerik okudu ({source}); şimdi {act}: {what}. Okunan metne gizlenmiş bir talimat tam olarak bunu isterdi.',
+  'belt.tainted.send': 'bilgisayarın dışına veri gönderecek',
+  'belt.tainted.persist': "kendiliğinden başlayan ya da Claude Code'u ayarlayan bir şey yazacak",
+  'belt.tainted.memory': 'hafızaya yazacak',
   'belt.reason.checkConfig':
     'Projenin lint ya da biçim ayarları değişiyor ({target}). Denetimin bulduğunu düzelt, denetimi değil; ayarın gerçekten değişmesi gerekiyorsa nedenini söyle.',
   'belt.reason.secretInFile':

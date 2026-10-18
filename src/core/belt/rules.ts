@@ -18,7 +18,7 @@ import type { RuleConfig, RuleId, Verdict } from './types.js';
 import { VERDICT_ORDER } from './types.js';
 
 export type RuleCategory =
-  'git' | 'fs' | 'self' | 'claude' | 'persist' | 'publish' | 'docker' | 'data' | 'system' | 'outbound' | 'secrets' | 'quality' | 'meta';
+  'git' | 'fs' | 'self' | 'claude' | 'persist' | 'publish' | 'docker' | 'data' | 'system' | 'outbound' | 'secrets' | 'quality' | 'inject' | 'meta';
 
 /** What a rule does while bypass is on: its verdict stays, it asks, or it lets the call through. */
 export type BypassTier = 'keep' | 'ask' | 'allow';
@@ -94,6 +94,9 @@ export const RULES: Readonly<Record<RuleId, RuleInfo>> = Object.freeze({
   'secrets.exfil': r('secrets.exfil', 'secrets', 'deny', 'keep', true),
   // The project's own lint and format settings: loosening a rule is how a failing check is made to pass.
   'quality.check-config': r('quality.check-config', 'quality', 'ask'),
+  // After outside content was read (a page, an issue, a service's data): sending, persisting or writing the memory is
+  // what an instruction hidden in it would ask for. Asked, with bypass too (src/core/taint.ts).
+  'inject.tainted-act': r('inject.tainted-act', 'inject', 'ask', 'ask'),
   // What cannot be followed could be anything, the floor included: never let through unseen.
   'meta.unverifiable': r('meta.unverifiable', 'meta', 'ask', 'ask', true),
 });
