@@ -4055,10 +4055,15 @@ async function projectOfSession($: $, c: Ctx): Promise<{ key: string; folder: st
   return projectOf($, c, await $.session.cwd(), c.state.project);
 }
 
-/** The project of a folder: the one named, else the folder's (settings id, origin, name). */
+/**
+ * The project of a folder: the one named, else the folder's (settings id, origin, name). A named project
+ * with a repository of its own on this computer is measured there, wherever the session was opened.
+ */
 async function projectOf($: $, c: Ctx, cwd: string, named: string | null): Promise<{ key: string; folder: string }> {
   const env = pathEnv(c, cwd);
-  const top = await gitIn($, cwd, ['rev-parse', '--show-toplevel'], 5000);
+  const own = named ? c.config.projects.find((p) => p.id === named)?.path : undefined;
+  const ownTop = own ? await gitIn($, resolvePath(own, env), ['rev-parse', '--show-toplevel'], 5000) : null;
+  const top = ownTop?.ok && ownTop.out ? ownTop : await gitIn($, cwd, ['rev-parse', '--show-toplevel'], 5000);
   const folder = top.ok && top.out ? resolvePath(top.out, env) : env.cwd;
   const registered = c.config.projects.find((p) => p.path && pathKey(resolvePath(p.path, env), c.platform) === pathKey(folder, c.platform));
   const remote = top.ok ? await gitIn($, folder, ['config', '--get', 'remote.origin.url'], 5000) : null;
@@ -4238,12 +4243,11 @@ async function closedNotes($: $, c: Ctx): Promise<void> {
   }
 }
 
-/** What code measures for a closed session's note: its folder now, its commits since it started, what it kept. */
+/** What code measures for a closed session's note: its project's folder now, its commits since it started, what it kept. */
 async function closedFacts($: $, c: Ctx, s: ModSessionState, project: string, at: number): Promise<HandoffFacts> {
   const w = s.work!;
-  const top = await gitIn($, s.cwd!, ['rev-parse', '--show-toplevel'], 5000);
-  const folder = top.ok && top.out ? resolvePath(top.out, pathEnv(c, s.cwd!)) : s.cwd!;
-  const isRepo = top.ok && !!top.out;
+  const { folder } = await projectOf($, c, s.cwd!, s.project);
+  const isRepo = (await gitIn($, folder, ['rev-parse', '--is-inside-work-tree'], 5000)).out === 'true';
   const branch = isRepo ? await gitIn($, folder, ['symbolic-ref', '--quiet', '--short', 'HEAD'], 5000) : null;
   const head = isRepo ? await gitIn($, folder, ['rev-parse', 'HEAD'], 5000) : null;
   const log = isRepo ? await gitIn($, folder, ['log', `--since=${new Date(w.startedAt).toISOString()}`, '--format=%h %s', '-n', '40'], 10_000) : null;
