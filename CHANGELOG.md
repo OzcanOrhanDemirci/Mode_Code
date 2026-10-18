@@ -10,7 +10,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
-- Checked against Claude Code 2.1.302: the plugin type-checks against its declarations, the engine's own test kit passes, and the live sessions run on it. The live full-autonomy sessions ask for a budget above the week as it stands (`+5`), not a fixed 99, which the start check refused once the week was at 98%.
+- Checked against Claude Code 2.1.302: the plugin type-checks against its declarations, the engine's own test kit passes, and the live sessions run on it.
 
 ## [1.1.0] - 2026-10-15
 
