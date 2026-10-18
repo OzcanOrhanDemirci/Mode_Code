@@ -424,6 +424,38 @@
       "line": "x.count >= 0 ? Math.floor(x.count) : 0",
       "kind": "equivalent",
       "why": "a count of 0 reads as 0 either way"
+    },
+    {
+      "file": "src/core/sync.ts",
+      "from": "<",
+      "to": "<=",
+      "line": "while (a < b && s[a] === '/') a++;",
+      "kind": "equivalent",
+      "why": "at a = b the character read is past the end, never a slash"
+    },
+    {
+      "file": "src/core/sync.ts",
+      "from": ">",
+      "to": ">=",
+      "line": "while (b > a && s[b - 1] === '/') b--;",
+      "kind": "equivalent",
+      "why": "at b = a one more step gives b below a, and the slice from a is empty either way"
+    },
+    {
+      "file": "src/core/sync.ts",
+      "from": ">",
+      "to": ">=",
+      "line": "host = colon > 0 ? rest.slice(0, colon) : '';",
+      "kind": "equivalent",
+      "why": "a colon at 0 slices nothing: the host is empty both ways"
+    },
+    {
+      "file": "src/core/sync.ts",
+      "from": "||",
+      "to": "&&",
+      "line": "const byName = byRemote || byFolder ? null",
+      "kind": "equivalent",
+      "why": "it only spares work: the path and the reason take byRemote and byFolder before byName"
     }
   ]
 }

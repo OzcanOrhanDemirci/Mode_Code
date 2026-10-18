@@ -118,6 +118,8 @@ test('a remote is a place: one form for every way of writing it, never a user or
   ])
     assert.equal(remoteKey(url), 'github.com/ada/car', url);
   assert.equal(remoteKey('https://gitlab.example.com:8443/group/sub/repo.git'), 'gitlab.example.com/group/sub/repo');
+  // A host alias from ~/.ssh/config can be two letters; one letter is a Windows drive.
+  assert.equal(remoteKey('gh:ada/car'), 'gh/ada/car');
   for (const notRemote of ['C:/dev/car', 'C:\\dev\\car', '/home/ada/car', '../car', 'file:///home/ada/car', '', 'https://github.com/', 'nonsense://'])
     assert.equal(remoteKey(notRemote), null, notRemote);
 });

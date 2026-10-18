@@ -76,6 +76,7 @@ test('machine.json says where each project is kept, asking its repository again 
     { id: 'araba', names: ['araba'], path: 'C:/dev/car' },
     { id: '3d', names: ['3d'], path: 'C:/dev/arduino/3d' },
     { id: 'notes', names: ['notes'], path: 'C:/notes' },
+    { id: 'srv', names: ['srv'], path: '/srv' },
     { id: 'elsewhere', names: ['elsewhere'] },
   ];
   await exportMachine(m.fs, input({ local: config({ projects }), hint }));
@@ -84,12 +85,13 @@ test('machine.json says where each project is kept, asking its repository again 
     araba: { folder: 'car', parent: 'dev', remote: 'github.com/ada/car', sub: '' },
     '3d': { folder: '3d', parent: 'arduino', remote: 'github.com/ada/arduino', sub: '3d' },
     notes: { folder: 'notes', parent: 'C:' },
+    srv: { folder: 'srv', parent: '' },
   });
-  assert.deepEqual(asked, ['C:/dev/car', 'C:/dev/arduino/3d', 'C:/notes']);
+  assert.deepEqual(asked, ['C:/dev/car', 'C:/dev/arduino/3d', 'C:/notes', '/srv']);
   asked.length = 0;
   const moved = projects.map((p) => (p.id === 'araba' ? { ...p, path: 'C:/work/car' } : p));
   await exportMachine(m.fs, input({ now: NOW + 1000, local: config({ projects: moved }), hint }));
-  assert.deepEqual(asked, ['C:/work/car', 'C:/notes']);
+  assert.deepEqual(asked, ['C:/work/car', 'C:/notes', '/srv']);
   assert.equal(info().araba.parent, 'work');
 });
 const run = (id: string, updatedAt: number, status = 'done') =>
