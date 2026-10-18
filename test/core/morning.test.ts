@@ -206,3 +206,9 @@ test("the other computers' news and the settings waiting from them (docs/sync.md
   assert.match(morningSummary({ ...empty(), elsewhere: [{ machine: 'Laptop', runs: [], flows: 2, sessions: 0, blocked: 0 }] }, 'en') ?? '', /news from Laptop/);
   assert.match(morningSummary({ ...empty(), syncPending: 1 }, 'en') ?? '', /1 setting\(s\) wait/);
 });
+
+test('a newer release the last check found is said in the report and its one line', () => {
+  assert.deepEqual(morningLines({ ...empty(), update: '1.2.1' }, 'tr'), [{ label: 'Güncelleme', text: 'Mode_Code 1.2.1 çıktı (mode-code update)' }]);
+  assert.match(morningSummary({ ...empty(), update: '1.2.1' }, 'en') ?? '', /Mode_Code 1\.2\.1 is out/);
+  assert.equal(morningSummary({ ...empty(), update: null }, 'en'), null);
+});

@@ -18,6 +18,7 @@ export const enControls = {
   // ── the menu and the confirmations ──
   'ctl.menu.now': 'Now: {controls} · {quota}',
   'ctl.menu.other': 'Other',
+  'ctl.menu.update': 'Mode_Code {newer} is out: run mode-code update in your own terminal.',
   'ctl.menu.hint':
     '"/2 text" switches the mode and sends the text. Typed as the whole message, "plan" or "autonomous" work too. On the strip above the prompt: click, or ctrl+x tab, then the arrows and Enter.',
   'ctl.done': 'Now: {controls}',

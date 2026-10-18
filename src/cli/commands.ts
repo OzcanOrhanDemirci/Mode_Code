@@ -25,6 +25,7 @@ import { appContext, type AppContext } from '../app/context.js';
 import { loadEvents, loadQuota, openIndex, scanPaths } from '../app/data.js';
 import { checkHealth, healthCounts, type FeatureHealth } from '../app/health.js';
 import { buildReport, reportLines } from '../app/report.js';
+import { terminalIO } from './memory.js';
 import { sampleFooter } from '../core/footer.js';
 import { replay } from '../app/replay.js';
 import { findFlow, flowFiles, loadFlows } from '../app/flows.js';
@@ -229,6 +230,8 @@ export async function cmdInstall(a: Args): Promise<number> {
   if (asking) {
     const v = await choose(ctx, T(ctx, 'install.ask.view'), [T(ctx, 'install.ask.simple'), T(ctx, 'install.ask.recommended'), T(ctx, 'install.ask.detailed')]);
     chosen.view = (['simple', 'recommended', 'detailed'] as const)[v];
+    // Asked in every view: it is the one thing that reaches the network unasked, so it is never on without a yes.
+    chosen.update = { check: await terminalIO(ctx).confirm(T(ctx, 'install.ask.update'), true) };
     if (chosen.view !== 'simple') {
       if (!chosen.memory) {
         memoryAsked = true;
@@ -253,6 +256,7 @@ export async function cmdInstall(a: Args): Promise<number> {
     say(`  ${T(ctx, 'set.view')}: ${T(ctx, `view.${chosen.view ?? 'recommended'}` as MessageKey)}`);
     if (chosen.memory) say(`  ${T(ctx, 'page.memory')}: ${chosen.memory.dirs.map((d) => shortPath(d, homedir(), 70)).join(', ')}`);
     if (chosen.footer) say(`  ${T(ctx, 'set.footerMode')}: ${T(ctx, `footer.mode.${chosen.footer.mode}` as MessageKey)}`);
+    if (chosen.update) say(`  ${T(ctx, 'set.updateCheck')}: ${T(ctx, chosen.update.check ? 'footer.yes' : 'footer.no')}`);
     say();
   }
   if (!flag(a, 'yes', 'y') && !(await confirm(T(ctx, 'install.confirm')))) {
@@ -1033,7 +1037,7 @@ export async function cmdAutonomy(a: Args): Promise<number> {
 // ── config ──
 
 /** Settings an agent's shell may not change: they lower a protection or widen what a session does unasked. */
-const PROTECTIVE = /^(?:belt|memory|modules\.(?:quota|secrets)|autonomy|bypass|projects|sync)(?:\.|$)/;
+const PROTECTIVE = /^(?:belt|memory|modules\.(?:quota|secrets)|autonomy|bypass|projects|sync|update)(?:\.|$)/;
 
 export async function cmdConfig(a: Args): Promise<number> {
   const ctx = appContext();
@@ -1115,6 +1119,7 @@ export function helpText(lang: Lang): string {
     `  ${c('belt rules|events|test|replay'.padEnd(31))}${L('help.belt')}`,
     `  ${c('secrets [path…]'.padEnd(31))}${L('help.secrets')}`,
     `  ${c('config get|set|path'.padEnd(31))}${L('help.config')}`,
+    `  ${c('update [--check] [--yes]'.padEnd(31))}${L('help.update')}`,
     '',
     dim(L('help.json')),
     dim(L('help.privacy')),

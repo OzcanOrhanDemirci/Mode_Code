@@ -567,6 +567,27 @@ test('sync across computers: not set up, missing, without git or origin, a sync 
   assert.equal(check('data.sync', healthyFacts({ sync: { ...sync, pending: ['a', 'b'] } })).summary.params?.keys, 'a, b');
 });
 
+test('updates: a newer release is a note with the command; the daily check off, not run yet or failing are notes; the newest is ok', () => {
+  const at = (update: Facts['update']) => check('install.update', healthyFacts({ update }));
+  assert.equal(brief(at({ check: true, current: '1.2.0', state: { checkedAt: 1, latest: '1.2.0', error: null } })), 'ok doc.update.ok');
+  const newer = at({ check: false, current: '1.2.0', state: { checkedAt: 1, latest: '1.2.1', error: null } });
+  assert.equal(brief(newer), 'info doc.update.newer');
+  assert.deepEqual(newer.summary.params, { version: '1.2.0', newer: '1.2.1' });
+  assert.equal(newer.hint?.key, 'doc.update.hint');
+  assert.equal(newer.protection, false);
+  const off = at({ check: false, current: '1.2.0', state: null });
+  const notYet = at({ check: true, current: '1.2.0', state: null });
+  const failed = at({ check: true, current: '1.2.0', state: { checkedAt: 1, latest: '1.1.0', error: 'HTTP 503' } });
+  assert.deepEqual(
+    [off, notYet, failed].map((r) => [brief(r), r.protection]),
+    [
+      ['info doc.update.off', false],
+      ['info doc.update.notYet', false],
+      ['info doc.update.error', false],
+    ],
+  );
+});
+
 test('bypass: off is a note; on, for how long and in how many sessions; a weakened floor rule is a warning', () => {
   assert.equal(brief(check('protection.bypass', healthyFacts())), 'info doc.bypass.off');
   assert.equal(check('protection.bypass', healthyFacts()).protection, false, 'a note, not a protection');

@@ -8,6 +8,7 @@ import { syncProblem } from '../../core/memory-sync.js';
 import { CLI_NAME, MIN_CLAUDE_CODE_FOR_HOOKS, MIN_CLAUDE_CODE_FOR_MODS, PLUGIN_ID } from '../../core/app.js';
 import { caseInsensitive } from '../../core/paths.js';
 import { compareVersions } from '../../core/version.js';
+import { newerThan } from '../../core/update.js';
 import { isBeltTool } from '../../core/belt/tools.js';
 import { BELT_MATCHER, HOOK_EVENTS } from '../../node/install.js';
 import type { CheckGroup, CheckResult, CheckStatus, Facts, Message, RepairId } from './types.js';
@@ -570,6 +571,23 @@ const selftestSuites: Check = (f) => {
   });
 };
 
+// ── updates ──
+
+/** A newer release, the daily check off, or the newest here: from the last check's answer, never a network call of its own. */
+const installUpdate: Check = (f) => {
+  const id = 'install.update';
+  const newer = newerThan(f.update.current, f.update.state?.latest ?? null);
+  if (newer)
+    return result(id, 'install', false, 'info', m('doc.update.newer', { version: f.update.current, newer }), {
+      hint: m('doc.update.hint', { cmd: `${CLI_NAME} update` }),
+    });
+  if (!f.update.check)
+    return result(id, 'install', false, 'info', m('doc.update.off'), { hint: m('doc.update.offHint', { cmd: `${CLI_NAME} update --check` }) });
+  if (!f.update.state) return result(id, 'install', false, 'info', m('doc.update.notYet'));
+  if (f.update.state.error) return result(id, 'install', false, 'info', m('doc.update.error', { detail: f.update.state.error }));
+  return result(id, 'install', false, 'ok', m('doc.update.ok', { version: f.update.current }));
+};
+
 // ── full autonomy ──
 
 /** Off: said once. On: the start checks measurable here; each failure names its fix (docs/autonomy.md). */
@@ -623,6 +641,7 @@ export const CHECKS: readonly Check[] = [
   installPluginFiles,
   installControlCenter,
   installModSeen,
+  installUpdate,
   installAutonomy,
   protectAgreement,
   protectLinks,

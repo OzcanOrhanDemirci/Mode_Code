@@ -10,6 +10,7 @@ import { bypassOn, newModState, parseModState } from '../../src/core/session.js'
 import { controlsLine, menuText, stripRows, type StripView } from '../../src/core/controls.js';
 import { LOCAL_KEYS, lowersProtection, sharedValues } from '../../src/core/sync.js';
 import { bypassOffNote, bypassOnNote, bypassReminder } from '../../src/core/guidance.js';
+import { tIn } from '../../src/core/i18n/index.js';
 
 test('the setting: off by default, two hours, 1 to 24; anything else is a problem, never a guess', () => {
   assert.deepEqual(cloneDefaults().bypass, { enabled: false, maxHours: 2 });
@@ -88,6 +89,13 @@ test('the strip: no bypass until it is turned on; then ⚡, lit in red while on,
   assert.equal(controlsLine(on, 'en'), '🔨 code · manual · ⚡ bypass · 3');
   assert.match(menuText(on, 'tr', '—'), /\*\*\/bypass\*\*/);
   assert.doesNotMatch(menuText(base, 'tr', '—'), /bypass/);
+  // A newer release the last check found is said under where the session stands, only then.
+  // (Read from the dictionary: a rename of the tool changes the name in it.)
+  const said = menuText(base, 'tr', '—', '1.2.1').split('\n\n');
+  assert.equal(said[1], tIn('tr', 'ctl.menu.update', { newer: '1.2.1' }));
+  assert.match(said[1]!, /1\.2\.1 çıktı: kendi terminalinde .+ update çalıştır\.$/);
+  assert.match(said[2]!, /^- /);
+  assert.doesNotMatch(menuText(base, 'tr', '—', null), /çıktı/);
 });
 
 test('what the model is told: free with care when it starts, a reminder with each prompt, the belt back when it ends', () => {

@@ -174,6 +174,13 @@ export interface Config {
     /** Hours after which bypass ends by itself in a session. */
     maxHours: number;
   };
+  /**
+   * Updates (docs/cli.md, `mode-code update`): whether this computer asks once a day for the newest release, one
+   * small download from it. Off until the person says yes; the installer asks.
+   */
+  update: {
+    check: boolean;
+  };
   accessibility: {
     /** Plain text: no box drawing, no emoji-only signals. */
     plain: boolean;
@@ -210,6 +217,7 @@ export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
   modes: { workDir: null },
   autonomy: { enabled: false, maxHours: 12, stallMinutes: 90, reviewModel: null },
   bypass: { enabled: false, maxHours: 2 },
+  update: { check: false },
   accessibility: { plain: false, highContrast: false, reduceMotion: false },
   sync: null,
 }) as Config;
@@ -380,6 +388,15 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
       else problems.push({ path: 'bypass.maxHours', kind: 'range', detail: 'expected 1 to 24' });
     }
   } else if (raw.bypass !== undefined) problems.push({ path: 'bypass', kind: 'type', detail: 'expected an object' });
+
+  if (isObj(raw.update)) {
+    const u = raw.update;
+    for (const k of Object.keys(u)) if (k !== 'check') problems.push({ path: `update.${k}`, kind: 'unknown-key', detail: 'not a setting' });
+    if (u.check !== undefined) {
+      if (typeof u.check === 'boolean') c.update.check = u.check;
+      else problems.push({ path: 'update.check', kind: 'type', detail: 'expected true or false' });
+    }
+  } else if (raw.update !== undefined) problems.push({ path: 'update', kind: 'type', detail: 'expected an object' });
 
   if (raw.sync !== undefined && raw.sync !== null) c.sync = syncSetting(raw.sync, problems);
 

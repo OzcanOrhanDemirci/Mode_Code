@@ -19,6 +19,7 @@ import type { SessionRow, TokenTotals } from '../../src/node/index-db.js';
 import type { ModSessionState } from '../../src/core/session.js';
 import { buildReport } from '../../src/app/report.js';
 import type { DoctorSummary } from '../../src/app/doctor/doctor.js';
+import type { UpdateState } from '../../src/core/update.js';
 import type { Flow } from '../../src/core/flow.js';
 import type { Run } from '../../src/core/run.js';
 import type { GateResult } from '../../src/core/run-gate.js';
@@ -236,6 +237,10 @@ export class FakeData implements DataSource {
   doctor: DoctorSummary | null = null;
   doctorSummary() {
     return this.doctor;
+  }
+  update: UpdateState | null = null;
+  updateState() {
+    return this.update;
   }
   flowList: Flow[] = [];
   flows() {

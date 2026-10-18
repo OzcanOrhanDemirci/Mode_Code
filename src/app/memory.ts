@@ -13,6 +13,8 @@ import { handoffRoot } from '../core/memory.js';
 import { newestRecord, parseSyncRecord, type SyncRecord } from '../core/memory-sync.js';
 import { parseActivity, parseNoteDecisions, pendingNotes, type MorningFacts, type NoteDecisions } from '../core/morning.js';
 import { pathKey } from '../core/paths.js';
+import { newerThan } from '../core/update.js';
+import { APP_VERSION } from '../core/app.js';
 import type { AppContext } from './context.js';
 import { loadEvents, openIndex } from './data.js';
 import { loadFlows } from './flows.js';
@@ -23,6 +25,7 @@ import { readText, writeJsonAtomic } from '../node/fsx.js';
 import { repoStatus } from '../node/git.js';
 import { handoffList, newestHandoffAt, projectKeyAt } from '../node/handoffs.js';
 import { readMemorySetting } from '../node/memory-store.js';
+import { readUpdateState } from '../node/update.js';
 
 export interface MemoryView {
   store: MemoryStore | null;
@@ -184,6 +187,7 @@ export function morningFacts(ctx: AppContext, since: number, until: number, opts
     notes: pendingNoteRuns(ctx).length,
     elsewhere: elsewhereFacts(ctx, since, until),
     syncPending: ctx.pending?.length ?? 0,
+    update: newerThan(APP_VERSION, readUpdateState(ctx.layout)?.latest ?? null),
   };
 }
 

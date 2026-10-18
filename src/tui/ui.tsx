@@ -29,7 +29,7 @@ export interface Env {
 }
 
 /** What the control center leaves the screen for. */
-export type LeaveAction = 'memory-setup' | 'sync-setup';
+export type LeaveAction = 'memory-setup' | 'sync-setup' | 'update';
 
 export const EnvContext = createContext<Env | null>(null);
 

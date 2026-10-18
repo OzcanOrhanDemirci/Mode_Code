@@ -11,6 +11,7 @@ import { App } from './app.js';
 import type { LeaveAction } from './ui.js';
 import { runMemorySetup } from '../cli/memory.js';
 import { runSyncSetup } from '../cli/sync.js';
+import { runUpdate } from '../cli/update.js';
 
 export async function runControlCenter(opts: { address: string | null; plain: boolean }): Promise<number> {
   const ctx = appContext();
@@ -52,6 +53,8 @@ export async function runControlCenter(opts: { address: string | null; plain: bo
     if (!left) return 0;
     if (left.action === 'memory-setup') await runMemorySetup(appContext());
     if (left.action === 'sync-setup') await runSyncSetup(appContext());
+    // Updated, this process is the old program: the person opens the new one.
+    if (left.action === 'update' && (await runUpdate(appContext(), { yes: false, check: false, json: false })) === 0) return 0;
     process.stdout.write(`\n${tIn(ctx.lang, 'tui.backSoon')}\n`);
     await new Promise((r) => setTimeout(r, 1200));
     address = left.back;

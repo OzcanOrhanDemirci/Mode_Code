@@ -1,7 +1,7 @@
 ## Problem report for Mode_Code
 
 - Mode_Code dev · Node.js 24.15.0 · win32 x64 10.0.26200 · Claude Code 2.1.295
-- 29 ok · 5 notes · 2 warnings · 3 problems · 3 skipped
+- 30 ok · 5 notes · 2 warnings · 3 problems · 3 skipped
 
 | check | status | result |
 | --- | --- | --- |
@@ -19,6 +19,7 @@
 | install.pluginFiles | ok | The plugin files match this version. |
 | install.controlCenter | ok | /0 opens the control center from C:/dev/mode-code/dist/cli.mjs. |
 | install.modSeen | ok | The plugin last reported in from a session at 2026-10-12 11:50 (UTC). |
+| install.update | ok | Mode_Code 1.2.0 is the newest release. |
 | install.autonomy | info | Full autonomy is off (mode-code autonomy enable turns it on). |
 | protect.agreement | fail | The installed hook answered 1 of 30 samples differently from this version. |
 |  |  | Write ~/MODECO~1/config.json: this version says block, the installed hook says allow. |

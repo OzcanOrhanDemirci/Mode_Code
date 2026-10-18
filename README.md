@@ -42,7 +42,7 @@ irm https://raw.githubusercontent.com/OzcanOrhanDemirci/Mode_Code/main/install.p
 
 Then start a new Claude Code session (`claude`). The strip above the prompt shows the mode and the way of working: Mode_Code is on. Type `/0` there for the control center.
 
-- **Update:** run the same line again.
+- **Update:** `mode-code update` (or `u` under Maintenance in the control center) runs the newest release's own installer, checked against its checksums; running the same line again does the same. If you said yes at install, Mode_Code checks once a day whether a newer release is out and says so in the doctor, the `/0` menu and the morning report.
 - **Remove:** `mode-code uninstall`. It takes out exactly what was installed, the program and its command included; add `--purge` to delete your settings and history too.
 
 <details>
@@ -242,7 +242,7 @@ Details: [docs/safety-belt.md](docs/safety-belt.md).
 
 ## Privacy and security
 
-- **Nothing leaves your machine unless you send it.** No telemetry, no analytics. The memory and sync go only where you set them up to go: a private repository of yours, through git and the GitHub CLI, or a folder you chose. The one model call it makes is the independent review of a full-autonomy run's milestones, through Claude Code's own client, to the provider your session already uses.
+- **Nothing leaves your machine unless you send it.** No telemetry, no analytics. The one thing it fetches on its own, and only if you said yes at install, is the newest release's checksum list, once a day, to tell you an update is out; nothing is sent with it. The memory and sync go only where you set them up to go: a private repository of yours, through git and the GitHub CLI, or a folder you chose. The one model call it makes is the independent review of a full-autonomy run's milestones, through Claude Code's own client, to the provider your session already uses.
 - **What it reads:** Claude Code's settings files and transcripts (read-only), your memory folders (for git status and secret scans).
 - **What it writes:** its data folder (`~/.mode-code`), and, with your approval at install, four hook entries in your Claude Code user settings (a backup is kept). The plugin is installed through Claude Code's own `claude plugin` command. The one-line installer also writes the program folder, the `mode-code` command and, when needed, one PATH entry, each listed in the record `mode-code uninstall` reads.
 - **What it downloads:** only when you run the installer: the release from GitHub and, when you have none, Node.js from nodejs.org, each checked against its SHA-256. Releases carry a [build provenance attestation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations): `gh attestation verify mode-code.tgz --repo OzcanOrhanDemirci/Mode_Code`.

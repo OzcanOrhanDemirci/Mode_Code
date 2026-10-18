@@ -83,18 +83,27 @@ test('the hook program has no third-party code and no interface code', () => {
   assert.deepEqual(reach, []);
 });
 
-test('no network: no module opens a connection, nothing fetches (no telemetry, checked rather than promised)', () => {
+test('no network but the update: one fetch, of a release file, reached only by `mode-code update` (no telemetry, checked rather than promised)', () => {
   const NET = /^(?:node:)?(?:http|https|http2|net|tls|dgram|dns|undici|ws)(?:\/|$)/;
   const bad: string[] = [];
   for (const p of files('src')) {
     const text = read(p);
     for (const s of imports(text)) if (NET.test(s)) bad.push(`${rel(p)}: imports ${s}`);
-    if (/\bfetch\s*\(|\bnew\s+WebSocket\b|\bXMLHttpRequest\b|\$\.http\./.test(text)) bad.push(`${rel(p)}: network call`);
+    const calls = text.match(/\bfetch\s*\(|\bnew\s+WebSocket\b|\bXMLHttpRequest\b|\$\.http\./g) ?? [];
+    // The one exception: node/update.ts reads a release's files (SHA256SUMS, an installer), and nothing else.
+    const allowed = rel(p) === 'src/node/update.ts' ? 1 : 0;
+    if (calls.length !== allowed) bad.push(`${rel(p)}: ${calls.length} network call(s)`);
   }
   assert.deepEqual(bad, []);
+  // What reaches the network is used by the update command alone; the daily check is that command, started by
+  // the plugin only when the person said yes (src/mod/register.ts, updateCheck; test/mod/update.kit.ts).
+  const users = files('src')
+    .filter((p) => rel(p) !== 'src/node/update.ts' && /\b(?:checkUpdate|runInstaller|fetchFile)\b/.test(read(p)))
+    .map(rel);
+  assert.deepEqual(users, ['src/cli/update.ts']);
 });
 
-test('the shipped bundles open no connection either', (t) => {
+test('the shipped bundles open no connection either; the hook and the plugin fetch nothing', (t) => {
   const bundles = ['dist/cli.mjs', 'dist/hook.mjs', 'dist/plugin/hooks/register.js'].map((p) => join(ROOT, p));
   if (!bundles.every(existsSync)) return t.skip('needs the build: npm run build');
   const NET = /(?:from|import|require\()\s*\(?\s*['"](?:node:)?(?:http|https|http2|net|tls|dgram|dns)['"]/;
@@ -102,6 +111,7 @@ test('the shipped bundles open no connection either', (t) => {
     const text = read(b);
     assert.doesNotMatch(text, NET, `${rel(b)} imports a network module`);
     assert.doesNotMatch(text, /\bfetch\s*\(\s*['"`]https?:/, `${rel(b)} fetches a URL`);
+    if (!b.endsWith('cli.mjs')) assert.doesNotMatch(text, /\bfetch\s*\(/, `${rel(b)} fetches`);
   }
   // The hook and the mod are self-contained: the hook needs only Node's own modules, the mod only Claude Code.
   const hookImports = imports(read(bundles[1]!)).filter((s) => !s.startsWith('node:'));

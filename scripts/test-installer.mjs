@@ -389,6 +389,73 @@ ${unlisted.out}`,
   }
 }
 
+/** A release folder as GitHub serves one: the package under both names, the two installers, SHA256SUMS of all. */
+function releaseFolder(dir, pkg, version) {
+  mkdirSync(dir, { recursive: true });
+  copyFileSync(pkg, join(dir, `mode-code-${version}.tgz`));
+  copyFileSync(pkg, join(dir, 'mode-code.tgz'));
+  for (const f of ['install.sh', 'install.ps1']) copyFileSync(join(root, f), join(dir, f));
+  const files = readdirSync(dir).filter((f) => f !== 'SHA256SUMS');
+  writeFileSync(join(dir, 'SHA256SUMS'), files.map((f) => `${sha256(join(dir, f))}  ${f}\n`).join(''));
+  return dir;
+}
+
+/** The package again, saying it is `version` in its package.json: a newer release to update to. */
+function repacked(pkg, version) {
+  const work = join(tmp, `repack-${version}`);
+  rmSync(work, { recursive: true, force: true });
+  mkdirSync(work, { recursive: true });
+  check(run(TAR, ['-xzf', pkg, '-C', work]).code === 0, 'the package could not be unpacked');
+  const file = join(work, 'package', 'package.json');
+  writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, 'utf8')), version }, null, 2) + '\n');
+  const out = join(tmp, `mode-code-${version}-repacked.tgz`);
+  check(run(TAR, ['-czf', out, '-C', work, 'package']).code === 0, 'the package could not be packed again');
+  return out;
+}
+
+function caseUpdate(shell, pkg, mirror, version) {
+  const [major, minor, patch] = version.split(/[.-]/).map(Number);
+  const next = `${major}.${minor}.${patch + 1}`;
+  const w = world(`${shell}-update`, { pkg: '', mirror });
+  delete w.env.MODE_CODE_PACKAGE;
+  w.env.MODE_CODE_RELEASE_URL = releaseFolder(join(tmp, `${shell}-update-now`), pkg, version);
+  try {
+    const r = install(shell, w, isUnixShell(shell) ? ['--yes'] : ['-Yes']);
+    check(r.code === 0, `the first installation: exit ${r.code}:\n${r.out}`);
+    const newer = releaseFolder(join(tmp, `${shell}-update-next`), repacked(pkg, next), next);
+    w.env.MODE_CODE_RELEASE_URL = newer;
+    const asked = command(w, ['update', '--check', '--json']);
+    const said = JSON.parse(asked.out.slice(asked.out.indexOf('{')));
+    check(said.latest === next && said.newer === next, `update --check: ${asked.out}`);
+    // The release's installer, checked against its SHA256SUMS, run with --yes: the newer package is in place and
+    // registered with Claude Code again.
+    const calls = w.claudeCalls().length;
+    const u = command(w, ['update', '--yes']);
+    check(u.code === 0 && u.out.includes(`Updated to Mode_Code ${next}`), `update --yes: exit ${u.code}:\n${u.out}`);
+    check(w.receipt().version === next && w.receipt().source.endsWith(`mode-code-${next}.tgz`), `the record after the update: ${JSON.stringify(w.receipt())}`);
+    check(
+      w
+        .claudeCalls()
+        .slice(calls)
+        .some((c) => c.startsWith('plugin install mode-code')),
+      'the update did not register the plugin again',
+    );
+    // An installer that does not match the release's checksum is never run, and the installation stays.
+    const sums = join(newer, 'SHA256SUMS');
+    writeFileSync(sums, readFileSync(sums, 'utf8').replace(/^[0-9a-f]{64}(?=  install\.(?:sh|ps1)$)/gm, '0'.repeat(64)));
+    const before = w.receipt().installedAt;
+    const tampered = command(w, ['update', '--yes']);
+    check(
+      tampered.code === 1 && tampered.out.includes("does not match the release's checksum"),
+      `a tampered installer: exit ${tampered.code}:\n${tampered.out}`,
+    );
+    check(w.receipt().installedAt === before, 'a tampered installer changed the installation');
+    return `update: ${version} to ${next} with the release's installer, a tampered installer refused`;
+  } finally {
+    w.cleanup();
+  }
+}
+
 function caseNoClaude(shell, pkg, mirror) {
   const w = world(`${shell}-noclaude`, { pkg, mirror, claude: false });
   try {
@@ -470,6 +537,7 @@ try {
       ['no claude', () => caseNoClaude(shell, pkg, mirror)],
       ['options', () => caseNoSetupAndRefusals(shell, pkg, mirror)],
       ['release', () => caseRelease(shell, pkg, mirror, version)],
+      ['update', () => caseUpdate(shell, pkg, mirror, version)],
     ]) {
       const started = Date.now();
       try {

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { test } from 'node:test';
+
 import assert from 'node:assert/strict';
 import { DEFAULT_CONFIG, parseConfig, serializeConfig, setConfigValue } from '../../src/core/config.js';
 
@@ -103,4 +104,20 @@ test('full autonomy limits: both ends of each range are accepted', () => {
     });
   assert.equal(parseConfig(JSON.stringify({ autonomy: { maxHours: 73 } })).problems[0]!.path, 'autonomy.maxHours');
   assert.equal(parseConfig(JSON.stringify({ autonomy: { stallMinutes: 9 } })).problems[0]!.path, 'autonomy.stallMinutes');
+});
+
+test('the update check: off unless set, a yes or no only', () => {
+  assert.equal(parseConfig(JSON.stringify({})).config.update.check, false);
+  assert.equal(parseConfig(JSON.stringify({ update: { check: true } })).config.update.check, true);
+  assert.deepEqual(
+    parseConfig(JSON.stringify({ update: { check: 'yes', when: 1 } })).problems.map((p) => [p.path, p.kind]),
+    [
+      ['update.when', 'unknown-key'],
+      ['update.check', 'type'],
+    ],
+  );
+  assert.deepEqual(
+    parseConfig(JSON.stringify({ update: 5 })).problems.map((p) => p.path),
+    ['update'],
+  );
 });

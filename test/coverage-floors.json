@@ -126,6 +126,11 @@
       "branches": 44,
       "functions": 73
     },
+    "src/cli/update.ts": {
+      "lines": 39,
+      "branches": 33,
+      "functions": 94
+    },
     "src/core/app.ts": {
       "lines": 94,
       "branches": 0,
@@ -476,6 +481,11 @@
       "branches": 75,
       "functions": 81
     },
+    "src/core/update.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
     "src/core/version.ts": {
       "lines": 88,
       "branches": 72,
@@ -559,6 +569,11 @@
     "src/node/tail.ts": {
       "lines": 86,
       "branches": 0,
+      "functions": 94
+    },
+    "src/node/update.ts": {
+      "lines": 88,
+      "branches": 49,
       "functions": 94
     },
     "src/node/width.ts": {

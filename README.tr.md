@@ -42,7 +42,7 @@ irm https://raw.githubusercontent.com/OzcanOrhanDemirci/Mode_Code/main/install.p
 
 Sonra yeni bir Claude Code oturumu başlat (`claude`). İstem satırının üstündeki şerit modu ve çalışma biçimini gösterir: Mode_Code açık. Kontrol merkezi için orada `/0` yaz.
 
-- **Güncellemek:** aynı satırı yeniden çalıştır.
+- **Güncellemek:** `mode-code update` (ya da kontrol merkezinde Bakım altında `u`) en yeni sürümün kendi kurulum betiğini, sağlama toplamlarına karşı doğrulayıp çalıştırır; aynı satırı yeniden çalıştırmak da aynı işi görür. Kurulumda evet dediysen Mode_Code günde bir kez yeni sürüm çıkmış mı diye bakar ve bunu doktorda, `/0` menüsünde ve sabah raporunda söyler.
 - **Kaldırmak:** `mode-code uninstall`. Kurulanı tam olarak kaldırır, program ve komutu dahil; ayarlarını ve geçmişini de silmek için `--purge` ekle.
 
 <details>
@@ -244,7 +244,7 @@ Ayrıntı: [docs/safety-belt.md](docs/safety-belt.md).
 
 ## Gizlilik ve güvenlik
 
-- **Sen göndermedikçe hiçbir şey makinenden çıkmaz.** Telemetri yok, analitik yok. Hafıza ve eşitleme yalnız senin kurduğun yere gider: git ve GitHub CLI ile kendi özel depona ya da seçtiğin bir klasöre. Yaptığı tek model çağrısı, tam otonom bir koşunun kilometre taşlarının bağımsız incelemesidir; Claude Code'un kendi istemcisiyle, oturumunun zaten kullandığı sağlayıcıya gider.
+- **Sen göndermedikçe hiçbir şey makinenden çıkmaz.** Telemetri yok, analitik yok. Kendiliğinden indirdiği tek şey, yalnız kurulumda evet dediysen, en yeni sürümün sağlama listesidir: günde bir kez, güncelleme çıktığını söylemek için; yanında hiçbir şey gönderilmez. Hafıza ve eşitleme yalnız senin kurduğun yere gider: git ve GitHub CLI ile kendi özel depona ya da seçtiğin bir klasöre. Yaptığı tek model çağrısı, tam otonom bir koşunun kilometre taşlarının bağımsız incelemesidir; Claude Code'un kendi istemcisiyle, oturumunun zaten kullandığı sağlayıcıya gider.
 - **Ne okur:** Claude Code'un ayar dosyalarını ve kayıtlarını (salt okunur), hafıza klasörlerini (git durumu ve sır taraması için).
 - **Ne yazar:** kendi veri klasörünü (`~/.mode-code`) ve kurulumda senin onayınla Claude Code kullanıcı ayarlarına dört hook kaydı (yedeği alınır). Eklenti Claude Code'un kendi `claude plugin` komutuyla kurulur. Tek satırlık kurulum ayrıca program klasörünü, `mode-code` komutunu ve gerekirse tek bir PATH kaydını yazar; her biri `mode-code uninstall` komutunun okuduğu kayıtta listelenir.
 - **Ne indirir:** yalnız kurulumu çalıştırdığında: GitHub'dan sürümü ve yoksa nodejs.org'dan Node.js'i; her biri SHA-256 ile doğrulanır. Sürümler bir [derleme kaynağı kanıtı](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations) taşır: `gh attestation verify mode-code.tgz --repo OzcanOrhanDemirci/Mode_Code`.

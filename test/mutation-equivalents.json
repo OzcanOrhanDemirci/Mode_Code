@@ -456,6 +456,22 @@
       "line": "const byName = byRemote || byFolder ? null",
       "kind": "equivalent",
       "why": "it only spares work: the path and the reason take byRemote and byFolder before byName"
+    },
+    {
+      "file": "src/core/update.ts",
+      "from": ">",
+      "to": ">=",
+      "line": "compareVersions(v, best) > 0)) best = v;",
+      "kind": "equivalent",
+      "why": "an equal version found again is the same version"
+    },
+    {
+      "file": "src/core/update.ts",
+      "from": ">",
+      "to": ">=",
+      "line": "while (end > 0 && (override[end - 1] === '/'",
+      "kind": "equivalent",
+      "why": "at 0 the character read is before the start, never a slash"
     }
   ]
 }
