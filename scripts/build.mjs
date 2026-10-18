@@ -12,7 +12,7 @@ import { build } from 'esbuild';
 import { mkdir, readFile, rm, writeFile, cp } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
@@ -111,6 +111,38 @@ for (const f of ['LICENSE', 'NOTICE']) await cp(join(root, f), join(dist, 'plugi
 // The contract of the values the plugin keeps in Claude Code's session state; the validator checks it.
 await mkdir(join(dist, 'plugin', 'types'), { recursive: true });
 await cp(join(root, 'src', 'mod', 'contract.d.ts'), join(dist, 'plugin', 'types', 'index.d.ts'));
+
+// ── tool packs (docs/packs.md): each hosted pack a plugin of its own, its skill the guide in packs/<id>.md ──
+// The catalog in src/core/packs.ts is the one source: bundled for a moment to be read here, then removed.
+const catalogFile = join(dist, '.packs-catalog.mjs');
+await build({ ...common, metafile: false, entryPoints: [join(root, 'src', 'core', 'packs.ts')], outfile: catalogFile, platform: 'neutral', target: 'es2023' });
+const { PACKS, hostedName } = await import(pathToFileURL(catalogFile).href);
+await rm(catalogFile, { force: true });
+await mkdir(join(dist, 'packs', 'guides'), { recursive: true });
+for (const p of PACKS) {
+  const guide = (await readFile(join(root, 'packs', `${p.id}.md`), 'utf8')).trim() + '\n';
+  await writeFile(join(dist, 'packs', 'guides', `${p.id}.md`), guide);
+  if (!p.plugin.hosted) continue;
+  const dir = join(dist, 'packs', 'plugins', hostedName(p.id));
+  await mkdir(join(dir, '.claude-plugin'), { recursive: true });
+  await mkdir(join(dir, 'skills', p.id), { recursive: true });
+  const env = Object.assign({}, ...p.tools.map((t) => t.telemetryOff ?? {}));
+  const packManifest = {
+    name: hostedName(p.id),
+    version: pkg.version,
+    description: `A ${pkg.name} tool pack. ${p.summary}`,
+    author: { name: pkg.author },
+    homepage: pkg.homepage,
+    license: pkg.license,
+    ...(p.server?.kind === 'mcp'
+      ? { mcpServers: { [p.id]: { command: p.server.command, args: [...p.server.args], ...(Object.keys(env).length ? { env } : {}) } } }
+      : {}),
+  };
+  await writeFile(join(dir, '.claude-plugin', 'plugin.json'), JSON.stringify(packManifest, null, 2) + '\n');
+  // The description is the one line Claude reads in the skill list; quoted, so a colon in it stays text.
+  await writeFile(join(dir, 'skills', p.id, 'SKILL.md'), `---\nname: ${p.id}\ndescription: ${JSON.stringify(p.summary)}\n---\n\n${guide}`);
+  await cp(join(root, 'LICENSE'), join(dir, 'LICENSE'));
+}
 
 // ── third-party notices: every package that ended up in a bundle, with its license text ──
 const inputs = new Set();

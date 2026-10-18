@@ -233,6 +233,8 @@ export async function cmdInstall(a: Args): Promise<number> {
     chosen.view = (['simple', 'recommended', 'detailed'] as const)[v];
     // Asked in every view: it is the one thing that reaches the network unasked, so it is never on without a yes.
     chosen.update = { check: await terminalIO(ctx).confirm(T(ctx, 'install.ask.update'), true) };
+    // Automatic use of the tool packs (docs/packs.md): on unless the person says no (K5 of 1.2.0).
+    chosen.packs = { autoUse: await terminalIO(ctx).confirm(T(ctx, 'install.ask.packs'), true), items: {} };
     if (chosen.view !== 'simple') {
       if (!chosen.memory) {
         memoryAsked = true;
@@ -258,6 +260,7 @@ export async function cmdInstall(a: Args): Promise<number> {
     if (chosen.memory) say(`  ${T(ctx, 'page.memory')}: ${chosen.memory.dirs.map((d) => shortPath(d, homedir(), 70)).join(', ')}`);
     if (chosen.footer) say(`  ${T(ctx, 'set.footerMode')}: ${T(ctx, `footer.mode.${chosen.footer.mode}` as MessageKey)}`);
     if (chosen.update) say(`  ${T(ctx, 'set.updateCheck')}: ${T(ctx, chosen.update.check ? 'footer.yes' : 'footer.no')}`);
+    if (chosen.packs) say(`  ${T(ctx, 'packs.autoUse')}: ${T(ctx, chosen.packs.autoUse ? 'footer.yes' : 'footer.no')}`);
     say();
   }
   if (!flag(a, 'yes', 'y') && !(await confirm(T(ctx, 'install.confirm')))) {
@@ -1069,7 +1072,7 @@ export async function cmdAutonomy(a: Args): Promise<number> {
 // ── config ──
 
 /** Settings an agent's shell may not change: they lower a protection or widen what a session does unasked. */
-const PROTECTIVE = /^(?:belt|memory|modules\.(?:quota|secrets)|autonomy|bypass|projects|sync|update)(?:\.|$)/;
+const PROTECTIVE = /^(?:belt|memory|modules\.(?:quota|secrets)|autonomy|bypass|projects|sync|update|packs)(?:\.|$)/;
 
 export async function cmdConfig(a: Args): Promise<number> {
   const ctx = appContext();
@@ -1153,6 +1156,7 @@ export function helpText(lang: Lang): string {
     `  ${c('config get|set|path'.padEnd(31))}${L('help.config')}`,
     `  ${c('update [--check] [--yes]'.padEnd(31))}${L('help.update')}`,
     `  ${c('trust'.padEnd(31))}${L('help.trust')}`,
+    `  ${c('packs [on|off|set|auto|guide]'.padEnd(31))}${L('help.packs')}`,
     '',
     dim(L('help.json')),
     dim(L('help.privacy')),

@@ -326,6 +326,12 @@ export function trapNote(trap: 'heredoc' | 'pipe'): string {
     : `${P} That command pipes a build or test into a filter: the pipe's exit code is the filter's, so a failure reads as a success. Use set -o pipefail, or read the exit code without the pipe, before calling it passed.`;
 }
 
+/** Told to the model when tool packs were turned on in this project (docs/packs.md): by Automatic use, or at its request. */
+export function packsOnNote(packs: readonly string[], by: 'auto' | 'request'): string {
+  const why = by === 'auto' ? "by Automatic use, as this project's files call for them" : 'as you asked';
+  return `${P} Tool packs turned on in this project ${why}: ${packs.join(', ')}. They load when the person types /reload-plugins or in the next session; until then the catalog tool returns their guides.`;
+}
+
 /** Told to the model when the person's message holds what looks like a key or a token (its kinds, never the value). */
 export function promptSecretNote(kinds: readonly string[]): string {
   return `${P} The person's message holds what looks like a secret (${kinds.join(', ')}). Use it only for what they asked; do not repeat it in your answer, write it into a file other than a secret store, commit it or send it anywhere. If it looks pasted by mistake, tell them to rotate it.`;

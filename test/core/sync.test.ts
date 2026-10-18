@@ -439,6 +439,17 @@ test('what lowers a protection, setting by setting', () => {
     ['projects.app', { names: ['app'] }, undefined, false],
     ['footer.mode', 'draw', 'off', false],
     ['language', 'tr', 'en', false],
+    ['packs.autoUse', false, true, true],
+    ['packs.autoUse', false, undefined, true],
+    ['packs.autoUse', true, false, false],
+    ['packs.autoUse', undefined, false, false],
+    ['packs.items.typst', 'never', undefined, true],
+    ['packs.items.typst', 'me', 'always', true],
+    ['packs.items.typst', undefined, 'always', true],
+    ['packs.items.typst', 'always', 'me', false],
+    ['packs.items.typst', undefined, 'never', false],
+    ['packs.autoUse', true, true, false],
+    ['packs.items.typst', 'me', 'me', false],
   ];
   for (const [key, from, to, expected] of cases)
     assert.equal(lowersProtection(key, from, to), expected, `${key}: ${JSON.stringify(from)} → ${JSON.stringify(to)}`);

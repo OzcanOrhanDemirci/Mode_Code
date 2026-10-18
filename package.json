@@ -48,6 +48,7 @@
     "check": "npm run typecheck && npm run format:check && npm run build && npm test",
     "test:coverage": "node scripts/coverage.mjs",
     "test:mod": "node scripts/typecheck-mod.mjs && node scripts/test-mod.mjs",
+    "test:packs": "node scripts/test-packs.mjs",
     "test:live": "node scripts/test-live.mjs",
     "test:package": "node scripts/test-package.mjs",
     "test:installer": "node scripts/test-installer.mjs",

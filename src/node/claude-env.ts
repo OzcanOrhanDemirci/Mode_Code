@@ -119,9 +119,15 @@ export function projectSlug(cwd: string): string {
  */
 export function runClaude(
   args: readonly string[],
-  opts: { timeoutMs?: number; env?: NodeJS.ProcessEnv } = {},
+  opts: { timeoutMs?: number; env?: NodeJS.ProcessEnv; cwd?: string } = {},
 ): { status: number | null; stdout: string; stderr: string } {
-  const base = { encoding: 'utf8' as const, timeout: opts.timeoutMs ?? 30_000, windowsHide: true, env: opts.env ?? process.env };
+  const base = {
+    encoding: 'utf8' as const,
+    timeout: opts.timeoutMs ?? 30_000,
+    windowsHide: true,
+    env: opts.env ?? process.env,
+    ...(opts.cwd ? { cwd: opts.cwd } : {}),
+  };
   let r = spawnSync('claude', [...args], base);
   if (r.error && process.platform === 'win32') {
     const line = ['claude', ...args.map((a) => (/^[\w@./:=-]+$/.test(a) ? a : `"${a.replace(/"/g, '\\"')}"`))].join(' ');

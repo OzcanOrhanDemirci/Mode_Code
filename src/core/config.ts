@@ -9,6 +9,7 @@ import { isLang, type Lang } from './i18n/index.js';
 import { RULE_IDS, RULES } from './belt/rules.js';
 import { VERDICT_ORDER, type RuleConfig, type RuleId, type Verdict } from './belt/types.js';
 import { KEYWORD_LISTS, type KeywordList } from './keywords.js';
+import { PACK_MODES, PACKS, type PackMode } from './packs.js';
 
 export const CONFIG_VERSION = 1;
 
@@ -181,6 +182,14 @@ export interface Config {
   update: {
     check: boolean;
   };
+  /**
+   * Tool packs (docs/packs.md). Automatic use: a project's markers turn its packs on there, and Claude may turn one
+   * on through the catalog. Only the person changes it, as bypass. Each pack's own choice overrides it.
+   */
+  packs: {
+    autoUse: boolean;
+    items: Record<string, PackMode>;
+  };
   accessibility: {
     /** Plain text: no box drawing, no emoji-only signals. */
     plain: boolean;
@@ -218,6 +227,7 @@ export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
   autonomy: { enabled: false, maxHours: 12, stallMinutes: 90, reviewModel: null },
   bypass: { enabled: false, maxHours: 2 },
   update: { check: false },
+  packs: { autoUse: true, items: {} },
   accessibility: { plain: false, highContrast: false, reduceMotion: false },
   sync: null,
 }) as Config;
@@ -397,6 +407,23 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
       else problems.push({ path: 'update.check', kind: 'type', detail: 'expected true or false' });
     }
   } else if (raw.update !== undefined) problems.push({ path: 'update', kind: 'type', detail: 'expected an object' });
+
+  if (isObj(raw.packs)) {
+    const p = raw.packs;
+    for (const k of Object.keys(p)) if (k !== 'autoUse' && k !== 'items') problems.push({ path: `packs.${k}`, kind: 'unknown-key', detail: 'not a setting' });
+    if (p.autoUse !== undefined) {
+      if (typeof p.autoUse === 'boolean') c.packs.autoUse = p.autoUse;
+      else problems.push({ path: 'packs.autoUse', kind: 'type', detail: 'expected true or false' });
+    }
+    if (isObj(p.items)) {
+      for (const [id, mode] of Object.entries(p.items)) {
+        if (!PACKS.some((x) => x.id === id)) problems.push({ path: `packs.items.${id}`, kind: 'unknown-key', detail: 'not a pack' });
+        else if (typeof mode === 'string' && PACK_MODES.includes(mode as PackMode)) {
+          if (mode !== 'auto') c.packs.items[id] = mode as PackMode;
+        } else problems.push({ path: `packs.items.${id}`, kind: 'type', detail: 'expected auto, always, me or never' });
+      }
+    } else if (p.items !== undefined) problems.push({ path: 'packs.items', kind: 'type', detail: 'expected an object' });
+  } else if (raw.packs !== undefined) problems.push({ path: 'packs', kind: 'type', detail: 'expected an object' });
 
   if (raw.sync !== undefined && raw.sync !== null) c.sync = syncSetting(raw.sync, problems);
 

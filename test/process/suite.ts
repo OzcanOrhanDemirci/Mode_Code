@@ -339,6 +339,56 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
     }
   });
 
+  test(`${mode}: packs: listed, turned on and off in a folder and recorded; modes and Automatic use are the person's alone`, (t) => {
+    if (skip(t)) return;
+    const w = world({ lang: 'en' });
+    const project = join(w.root, 'app');
+    mkdirSync(project);
+    const here = { ...opt, cwd: project };
+    try {
+      const listed = (r: { json: Record<string, any> | null }) => Object.fromEntries((r.json?.packs as { id: string; on: boolean }[]).map((p) => [p.id, p.on]));
+      const first = cli(w, ['packs', '--json'], here);
+      assert.equal(first.code, 0, first.err);
+      assert.equal(first.json?.schema, 'mode-code.packs/1');
+      assert.equal(first.json?.autoUse, true);
+      assert.equal(listed(first).typst, false);
+      const on = cli(w, ['packs', 'on', 'typst'], here);
+      assert.equal(on.code, 0, on.err + on.out);
+      assert.match(on.out, /✓ typst/);
+      assert.match(on.out, /\/reload-plugins/);
+      assert.deepEqual(w.claudeState().calls.at(-1)?.slice(0, 3), ['plugin', 'install', 'mode-code-typst']);
+      assert.equal(listed(cli(w, ['packs', '--json'], here)).typst, true);
+      const record = JSON.parse(readFileSync(join(w.data, 'state', 'packs.json'), 'utf8'));
+      assert.deepEqual(
+        record.on.map((x: { pack: string; project: string }) => x.pack),
+        ['typst'],
+      );
+      assert.equal(cli(w, ['packs', 'off', 'typst'], here).code, 0);
+      assert.equal(listed(cli(w, ['packs', '--json'], here)).typst, false);
+      assert.deepEqual(JSON.parse(readFileSync(join(w.data, 'state', 'packs.json'), 'utf8')).on, []);
+      // The person's choices.
+      assert.equal(cli(w, ['packs', 'set', 'store', 'never'], here).code, 0);
+      assert.equal(cli(w, ['packs', 'auto', 'off'], here).code, 0);
+      const text = cli(w, ['packs'], here).out;
+      assert.match(text, /Automatic use is off/);
+      assert.match(text, /store +off here · never/);
+      assert.equal(cli(w, ['packs', 'set', 'store', 'sometimes'], here).code, 2);
+      assert.equal(cli(w, ['packs', 'on', 'kubernetes'], here).code, 2);
+      // Inside a Claude Code session: the person's choices are refused; Claude's own ask stays within what they allowed.
+      const agent = { ...w, env: { ...w.env, CLAUDECODE: '1' } };
+      assert.equal(cli(agent, ['packs', 'auto', 'on'], here).code, 1);
+      assert.equal(cli(agent, ['packs', 'on', 'ffmpeg'], here).code, 1);
+      const asked = cli(agent, ['packs', 'here', '--pack', 'ffmpeg', '--json'], here);
+      assert.deepEqual([asked.code, asked.json?.ok, asked.json?.reason], [1, false, 'auto-off']);
+      // A guide, with how to install what it needs.
+      const guide = cli(w, ['packs', 'guide', 'typst'], here);
+      assert.match(guide.out, /Typst/);
+      assert.match(guide.out, /winget install --id Typst\.Typst --exact/);
+    } finally {
+      w.done();
+    }
+  });
+
   test(`${mode}: secrets: a token in a file is found and shown masked`, (t) => {
     if (skip(t)) return;
     const w = world();

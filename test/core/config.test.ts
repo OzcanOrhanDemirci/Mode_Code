@@ -106,6 +106,31 @@ test('full autonomy limits: both ends of each range are accepted', () => {
   assert.equal(parseConfig(JSON.stringify({ autonomy: { stallMinutes: 9 } })).problems[0]!.path, 'autonomy.stallMinutes');
 });
 
+test('tool packs: Automatic use on unless set; a mode per known pack, automatic kept as no entry', () => {
+  const d = parseConfig(JSON.stringify({})).config.packs;
+  assert.deepEqual(d, { autoUse: true, items: {} });
+  const c = parseConfig(JSON.stringify({ packs: { autoUse: false, items: { typst: 'never', ffmpeg: 'auto', store: 'always' } } })).config.packs;
+  assert.deepEqual(c, { autoUse: false, items: { typst: 'never', store: 'always' } });
+  assert.deepEqual(
+    parseConfig(JSON.stringify({ packs: { autoUse: 'yes', items: { typst: 'sometimes', rust: 'auto' }, x: 1 } })).problems.map((p) => [p.path, p.kind]),
+    [
+      ['packs.x', 'unknown-key'],
+      ['packs.autoUse', 'type'],
+      ['packs.items.typst', 'type'],
+      ['packs.items.rust', 'unknown-key'],
+    ],
+  );
+  assert.deepEqual(
+    parseConfig(JSON.stringify({ packs: { items: [] } })).problems.map((p) => p.path),
+    ['packs.items'],
+  );
+  assert.deepEqual(
+    parseConfig(JSON.stringify({ packs: 5 })).problems.map((p) => p.path),
+    ['packs'],
+  );
+  assert.deepEqual(setConfigValue(parseConfig('{}').config, 'packs.items.typst', 'me').config.packs.items, { typst: 'me' });
+});
+
 test('the update check: off unless set, a yes or no only', () => {
   assert.equal(parseConfig(JSON.stringify({})).config.update.check, false);
   assert.equal(parseConfig(JSON.stringify({ update: { check: true } })).config.update.check, true);

@@ -11,6 +11,11 @@ test('outside content: the web, connected services, issues and pull requests, fe
   assert.equal(taintSource('WebFetch', { url: 'https://example.com' }), 'WebFetch');
   assert.equal(taintSource('WebSearch', { query: 'x' }), 'WebSearch');
   assert.equal(taintSource('mcp__claude_ai_Gmail__get_thread', {}), 'mcp__claude_ai_Gmail__get_thread');
+  // A pack whose tools return others' text (a database): a source, as any connected service.
+  assert.equal(
+    taintSource('mcp__plugin_mode-code-firebase_firebase__firestore_get_documents', {}),
+    'mcp__plugin_mode-code-firebase_firebase__firestore_get_documents',
+  );
   assert.equal(taintSource('Bash', bash('curl -s https://example.com/page')), 'curl');
   assert.equal(taintSource('Bash', bash('gh issue view 12 --comments')), 'gh issue');
   assert.equal(taintSource('Bash', bash('cd app && gh pr view 7')), 'gh pr');
@@ -23,6 +28,7 @@ test('outside content: the web, connected services, issues and pull requests, fe
     ['Bash', bash('git status && npm test')],
     ['Bash', bash('gh auth status')],
     ['mcp__mode-code__handoff', {}],
+    ['mcp__plugin_mode-code-flutter_flutter__analyze_files', {}],
     ['Grep', { pattern: 'x' }],
   ] as const)
     assert.equal(taintSource(tool, input), null, tool);
@@ -56,6 +62,24 @@ test('a tainted session asks before it sends data out, persists, or writes the m
   assert.equal(act('Write', { file_path: '/home/ada/dev/app/.git/hooks/pre-commit', content: 'x' }), 'persist');
   assert.equal(act('Bash', bash('echo x >> ~/.bashrc')), 'persist');
   assert.equal(act('Bash', bash('crontab -l | crontab -')), 'persist');
+  // What runs inside Claude Code from now on: a plugin, an MCP server, a tool pack.
+  for (const c of [
+    'claude plugin install x@market',
+    'claude mcp add docs -- npx docs-mcp',
+    'mode-code packs on typst',
+    'mode-code packs here --pack ffmpeg',
+    'mode-code packs here --pack=ffmpeg',
+    'mode-code packs here --auto',
+  ])
+    assert.equal(act('Bash', bash(c)), 'persist', c);
+  for (const c of [
+    'claude plugin list',
+    'mode-code packs',
+    'mode-code packs here --json',
+    'mode-code packs guide typst',
+    'mode-code config set footer.mode off',
+  ])
+    assert.equal(act('Bash', bash(c)), null, c);
   assert.equal(act('PowerShell', { command: 'schtasks /create /tn x /tr calc.exe /sc onlogon' }), 'persist');
   assert.equal(act('PowerShell', { command: 'Register-ScheduledTask -TaskName x -Action $a' }), 'persist');
   // Any of the memory folders.

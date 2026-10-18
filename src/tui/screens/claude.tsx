@@ -9,6 +9,10 @@ import { compact, percent, shortPath } from '../../core/format.js';
 import type { MessageKey } from '../../core/i18n/index.js';
 import type { ScreenProps } from '../nav.js';
 import { Empty, Gauge, Muted, Note, Section, useEnv, useT } from '../ui.js';
+import { useState } from 'react';
+import { PACKS } from '../../core/packs.js';
+import { findProgram } from '../../node/packs.js';
+import { SettingsEditor, type Field } from '../widgets.js';
 
 function Cmd({ children }: { children: string }) {
   const { theme } = useEnv();
@@ -232,6 +236,48 @@ export function Plugins({ width, open }: ScreenProps) {
         <Text color={theme.muted}>
           {t('plugins.edit')} <Cmd>/plugin</Cmd>
         </Text>
+      </Box>
+    </Box>
+  );
+}
+
+/** Tool packs (docs/packs.md): Automatic use, and each pack's mode; which are on is per project (`mode-code packs`). */
+export function Packs({ width, open }: ScreenProps) {
+  const { data } = useEnv();
+  const t = useT();
+  const c = data.config();
+  // Which programs are on this computer: looked up once as the page opens.
+  const [missing] = useState(() => new Map(PACKS.map((p) => [p.id, p.tools.map((x) => x.program).filter((x) => findProgram(x) === null)])));
+  const modes = (['auto', 'always', 'me', 'never'] as const).map((value) => ({ value, label: t(`packs.mode.${value}` as MessageKey) }));
+  const fields: Field[] = [
+    {
+      path: 'packs.autoUse',
+      label: t('packs.autoUse'),
+      help: t('packs.autoUseHelp'),
+      value: c.packs.autoUse,
+      type: { kind: 'bool' },
+      confirmOn: { value: true, text: t('packs.autoConfirm') },
+    },
+    ...PACKS.map((p): Field => ({
+      path: `packs.items.${p.id}`,
+      label: p.name,
+      help: [
+        p.summary,
+        t('packs.itemTokens', { n: p.tokens }),
+        missing.get(p.id)?.length ? t('packs.itemMissing', { programs: missing.get(p.id)!.join(', '), pack: p.id }) : '',
+      ]
+        .filter(Boolean)
+        .join(' '),
+      value: c.packs.items[p.id] ?? 'auto',
+      type: { kind: 'enum', options: modes },
+      confirmOn: { value: 'always', text: t('packs.alwaysConfirm') },
+    })),
+  ];
+  return (
+    <Box flexDirection="column" width={width}>
+      <SettingsEditor fields={fields} open={open} width={width} />
+      <Box marginTop={1}>
+        <Muted>{t('packs.whereOn')}</Muted>
       </Box>
     </Box>
   );

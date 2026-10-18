@@ -103,6 +103,7 @@ const TARGETS = {
   'src/core/permissions.ts': ['test/core/permissions.test.ts'],
   'src/core/mcp-pins.ts': ['test/core/mcp-pins.test.ts'],
   'src/core/trust.ts': ['test/core/trust.test.ts'],
+  'src/core/packs.ts': ['test/core/packs.test.ts'],
   'src/core/mo/state.ts': ['test/core/mo.test.ts'],
   'src/core/mo/cells.ts': ['test/core/mo.test.ts'],
   // What a keyword does to the session: the mode and the way of working change only where the person names them.
@@ -257,7 +258,7 @@ function clearWork() {
 function makeWorker(i) {
   const dir = join(work, `w${i}`);
   mkdirSync(dir, { recursive: true });
-  for (const p of ['src', 'test', 'package.json', 'tsconfig.json']) cpSync(join(root, p), join(dir, p), { recursive: true });
+  for (const p of ['src', 'test', 'packs', 'package.json', 'tsconfig.json']) cpSync(join(root, p), join(dir, p), { recursive: true });
   symlinkSync(join(root, 'node_modules'), join(dir, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir');
   return dir;
 }
