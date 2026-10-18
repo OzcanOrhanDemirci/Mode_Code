@@ -254,7 +254,7 @@ export async function cmdMemory(a: Args): Promise<number> {
   }
   row(
     T(ctx, 'mcli.handoff'),
-    v.handoff ? `${dateTime(v.handoff.note.at, ctx.lang)} · ${nextOf(v.handoff.note, 80)}` : dim(T(ctx, 'mcli.handoff.none', { project: v.project })),
+    v.handoff ? `${dateTime(v.handoff.note.at, ctx.lang)} · ${nextOf(v.handoff.note, 80, ctx.lang)}` : dim(T(ctx, 'mcli.handoff.none', { project: v.project })),
   );
   if (v.pendingNotes) row(T(ctx, 'mcli.notes'), yellow(T(ctx, 'mcli.notes.pending', { n: v.pendingNotes, cmd: `${CLI_NAME} memory notes` })));
   return 0;

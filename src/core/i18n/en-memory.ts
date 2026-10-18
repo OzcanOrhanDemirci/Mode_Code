@@ -136,6 +136,7 @@ export const enMemory = {
   'help.memory': 'Where your memory lives, its setup and sync, handoff notes, notes from runs',
   'help.morning': 'What happened while you were away',
   'mcli.default': 'Enter',
+  'handoff.lastRequest': 'last request',
   'mcli.yes': '[y/n, Enter = yes]',
   'mcli.no': '[y/n, Enter = no]',
   'mcli.pick': 'Choose 1-{n} (Enter = {def}):',

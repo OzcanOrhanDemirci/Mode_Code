@@ -8,6 +8,7 @@
 import { APP_ID, APP_NAME, PREVIOUS_NAMES } from './app.js';
 import { maskSecrets } from './secrets/scan.js';
 import { truncate } from './text.js';
+import { tIn, type Lang } from './i18n/index.js';
 
 const P = `[${APP_NAME}]`;
 
@@ -204,14 +205,14 @@ export function parseHandoff(text: string): Handoff | null {
   return { project: meta.project, cwd: meta.cwd ?? '', machine: meta.machine ?? '', session: meta.session ?? '', at, trigger, sections };
 }
 
-/** The note's next step in one line: its Next, else the start of its Summary, else the last request. */
-export function nextOf(h: Handoff, max = 240): string {
+/** The note's next step in one line: its Next, else the start of its Summary, else the last request, named in `lang`. */
+export function nextOf(h: Handoff, max = 240, lang: Lang = 'en'): string {
   const next = h.sections.Next ?? '';
   if (next.trim()) return truncate(oneLine(next), max);
   const summary = h.sections.Summary ?? '';
   if (summary.trim()) return truncate(oneLine(summary), max);
   const req = /- Last request: (.+)/.exec(MEASURED_ANY.map((k) => h.sections[k]).find((s) => s !== undefined) ?? '');
-  return req ? truncate(`last request: ${req[1]!}`, max) : '';
+  return req ? truncate(`${tIn(lang, 'handoff.lastRequest')}: ${req[1]!}`, max) : '';
 }
 
 const TRIGGER_WORDS: Record<HandoffTrigger, string> = {

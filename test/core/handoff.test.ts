@@ -96,6 +96,8 @@ test('a note without a summary from Claude: the compaction summary, or only what
   // A note written under an earlier name of the tool carries that name in its heading, and still reads back.
   assert.equal(nextOf(parseHandoff(bare.replace('## What Mode_Code measured', '## What terminal-code measured'))!), 'last request: Bu güncellemeyi yapalım.');
   assert.equal(nextOf(parseHandoff(composeHandoff(facts({ request: null }), {}))!), '');
+  // Shown to the person, in their language (the note itself stays English, for the model).
+  assert.equal(nextOf(parseHandoff(bare)!, 240, 'tr'), 'son istek: Bu güncellemeyi yapalım.');
   // A quota with one window unknown is shown with a question mark; one with none is left out.
   assert.match(composeHandoff(facts({ quota: { five: null, week: 50 } }), {}), /- Quota: 5-hour \?, weekly 50%/);
   assert.doesNotMatch(composeHandoff(facts({ quota: { five: null, week: null } }), {}), /Quota/);

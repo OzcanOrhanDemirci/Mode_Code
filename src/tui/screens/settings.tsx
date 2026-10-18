@@ -262,7 +262,7 @@ export function MemoryStore({ width, open }: ScreenProps) {
               : ''}
           </Row>
         ) : null}
-        {v.handoff ? <Row label={t('mcli.handoff')}>{`${ago(v.handoff.note.at, now, lang)} · ${nextOf(v.handoff.note, width - 40)}`}</Row> : null}
+        {v.handoff ? <Row label={t('mcli.handoff')}>{`${ago(v.handoff.note.at, now, lang)} · ${nextOf(v.handoff.note, width - 40, lang)}`}</Row> : null}
         {v.pendingNotes ? (
           <Row label={t('mcli.notes')} color={theme.warn}>
             {t('mcli.notes.pending', { n: v.pendingNotes, cmd: `${CLI_NAME} memory notes` })}
