@@ -31,14 +31,21 @@ export function compatRow(date, version, steps) {
 
 /** docs/testing.md with the row added: under the heading, after the table's last row; a new table at the end when there is none. A row for the same date and version is replaced. */
 export function withRow(doc, row) {
-  const key = row.split('|').slice(1, 3).join('|');
+  // The date and version cells, as the formatter may have padded them.
+  const cells = (line) =>
+    line
+      .split('|')
+      .slice(1, 3)
+      .map((c) => c.trim())
+      .join('|');
+  const key = cells(row);
   const lines = doc.trimEnd().split('\n');
   const at = lines.indexOf(HEADING);
   if (at === -1)
     return `${lines.join('\n')}\n\n${HEADING}\n\nEach Claude Code release Mode_Code was checked against with \`node scripts/claude-compat.mjs\`.\n\n| Date | Claude Code | check | mod (types, kit) | live |\n| --- | --- | --- | --- | --- |\n${row}\n`;
   let end = at + 1;
   while (end < lines.length && !lines[end].startsWith('## ')) end++;
-  const section = lines.slice(at, end).filter((l) => !(l.startsWith('|') && l.split('|').slice(1, 3).join('|') === key));
+  const section = lines.slice(at, end).filter((l) => !(l.startsWith('|') && cells(l) === key));
   let last = section.length - 1;
   while (last > 0 && !section[last].startsWith('|')) last--;
   section.splice(last + 1, 0, row);
@@ -78,6 +85,8 @@ function main(argv) {
   if (!argv.includes('--no-write')) {
     const file = join(root, 'docs', 'testing.md');
     writeFileSync(file, withRow(readFileSync(file, 'utf8'), row));
+    // The table as the formatter lays it out, so `npm run check` stays green.
+    run('npx', ['prettier', '--write', 'docs/testing.md']);
     console.log('claude-compat: docs/testing.md updated');
   }
   return steps.every((s) => s.ok) ? 0 : 1;
