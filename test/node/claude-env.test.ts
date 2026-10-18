@@ -88,3 +88,20 @@ test('the plugins Claude Code lists: what loads is the folder a plugin is read f
   assert.equal(pluginsVia(answering('not json')), null);
   assert.equal(pluginsVia(answering('{"plugins":[]}')), null, 'not a list');
 });
+
+test('instruction files count their lines as an editor does: the final newline starts no line', () => {
+  const s = sandbox();
+  try {
+    const lines = (text: string) => {
+      writeFileSync(join(s.home, 'CLAUDE.md'), text);
+      return s.read(s.home).instructions.find((i) => i.kind === 'project')?.lines;
+    };
+    assert.equal(lines('# user\n'), 1);
+    assert.equal(lines('a\nb'), 2);
+    assert.equal(lines('a\nb\n'), 2);
+    assert.equal(lines('a\n\n'), 2, 'an empty last line is a line');
+    assert.equal(lines(''), 0);
+  } finally {
+    s.done();
+  }
+});

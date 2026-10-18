@@ -35,6 +35,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ### Fixed
 
 - `mode-code belt test "git clean -f"` (the command without `--command`) judged an empty call and said allow; it judges the command now, and with nothing to test says how.
+- An instruction file ending in a newline counted one line too many: a `MEMORY.md` of 200 lines read as 201.
 - A Windows path written through the device namespace (`\\.\C:\Users\you`) is read as the same file as `C:\Users\you`: deleting the home folder that way is blocked, as it already was through `\\?\`.
 - The safety-net hook refuses a tool call whose input reached it cut short or garbled, instead of letting it through unjudged.
 - The session's controls (the mode, the way of working, the budget, the menu, closing, continuing) refuse a command that Claude Code stamps as coming from a prompt Claude scheduled for itself, another session, a background notice or another plugin, as bypass and full autonomy already did; before, those could change the mode or raise the budget.

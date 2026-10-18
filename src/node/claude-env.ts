@@ -264,7 +264,8 @@ function instruction(kind: InstructionFile['kind'], path: string, limit?: Instru
     path,
     exists: text !== null,
     bytes: text === null ? 0 : Buffer.byteLength(text, 'utf8'),
-    lines: text === null ? 0 : text.split('\n').length,
+    // As an editor counts them: the newline that ends the last line starts no line of its own.
+    lines: text ? text.split('\n').length - (text.endsWith('\n') ? 1 : 0) : 0,
     ...(limit ? { limit } : {}),
   };
 }
