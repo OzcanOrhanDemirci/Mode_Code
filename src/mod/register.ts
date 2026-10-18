@@ -39,7 +39,7 @@ import { SYNC_MAX_BYTES, syncCommitMessage, type Pending } from '../core/sync.js
 import { exportMachine, parseSharedRecord, settingsInEffect, syncDue, type SharedRecord, type SyncFs } from '../core/sync-export.js';
 import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform } from '../core/paths.js';
 import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '../core/i18n/index.js';
-import { optionLabel } from '../core/ux/catalog.js';
+import { CONTROLS, controlOf, controlText, optionLabel } from '../core/ux/catalog.js';
 import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
 import { beltOffForDevelopment } from '../core/dev-switch.js';
 import { taintedAct, taintSource, withoutInvisible } from '../core/taint.js';
@@ -4496,10 +4496,9 @@ const COMMAND_HINT: Record<ControlAction['kind'], MessageKey | null> = {
   agents: 'ctl.hint.agents',
 };
 
+/** A command's line in the `/` menu: its control's own words in the catalog. */
 function commandDescription(a: ControlAction, lang: Lang): string {
-  if (a.kind === 'mode') return tIn(lang, `ctl.desc.mode.${a.mode}` as MessageKey);
-  if (a.kind === 'style') return tIn(lang, `ctl.desc.style.${a.style}` as MessageKey);
-  return tIn(lang, `ctl.desc.${a.kind}` as MessageKey);
+  return controlText(controlOf(a), 'what', lang);
 }
 
 /**
@@ -5153,8 +5152,7 @@ async function control(
   // Bypass and full autonomy are the person's alone: a press, or their own Enter here or on the phone. A command
   // the engine stamps otherwise (a background notice, another session, an unclassified run) is refused.
   const person = via === 'strip' || origin === 'composer' || origin === 'bridge';
-  if ((action.kind === 'bypass' || action.kind === 'fullAuto' || action.kind === 'freeze' || action.kind === 'agents') && !person)
-    return { text: tIn(c.lang, 'ctl.personOnly', { cmd: `/${name}` }) };
+  if (CONTROLS[controlOf(action)].personOnly && !person) return { text: tIn(c.lang, 'ctl.personOnly', { cmd: `/${name}` }) };
   // Every other control is the person's too, or a script of theirs (sdk): never a prompt the model scheduled for
   // itself, another session's message, a background notice or another plugin, which could change the mode, raise the
   // budget or close the session the model works in. A command the engine stamps no origin on is the person's.

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * The catalog (docs/design.md): every setting the person can change, defined once, with what a surface needs to
+ * The catalog (docs/design.md): every setting the person can change and every control of the strip, defined once, with what a surface needs to
  * answer the four questions where the setting stands: what is it, how is it now, what exactly happens if I change
  * it, can I take it back. The control center's rows and cards and `mode-code config explain` draw from here, and
  * so will the strip's cards and the cockpit; none writes its own. The words live in the dictionaries under
@@ -8,6 +8,7 @@
  * Pure: the in-process plugin may use it.
  */
 import { DEFAULT_CONFIG, type Config } from '../config.js';
+import type { ControlAction } from '../controls.js';
 import { LANGUAGES, tIn, type Lang, type MessageKey } from '../i18n/index.js';
 import { percent } from '../format.js';
 import { PACKS } from '../packs.js';
@@ -438,4 +439,76 @@ export function placeOf(page: string, lang: Lang): string {
       return k ? tIn(lang, k) : part;
     })
     .join(' › ');
+}
+
+// ── the strip's controls ──
+
+/** Every control the strip and the `/` commands reach, by what it does. */
+export type ControlId =
+  | 'mode.chat'
+  | 'mode.research'
+  | 'mode.plan'
+  | 'mode.code'
+  | 'mode.free'
+  | 'style.manual'
+  | 'style.autonomous'
+  | 'fullAuto'
+  | 'flow'
+  | 'menu'
+  | 'continue'
+  | 'quota'
+  | 'bypass'
+  | 'freeze'
+  | 'agents'
+  | 'close';
+
+export interface ControlDef {
+  /** The four kinds of docs/design.md: picks one of several, flips, does something now, or opens a window. */
+  kind: 'choice' | 'switch' | 'action' | 'opener';
+  /** Only the person's own press or Enter, never a script of theirs; Claude never, for any control. */
+  personOnly?: true;
+  /** The settings that must be on for it to be there at all. */
+  needs?: readonly SettingId[];
+  /** How it is taken back: `ux.ctl.back.<back>`. */
+  back: 'mode' | 'style' | 'fullAuto' | 'flow' | 'none' | 'continue' | 'quota' | 'bypass' | 'freeze' | 'agents' | 'close';
+}
+
+const mode = { kind: 'choice', needs: ['modules.modes'], back: 'mode' } as const;
+
+export const CONTROLS: Readonly<Record<ControlId, ControlDef>> = {
+  'mode.chat': mode,
+  'mode.research': mode,
+  'mode.plan': mode,
+  'mode.code': mode,
+  'mode.free': mode,
+  'style.manual': { kind: 'choice', needs: ['modules.modes'], back: 'style' },
+  'style.autonomous': { kind: 'choice', needs: ['modules.modes'], back: 'style' },
+  fullAuto: { kind: 'opener', personOnly: true, needs: ['modules.modes', 'autonomy.enabled'], back: 'fullAuto' },
+  flow: { kind: 'action', needs: ['modules.modes'], back: 'flow' },
+  menu: { kind: 'opener', back: 'none' },
+  continue: { kind: 'opener', back: 'continue' },
+  quota: { kind: 'opener', back: 'quota' },
+  bypass: { kind: 'switch', personOnly: true, needs: ['bypass.enabled'], back: 'bypass' },
+  freeze: { kind: 'switch', personOnly: true, back: 'freeze' },
+  agents: { kind: 'opener', personOnly: true, needs: ['agents.enabled'], back: 'agents' },
+  close: { kind: 'action', back: 'close' },
+};
+
+export const CONTROL_IDS = Object.keys(CONTROLS) as ControlId[];
+
+/** The control a command's action stands for. */
+export function controlOf(a: ControlAction): ControlId {
+  if (a.kind === 'mode') return `mode.${a.mode}`;
+  if (a.kind === 'style') return `style.${a.style}`;
+  return a.kind;
+}
+
+/** A control's words: what it is (one line, as the `/` menu shows it), what a press does, how it is taken back. */
+export function controlText(id: ControlId, part: 'what' | 'press' | 'back', lang: Lang): string {
+  return tIn(lang, part === 'back' ? (`ux.ctl.back.${CONTROLS[id].back}` as MessageKey) : (`ux.ctl.${id}.${part}` as MessageKey));
+}
+
+/** The settings, among those it needs, that are off now: while any is, the control is not there. */
+export function controlMissing(id: ControlId, config: Readonly<Config>): SettingId[] {
+  return (CONTROLS[id].needs ?? []).filter((s) => valueIn(config, s as SettingPath) !== true);
 }

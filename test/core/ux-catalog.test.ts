@@ -12,8 +12,14 @@ import { cloneDefaults, DEFAULT_CONFIG, setConfigValue } from '../../src/core/co
 import { PACKS } from '../../src/core/packs.js';
 import { EXTERNAL_SKILLS } from '../../src/core/skills-external.js';
 import { CATEGORY_IDS } from '../../src/tui/nav.js';
+import { COMMANDS } from '../../src/core/controls.js';
 import {
   asksFirst,
+  CONTROL_IDS,
+  controlMissing,
+  CONTROLS,
+  controlOf,
+  controlText,
   confirmText,
   defaultOf,
   effectOf,
@@ -269,4 +275,31 @@ test('the nearest settings to a partial or mistyped name: those containing it fi
   assert.deepEqual(nearestSettings('bypass.'), ['bypass.enabled', 'bypass.maxHours']);
   assert.deepEqual(nearestSettings('zzzzzzzz'), []);
   assert.ok(nearestSettings('a').length <= 5);
+});
+
+test('every control a command reaches is in the catalog, with what it is, what a press does and how it is taken back', () => {
+  const reached = new Set(COMMANDS.map((c) => controlOf(c.action)));
+  assert.deepEqual([...reached].sort(), [...CONTROL_IDS].sort());
+  const need = CONTROL_IDS.flatMap((id) => [`ux.ctl.${id}.what`, `ux.ctl.${id}.press`, `ux.ctl.back.${CONTROLS[id].back}`]);
+  assert.deepEqual(
+    need.filter((k) => !has(k)),
+    [],
+  );
+  for (const id of CONTROL_IDS)
+    for (const lang of ['en', 'tr'] as const) {
+      // The `/` menu shows the first line on one row: one sentence, no line break.
+      const what = controlText(id, 'what', lang);
+      assert.ok(!what.includes('\n') && what.length <= 130, `${id} (${lang}): ${what.length}`);
+    }
+});
+
+test('only the person, never a script of theirs, uses the controls that let Claude do more; each is there once its setting is on', () => {
+  assert.deepEqual(CONTROL_IDS.filter((id) => CONTROLS[id].personOnly).sort(), ['agents', 'bypass', 'freeze', 'fullAuto']);
+  const c = cloneDefaults();
+  assert.deepEqual(controlMissing('bypass', c), ['bypass.enabled']);
+  assert.deepEqual(controlMissing('fullAuto', c), ['autonomy.enabled']);
+  assert.deepEqual(controlMissing('mode.plan', c), []);
+  assert.deepEqual(controlMissing('mode.plan', setConfigValue(c, 'modules.modes', false).config), ['modules.modes']);
+  assert.match(controlText('mode.plan', 'what', 'tr'), /^Mod: 📐 plan/);
+  assert.match(controlText('close', 'back', 'en'), /cannot be taken back/);
 });
