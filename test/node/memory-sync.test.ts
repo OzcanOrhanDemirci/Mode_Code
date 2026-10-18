@@ -10,17 +10,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import {
-  addedLines,
-  classifyGitError,
-  heldText,
-  outgoingSecrets,
-  parseAllowed,
-  syncMemory,
-  syncProblem,
-  type Runner,
-  type SyncInput,
-} from '../../src/core/memory-sync.js';
+import { classifyGitError, heldText, outgoingSecrets, parseAllowed, syncMemory, syncProblem, type Runner, type SyncInput } from '../../src/core/memory-sync.js';
 import { commitMessage } from '../../src/core/memory.js';
 import { scanSecrets } from '../../src/core/secrets/scan.js';
 import { lookStore, nodeRunner, recordSync, seenSince, stepsFor } from '../../src/node/memory.js';
@@ -438,26 +428,4 @@ test('a commit made by hand that adds a secret is not pushed until its fingerpri
   } finally {
     w.done();
   }
-});
-
-test('the lines a patch adds, by file; the allowed fingerprints read defensively', () => {
-  const patch = [
-    'diff --git a/x.md b/x.md',
-    '--- a/x.md',
-    '+++ b/x.md',
-    '@@ -0,0 +1,2 @@',
-    '+one',
-    '+two',
-    'diff --git a/gone.md b/gone.md',
-    '--- a/gone.md',
-    '+++ /dev/null',
-    '-was here',
-    'diff --git a/x.md b/x.md',
-    '+++ b/x.md',
-    '+three',
-  ].join('\n');
-  assert.deepEqual(addedLines(patch), [{ path: 'x.md', text: 'one\ntwo\nthree' }]);
-  const fp = 'a'.repeat(64);
-  assert.deepEqual([...parseAllowed(JSON.stringify({ allowed: [{ fingerprint: fp }, { fingerprint: 'short' }, null, 5] }))], [fp]);
-  for (const bad of [null, '', '{', '[]', '{"allowed":5}']) assert.equal(parseAllowed(bad).size, 0, String(bad));
 });

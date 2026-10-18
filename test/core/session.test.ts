@@ -128,6 +128,20 @@ test("the ended time, the work kept and the hook's process round-trip; anything 
   assert.equal(parseHookState(null, 's1').host, null);
 });
 
+test('a folder frozen and the outside content read: kept when they have their shape, nothing when not', () => {
+  const s = { ...s0, frozen: '/home/ada/dev/app/src', tainted: { source: 'WebFetch', at: 3 } };
+  assert.deepEqual(parseModState(JSON.stringify(s)), s);
+  for (const [frozen, tainted] of [
+    ['', { source: 5, at: 3 }],
+    [5, { source: 'x', at: '3' }],
+    [null, [1]],
+  ] as const) {
+    const odd = parseModState(JSON.stringify({ ...s0, frozen, tainted }))!;
+    assert.deepEqual([odd.frozen, odd.tainted], [null, null], JSON.stringify([frozen, tainted]));
+  }
+  assert.equal(parseModState(JSON.stringify({ ...s0, tainted: { source: 'x'.repeat(200), at: 1 } }))!.tainted!.source.length, 120);
+});
+
 test('state files that are missing, torn or foreign parse to nothing', () => {
   assert.equal(parseModState(null), null);
   assert.equal(parseModState('{"v":1,"sessionId":"abc","aliveAt":'), null);

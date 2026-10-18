@@ -19,7 +19,18 @@ test('first seen: kept, nothing told; the same again: nothing; a changed descrip
 });
 
 test('the pins file is read defensively, and odd tool names are names', () => {
-  for (const bad of [null, '', '{', '[]', '{"v":2,"tools":{}}', '{"v":1,"tools":[]}']) assert.deepEqual(Object.keys(parsePins(bad).tools), [], String(bad));
+  const pin = { hash: 'f'.repeat(64), at: 1 };
+  for (const bad of [
+    null,
+    '',
+    '{',
+    '[]',
+    '{"v":1,"tools":null}',
+    '{"v":1,"tools":"ab"}',
+    JSON.stringify({ v: 2, tools: { a: pin } }),
+    JSON.stringify({ v: 1, tools: [pin] }),
+  ])
+    assert.deepEqual(Object.keys(parsePins(bad).tools), [], String(bad));
   const p = parsePins(JSON.stringify({ v: 1, tools: { a: { hash: 'f'.repeat(64), at: 1 }, b: { hash: 'short', at: 1 }, c: 5 } }));
   assert.deepEqual(Object.keys(p.tools), ['a']);
   const odd = comparePins(

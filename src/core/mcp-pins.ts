@@ -15,10 +15,10 @@ export interface McpPins {
 export function parsePins(text: string | null): McpPins {
   try {
     const o = JSON.parse(text ?? '') as { v?: unknown; tools?: unknown };
-    if (o.v !== 1 || !o.tools || typeof o.tools !== 'object' || Array.isArray(o.tools)) return { v: 1, tools: {} };
+    if (o.v !== 1 || typeof o.tools !== 'object' || Array.isArray(o.tools)) return { v: 1, tools: {} };
     // No prototype: a tool named "__proto__" or "constructor" is a name like any other.
     const tools: McpPins['tools'] = Object.create(null) as McpPins['tools'];
-    for (const [name, p] of Object.entries(o.tools as Record<string, unknown>)) {
+    for (const [name, p] of Object.entries((o.tools ?? {}) as Record<string, unknown>)) {
       const x = p as { hash?: unknown; at?: unknown };
       if (x && typeof x.hash === 'string' && /^[0-9a-f]{64}$/.test(x.hash) && typeof x.at === 'number') tools[name] = { hash: x.hash, at: x.at };
     }

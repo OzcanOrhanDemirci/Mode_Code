@@ -25,8 +25,11 @@ test('every part allowed, and a cd into the project only says where: the person 
     'npm test 2>&1 | tail -20',
     'cd /home/ada/dev/app && npm test',
     'cd packages/web && npm run build && npm test',
+    'pushd packages/web && npm test',
   ])
     assert.equal(ok(c), true, c);
+  const ps = shellRules(['PowerShell(npm test)'], 'PowerShell');
+  assert.equal(partsAllowed('Set-Location packages/web; npm test', 'powershell', ps, env.cwd, env), true);
 });
 
 test('a part no rule covers, a cd out of the project, a write or a nested command: asked as before', () => {
@@ -39,6 +42,9 @@ test('a part no rule covers, a cd out of the project, a write or a nested comman
     'npm test',
     'cd /home/ada/dev/app',
     'cd "$DIR" && npm test',
+    'cd -P "$DIR" && npm test',
+    'cd -L /tmp && npm test',
+    'cd packages && cd web',
     'npm test && echo "unterminated',
   ])
     assert.equal(ok(c), false, c);

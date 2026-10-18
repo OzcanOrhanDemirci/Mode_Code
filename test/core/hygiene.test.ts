@@ -20,7 +20,9 @@ test('anything else is no file read: a filter on a stream, a write, an edit, oth
     'npm test 2>&1 | tail -20',
     'cat a.ts > b.ts',
     "sed -i 's/a/b/' a.ts",
+    'sed -n -i.bak 1p a.ts',
     'sed -n 1p',
+    'cat "a.ts',
     'grep x',
     'ls -la',
     'cat a.ts | node -e "x"',
@@ -37,6 +39,8 @@ test('the shell traps: an unquoted heredoc with backslashes on Windows, a build 
   assert.equal(trap("cat > a.txt <<'EOF'\nC:\\dev\\x\nEOF"), null, 'a quoted delimiter keeps the text');
   assert.equal(trap('cat > a.txt <<EOF\nC:\\dev\\x\nEOF', 'linux'), null, 'paths there have no backslashes');
   assert.equal(trap('cat > a.txt <<EOF\nplain\nEOF'), null);
+  assert.equal(trap('cd x && cat > a.txt <<EOF\nC:\\dev\\x\nEOF'), 'heredoc', 'in any command of the line');
+  assert.equal(trap("cat <<'A' 3<<EOF\nplain\nA\nC:\\dev\\x\nEOF"), 'heredoc', 'in any heredoc of the command');
   assert.equal(trap('npm test 2>&1 | tail -20', 'linux'), 'pipe');
   assert.equal(trap('npx tsc --noEmit | head', 'linux'), 'pipe');
   assert.equal(trap('set -o pipefail; npm test | tail -20', 'linux'), null);
