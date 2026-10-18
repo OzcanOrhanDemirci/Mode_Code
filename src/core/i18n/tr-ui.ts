@@ -291,6 +291,11 @@ export const trUi: Record<keyof typeof enUi, string> = {
 
   'config.usage': 'Kullanım: config set <anahtar> <değer>, örneğin: config set footer.mode check',
   'config.saved': '{key} kaydedildi.',
+  'config.notASetting': 'Böyle bir ayar yok: {key}.',
+  'config.didYouMean': 'Şunu mu demek istedin: {names}?',
+  'config.explainList': 'Bütün ayarlar: {cmd}',
+  'config.explainHint': 'Bir ayarın ne yaptığı, değiştirmeden önce: {cmd}',
+  'config.explainSet': 'Değiştirmek için: {cmd}',
 
   'help.tagline': 'Claude Code için yerel bir yol arkadaşı',
   'help.usage': 'Kullanım:',
@@ -342,6 +347,7 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'help.belt': 'Emniyet kemeri kuralları, engelledikleri ya da bir komutu çalıştırmadan sınama',
   'help.secrets': 'Dosyaları ya da hafıza klasörünü sırlar için tara',
   'help.config': 'Bir ayarı oku ya da değiştir',
+  'help.configExplain': 'Bir ayarın ne yaptığı, değiştirmeden önce',
   'help.json': 'Makinenin okuyacağı çıktı için her komuta --json ekle.',
   'help.privacy': 'Her şey bu makinede kalır. Telemetri yok. Güncelleme denetimi, açarsan, yalnız en yeni sürümün sağlama listesini indirir.',
   'help.trust': "Claude Code'un içinde modelden başka neler çalışıyor; son bakışından beri ne değişti",

@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { draw, FakeData, KEY, NOW } from './harness.js';
 import { buildTree } from '../../src/tui/tree.js';
 import { resolve } from '../../src/tui/nav.js';
-import { SETTING_IDS, SETTINGS } from '../../src/core/ux/catalog.js';
+import { placeOf, SETTING_IDS, SETTINGS } from '../../src/core/ux/catalog.js';
 
 const flat = (text: string) => text.replace(/[│╭╮╰╯─]/g, '').replace(/\s+/g, ' ');
 
@@ -20,7 +20,7 @@ test('a switch: what it is, now and its default, what the other side does, how t
     assert.match(t, /What it is Who decides how many helper Claudes \(agents\) run beside the main one/);
     assert.match(t, /Now off \(default\)\. Mode_Code leaves agents alone/);
     assert.match(t, /If you change it on: Every session starts with no agents/);
-    assert.match(t, /Taking it back Here at once, in Claude Code from your next message/);
+    assert.match(t, /Taking it back Takes effect at once, in Claude Code from your next message/);
     assert.match(t, /Who changes it Only you, here or in your own terminal\. Claude cannot change it\./);
   } finally {
     s.close();
@@ -105,7 +105,7 @@ test('the same four answers in the other language: a Turkish switch and number, 
     assert.match(t, /Bu ne Ana Claude'un yanında kaç yardımcı Claude \(ajan\) çalışacağına/);
     assert.match(t, /Şu an kapalı \(varsayılan\)\. Mode_Code ajanlara karışmaz/);
     assert.match(t, /Değiştirirsen açık: Her oturum ajansız başlar/);
-    assert.match(t, /Geri almak Burada hemen, Claude Code'da sonraki mesajından itibaren/);
+    assert.match(t, /Geri almak Hemen geçerli, Claude Code'da sonraki mesajından itibaren/);
     assert.match(t, /Kim değiştirir Yalnız sen/);
   } finally {
     sw.close();
@@ -147,5 +147,19 @@ test("a pack's card says what that pack does and its size; choosing always asks 
     assert.deepEqual(data.saved, [{ path: 'packs.items.flutter', value: 'always' }]);
   } finally {
     s.close();
+  }
+});
+
+test("the command line names a setting's page as the control center labels it, in both languages", () => {
+  for (const lang of ['en', 'tr'] as const) {
+    const roots = buildTree(new FakeData(lang), lang, NOW);
+    for (const page of new Set(SETTING_IDS.map((id) => SETTINGS[id].page)))
+      assert.equal(
+        placeOf(page, lang),
+        resolve(roots, page, 'detailed')
+          .map((n) => n.label)
+          .join(' › '),
+        `${lang} ${page}`,
+      );
   }
 });

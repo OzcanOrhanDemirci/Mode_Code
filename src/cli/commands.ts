@@ -8,7 +8,20 @@ import { createInterface } from 'node:readline/promises';
 import { homedir } from 'node:os';
 import { APP_NAME, APP_VERSION, CLI_NAME, MIN_CLAUDE_CODE_FOR_HOOKS, REPO_URL } from '../core/app.js';
 import { cloneDefaults, serializeConfig, setConfigValue, type Config } from '../core/config.js';
-import { effectOf, nameOf, personOnly, valueText } from '../core/ux/catalog.js';
+import {
+  allSettingPaths,
+  effectOf,
+  explain,
+  nameOf,
+  nearestSettings,
+  personOnly,
+  placeOf,
+  settingOf,
+  valueIn,
+  valueText,
+  type SettingPath,
+} from '../core/ux/catalog.js';
+import { wrapText } from '../core/ux/text.js';
 import { evaluateToolCall } from '../core/belt/evaluate.js';
 import { RULES, RULE_IDS } from '../core/belt/rules.js';
 import { compact, percent, ago, until, dateTime, bar, shortPath, integer } from '../core/format.js';
@@ -1104,6 +1117,7 @@ export async function cmdConfig(a: Args): Promise<number> {
     else say(String(v));
     return v === undefined ? 1 : 0;
   }
+  if (sub === 'explain') return explainSetting(ctx, a.positionals[1]);
   if (sub === 'set') {
     const key = a.positionals[1];
     const raw = a.positionals[2];
@@ -1133,6 +1147,60 @@ export async function cmdConfig(a: Args): Promise<number> {
   }
   say(red(T(ctx, 'cli.unknownSub', { sub, cmd: 'config' })));
   return 2;
+}
+
+/**
+ * `config explain`: a setting's four answers from the catalog, as the control center's card gives them (what it is,
+ * now, what each change does, how to take it back, who changes it), and the command that changes it. Without a name,
+ * every setting page by page with its value now. An unknown name: the nearest ones, exit 2.
+ */
+function explainSetting(ctx: AppContext, key: string | undefined): number {
+  const lang = ctx.lang;
+  const cols = Math.max(48, Math.min(process.stdout.columns || 100, 120));
+  if (!key) {
+    let page = '';
+    for (const p of allSettingPaths()) {
+      const s = settingOf(p)!;
+      if (s.def.page !== page) {
+        page = s.def.page;
+        say();
+        say(bold(placeOf(page, lang)));
+      }
+      say(`  ${cyan(p.padEnd(34))} ${nameOf(p, lang)}: ${valueText(p, valueIn(ctx.config, p), lang)}`);
+    }
+    say();
+    say(dim(T(ctx, 'config.explainHint', { cmd: `${CLI_NAME} config explain <setting>` })));
+    return 0;
+  }
+  const s = settingOf(key);
+  if (!s) {
+    say(red(T(ctx, 'config.notASetting', { key })));
+    const near = nearestSettings(key);
+    if (near.length) say(T(ctx, 'config.didYouMean', { names: near.join(', ') }));
+    say(dim(T(ctx, 'config.explainList', { cmd: `${CLI_NAME} config explain` })));
+    return 2;
+  }
+  const p = key as SettingPath;
+  const e = explain(ctx.config, p, lang, placeOf);
+  const k = s.def.kind;
+  const rows: [MessageKey | '', string][] = [
+    ['ux.q.what', e.what],
+    ['ux.q.now', `${e.now} (${e.isDefault ? T(ctx, 'ux.default') : T(ctx, 'ux.defaultIs', { value: e.defaultText })}). ${e.nowEffect}`],
+    ...(e.blocked ? [['', e.blocked] as [MessageKey | '', string]] : []),
+    ...(e.range
+      ? [['ux.q.change', T(ctx, 'ux.range', e.range)] as [MessageKey | '', string]]
+      : e.changes.map((c, i): [MessageKey | '', string] => [i === 0 ? 'ux.q.change' : '', `${c.text}: ${c.effect}`])),
+    ['ux.q.back', e.back],
+    ...(e.personOnly ? [['ux.q.who', T(ctx, 'ux.personOnly')] as [MessageKey | '', string]] : []),
+  ];
+  const lw = Math.max(...rows.map(([l]) => (l ? T(ctx, l).length : 0))) + 2;
+  say(`${bold(e.name)} ${dim(`(${p}) · ${placeOf(s.def.page, lang)}`)}`);
+  say();
+  for (const [l, text] of rows) wrapText(text, cols - 2 - lw).forEach((line, i) => say(`  ${(i === 0 && l ? T(ctx, l) : '').padEnd(lw)}${line}`));
+  say();
+  const values = k.kind === 'switch' ? 'true|false' : k.kind === 'choice' ? k.options.join('|') : `${k.min}-${k.max}`;
+  say(dim(T(ctx, 'config.explainSet', { cmd: `${CLI_NAME} config set ${p} ${values}` })));
+  return 0;
 }
 
 /** A transcript export with secrets masked, for sharing a session. */
@@ -1170,6 +1238,7 @@ export function helpText(lang: Lang): string {
     `  ${c('belt rules|events|test|replay'.padEnd(31))}${L('help.belt')}`,
     `  ${c('secrets [path…]'.padEnd(31))}${L('help.secrets')}`,
     `  ${c('config get|set|path'.padEnd(31))}${L('help.config')}`,
+    `  ${c('config explain [setting]'.padEnd(31))}${L('help.configExplain')}`,
     `  ${c('update [--check] [--yes]'.padEnd(31))}${L('help.update')}`,
     `  ${c('trust'.padEnd(31))}${L('help.trust')}`,
     `  ${c('packs [on|off|set|auto|guide]'.padEnd(31))}${L('help.packs')}`,

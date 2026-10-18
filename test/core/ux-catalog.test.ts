@@ -18,6 +18,7 @@ import {
   defaultOf,
   effectOf,
   explain,
+  nearestSettings,
   nextValue,
   personOnly,
   SETTING_IDS,
@@ -258,4 +259,13 @@ test('a path names a setting only when it is one: a real pack or skill, never a 
   assert.equal(settingOf('skills.items.grilling')?.id, 'skills.items.*');
   for (const p of ['packs.items.*', 'skills.items.*', 'packs.items.nope', 'skills.items.nope', 'packs.items', 'modules', 'nope', 'packs.items.flutter.x'])
     assert.equal(settingOf(p), null, p);
+});
+
+test('the nearest settings to a partial or mistyped name: those containing it first, then a typo away', () => {
+  assert.deepEqual(nearestSettings('bypass'), ['bypass.enabled', 'bypass.maxHours']);
+  assert.ok(nearestSettings('modules.keywrods').includes('modules.keywords'));
+  assert.ok(nearestSettings('FLUTTER').includes('packs.items.flutter'));
+  assert.deepEqual(nearestSettings(''), []);
+  assert.deepEqual(nearestSettings('zzzzzzzz'), []);
+  assert.ok(nearestSettings('a').length <= 5);
 });

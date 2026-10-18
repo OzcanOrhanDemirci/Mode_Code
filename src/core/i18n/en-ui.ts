@@ -300,6 +300,11 @@ export const enUi = {
   // ── config ──
   'config.usage': 'Usage: config set <key> <value>, for example: config set footer.mode check',
   'config.saved': 'Saved {key}.',
+  'config.notASetting': 'Not a setting: {key}.',
+  'config.didYouMean': 'Did you mean: {names}?',
+  'config.explainList': 'Every setting: {cmd}',
+  'config.explainHint': 'What one does, before you change it: {cmd}',
+  'config.explainSet': 'To change it: {cmd}',
 
   // ── help ──
   'help.tagline': 'a local companion for Claude Code',
@@ -351,6 +356,7 @@ export const enUi = {
   'help.belt': 'Safety belt rules, what it blocked, or test a command without running it',
   'help.secrets': 'Scan files or the memory folder for secrets',
   'help.config': 'Read or change a setting',
+  'help.configExplain': 'What a setting does, before you change it',
   'help.json': 'Add --json to any command for machine-readable output.',
   'help.privacy': "Everything stays on this machine. No telemetry. The update check, when you turn it on, only downloads the newest release's checksum list.",
   'help.trust': 'What runs inside Claude Code besides the model, and what changed since you last looked',

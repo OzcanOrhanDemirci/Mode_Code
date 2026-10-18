@@ -135,3 +135,47 @@ test('belt test explains a decision in words; config get prints a section as JSO
     w.done();
   }
 });
+
+test("config explain gives a setting's four answers and the command that changes it; a wrong name gets the nearest ones", () => {
+  const tr = world({ lang: 'tr' });
+  try {
+    const s = cli(tr, ['config', 'explain', 'bypass.enabled']);
+    assert.equal(s.code, 0, s.err);
+    const flat = s.out.replace(/\s+/g, ' ');
+    assert.match(flat, /^Bypass'a izin ver \(bypass\.enabled\) · Otomasyon › Bypass/);
+    assert.match(flat, /Bu ne Bypass, bir oturumda Claude'un bir süre sormadan çalışmasını sağlar/);
+    assert.match(flat, /Şu an kapalı \(varsayılan\)\. \/bypass ve ⚡ yok/);
+    assert.match(flat, /Değiştirirsen açık: Bir oturumda kendin açabilirsin/);
+    assert.match(flat, /Geri almak Hemen geçerli/);
+    assert.match(flat, /Kim değiştirir Yalnız sen/);
+    assert.match(flat, /Değiştirmek için: mode-code config set bypass\.enabled true\|false/);
+    // No line starts with the space a break fell on, and none is wider than the terminal it was given.
+    for (const line of s.out.split('\n')) assert.ok(line.length <= 120, line);
+  } finally {
+    tr.done();
+  }
+  const en = world({ lang: 'en' });
+  try {
+    const n = cli(en, ['config', 'explain', 'autonomy.stallMinutes']);
+    assert.equal(n.code, 0, n.err);
+    const flat = n.out.replace(/\s+/g, ' ');
+    assert.match(flat, /Now 90 minutes \(default\)\. After 90 minutes without a finished step Claude is told/);
+    assert.match(flat, /No effect now, because "Full autonomy" is off \(Automation › Full autonomy\)\./);
+    assert.match(flat, /If you change it Type a number from 10 minutes to 720 minutes\./);
+    assert.match(flat, /mode-code config set autonomy\.stallMinutes 10-720/);
+    const bad = cli(en, ['config', 'explain', 'bypass']);
+    assert.equal(bad.code, 2);
+    assert.match(bad.out, /Not a setting: bypass\./);
+    assert.match(bad.out, /Did you mean: bypass\.enabled, bypass\.maxHours\?/);
+    const typo = cli(en, ['config', 'explain', 'modules.keywrods']);
+    assert.equal(typo.code, 2);
+    assert.match(typo.out, /modules\.keywords/);
+    const all = cli(en, ['config', 'explain']);
+    assert.equal(all.code, 0);
+    assert.match(all.out, /Settings › Features\n\s+modules\.modes\s+Modes and flows: on/);
+    assert.match(all.out, /packs\.items\.ffmpeg\s+Audio and video: automatic/);
+    assert.match(cli(en, ['help']).out, /config explain \[setting\]\s+What a setting does, before you change it/);
+  } finally {
+    en.done();
+  }
+});

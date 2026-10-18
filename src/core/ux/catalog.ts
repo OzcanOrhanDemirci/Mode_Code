@@ -12,6 +12,7 @@ import { LANGUAGES, tIn, type Lang, type MessageKey } from '../i18n/index.js';
 import { percent } from '../format.js';
 import { PACKS } from '../packs.js';
 import { EXTERNAL_SKILLS } from '../skills-external.js';
+import { editDistance, fold } from '../text.js';
 
 export type Unit = 'percent' | 'hours' | 'minutes' | 'days' | 'count';
 
@@ -383,4 +384,57 @@ export function explain(config: Readonly<Config>, path: SettingPath, lang: Lang,
       : null,
     personOnly: personOnly(path),
   };
+}
+
+/** Every setting as a config path, templates spelled out for each pack and each skill. */
+export function allSettingPaths(): SettingPath[] {
+  return SETTING_IDS.flatMap((id): SettingPath[] =>
+    id === 'packs.items.*'
+      ? PACKS.map((p) => `packs.items.${p.id}` as const)
+      : id === 'skills.items.*'
+        ? Object.keys(EXTERNAL_SKILLS).map((s) => `skills.items.${s}` as const)
+        : [id as SettingPath],
+  );
+}
+
+/** The settings a mistyped or partial name most likely meant: those that contain it, then those a typo or two away. */
+export function nearestSettings(query: string, limit = 5): SettingPath[] {
+  const q = fold(query);
+  if (!q) return [];
+  const all = allSettingPaths();
+  const containing = all.filter((p) => fold(p).includes(q));
+  const near = all.filter((p) => !containing.includes(p) && p.split('.').some((part) => editDistance(fold(part), q.split('.').at(-1)!, 2) <= 2));
+  return [...containing, ...near].slice(0, limit);
+}
+
+/**
+ * The words for each page a setting lives on, by address: the control center's own labels. A test holds them equal
+ * to the labels its navigation draws, so the command line names a place as the control center does.
+ */
+const PLACE_KEYS: Readonly<Record<string, MessageKey>> = {
+  settings: 'cat.settings',
+  'settings/general': 'page.general',
+  'settings/modules': 'page.modules',
+  'settings/footer-quota': 'page.footerQuota',
+  'settings/accessibility': 'page.accessibility',
+  'settings/memory': 'page.memory',
+  'settings/memory/handoffs': 'page.memoryHandoffs',
+  automation: 'cat.automation',
+  'automation/full-auto': 'page.autonomy',
+  'automation/bypass': 'page.bypass',
+  'automation/agents': 'page.agents',
+  'claude-code': 'cat.claude-code',
+  'claude-code/packs': 'page.packs',
+  'claude-code/skills': 'page.skills',
+};
+
+/** A setting's page as the person reads it: "Settings › Features". */
+export function placeOf(page: string, lang: Lang): string {
+  const parts = page.split('/');
+  return parts
+    .map((part, i) => {
+      const k = PLACE_KEYS[parts.slice(0, i + 1).join('/')];
+      return k ? tIn(lang, k) : part;
+    })
+    .join(' › ');
 }
