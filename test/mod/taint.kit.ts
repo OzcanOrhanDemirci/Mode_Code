@@ -70,7 +70,7 @@ test('an MCP tool whose description changed since first seen is told to the pers
   on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }));
   await $.session.start({ source: 'startup', cwd: `${HOME}/dev/app` } as any);
   for (let i = 0; i < 20; i++) await Promise.resolve();
-  expect(w.toasts.some((t: string) => /The description of 1 MCP tool\(s\) changed since first seen \(mcp__docs__search\)/.test(t))).toBe(true);
+  expect(w.toasts.some((t: string) => /1 MCP tool description\(s\) changed since first seen; .*: mcp__docs__search$/.test(t))).toBe(true);
   const r: any = await $.prompt.submit({ text: 'Find the install guide.', wait: false, origin: { kind: 'composer' } } as any);
   expect((r.context ?? []).join('\n')).toMatch(/The description of 1 connected MCP tool\(s\) changed since this computer first saw it: mcp__docs__search/);
   // Kept now: the next session says nothing.

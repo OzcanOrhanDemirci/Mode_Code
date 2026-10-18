@@ -249,7 +249,7 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'secrets.found': 'Taranan {files} dosyada {n} olası sır:',
   'secrets.allowUsage': 'Kullanım: {cmd} <parmak izi>… (bekletilen hafıza gönderiminin yazdığı 64 onaltılık hane)',
   'secrets.allowed': '{n} parmak izine izin verildi: hafıza gönderimi artık bu değerleri gönderebilir.',
-  'mcp.changed': '{n} MCP aracının açıklaması ilk görüldüğünden beri değişti ({tools}): güvenmeden önce sunucuya bak.',
+  'mcp.changed': '{n} MCP aracının açıklaması ilk görüldüğünden beri değişti; güvenmeden önce sunucuya bak: {tools}',
   'secrets.inPrompt': 'Mesajında bir sır vardı ({kinds}); modele gitti. Yanlışlıkla mı yapıştırdın? Yenile.',
   'secrets.note': 'Yalnız maskeli önizlemeler gösterilir. Gerçek sırları bu dosyalardan çıkar, commit edilmiş olanları yenile.',
 
