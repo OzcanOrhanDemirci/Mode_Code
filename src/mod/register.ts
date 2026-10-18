@@ -20,7 +20,7 @@ import { exportMachine, parseSharedRecord, settingsInEffect, syncDue, type Share
 import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform } from '../core/paths.js';
 import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '../core/i18n/index.js';
 import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
-import { taintedAct, taintSource } from '../core/taint.js';
+import { taintedAct, taintSource, withoutInvisible } from '../core/taint.js';
 import { shellReadTool, shellTrap } from '../core/hygiene.js';
 import { partsAllowed, shellRules, type ShellRules } from '../core/permissions.js';
 import { isBeltTool, isFileTool, shellOf } from '../core/belt/tools.js';
@@ -87,6 +87,7 @@ import {
   bypassOnNote,
   bypassReminder,
   freezeNote,
+  invisibleNote,
   hygieneNote,
   trapNote,
   promptSecretNote,
@@ -2723,6 +2724,15 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
     if (quiet >= c.config.autonomy.stallMinutes * 60_000 && now - c.stallWarnedAt >= 10 * 60_000) {
       c.stallWarnedAt = now;
       extra.push(autoStallContext(run, Math.round(quiet / 60_000)));
+    }
+  }
+  // Outside content that hides text in characters nobody sees (instructions spelled in Unicode tags, reversed text):
+  // the model reads it without them, and is told how many were taken out.
+  if (result.deny === undefined && typeof result.text === 'string' && taintSource(tool, input)) {
+    const clean = withoutInvisible(result.text);
+    if (clean.removed) {
+      await logEvent($, c, { kind: 'invisible', tool, removed: clean.removed });
+      return { deny: `${invisibleNote(clean.removed)}\n\n${clean.text}` };
     }
   }
   return extra.length && result.deny === undefined ? { ...result, context: [...(result.context ?? []), ...extra] } : result;

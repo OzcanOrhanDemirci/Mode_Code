@@ -36,6 +36,22 @@ export function taintSource(tool: string, input: Readonly<Record<string, unknown
   return null;
 }
 
+/**
+ * Characters a reader does not see and a model reads: Unicode tags (U+E0000 to U+E007F, which spell ASCII invisibly),
+ * bidirectional overrides, and zero-width spaces and joiners other than the one emoji are built with (U+200D).
+ */
+const INVISIBLE = /[\u200B\u200C\u2060-\u2064\u202A-\u202E\u2066-\u2069\uFEFF\u180E]|[\u{E0000}-\u{E007F}]/gu;
+
+/** Outside content without its invisible characters, and how many there were. */
+export function withoutInvisible(text: string): { text: string; removed: number } {
+  let removed = 0;
+  const out = text.replace(INVISIBLE, () => {
+    removed++;
+    return '';
+  });
+  return { text: out, removed };
+}
+
 /** What a call would do that outside content must not steer without the person: send, persist, or write the memory. */
 export type TaintedAct = 'send' | 'persist' | 'memory';
 

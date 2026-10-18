@@ -2,7 +2,7 @@
 // Outside content in a session (src/core/taint.ts): what taints it, and what a tainted session asks about.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { taintedAct, taintSource } from '../../src/core/taint.js';
+import { taintedAct, taintSource, withoutInvisible } from '../../src/core/taint.js';
 
 const env = { platform: 'linux' as const, home: '/home/ada', cwd: '/home/ada/dev/app', memoryDirs: ['/home/ada/notes'] };
 const bash = (command: string) => ({ command });
@@ -56,4 +56,12 @@ test('a tainted session asks before it sends data out, persists, or writes the m
   assert.equal(act('Write', { file_path: '/home/ada/dev/app/src/a.ts', content: 'x' }), null);
   assert.equal(act('mcp__claude_ai_Gmail__get_thread', {}), null);
   assert.equal(act('mcp__mode-code__handoff', {}), null);
+});
+
+test('invisible characters come out of outside content; an emoji built with a joiner stays whole', () => {
+  const tags = [...'IGNORE'].map((ch) => String.fromCodePoint(0xe0000 + ch.charCodeAt(0))).join('');
+  assert.deepEqual(withoutInvisible(`Release notes${tags}.`), { text: 'Release notes.', removed: 6 });
+  assert.deepEqual(withoutInvisible('a\u200Bb\u202Ec\u2066d\uFEFFe'), { text: 'abcde', removed: 4 });
+  const family = '\u{1F468}\u200D\u{1F469}\u200D\u{1F467}';
+  assert.deepEqual(withoutInvisible(`team ${family}`), { text: `team ${family}`, removed: 0 });
 });

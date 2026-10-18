@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- Outside content (a web page, a connected service, a fetched page) that hides characters nobody sees (Unicode tags, direction overrides, zero-width spaces) reaches Claude without them, with a note saying how many were taken out; an emoji built with a joiner stays whole.
 - `/freeze <folder>` (`/dondur`): every write a call names stays inside one folder (and the temporary folders) until you end it; `❄ <folder>` on the strip while it holds. Only you set it.
 - Claude Code's question about a compound command (`cd app && npm test`, `npm run build && npm test`) is answered for you when each of its parts is one your allow rules already cover; a `cd` into the project only says where the rest runs. A part no rule covers, a redirect into a file or a nested command is asked as before.
 - Outside content taints a session: after it read a web page, an issue, a page fetched with `curl`, a connected service's data, a dependency's files or another session's message, sending data out, writing what starts by itself or configures Claude Code, and writing the memory are asked about, with bypass on too (`inject.tainted-act`, `docs/safety-belt.md`).
