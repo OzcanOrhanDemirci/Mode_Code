@@ -456,7 +456,9 @@ export async function applyPlan(io: SetupIO, env: SetupEnv, p: SetupPlan): Promi
 
   const store: MemoryStore = { place: p.place, dir: p.dir, remote: p.remote, repo: p.repo, git: p.git, sync: p.mode, handoffs: p.handoffs };
   let next = setConfigValue(env.config, 'memory.store', store).config;
-  if (p.protect && !next.memory.dirs.some((d) => pathKey(d, env.platform) === pathKey(p.dir, env.platform)))
+  // A folder already protected under another spelling (~/x beside /Users/a/x, a closing slash) is not added twice.
+  const resolved = (d: string) => resolvePath(expandHome(d.trim(), env.home), { platform: env.platform, home: env.home, cwd: env.cwd });
+  if (p.protect && !next.memory.dirs.some((d) => pathKey(resolved(d), env.platform) === pathKey(resolved(p.dir), env.platform)))
     next = setConfigValue(next, 'memory.dirs', [...next.memory.dirs, p.dir]).config;
   if (p.protect) ok(T('msetup.plan.protect'));
   ok(T('msetup.plan.save'));

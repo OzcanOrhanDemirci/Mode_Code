@@ -2,14 +2,15 @@
 /**
  * Protected folders behind links, measured on the real disk: a temporary folder, a link to it (a junction
  * on Windows, which needs no special rights), and the belt judging a write that reaches the folder through
- * the place the link leads to.
+ * the place the link leads to. And the memory folders the settings name, each once.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { protectedAliases } from '../../src/node/context.js';
+import { memoryDirs, protectedAliases } from '../../src/node/context.js';
+import { cloneDefaults } from '../../src/core/config.js';
 import { toolPath } from '../../src/node/env.js';
 import { evaluateToolCall } from '../../src/core/belt/evaluate.js';
 import { winCtx, macCtx, linuxCtx, summary } from '../helpers/belt.js';
@@ -45,4 +46,12 @@ test('a protected folder that is a link is reported with the place it leads to; 
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('the protected memory folders: each once, however the settings spell it', () => {
+  const config = cloneDefaults();
+  const home = homedir();
+  config.memory.dirs = ['~/notes/memory', `${home}/notes/memory/`, join(home, 'notes', 'memory'), '~/other'];
+  const dirs = memoryDirs(config, home);
+  assert.equal(dirs.length, 2, dirs.join(', '));
 });
