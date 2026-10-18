@@ -5,14 +5,16 @@
  * written; with GitHub, committed, the others' brought in, sent), and the record each writer keeps. The
  * plugin does the same through Claude Code's own file access and process runner.
  */
+import { spawnSync } from 'node:child_process';
 import { readdirSync, rmSync, statSync } from 'node:fs';
+import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { APP_VERSION } from '../core/app.js';
 import type { Config } from '../core/config.js';
 import { syncRecordFile, type Layout } from '../core/layout.js';
 import { syncMemory, type Runner } from '../core/memory-sync.js';
 import { scanSecrets } from '../core/secrets/scan.js';
-import { machinePaths, MACHINES_DIR, SYNC_MAX_BYTES, syncCommitMessage, type Merged } from '../core/sync.js';
+import { machineName, machinePaths, MACHINES_DIR, SYNC_MAX_BYTES, syncCommitMessage, type Merged } from '../core/sync.js';
 import {
   exportMachine,
   mergeFromTexts,
@@ -170,4 +172,11 @@ export function pruneShared(config: Config, now = Date.now()): number {
     /* nothing there yet */
   }
   return removed;
+}
+
+/** This computer's name as its owner knows it, for the sync setup to offer (core/sync machineName). */
+export function computerName(): string {
+  const scutil = (key: string): string | null =>
+    process.platform === 'darwin' ? (spawnSync('scutil', ['--get', key], { encoding: 'utf8', timeout: 5000, windowsHide: true }).stdout ?? null) : null;
+  return machineName([scutil('ComputerName'), scutil('LocalHostName'), hostname(), process.env.COMPUTERNAME], process.platform);
 }

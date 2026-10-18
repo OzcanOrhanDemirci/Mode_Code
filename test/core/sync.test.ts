@@ -15,6 +15,7 @@ import {
   flowSummary,
   lowersProtection,
   machineId,
+  machineName,
   machinePaths,
   maskedEvents,
   mergeSettings,
@@ -103,6 +104,17 @@ test('the sync setting: a place, a folder, this computer; github needs a remote;
 test("a computer's id: its name in plain letters and four hex digits; where its files are", () => {
   assert.equal(machineId('Özcan’s İş Bilgisayarı', 'A1B2'), 'ozcan-s-is-bilgisayari-a1b2');
   assert.equal(machineId('MacBook-Pro.local', 'ff'), 'macbook-pro-local-ff00');
+});
+
+test('the name offered for a computer: its first real name, never a network address', () => {
+  // The Mac of 2026-10-15: a network that names it made its host name 192.168.1.9.
+  assert.equal(machineName(['Özcan’s MacBook Air\n', 'Ozcans-MacBook-Air', '192.168.1.9'], 'darwin'), 'Özcan’s MacBook Air');
+  assert.equal(machineName([null, '', '192.168.1.9', '192-168-1-9.local', 'fe80::1', '::1'], 'darwin'), 'Mac');
+  assert.equal(machineName([null, null, 'OzcanOrhanMSI', 'OZCANORHANMSI'], 'win32'), 'OzcanOrhanMSI');
+  assert.equal(machineName([undefined, 'MacBook-Pro.local'], 'darwin'), 'MacBook-Pro');
+  assert.equal(machineName(['ip-172-31-5-9', '10.0.0.1'], 'linux'), 'ip-172-31-5-9');
+  assert.equal(machineName([], 'linux'), 'Linux');
+  assert.equal(machineName([], 'win32'), 'Windows');
   assert.equal(machineId('???', '12345'), 'computer-1234');
   assert.equal(machineId('x'.repeat(60), 'zz12'), `${'x'.repeat(40)}-1200`);
   assert.equal(machineId('a-'.repeat(30), 'abcd'), `${'a-'.repeat(19)}a-abcd`);

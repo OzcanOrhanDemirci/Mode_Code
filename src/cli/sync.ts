@@ -6,7 +6,6 @@
  */
 import { randomBytes } from 'node:crypto';
 import { existsSync, statSync } from 'node:fs';
-import { hostname } from 'node:os';
 import { APP_ID, APP_VERSION, CLI_NAME } from '../core/app.js';
 import { serializeConfig, type Config } from '../core/config.js';
 import { ago, dateTime, shortPath } from '../core/format.js';
@@ -22,7 +21,7 @@ import { home, platform } from '../node/env.js';
 import { readText, writeAtomic, writeJsonAtomic } from '../node/fsx.js';
 import { underAgent } from '../node/install.js';
 import { nodeRunner } from '../node/memory.js';
-import { mergedConfig, syncShared } from '../node/sync.js';
+import { computerName, mergedConfig, syncShared } from '../node/sync.js';
 import { flag, type Args } from './args.js';
 import { has, terminalIO } from './memory.js';
 import { bold, dim, green, red, yellow } from './style.js';
@@ -88,7 +87,7 @@ export async function runSyncSetup(ctx: AppContext): Promise<number> {
     has,
     exists: existsSync,
     now: Date.now,
-    hostname: hostname().replace(/\.local$/i, ''),
+    hostname: computerName(),
     random: () => randomBytes(2).toString('hex'),
   });
   if (out.ok && out.config) writeAtomic(ctx.layout.config, serializeConfig(out.config));

@@ -31,6 +31,22 @@ export function machinePaths(dir: string, id: string): { root: string; machine: 
   };
 }
 
+const ADDRESS = /^(?:\d{1,3}(?:[.-]\d{1,3}){3}|[0-9a-f]*:[0-9a-f:.]*)$/i;
+
+/**
+ * The name a computer is offered for itself: the first of the system's names that is one (macOS: the computer
+ * name, then the local host name; Windows: COMPUTERNAME; then the host name), without `.local`. A network
+ * address is not a name (a Mac on a network that names it reports 192.168.1.9 as its host name), so none is
+ * offered; with no name at all, the system's own word.
+ */
+export function machineName(candidates: readonly (string | null | undefined)[], platform: string): string {
+  for (const c of candidates) {
+    const name = (c ?? '').trim().replace(/\.local$/i, '');
+    if (name && !ADDRESS.test(name)) return name;
+  }
+  return platform === 'darwin' ? 'Mac' : platform === 'win32' ? 'Windows' : 'Linux';
+}
+
 /** A computer's folder name: its name in lower-case letters and digits, and four random hex digits. */
 export function machineId(name: string, random: string): string {
   const slug = name

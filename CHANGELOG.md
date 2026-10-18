@@ -18,6 +18,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Yes/no questions use the letters of your language in one case (`[e/h]` in Turkish, not `[Y/n]`) and say what Enter answers, so the memory and sync setups' last question, where Enter means no, no longer cancels unnoticed.
 - The installer's question about the footer lines says what each choice does and shows two lines as they would appear; before, it listed only the names.
 - An installation that asks no questions (the simple view, `--yes`, the one-line installers) protects the memory folder Claude Code is set to keep (`autoMemoryDirectory`); before, it protected none.
+- The sync setup offers a Mac its own name from System Settings; it offered the host name, which a network can set to the computer's address (`192.168.1.9`). An address is never offered as a name.
 
 ## [1.1.0] - 2026-10-15
 
