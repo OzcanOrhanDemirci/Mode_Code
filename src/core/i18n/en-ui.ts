@@ -233,6 +233,10 @@ export const enUi = {
   'rule.docker.volume-delete': 'Deleting Docker volumes or pruning Docker data (an optional pack, for servers).',
   'rule.secrets.stage': 'Staging files that usually hold secrets (.env, key files) for a commit.',
   'rule.secrets.write': 'Writing what looks like a secret into a file.',
+  'rule.inject.tainted-act':
+    'After the session read outside content (a web page, an issue, a connected service, another session): sending data out, writing what starts by itself or configures Claude Code, and writing the memory are asked about.',
+  'rule.quality.check-config':
+    "Changing the project's lint or format settings (ESLint, Prettier, Biome, analysis_options.yaml …): loosening a rule is how a failing check is made to pass.",
   'rule.meta.unverifiable': 'Commands the belt cannot follow all the way (code built at run time), so it cannot confirm they are safe.',
   'rule.data.delete-cloud':
     'Deleting data that lives in the cloud: Firebase databases, storage buckets, managed databases, cloud projects, a GitHub repository.',
@@ -250,6 +254,10 @@ export const enUi = {
   'secrets.noTargets': 'Give one or more files or folders to scan, or set a memory folder.',
   'secrets.clean': 'No secrets found in {n} files.',
   'secrets.found': '{n} possible secrets in {files} scanned files:',
+  'secrets.allowUsage': 'Usage: {cmd} <fingerprint>… (the 64 hex digits a held memory push printed)',
+  'secrets.allowed': '{n} fingerprints allowed: a memory push may send those values now.',
+  'mcp.changed': '{n} MCP tool description(s) changed since first seen; check the server before you trust them: {tools}',
+  'secrets.inPrompt': 'Your message held a secret ({kinds}); it went to the model. Pasted by mistake? Rotate it.',
   'secrets.note': 'Only masked previews are shown. Move real secrets out of these files and rotate any that were committed.',
 
   // ── config ──
@@ -308,6 +316,23 @@ export const enUi = {
   'help.config': 'Read or change a setting',
   'help.json': 'Add --json to any command for machine-readable output.',
   'help.privacy': "Everything stays on this machine. No telemetry. The update check, when you turn it on, only downloads the newest release's checksum list.",
+  'help.trust': 'What runs inside Claude Code besides the model, and what changed since you last looked',
+  'trust.title': 'What runs inside Claude Code besides the model',
+  'trust.kind.plugin': 'Plugins ({n})',
+  'trust.kind.hook': 'Hooks ({n})',
+  'trust.kind.mcp': 'MCP servers ({n})',
+  'trust.kind.skill': 'Skills ({n})',
+  'trust.kind.agent': 'Agents ({n})',
+  'trust.kind.command': 'Commands ({n})',
+  'trust.none': 'none',
+  'trust.new': 'new since you last looked',
+  'trust.first': 'The first look: from now on, what is new is marked.',
+  'trust.unchanged': 'Nothing new since you last looked.',
+  'trust.added': '{n} new since you last looked: check that you chose each.',
+  'trust.gone': '{n} gone since you last looked.',
+  'trust.note':
+    'Plugins and their mods run unsandboxed in Claude Code and can answer its tool calls; hooks run a command on every event they name; an MCP server reads what Claude sends it. Keep only what you chose.',
+  'trust.notKept': 'Run inside a Claude Code session: shown only; the look is kept when you run it yourself.',
   'help.update': 'Is a newer release out; update to it with its own installer',
   'update.cantCheck': 'Could not ask the release which version is the newest: {detail}',
   'update.newest': 'Mode_Code {version} is the newest.',

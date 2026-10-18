@@ -265,6 +265,8 @@ test('after a turn the store is synced: a quick look first, then commit and send
     }
     if (a === 'rev-parse --abbrev-ref --symbolic-full-name @{upstream}') return { exitCode: 0, stdout: 'origin/main\n' };
     if (a === 'rev-list --count @{upstream}..HEAD') return { exitCode: 0, stdout: `${ahead}\n` };
+    // What the push would send, read before it goes (A3-15): the note the commit added.
+    if (a.startsWith('log -p')) return { exitCode: 0, stdout: 'diff --git a/notes.md b/notes.md\n+++ b/notes.md\n+Prefers pnpm.\n' };
     if (args[0] === 'push') {
       ahead = 0;
       return { exitCode: 0, stdout: '' };

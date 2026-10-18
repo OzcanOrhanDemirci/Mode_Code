@@ -62,6 +62,11 @@ export const enControls = {
   'ctl.hint.flow': '[task]',
   'ctl.hint.continue': '[number or name] [quota N]',
   'ctl.hint.quota': '[N or +N]',
+  'ctl.hint.freeze': '[folder | off]',
+  'ctl.desc.freeze': 'Freeze: every write a call names stays inside one folder (this one unless you name another); again, or off, to end it',
+  'ctl.freeze.on': '❄ Edits frozen to {folder}: a write elsewhere is refused. /freeze off ends it.',
+  'ctl.freeze.off': 'Edits are free again.',
+  'ctl.freeze.notDir': '{folder} is not a folder: nothing was frozen.',
   // ── flows ──
   'ctl.flow.researchOnly': '{research} only',
   'ctl.flow.noCode': '{steps}, no code',

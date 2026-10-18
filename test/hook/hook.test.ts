@@ -92,6 +92,33 @@ test('a plain read passes without a word', () => {
   }
 });
 
+test('a tool call cut short on its way in is refused: what cannot be read is not judged as harmless', () => {
+  const home = fresh();
+  try {
+    const whole = JSON.stringify({
+      ...base(home),
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Bash',
+      tool_use_id: 'toolu_c',
+      tool_input: { command: 'rm -rf /' },
+    });
+    const r = spawnSync(process.execPath, ['--import', 'tsx', hook, 'PreToolUse'], {
+      cwd: root,
+      input: whole.slice(0, 80),
+      encoding: 'utf8',
+      env: { ...process.env, MODE_CODE_HOME: home, MODE_CODE_LANG: 'en' },
+      timeout: 30_000,
+    });
+    const out = JSON.parse((r.stdout ?? '').trim());
+    assert.equal(out.hookSpecificOutput.permissionDecision, 'deny');
+    assert.match(out.hookSpecificOutput.permissionDecisionReason, /could not be read/);
+    // Nothing at all is no call to judge: it passes as before.
+    assert.equal(run('PreToolUse', {}, home).out, null);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test('an "ask" rule asks; the same call passes once the person approved it through the mod', () => {
   const home = fresh();
   try {

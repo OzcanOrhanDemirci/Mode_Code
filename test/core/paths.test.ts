@@ -29,6 +29,8 @@ test('every Windows spelling of the same file resolves to one form', () => {
     '/c/Users/ada/.claude/settings.json',
     '/cygdrive/c/Users/ada/.claude/settings.json',
     '\\\\?\\C:\\Users\\ada\\.claude\\settings.json',
+    '\\\\.\\C:\\Users\\ada\\.claude\\settings.json',
+    '//?/c:/Users/ada/.claude/settings.json',
     '~/.claude/settings.json',
     '~\\.claude\\settings.json',
     '$HOME/.claude/settings.json',
@@ -45,6 +47,10 @@ test('every Windows spelling of the same file resolves to one form', () => {
 test('Windows: rooted path without a drive uses the current drive; UNC stays UNC', () => {
   assert.equal(resolvePath('/Users/ada', WIN), 'C:/Users/ada');
   assert.equal(resolvePath('\\\\server\\share\\x\\..\\y', WIN), '//server/share/y');
+  assert.equal(resolvePath('\\\\?\\UNC\\server\\share\\y', WIN), '//server/share/y');
+  // A device that is no drive keeps its prefix: never a file under the current folder.
+  assert.equal(resolvePath('\\\\.\\PhysicalDrive0', WIN), '//./PhysicalDrive0/');
+  assert.equal(resolvePath('\\\\?\\Volume{1}\\x', WIN), '//?/Volume{1}/x');
 });
 
 test("Windows: /tmp is Git Bash's mount of the user's temporary folder", () => {

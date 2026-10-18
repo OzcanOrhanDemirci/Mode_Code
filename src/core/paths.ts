@@ -64,10 +64,14 @@ function normalizeSegments(rest: string, win: boolean): string[] {
   return out;
 }
 
-/** Converts Windows-specific spellings into slash form: `C:\x`, `\\?\C:\x`, `/c/x`, `/cygdrive/c/x`, `\\srv\share`. */
+/**
+ * Converts Windows-specific spellings into slash form: `C:\x`, `\\?\C:\x` and `\\.\C:\x` (the same file through the
+ * long-path and the device namespace), `/c/x`, `/cygdrive/c/x`, `\\srv\share`. A device that is no drive
+ * (`\\.\PhysicalDrive0`) keeps its prefix: it is not a path under the folder the command runs in.
+ */
 function windowsSlashForm(input: string): string {
   let p = input.replace(/\\/g, '/');
-  p = p.replace(/^\/\/\?\/(?:UNC\/)?/i, (m) => (/UNC/i.test(m) ? '//' : ''));
+  p = p.replace(/^\/\/[?.]\/(?:UNC\/|(?=[A-Za-z]:))/i, (m) => (/UNC/i.test(m) ? '//' : ''));
   const msys = /^\/(?:cygdrive\/|mnt\/)?([A-Za-z])(?=\/|$)/.exec(p);
   if (msys) p = `${msys[1]!.toUpperCase()}:${p.slice(msys[0].length) || '/'}`;
   const driveRelative = /^([A-Za-z]):(?!\/)/.exec(p);

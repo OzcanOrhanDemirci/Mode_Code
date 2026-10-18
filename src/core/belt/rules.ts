@@ -17,7 +17,8 @@
 import type { RuleConfig, RuleId, Verdict } from './types.js';
 import { VERDICT_ORDER } from './types.js';
 
-export type RuleCategory = 'git' | 'fs' | 'self' | 'claude' | 'persist' | 'publish' | 'docker' | 'data' | 'system' | 'outbound' | 'secrets' | 'meta';
+export type RuleCategory =
+  'git' | 'fs' | 'self' | 'claude' | 'persist' | 'publish' | 'docker' | 'data' | 'system' | 'outbound' | 'secrets' | 'quality' | 'inject' | 'meta';
 
 /** What a rule does while bypass is on: its verdict stays, it asks, or it lets the call through. */
 export type BypassTier = 'keep' | 'ask' | 'allow';
@@ -51,7 +52,8 @@ export const RULES: Readonly<Record<RuleId, RuleInfo>> = Object.freeze({
   'git.single-branch': r('git.single-branch', 'git', 'deny'),
   'git.history-rewrite': r('git.history-rewrite', 'git', 'ask'),
   'git.hooks-path': r('git.hooks-path', 'git', 'deny'),
-  'git.no-verify': r('git.no-verify', 'git', 'warn'),
+  // Skipping the repository's own hooks (lint, tests, secret checks) is how a change slips past them: asked (A3-9).
+  'git.no-verify': r('git.no-verify', 'git', 'ask'),
   'git.clean': r('git.clean', 'git', 'ask'),
   'git.discard-work': r('git.discard-work', 'git', 'warn'),
   'git.branch-force-delete': r('git.branch-force-delete', 'git', 'ask'),
@@ -90,6 +92,11 @@ export const RULES: Readonly<Record<RuleId, RuleInfo>> = Object.freeze({
   'secrets.stage': r('secrets.stage', 'secrets', 'ask', 'ask'),
   'secrets.write': r('secrets.write', 'secrets', 'warn'),
   'secrets.exfil': r('secrets.exfil', 'secrets', 'deny', 'keep', true),
+  // The project's own lint and format settings: loosening a rule is how a failing check is made to pass.
+  'quality.check-config': r('quality.check-config', 'quality', 'ask'),
+  // After outside content was read (a page, an issue, a service's data): sending, persisting or writing the memory is
+  // what an instruction hidden in it would ask for. Asked, with bypass too (src/core/taint.ts).
+  'inject.tainted-act': r('inject.tainted-act', 'inject', 'ask', 'ask'),
   // What cannot be followed could be anything, the floor included: never let through unseen.
   'meta.unverifiable': r('meta.unverifiable', 'meta', 'ask', 'ask', true),
 });

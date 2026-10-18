@@ -15,7 +15,7 @@ import type { QuotaAssessment } from './quota.js';
 import { tIn, type Lang, type MessageKey } from './i18n/index.js';
 
 export interface GuardRefusal {
-  kind: 'mode' | 'quota';
+  kind: 'mode' | 'quota' | 'freeze';
   /** For a mode refusal: the mode, and what was refused (file, write, dynamic, local, unknown, outside, unreadable, tool). */
   mode?: WorkMode;
   what?: string;
@@ -102,6 +102,36 @@ export function checkMode(tool: string, input: Readonly<Record<string, unknown>>
   if (tool.startsWith('mcp__mode-code__')) return null;
   if ((tool.startsWith('mcp__') && OUTWARD_MCP.test(tool)) || (OUTWARD_TOOLS.test(tool) && !READING_ACTION.test(String(input.action ?? ''))))
     return refuse(g, lang, 'tool', 'mode.refuse.tool', { tool });
+  return null;
+}
+
+/**
+ * Edits frozen to one folder (`/dondur`, A3-8 of 1.2.0): a write a call names outside it (a file tool's path, a
+ * redirect, a copy, a move, a delete, `sed -i`) is refused; the temporary folders stay writable. A program that writes
+ * what it decides (a build, an installer) is not judged: the freeze holds the edits a call names.
+ */
+export function checkFreeze(
+  tool: string,
+  input: Readonly<Record<string, unknown>>,
+  folder: string,
+  temp: readonly string[],
+  p: PathEnv & { env: Readonly<Record<string, string | undefined>> },
+  lang: Lang,
+): GuardRefusal | null {
+  const allowed = [folder, ...temp];
+  const inside = (path: string) => inZones(path, allowed, p.platform);
+  const no = (key: MessageKey, params: Record<string, string>): GuardRefusal => ({ kind: 'freeze', reason: tIn(lang, key, { ...params, folder }) });
+  if (isFileTool(tool)) {
+    const raw = String(input.file_path ?? input.notebook_path ?? '');
+    return raw && !inside(resolvePath(raw, p)) ? no('guard.freeze.file', { path: raw }) : null;
+  }
+  const dialect = shellOf(tool);
+  if (!dialect) return null;
+  for (const e of commandEffects(String(input.command ?? ''), dialect, p).effects)
+    for (const t of e.targets) {
+      if (t === null) return no('guard.freeze.dynamic', { program: truncate(e.program, 60) });
+      if (!inside(t)) return no('guard.freeze.write', { program: truncate(e.program, 60), target: t });
+    }
   return null;
 }
 

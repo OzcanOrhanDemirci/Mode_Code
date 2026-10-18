@@ -75,9 +75,12 @@ test("the commands are declared at the start, in the person's language; the mode
     'tam-otonom',
     'full-auto',
     'bypass',
+    'dondur',
+    'freeze',
     'kapat',
     'close',
   ]);
+  expect(w.commands.find((c: any) => c.name === 'dondur')).toMatchObject({ immediate: true, argumentHint: '[klasör | kapat]' });
   const three = w.commands.find((c: any) => c.name === '3');
   expect(three.description).toMatch(/^Mod: 📐 plan/);
   expect(three.argumentHint).toBe('[metin]');

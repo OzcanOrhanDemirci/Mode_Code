@@ -7,6 +7,8 @@
  * retried once after a pull, an unreachable remote is left for the next time.
  */
 import type { MemorySyncMode } from './config.js';
+import { sha256Hex } from './sha256.js';
+import { scanSecrets } from './secrets/scan.js';
 import { changeCounts, indexChange, INDEX_FILE, isDeletion, mergePulled, parsePorcelainZ, type Pulled, type StoreChange } from './memory.js';
 
 /** Runs a program; resolves with its exit code and output, rejects when it cannot start or times out. */
@@ -32,12 +34,70 @@ export const MAX_NOTE_BYTES = 1_000_000;
 export type Outcome = 'ok' | 'none' | 'skipped' | 'offline' | 'auth' | 'busy' | 'failed';
 /** conflict: the pull could not join files changed here (undone); diverged: a fast-forward was asked for and both sides moved. */
 export type PullOutcome = Outcome | 'conflict' | 'diverged';
-export type PushOutcome = Outcome | 'rejected';
+/** held: what it would send holds a secret (SyncInput.outgoing): nothing was sent. */
+export type PushOutcome = Outcome | 'rejected' | 'held';
 export type CommitOutcome = 'ok' | 'none' | 'skipped' | 'held' | 'identity' | 'busy' | 'failed';
 
 export interface HeldFile {
   path: string;
   reason: 'secret' | 'large';
+  /** A secret in a commit a push would send: its kind, and the fingerprint the person can allow (never the value). */
+  kind?: string;
+  fingerprint?: string;
+}
+
+/** A held file as the person reads it: its path, and the kind of secret in it, never the secret. */
+export function heldText(h: HeldFile): string {
+  return h.kind ? `${h.path} <REDACTED:${h.kind}>` : h.path;
+}
+
+/** A secret in what a push would send: the file it is added to, its kind, and its fingerprint (SHA-256 of the value). */
+export interface OutgoingSecret {
+  path: string;
+  kind: string;
+  fingerprint: string;
+}
+
+/**
+ * The secrets in what a push would send, but those the person allowed by fingerprint (a false alarm they looked at):
+ * documented token formats only, in the lines the commits add. Pure.
+ */
+export function outgoingSecrets(allowed: ReadonlySet<string>): (files: readonly { path: string; text: string }[]) => OutgoingSecret[] {
+  return (files) =>
+    files.flatMap((f) =>
+      scanSecrets(f.text)
+        .filter((m) => m.confidence === 'high')
+        .map((m) => ({ path: f.path, kind: m.kind, fingerprint: sha256Hex(f.text.slice(m.start, m.end)) }))
+        .filter((s) => !allowed.has(s.fingerprint)),
+    );
+}
+
+/** The fingerprints of the secrets the person allowed to leave in a push (secrets-allow.json); anything malformed is none. */
+export function parseAllowed(text: string | null): Set<string> {
+  try {
+    const o = JSON.parse(text ?? '') as { allowed?: unknown };
+    return new Set(
+      (Array.isArray(o.allowed) ? o.allowed : []).flatMap((a) =>
+        a && typeof a.fingerprint === 'string' && /^[0-9a-f]{64}$/.test(a.fingerprint) ? [a.fingerprint as string] : [],
+      ),
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+/** The lines `git log -p` shows added, by file (the path after `+++ b/`). Pure. */
+export function addedLines(patch: string): { path: string; text: string }[] {
+  const by = new Map<string, string[]>();
+  let path: string | null = null;
+  for (const line of patch.split('\n')) {
+    if (line.startsWith('+++ ')) {
+      const p = line.slice(4).trim();
+      path = p === '/dev/null' ? null : p.replace(/^b\//, '');
+    } else if (line.startsWith('diff --git ')) path = null;
+    else if (path !== null && line.startsWith('+')) (by.get(path) ?? by.set(path, []).get(path)!).push(line.slice(1));
+  }
+  return [...by].map(([p, lines]) => ({ path: p, text: lines.join('\n') }));
 }
 
 export interface SyncResult {
@@ -89,6 +149,11 @@ export interface SyncInput {
   since?: string | null;
   /** Files larger than this are held back (MAX_NOTE_BYTES unless given: the sync's history files may be larger than notes). */
   maxBytes?: number;
+  /**
+   * The secrets in what a push would send (outgoingSecrets): the lines the commits not yet on the remote add, those
+   * made by hand too. A push that would send one is held, and each is told by its kind and fingerprint.
+   */
+  outgoing?: (files: readonly { path: string; text: string }[]) => OutgoingSecret[];
 }
 
 export type SyncTrigger = 'start' | 'turn' | 'manual';
@@ -203,7 +268,7 @@ export async function syncMemory(r: Runner, input: SyncInput): Promise<SyncResul
     else res.pull = mode === 'ff-only' ? await fastForward(git, res, note) : await pullStep(git, res, note);
   }
   if (input.remote && input.steps.push && res.pull !== 'conflict' && res.pull !== 'diverged') {
-    res.push = await pushStep(git, upstream, res, note);
+    res.push = await pushStep(git, upstream, res, note, input.outgoing);
     if (res.push === 'ok' && upstream === null) upstream = await upstreamOf(git);
   }
   res.head = await headNow();
@@ -403,7 +468,7 @@ async function fastForward(git: Git, res: SyncResult, note: (s: string) => void)
   return pullFailure(text);
 }
 
-async function pushStep(git: Git, upstream: string | null, res: SyncResult, note: (s: string) => void): Promise<PushOutcome> {
+async function pushStep(git: Git, upstream: string | null, res: SyncResult, note: (s: string) => void, outgoing?: SyncInput['outgoing']): Promise<PushOutcome> {
   if (upstream !== null) {
     const ahead = await git(['rev-list', '--count', '@{upstream}..HEAD']);
     if (ahead.ok && ahead.out.trim() === '0') return 'none';
@@ -411,6 +476,20 @@ async function pushStep(git: Git, upstream: string | null, res: SyncResult, note
     // A first push: there must be something to send.
     const head = await git(['rev-parse', '--verify', '--quiet', 'HEAD']);
     if (!head.ok) return 'none';
+  }
+  if (outgoing) {
+    // Every commit that would go, each with what it adds: a secret added and removed again is still in the history sent.
+    const patch = await git(['log', '-p', '-U0', '--no-color', '--no-ext-diff', '--format=', upstream === null ? 'HEAD' : '@{upstream}..HEAD'], 30_000);
+    if (!patch.ok) {
+      // What cannot be read is not sent.
+      note(patch.err || 'the commits to send could not be read');
+      return 'failed';
+    }
+    const found = outgoing(addedLines(patch.out));
+    if (found.length) {
+      for (const s of found) res.held.push({ path: s.path, reason: 'secret', kind: s.kind, fingerprint: s.fingerprint });
+      return 'held';
+    }
   }
   const args = upstream === null ? ['push', '--quiet', '--set-upstream', 'origin', 'HEAD'] : ['push', '--quiet'];
   let push = await git(args, 60_000);

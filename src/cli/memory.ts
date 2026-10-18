@@ -11,7 +11,7 @@ import { serializeConfig } from '../core/config.js';
 import { dateTime, shortPath } from '../core/format.js';
 import { nextOf } from '../core/handoff.js';
 import { tIn, type MessageKey } from '../core/i18n/index.js';
-import { syncProblem, type SyncResult } from '../core/memory-sync.js';
+import { heldText, syncProblem, type SyncResult } from '../core/memory-sync.js';
 import { morningLines } from '../core/morning.js';
 import { appContext, type AppContext } from '../app/context.js';
 import { memorySetup, type SetupIO } from '../app/memory-setup.js';
@@ -94,8 +94,11 @@ function syncLine(ctx: AppContext, r: SyncResult): string {
   if (!parts.length && !problem) parts.push(T(ctx, 'mcli.sync.nothing'));
   if (problem)
     parts.push(
-      T(ctx, `mcli.problem.${problem}` as MessageKey, { files: (problem === 'held' ? r.held.map((h) => h.path) : r.conflicts).join(', '), detail: r.detail }),
+      T(ctx, `mcli.problem.${problem}` as MessageKey, { files: (problem === 'held' ? r.held.map(heldText) : r.conflicts).join(', '), detail: r.detail }),
     );
+  // A push held for a secret the person looked at and found harmless: the way to let it go, by its fingerprint.
+  const prints = r.held.flatMap((h) => (h.fingerprint ? [h.fingerprint] : []));
+  if (prints.length) parts.push(T(ctx, 'mcli.heldAllow', { cmd: `${CLI_NAME} secrets allow ${prints.join(' ')}` }));
   return parts.join(' · ');
 }
 

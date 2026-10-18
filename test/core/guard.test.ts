@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkGuards, checkMode, type ModeGuard } from '../../src/core/guard.js';
+import { checkFreeze, checkGuards, checkMode, type ModeGuard } from '../../src/core/guard.js';
 import { assessQuota, DEFAULT_BUDGET, fromModRateLimits } from '../../src/core/quota.js';
 import type { ClassifyEnv } from '../../src/core/footer.js';
 import type { WorkMode } from '../../src/core/modes.js';
@@ -117,4 +117,22 @@ test('quota wrap-up: no new heavy work; stop: only reads, notes and commits', ()
   assert.equal(checkGuards('Bash', { command: 'git add -A && rm -rf build' }, null, q(99), env, 'en')?.kind, 'quota');
   assert.equal(checkGuards('Bash', { command: 'npm install' }, null, q(99), env, 'en')?.kind, 'quota');
   assert.equal(checkGuards('Read', { file_path: '/home/u/proj/a.ts' }, null, q(99), env, 'en'), null);
+});
+
+test('edits frozen to one folder: a named write elsewhere is refused; inside, the temporary folders and unnamed writes pass', () => {
+  const p = { ...env, env: {} };
+  const temp = ['/tmp'];
+  const at = (tool: string, input: Record<string, unknown>) => checkFreeze(tool, input, '/home/u/proj/src/feature', temp, p, 'en');
+  assert.equal(at('Write', { file_path: '/home/u/proj/src/feature/a.ts', content: '' }), null);
+  assert.match(
+    at('Edit', { file_path: '/home/u/proj/src/other.ts' })!.reason,
+    /frozen to \/home\/u\/proj\/src\/feature \(\/freeze\): writing \/home\/u\/proj\/src\/other\.ts is outside it/,
+  );
+  assert.equal(at('Write', { file_path: '/tmp/x.txt', content: '' }), null);
+  assert.equal(at('Bash', { command: 'echo x > /home/u/proj/src/feature/b.ts' }), null);
+  assert.equal(at('Bash', { command: 'echo x > /home/u/proj/README.md' })?.kind, 'freeze');
+  assert.match(at('Bash', { command: 'cp a.ts "$OUT"' })!.reason, /only known when it runs/);
+  assert.equal(at('Bash', { command: 'npm test' }), null, 'a program that writes what it decides is not judged');
+  assert.equal(at('Read', { file_path: '/etc/hosts' }), null);
+  assert.match(checkFreeze('Edit', { file_path: '/home/u/proj/x.ts' }, '/home/u/proj/src', [], p, 'tr')!.reason, /donduruldu \(\/dondur\)/);
 });

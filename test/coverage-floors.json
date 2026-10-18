@@ -126,6 +126,11 @@
       "branches": 44,
       "functions": 73
     },
+    "src/cli/trust.ts": {
+      "lines": 94,
+      "branches": 38,
+      "functions": 44
+    },
     "src/cli/update.ts": {
       "lines": 39,
       "branches": 33,
@@ -236,6 +241,11 @@
       "branches": 100,
       "functions": 100
     },
+    "src/core/hygiene.ts": {
+      "lines": 94,
+      "branches": 81,
+      "functions": 94
+    },
     "src/core/i18n/en-auto.ts": {
       "lines": 94,
       "branches": 92,
@@ -331,6 +341,11 @@
       "branches": 92,
       "functions": 94
     },
+    "src/core/mcp-pins.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
     "src/core/memory-sync.ts": {
       "lines": 93,
       "branches": 89,
@@ -354,6 +369,11 @@
     "src/core/paths.ts": {
       "lines": 94,
       "branches": 89,
+      "functions": 94
+    },
+    "src/core/permissions.ts": {
+      "lines": 94,
+      "branches": 92,
       "functions": 94
     },
     "src/core/quota.ts": {
@@ -421,6 +441,11 @@
       "branches": 42,
       "functions": 94
     },
+    "src/core/sha256.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
     "src/core/shell/analyze.ts": {
       "lines": 84,
       "branches": 76,
@@ -466,6 +491,11 @@
       "branches": 89,
       "functions": 94
     },
+    "src/core/taint.ts": {
+      "lines": 94,
+      "branches": 80,
+      "functions": 94
+    },
     "src/core/templates.ts": {
       "lines": 92,
       "branches": 54,
@@ -480,6 +510,11 @@
       "lines": 92,
       "branches": 75,
       "functions": 81
+    },
+    "src/core/trust.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
     },
     "src/core/update.ts": {
       "lines": 94,

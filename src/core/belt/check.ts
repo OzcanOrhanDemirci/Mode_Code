@@ -19,7 +19,7 @@ import { isProtectedBranch, looksLikeUrl, parseGit, planPush, remoteMatches } fr
 import type { BeltContext, Finding, RuleId } from './types.js';
 
 /** Issues that hide what runs: always worth asking about. */
-const STRONG_UNCERTAIN = new Set(['eval-dynamic', 'encoded-command-undecodable', 'dynamic-shell-code', 'too-deep']);
+const STRONG_UNCERTAIN = new Set(['eval-dynamic', 'encoded-command-undecodable', 'dynamic-shell-code', 'too-deep', 'stdin-code']);
 /** Issues that mean the text did not parse cleanly: worth asking about when the command looks risky. */
 const WEAK_UNCERTAIN = new Set([
   'unterminated-quote',
@@ -260,7 +260,12 @@ function checkWrite(t: Target, kind: WriteKind, s: Scope): void {
   if (paths.shellProfiles(p)) return add(s, 'persist.shell-profile', 'belt.reason.shellProfile', { target: show(p) });
   if (under(p, paths.memoryDirs, ctx.platform) && (kind === 'truncate' || kind === 'replace'))
     add(s, 'self.memory-shrink', 'belt.reason.memoryOverwrite', { target: show(p) });
+  if (CHECK_CONFIG.test(p.split('/').pop() ?? '')) add(s, 'quality.check-config', 'belt.reason.checkConfig', { target: show(p) });
 }
+
+/** The settings of a project's linters and formatters, by file name (ESLint, Prettier, Biome, Dart, Stylelint, Ruff, …). */
+const CHECK_CONFIG =
+  /^(?:\.eslintrc(?:\.(?:js|cjs|mjs|json|ya?ml))?|eslint\.config\.(?:js|cjs|mjs|ts|cts|mts)|\.prettierrc(?:\.(?:js|cjs|mjs|json|json5|ya?ml|toml))?|prettier\.config\.(?:js|cjs|mjs|ts)|biome\.jsonc?|analysis_options\.yaml|\.stylelintrc(?:\.(?:js|cjs|json|ya?ml))?|stylelint\.config\.(?:js|cjs|mjs)|\.golangci\.ya?ml|\.?ruff\.toml|\.flake8|\.pylintrc|\.rubocop\.yml|\.swiftlint\.yml|detekt\.yml)$/i;
 
 // ── per program ───────────────────────────────────────────────────────────────────────────────────────
 
@@ -1340,9 +1345,18 @@ async function checkInlineCode(inv: Invocation, cwd: string | null, s: Scope): P
   }
 }
 
-/** Mentions of disableAllHooks in a command that changes something. */
+/**
+ * The setting given a value that turns hooks off: `"disableAllHooks": true`, `.disableAllHooks = true`, `= $true`,
+ * or a value only known when it runs (`= $v`). A read (`jq '.disableAllHooks'`, `grep`) gives it none.
+ */
+const SETS_HOOKS_OFF = /(?:disableAllHooks|allowManagedHooksOnly)['"\]]*\s*[:=]\s*(?:true\b|1\b|\$\w)/i;
+
+/** disableAllHooks set by a command that changes something; a command that only reads it is left alone. */
 function checkDisableHooks(raw: string, invs: readonly Invocation[], s: Scope): void {
   if (!/disableAllHooks|allowManagedHooksOnly/i.test(raw)) return;
+  // `claude config set disableAllHooks true` and the like: Claude Code's own command sets it.
+  const byClaude = invs.some((i) => i.program === 'claude' && i.args.some((a) => /disableAllHooks|allowManagedHooksOnly/i.test(a)));
+  if (!byClaude && !SETS_HOOKS_OFF.test(raw)) return;
   const changes = invs.some(
     (i) =>
       i.writes.length > 0 ||

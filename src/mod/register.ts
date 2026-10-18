@@ -19,10 +19,14 @@ import { SYNC_MAX_BYTES, syncCommitMessage, type Pending } from '../core/sync.js
 import { exportMachine, parseSharedRecord, settingsInEffect, syncDue, type SharedRecord, type SyncFs } from '../core/sync-export.js';
 import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform } from '../core/paths.js';
 import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '../core/i18n/index.js';
-import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
+import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
+import { taintedAct, taintSource, withoutInvisible } from '../core/taint.js';
+import { shellReadTool, shellTrap } from '../core/hygiene.js';
+import { comparePins, parsePins } from '../core/mcp-pins.js';
+import { partsAllowed, shellRules, type ShellRules } from '../core/permissions.js';
 import { isBeltTool, isFileTool, shellOf } from '../core/belt/tools.js';
 import type { BeltContext, BeltDecision, GitFacts } from '../core/belt/types.js';
-import { checkGuards, type ModeGuard } from '../core/guard.js';
+import { checkFreeze, checkGuards, type ModeGuard } from '../core/guard.js';
 import {
   detectKeyword,
   isModeKeyword,
@@ -68,7 +72,7 @@ import { ago, clock as timeOfDay, percent, shortPath } from '../core/format.js';
 import { centerProgram, commandLine, LAUNCH_ENV, OPENS, terminalLaunch, windowsAppsDir, windowsTerminalProgram } from '../core/launch.js';
 import { checkDue, newerThan, parseUpdateState } from '../core/update.js';
 import { closeTabArgv, closeTabOutcome, type CloseTab } from '../core/close.js';
-import { fold } from '../core/text.js';
+import { fold, truncate } from '../core/text.js';
 import { MARK_W } from '../core/mo/marks.js';
 import {
   conflictContext,
@@ -83,6 +87,12 @@ import {
   bypassOffNote,
   bypassOnNote,
   bypassReminder,
+  freezeNote,
+  invisibleNote,
+  mcpChangedNote,
+  hygieneNote,
+  trapNote,
+  promptSecretNote,
   resumePrompt,
   stepGuidance,
   stepName,
@@ -139,6 +149,9 @@ import {
   lastSeen,
   looksOnly,
   newestRecord,
+  heldText,
+  outgoingSecrets,
+  parseAllowed,
   parseSeen,
   parseSyncRecord,
   syncMemory,
@@ -274,6 +287,10 @@ interface Ctx {
   sharedStart: Promise<void> | null;
   sharedSyncing: boolean;
   sharedWarned: Set<string>;
+  /** The tool hygiene hints given in this session (core/hygiene.ts): each once. */
+  hinted: Set<string>;
+  /** Notes the session's start found for the model (a changed MCP tool), told with the person's first prompt. */
+  startNotes: string[];
   /** The sync at the session's start while it runs: the first prompt waits for it. */
   memStart: Promise<unknown> | null;
   /** The notes of sessions closed without ending, written at the start: the first prompt waits for them. */
@@ -546,6 +563,8 @@ async function load($: $): Promise<Ctx> {
     sharedStart: null,
     sharedSyncing: false,
     sharedWarned: new Set(),
+    hinted: new Set(),
+    startNotes: [],
     mo: {
       tools: 0,
       agents: 0,
@@ -2269,6 +2288,22 @@ async function startBypass($: $, c: Ctx): Promise<string> {
  * answered yes and recorded; one a settings rule asks, the person's or their organisation's, stays theirs.
  * During a run, the question is answered "deferred" instead of waiting.
  */
+/** The person's allow rules for a shell tool: Claude Code's user and project settings, read as they are now. */
+async function shellAllowRules($: $, c: Ctx, tool: 'Bash' | 'PowerShell', cwd: string): Promise<ShellRules> {
+  const dir = c.env.CLAUDE_CONFIG_DIR ? resolvePath(c.env.CLAUDE_CONFIG_DIR, { platform: c.platform, home: c.home, cwd }) : joinPath(c.home, '.claude');
+  const files = [joinPath(dir, 'settings.json'), joinPath(cwd, '.claude', 'settings.json'), joinPath(cwd, '.claude', 'settings.local.json')];
+  const allow: unknown[] = [];
+  for (const f of files) {
+    try {
+      const p = (JSON.parse((await readFile($, f)) ?? '{}') as { permissions?: { allow?: unknown } }).permissions?.allow;
+      if (Array.isArray(p)) allow.push(...p);
+    } catch {
+      /* a settings file that does not read allows nothing */
+    }
+  }
+  return shellRules(allow, tool);
+}
+
 async function onToolCheck($: $, e: In<'tool.check'>, next: Nx<'tool.check'>): Out<'tool.check'> {
   const v = await next(e);
   if (v.decision !== 'ask' || !e.tool_use_id) return v;
@@ -2277,6 +2312,18 @@ async function onToolCheck($: $, e: In<'tool.check'>, next: Nx<'tool.check'>): O
     c = await ctxOf($);
   } catch {
     return v;
+  }
+  // A compound command whose every part the person allowed (`cd app && npm test`): what they said yes to already.
+  const shellTool = String(e.tool) === 'Bash' || String(e.tool) === 'PowerShell' ? (String(e.tool) as 'Bash' | 'PowerShell') : null;
+  if (shellTool && !v.rule) {
+    const cwd = await $.session.cwd();
+    const command = String((e.input as { command?: unknown } | undefined)?.command ?? '');
+    const rules = await shellAllowRules($, c, shellTool, cwd);
+    const env = pathEnv(c, cwd);
+    if (partsAllowed(command, shellTool === 'Bash' ? 'bash' : 'powershell', rules, env.cwd, env)) {
+      await logEvent($, c, { kind: 'permission', tool: shellTool, answer: 'parts' });
+      return { ...v, decision: 'allow' };
+    }
   }
   if (!v.rule && c.config.bypass.enabled && bypassOn(c.state, await $.clock.now())) {
     const tool = String(e.tool);
@@ -2559,7 +2606,14 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   if ((c.state.bypass || c.run) && (await $.clock.now()) - c.configReadAt >= 60_000) await refreshConfig($, c);
   await bypassClock($, c);
   const ctx = await beltContextFor($, c);
-  const d = await evaluateToolCall(tool, input, ctx);
+  let d = await evaluateToolCall(tool, input, ctx);
+  // Outside content was read in this session: what an instruction hidden in it would ask for is asked (src/core/taint.ts).
+  const tainted = c.state.tainted ? taintedAct(tool, input, { ...pathEnv(c, cwd), memoryDirs: ctx.memoryDirs }) : null;
+  if (tainted && c.state.tainted) {
+    const act = tIn(c.lang, `belt.tainted.${tainted.act}` as MessageKey);
+    const reason = tIn(c.lang, 'belt.reason.tainted', { source: c.state.tainted.source, act, what: truncate(maskSecrets(tainted.what), 160) });
+    d = mergeDecisions(d, decide([{ rule: 'inject.tainted-act', verdict: 'ask', reason }], [], ctx));
+  }
   const rules = d.findings.map((f) => f.rule);
   // What bypass let through without a word: recorded once the call has run (or failed), for the person.
   const bypassed = d.lifted.filter((f) => f.verdict === 'allow');
@@ -2596,6 +2650,14 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
     if (auto) return auto;
   }
 
+  // Edits frozen to one folder by the person (`/dondur`): a write named elsewhere is refused.
+  if (c.state.frozen) {
+    const frozen = checkFreeze(tool, input, c.state.frozen, zonesFor(c, cwd).temp, { ...pathEnv(c, cwd), env: c.env }, c.lang);
+    if (frozen) {
+      await logEvent($, c, { kind: 'freeze', tool, verdict: 'deny' });
+      return { deny: frozen.reason };
+    }
+  }
   const guard = modeGuardFor(c, cwd);
   const refusal = checkGuards(tool, input, guard, c.config.modules.quota ? await quotaNow($, c) : null, classifyEnvFor(c, cwd), c.lang);
   if (refusal) {
@@ -2617,6 +2679,12 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
     });
   // The footer counts what ran: a refused call changed nothing, and neither did a file tool that failed.
   const ran = result.deny === undefined && !(result.isError === true && isFileTool(tool));
+  // What the call read came from outside the session (a page, an issue, a service): the session is tainted from now on.
+  const source = ran && result.isError !== true && !c.state.tainted ? taintSource(tool, input) : null;
+  if (source) {
+    c.state = { ...c.state, tainted: { source, at: await $.clock.now() } };
+    await saveState($, c);
+  }
   if (ran && e.agentId === undefined) {
     c.turn.uses.push({ name: tool, input });
     // The turn's first change is kept at once: a session whose window is shut mid-turn still owes its note.
@@ -2638,6 +2706,17 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
       await logEvent($, c, { kind: 'modeDisagree', mode: guard.mode, programs: [...new Set(effects.map((x) => x.program))].slice(0, 8) });
   }
   const extra: string[] = [];
+  // Files read through the shell where Claude Code's own tool reads them: said once per tool in a session.
+  const better = ran && result.isError !== true && e.agentId === undefined ? shellReadTool(tool, input) : null;
+  if (better && !c.hinted.has(better)) {
+    c.hinted.add(better);
+    extra.push(hygieneNote(better));
+  }
+  const trap = ran && e.agentId === undefined ? shellTrap(tool, input, c.platform) : null;
+  if (trap && !c.hinted.has(trap)) {
+    c.hinted.add(trap);
+    extra.push(trapNote(trap));
+  }
   if (d.verdict === 'warn' && result && result.deny === undefined) {
     await logEvent($, c, { kind: 'belt', tool, verdict: 'warn', rules });
     extra.push(decisionText(d, ctx));
@@ -2652,6 +2731,15 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
       extra.push(autoStallContext(run, Math.round(quiet / 60_000)));
     }
   }
+  // Outside content that hides text in characters nobody sees (instructions spelled in Unicode tags, reversed text):
+  // the model reads it without them, and is told how many were taken out.
+  if (result.deny === undefined && typeof result.text === 'string' && taintSource(tool, input)) {
+    const clean = withoutInvisible(result.text);
+    if (clean.removed) {
+      await logEvent($, c, { kind: 'invisible', tool, removed: clean.removed });
+      return { deny: [invisibleNote(clean.removed), ...extra, clean.text].join('\n\n') };
+    }
+  }
   return extra.length && result.deny === undefined ? { ...result, context: [...(result.context ?? []), ...extra] } : result;
 }
 
@@ -2664,9 +2752,14 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   // A text this plugin sent for the person was applied when it was sent (sendAsPerson): a start it asked for stands.
   const applied = ours && c.selfSent !== null && String(e.text ?? '') === c.selfSent;
   if (ours) c.selfSent = null;
+  // Another session's message is outside content: the session is tainted from now on (src/core/taint.ts).
+  if (kind === 'peer' && !c.state.tainted) {
+    c.state = { ...c.state, tainted: { source: 'peer', at: await $.clock.now() } };
+    await saveState($, c);
+  }
   const extra: string[] = [];
   // Strip presses not told yet go with this prompt, before its own keyword's note.
-  if (human) extra.push(...takePressNotes(c));
+  if (human) extra.push(...takePressNotes(c), ...c.startNotes.splice(0));
   if (human) {
     c.turn = { startedAt: await $.clock.now(), uses: [], changed: false };
     // A start asked for at an earlier prompt and never taken up lapses: each prompt asks anew.
@@ -2694,6 +2787,21 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   if (restoredAt >= 0) c.restored = false;
   let said: KeywordKind | null = null;
   let typed = String(e.text ?? '');
+  // A key or token pasted into the message has gone to the model's provider with it: the person is told so, and the
+  // model is told not to spread it further (A3-9). The kinds only, never the value.
+  if (human && kind !== 'plugin' && c.config.modules.secrets) {
+    const kinds = [
+      ...new Set(
+        scanSecrets(typed)
+          .filter((m) => m.confidence === 'high')
+          .map((m) => m.kind),
+      ),
+    ];
+    if (kinds.length) {
+      $.ui.toast(tIn(c.lang, 'secrets.inPrompt', { kinds: kinds.join(', ') }), { timeoutMs: 15_000 });
+      extra.push(promptSecretNote(kinds));
+    }
+  }
   // A keyword typed with a slash in front (`/akış iptal`) is that keyword; the person is told how it was read.
   if (human && kind !== 'plugin' && c.config.modules.keywords) {
     const bare = withoutSlash(typed, projectRefs(c.config), keywordTables(c.config));
@@ -3172,6 +3280,23 @@ const FLOW_TOOL = {
   isDeferred: false,
 } as const;
 
+/** The MCP tools' descriptions against their pins: a changed one told to the person now and to the model with the first prompt. */
+async function pinMcpTools($: $, c: Ctx): Promise<void> {
+  try {
+    const tools = (await $.tool.list()).filter((t) => t.mcp && !t.name.startsWith(`mcp__${PLUGIN_NAME}__`));
+    if (!tools.length) return;
+    const r = comparePins(parsePins(await readFile($, c.layout.mcpPins)), tools, await $.clock.now());
+    if (r.changed.length) {
+      $.ui.toast(tIn(c.lang, 'mcp.changed', { tools: r.changed.slice(0, 3).join(', '), n: r.changed.length }), { timeoutMs: 20_000 });
+      c.startNotes.push(mcpChangedNote(r.changed));
+      await logEvent($, c, { kind: 'mcpChanged', tools: r.changed.slice(0, 20) });
+    }
+    if (r.changed.length || r.added) await $.fs.write(c.layout.mcpPins, JSON.stringify(r.pins, null, 2) + '\n');
+  } catch {
+    /* the next session compares again */
+  }
+}
+
 /**
  * The daily update check (core/update.ts), when the person said yes and one is due: the installed program asks the
  * release which version is the newest and keeps the answer, which the menu and the morning report then show.
@@ -3197,6 +3322,8 @@ async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.st
   c.closedStart = c.memStart.then(() => closedNotes($, c));
   // The daily update check, when the person said yes: in the background, the session never waits for it.
   void updateCheck($, c);
+  // The MCP tools' descriptions against the ones first seen: a change is told (core/mcp-pins.ts).
+  void pinMcpTools($, c);
   if (c.fresh && c.config.modules.modes) await restoreLast($, c);
   await saveState($, c);
   if (c.state.resumeAt) await scheduleResume($, c);
@@ -3360,6 +3487,7 @@ async function memorySync($: $, c: Ctx, trigger: 'start' | 'turn'): Promise<Sync
       message: (counts) => commitMessage(counts, c.sessionId, c.lang),
       readFile: (p) => readFile($, p),
       secrets: (t) => scanSecrets(t).length,
+      outgoing: outgoingSecrets(parseAllowed(await readFile($, c.layout.secretsAllow))),
     });
     if (r.pulled.length) c.memPulled = mergePulled(c.memPulled, { files: r.pulled, index: r.index });
     try {
@@ -3383,7 +3511,7 @@ async function memorySync($: $, c: Ctx, trigger: 'start' | 'turn'): Promise<Sync
     const problem = syncProblem(r);
     if (problem && problem !== 'offline' && !c.memWarned.has(problem)) {
       c.memWarned.add(problem);
-      const files = (problem === 'held' ? r.held.map((h) => h.path) : r.conflicts).slice(0, 4).join(', ');
+      const files = (problem === 'held' ? r.held.map(heldText) : r.conflicts).slice(0, 4).join(', ');
       $.ui.toast(tIn(c.lang, `mod.memory.${problem}` as MessageKey, { files, detail: r.detail.slice(0, 120) }), { timeoutMs: 12_000 });
     }
     return r;
@@ -3450,6 +3578,7 @@ async function sharedSync($: $, c: Ctx, trigger: 'start' | 'turn' | 'end'): Prom
         message: (counts) => syncCommitMessage(s.machine.name, counts),
         readFile: (p) => readFile($, p),
         secrets: (t) => scanSecrets(t).length,
+        outgoing: outgoingSecrets(parseAllowed(await readFile($, c.layout.secretsAllow))),
         maxBytes: SYNC_MAX_BYTES,
       });
     try {
@@ -3469,7 +3598,7 @@ async function sharedSync($: $, c: Ctx, trigger: 'start' | 'turn' | 'end'): Prom
     const problem = record.error ? 'failed' : record.result ? syncProblem(record.result) : null;
     if (problem && problem !== 'offline' && !c.sharedWarned.has(problem)) {
       c.sharedWarned.add(problem);
-      const files = record.result ? (problem === 'held' ? record.result.held.map((h) => h.path) : record.result.conflicts).slice(0, 4).join(', ') : '';
+      const files = record.result ? (problem === 'held' ? record.result.held.map(heldText) : record.result.conflicts).slice(0, 4).join(', ') : '';
       $.ui.toast(tIn(c.lang, `mod.sync.${problem}` as MessageKey, { files, detail: (record.error ?? record.result?.detail ?? '').slice(0, 120) }), {
         timeoutMs: 12_000,
       });
@@ -3808,7 +3937,7 @@ async function morningLineFor($: $, c: Ctx, from: number, now: number): Promise<
       await Promise.all((['mod', 'hook', 'cli'] as const).map(async (w) => parseSyncRecord(await readFile($, memorySyncFile(c.layout, w))))),
     );
     const r = last && last.at >= from ? last.result : null;
-    memory = { place: s.place, ahead: last?.result.ahead ?? null, conflicts: r?.conflicts ?? [], held: r?.held.map((h) => h.path) ?? [], error: null };
+    memory = { place: s.place, ahead: last?.result.ahead ?? null, conflicts: r?.conflicts ?? [], held: r?.held.map(heldText) ?? [], error: null };
   }
   return morningSummary(
     {
@@ -3896,6 +4025,7 @@ function viewOf(c: Ctx): StripView {
     flow: flowView(c),
     fullAutoShown: c.config.autonomy.enabled || style === 'full',
     bypass: { shown: c.config.bypass.enabled, on: c.config.bypass.enabled && !!c.state.bypass, count: c.state.bypass?.count ?? 0 },
+    frozen: c.state.frozen ? (c.state.frozen.split('/').filter(Boolean).pop() ?? c.state.frozen) : null,
   };
 }
 
@@ -3920,6 +4050,7 @@ const COMMAND_HINT: Record<ControlAction['kind'], MessageKey | null> = {
   quota: 'ctl.hint.quota',
   close: null,
   bypass: null,
+  freeze: 'ctl.hint.freeze',
 };
 
 function commandDescription(a: ControlAction, lang: Lang): string {
@@ -3937,7 +4068,7 @@ async function registerCommands($: $, c: Ctx): Promise<void> {
   await Promise.all(
     COMMANDS.map((cmd) => {
       const hint = COMMAND_HINT[cmd.action.kind];
-      const now = ['mode', 'style', 'menu', 'quota', 'close', 'bypass'].includes(cmd.action.kind);
+      const now = ['mode', 'style', 'menu', 'quota', 'close', 'bypass', 'freeze'].includes(cmd.action.kind);
       return $.command
         .register({
           name: cmd.name,
@@ -4294,7 +4425,12 @@ async function control(
   // Bypass and full autonomy are the person's alone: a press, or their own Enter here or on the phone. A command
   // the engine stamps otherwise (a background notice, another session, an unclassified run) is refused.
   const person = via === 'strip' || origin === 'composer' || origin === 'bridge';
-  if ((action.kind === 'bypass' || action.kind === 'fullAuto') && !person) return { text: tIn(c.lang, 'ctl.personOnly', { cmd: `/${name}` }) };
+  if ((action.kind === 'bypass' || action.kind === 'fullAuto' || action.kind === 'freeze') && !person)
+    return { text: tIn(c.lang, 'ctl.personOnly', { cmd: `/${name}` }) };
+  // Every other control is the person's too, or a script of theirs (sdk): never a prompt the model scheduled for
+  // itself, another session's message, a background notice or another plugin, which could change the mode, raise the
+  // budget or close the session the model works in. A command the engine stamps no origin on is the person's.
+  if (!person && origin !== undefined && origin !== 'sdk') return { text: tIn(c.lang, 'ctl.personOnly', { cmd: `/${name}` }) };
   const args = given.trim();
   const lang = c.lang;
   // A toast of '' shows none: the start window opened, and says it all itself.
@@ -4307,6 +4443,24 @@ async function control(
     return say(tIn(lang, 'ctl.modesOff'));
   const letRunGo = `${tIn(lang, 'kw.kind.fullAuto')} ${tIn(lang, 'kw.word.cancel')}`;
   switch (action.kind) {
+    case 'freeze': {
+      const cwd = await $.session.cwd();
+      const env = pathEnv(c, cwd);
+      const off = /^(?:off|kapat|aç|ac|stop|dur)$/i.test(args) || (!args && !!c.state.frozen);
+      if (off) {
+        c.state = { ...c.state, frozen: null };
+        await saveState($, c);
+        await refreshStatus($, c);
+        return say(tIn(lang, 'ctl.freeze.off'), [freezeNote(null)]);
+      }
+      const folder = resolvePath(args || cwd, env);
+      const st = await $.fs.stat(folder).catch(() => null);
+      if (!st || st.kind !== 'dir') return say(tIn(lang, 'ctl.freeze.notDir', { folder }));
+      c.state = { ...c.state, frozen: folder };
+      await saveState($, c);
+      await refreshStatus($, c);
+      return say(tIn(lang, 'ctl.freeze.on', { folder }), [freezeNote(folder)]);
+    }
     case 'mode':
     case 'style': {
       if (action.kind === 'style' && c.run) return say(tIn(lang, 'ctl.runAttached', { cancel: letRunGo }));

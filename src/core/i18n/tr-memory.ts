@@ -161,6 +161,7 @@ export const trMemory: Record<keyof typeof enMemory, string> = {
   'mcli.sync.nothing': 'yapılacak bir şey yok',
   'mcli.problem.conflict': 'bir çekme seni bekliyor: {files} hem burada hem başka yerde değişti; hiçbir şey zorlanmadı',
   'mcli.problem.held': 'sır içeriyor gibi göründüğü için bekletildi: {files}',
+  'mcli.heldAllow': 'hiçbir şey gönderilmedi; bakıp sır olmadığını gördüysen: {cmd}',
   'mcli.problem.offline': 'GitHub’a ulaşılamadı; bir dahaki sefere yeniden denenir',
   'mcli.problem.auth': 'GitHub girişi kabul etmedi: {detail} (gh auth login, sonra mode-code memory sync)',
   'mcli.problem.rejected': "GitHub'da bu bilgisayarın henüz birleştiremediği değişiklikler var: {detail}",

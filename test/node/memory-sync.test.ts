@@ -10,7 +10,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { classifyGitError, syncMemory, type Runner, type SyncInput } from '../../src/core/memory-sync.js';
+import { classifyGitError, heldText, outgoingSecrets, parseAllowed, syncMemory, syncProblem, type Runner, type SyncInput } from '../../src/core/memory-sync.js';
 import { commitMessage } from '../../src/core/memory.js';
 import { scanSecrets } from '../../src/core/secrets/scan.js';
 import { lookStore, nodeRunner, recordSync, seenSince, stepsFor } from '../../src/node/memory.js';
@@ -397,3 +397,35 @@ test(
     }
   },
 );
+
+test('a commit made by hand that adds a secret is not pushed until its fingerprint is allowed', { skip: !hasGit && 'git is not installed' }, async () => {
+  const w = world();
+  try {
+    const a = w.clone('a');
+    const token = `ghp_${'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8'}`;
+    // Committed by hand (as Claude does with git commit): the sync's own commit step never saw it.
+    writeFileSync(join(a, 'deploy.md'), `The deploy token is ${token}\n`);
+    run(a, 'add', '.');
+    run(a, 'commit', '-q', '-m', 'notes');
+    // Taken out again in a later commit: the history still carries it.
+    writeFileSync(join(a, 'deploy.md'), 'The deploy token is in the keychain.\n');
+    run(a, 'commit', '-q', '-am', 'tidy');
+    const gate = { ...input(a, 'turn'), outgoing: outgoingSecrets(new Set()) };
+    const r = await syncMemory(nodeRunner, gate);
+    assert.equal(r.push, 'held');
+    assert.deepEqual(
+      r.held.map((h) => [h.path, h.reason, h.kind, h.fingerprint?.length]),
+      [['deploy.md', 'secret', 'github-token', 64]],
+    );
+    assert.equal(heldText(r.held[0]!), 'deploy.md <REDACTED:github-token>');
+    assert.ok(!JSON.stringify(r).includes(token), 'the value is never in the result');
+    assert.equal(syncProblem(r), 'held');
+    assert.equal(run(w.root, '--git-dir', w.remote, 'log', '--oneline', 'main').split('\n').length, 1, 'nothing reached the remote');
+    // Allowed by its fingerprint (a false alarm the person looked at): it goes.
+    const allowed = parseAllowed(JSON.stringify({ allowed: [{ fingerprint: r.held[0]!.fingerprint, at: 'x' }] }));
+    const again = await syncMemory(nodeRunner, { ...gate, outgoing: outgoingSecrets(allowed) });
+    assert.deepEqual([again.push, again.held], ['ok', []]);
+  } finally {
+    w.done();
+  }
+});

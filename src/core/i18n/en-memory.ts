@@ -164,6 +164,7 @@ export const enMemory = {
   'mcli.sync.nothing': 'nothing to do',
   'mcli.problem.conflict': 'a pull needs you: {files} changed here and elsewhere; nothing was forced',
   'mcli.problem.held': 'held back, it looks like it holds a secret: {files}',
+  'mcli.heldAllow': 'nothing was pushed; if it is no secret, after a look: {cmd}',
   'mcli.problem.offline': 'GitHub could not be reached; it is tried again next time',
   'mcli.problem.auth': 'GitHub refused the sign-in: {detail} (gh auth login, then mode-code memory sync)',
   'mcli.problem.rejected': 'GitHub has changes this computer cannot join yet: {detail}',

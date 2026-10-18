@@ -20,11 +20,13 @@
  *  10. a session closed without ending (its process killed, as a shut window does): while it runs, the next
  *      session in its folder is told of it; once it is gone, the next is not, and writes the note it owed;
  *  11. bypass: in Claude Code's default permission mode a headless session cannot answer its question, so a
- *      command not approved beforehand is refused; with bypass on, the plugin answers it and the command runs.
+ *      command not approved beforehand is refused; with bypass on, the plugin answers it and the command runs;
+ *  12. a compound command whose every part the project's allow rules cover runs in the default permission mode.
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
  *        add --only-bypass to run case 11 alone (two sessions): what a Claude Code release could change for bypass
  *        add --only-auto to run cases 6 and 7 alone (two sessions): full autonomy, start to finish
+ *        add --only-parts to run case 12 alone (one session): a compound command whose parts are allowed
  *        add --keep to leave the sessions' folders and the full-autonomy sessions' streams in place
  */
 import { spawn, spawnSync } from 'node:child_process';
@@ -565,6 +567,36 @@ function bypassCases() {
   return [off, on];
 }
 
+/**
+ * 12. Permission fatigue (docs/safety-belt.md, "What else runs"): a compound command whose every part the project's
+ * allow rules cover. In the default permission mode a headless session cannot answer a question, so the command runs
+ * only if no question is left: Claude Code allowed it itself, or the plugin answered that each part was allowed. Which
+ * of the two is recorded: the engine's own reading could change in any release.
+ */
+function partsCase() {
+  const dir = join(work, 'parts-project');
+  const home = join(work, 'parts-data');
+  mkdirSync(join(dir, '.claude'), { recursive: true });
+  mkdirSync(home, { recursive: true });
+  writeFileSync(join(dir, '.claude', 'settings.json'), JSON.stringify({ permissions: { allow: ['Bash(mkdir:*)'] } }));
+  writeFileSync(join(home, 'config.json'), JSON.stringify({ language: 'en' }));
+  const ask = 'Use the Bash tool to run exactly this command and nothing else: mkdir parts-a && mkdir parts-b . Then reply with the single word DONE.';
+  const r = session(ask, settings, 'Read', { MODE_CODE_HOME: home }, dir, ['--permission-mode', 'default']);
+  const months = existsSync(join(home, 'events')) ? readdirSync(join(home, 'events')) : [];
+  const logged = months.flatMap((m) => readdirSync(join(home, 'events', m)).map((x) => readFileSync(join(home, 'events', m, x), 'utf8'))).join('\n');
+  const ran = existsSync(join(dir, 'parts-a')) && existsSync(join(dir, 'parts-b'));
+  check(
+    'a compound command whose every part the project allows runs without a question',
+    ran,
+    ran
+      ? /"kind":"permission"[^\n]*"answer":"parts"/.test(logged)
+        ? 'the plugin answered'
+        : 'Claude Code allowed it itself'
+      : (r.final?.result?.slice?.(0, 120) ?? r.stderr.slice(0, 200)),
+  );
+  return r;
+}
+
 const results = [];
 const check = (name, ok, detail = '') => {
   results.push({ name, ok, detail });
@@ -576,6 +608,12 @@ try {
     const b = bypassCases();
     const cost = b.reduce((n, x) => n + (x.final?.total_cost_usd ?? 0), 0);
     console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
+    process.exitCode = results.every((r) => r.ok) ? 0 : 1;
+  } else if (process.argv.includes('--only-parts')) {
+    const p = partsCase();
+    console.log(
+      `test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${(p.final?.total_cost_usd ?? 0).toFixed(3)}`,
+    );
     process.exitCode = results.every((r) => r.ok) ? 0 : 1;
   } else if (process.argv.includes('--only-auto')) {
     // A run needs a quota reading; in the whole suite the sessions before it leave one.
@@ -657,7 +695,8 @@ try {
     const eight = memoryCases();
     const nine = syncCases();
     const eleven = bypassCases();
-    const cost = [one, two, three, plan, four, five, six, seven, ...eight, ...nine, ...ten, ...eleven]
+    const twelve = partsCase();
+    const cost = [one, two, three, plan, four, five, six, seven, ...eight, ...nine, ...ten, ...eleven, twelve]
       .filter(Boolean)
       .reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
     console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);

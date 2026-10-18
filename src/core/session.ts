@@ -84,6 +84,13 @@ export interface ModSessionState {
    * session, and turned on and off only by the person.
    */
   bypass: BypassState | null;
+  /**
+   * The first outside content the session read (a web page, an issue, a connected service's data, another session's
+   * message), and when: from then on what it could be steered to do is asked (src/core/taint.ts). Null until then.
+   */
+  tainted: { source: string; at: number } | null;
+  /** The folder the person froze the edits to (`/dondur`, resolved), or null. */
+  frozen: string | null;
 }
 
 export interface BypassState {
@@ -142,6 +149,8 @@ export function newModState(sessionId: string, modVersion: string, now: number):
     blocks: {},
     work: null,
     bypass: null,
+    tainted: null,
+    frozen: null,
   };
 }
 
@@ -180,6 +189,11 @@ export function parseModState(text: string | null): ModSessionState | null {
       endedAt: typeof s.endedAt === 'number' ? s.endedAt : null,
       work: parseWork(s.work),
       bypass: parseBypass(s.bypass),
+      frozen: typeof s.frozen === 'string' && s.frozen ? s.frozen : null,
+      tainted:
+        isObj(s.tainted) && typeof s.tainted.source === 'string' && typeof s.tainted.at === 'number'
+          ? { source: s.tainted.source.slice(0, 120), at: s.tainted.at }
+          : null,
     };
   } catch {
     return null;

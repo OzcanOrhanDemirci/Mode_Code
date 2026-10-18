@@ -10,7 +10,7 @@ import { APP_ID, APP_VERSION, CLI_NAME } from '../core/app.js';
 import { serializeConfig, type Config } from '../core/config.js';
 import { ago, dateTime, shortPath } from '../core/format.js';
 import { tIn, type MessageKey } from '../core/i18n/index.js';
-import { syncProblem } from '../core/memory-sync.js';
+import { heldText, syncProblem } from '../core/memory-sync.js';
 import { resolvePath } from '../core/paths.js';
 import { applyShared, matchProjects, sharedValues, type Pending } from '../core/sync.js';
 import type { SharedRecord } from '../core/sync-export.js';
@@ -50,7 +50,7 @@ export function sharedLine(ctx: AppContext, r: SharedRecord): string {
     if (problem)
       parts.push(
         T(ctx, `scli.problem.${problem}` as MessageKey, {
-          files: (problem === 'held' ? g.held.map((h) => h.path) : g.conflicts).join(', '),
+          files: (problem === 'held' ? g.held.map(heldText) : g.conflicts).join(', '),
           detail: g.detail,
           dir: ctx.config.sync?.dir ?? '',
         }),

@@ -63,6 +63,12 @@ export function decide(raw: readonly Finding[], issues: readonly string[], ctx: 
   return { verdict, findings, issues: [...issues], lifted };
 }
 
+/** Two decisions about one call as one: the stricter verdict, every finding, everything bypass changed. */
+export function mergeDecisions(a: BeltDecision, b: BeltDecision): BeltDecision {
+  const findings = [...a.findings, ...b.findings].sort((x, y) => VERDICT_ORDER[y.verdict] - VERDICT_ORDER[x.verdict]);
+  return { verdict: findings[0]?.verdict ?? 'allow', findings, issues: [...a.issues, ...b.issues], lifted: [...a.lifted, ...b.lifted] };
+}
+
 /**
  * The text that goes back to Claude Code. For a deny it is also what the person sees in the transcript,
  * so it is written in their language: what was blocked, why, and that it must not be worked around. A

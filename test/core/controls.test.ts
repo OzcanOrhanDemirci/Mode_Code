@@ -361,3 +361,22 @@ test('cells: pictographs take two columns', () => {
   assert.equal(cells('abc'), 3);
   assert.equal(cells('🛡️'), 2);
 });
+
+test('a freeze is on the strip and in the session line only while it holds', () => {
+  const frozen = { ...view, frozen: 'feature' };
+  const items = (v: typeof view, lang: 'tr' | 'en', columns: number) =>
+    stripRows(v, lang, columns)
+      .flat()
+      .flatMap((s) => s.items);
+  assert.deepEqual(
+    items(frozen, 'tr', 200).find((i) => i.id === 'dondur'),
+    { id: 'dondur', label: '❄ feature', active: true },
+  );
+  assert.equal(items(frozen, 'en', 40).find((i) => i.id === 'freeze')?.label, '❄');
+  assert.equal(
+    items(view, 'en', 200).find((i) => i.id === 'freeze'),
+    undefined,
+  );
+  assert.match(controlsLine(frozen, 'en'), / · ❄ feature$/);
+  assert.doesNotMatch(controlsLine(view, 'en'), /❄/);
+});

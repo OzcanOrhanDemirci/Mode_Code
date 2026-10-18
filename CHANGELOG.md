@@ -6,6 +6,16 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- `mode-code trust`: what runs inside Claude Code besides the model (plugins, hooks, MCP servers, skills, agents, commands), each with where it is set, and what is new or gone since you last looked.
+- The descriptions of connected MCP tools are kept as first seen (their fingerprint); one that changes later (a server rewriting its tools after you trusted it) is told to you, and to Claude with your first prompt, once.
+- Outside content (a web page, a connected service, a fetched page) that hides characters nobody sees (Unicode tags, direction overrides, zero-width spaces) reaches Claude without them, with a note saying how many were taken out; an emoji built with a joiner stays whole.
+- `/freeze <folder>` (`/dondur`): every write a call names stays inside one folder (and the temporary folders) until you end it; `❄ <folder>` on the strip while it holds. Only you set it.
+- Claude Code's question about a compound command (`cd app && npm test`, `npm run build && npm test`) is answered for you when each of its parts is one your allow rules already cover; a `cd` into the project only says where the rest runs. A part no rule covers, a redirect into a file or a nested command is asked as before.
+- Hints to Claude, once a session each: a file read through the shell (`cat`, `sed -n`, `grep -rn`) that Claude Code's Read or Grep tool reads for less context; on Windows, an unquoted heredoc whose backslashes Git Bash expands; a build or a test piped into a filter without `pipefail`, whose failure reads as a success.
+- Outside content taints a session: after it read a web page, an issue, a page fetched with `curl`, a connected service's data, a dependency's files or another session's message, sending data out, writing what starts by itself or configures Claude Code, and writing the memory are asked about, with bypass on too (`inject.tainted-act`, `docs/safety-belt.md`).
+- A key or token pasted into your message is told to you (it went to the model provider with the message; rotate it if it was a mistake), and Claude is told not to repeat, store or send it. The kind only, never the value.
+- A safety-belt rule for the project's own checks: changing the settings of a linter or a formatter (ESLint, Prettier, Biome, `analysis_options.yaml` …) is asked about, by any tool (`quality.check-config`).
+- A memory push is held when a commit it would send adds a secret, a commit made by hand included; you see the file and the kind, never the value, and `mode-code secrets allow <fingerprint>` lets a false alarm go (`docs/memory.md`). The same holds for the sync across computers.
 - `mode-code update`: whether a newer release is out, read from the release's `SHA256SUMS`, and the update to it with the release's own installer, downloaded and checked against that file, run with `--yes`, then the new installation's doctor. Also `u` under Maintenance in the control center. Only you start it: never from inside a Claude Code session.
 - A daily update check, asked at install and off until you say yes (`update.check`): one small download from the release, nothing sent. A newer release shows in the doctor, the `/0` menu, the morning report and under Maintenance.
 - `node scripts/claude-compat.mjs` for development: Mode_Code against the installed Claude Code (check, the mod's types and engine kit, optionally the live sessions), recorded as a row in `docs/testing.md`. A red nightly run against the newest Claude Code opens an issue labeled `claude-code-compat`.
@@ -14,10 +24,16 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
+- `git commit --no-verify` (and `-n`, and `git push --no-verify`) is asked about rather than noted: skipping the repository's own hooks is how a change slips past its lint, tests and secret checks. Turn it back into a note with `mode-code config set belt.verdicts '{"git.no-verify":"warn"}'`.
 - Checked against Claude Code 2.1.302: the plugin type-checks against its declarations, the engine's own test kit passes, and the live sessions run on it.
 
 ### Fixed
 
+- A Windows path written through the device namespace (`\\.\C:\Users\you`) is read as the same file as `C:\Users\you`: deleting the home folder that way is blocked, as it already was through `\\?\`.
+- The safety-net hook refuses a tool call whose input reached it cut short or garbled, instead of letting it through unjudged.
+- The session's controls (the mode, the way of working, the budget, the menu, closing, continuing) refuse a command that Claude Code stamps as coming from a prompt Claude scheduled for itself, another session, a background notice or another plugin, as bypass and full autonomy already did; before, those could change the mode or raise the budget.
+- The safety belt asks about code piped into a shell or an interpreter (`curl … | sh`, `… | base64 -d | bash`, `… | python3 -`) and about `bash <(curl …)`, as it already did for PowerShell's `| iex`; before, those ran unasked.
+- A command that only reads the hooks-off setting (a `grep`, a `jq` lookup) is no longer blocked when something else in it changes files; giving the setting a value that turns hooks off is blocked as before.
 - At the quota's hard limit, staging (`git add`) is allowed with the commit it prepares, as the refusal message always said; before, saving memory could not finish.
 - Yes/no questions use the letters of your language in one case (`[e/h]` in Turkish, not `[Y/n]`) and say what Enter answers, so the memory and sync setups' last question, where Enter means no, no longer cancels unnoticed.
 - The installer's question about the footer lines says what each choice does and shows two lines as they would appear; before, it listed only the names.

@@ -9,8 +9,8 @@ import { test, expect, mock } from 'claude-code/testing';
 import { world, DATA, HOME, PROJECT, SESSION } from './world.ts';
 
 const typed = (text: string) => ({ text, wait: false, origin: { kind: 'composer' } }) as any;
-const run = async ($: any, command: string, origin: { kind: string } = { kind: 'composer' }) =>
-  (await $.command.run({ command, args: '', origin } as any)) as any;
+const run = async ($: any, command: string, origin: { kind: string } = { kind: 'composer' }, args = '') =>
+  (await $.command.run({ command, args, origin } as any)) as any;
 const bash = async ($: any, command: string, id = 'toolu_x') => (await $.tool.call({ tool: 'Bash', command, tool_use_id: id } as any)) as any;
 const band = { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 160, scroll: { offset: 0, bodyRows: 10 } } as any;
 const settle = async () => {
@@ -34,6 +34,16 @@ test('only the person turns bypass or full autonomy on: a command from anywhere 
   }
   expect(w.modState()?.bypass ?? null).toBe(null);
   expect(w.asked).toEqual([]);
+});
+
+test("the other controls are the person's too, or a script of theirs: a scheduled prompt, another session or plugin is refused", async ($, on) => {
+  const w = world(on, { config: { ...enabled, autonomy: { enabled: true } }, answer: 'allow' });
+  for (const kind of ['task-notification', 'peer', 'scheduled-trigger', 'unclassified', 'plugin']) {
+    for (const command of ['3', '7', 'kota', '00', '0', 'devam']) expect((await run($, command, { kind })).text).toMatch(/^Only you can run \//);
+  }
+  expect(w.modState()?.mode ?? 'free').toBe('free');
+  // The person's Enter, the phone and their own script change the mode.
+  for (const kind of ['composer', 'bridge', 'sdk']) expect((await run($, '3', { kind })).text).not.toMatch(/^Only you/);
 });
 
 test('turned on: asked once; the belt lets through and records; self-protection and secrets stay; the floor is asked', async ($, on) => {
@@ -149,4 +159,38 @@ test('a new session never starts with bypass, even after one that had it', async
   expect(w.events().some((e: any) => e.kind === 'bypass' && e.action === 'off' && e.why === 'session')).toBe(true);
   expect(w.modState().bypass).toBe(null);
   void PROJECT;
+});
+
+test("Claude Code's question about a compound command whose every part the person allowed is answered: they said yes already", async ($, on) => {
+  const w = world(on, { config: {} });
+  w.write(`${HOME}/.claude/settings.json`, JSON.stringify({ permissions: { allow: ['Bash(npm test:*)', 'Bash(npm run build)'] } }));
+  let verdict: any = { decision: 'ask', reason: 'Compound command' };
+  on('tool.check', () => verdict);
+  const check = async (command: string, id: string) => ((await ($.tool as any).check({ tool: 'Bash', input: { command }, tool_use_id: id })) as any).decision;
+  expect(await check('npm run build && npm test', 'p1')).toBe('allow');
+  expect(await check(`cd ${PROJECT} && npm test`, 'p2')).toBe('allow');
+  expect(await check('npm run build && npm publish', 'p3')).toBe('ask');
+  expect(await check('cd /tmp && npm test', 'p4')).toBe('ask');
+  expect(w.events().filter((e: any) => e.kind === 'permission' && e.answer === 'parts').length).toBe(2);
+  // A question a settings rule of the person's asks stays theirs.
+  verdict = { decision: 'ask', reason: 'a rule of yours', rule: 'Bash(npm test:*)' };
+  expect(await check('npm run build && npm test', 'p5')).toBe('ask');
+});
+
+test('/freeze holds every write a call names to one folder, the strip shows it, and only the person sets it', async ($, on) => {
+  const w = world(on, { config: {} });
+  w.write(`${PROJECT}/src/feature/a.ts`, '// a');
+  const r = await run($, 'freeze', { kind: 'composer' }, 'src/feature');
+  expect(r.text).toBe(`❄ Edits frozen to ${PROJECT}/src/feature: a write elsewhere is refused. /freeze off ends it.`);
+  expect(r.context.join('\n')).toMatch(/The person froze the edits to .*src\/feature: write only there/);
+  expect(w.modState().frozen).toBe(`${PROJECT}/src/feature`);
+  const write = async (path: string, id: string) => (await $.tool.call({ tool: 'Write', file_path: path, content: 'x', tool_use_id: id } as any)) as any;
+  expect((await write(`${PROJECT}/src/feature/b.ts`, 'f1')).deny).toBeUndefined();
+  expect(String((await write(`${PROJECT}/README.md`, 'f2')).deny)).toMatch(/frozen to .*src\/feature \(\/freeze\)/);
+  expect(String((await bash($, `echo x > ${PROJECT}/package.json`, 'f3')).deny)).toMatch(/frozen to/);
+  // Another session or a scheduled prompt cannot end it.
+  expect((await run($, 'freeze', { kind: 'peer' }, 'off')).text).toMatch(/^Only you can run \/freeze/);
+  expect((await run($, 'freeze', { kind: 'composer' }, 'off')).text).toBe('Edits are free again.');
+  expect((await write(`${PROJECT}/README.md`, 'f4')).deny).toBeUndefined();
+  expect((await run($, 'freeze', { kind: 'composer' }, 'no/such/folder')).text).toMatch(/is not a folder: nothing was frozen/);
 });

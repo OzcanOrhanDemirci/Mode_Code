@@ -11,7 +11,7 @@ import { setConfigValue } from '../core/config.js';
 import { tIn, type Lang, type MessageKey } from '../core/i18n/index.js';
 import type { Layout } from '../core/layout.js';
 import { commitMessage, githubRemote, githubRepoOf, managedByUs, repoNameProblems, suggestRepoName } from '../core/memory.js';
-import { syncMemory, type Runner, type SyncResult } from '../core/memory-sync.js';
+import { outgoingSecrets, parseAllowed, syncMemory, type Runner, type SyncResult } from '../core/memory-sync.js';
 import { expandHome, joinPath, pathKey, resolvePath, type Platform } from '../core/paths.js';
 import { scanSecrets } from '../core/secrets/scan.js';
 import { readText } from '../node/fsx.js';
@@ -429,6 +429,7 @@ export async function applyPlan(io: SetupIO, env: SetupEnv, p: SetupPlan): Promi
     message: (counts: { added: number; changed: number; removed: number }) => commitMessage(counts, null, env.lang),
     readFile: async (path: string) => readText(path),
     secrets: (text: string) => scanSecrets(text).length,
+    outgoing: outgoingSecrets(parseAllowed(readText(env.layout.secretsAllow))),
     gitCommand: git,
   };
   if (p.git && p.mode === 'auto') {

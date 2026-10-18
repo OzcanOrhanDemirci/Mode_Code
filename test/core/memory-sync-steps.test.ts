@@ -7,7 +7,20 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { lastSeen, looksOnly, MAX_NOTE_BYTES, parseSeen, syncMemory, syncPlan, type Runner, type SyncInput } from '../../src/core/memory-sync.js';
+import {
+  addedLines,
+  lastSeen,
+  looksOnly,
+  MAX_NOTE_BYTES,
+  outgoingSecrets,
+  parseAllowed,
+  parseSeen,
+  syncMemory,
+  syncPlan,
+  type Runner,
+  type SyncInput,
+} from '../../src/core/memory-sync.js';
+import { sha256Hex } from '../../src/core/sha256.js';
 
 type Answer = { exitCode?: number; stdout?: string; stderr?: string } | Error;
 type Script = (args: string[]) => Answer | undefined;
@@ -566,4 +579,60 @@ test("each mode's steps for each trigger; the seen records and their newest", ()
     'aaaaaaa',
     'the first of equals stays',
   );
+});
+
+test('the push gate: what every commit to send adds is read; a secret is held by kind and fingerprint, one allowed goes', async () => {
+  const token = `ghp_${'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8'}`;
+  // A token of a looser format (medium confidence) is not held: the gate holds documented formats only.
+  const jwt = `eyJ${'a'.repeat(12)}.eyJ${'b'.repeat(12)}.${'c'.repeat(12)}`;
+  const patch = ['diff --git a/deploy.md b/deploy.md', '+++ b/deploy.md', `+token ${token}`, `+session ${jwt}`].join('\n');
+  const LOG = 'log -p -U0 --no-color --no-ext-diff --format=';
+  const ahead = { 'rev-list --count @{upstream}..HEAD': { stdout: '1\n' } };
+  const gate = (allowed: string[] = []) => input({ outgoing: outgoingSecrets(new Set(allowed)) });
+  const held = fake(base({ ...ahead, [`${LOG} @{upstream}..HEAD`]: { stdout: patch } }));
+  const r = await syncMemory(held.runner, gate());
+  assert.deepEqual([r.push, r.held], ['held', [{ path: 'deploy.md', reason: 'secret', kind: 'github-token', fingerprint: sha256Hex(token) }]]);
+  assert.ok(!held.calls.some((c) => c.startsWith('push')), 'nothing is sent');
+  const sent = fake(base({ ...ahead, [`${LOG} @{upstream}..HEAD`]: { stdout: patch }, 'push --quiet': {} }));
+  assert.deepEqual((await syncMemory(sent.runner, gate([sha256Hex(token)]))).push, 'ok', 'allowed by its fingerprint');
+  // A first push sends the whole history: all of it is read.
+  const up = 'rev-parse --abbrev-ref --symbolic-full-name @{upstream}';
+  const first = fake(
+    base({
+      [up]: { exitCode: 1 },
+      'symbolic-ref --quiet --short HEAD': { exitCode: 1 },
+      'rev-parse --verify --quiet HEAD': { stdout: 'abc' },
+      [`${LOG} HEAD`]: { stdout: patch },
+    }),
+  );
+  assert.equal((await syncMemory(first.runner, gate())).push, 'held');
+  // What cannot be read is not sent: git's words, or a plain reason when it has none.
+  const broken = await syncMemory(fake(base({ ...ahead, [`${LOG} @{upstream}..HEAD`]: { exitCode: 128, stderr: 'fatal: bad revision' } })).runner, gate());
+  assert.deepEqual([broken.push, broken.detail], ['failed', 'bad revision']);
+  const silent = await syncMemory(fake(base({ ...ahead, [`${LOG} @{upstream}..HEAD`]: { exitCode: 1 } })).runner, gate());
+  assert.deepEqual([silent.push, silent.detail], ['failed', 'the commits to send could not be read']);
+});
+
+test('the lines a patch adds, by file; the allowed fingerprints read defensively', () => {
+  const patch = [
+    'diff --git a/x.md b/x.md',
+    '--- a/x.md',
+    '+++ b/x.md',
+    '@@ -0,0 +1,2 @@',
+    '+one',
+    '+two',
+    'diff --git a/gone.md b/gone.md',
+    '--- a/gone.md',
+    '+++ /dev/null',
+    '-was here',
+    'diff --git a/x.md b/x.md',
+    '+++ b/x.md',
+    '+three',
+    'diff --git a/y.md b/y.md',
+    '+a line before its file is named belongs to none',
+  ].join('\n');
+  assert.deepEqual(addedLines(patch), [{ path: 'x.md', text: 'one\ntwo\nthree' }]);
+  const fp = 'a'.repeat(64);
+  assert.deepEqual([...parseAllowed(JSON.stringify({ allowed: [{ fingerprint: fp }, { fingerprint: 'short' }, null, 5] }))], [fp]);
+  for (const bad of [null, '', '{', '[]', '{"allowed":5}']) assert.equal(parseAllowed(bad).size, 0, String(bad));
 });

@@ -47,7 +47,27 @@ Run `mode-code belt rules` (or open Security › Safety belt rules) for the curr
 - **security software:** turning off or weakening Defender (and adding exclusions to it), the firewall, account control, Gatekeeper or SELinux is blocked.
 - **connected services:** sending, replying, forwarding, sharing, inviting and calendar events are asked: they reach other people and cannot be taken back; deleting or trashing there is asked too. Reading is never asked.
 - **secrets:** staging files that usually hold secrets, writing what looks like a secret into a file; and, locked, a secret leaving the computer: a key or credential file uploaded (`curl -F file=@…`, `scp`, `rsync`, a gist, piped into a network program) or a secret in a request body, a message or a document sent through a connected service. Authenticating to a service with a key (a header, a client certificate, an SSH identity) is not sending it.
-- **unverifiable commands (locked):** what the belt cannot follow.
+- **outside content (in the plugin, not the safety-net hook):** once a session has read what someone else wrote (a web page or search, an issue or pull request through `gh`, a page fetched with `curl`, a connected service's data, a dependency's files, another session's message), an instruction hidden there could steer what comes next. From then on the session asks before it sends data out of the computer (a request body, an upload, a raw socket, a copy to another host, a comment through `gh`, a connected service's send), writes something that starts by itself or configures Claude Code, or writes to the memory; with bypass on too. Reading more, and the project's own work, are not asked. What such a source returns reaches Claude without the characters nobody sees (Unicode tags, direction overrides, zero-width spaces: instructions can be spelled in them), with a note saying how many were taken out.
+- **the project's checks:** changing the settings of its linters and formatters (ESLint, Prettier, Biome, Stylelint, `analysis_options.yaml`, Ruff, golangci-lint …) is asked: loosening a rule is how a failing check is made to pass. Running them, or reading their settings, is not.
+- **unverifiable commands (locked):** what the belt cannot follow: code built at run time (`eval "$X"`, `bash -c "$X"`, `| iex`), and code that comes down a pipe into a shell or an interpreter (`curl … | sh`, `… | base64 -d | bash`, `… | python3 -`) or is handed over by process substitution (`bash <(curl …)`). Data piped into a named script or into inline code is not asked about. Mode_Code's own one-line installer, run this way from inside a session, is asked about too: run it in your own terminal.
+
+## What else runs
+
+The belt judges what the model asks for. Plugins and their mods run unsandboxed in Claude Code's own process and can answer its tool calls; hooks run a command on every event they name; an MCP server reads what Claude sends it, and its tools describe themselves to the model in their own words. `mode-code trust` lists all of them with where each is set and marks what is new since you last looked (run in your own terminal: inside a session it only shows). The plugin keeps each MCP tool's description as first seen and tells you when one changes.
+
+`claude --bare` runs without hooks or plugins, so without the belt: the belt blocks it from inside a session. A run of your own with `--bare` (a script, the Agent SDK) should narrow its tools with `--allowedTools`, or run in a sandbox. On Windows there is no sandbox for Claude Code yet; Anthropic's `sandbox-runtime` is an early option the doctor does not set up.
+
+## Questions you already answered
+
+Claude Code asks about a compound command (`cd app && npm test`, `npm run build && npm test`) even when your allow rules cover each part. The plugin answers yes for you when an allow rule in your settings (user, project or local: `Bash(npm test:*)`, `Bash(git status)`) covers every part, and a `cd`, `pushd` or `Set-Location` only moves into the project or a folder in it. A part no rule covers, a `cd` elsewhere, a redirect into a file or a nested command is asked as before. Each answer is recorded (`permission`, `parts` in the events). Measured in a real session (`scripts/test-live.mjs`, case 12): Claude Code asked, and the plugin's answer let the command run.
+
+## Hints
+
+Said to Claude once a session, after the call that earned it; a hint, never a rule:
+
+- a file read through the shell (`cat`, `head`, `sed -n '1,80p'`, `grep -rn`) where Claude Code's Read or Grep tool reads it for less context (on the author's machine, 2026-10-16, shell reads were 9.3% of the quota);
+- on Windows, an unquoted heredoc whose body holds backslashes: Git Bash expands them, and `$`, so the file may not get what was written;
+- a build or a test piped into a filter (`npm test | tail -20`) without `pipefail`: the pipe's exit code is the filter's, so a failure reads as a success.
 
 ## Bypass
 

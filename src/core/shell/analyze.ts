@@ -112,6 +112,40 @@ const CODE_FLAGS: Record<string, string[]> = {
   osascript: ['-e'],
 };
 
+/** Programs that run code read from their standard input when no script is named (`curl … | sh`, `… | python3 -`). */
+const STDIN_CODE = new Set([
+  ...SHELLS,
+  ...POWERSHELLS,
+  'fish',
+  'python',
+  'python2',
+  'python3',
+  'py',
+  'pypy',
+  'pypy3',
+  'node',
+  'nodejs',
+  'perl',
+  'ruby',
+  'php',
+  'lua',
+  'tclsh',
+]);
+
+/**
+ * Whether a program runs the code its standard input brings: a shell or an interpreter told to read it (`-s`, `-`,
+ * /dev/stdin, `-Command -`), or given neither inline code nor a script to run.
+ */
+function readsCodeFromStdin(program: string, rest: readonly Word[]): boolean {
+  const name = program.replace(/[0-9.]+$/, '');
+  if (!STDIN_CODE.has(program) && !STDIN_CODE.has(name)) return false;
+  const args = texts(rest);
+  if (args.includes('-s') || args.includes('-') || args.includes('/dev/stdin')) return true;
+  const inline = Object.hasOwn(CODE_FLAGS, name) ? CODE_FLAGS[name]! : Object.hasOwn(CODE_FLAGS, program) ? CODE_FLAGS[program]! : [];
+  if (args.some((a) => inline.includes(a) || /^-(?:c|command|encodedcommand|e|f|file)$/i.test(a))) return false;
+  return !args.some((a) => !a.startsWith('-'));
+}
+
 /** `C:\Tools\Git.EXE` → `git`; `./build.sh` → `build.sh`. */
 export function programName(word: string): string {
   const base = word.split(/[\\/]/).pop() ?? word;
@@ -285,6 +319,11 @@ function expand(cmd: SimpleCommand, argv: readonly Word[], via: string[], depth:
   }
 
   record(cmd, argv, program, via, out);
+
+  // What comes down a pipe into a shell or an interpreter (`curl … | sh`, `… | base64 -d | bash`) runs unseen, as a
+  // script handed over by process substitution does (`bash <(curl …)`): asked about, as `… | iex` is.
+  if ((cmd.piped && readsCodeFromStdin(program, rest)) || (STDIN_CODE.has(program.replace(/[0-9.]+$/, '')) && rest[0]?.text === '<(…)'))
+    out.issues.push('stdin-code');
 
   // ── interpreters: a string becomes commands ───────────────────────────────────────────────────────
   if (cmd.dialect !== 'powershell' && SHELLS.has(program)) {
