@@ -297,6 +297,13 @@ export function flowNote(kind: 'canceled' | 'approved', f: Flow, lang: Lang, t: 
   return `${P} The person approved the plan by typing. ${stepGuidance(f, lang, t)}`;
 }
 
+/** Told to the model when the person freezes the edits to a folder (`/dondur`), or ends it (null). */
+export function freezeNote(folder: string | null): string {
+  return folder
+    ? `${P} The person froze the edits to ${folder}: write only there (and in the temporary folders). Ask them if the work needs a file elsewhere.`
+    : `${P} The person ended the freeze: edits may go anywhere the session may write again.`;
+}
+
 /** Told to the model once per tool in a session when it read files through the shell (core/hygiene.ts). */
 export function hygieneNote(tool: 'Read' | 'Grep'): string {
   return `${P} That command read files through the shell. Claude Code's ${tool} tool does it without one and its output costs less context${tool === 'Read' ? ' (offset and limit read a part)' : ''}: prefer it. A hint, not a rule; said once.`;

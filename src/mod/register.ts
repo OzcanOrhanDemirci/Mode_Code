@@ -25,7 +25,7 @@ import { shellReadTool, shellTrap } from '../core/hygiene.js';
 import { partsAllowed, shellRules, type ShellRules } from '../core/permissions.js';
 import { isBeltTool, isFileTool, shellOf } from '../core/belt/tools.js';
 import type { BeltContext, BeltDecision, GitFacts } from '../core/belt/types.js';
-import { checkGuards, type ModeGuard } from '../core/guard.js';
+import { checkFreeze, checkGuards, type ModeGuard } from '../core/guard.js';
 import {
   detectKeyword,
   isModeKeyword,
@@ -86,6 +86,7 @@ import {
   bypassOffNote,
   bypassOnNote,
   bypassReminder,
+  freezeNote,
   hygieneNote,
   trapNote,
   promptSecretNote,
@@ -2643,6 +2644,14 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
     if (auto) return auto;
   }
 
+  // Edits frozen to one folder by the person (`/dondur`): a write named elsewhere is refused.
+  if (c.state.frozen) {
+    const frozen = checkFreeze(tool, input, c.state.frozen, zonesFor(c, cwd).temp, { ...pathEnv(c, cwd), env: c.env }, c.lang);
+    if (frozen) {
+      await logEvent($, c, { kind: 'freeze', tool, verdict: 'deny' });
+      return { deny: frozen.reason };
+    }
+  }
   const guard = modeGuardFor(c, cwd);
   const refusal = checkGuards(tool, input, guard, c.config.modules.quota ? await quotaNow($, c) : null, classifyEnvFor(c, cwd), c.lang);
   if (refusal) {
@@ -3982,6 +3991,7 @@ function viewOf(c: Ctx): StripView {
     flow: flowView(c),
     fullAutoShown: c.config.autonomy.enabled || style === 'full',
     bypass: { shown: c.config.bypass.enabled, on: c.config.bypass.enabled && !!c.state.bypass, count: c.state.bypass?.count ?? 0 },
+    frozen: c.state.frozen ? (c.state.frozen.split('/').filter(Boolean).pop() ?? c.state.frozen) : null,
   };
 }
 
@@ -4006,6 +4016,7 @@ const COMMAND_HINT: Record<ControlAction['kind'], MessageKey | null> = {
   quota: 'ctl.hint.quota',
   close: null,
   bypass: null,
+  freeze: 'ctl.hint.freeze',
 };
 
 function commandDescription(a: ControlAction, lang: Lang): string {
@@ -4023,7 +4034,7 @@ async function registerCommands($: $, c: Ctx): Promise<void> {
   await Promise.all(
     COMMANDS.map((cmd) => {
       const hint = COMMAND_HINT[cmd.action.kind];
-      const now = ['mode', 'style', 'menu', 'quota', 'close', 'bypass'].includes(cmd.action.kind);
+      const now = ['mode', 'style', 'menu', 'quota', 'close', 'bypass', 'freeze'].includes(cmd.action.kind);
       return $.command
         .register({
           name: cmd.name,
@@ -4380,7 +4391,8 @@ async function control(
   // Bypass and full autonomy are the person's alone: a press, or their own Enter here or on the phone. A command
   // the engine stamps otherwise (a background notice, another session, an unclassified run) is refused.
   const person = via === 'strip' || origin === 'composer' || origin === 'bridge';
-  if ((action.kind === 'bypass' || action.kind === 'fullAuto') && !person) return { text: tIn(c.lang, 'ctl.personOnly', { cmd: `/${name}` }) };
+  if ((action.kind === 'bypass' || action.kind === 'fullAuto' || action.kind === 'freeze') && !person)
+    return { text: tIn(c.lang, 'ctl.personOnly', { cmd: `/${name}` }) };
   // Every other control is the person's too, or a script of theirs (sdk): never a prompt the model scheduled for
   // itself, another session's message, a background notice or another plugin, which could change the mode, raise the
   // budget or close the session the model works in. A command the engine stamps no origin on is the person's.
@@ -4397,6 +4409,24 @@ async function control(
     return say(tIn(lang, 'ctl.modesOff'));
   const letRunGo = `${tIn(lang, 'kw.kind.fullAuto')} ${tIn(lang, 'kw.word.cancel')}`;
   switch (action.kind) {
+    case 'freeze': {
+      const cwd = await $.session.cwd();
+      const env = pathEnv(c, cwd);
+      const off = /^(?:off|kapat|aç|ac|stop|dur)$/i.test(args) || (!args && !!c.state.frozen);
+      if (off) {
+        c.state = { ...c.state, frozen: null };
+        await saveState($, c);
+        await refreshStatus($, c);
+        return say(tIn(lang, 'ctl.freeze.off'), [freezeNote(null)]);
+      }
+      const folder = resolvePath(args || cwd, env);
+      const st = await $.fs.stat(folder).catch(() => null);
+      if (!st || st.kind !== 'dir') return say(tIn(lang, 'ctl.freeze.notDir', { folder }));
+      c.state = { ...c.state, frozen: folder };
+      await saveState($, c);
+      await refreshStatus($, c);
+      return say(tIn(lang, 'ctl.freeze.on', { folder }), [freezeNote(folder)]);
+    }
     case 'mode':
     case 'style': {
       if (action.kind === 'style' && c.run) return say(tIn(lang, 'ctl.runAttached', { cancel: letRunGo }));

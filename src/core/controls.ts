@@ -25,7 +25,8 @@ export type ControlAction =
   | { kind: 'continue' }
   | { kind: 'quota' }
   | { kind: 'close' }
-  | { kind: 'bypass' };
+  | { kind: 'bypass' }
+  | { kind: 'freeze' };
 
 /** Every slash command, by name: a number for everything on the strip, a word for those that take a value and for closing. */
 export const COMMANDS: readonly { name: string; action: ControlAction }[] = [
@@ -50,6 +51,9 @@ export const COMMANDS: readonly { name: string; action: ControlAction }[] = [
   { name: 'full-auto', action: { kind: 'fullAuto' } },
   // Bypass has no number either: on the strip only once turned on (Automation), switched by the person alone.
   { name: 'bypass', action: { kind: 'bypass' } },
+  // Freezing the edits to one folder takes a folder, so a word: on the strip only while it holds.
+  { name: 'dondur', action: { kind: 'freeze' } },
+  { name: 'freeze', action: { kind: 'freeze' } },
   { name: 'kapat', action: { kind: 'close' } },
   { name: 'close', action: { kind: 'close' } },
 ];
@@ -63,6 +67,7 @@ export function digitOf(action: ControlAction): string {
 export function commandOf(action: ControlAction, lang: Lang): string {
   if (action.kind === 'fullAuto') return lang === 'tr' ? 'tam-otonom' : 'full-auto';
   if (action.kind === 'bypass') return 'bypass';
+  if (action.kind === 'freeze') return lang === 'tr' ? 'dondur' : 'freeze';
   return digitOf(action);
 }
 
@@ -269,6 +274,8 @@ export interface StripView {
   fullAutoShown: boolean;
   /** Bypass: on the strip once turned on (Automation); on in this session; the calls it let through so far. */
   bypass: { shown: boolean; on: boolean; count: number };
+  /** The folder the edits are frozen to (`/dondur`), as the strip names it; null or absent while they are not. */
+  frozen?: string | null;
 }
 
 /** "⚡ bypass", and while it is on the calls it let through: "⚡ bypass · 3". */
@@ -371,6 +378,7 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
               },
             ]
           : []),
+        ...(v.frozen ? [{ id: commandOf({ kind: 'freeze' }, lang), label: tight ? '❄' : `❄ ${v.frozen}`, active: true }] : []),
       ],
     },
     {
@@ -393,7 +401,7 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
 export function controlsLine(v: StripView, lang: Lang): string {
   const style = tIn(lang, `ctl.style.${v.style}` as MessageKey);
   const flow = v.flow ? ` · ${flowText(v.flow, lang, false)}` : '';
-  return `${modeLabel(v.mode, lang)} · ${style}${flow}${v.bypass.on ? ` · ${bypassText(v.bypass, false)}` : ''}`;
+  return `${modeLabel(v.mode, lang)} · ${style}${flow}${v.bypass.on ? ` · ${bypassText(v.bypass, false)}` : ''}${v.frozen ? ` · ❄ ${v.frozen}` : ''}`;
 }
 
 /**

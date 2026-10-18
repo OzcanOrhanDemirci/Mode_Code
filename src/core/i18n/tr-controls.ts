@@ -64,6 +64,11 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.hint.flow': '[görev]',
   'ctl.hint.continue': '[numara ya da ad] [kota N]',
   'ctl.hint.quota': '[N ya da +N]',
+  'ctl.hint.freeze': '[klasör | kapat]',
+  'ctl.desc.freeze': 'Dondur: bir çağrının adını verdiği her yazma tek klasörde kalır (başka bir klasör vermezsen bu klasör); yeniden ya da kapat ile biter',
+  'ctl.freeze.on': '❄ Düzenlemeler {folder} klasörüne donduruldu: başka yere yazma reddedilir. /dondur kapat bitirir.',
+  'ctl.freeze.off': 'Düzenlemeler yeniden serbest.',
+  'ctl.freeze.notDir': '{folder} bir klasör değil: hiçbir şey dondurulmadı.',
   // ── akışlar ──
   'ctl.flow.researchOnly': 'yalnız {research}',
   'ctl.flow.noCode': '{steps}, kod yok',

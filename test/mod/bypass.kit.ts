@@ -9,8 +9,8 @@ import { test, expect, mock } from 'claude-code/testing';
 import { world, DATA, HOME, PROJECT, SESSION } from './world.ts';
 
 const typed = (text: string) => ({ text, wait: false, origin: { kind: 'composer' } }) as any;
-const run = async ($: any, command: string, origin: { kind: string } = { kind: 'composer' }) =>
-  (await $.command.run({ command, args: '', origin } as any)) as any;
+const run = async ($: any, command: string, origin: { kind: string } = { kind: 'composer' }, args = '') =>
+  (await $.command.run({ command, args, origin } as any)) as any;
 const bash = async ($: any, command: string, id = 'toolu_x') => (await $.tool.call({ tool: 'Bash', command, tool_use_id: id } as any)) as any;
 const band = { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 160, scroll: { offset: 0, bodyRows: 10 } } as any;
 const settle = async () => {
@@ -175,4 +175,22 @@ test("Claude Code's question about a compound command whose every part the perso
   // A question a settings rule of the person's asks stays theirs.
   verdict = { decision: 'ask', reason: 'a rule of yours', rule: 'Bash(npm test:*)' };
   expect(await check('npm run build && npm test', 'p5')).toBe('ask');
+});
+
+test('/freeze holds every write a call names to one folder, the strip shows it, and only the person sets it', async ($, on) => {
+  const w = world(on, { config: {} });
+  w.write(`${PROJECT}/src/feature/a.ts`, '// a');
+  const r = await run($, 'freeze', { kind: 'composer' }, 'src/feature');
+  expect(r.text).toBe(`❄ Edits frozen to ${PROJECT}/src/feature: a write elsewhere is refused. /freeze off ends it.`);
+  expect(r.context.join('\n')).toMatch(/The person froze the edits to .*src\/feature: write only there/);
+  expect(w.modState().frozen).toBe(`${PROJECT}/src/feature`);
+  const write = async (path: string, id: string) => (await $.tool.call({ tool: 'Write', file_path: path, content: 'x', tool_use_id: id } as any)) as any;
+  expect((await write(`${PROJECT}/src/feature/b.ts`, 'f1')).deny).toBeUndefined();
+  expect(String((await write(`${PROJECT}/README.md`, 'f2')).deny)).toMatch(/frozen to .*src\/feature \(\/freeze\)/);
+  expect(String((await bash($, `echo x > ${PROJECT}/package.json`, 'f3')).deny)).toMatch(/frozen to/);
+  // Another session or a scheduled prompt cannot end it.
+  expect((await run($, 'freeze', { kind: 'peer' }, 'off')).text).toMatch(/^Only you can run \/freeze/);
+  expect((await run($, 'freeze', { kind: 'composer' }, 'off')).text).toBe('Edits are free again.');
+  expect((await write(`${PROJECT}/README.md`, 'f4')).deny).toBeUndefined();
+  expect((await run($, 'freeze', { kind: 'composer' }, 'no/such/folder')).text).toMatch(/is not a folder: nothing was frozen/);
 });
