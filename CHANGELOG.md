@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- `mode-code trust`: what runs inside Claude Code besides the model (plugins, hooks, MCP servers, skills, agents, commands), each with where it is set, and what is new or gone since you last looked.
 - The descriptions of connected MCP tools are kept as first seen (their fingerprint); one that changes later (a server rewriting its tools after you trusted it) is told to you, and to Claude with your first prompt, once.
 - Outside content (a web page, a connected service, a fetched page) that hides characters nobody sees (Unicode tags, direction overrides, zero-width spaces) reaches Claude without them, with a note saying how many were taken out; an emoji built with a joiner stays whole.
 - `/freeze <folder>` (`/dondur`): every write a call names stays inside one folder (and the temporary folders) until you end it; `❄ <folder>` on the strip while it holds. Only you set it.

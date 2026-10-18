@@ -1152,6 +1152,7 @@ export function helpText(lang: Lang): string {
     `  ${c('secrets [path…]'.padEnd(31))}${L('help.secrets')}`,
     `  ${c('config get|set|path'.padEnd(31))}${L('help.config')}`,
     `  ${c('update [--check] [--yes]'.padEnd(31))}${L('help.update')}`,
+    `  ${c('trust'.padEnd(31))}${L('help.trust')}`,
     '',
     dim(L('help.json')),
     dim(L('help.privacy')),
