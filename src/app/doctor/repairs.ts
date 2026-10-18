@@ -30,6 +30,7 @@ import {
   type Manifest,
 } from '../../node/install.js';
 import type { Facts, RepairId } from './types.js';
+import { missingKeptSkills, syncKeptSkills } from '../../node/skills.js';
 
 export interface RepairEnv {
   layout: Layout;
@@ -129,6 +130,7 @@ export const REPAIRS: Record<RepairId, RepairInfo> = {
     run: (e) => {
       if (!existsSync(join(e.distDir, 'plugin'))) return { id: 'restore-plugin-files', ok: false, detail: 'this build has no plugin files' };
       writeMarketplace(e.layout, e.distDir);
+      syncKeptSkills(e.layout, e.config);
       return { id: 'restore-plugin-files', ok: true, detail: `plugin files copied to ${e.layout.pluginDir}; new sessions load them` };
     },
   },
@@ -139,6 +141,7 @@ export const REPAIRS: Record<RepairId, RepairInfo> = {
     run: (e) => {
       if (!existsSync(join(e.distDir, 'plugin'))) return { id: 'update-plugin', ok: false, detail: 'this build has no plugin files' };
       writeMarketplace(e.layout, e.distDir);
+      syncKeptSkills(e.layout, e.config);
       const r = e.runner.run(pluginUpdateArgs(), 120_000);
       const out = `${r.stdout}${r.stderr}`.trim().split('\n').pop() ?? '';
       return { id: 'update-plugin', ok: r.status === 0, detail: out || `exit ${r.status}` };
@@ -148,6 +151,7 @@ export const REPAIRS: Record<RepairId, RepairInfo> = {
     personOnly: true,
     run: (e) => {
       writeMarketplace(e.layout, e.distDir);
+      syncKeptSkills(e.layout, e.config);
       const r = e.runner.run(pluginInstallArgs(e.layout), 120_000);
       const out = `${r.stdout}${r.stderr}`.trim().split('\n').pop() ?? '';
       return { id: 'reinstall-plugin', ok: r.status === 0, detail: out || `exit ${r.status}` };
@@ -227,6 +231,21 @@ export const REPAIRS: Record<RepairId, RepairInfo> = {
       const backup = text !== null ? backupOf(e, 'config.json', text) : undefined;
       writeAtomic(e.layout.config, serializeConfig(e.config));
       return { id: 'rewrite-config', ok: true, detail: 'rewritten with the valid settings kept', ...(backup ? { backup } : {}) };
+    },
+  },
+  // The skills the settings keep, put back in the plugin's folder (docs/skills.md).
+  'sync-skills': {
+    personOnly: false,
+    run: (e) => {
+      const r = syncKeptSkills(e.layout, e.config);
+      // A skill the copy beside the marketplace lacks cannot be put back: said, not passed over.
+      const missing = missingKeptSkills(e.layout, e.config);
+      const detail = `added ${r.added.join(', ') || 'none'}; removed ${r.removed.join(', ') || 'none'}`;
+      return {
+        id: 'sync-skills',
+        ok: missing.length === 0,
+        detail: missing.length ? `${detail}; not in the copy to take them from: ${missing.join(', ')}` : detail,
+      };
     },
   },
   'tighten-permissions': {

@@ -8,6 +8,9 @@ Claude Code
   ✓ Claude Code ayar dosyalarını hatasız okuyor (1 dosya okundu).
   ✓ Hiçbir ayar dosyası hook'ları kapatmıyor.
   ✓ mode-code@mode-code-local eklentisi kurulu ve açık (sürüm dev).
+  ✓ Ayarlardaki diğer bütün hook'lar çalışabiliyor.
+  ✓ Kendi modelini başlatan hook yok.
+  ✓ Claude Code'un araç araması açık: MCP araçları gerektiğinde yükleniyor.
 Kurulum
   ✓ dev sürümü 2026-10-11 tarihinde kuruldu.
   ✓ Hook programı bu sürümle aynı (sha256 aaaaaaaaaaaa…).
@@ -17,6 +20,7 @@ Kurulum
   ✓ Eklenti en son 2026-10-12 11:50 (UTC) zamanında bir oturumdan haber verdi.
   ✓ Mode_Code 1.2.0 en yeni sürüm.
   · Tam otonom kapalı (mode-code autonomy enable ile açılır).
+  ✓ Ayarlarının tuttuğu beceriler yerinde.
 Koruma
   ✓ Kurulu hook, 30 örneğin hepsine bu sürümle birebir aynı cevabı verdi.
   ✓ Korunan klasörlerin hiçbiri bağlantı değil.
@@ -24,6 +28,9 @@ Koruma
       ~/MODECO~1 = ~/.mode-code.
   ✓ 1 hafıza klasörü korunuyor ve git deposu.
   · Bypass kapalı: hiçbir oturum emniyet kemerini kaldıramaz.
+  ✓ Projenin paylaşılan ayarları hiçbir şeyi genişletmiyor.
+  ✓ En yeni sürüm hangisiyse onunla başlayan MCP sunucusu yok.
+  ✓ Claude Code ayar dosyalarında yazılı sır yok.
 Kabuklar ve terminal
   ✓ Git Bash (C:/Program Files/Git/bin/bash.exe), kemerin varsaydığı gibi /tmp'yi Temp klasörüne bağlıyor.
   ✓ PowerShell 7.6.6.
@@ -37,11 +44,13 @@ Dosyalar
 git
   ✓ git 2.55.0.
   ✓ 1 kayıtlı proje, okunabilen birer git deposu.
+  ✓ Bu klasörü git tutuyor.
 Veri
   ✓ Ayar dosyası geçerli.
   ✓ Oturum dizini sağlam (42 oturum).
   ✓ Yakın zamanda alınmış bir kota ölçümü kayıtlı.
   ✓ Hafızanın yeri: bu bilgisayar ve GitHub'ın · C:/dev/notes/memory. Claude Code onu kullanıyor.
+  ✓ Hafıza indeksi 40 satır, 4 KB: Claude Code'un yüklediği sınırın içinde (200 satır, 25 KB).
   · Bilgisayarlar arası eşitleme kurulmamış.
   ✓ Son 3 oturum kaydı okundu: 100 satır beklenen biçimde.
   ✓ Son oturumlarda komut çalıştıran ya da dosya yazan her aracı kemer denetliyor (Bash, Edit).
@@ -49,4 +58,4 @@ Veri
 Öz-sınama
   ✓ 1 paketteki 30 yerleşik örneğin hepsi beklenen cevabı verdi.
 
-2.1 sn içinde 43 denetim: 35 tamam, 0 uyarı, 0 sorun.
+2.1 sn içinde 53 denetim: 44 tamam, 0 uyarı, 0 sorun.

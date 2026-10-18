@@ -604,3 +604,180 @@ test('bypass: off is a note; on, for how long and in how many sessions; a weaken
     ['data.delete-cloud'],
   );
 });
+
+/** Claude Code's setup beyond this tool's own, every problem at once (setup.ts, A6 of 1.2.0). */
+const brokenSetup = (over: Partial<Facts['setup']> = {}): Facts =>
+  healthyFacts({
+    setup: {
+      deadHooks: [{ event: 'PreToolUse', command: 'node C:/hooks/guard.js', missing: 'C:/hooks/guard.js' }],
+      jqHooks: [{ event: 'PostToolUse', command: 'jq -r .tool_input.file_path' }],
+      modelHooks: [{ event: 'Stop', command: 'claude -p "summarize"' }],
+      loosened: [{ scope: 'project', what: 'allow Bash(*)' }],
+      unpinnedMcp: [{ scope: 'user', name: 'browser', target: 'npx -y @playwright/mcp@latest' }],
+      secrets: [{ path: 'C:/work/app/.claude/settings.json', kinds: ['github-token'], tracked: true }],
+      localTracked: true,
+      noGit: false,
+      memoryIndex: { path: 'C:/Users/ada/notes/MEMORY.md', lines: 260, bytes: 30_000, maxLines: 200, maxBytes: 25_000 },
+      toolSearchOff: ['ENABLE_TOOL_SEARCH'],
+      autoMode: ['user'],
+      skillsMissing: ['memory-note'],
+      ...over,
+    },
+  });
+
+const SETUP_CHECKS = [
+  'claude.hooksWork',
+  'claude.hookModels',
+  'claude.toolSearch',
+  'claude.autoMode',
+  'protection.projectSettings',
+  'protection.mcpPinned',
+  'protection.settingsSecrets',
+  'git.here',
+  'data.memoryIndex',
+  'install.skills',
+];
+
+test("Claude Code's setup: every message and hint exists in both languages, none of them weakens this tool's protection", () => {
+  const variants = [
+    brokenSetup(),
+    brokenSetup({ secrets: [{ path: 'C:/Users/ada/.claude.json', kinds: ['anthropic-key'], tracked: false }], localTracked: false, noGit: true }),
+    brokenSetup({ localTracked: false, noGit: null, memoryIndex: null }),
+    brokenSetup({ memoryIndex: { path: 'C:/m/MEMORY.md', lines: 185, bytes: 1000, maxLines: 200, maxBytes: 25_000 } }),
+  ];
+  for (const f of variants) {
+    const results = runChecks(f);
+    for (const id of SETUP_CHECKS)
+      assert.ok(
+        results.some((r) => r.id === id),
+        `no check ${id}`,
+      );
+    for (const r of results) {
+      for (const m of [r.summary, r.hint, ...(r.details ?? [])].filter((x) => x !== undefined)) {
+        assert.ok(m.key in en, `${r.id}: ${m.key} missing in English`);
+        assert.ok(m.key in tr, `${r.id}: ${m.key} missing in Turkish`);
+      }
+      if (SETUP_CHECKS.includes(r.id)) assert.equal(r.protection, false, r.id);
+    }
+  }
+});
+
+test('hooks of others: a missing file or jq is a warning with each hook named; a hook that starts a model is a warning of its own', () => {
+  const f = brokenSetup();
+  const work = check('claude.hooksWork', f);
+  assert.equal(brief(work), 'warn doc.setup.hooksBroken');
+  assert.deepEqual(work.summary.params, { n: 2 });
+  assert.deepEqual(
+    work.details?.map((d) => [d.key, d.params]),
+    [
+      ['doc.setup.deadHook', { event: 'PreToolUse', missing: 'C:/hooks/guard.js' }],
+      ['doc.setup.jqHook', { event: 'PostToolUse', command: 'jq -r .tool_input.file_path' }],
+    ],
+  );
+  assert.equal(work.hint?.key, 'doc.setup.hooksBrokenHint');
+  assert.equal(brief(check('claude.hooksWork', brokenSetup({ deadHooks: [] }))), 'warn doc.setup.hooksBroken', 'jq alone is enough');
+  assert.equal(brief(check('claude.hooksWork', brokenSetup({ jqHooks: [] }))), 'warn doc.setup.hooksBroken', 'a missing file alone is enough');
+  const models = check('claude.hookModels', f);
+  assert.equal(brief(models), 'warn doc.setup.hookModels');
+  assert.deepEqual(models.summary.params, { n: 1 });
+  assert.deepEqual(models.details?.[0]?.params, { event: 'Stop', command: 'claude -p "summarize"' });
+  assert.equal(models.hint?.key, 'doc.setup.hookModelsHint');
+  assert.equal(brief(check('claude.hooksWork', healthyFacts())), 'ok doc.setup.hooksOk');
+  assert.equal(brief(check('claude.hookModels', healthyFacts())), 'ok doc.setup.hookModelsNone');
+});
+
+test('auto mode as the start is a note naming the settings that set it; otherwise skipped', () => {
+  const r = check('claude.autoMode', brokenSetup({ autoMode: ['user', 'project'] }));
+  assert.equal(brief(r), 'info doc.setup.autoMode');
+  assert.deepEqual(r.summary.params, { scopes: 'user, project' });
+  assert.equal(brief(check('claude.autoMode', healthyFacts())), 'skip doc.setup.autoModeNot');
+});
+
+test('tool search off is a note naming what turned it off; on is ok', () => {
+  const off = check('claude.toolSearch', brokenSetup({ toolSearchOff: ['CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS', 'ENABLE_TOOL_SEARCH'] }));
+  assert.equal(brief(off), 'info doc.setup.toolSearchOff');
+  assert.deepEqual(off.summary.params, { vars: 'CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS, ENABLE_TOOL_SEARCH' });
+  assert.equal(off.hint?.key, 'doc.setup.toolSearchHint');
+  assert.equal(brief(check('claude.toolSearch', healthyFacts())), 'ok doc.setup.toolSearchOn');
+});
+
+test("the project's shared settings and unpinned MCP servers: warnings, each line named", () => {
+  const f = brokenSetup({
+    loosened: [
+      { scope: 'project', what: 'allow Bash(*)' },
+      { scope: 'project', what: 'enableAllProjectMcpServers' },
+    ],
+  });
+  const loose = check('protection.projectSettings', f);
+  assert.equal(brief(loose), 'warn doc.setup.projectLoose');
+  assert.deepEqual(loose.summary.params, { n: 2 });
+  assert.deepEqual(
+    loose.details?.map((d) => d.params?.rule),
+    ['allow Bash(*)', 'enableAllProjectMcpServers'],
+  );
+  assert.equal(loose.hint?.key, 'doc.setup.projectHint');
+  const mcp = check('protection.mcpPinned', f);
+  assert.equal(brief(mcp), 'warn doc.setup.mcpUnpinned');
+  assert.deepEqual(mcp.summary.params, { n: 1 });
+  assert.deepEqual(mcp.details?.[0]?.params, { scope: 'user', name: 'browser', target: 'npx -y @playwright/mcp@latest' });
+  assert.equal(mcp.hint?.key, 'doc.setup.mcpHint');
+  assert.equal(brief(check('protection.projectSettings', healthyFacts())), 'ok doc.setup.projectOk');
+  assert.equal(brief(check('protection.mcpPinned', healthyFacts())), 'ok doc.setup.mcpPinned');
+});
+
+test('a secret in a settings file warns; one git keeps fails, and the file is marked', () => {
+  const untracked = { path: 'C:/Users/ada/.claude/settings.json', kinds: ['anthropic-key', 'github-token'], tracked: false };
+  const tracked = { path: 'C:/work/app/.claude/settings.json', kinds: ['github-token'], tracked: true };
+  const warn = check('protection.settingsSecrets', brokenSetup({ secrets: [untracked] }));
+  assert.equal(brief(warn), 'warn doc.setup.secrets');
+  assert.deepEqual(warn.summary.params, { n: 1 });
+  assert.deepEqual(
+    warn.details?.map((d) => [d.key, d.params]),
+    [['doc.setup.secret', { path: untracked.path, kinds: 'anthropic-key, github-token' }]],
+  );
+  assert.equal(warn.hint?.key, 'doc.setup.secretsHint');
+  const fail = check('protection.settingsSecrets', brokenSetup({ secrets: [untracked, tracked] }));
+  assert.equal(brief(fail), 'fail doc.setup.secretsTracked');
+  assert.deepEqual(fail.summary.params, { n: 2 });
+  assert.deepEqual(
+    fail.details?.map((d) => d.key),
+    ['doc.setup.secret', 'doc.setup.secretTracked'],
+  );
+  assert.equal(fail.hint?.key, 'doc.setup.secretsHint');
+  assert.equal(brief(check('protection.settingsSecrets', healthyFacts())), 'ok doc.setup.secretsNone');
+});
+
+test("this folder's git: local settings kept by git warn first; no git is a note; unknown is skipped", () => {
+  const at = (setup: Partial<Facts['setup']>) => check('git.here', brokenSetup(setup));
+  const kept = at({ localTracked: true, noGit: false });
+  assert.equal(brief(kept), 'warn doc.setup.localTracked');
+  assert.equal(kept.hint?.key, 'doc.setup.localTrackedHint');
+  const none = at({ localTracked: false, noGit: true });
+  assert.equal(brief(none), 'info doc.setup.noGit');
+  assert.equal(none.hint?.key, 'doc.setup.noGitHint');
+  assert.equal(brief(at({ localTracked: false, noGit: null })), 'skip doc.setup.gitUnknown');
+  assert.equal(brief(check('git.here', healthyFacts())), 'ok doc.setup.gitOk');
+});
+
+test('the memory index: past either limit warns, within a tenth of one is a note, none is skipped', () => {
+  const at = (lines: number, bytes: number) =>
+    check('data.memoryIndex', brokenSetup({ memoryIndex: { path: 'C:/m/MEMORY.md', lines, bytes, maxLines: 200, maxBytes: 25_000 } }));
+  assert.equal(brief(at(201, 1000)), 'warn doc.setup.indexOver');
+  assert.equal(brief(at(10, 25_001)), 'warn doc.setup.indexOver');
+  assert.deepEqual(at(260, 30_400).summary.params, { lines: 260, kb: 30, maxLines: 200, maxKb: 25, path: 'C:/m/MEMORY.md' });
+  assert.equal(at(260, 30_400).hint?.key, 'doc.setup.indexHint');
+  assert.equal(brief(at(200, 25_000)), 'info doc.setup.indexNear', 'exactly the limit is still loaded');
+  assert.equal(brief(at(181, 1000)), 'info doc.setup.indexNear');
+  assert.equal(brief(at(10, 22_501)), 'info doc.setup.indexNear');
+  assert.equal(at(181, 1000).hint?.key, 'doc.setup.indexHint');
+  assert.equal(brief(at(180, 22_500)), 'ok doc.setup.indexOk');
+  assert.equal(at(180, 22_500).hint, undefined);
+  assert.equal(brief(check('data.memoryIndex', brokenSetup({ memoryIndex: null }))), 'skip doc.setup.indexNone');
+});
+
+test('skills the settings keep but the plugin lacks: a warning the doctor repairs', () => {
+  const r = check('install.skills', brokenSetup({ skillsMissing: ['memory-note', 'gha-security-review'] }));
+  assert.equal(brief(r), 'warn doc.setup.skillsMissing → sync-skills');
+  assert.deepEqual(r.summary.params, { skills: 'memory-note, gha-security-review' });
+  assert.equal(brief(check('install.skills', healthyFacts())), 'ok doc.setup.skillsOk');
+});

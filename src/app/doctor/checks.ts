@@ -625,6 +625,109 @@ const protectBypass: Check = (f) => {
 };
 
 /** Every check, in the order the report shows them. */
+// ── Claude Code's setup beyond this tool's own (A6 of 1.2.0, setup.ts) ──
+
+/** Hooks of others that cannot run (their file is gone, or jq is missing): whatever they guarded is not guarded. */
+const claudeHooksWork: Check = (f) => {
+  const id = 'claude.hooksWork';
+  const details = [
+    ...f.setup.deadHooks.map((h) => m('doc.setup.deadHook', { event: h.event, missing: h.missing })),
+    ...f.setup.jqHooks.map((h) => m('doc.setup.jqHook', { event: h.event, command: h.command })),
+  ];
+  if (!details.length) return result(id, 'claude', false, 'ok', m('doc.setup.hooksOk'));
+  return result(id, 'claude', false, 'warn', m('doc.setup.hooksBroken', { n: details.length }), { details, hint: m('doc.setup.hooksBrokenHint') });
+};
+
+/** Hooks that start a model of their own on every event they name: each costs quota unseen. */
+const claudeHookModels: Check = (f) => {
+  const id = 'claude.hookModels';
+  if (!f.setup.modelHooks.length) return result(id, 'claude', false, 'ok', m('doc.setup.hookModelsNone'));
+  return result(id, 'claude', false, 'warn', m('doc.setup.hookModels', { n: f.setup.modelHooks.length }), {
+    details: f.setup.modelHooks.map((h) => m('doc.setup.hookModel', { event: h.event, command: h.command })),
+    hint: m('doc.setup.hookModelsHint'),
+  });
+};
+
+/** Tool search off: every MCP tool's description is in every request, and the packs' catalog with them. */
+const claudeToolSearch: Check = (f) => {
+  const id = 'claude.toolSearch';
+  if (!f.setup.toolSearchOff.length) return result(id, 'claude', false, 'ok', m('doc.setup.toolSearchOn'));
+  return result(id, 'claude', false, 'info', m('doc.setup.toolSearchOff', { vars: f.setup.toolSearchOff.join(', ') }), { hint: m('doc.setup.toolSearchHint') });
+};
+
+/**
+ * Claude Code started in its auto mode: its classifier answers Claude Code's questions, and a hook's ask stays the
+ * person's (measured in the real engine, scripts/test-live.mjs case 16). Said, so the person knows who answers what.
+ */
+const claudeAutoMode: Check = (f) => {
+  const id = 'claude.autoMode';
+  if (!f.setup.autoMode.length) return result(id, 'claude', false, 'skip', m('doc.setup.autoModeNot'));
+  return result(id, 'claude', false, 'info', m('doc.setup.autoMode', { scopes: f.setup.autoMode.join(', ') }));
+};
+
+/** The project's shared settings that widen what runs unasked: whoever changes the project changes them. */
+const protectProjectSettings: Check = (f) => {
+  const id = 'protection.projectSettings';
+  const x = f.setup.loosened;
+  if (!x.length) return result(id, 'protection', false, 'ok', m('doc.setup.projectOk'));
+  return result(id, 'protection', false, 'warn', m('doc.setup.projectLoose', { n: x.length }), {
+    details: x.map((w) => m('doc.setup.loosened', { rule: w.what })),
+    hint: m('doc.setup.projectHint'),
+  });
+};
+
+/** MCP servers started at whatever version is newest: a bad release runs here unseen. */
+const protectMcpPinned: Check = (f) => {
+  const id = 'protection.mcpPinned';
+  const x = f.setup.unpinnedMcp;
+  if (!x.length) return result(id, 'protection', false, 'ok', m('doc.setup.mcpPinned'));
+  return result(id, 'protection', false, 'warn', m('doc.setup.mcpUnpinned', { n: x.length }), {
+    details: x.map((s) => m('doc.setup.mcpServer', { scope: s.scope, name: s.name, target: s.target })),
+    hint: m('doc.setup.mcpHint'),
+  });
+};
+
+/** What looks like a secret in Claude Code's settings files; in one git tracks, it has left this computer. */
+const protectSettingsSecrets: Check = (f) => {
+  const id = 'protection.settingsSecrets';
+  const s = f.setup.secrets;
+  if (!s.length) return result(id, 'protection', false, 'ok', m('doc.setup.secretsNone'));
+  const details = s.map((x) => m(x.tracked ? 'doc.setup.secretTracked' : 'doc.setup.secret', { path: x.path, kinds: x.kinds.join(', ') }));
+  const tracked = s.some((x) => x.tracked);
+  return result(id, 'protection', false, tracked ? 'fail' : 'warn', m(tracked ? 'doc.setup.secretsTracked' : 'doc.setup.secrets', { n: s.length }), {
+    details,
+    hint: m('doc.setup.secretsHint'),
+  });
+};
+
+/** The folder's git: none here, or the local settings tracked (they are meant to stay on this computer). */
+const gitHere: Check = (f) => {
+  const id = 'git.here';
+  if (f.setup.localTracked) return result(id, 'git', false, 'warn', m('doc.setup.localTracked'), { hint: m('doc.setup.localTrackedHint') });
+  if (f.setup.noGit === null) return result(id, 'git', false, 'skip', m('doc.setup.gitUnknown'));
+  if (f.setup.noGit) return result(id, 'git', false, 'info', m('doc.setup.noGit'), { hint: m('doc.setup.noGitHint') });
+  return result(id, 'git', false, 'ok', m('doc.setup.gitOk'));
+};
+
+/** The memory index against what Claude Code loads of it: past the limit, the rest is never read. */
+const dataMemoryIndex: Check = (f) => {
+  const id = 'data.memoryIndex';
+  const x = f.setup.memoryIndex;
+  if (!x) return result(id, 'data', false, 'skip', m('doc.setup.indexNone'));
+  const p = { lines: x.lines, kb: Math.round(x.bytes / 1000), maxLines: x.maxLines, maxKb: Math.round(x.maxBytes / 1000), path: x.path };
+  if (x.lines > x.maxLines || x.bytes > x.maxBytes) return result(id, 'data', false, 'warn', m('doc.setup.indexOver', p), { hint: m('doc.setup.indexHint') });
+  if (x.lines > x.maxLines * 0.9 || x.bytes > x.maxBytes * 0.9)
+    return result(id, 'data', false, 'info', m('doc.setup.indexNear', p), { hint: m('doc.setup.indexHint') });
+  return result(id, 'data', false, 'ok', m('doc.setup.indexOk', p));
+};
+
+/** The skills the settings keep in the plugin's folder (docs/skills.md), there or not. */
+const installSkills: Check = (f) => {
+  const id = 'install.skills';
+  if (!f.setup.skillsMissing.length) return result(id, 'install', false, 'ok', m('doc.setup.skillsOk'));
+  return result(id, 'install', false, 'warn', m('doc.setup.skillsMissing', { skills: f.setup.skillsMissing.join(', ') }), { repair: 'sync-skills' });
+};
+
 export const CHECKS: readonly Check[] = [
   nodeVersion,
   nodeHooks,
@@ -634,6 +737,10 @@ export const CHECKS: readonly Check[] = [
   claudeSettings,
   claudeHooksOn,
   claudePlugin,
+  claudeHooksWork,
+  claudeHookModels,
+  claudeToolSearch,
+  claudeAutoMode,
   installManifest,
   installPrevious,
   installHookProgram,
@@ -643,11 +750,15 @@ export const CHECKS: readonly Check[] = [
   installModSeen,
   installUpdate,
   installAutonomy,
+  installSkills,
   protectAgreement,
   protectLinks,
   protectShortNames,
   protectMemory,
   protectBypass,
+  protectProjectSettings,
+  protectMcpPinned,
+  protectSettingsSecrets,
   shellGitBash,
   shellPowerShell,
   shellPosix,
@@ -660,10 +771,12 @@ export const CHECKS: readonly Check[] = [
   filesPermissions,
   gitFound,
   gitProjects,
+  gitHere,
   dataConfig,
   dataIndex,
   dataQuota,
   dataMemoryStore,
+  dataMemoryIndex,
   dataSync,
   dataTranscripts,
   dataToolNames,

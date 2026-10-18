@@ -5,7 +5,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gatherFacts, hookVerdict, locateGitBash, onPath, runProgram, sha256 } from '../../src/app/doctor/facts.js';
@@ -13,6 +13,8 @@ import { buildSandbox } from '../../src/app/doctor/selfcheck.js';
 import { distDir } from '../../src/node/install.js';
 import { toolPath } from '../../src/node/env.js';
 import { SessionIndex } from '../../src/node/index-db.js';
+import { EXTERNAL_SKILLS } from '../../src/core/skills-external.js';
+import { syncKeptSkills } from '../../src/node/skills.js';
 
 const built = existsSync(join(distDir(), 'hook.mjs')) && existsSync(join(distDir(), 'plugin', '.claude-plugin', 'plugin.json'));
 
@@ -193,5 +195,169 @@ test('a hook program that ends before it reads the call gets a verdict, and the 
     assert.equal(await hookVerdict(process.execPath, hook, big, process.env, root), 'exit 2');
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test(
+  "Claude Code's setup, measured on a real project: dead, jq and model hooks, shared settings, unpinned servers, secrets, git, the memory index",
+  { timeout: 60_000 },
+  async (t) => {
+    if (!built) return t.skip('needs the build: npm run build');
+    const sb = buildSandbox('en');
+    if (typeof sb === 'string') return assert.fail(sb);
+    try {
+      // A fresh installation in a folder git does not keep: nothing to say but that.
+      let f = await gatherFacts(sb.env);
+      assert.deepEqual(
+        { ...f.setup, noGit: undefined },
+        {
+          deadHooks: [],
+          jqHooks: [],
+          modelHooks: [],
+          loosened: [],
+          unpinnedMcp: [],
+          secrets: [],
+          localTracked: false,
+          noGit: undefined,
+          memoryIndex: null,
+          toolSearchOff: f.setup.toolSearchOff,
+          autoMode: [],
+          skillsMissing: [],
+        },
+      );
+      const root = sb.root;
+      const proj = `${root}/proj`;
+      mkdirSync(`${proj}/.claude`, { recursive: true });
+      mkdirSync(`${root}/hooks`);
+      writeFileSync(`${root}/hooks/ok.js`, '');
+      mkdirSync(`${root}/memory`);
+      writeFileSync(`${root}/memory/MEMORY.md`, '- a line\n'.repeat(250));
+      const user = JSON.parse(readFileSync(sb.settingsFile, 'utf8')) as { hooks: Record<string, unknown[]> };
+      const hook = (command: string) => ({ matcher: '*', hooks: [{ type: 'command', command }] });
+      user.hooks.Stop = [hook('claude -p "summarize the session"'), { hooks: [{ type: 'prompt', prompt: 'Is the work done?' }] }];
+      user.hooks.SessionStart = [hook(`node "${root}/nowhere/guard.js"`), hook(`node "${root}/hooks/ok.js"`)];
+      user.hooks.PostToolUse = [...(user.hooks.PostToolUse ?? []), hook('jq -r .tool_input.file_path')];
+      writeFileSync(sb.settingsFile, JSON.stringify({ ...user, autoMemoryDirectory: `${root}/memory`, permissions: { defaultMode: 'auto' } }, null, 2));
+      // Another plugin with hooks of its own: an observer that starts a model, and a jq hook in a file its manifest names.
+      const plug = `${root}/plugins/observer`;
+      mkdirSync(`${plug}/hooks`, { recursive: true });
+      mkdirSync(`${plug}/.claude-plugin`, { recursive: true });
+      writeFileSync(`${plug}/hooks/hooks.json`, JSON.stringify({ hooks: { PostToolUse: [hook('claude --print "note what happened"')] } }));
+      writeFileSync(`${plug}/more.json`, JSON.stringify({ hooks: { PreToolUse: [hook('jq .tool_name')] } }));
+      writeFileSync(`${plug}/.claude-plugin/plugin.json`, JSON.stringify({ name: 'observer', hooks: './more.json' }));
+      const off = `${root}/plugins/off`;
+      mkdirSync(`${off}/hooks`, { recursive: true });
+      writeFileSync(`${off}/hooks/hooks.json`, JSON.stringify({ hooks: { Stop: [hook('claude -p x')] } }));
+      const listed = [
+        { id: 'observer@market', enabled: true, version: '1.0.0', installPath: plug },
+        { id: 'off@market', enabled: false, version: '1.0.0', installPath: off },
+      ];
+      const runner = {
+        version: () => sb.env.claude.version(),
+        run: (args: readonly string[], ms?: number) =>
+          args[0] === 'plugin' && args[1] === 'list'
+            ? { status: 0, stdout: JSON.stringify([...(JSON.parse(sb.env.claude.run(args, ms).stdout) as unknown[]), ...listed]), stderr: '' }
+            : sb.env.claude.run(args, ms),
+      };
+      writeFileSync(
+        `${proj}/.claude/settings.json`,
+        JSON.stringify({
+          permissions: { allow: ['Bash(*)', 'Bash(npm test)'], defaultMode: 'bypassPermissions' },
+          enableAllProjectMcpServers: true,
+          enabledMcpjsonServers: ['browser', 7],
+          env: { ENABLE_TOOL_SEARCH: 'false' },
+        }),
+      );
+      const token = 'ghp_' + 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8';
+      writeFileSync(`${proj}/.claude/settings.local.json`, JSON.stringify({ permissions: { allow: ['Bash(rm:*)'] }, env: { GITHUB_TOKEN: token } }));
+      writeFileSync(
+        `${proj}/.mcp.json`,
+        JSON.stringify({
+          mcpServers: {
+            browser: { command: 'npx', args: ['-y', '@playwright/mcp'] },
+            firebase: { command: 'npx', args: ['-y', 'firebase-tools@15.34.0', 'mcp'] },
+          },
+        }),
+      );
+      const noPath = Object.fromEntries(Object.entries(sb.env.env).filter(([k]) => k.toUpperCase() !== 'PATH'));
+      const env = { ...sb.env, cwd: proj, env: { ...noPath, PATH: `${root}/hooks` }, claude: runner };
+      f = await gatherFacts(env);
+      const s = f.setup;
+      assert.deepEqual(
+        s.deadHooks.map((h) => [h.event, h.missing]),
+        [['SessionStart', `${root}/nowhere/guard.js`]],
+      );
+      assert.deepEqual(
+        s.jqHooks.map((h) => h.event),
+        ['PostToolUse', 'PreToolUse (observer@market)'],
+        'no jq on this PATH',
+      );
+      assert.deepEqual(
+        s.modelHooks.map((h) => [h.event, h.command]),
+        [
+          ['Stop', 'claude -p "summarize the session"'],
+          ['Stop', 'prompt hook'],
+          ['PostToolUse (observer@market)', 'claude --print "note what happened"'],
+        ],
+        'a plugin turned off runs nothing',
+      );
+      assert.deepEqual(s.autoMode, ['user']);
+      assert.deepEqual(
+        s.loosened.map((x) => x.what),
+        ['allow Bash(*)', 'enableAllProjectMcpServers', 'enabledMcpjsonServers browser', 'defaultMode bypassPermissions'],
+        "the shared file only: the local one holds the person's own answers",
+      );
+      assert.deepEqual(
+        s.unpinnedMcp.map((x) => [x.scope, x.name]),
+        [['project', 'browser']],
+      );
+      assert.deepEqual(
+        s.secrets.map((x) => [x.path.endsWith('settings.local.json'), x.kinds, x.tracked]),
+        [[true, ['github-token'], false]],
+      );
+      assert.equal(s.noGit, true);
+      assert.equal(s.localTracked, false);
+      assert.deepEqual(s.toolSearchOff, ['ENABLE_TOOL_SEARCH'], "the project's env counts as Claude Code reads it");
+      assert.equal(s.memoryIndex?.lines, 250);
+      assert.equal(s.memoryIndex?.maxLines, 200);
+      // Git keeps the local file now, and jq is on the PATH.
+      const git = (...args: string[]) => runProgram('git', ['-C', proj, ...args]);
+      assert.equal(git('init', '-q').ok, true);
+      assert.equal(git('add', '.claude/settings.local.json').ok, true);
+      writeFileSync(`${root}/hooks/${process.platform === 'win32' ? 'jq.exe' : 'jq'}`, '');
+      f = await gatherFacts(env);
+      assert.equal(f.setup.noGit, false);
+      assert.equal(f.setup.localTracked, true);
+      assert.deepEqual(
+        f.setup.secrets.map((x) => x.tracked),
+        [true],
+      );
+      assert.deepEqual(f.setup.jqHooks, []);
+      // A force in the local file wins over the project's false, as in Claude Code.
+      writeFileSync(`${proj}/.claude/settings.local.json`, JSON.stringify({ env: { ENABLE_TOOL_SEARCH: 'force' } }));
+      assert.deepEqual((await gatherFacts(env)).setup.toolSearchOff, []);
+    } finally {
+      rmSync(sb.root, { recursive: true, force: true });
+    }
+  },
+);
+
+test('the skills the settings keep are measured against the plugin folder, and only when Mode_Code is installed', { timeout: 60_000 }, async (t) => {
+  if (!built) return t.skip('needs the build: npm run build');
+  const sb = buildSandbox('en');
+  if (typeof sb === 'string') return assert.fail(sb);
+  try {
+    const id = Object.keys(EXTERNAL_SKILLS)[0]!;
+    // The doctor reads the settings from disk on every measurement, as a repair may just have rewritten them.
+    const config = { ...sb.env.config, skills: { items: { [id]: 'on' as const } } };
+    writeFileSync(sb.layout.config, JSON.stringify(config, null, 2));
+    assert.deepEqual((await gatherFacts(sb.env)).setup.skillsMissing, [id]);
+    syncKeptSkills(sb.layout, config);
+    assert.deepEqual((await gatherFacts(sb.env)).setup.skillsMissing, []);
+    rmSync(sb.layout.manifest);
+    rmSync(`${sb.layout.pluginDir}/skills/${id}`, { recursive: true, force: true });
+    assert.deepEqual((await gatherFacts(sb.env)).setup.skillsMissing, [], 'not installed: nothing is kept anywhere');
+  } finally {
+    rmSync(sb.root, { recursive: true, force: true });
   }
 });

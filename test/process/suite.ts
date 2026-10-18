@@ -292,6 +292,11 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       assert.ok(rules.json?.rules.length >= 30);
       const tst = cli(w, ['belt', 'test', '--command', 'git status', '--json'], opt);
       assert.equal(tst.json?.decision.verdict, 'allow');
+      // A quoted command without --command is the command, not an empty call that passes.
+      const bare = cli(w, ['belt', 'test', 'git commit --no-verify -m x', '--json'], opt);
+      assert.equal(bare.json?.input.command, 'git commit --no-verify -m x');
+      assert.equal(bare.json?.decision.verdict, 'ask');
+      assert.equal(cli(w, ['belt', 'test'], opt).code, 2, 'nothing to test is no allow');
       const prot = cli(w, ['belt', 'test', '--path', join(w.data, 'config.json'), '--json'], opt);
       assert.equal(prot.json?.decision.verdict, 'deny');
       assert.equal(cli(w, ['belt', 'events', '--json'], opt).json?.events.length, 0);

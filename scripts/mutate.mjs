@@ -67,6 +67,7 @@ const TARGETS = {
   'src/core/secrets/scan.ts': ['test/core/secrets.test.ts', 'test/core/edges.test.ts', 'test/core/selftest.test.ts'],
   'src/core/version.ts': ['test/core/format.test.ts', 'test/core/selftest.test.ts'],
   'src/app/doctor/checks.ts': ['test/doctor/checks.test.ts', 'test/doctor/checks-golden.test.ts'],
+  'src/app/doctor/setup.ts': ['test/doctor/setup.test.ts'],
   // Modes and flows: what a restricted mode lets through, and when a flow's step counts as done.
   'src/core/shell/effects.ts': ['test/core/effects.test.ts', 'test/core/effects-forms.test.ts', 'test/corpus/modes.test.ts', 'test/core/guard.test.ts'],
   'src/core/modes.ts': ['test/core/guard.test.ts', 'test/core/effects.test.ts', 'test/core/modes.test.ts'],

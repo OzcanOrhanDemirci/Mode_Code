@@ -40,7 +40,8 @@ export type RepairId =
   | 'remove-bad-quota'
   | 'rewrite-config'
   | 'remove-duplicate-hooks'
-  | 'tighten-permissions';
+  | 'tighten-permissions'
+  | 'sync-skills';
 
 export interface Message {
   key: MessageKey;
@@ -195,4 +196,31 @@ export interface Facts {
   bypass: { enabled: boolean; maxHours: number; onNow: number; floorWeakened: string[] };
   /** Updates (core/update.ts): whether the daily check is on, this version, and what the last check found. */
   update: { check: boolean; current: string; state: UpdateState | null };
+  /** Claude Code's setup beyond this tool's own (A6 of 1.2.0, setup.ts): what cannot work, costs or widens. */
+  setup: {
+    /** Hooks of others whose program file is missing: they fail on every event. */
+    deadHooks: { event: string; command: string; missing: string }[];
+    /** Hooks that need jq when no jq is installed. */
+    jqHooks: { event: string; command: string }[];
+    /** Hooks that start a model of their own on each event (`claude -p`). */
+    modelHooks: { event: string; command: string }[];
+    /** What the project's shared settings widen: broad allow rules, every project MCP server, bypass as the start. */
+    loosened: { scope: string; what: string }[];
+    /** MCP servers started at no pinned version. */
+    unpinnedMcp: { scope: string; name: string; target: string }[];
+    /** Settings files holding what looks like a secret (its kinds only), and whether git tracks the file. */
+    secrets: { path: string; kinds: string[]; tracked: boolean }[];
+    /** The project's `.claude/settings.local.json` is tracked by git (it is meant to stay on this computer). */
+    localTracked: boolean;
+    /** The folder is no git repository (null: git could not be run). */
+    noGit: boolean | null;
+    /** The memory index against what Claude Code loads of it. */
+    memoryIndex: { path: string; lines: number; bytes: number; maxLines: number; maxBytes: number } | null;
+    /** The environment variables that turn tool search off (names only). */
+    toolSearchOff: string[];
+    /** The settings files that start Claude Code in its auto mode (`permissions.defaultMode: "auto"`). */
+    autoMode: string[];
+    /** Skills the settings keep in the plugin's folder that are not there (docs/skills.md). */
+    skillsMissing: string[];
+  };
 }

@@ -24,7 +24,8 @@
  *  12. a compound command whose every part the project's allow rules cover runs in the default permission mode;
  *  13. the tool packs: a pack's skill loads and its use is recorded; the catalog tool, behind tool search, is found;
  *  14. what the skills cost: the person's own skills add nothing, or almost nothing, to the session's context;
- *  15. a short command in Turkish reaches the plugin, which runs its skill and records it.
+ *  15. a short command in Turkish reaches the plugin, which runs its skill and records it;
+ *  16. Claude Code's auto mode: a command the belt allows runs unasked, one it asks about still goes to the person.
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
  *        add --only-bypass to run case 11 alone (two sessions): what a Claude Code release could change for bypass
@@ -32,6 +33,7 @@
  *        add --only-parts to run case 12 alone (one session): a compound command whose parts are allowed
  *        add --only-packs to run case 13 alone (two sessions): the tool packs
  *        add --only-skills to run cases 14 and 15 alone (three sessions): the skills
+ *        add --only-automode to run case 16 alone (two sessions): Claude Code's auto mode with the belt
  *        add --keep to leave the sessions' folders and the full-autonomy sessions' streams in place
  */
 import { spawn, spawnSync } from 'node:child_process';
@@ -46,7 +48,7 @@ const dist = join(root, 'dist');
 const fwd = (p) => p.replace(/\\/g, '/');
 if (!process.argv.includes('--yes')) {
   console.log(
-    'test-live: opt-in. Runs eighteen short headless Claude Code sessions (cheapest model, capped spend), with this build loaded. Run with --yes (--only-bypass, --only-auto: two).',
+    'test-live: opt-in. Runs twenty-six short headless Claude Code sessions (cheapest model, capped spend), with this build loaded. Run with --yes (--only-bypass, --only-auto: two).',
   );
   process.exit(0);
 }
@@ -704,6 +706,38 @@ function shortCommandCase() {
   return r;
 }
 
+/**
+ * 16. Claude Code's auto mode with the belt (docs/safety-belt.md, "Auto mode"): in auto mode a classifier answers
+ * Claude Code's permission questions in the person's place. A command the belt allows runs unasked there; a command
+ * the belt asks about must still reach the person, and a headless session has no one to answer, so it is refused.
+ * The mode the session really ran in is read from its own start: an account or model without auto mode is said.
+ */
+function autoModeCase() {
+  const dir = join(work, 'automode-project');
+  mkdirSync(dir);
+  spawnSync('git', ['init', '-q', dir], { windowsHide: true });
+  const ask = (subject, flags) =>
+    `Use the Bash tool to run exactly this command and nothing else: git -c user.name=live -c user.email=live@example.com commit ${flags}--allow-empty -m ${subject} . Then reply with the single word DONE.`;
+  const run = (subject, flags) => session(ask(subject, flags), settings, 'Read', {}, dir, ['--permission-mode', 'auto']);
+  const plain = run('plain', '');
+  const asked = run('asked', '--no-verify ');
+  const subjects = (spawnSync('git', ['-C', dir, 'log', '--format=%s'], { encoding: 'utf8', windowsHide: true }).stdout ?? '').split('\n').filter(Boolean);
+  const mode = (r) => r.events.find((e) => e.type === 'system' && e.subtype === 'init')?.permissionMode ?? 'not reported';
+  const months = existsSync(join(data, 'events')) ? readdirSync(join(data, 'events')) : [];
+  const logged = months.flatMap((m) => readdirSync(join(data, 'events', m)).map((x) => readFileSync(join(data, 'events', m, x), 'utf8'))).join('\n');
+  check(
+    'auto mode: a command the belt allows runs without a question',
+    mode(plain) === 'auto' && subjects.includes('plain'),
+    `mode ${mode(plain)}${subjects.includes('plain') ? '' : ` · not run: ${(plain.final?.result ?? plain.stderr).slice(0, 120)}`}`,
+  );
+  check(
+    "auto mode: the belt's question still goes to the person, so a headless session refuses the command",
+    mode(asked) === 'auto' && !subjects.includes('asked') && /git\.no-verify/.test(logged),
+    subjects.includes('asked') ? 'the command ran: the question was answered in the person’s place' : `mode ${mode(asked)}`,
+  );
+  return [plain, asked];
+}
+
 const results = [];
 const check = (name, ok, detail = '') => {
   results.push({ name, ok, detail });
@@ -724,6 +758,11 @@ try {
   } else if (process.argv.includes('--only-packs')) {
     const p = packsCases();
     const cost = p.reduce((n, x) => n + (x.final?.total_cost_usd ?? 0), 0);
+    console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
+    process.exitCode = results.every((r) => r.ok) ? 0 : 1;
+  } else if (process.argv.includes('--only-automode')) {
+    const a = autoModeCase();
+    const cost = a.reduce((n, x) => n + (x.final?.total_cost_usd ?? 0), 0);
     console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
     process.exitCode = results.every((r) => r.ok) ? 0 : 1;
   } else if (process.argv.includes('--only-parts')) {
@@ -815,7 +854,8 @@ try {
     const twelve = partsCase();
     const thirteen = packsCases();
     const fourteen = [...skillsCost(), shortCommandCase()];
-    const cost = [one, two, three, plan, four, five, six, seven, ...eight, ...nine, ...ten, ...eleven, twelve, ...thirteen, ...fourteen]
+    const sixteen = autoModeCase();
+    const cost = [one, two, three, plan, four, five, six, seven, ...eight, ...nine, ...ten, ...eleven, twelve, ...thirteen, ...fourteen, ...sixteen]
       .filter(Boolean)
       .reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
     console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);

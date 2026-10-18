@@ -75,6 +75,8 @@ export interface PluginInfo {
    * 2.1.300, measured 2026-10-15).
    */
   loads?: string | null;
+  /** The folder it loads from: the one it is read from in place, or Claude Code's copy. */
+  path?: string | null;
   scope: string | null;
 }
 
@@ -180,6 +182,7 @@ export function pluginsVia(runner: ClaudeRunner): PluginInfo[] | null {
         version,
         loads: inPlace ?? version,
         scope: typeof p.scope === 'string' ? p.scope : null,
+        path: typeof p.readFromFolder === 'string' ? p.readFromFolder : typeof p.installPath === 'string' ? p.installPath : null,
       };
     });
   } catch {
@@ -236,6 +239,31 @@ export function hooksOf(src: SettingsSource, ourMarker: string): HookEntry[] {
   return out;
 }
 
+/**
+ * A plugin's own hooks, read as settings hooks are: hooks/hooks.json, and what its plugin.json names (a file, a list
+ * of files, or the hooks themselves). A file that cannot be read adds nothing.
+ */
+export function pluginHooks(root: string, ourMarker: string): HookEntry[] {
+  const json = (p: string): unknown => {
+    const text = readText(join(root, p));
+    try {
+      return text ? JSON.parse(text) : null;
+    } catch {
+      return null;
+    }
+  };
+  const manifest = json(join('.claude-plugin', 'plugin.json')) as { hooks?: unknown } | null;
+  const files = new Set([join('hooks', 'hooks.json')]);
+  const inline: unknown[] = [];
+  for (const h of Array.isArray(manifest?.hooks) ? manifest.hooks : [manifest?.hooks]) {
+    if (typeof h === 'string') files.add(join(h));
+    else if (h && typeof h === 'object') inline.push((h as { hooks?: unknown }).hooks ? h : { hooks: h });
+  }
+  return [...[...files].map(json), ...inline].flatMap((j) =>
+    j && typeof j === 'object' ? hooksOf({ scope: 'user', path: root, exists: true, json: j as Record<string, unknown> }, ourMarker) : [],
+  );
+}
+
 function permissionsOf(src: SettingsSource): PermissionRule[] {
   const p = src.json?.permissions as Record<string, unknown> | undefined;
   if (!p || typeof p !== 'object') return [];
@@ -264,7 +292,8 @@ function instruction(kind: InstructionFile['kind'], path: string, limit?: Instru
     path,
     exists: text !== null,
     bytes: text === null ? 0 : Buffer.byteLength(text, 'utf8'),
-    lines: text === null ? 0 : text.split('\n').length,
+    // As an editor counts them: the newline that ends the last line starts no line of its own.
+    lines: text ? text.split('\n').length - (text.endsWith('\n') ? 1 : 0) : 0,
     ...(limit ? { limit } : {}),
   };
 }

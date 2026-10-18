@@ -24,7 +24,10 @@ import { beltConfigOf } from '../../core/settings-view.js';
 import { runAllSuites } from '../../core/selftest/suites.js';
 import { transcriptShape } from '../../core/transcript.js';
 import type { Lang } from '../../core/i18n/index.js';
-import { readClaudeEnv, pluginsVia, type ClaudeRunner } from '../../node/claude-env.js';
+import { pluginHooks, readClaudeEnv, pluginsVia, type ClaudeEnv, type ClaudeRunner, type HookEntry, type PluginInfo } from '../../node/claude-env.js';
+import { scanSecrets } from '../../core/secrets/scan.js';
+import { missingKeptSkills } from '../../node/skills.js';
+import { broadRule, hookFiles, hookLine, startsModel, toolSearchOff, unpinnedServer, usesJq } from './setup.js';
 import { cliProgram, hookProgram, isOurHook, readManifest, underAgent } from '../../node/install.js';
 import { findPrevious, previousPlugin } from '../../node/previous.js';
 import { readJson, readText, realPathOf } from '../../node/fsx.js';
@@ -63,6 +66,91 @@ export interface DoctorEnv {
 }
 
 export type Measure = 'plugins' | 'shells' | 'transcripts' | 'agreement' | 'shortNames' | 'gitProjects';
+
+/** Claude Code's setup beyond this tool's own (setup.ts): hooks, project settings, MCP servers, secrets, the memory index. */
+function setupFacts(d: DoctorEnv, env: ClaudeEnv, installed: boolean, plugins: PluginInfo[] | null): Facts['setup'] {
+  const l = d.layout;
+  const others = env.hooks.filter((h) => !isOurHook({ command: h.command, args: h.args }, l.root));
+  const short = (h: { command: string; args: readonly string[] }) => hookLine(h).slice(0, 200);
+  const deadHooks = others
+    .filter((h) => h.type === 'command')
+    .flatMap((h) =>
+      hookFiles(h, { home: d.home, project: d.cwd, platform: d.platform })
+        .filter((p) => !existsSync(p))
+        .map((missing) => ({ event: h.event, command: short(h), missing })),
+    );
+  // The plugins' own hooks run on the same events: one that starts a model on each (an observer) costs quota unseen.
+  const fromPlugins = (plugins ?? [])
+    .filter((p) => p.enabled === true && p.path && p.id !== PLUGIN_ID)
+    .flatMap((p) => pluginHooks(p.path!, '.mode-code').map((h) => ({ ...h, event: `${h.event} (${p.id})` })));
+  const all = [...others, ...fromPlugins];
+  const jq = onPath('jq', d.env, d.platform).length > 0;
+  const jqHooks = jq ? [] : all.filter((h) => h.type === 'command' && usesJq(hookLine(h))).map((h) => ({ event: h.event, command: short(h) }));
+  // A prompt or agent hook asks a model by its very kind; a command hook does when it starts claude -p.
+  const startsOwnModel = (h: HookEntry) => h.type === 'prompt' || h.type === 'agent' || (h.type === 'command' && startsModel(hookLine(h)));
+  const modelHooks = all.filter(startsOwnModel).map((h) => ({ event: h.event, command: h.type === 'command' ? short(h) : `${h.type} hook` }));
+  const projectish = (scope: string) => scope === 'project' || scope === 'local';
+  // Only the project's shared file: the local one holds the person's own "don't ask again" answers.
+  const loosened = [
+    ...env.permissions
+      .filter((p) => p.kind === 'allow' && p.scope === 'project' && broadRule(p.rule))
+      .map((p) => ({ scope: p.scope, what: `allow ${p.rule}` })),
+    ...env.settings.flatMap((s) => {
+      if (s.scope !== 'project' || !s.json) return [];
+      const out: { scope: string; what: string }[] = [];
+      if (s.json.enableAllProjectMcpServers === true) out.push({ scope: s.scope, what: 'enableAllProjectMcpServers' });
+      // The project approving its own .mcp.json servers: Claude Code would otherwise ask the person first.
+      const approved = Array.isArray(s.json.enabledMcpjsonServers) ? s.json.enabledMcpjsonServers.filter((x) => typeof x === 'string') : [];
+      if (approved.length) out.push({ scope: s.scope, what: `enabledMcpjsonServers ${approved.join(', ')}` });
+      const mode = (s.json.permissions as { defaultMode?: unknown } | undefined)?.defaultMode;
+      if (mode === 'bypassPermissions') out.push({ scope: s.scope, what: 'defaultMode bypassPermissions' });
+      return out;
+    }),
+  ];
+  const unpinnedMcp = env.mcp.filter((s) => unpinnedServer(s.target)).map((s) => ({ scope: s.scope, name: s.name, target: s.target.slice(0, 200) }));
+  const git = (args: string[]) => runProgram('git', ['-C', d.cwd, ...args], { timeoutMs: 4000 });
+  const inside = git(['rev-parse', '--is-inside-work-tree']);
+  const noGit = inside.ok ? inside.out !== 'true' : /not a git repository/i.test(inside.error ?? '') ? true : null;
+  const tracked = (file: string) => noGit === false && git(['ls-files', '--error-unmatch', '--', file]).ok;
+  const secrets = [...env.settings.map((s) => ({ path: s.path, scope: s.scope })), { path: d.globalConfig, scope: 'user' as const }].flatMap((s) => {
+    const text = readText(s.path);
+    if (!text) return [];
+    const kinds = [
+      ...new Set(
+        scanSecrets(text)
+          .filter((x) => x.confidence === 'high')
+          .map((x) => x.kind),
+      ),
+    ];
+    return kinds.length ? [{ path: s.path, kinds, tracked: projectish(s.scope) && tracked(s.path) }] : [];
+  });
+  const index = env.instructions.find((i) => i.kind === 'memory-index' && i.exists);
+  // The settings' "env" is laid over the process's as Claude Code does it: user, project, local, then managed.
+  const rank = { user: 0, project: 1, local: 2, managed: 3 } as const;
+  const settingsEnv = [...env.settings]
+    .sort((a, b) => rank[a.scope] - rank[b.scope])
+    .flatMap((s) => {
+      const e = s.json?.env;
+      return e && typeof e === 'object' && !Array.isArray(e) ? Object.entries(e as Record<string, unknown>).map(([k, v]) => [k, String(v)] as const) : [];
+    });
+  const offs = toolSearchOff({ ...d.env, ...Object.fromEntries(settingsEnv) });
+  return {
+    deadHooks,
+    jqHooks,
+    modelHooks,
+    loosened,
+    unpinnedMcp,
+    secrets,
+    localTracked: tracked('.claude/settings.local.json'),
+    noGit,
+    memoryIndex: index
+      ? { path: index.path, lines: index.lines, bytes: index.bytes, maxLines: index.limit?.lines ?? 200, maxBytes: index.limit?.bytes ?? 25_000 }
+      : null,
+    toolSearchOff: offs,
+    autoMode: env.settings.filter((s) => (s.json?.permissions as { defaultMode?: unknown } | undefined)?.defaultMode === 'auto').map((s) => s.scope),
+    skillsMissing: installed ? missingKeptSkills(l, d.config) : [],
+  };
+}
 
 /** The memory store as the doctor reads it: settings, folder, git, Claude Code's setting, the newest sync record. */
 function memoryStoreFacts(d: DoctorEnv): Facts['memoryStore'] {
@@ -729,6 +817,7 @@ export async function gatherFacts(d0: DoctorEnv, now = Date.now()): Promise<Fact
     hookAgreement: !wants(d, 'agreement') || !hookExists || !realPathOf(node) ? null : await hookAgreement(d, node, hookFile),
     bypass: bypassFacts(l, d.config, now),
     update: { check: d.config.update.check, current: APP_VERSION, state: readUpdateState(l) },
+    setup: setupFacts(d, env, manifest !== null, plugins),
     autonomy: {
       enabled: d.config.autonomy.enabled,
       checks: d.config.autonomy.enabled ? autonomyCheck({ layout: l, config: d.config }, d.cwd, { platform: d.platform, env: d.env, claude: env }).checks : [],

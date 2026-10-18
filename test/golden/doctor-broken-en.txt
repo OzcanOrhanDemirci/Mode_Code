@@ -8,6 +8,9 @@ Claude Code
   ✓ Claude Code reads its settings files without errors (1 read).
   ✓ No settings file turns the hooks off.
   ✓ The plugin mode-code@mode-code-local is installed and on (version dev).
+  ✓ Every other hook in the settings can run.
+  ✓ No hook starts a model of its own.
+  ✓ Claude Code's tool search is on: MCP tools are loaded when they are needed.
 Installation
   ✓ Installed version dev on 2026-10-11.
   ✗ The hook program is missing: ~/.mode-code/bin/hook.mjs.
@@ -19,6 +22,7 @@ Installation
   ✓ The plugin last reported in from a session at 2026-10-12 11:50 (UTC).
   ✓ Mode_Code 1.2.0 is the newest release.
   · Full autonomy is off (mode-code autonomy enable turns it on).
+  ✓ The skills your settings keep are in place.
 Protection
   ✗ The installed hook answered 1 of 30 samples differently from this version.
       Write ~/MODECO~1/config.json: this version says block, the installed hook says allow.
@@ -28,6 +32,9 @@ Protection
       ~/MODECO~1 is ~/.mode-code.
   ✓ Memory folders are protected and are git repositories (1).
   · Bypass is off: no session can lift the safety belt.
+  ✓ The project's shared settings widen nothing.
+  ✓ No MCP server starts at whatever version is newest.
+  ✓ No secret is written in the Claude Code settings files.
 Shells and terminal
   ✓ Git Bash (C:/Program Files/Git/bin/bash.exe) maps /tmp to your Temp folder, as the belt assumes.
   ✓ PowerShell 7.6.6.
@@ -45,11 +52,13 @@ git
   ! git cannot read some registered projects (1).
       C:/dev/app: fatal: detected dubious ownership
       → If you own C:/dev/app, mark it safe: git config --global --add safe.directory C:/dev/app
+  ✓ Git keeps this folder.
 Data
   ✓ The settings file is valid.
   ✓ The session index is sound (42 sessions).
   ✓ A recent quota reading is stored.
   ✓ Where the memory lives: this computer and your GitHub · C:/dev/notes/memory. Claude Code uses it.
+  ✓ The memory index is 40 lines, 4 KB: within what Claude Code loads (200 lines, 25 KB).
   · Sync across computers is not set up.
   ✓ 3 recent session transcripts read: 100 rows in the expected shape.
   ✓ Every tool that ran commands or wrote files in recent sessions is checked by the belt (Bash, Edit).
@@ -57,7 +66,7 @@ Data
 Self-tests
   ✓ All 30 built-in samples of 1 suites gave the expected answer.
 
-43 checks in 2.1 s: 30 ok, 2 warnings, 3 problems.
+53 checks in 2.1 s: 39 ok, 2 warnings, 3 problems.
 Problems that weaken a protection: 3.
 
 Problems that can be repaired automatically: 3.

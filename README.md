@@ -264,7 +264,7 @@ A tool that stands between an agent and your machine has to earn trust with evid
 - **The installer is tested as you run it.** In sh, bash, Windows PowerShell 5.1 and PowerShell 7, each in a home of its own: with and without Node.js, from a release whose checksum must match, then updated, run and removed. A release is made only after the installer it carries has installed the very package it publishes on Linux, macOS and Windows.
 - **The tests found real bugs**, each fixed with a test that keeps it fixed: protected files reachable under Windows short names (`MODECO~1`) or with a trailing dot, every recursive delete under the home folder blocked on macOS, a parser crash on `__proto__`.
 
-On your machine, `mode-code doctor` runs the same checks: Node.js, Claude Code and its settings, the hooks and the plugin, Git Bash, PowerShell and zsh, the terminal, the file system, git and the tool's own data. It repairs what it safely can, backs up first, checks again, and says exactly what is left for you. `npm run verify` runs every layer that can run on a machine and prints one line per layer.
+On your machine, `mode-code doctor` runs the same checks: Node.js, Claude Code and its settings (other hooks that cannot run or start a model each time, the project's shared settings, MCP servers at no pinned version, secrets written in settings, the memory index), the hooks and the plugin, Git Bash, PowerShell and zsh, the terminal, the file system, git and the tool's own data. It repairs what it safely can, backs up first, checks again, and says exactly what is left for you. `npm run verify` runs every layer that can run on a machine and prints one line per layer.
 
 ## Limits
 

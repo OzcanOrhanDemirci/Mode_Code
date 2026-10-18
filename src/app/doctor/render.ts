@@ -144,6 +144,12 @@ export function renderSelfCheck(r: SelfCheckReport, lang: Lang, style: Style = P
   return lines;
 }
 
+/** A table cell's text: a backslash and a pipe written as themselves (GitHub's Markdown escapes both). */
+const cell = (s: string) => s.replace(/[\\|]/g, '\\$&');
+
+/** A detail naming a command, a server's command line or a permission rule: any of them may hold a secret or a name. */
+const unshared = (d: Message) => !!d.params && ['command', 'target', 'rule'].some((k) => k in d.params!);
+
 /**
  * A report to paste into an issue: versions and check results, in English, with the home folder and the
  * user name hidden. No commands, no file contents.
@@ -161,10 +167,10 @@ export function renderReport(run: DoctorRun, opts: { home: string; user: string 
   ];
   for (const r of run.results) {
     if (r.status === 'skip') continue;
-    const text = say('en', r.summary, opts.home, opts.user).replace(/\|/g, '\\|');
+    const text = cell(say('en', r.summary, opts.home, opts.user));
     lines.push(`| ${r.id} | ${r.status} | ${text} |`);
     if (r.status === 'warn' || r.status === 'fail')
-      for (const d of (r.details ?? []).slice(0, 5)) lines.push(`|  |  | ${say('en', d, opts.home, opts.user).replace(/\|/g, '\\|')} |`);
+      for (const d of (r.details ?? []).filter((x) => !unshared(x)).slice(0, 5)) lines.push(`|  |  | ${cell(say('en', d, opts.home, opts.user))} |`);
   }
   lines.push('', `<!-- ${tIn('en', 'doc.report.intro', { url: `${REPO_URL}/issues/new` })} -->`);
   return lines.join('\n');

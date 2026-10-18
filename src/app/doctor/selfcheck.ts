@@ -19,6 +19,7 @@ import { applyInstall, distDir, hookProgram, planInstall, stableNodePath, type M
 import type { DoctorEnv } from './facts.js';
 import { examine, planRepairs, repair } from './doctor.js';
 import type { RepairId } from './types.js';
+import { EXTERNAL_SKILLS } from '../../core/skills-external.js';
 
 /** A stand-in for `claude`: answers the plugin commands the installer and the doctor use, from memory. */
 export function standInClaude(
@@ -166,6 +167,16 @@ export const FAULTS: readonly Fault[] = [
   },
   { id: 'settings-broken', check: 'claude.settings', repair: null, inject: (s) => appendFileSync(s.settingsFile, '\n}{ broken') },
   {
+    // A skill kept from others whose copy in the plugin is gone (as after a plugin folder copied back by hand).
+    id: 'skills-missing',
+    check: 'install.skills',
+    repair: 'sync-skills',
+    inject: (s) => {
+      const c = readJson<Record<string, unknown>>(s.layout.config) ?? {};
+      writeFileSync(s.layout.config, JSON.stringify({ ...c, skills: { items: { [Object.keys(EXTERNAL_SKILLS)[0]!]: 'me' } } }, null, 2));
+    },
+  },
+  {
     id: 'loose-permissions',
     check: 'files.permissions',
     repair: 'tighten-permissions',
@@ -249,6 +260,7 @@ export const SANDBOX_CHECKS = [
   'install.hooks',
   'install.pluginFiles',
   'install.controlCenter',
+  'install.skills',
   'files.data',
   'files.leftovers',
   'files.permissions',
