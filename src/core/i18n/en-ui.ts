@@ -108,6 +108,7 @@ export const enUi = {
   'install.ask.pick': 'Choose 1-{n} (Enter = 1):',
   'install.ask.memory': 'Memory folder to protect and show in the footer (Enter = {suggestion}, - = none):',
   'install.ask.footer': 'Footer lines under each answer:',
+  'install.ask.footerExample': 'For example, after an answer that wrote two files and pushed the memory:',
   'install.summary': 'Your choices',
   'install.dryRun': 'Dry run: nothing was changed.',
   'install.confirm': 'Install? [y/n, Enter = no]',

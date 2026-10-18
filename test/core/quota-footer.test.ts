@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { assessQuota, DEFAULT_BUDGET, fromModRateLimits, fromStatusLine, weeklyTargetFrom } from '../../src/core/quota.js';
-import { buildFooter, checkFooter, classifyTurn, shellChanges, type ClassifyEnv } from '../../src/core/footer.js';
+import { buildFooter, checkFooter, classifyTurn, sampleFooter, shellChanges, type ClassifyEnv } from '../../src/core/footer.js';
 
 const NOW = Date.parse('2026-10-12T01:00:00Z');
 const reading = (five: number, week: number, minutesOld = 0) =>
@@ -151,4 +151,9 @@ test('checkFooter accepts right lines and names wrong ones', () => {
   const bad = 'Özet.\n\nHafıza İtildi: Hayır\n\nİşlem Yapıldı: Hayır\n\nHaftalık Kota: 30';
   const problems = checkFooter(f.expect, bad, 'tr');
   assert.equal(problems.length, 4);
+});
+
+test('the sample shown where the footer is chosen is drawn by the footer itself', () => {
+  assert.deepEqual(sampleFooter('tr'), ['Hafıza İtildi: Evet', 'İşlem Yapıldı: Evet (2 dosya yazıldı, git commit/push)']);
+  assert.deepEqual(sampleFooter('en'), ['Memory pushed: Yes', 'Changes made: Yes (2 files written, git commit/push)']);
 });

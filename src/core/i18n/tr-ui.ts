@@ -102,6 +102,7 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'install.ask.detailed': "Ayrıntılı: her şey (Claude Code'u iyi bilenler için)",
   'install.ask.pick': '1-{n} arası seç (Enter = 1):',
   'install.ask.memory': 'Korunacak ve alt satırda gösterilecek hafıza klasörü (Enter = {suggestion}, - = yok):',
+  'install.ask.footerExample': 'Örneğin iki dosya yazıp hafızayı iten bir cevabın altında:',
   'install.ask.footer': 'Her cevabın altındaki satırlar:',
   'install.summary': 'Seçimlerin',
   'install.dryRun': 'Deneme: hiçbir şey değişmedi.',

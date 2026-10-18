@@ -174,6 +174,12 @@ export interface Footer {
   expect: FooterExpect;
 }
 
+/** What the lines look like after a turn that wrote two files, committed and pushed memory: shown where the person chooses them. */
+export function sampleFooter(lang: Lang): string[] {
+  const acts: TurnActs = { files: 2, memoryFiles: 0, settings: 0, git: 1, shell: 0, external: 0 };
+  return buildFooter({ memory: { state: 'pushed' }, acts, five: null, week: null, weeklyTarget: null, showFiveFrom: 70, showWeekFrom: 85 }, lang).lines;
+}
+
 export function buildFooter(f: FooterFacts, lang: Lang): Footer {
   const lines: string[] = [];
   const yes = tIn(lang, 'footer.yes');

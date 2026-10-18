@@ -25,6 +25,7 @@ import { appContext, type AppContext } from '../app/context.js';
 import { loadEvents, loadQuota, openIndex, scanPaths } from '../app/data.js';
 import { checkHealth, healthCounts, type FeatureHealth } from '../app/health.js';
 import { buildReport, reportLines } from '../app/report.js';
+import { sampleFooter } from '../core/footer.js';
 import { replay } from '../app/replay.js';
 import { findFlow, flowFiles, loadFlows } from '../app/flows.js';
 import { progress } from '../core/flow.js';
@@ -73,9 +74,10 @@ async function confirm(question: string, word?: string): Promise<boolean> {
   }
 }
 
-/** Asks the person to pick one of a few options by number; Enter picks the first. */
-async function choose(ctx: AppContext, question: string, options: string[]): Promise<number> {
+/** Asks the person to pick one of a few options by number; Enter picks the first. A note, dimmed, comes before the options. */
+async function choose(ctx: AppContext, question: string, options: string[], note: string[] = []): Promise<number> {
   say(bold(question));
+  for (const l of note) say(dim(l));
   options.forEach((o, i) => say(`  ${cyan(String(i + 1))}  ${o}`));
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
@@ -221,7 +223,8 @@ export async function cmdInstall(a: Args): Promise<number> {
         const dir = m === '' ? suggestion : m === '-' ? null : m;
         if (dir) chosen.memory = { ...cloneDefaults().memory, dirs: [dir] };
       }
-      const f = await choose(ctx, T(ctx, 'install.ask.footer'), [T(ctx, 'footer.mode.draw'), T(ctx, 'footer.mode.check'), T(ctx, 'footer.mode.off')]);
+      const note = [T(ctx, 'set.footerModeHelp'), T(ctx, 'install.ask.footerExample'), ...sampleFooter(ctx.lang).map((l) => `    ${l}`)];
+      const f = await choose(ctx, T(ctx, 'install.ask.footer'), [T(ctx, 'footer.mode.draw'), T(ctx, 'footer.mode.check'), T(ctx, 'footer.mode.off')], note);
       chosen.footer = { ...cloneDefaults().footer, mode: (['draw', 'check', 'off'] as const)[f]! };
     }
     say();
