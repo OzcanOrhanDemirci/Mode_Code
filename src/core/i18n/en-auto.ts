@@ -29,7 +29,7 @@ export const enAuto = {
   'auto.gate.budget.reached': 'The budget is already reached: weekly {used}%, budget {target}%.',
   'auto.gate.budget.ok': 'Weekly {used}% of a {target}% budget.',
   'auto.gate.platform.windows':
-    "Native Windows: no sandbox, so the safety belt and the task's write limits (the project and its own folders) guard it. They prevent accidents; neither is a security boundary.",
+    "Native Windows: no sandbox, so the safety belt and the run's write limits (the project and its own folders) guard it. They prevent accidents; neither is a security boundary.",
   'auto.gate.platform.ok': 'Platform: {platform}.',
   'auto.gate.wsl.notWsl': 'Not WSL.',
   'auto.gate.wsl.unreadable': "WSL's own files could not be read (/proc/sys/kernel/osrelease, /proc/mounts).",
@@ -172,7 +172,7 @@ export const enAuto = {
   'auto.tool.none': 'No full-autonomy run is attached to this session.',
   'auto.tool.started': 'Full autonomy started: {checks} start checks passed, the live sandbox probe and the permission mode ({mode}) among them.',
   'auto.tool.resumedAt': 'The run resumed at its {phase} phase: every start check passed again.',
-  'auto.tool.agent': 'Only the main session drives a full-autonomy task; an agent cannot call this tool.',
+  'auto.tool.agent': 'Only the main session drives the run; an agent cannot call this tool.',
   'auto.tool.paused': 'The run is paused ({reason}). The person resumes it with "{cont}".',
   'auto.tool.over': 'The run is {status}; nothing changes any more.',
   'auto.tool.badAction': 'Unknown action "{action}". Actions: plan, milestone, blocker, defer, finish, stuck, status.',

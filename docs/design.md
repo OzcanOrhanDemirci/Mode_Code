@@ -99,7 +99,7 @@ Only the 16 basic colours, so the person's terminal theme decides the contrast; 
 | -------------------------------------------------- | ----------------------------- | ----------------------------------------------- | ----------------------------- |
 | the protection that stops risky commands           | safety belt                   | emniyet kemeri                                  | hook (Claude Code's own part) |
 | a session where the safety belt asks nothing       | bypass (works without asking) | bypass (sormadan çalış)                         | izinsiz ✓                     |
-| a task Claude carries to its end alone             | full-autonomy task            | tam otonom iş                                   | koşu ✓                        |
+| a task Claude carries to its end alone             | full-autonomy run             | tam otonom iş                                   | koşu ✓                        |
 | what keeps such a task's writes in the project     | write limits                  | yazma sınırları                                 | fence ✓, çit ✓                |
 | research → plan → approve → code                   | flow                          | akış (adım adım iş)                             |                               |
 | helper Claudes that run beside the main one        | agents                        | ajanlar (yardımcı Claude'lar)                   | subagent ✓, alt ajan ✓        |
@@ -113,7 +113,11 @@ Only the 16 basic colours, so the person's terminal theme decides the contrast; 
 | a connection to an outside tool                    | outside tool (MCP)            | dış araç (MCP)                                  |                               |
 | thousands of tokens                                | 250K tokens                   | 250 bin token                                   | 250 B ✓                       |
 
-The rows marked ✓ live in `src/core/ux/glossary.ts`, and `test/core/ux-glossary.test.ts` reads every message of both languages against them. "Eklenti" names both the plugin and Claude Code's add-ons because Claude Code calls both plugins; where it means Mode_Code's part, the sentence says so.
+The rows marked ✓ live in `src/core/ux/glossary.ts`, and `test/core/ux-glossary.test.ts` reads every message of both languages against them. The rest guide the writing and are not refused:
+
+- "The belt" and "kemer" may stand for the safety belt once a screen has named it in full; a page title under Security reads in that light.
+- "Sınır" stays for limits of time and writes ("Süre sınırı", "yazma sınırları"); the ceiling the person sets on the quota is always "bütçe".
+- "Eklenti" names both the plugin and Claude Code's add-ons, because Claude Code calls both plugins; where it means Mode_Code's part, the sentence names Mode_Code or Claude Code beside it.
 
 ## Components
 
