@@ -7,10 +7,24 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ### Added
 
 - What a task costs of the quota, measured on your computer (`node scripts/measure/tasks.mjs`): every Claude Code session cut at its commits and pushes, each piece priced by model and token kind, weighed by what the quota counts, and turned into weekly points by Mode_Code's own readings. It reads the transcripts and the event log and writes nothing (`docs/testing.md`).
+- `mode-code sync projects`, also run by the sync setup: projects that came from another computer find their folder here by the same repository, the folder name the other computer uses or their own name, and are linked on one yes. Each computer's `machine.json` now says where it keeps its projects, with no user or token in a repository's address (`docs/sync.md`).
 
 ### Changed
 
 - Checked against Claude Code 2.1.302: the plugin type-checks against its declarations, the engine's own test kit passes, and the live sessions run on it.
+
+### Fixed
+
+- At the quota's hard limit, staging (`git add`) is allowed with the commit it prepares, as the refusal message always said; before, saving memory could not finish.
+- Yes/no questions use the letters of your language in one case (`[e/h]` in Turkish, not `[Y/n]`) and say what Enter answers, so the memory and sync setups' last question, where Enter means no, no longer cancels unnoticed.
+- The installer's question about the footer lines says what each choice does and shows two lines as they would appear; before, it listed only the names.
+- An installation that asks no questions (the simple view, `--yes`, the one-line installers) protects the memory folder Claude Code is set to keep (`autoMemoryDirectory`); before, it protected none.
+- The sync setup offers a Mac its own name from System Settings; it offered the host name, which a network can set to the computer's address (`192.168.1.9`). An address is never offered as a name.
+- A handoff note's next step, when it is only the last request, is named in your language on the screens and in `mode-code memory`; it said "last request" in English.
+- Uninstalling leaves Claude Code's `settings.json` as it was: the empty `enabledPlugins` and `extraKnownMarketplaces` that Claude Code leaves behind are removed with the plugin's own records.
+- A memory folder already protected under another spelling (`~/notes/` beside `/Users/you/notes`) is not added again by the memory setup, and the doctor counts each folder once.
+- In Apple's Terminal, Mo beside a strip of two rows is drawn one row tall: the half blocks of the two-row Mo leave a gap between rows there, and it read as two Mos stacked.
+- On a Mac, the window `0` opens for the control center clears the command it typed before the program starts; Terminal showed it twice.
 
 ## [1.1.0] - 2026-10-15
 

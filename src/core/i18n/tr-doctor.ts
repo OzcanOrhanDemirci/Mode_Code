@@ -197,7 +197,7 @@ export const trDoctor: Record<keyof typeof enDoctor, string> = {
   'doc.summary.protection': 'Sorunlardan {n} tanesi bir korumayı zayıflatıyor.',
   'doc.repairs.title': 'Onarımlar',
   'doc.repairs.offer': '{n} sorun kendiliğinden onarılabilir:',
-  'doc.repairs.ask': 'Şimdi onarılsın mı? Değişen her dosyanın önce yedeği alınır. [e/H]',
+  'doc.repairs.ask': 'Şimdi onarılsın mı? Değişen her dosyanın önce yedeği alınır. [e/h, Enter = hayır]',
   'doc.repairs.hint': 'Onarmak için "mode-code doctor --fix" çalıştır.',
   'doc.repairs.refused': 'Bu komutu bir ajan çalıştırdığı için onarılmadı: {what}. "mode-code doctor --fix" komutunu kendin çalıştır.',
   'doc.repairs.verified': 'onarıldı ve yeniden denetlendi',

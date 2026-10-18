@@ -188,6 +188,27 @@ export function withoutOurHooks(settings: Record<string, unknown>, dataDir: stri
 }
 
 /**
+ * Settings without the plugin's own records in the two keys Claude Code keeps for plugins, should `claude plugin`
+ * have left them, and without either key once nothing else is in it: an uninstall leaves the file as it was, not
+ * with an empty `"enabledPlugins": {}`. Pure.
+ */
+export function withoutOurRecords(settings: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...settings };
+  for (const [key, ours] of [
+    ['enabledPlugins', PLUGIN_ID],
+    ['extraKnownMarketplaces', MARKETPLACE_NAME],
+  ] as const) {
+    const v = out[key];
+    if (!v || typeof v !== 'object' || Array.isArray(v)) continue;
+    const rest = { ...(v as Record<string, unknown>) };
+    delete rest[ours];
+    if (Object.keys(rest).length) out[key] = rest;
+    else delete out[key];
+  }
+  return out;
+}
+
+/**
  * Settings with an earlier installation's hooks taken out and, when its data is copied here, Claude Code's
  * memory folder moved with it (movedMemorySetting). Pure.
  */
@@ -439,7 +460,7 @@ export function applyUninstall(l: Layout, opts: { purge?: boolean; runner?: Clau
     const text = readText(settingsFile);
     if (text !== null) {
       const settings = JSON.parse(text) as Record<string, unknown>;
-      const next = withoutOurHooks(settings, l.root);
+      const next = withoutOurRecords(withoutOurHooks(settings, l.root));
       if (JSON.stringify(next) !== JSON.stringify(settings)) {
         writeAtomic(join(l.backupsDir, `settings.json.uninstall.${Date.now()}`), text);
         writeAtomic(settingsFile, JSON.stringify(next, null, 2) + '\n');

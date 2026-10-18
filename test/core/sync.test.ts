@@ -15,6 +15,9 @@ import {
   flowSummary,
   lowersProtection,
   machineId,
+  machineName,
+  matchProjects,
+  remoteKey,
   machinePaths,
   maskedEvents,
   mergeSettings,
@@ -103,6 +106,86 @@ test('the sync setting: a place, a folder, this computer; github needs a remote;
 test("a computer's id: its name in plain letters and four hex digits; where its files are", () => {
   assert.equal(machineId('Özcan’s İş Bilgisayarı', 'A1B2'), 'ozcan-s-is-bilgisayari-a1b2');
   assert.equal(machineId('MacBook-Pro.local', 'ff'), 'macbook-pro-local-ff00');
+});
+
+test('a remote is a place: one form for every way of writing it, never a user or a token', () => {
+  for (const url of [
+    'https://github.com/Ada/Car.git',
+    'https://ada:' + 'tok' + '@github.com/ada/car',
+    'ssh://git@github.com/ada/car.git/',
+    'git@github.com:ada/car.git',
+    'github.com:ada/car',
+  ])
+    assert.equal(remoteKey(url), 'github.com/ada/car', url);
+  assert.equal(remoteKey('https://gitlab.example.com:8443/group/sub/repo.git'), 'gitlab.example.com/group/sub/repo');
+  // A host alias from ~/.ssh/config can be two letters; one letter is a Windows drive.
+  assert.equal(remoteKey('gh:ada/car'), 'gh/ada/car');
+  for (const notRemote of ['C:/dev/car', 'C:\\dev\\car', '/home/ada/car', '../car', 'file:///home/ada/car', '', 'https://github.com/', 'nonsense://'])
+    assert.equal(remoteKey(notRemote), null, notRemote);
+});
+
+test('projects from the other computers find their folders here: same repository, then folder name, then their own name', () => {
+  const hints: Record<string, { folder: string; parent: string; remote?: string; sub?: string }>[] = [
+    {
+      araba: { folder: 'car', parent: 'dev', remote: 'github.com/ada/car', sub: '' },
+      '3d': { folder: '3d', parent: 'arduino', remote: 'github.com/ada/arduino', sub: '3d' },
+      hava: { folder: 'weather_app', parent: 'dev' },
+      'ezan-vakti': { folder: 'ezan_vakti', parent: 'dev' },
+      twin: { folder: 'twin', parent: 'dev' },
+      gone: { folder: 'gone', parent: 'dev', remote: 'github.com/ada/gone', sub: '' },
+    },
+    { 'ezan-vakti': { folder: 'EzanVakti', parent: 'Projects' } },
+  ];
+  const folders = [
+    { path: '/Users/ada/dev/car-mac', name: 'car-mac', remote: 'github.com/ada/car' },
+    { path: '/Users/ada/dev/arduino', name: 'arduino', remote: 'github.com/ada/arduino' },
+    { path: '/Users/ada/dev/Weather_App', name: 'Weather_App', remote: null },
+    { path: '/Users/ada/dev/ezan_vakti', name: 'ezan_vakti', remote: null },
+    { path: '/Users/ada/dev/twin', name: 'twin', remote: null },
+    { path: '/Users/ada/Projects/twin', name: 'twin', remote: null },
+    { path: '/Users/ada/dev/Chefol', name: 'Chefol', remote: null },
+    { path: '/Users/ada/dev/linked', name: 'linked', remote: null },
+  ];
+  const homeless = ['araba', '3d', 'hava', 'ezan-vakti', 'twin', 'gone', 'chefol', 'linked', 'nowhere'].map((id) => ({
+    id,
+    names: id === 'hava' ? ['hava', 'weather'] : [id],
+  }));
+  assert.deepEqual(matchProjects(homeless, hints, folders, ['/users/ada/dev/linked'], 'darwin'), [
+    { id: 'araba', path: '/Users/ada/dev/car-mac', by: 'remote' },
+    { id: '3d', path: '/Users/ada/dev/arduino/3d', by: 'remote' },
+    { id: 'hava', path: '/Users/ada/dev/Weather_App', by: 'folder' },
+    { id: 'ezan-vakti', path: '/Users/ada/dev/ezan_vakti', by: 'folder' },
+    { id: 'chefol', path: '/Users/ada/dev/Chefol', by: 'name' },
+  ]);
+  // Two projects that would share one folder get neither; on Linux case tells folders apart.
+  const shared = [{ x: { folder: 'app', parent: 'dev' }, y: { folder: 'App', parent: 'dev' } }];
+  const one = [{ path: '/home/ada/dev/app', name: 'app', remote: null }];
+  assert.deepEqual(
+    matchProjects(
+      [
+        { id: 'x', names: [] },
+        { id: 'y', names: [] },
+      ],
+      shared,
+      one,
+      [],
+      'linux',
+    ),
+    [],
+  );
+  assert.deepEqual(matchProjects([{ id: 'x', names: [] }], [], one, ['/home/ada/dev/App'], 'linux'), []);
+  assert.deepEqual(matchProjects([{ id: 'app', names: [] }], [], one, ['/home/ada/dev/App'], 'linux'), [{ id: 'app', path: '/home/ada/dev/app', by: 'name' }]);
+});
+
+test('the name offered for a computer: its first real name, never a network address', () => {
+  // The Mac of 2026-10-15: a network that names it made its host name 192.168.1.9.
+  assert.equal(machineName(['Özcan’s MacBook Air\n', 'Ozcans-MacBook-Air', '192.168.1.9'], 'darwin'), 'Özcan’s MacBook Air');
+  assert.equal(machineName([null, '', '192.168.1.9', '192-168-1-9.local', 'fe80::1', '::1'], 'darwin'), 'Mac');
+  assert.equal(machineName([null, null, 'OzcanOrhanMSI', 'OZCANORHANMSI'], 'win32'), 'OzcanOrhanMSI');
+  assert.equal(machineName([undefined, 'MacBook-Pro.local'], 'darwin'), 'MacBook-Pro');
+  assert.equal(machineName(['ip-172-31-5-9', '10.0.0.1'], 'linux'), 'ip-172-31-5-9');
+  assert.equal(machineName([], 'linux'), 'Linux');
+  assert.equal(machineName([], 'win32'), 'Windows');
   assert.equal(machineId('???', '12345'), 'computer-1234');
   assert.equal(machineId('x'.repeat(60), 'zz12'), `${'x'.repeat(40)}-1200`);
   assert.equal(machineId('a-'.repeat(30), 'abcd'), `${'a-'.repeat(19)}a-abcd`);
@@ -432,7 +515,16 @@ test('history: month folders kept, events masked line by line, summaries of runs
     platform: 'darwin',
     app: '0.5.0',
     since: 5,
+    projects: {},
   });
+  const hinted = parseMachineInfo(
+    JSON.stringify({
+      id: 'm',
+      name: 'M',
+      projects: { car: { folder: 'car', parent: 'dev', remote: 'github.com/a/car', sub: '' }, bad: { parent: 'x' }, n: 5 },
+    }),
+  )!;
+  assert.deepEqual(hinted.projects, { car: { folder: 'car', parent: 'dev', remote: 'github.com/a/car', sub: '' } });
   assert.equal(parseMachineInfo('{"id":"m"}'), null);
   assert.deepEqual(parseIgnored('{"a":5,"b":"x","c":Infinity}'.replace('Infinity', 'null')), { a: 5 });
   assert.deepEqual(parseIgnored('[1]'), {});

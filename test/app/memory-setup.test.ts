@@ -12,6 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { memorySetup } from '../../src/app/memory-setup.js';
+import { cloneDefaults } from '../../src/core/config.js';
 
 const hasGit = spawnSync('git', ['--version']).status === 0;
 const skip = !hasGit && 'git is not installed';
@@ -42,6 +43,26 @@ test('this computer only: a folder with its history, the setting written with a 
     assert.equal(m.ghCalls.length, 0, 'GitHub is not asked about a local memory');
     assert.ok(s.said.some((l) => /set Claude Code's autoMemoryDirectory to .*\(backup: .*settings\.json\.memory\.1791878400000\)/.test(l)));
     assert.equal(s.left(), 0);
+  } finally {
+    m.done();
+  }
+});
+
+test('a memory folder already protected under another spelling is not added twice', { skip }, async () => {
+  const m = machine();
+  try {
+    const config = cloneDefaults();
+    // The installer kept the setting as written (~ and a closing slash); the setup resolves it.
+    config.memory.dirs = ['~/claude-memory/'];
+    const s = scripted([
+      [/Where should your memory live/, 0],
+      [/Folder for the memory/, ''],
+      [/Go ahead/, true],
+    ]);
+    const r = await memorySetup(s.io, m.env(config));
+    assert.equal(r.ok, true, s.said.join('\n'));
+    assert.deepEqual(r.config?.memory.dirs, ['~/claude-memory/']);
+    assert.equal(s.left(), 0, 'protecting it was not asked again');
   } finally {
     m.done();
   }

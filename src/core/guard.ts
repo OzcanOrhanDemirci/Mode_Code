@@ -5,7 +5,7 @@
  * budget). They answer with a refusal or nothing. The safety belt is separate and never depends on state,
  * so it holds even when state cannot be read.
  */
-import { classifyTurn, OUTWARD_MCP, type ClassifyEnv } from './footer.js';
+import { classifyTurn, OUTWARD_MCP, shellChanges, type ClassifyEnv } from './footer.js';
 import { isBeltTool, isFileTool, shellOf } from './belt/tools.js';
 import { commandEffects, hidingIssues, type Effect } from './shell/effects.js';
 import { inZones, isRestricted, MODE_ICON, writableIn, type ModeZones, type WorkMode } from './modes.js';
@@ -121,7 +121,10 @@ export function checkGuards(
     if (quota.level !== 'ok' && HEAVY.test(tool)) return { kind: 'quota', reason: tIn(lang, 'guard.quota.heavy') };
     if (quota.level === 'stop' && !QUIET.test(tool) && isBeltTool(tool)) {
       const acts = classifyTurn([{ name: tool, input }], env);
-      const changes = acts.files + acts.settings + acts.shell + acts.external;
+      // Staging is the first half of a commit, which stopping allows: `git add` and then `git commit`.
+      const dialect = shellOf(tool);
+      const shell = dialect ? Number(shellChanges(String(input.command ?? ''), dialect, env).other) : acts.shell;
+      const changes = acts.files + acts.settings + shell + acts.external;
       if (changes > 0)
         return {
           kind: 'quota',

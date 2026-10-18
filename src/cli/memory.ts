@@ -60,7 +60,8 @@ export function terminalIO(ctx: AppContext): SetupIO {
     },
     async confirm(question, def) {
       for (;;) {
-        const a = await line(`${question} ${dim(def ? '[Y/n]' : '[y/N]')} `);
+        // The letters follow the language, and the hint names what Enter answers, so a question whose Enter is no says so.
+        const a = await line(`${question} ${dim(T(def ? 'mcli.yes' : 'mcli.no'))} `);
         if (a === '') return def;
         if (/^(?:y|yes|e|evet)$/i.test(a)) return true;
         if (/^(?:n|no|h|hayir|hayır)$/i.test(a)) return false;
@@ -253,7 +254,7 @@ export async function cmdMemory(a: Args): Promise<number> {
   }
   row(
     T(ctx, 'mcli.handoff'),
-    v.handoff ? `${dateTime(v.handoff.note.at, ctx.lang)} · ${nextOf(v.handoff.note, 80)}` : dim(T(ctx, 'mcli.handoff.none', { project: v.project })),
+    v.handoff ? `${dateTime(v.handoff.note.at, ctx.lang)} · ${nextOf(v.handoff.note, 80, ctx.lang)}` : dim(T(ctx, 'mcli.handoff.none', { project: v.project })),
   );
   if (v.pendingNotes) row(T(ctx, 'mcli.notes'), yellow(T(ctx, 'mcli.notes.pending', { n: v.pendingNotes, cmd: `${CLI_NAME} memory notes` })));
   return 0;

@@ -197,7 +197,7 @@ export interface HandoffItem {
 }
 
 /** Every project's handoff notes, newest first, read back (at most `limit`). */
-export function allHandoffs(ctx: Pick<AppContext, 'config' | 'layout'>, limit = 100): HandoffItem[] {
+export function allHandoffs(ctx: Pick<AppContext, 'config' | 'layout' | 'lang'>, limit = 100): HandoffItem[] {
   const root = handoffRoot(ctx.config, ctx.layout.handoffsDir);
   let projects: string[] = [];
   try {
@@ -213,7 +213,7 @@ export function allHandoffs(ctx: Pick<AppContext, 'config' | 'layout'>, limit = 
   for (const h of all.slice(0, limit)) {
     const text = readText(h.path);
     const note = text ? parseHandoff(text) : null;
-    if (note) out.push({ project: h.project, path: h.path, at: note.at, trigger: note.trigger, machine: note.machine, next: nextOf(note) });
+    if (note) out.push({ project: h.project, path: h.path, at: note.at, trigger: note.trigger, machine: note.machine, next: nextOf(note, 240, ctx.lang) });
   }
   return out;
 }

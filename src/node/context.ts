@@ -30,8 +30,10 @@ export function loadConfig(l: Layout): LoadedConfig {
   return { config: m.config, problems, local: config, pending: m.pending };
 }
 
+/** The protected memory folders, resolved, each once however often and however it is spelled in the settings. */
 export function memoryDirs(config: Config, cwd: string): string[] {
-  return config.memory.dirs.map((d) => resolvePath(d, { platform, home: homedir(), cwd }));
+  const all = config.memory.dirs.map((d) => resolvePath(d, { platform, home: homedir(), cwd }));
+  return [...new Map(all.map((d) => [pathKey(d, platform), d])).values()];
 }
 
 /**

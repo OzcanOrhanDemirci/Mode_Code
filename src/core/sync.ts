@@ -31,6 +31,22 @@ export function machinePaths(dir: string, id: string): { root: string; machine: 
   };
 }
 
+const ADDRESS = /^(?:\d{1,3}(?:[.-]\d{1,3}){3}|[0-9a-f]*:[0-9a-f:.]*)$/i;
+
+/**
+ * The name a computer is offered for itself: the first of the system's names that is one (macOS: the computer
+ * name, then the local host name; Windows: COMPUTERNAME; then the host name), without `.local`. A network
+ * address is not a name (a Mac on a network that names it reports 192.168.1.9 as its host name), so none is
+ * offered; with no name at all, the system's own word.
+ */
+export function machineName(candidates: readonly (string | null | undefined)[], platform: string): string {
+  for (const c of candidates) {
+    const name = (c ?? '').trim().replace(/\.local$/i, '');
+    if (name && !ADDRESS.test(name)) return name;
+  }
+  return platform === 'darwin' ? 'Mac' : platform === 'win32' ? 'Windows' : 'Linux';
+}
+
 /** A computer's folder name: its name in lower-case letters and digits, and four random hex digits. */
 export function machineId(name: string, random: string): string {
   const slug = name
@@ -573,6 +589,16 @@ export function parseFlowSummary(text: string | null): FlowSummary | null {
   }
 }
 
+/** Where a computer keeps a project, for the others to find their own copy of it (machine.json, `projects`). */
+export interface ProjectHint {
+  /** The folder's name and its parent's: "car" and "dev" for C:/dev/car. */
+  folder: string;
+  parent: string;
+  /** Its repository's place (remoteKey: no user, no token) and the folder within the repository ("" at its top). */
+  remote?: string;
+  sub?: string;
+}
+
 /** A computer as the others show it (machines/<id>/machine.json). */
 export interface MachineInfo {
   id: string;
@@ -581,16 +607,137 @@ export interface MachineInfo {
   app: string;
   /** When it was set up for sync. */
   since: number;
+  /** Where it keeps the projects that have a folder there, by project id. */
+  projects: Record<string, ProjectHint>;
+}
+
+function parseHints(v: unknown): Record<string, ProjectHint> {
+  const out: Record<string, ProjectHint> = {};
+  if (!isObj(v)) return out;
+  for (const [id, h] of Object.entries(v).slice(0, 200)) {
+    if (!isObj(h) || typeof h.folder !== 'string') continue;
+    out[id.slice(0, 60)] = {
+      folder: str(h.folder, 120),
+      parent: str(h.parent, 120),
+      ...(typeof h.remote === 'string' ? { remote: str(h.remote, 300) } : {}),
+      ...(typeof h.sub === 'string' ? { sub: str(h.sub, 300) } : {}),
+    };
+  }
+  return out;
 }
 
 export function parseMachineInfo(text: string | null): MachineInfo | null {
   try {
     const o = JSON.parse(text ?? '') as Obj;
     if (typeof o.id !== 'string' || typeof o.name !== 'string') return null;
-    return { id: str(o.id, 60), name: str(o.name, 60), platform: str(o.platform, 20), app: str(o.app, 40), since: num(o.since) };
+    return {
+      id: str(o.id, 60),
+      name: str(o.name, 60),
+      platform: str(o.platform, 20),
+      app: str(o.app, 40),
+      since: num(o.since),
+      projects: parseHints(o.projects),
+    };
   } catch {
     return null;
   }
+}
+
+function trimSlashes(s: string): string {
+  let a = 0;
+  let b = s.length;
+  while (a < b && s[a] === '/') a++;
+  while (b > a && s[b - 1] === '/') b--;
+  return s.slice(a, b);
+}
+
+/**
+ * A repository's place, the same however its remote is written: `github.com/owner/repo` for
+ * https://user:token@github.com/Owner/repo.git, ssh://git@github.com/owner/repo and git@github.com:owner/repo.
+ * Never a user name or a token. Null for a folder on disk or what is not a remote.
+ */
+export function remoteKey(url: string): string | null {
+  const u = url.trim();
+  let host: string;
+  let path: string;
+  if (u.includes('://')) {
+    try {
+      const parsed = new URL(u);
+      host = parsed.hostname;
+      path = decodeURIComponent(parsed.pathname);
+    } catch {
+      return null;
+    }
+  } else {
+    const rest = u.slice(u.indexOf('@') + 1);
+    const colon = rest.indexOf(':');
+    host = colon > 0 ? rest.slice(0, colon) : '';
+    path = rest.slice(colon + 1);
+    // C:/dev/x and C:\dev\x are folders, as is anything without host:path.
+    if (host.length < 2 || /[/\\]/.test(host)) return null;
+  }
+  path = trimSlashes(path.replace(/\\/g, '/'));
+  if (path.toLowerCase().endsWith('.git')) path = trimSlashes(path.slice(0, -4));
+  return host && path ? `${host}/${path}`.toLowerCase() : null;
+}
+
+/** A folder on this computer that might hold a project: its path, its name, and its repository's place when it has one. */
+export interface FolderFact {
+  path: string;
+  name: string;
+  remote: string | null;
+}
+
+export interface ProjectMatch {
+  id: string;
+  path: string;
+  /** Found by the same repository, by the folder name the others use, or by the project's own name. */
+  by: 'remote' | 'folder' | 'name';
+}
+
+const nameKey = (s: string) =>
+  s
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/ı/g, 'i')
+    .replace(/[^a-z0-9]/g, '');
+
+/**
+ * Folders here for projects that have none, from where the other computers keep them: the same repository (and
+ * the same folder within it), else a folder with the name they use, else one named like the project. Only one
+ * folder for one project is offered, never a folder already linked here or one two projects would share; the
+ * person confirms what is offered.
+ */
+export function matchProjects(
+  homeless: readonly { id: string; names: readonly string[] }[],
+  hints: readonly Record<string, ProjectHint>[],
+  folders: readonly FolderFact[],
+  linked: readonly string[],
+  platform: string,
+): ProjectMatch[] {
+  const key = (p: string) => (platform === 'win32' || platform === 'darwin' ? p.toLowerCase() : p);
+  const taken = new Set(linked.map(key));
+  const one = (paths: string[]) => {
+    const unique = [...new Map(paths.map((p) => [key(p), p])).values()];
+    return unique.length === 1 ? unique[0]! : null;
+  };
+  const found: ProjectMatch[] = [];
+  for (const p of homeless) {
+    const theirs = hints.map((h) => h[p.id]).filter((h): h is ProjectHint => !!h);
+    const byRemote = one(
+      theirs.flatMap((h) => (h.remote ? folders.filter((f) => f.remote === h.remote).map((f) => (h.sub ? joinPath(f.path, h.sub) : f.path)) : [])),
+    );
+    const folderNames = new Set(theirs.map((h) => nameKey(h.folder)).filter(Boolean));
+    const byFolder = byRemote ? null : one(folders.filter((f) => folderNames.has(nameKey(f.name))).map((f) => f.path));
+    const ownNames = new Set([p.id, ...p.names].map(nameKey).filter(Boolean));
+    const byName = byRemote || byFolder ? null : one(folders.filter((f) => ownNames.has(nameKey(f.name))).map((f) => f.path));
+    const path = byRemote ?? byFolder ?? byName;
+    if (path && !taken.has(key(path))) found.push({ id: p.id, path, by: byRemote ? 'remote' : byFolder ? 'folder' : 'name' });
+  }
+  const count = new Map<string, number>();
+  for (const m of found) count.set(key(m.path), (count.get(key(m.path)) ?? 0) + 1);
+  return found.filter((m) => count.get(key(m.path)) === 1);
 }
 
 /** The person's decisions to keep this computer's value (state/sync-ignored.json): key → the other computer's change time. */

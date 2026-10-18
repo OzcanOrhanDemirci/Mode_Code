@@ -64,6 +64,36 @@ const input = (over: object = {}) => ({
   ...over,
 });
 const key = 'ghp_' + 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8';
+
+test('machine.json says where each project is kept, asking its repository again only when its folder moved or none was found', async () => {
+  const m = memoryFs();
+  const asked: string[] = [];
+  const hint = async (path: string) => {
+    asked.push(path);
+    return path.endsWith('/3d') ? { remote: 'github.com/ada/arduino', sub: '3d' } : path.endsWith('/car') ? { remote: 'github.com/ada/car', sub: '' } : {};
+  };
+  const projects = [
+    { id: 'araba', names: ['araba'], path: 'C:/dev/car' },
+    { id: '3d', names: ['3d'], path: 'C:/dev/arduino/3d' },
+    { id: 'notes', names: ['notes'], path: 'C:/notes' },
+    { id: 'srv', names: ['srv'], path: '/srv' },
+    { id: 'elsewhere', names: ['elsewhere'] },
+  ];
+  await exportMachine(m.fs, input({ local: config({ projects }), hint }));
+  const info = () => JSON.parse(m.files.get('/s/machines/pc-0000/machine.json')!.text).projects;
+  assert.deepEqual(info(), {
+    araba: { folder: 'car', parent: 'dev', remote: 'github.com/ada/car', sub: '' },
+    '3d': { folder: '3d', parent: 'arduino', remote: 'github.com/ada/arduino', sub: '3d' },
+    notes: { folder: 'notes', parent: 'C:' },
+    srv: { folder: 'srv', parent: '' },
+  });
+  assert.deepEqual(asked, ['C:/dev/car', 'C:/dev/arduino/3d', 'C:/notes', '/srv']);
+  asked.length = 0;
+  const moved = projects.map((p) => (p.id === 'araba' ? { ...p, path: 'C:/work/car' } : p));
+  await exportMachine(m.fs, input({ now: NOW + 1000, local: config({ projects: moved }), hint }));
+  assert.deepEqual(asked, ['C:/work/car', 'C:/notes', '/srv']);
+  assert.equal(info().araba.parent, 'work');
+});
 const run = (id: string, updatedAt: number, status = 'done') =>
   JSON.stringify({
     v: 1,
@@ -112,7 +142,7 @@ test("this computer's files: who it is, its settings with their times, its histo
   );
   assert.deepEqual(r.stale, ['/s/machines/pc-0000/events/2026-05']);
   const info = JSON.parse(m.files.get('/s/machines/pc-0000/machine.json')!.text);
-  assert.deepEqual(info, { v: 1, id: 'pc-0000', name: 'PC', platform: 'win32', app: '0.5.0', since: NOW });
+  assert.deepEqual(info, { v: 1, id: 'pc-0000', name: 'PC', platform: 'win32', app: '0.5.0', since: NOW, projects: {} });
   const settings = JSON.parse(m.files.get('/s/machines/pc-0000/settings.json')!.text);
   assert.deepEqual(settings.entries['footer.mode'], { value: 'off', at: 7 });
   const events = m.files.get('/s/machines/pc-0000/events/2026-10/s1.mod.jsonl')!.text;

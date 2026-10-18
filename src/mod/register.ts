@@ -314,6 +314,7 @@ interface Ctx {
     doneAt: number | null;
     stoppedAt: number | null;
     backdrop: 'dark' | 'light';
+    oneRow: boolean;
   };
 }
 
@@ -345,6 +346,7 @@ const moAtom = atom(
     show: false,
     still: false,
     backdrop: 'dark',
+    oneRow: false,
     tools: 0,
     agents: 0,
     asking: 0,
@@ -552,6 +554,7 @@ async function load($: $): Promise<Ctx> {
       doneAt: null,
       stoppedAt: null,
       backdrop: await backdropOf($, home, env, platform, cwd),
+      oneRow: (await $.env.get('TERM_PROGRAM')) === 'Apple_Terminal',
     },
   };
 }
@@ -2375,6 +2378,7 @@ async function publishMo($: $, c: Ctx): Promise<void> {
       show: c.config.modules.mascot && !c.config.accessibility.plain,
       still: c.config.accessibility.reduceMotion,
       backdrop: m.backdrop,
+      oneRow: m.oneRow,
       tools: m.tools,
       agents: m.agents,
       asking: m.asking,
@@ -4626,6 +4630,7 @@ export function register(on: On): void {
         ]),
       ),
     );
+    const tall = lines.length > 1 && !mo?.oneRow;
     const shown =
       withMo && Client && lines.length
         ? [
@@ -4636,8 +4641,8 @@ export function register(on: On): void {
                 key: 'mo',
                 module: './mo-strip.js',
                 width: MARK_W,
-                height: lines.length > 1 ? 2 : 1,
-                props: { ...mo, working, rows: lines.length > 1 ? 2 : 1 },
+                height: tall ? 2 : 1,
+                props: { ...mo, working, rows: tall ? 2 : 1 },
               }),
               h(Text, { key: 'mo-gap' }, '  '),
               h(Box, { key: 'strip-rows', flexDirection: 'column', flexGrow: 1 }, ...lines),

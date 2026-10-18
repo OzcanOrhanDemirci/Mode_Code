@@ -6,14 +6,13 @@
  */
 import { randomBytes } from 'node:crypto';
 import { existsSync, statSync } from 'node:fs';
-import { hostname } from 'node:os';
 import { APP_ID, APP_VERSION, CLI_NAME } from '../core/app.js';
 import { serializeConfig, type Config } from '../core/config.js';
 import { ago, dateTime, shortPath } from '../core/format.js';
 import { tIn, type MessageKey } from '../core/i18n/index.js';
 import { syncProblem } from '../core/memory-sync.js';
 import { resolvePath } from '../core/paths.js';
-import { applyShared, sharedValues, type Pending } from '../core/sync.js';
+import { applyShared, matchProjects, sharedValues, type Pending } from '../core/sync.js';
 import type { SharedRecord } from '../core/sync-export.js';
 import { appContext, type AppContext } from '../app/context.js';
 import { syncSetup } from '../app/sync-setup.js';
@@ -22,7 +21,7 @@ import { home, platform } from '../node/env.js';
 import { readText, writeAtomic, writeJsonAtomic } from '../node/fsx.js';
 import { underAgent } from '../node/install.js';
 import { nodeRunner } from '../node/memory.js';
-import { mergedConfig, syncShared } from '../node/sync.js';
+import { candidateFolders, computerName, mergedConfig, othersHints, syncShared } from '../node/sync.js';
 import { flag, type Args } from './args.js';
 import { has, terminalIO } from './memory.js';
 import { bold, dim, green, red, yellow } from './style.js';
@@ -88,11 +87,71 @@ export async function runSyncSetup(ctx: AppContext): Promise<number> {
     has,
     exists: existsSync,
     now: Date.now,
-    hostname: hostname().replace(/\.local$/i, ''),
+    hostname: computerName(),
     random: () => randomBytes(2).toString('hex'),
   });
   if (out.ok && out.config) writeAtomic(ctx.layout.config, serializeConfig(out.config));
-  return out.ok ? 0 : 1;
+  if (!out.ok) return 1;
+  // The projects that came with the other computers: their folders here, found and asked about once.
+  const after = appContext();
+  if (after.config.projects.some((p) => !p.path)) {
+    say();
+    say(bold(T(after, 'scli.projects.title')));
+    await linkProjects(after, false, false);
+  }
+  return 0;
+}
+
+/** This computer's settings with a project's folder here: the project as all computers share it, and its folder. */
+function withFolder(merged: Config, local: Config, id: string, dir: string): Config {
+  const shared = sharedValues(merged)[`projects.${id}`] as { names: string[]; verify?: string[] };
+  const entry = { id, names: shared.names, ...(shared.verify?.length ? { verify: shared.verify } : {}), path: dir };
+  const at = local.projects.findIndex((p) => p.id === id);
+  return { ...local, projects: at >= 0 ? local.projects.map((p) => (p.id === id ? entry : p)) : [...local.projects, entry] };
+}
+
+/**
+ * Projects that came from the other computers without a folder here, linked to the folders that look like theirs
+ * (core/sync matchProjects): shown, then one question, or --yes. With --json only listed. Never under an agent.
+ */
+export async function linkProjects(ctx: AppContext, yes: boolean, asJson: boolean): Promise<number> {
+  const local: Config = ctx.local ?? ctx.config;
+  if (underAgent() && !asJson) {
+    say(red(T(ctx, 'cli.agentRefused')));
+    return 1;
+  }
+  const homeless = ctx.config.projects.filter((p) => !p.path);
+  const hints = othersHints(ctx.config);
+  const linked = ctx.config.projects.flatMap((p) => (p.path ? [p.path] : []));
+  const found = homeless.length ? matchProjects(homeless, hints, candidateFolders(ctx.config, hints, home(), platform), linked, platform) : [];
+  const usable = found.filter((m) => {
+    try {
+      return statSync(m.path).isDirectory();
+    } catch {
+      return false;
+    }
+  });
+  if (asJson) {
+    json('sync.projects', { homeless: homeless.map((p) => p.id), found: usable });
+    return 0;
+  }
+  if (!homeless.length) {
+    say(green(T(ctx, 'scli.projects.all')));
+    return 0;
+  }
+  for (const m of usable) say(`  ${m.id} → ${m.path} ${dim(`(${T(ctx, `scli.projects.by.${m.by}` as MessageKey)})`)}`);
+  const rest = homeless.filter((p) => !usable.some((m) => m.id === p.id)).map((p) => p.id);
+  if (rest.length) say(dim(T(ctx, 'scli.projects.rest', { ids: rest.join(', '), cmd: `${CLI_NAME} sync project` })));
+  if (!usable.length) return 0;
+  if (!yes && !(process.stdin.isTTY && (await terminalIO(ctx).confirm(T(ctx, 'scli.projects.confirm', { n: usable.length }), true)))) {
+    say(T(ctx, 'cli.cancelled'));
+    return 1;
+  }
+  let next = local;
+  for (const m of usable) next = withFolder(ctx.config, next, m.id, m.path);
+  writeAtomic(ctx.layout.config, serializeConfig(next));
+  say(green(T(ctx, 'scli.projects.done', { n: usable.length })));
+  return 0;
 }
 
 function pendingJson(p: Pending) {
@@ -189,16 +248,12 @@ export async function cmdSync(a: Args): Promise<number> {
       say(red(T(ctx, 'scli.project.notDir', { dir })));
       return 1;
     }
-    // The project as all computers share it, with its folder here: one entry of this computer's own settings.
-    const shared = sharedValues(ctx.config)[`projects.${id}`] as { names: string[]; verify?: string[] };
-    const others = local.projects.filter((p) => p.id !== id);
-    const entry = { id, names: shared.names, ...(shared.verify?.length ? { verify: shared.verify } : {}), path: dir };
-    const at = local.projects.findIndex((p) => p.id === id);
-    const projects = at >= 0 ? local.projects.map((p) => (p.id === id ? entry : p)) : [...others, entry];
-    writeAtomic(ctx.layout.config, serializeConfig({ ...local, projects }));
+    writeAtomic(ctx.layout.config, serializeConfig(withFolder(ctx.config, local, id, dir)));
     say(green(T(ctx, 'scli.project.done', { id, dir })));
     return 0;
   }
+
+  if (sub === 'projects') return linkProjects(ctx, flag(a, 'yes', 'y'), flag(a, 'json'));
 
   if (sub !== 'status') {
     say(red(T(ctx, 'cli.unknownSub', { sub, cmd: 'sync' })));
@@ -251,7 +306,7 @@ export async function cmdSync(a: Args): Promise<number> {
   if (v.pending.length)
     row('', dim(T(ctx, 'scli.pending.hint', { approve: `${CLI_NAME} sync approve <setting>`, ignore: `${CLI_NAME} sync ignore <setting>` })));
   if (v.applied.length) row(T(ctx, 'scli.applied'), T(ctx, 'scli.applied.text', { n: v.applied.length }));
-  if (v.homeless.length) row(T(ctx, 'scli.projects'), T(ctx, 'scli.projects.text', { ids: v.homeless.join(', '), cmd: `${CLI_NAME} sync project` }));
+  if (v.homeless.length) row(T(ctx, 'scli.projects'), T(ctx, 'scli.projects.text', { ids: v.homeless.join(', '), cmd: `${CLI_NAME} sync projects` }));
   row(T(ctx, 'scli.handoffs'), T(ctx, `scli.handoffs.${v.handoffs === 'shared' ? 'shared' : v.handoffs}` as MessageKey));
   return 0;
 }

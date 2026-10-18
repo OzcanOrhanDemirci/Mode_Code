@@ -196,7 +196,7 @@ export const enDoctor = {
   'doc.summary.protection': 'Problems that weaken a protection: {n}.',
   'doc.repairs.title': 'Repairs',
   'doc.repairs.offer': 'Problems that can be repaired automatically: {n}.',
-  'doc.repairs.ask': 'Repair them now? Every changed file is backed up first. [y/N]',
+  'doc.repairs.ask': 'Repair them now? Every changed file is backed up first. [y/n, Enter = no]',
   'doc.repairs.hint': 'Run "mode-code doctor --fix" to repair them.',
   'doc.repairs.refused': 'Not repaired, because an agent runs this command: {what}. Run "mode-code doctor --fix" yourself.',
   'doc.repairs.verified': 'repaired and checked again',

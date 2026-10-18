@@ -141,7 +141,8 @@ test('over SSH, inside WSL and with no display nothing opens; an empty program n
 });
 
 test('macOS: iTerm2 gets a tab of its current window (a window when it has none), any other terminal a Terminal window', () => {
-  const line = `"cd '/home/ada/dev/app' && exec '${NODE_P}' '${CLI_P}'"`;
+  // The typed line is cleared from the screen before the program starts: the shell would show it twice.
+  const line = `"clear && cd '/home/ada/dev/app' && exec '${NODE_P}' '${CLI_P}'"`;
   const iterm = terminalLaunch(posix('darwin', { TERM_PROGRAM: 'iTerm.app' }))!;
   assert.equal(iterm.via, 'iterm');
   assert.equal(iterm.argv[0], 'osascript');

@@ -56,7 +56,7 @@ test('sync through a folder: the other computer seen, its newer setting in effec
     writeFileSync(join(shared, 'machines', 'mac-0000', 'settings.json'), JSON.stringify(file));
     writeFileSync(
       join(shared, 'machines', 'mac-0000', 'machine.json'),
-      JSON.stringify({ id: 'mac-0000', name: 'MacBook', platform: 'darwin', app: '0.5.0', since: 1 }),
+      JSON.stringify({ id: 'mac-0000', name: 'MacBook', platform: 'darwin', app: '0.5.0', since: 1, projects: { car: { folder: 'car-app', parent: 'dev' } } }),
     );
     writeFileSync(
       join(shared, 'machines', 'mac-0000', 'events', '2026-10', 's.mod.jsonl'),
@@ -103,9 +103,20 @@ test('sync through a folder: the other computer seen, its newer setting in effec
     assert.equal(approved.code, 0, approved.err);
     assert.match(approved.out, /Taken here: belt\.verdicts/);
     assert.deepEqual(JSON.parse(readFileSync(join(w.data, 'config.json'), 'utf8')).belt.verdicts, { 'git.clean': 'warn' });
-    // The Mac's project gets its folder on this computer.
-    const here = slash(join(w.root, 'dev', 'car'));
+    // The Mac's project finds its folder on this computer by the folder name the Mac uses; one yes links it. (A name
+    // no real computer has: on Windows the drive's own dev folder is searched too.)
+    const here = slash(join(w.root, 'dev', 'car-app'));
     mkdirSync(here, { recursive: true });
+    Object.assign(w.env, { HOME: w.root, USERPROFILE: w.root });
+    assert.deepEqual(cli(w, ['sync', 'projects', '--json']).json?.found, [{ id: 'car', path: here, by: 'folder' }]);
+    w.env.CLAUDECODE = '1';
+    assert.equal(cli(w, ['sync', 'projects', '--yes']).code, 1, 'never under an agent');
+    delete w.env.CLAUDECODE;
+    const linked = cli(w, ['sync', 'projects', '--yes']);
+    assert.equal(linked.code, 0, linked.err + linked.out);
+    assert.match(linked.out, /car → .*dev\/car-app \(the folder name the others use\)[\s\S]*1 projects have their folder/);
+    assert.match(cli(w, ['sync', 'projects']).out, /Every project has its folder/);
+    // By hand too.
     assert.equal(cli(w, ['sync', 'project', 'car', here]).code, 0);
     assert.equal(cli(w, ['sync', 'project', 'nope', here]).code, 1);
     assert.equal(cli(w, ['sync', 'project', 'car', join(here, 'missing')]).code, 1);

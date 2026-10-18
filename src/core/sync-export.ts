@@ -26,6 +26,7 @@ import {
   sharedValues,
   type Merged,
   type MachineSettings,
+  type ProjectHint,
 } from './sync.js';
 
 /** The file access the sync needs; `list` gives [] for a folder that is not there. */
@@ -48,6 +49,8 @@ export interface ExportInput {
   keepMonths: number;
   /** For a computer's first settings file: each key's time (docs/sync.md, joining). */
   firstStamp?: (key: string) => number;
+  /** Where a project folder's repository is (node/sync projectHint); without it, projects are named by folder only. */
+  hint?: (path: string) => Promise<Pick<ProjectHint, 'remote' | 'sub'>>;
 }
 
 export interface ExportResult {
@@ -69,13 +72,25 @@ export async function exportMachine(fs: SyncFs, input: ExportInput): Promise<Exp
   const p = machinePaths(input.dir, input.machine.id);
   const written: string[] = [];
 
-  // Who it is: kept as it was unless its name, system or version changed (no commit for nothing).
+  // Who it is: kept as it was unless its name, system or version changed (no commit for nothing). Where it keeps
+  // its projects, for the others to find theirs; a project's repository is asked again only when its folder moved
+  // or none was found.
   const info = parseMachineInfo(await fs.read(p.machine));
   const since = info?.since || input.now;
+  const projects: Record<string, ProjectHint> = {};
+  for (const proj of input.local.projects) {
+    if (!proj.path) continue;
+    const parts = proj.path.split('/').filter(Boolean);
+    const folder = parts[parts.length - 1] ?? '';
+    const parent = parts.length > 1 ? parts[parts.length - 2]! : '';
+    const was = info?.projects[proj.id];
+    const repo = was?.remote && was.folder === folder && was.parent === parent ? was : input.hint ? await input.hint(proj.path) : {};
+    projects[proj.id] = { folder, parent, ...(repo.remote ? { remote: repo.remote, sub: repo.sub ?? '' } : {}) };
+  }
   await put(
     fs,
     p.machine,
-    JSON.stringify({ v: 1, id: input.machine.id, name: input.machine.name, platform: input.platform, app: input.app, since }, null, 2) + '\n',
+    JSON.stringify({ v: 1, id: input.machine.id, name: input.machine.name, platform: input.platform, app: input.app, since, projects }, null, 2) + '\n',
     written,
   );
 

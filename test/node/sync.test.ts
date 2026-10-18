@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { normalizeConfig, serializeConfig, type Config } from '../../src/core/config.js';
 import { layout, type Layout } from '../../src/core/layout.js';
 import { changedFromDefaults } from '../../src/core/sync.js';
-import { lastShared, mergedConfig, pruneShared, sharedDue, syncShared } from '../../src/node/sync.js';
+import { candidateFolders, computerName, lastShared, mergedConfig, othersHints, projectHint, pruneShared, sharedDue, syncShared } from '../../src/node/sync.js';
 
 const hasGit = spawnSync('git', ['--version']).status === 0;
 const skip = !hasGit && 'git is not installed';
@@ -176,4 +176,67 @@ test('a folder another service keeps in sync: no git, the same files; history pa
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("where a project's repository is: its origin with no user or token, and the folder within it", { skip }, async () => {
+  const root = fwd(mkdtempSync(join(tmpdir(), 'tc-hint-')));
+  try {
+    const repo = join(root, 'arduino');
+    mkdirSync(join(repo, '3d'), { recursive: true });
+    run(repo, 'init', '-q');
+    run(repo, 'remote', 'add', 'origin', 'https://ada:' + 'tok' + '@github.com/Ada/Arduino.git');
+    assert.deepEqual(await projectHint(fwd(repo)), { remote: 'github.com/ada/arduino', sub: '' });
+    assert.deepEqual(await projectHint(fwd(join(repo, '3d'))), { remote: 'github.com/ada/arduino', sub: '3d' });
+    const bare = join(root, 'plain');
+    mkdirSync(bare);
+    assert.deepEqual(await projectHint(fwd(bare)), {});
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the folders a project of the others might be in: the usual places, the linked projects' parents, the others' parent names", { skip }, () => {
+  const root = fwd(mkdtempSync(join(tmpdir(), 'tc-cand-')));
+  try {
+    for (const d of ['dev/car', 'dev/.hidden', 'dev/node_modules', 'work/linked', 'work/beside', 'Studio/app']) mkdirSync(join(root, d), { recursive: true });
+    writeFileSync(join(root, 'dev', 'a-file'), '');
+    run(join(root, 'dev', 'car'), 'init', '-q');
+    run(join(root, 'dev', 'car'), 'remote', 'add', 'origin', 'git@github.com:ada/car.git');
+    const config = normalizeConfig({ projects: [{ id: 'linked', names: ['linked'], path: `${root}/work/linked` }] }).config;
+    const hints = [{ app: { folder: 'app', parent: 'Studio' } }];
+    const found = candidateFolders(config, hints, root, 'linux');
+    const byName = Object.fromEntries(found.map((f) => [f.path.slice(root.length + 1), f.remote]));
+    assert.deepEqual(byName['dev/car'], 'github.com/ada/car');
+    for (const p of ['work/linked', 'work/beside', 'Studio/app', 'dev']) assert.ok(p in byName, p);
+    for (const p of ['dev/.hidden', 'dev/node_modules', 'dev/a-file']) assert.ok(!(p in byName), p);
+    assert.equal(candidateFolders(config, hints, root, 'linux', 2).length, 2, 'the walk stops at its limit');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the others' project hints come from their machine.json files, never this computer's own", () => {
+  const root = fwd(mkdtempSync(join(tmpdir(), 'tc-others-')));
+  try {
+    const shared = `${root}/shared`;
+    for (const [id, projects] of [
+      ['pc-0000', { mine: { folder: 'mine', parent: 'dev' } }],
+      ['mac-0000', { car: { folder: 'car', parent: 'dev' } }],
+    ] as const) {
+      mkdirSync(join(shared, 'machines', id), { recursive: true });
+      writeFileSync(join(shared, 'machines', id, 'machine.json'), JSON.stringify({ id, name: id, projects }));
+    }
+    mkdirSync(join(shared, 'machines', 'broken-0000'), { recursive: true });
+    const config = normalizeConfig({ sync: { place: 'folder', dir: shared, machine: { id: 'pc-0000', name: 'PC' } } }).config;
+    assert.deepEqual(othersHints(config), [{ car: { folder: 'car', parent: 'dev' } }]);
+    assert.deepEqual(othersHints(normalizeConfig({}).config), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("this computer's name is a name, never an address", () => {
+  const name = computerName();
+  assert.ok(name.length > 0);
+  assert.doesNotMatch(name, /^\d{1,3}(?:[.-]\d{1,3}){3}$/);
 });

@@ -30,7 +30,7 @@ or in the control center: Settings › Sync, then `s`. It is a short conversatio
 1. **Where:** 1 or 2.
 2. **GitHub:** the setup finds git and the GitHub CLI (or offers to install them) and signs you in. Then it asks for the **repository**: a new name (it suggests `mode-code-sync`), or one you have. A new one is created private. An existing one is checked: private, and either empty, already used for sync, or holding other files (then it asks for the **folder** inside it to use). Last, where the **copy on this computer** goes: a new folder, or a copy of that repository you already have (a copy of your memory's repository, for example).
 3. **A folder:** where it is. The setup reads it and shows which computers are in it already.
-4. **This computer's name**, as the others will show it (your computer's name, unless you give another). A computer that was set up before is recognized, or you can say which of the listed ones this is.
+4. **This computer's name**, as the others will show it (your computer's name, unless you give another: on a Mac the one in System Settings, never a network address a router handed it). A computer that was set up before is recognized, or you can say which of the listed ones this is. Running the setup again changes the name the others show; the computer's folder keeps the name it was made with.
 5. **Handoff notes:** when your memory does not keep them, whether they go into the shared place, so every computer sees them.
 6. **Settings that differ:** when other computers are there already and their settings differ from this one's, the setup shows the differences and asks whether to **take theirs** (the usual choice for a new computer) or **send this computer's** to them. With GitHub this comes after the download, before anything is sent.
 
@@ -48,7 +48,7 @@ or in the control center: Settings › Sync, then `s`. It is a short conversatio
 
 **The quota reading is not shared.** Rate limits belong to an account, and a reading does not say whose it is: two computers may well use two accounts. Each computer measures its own with its first answer.
 
-**A project from another computer** arrives without a folder here. It still answers to its name in keywords; give it its folder on this computer with `mode-code sync project <id> <folder>`.
+**A project from another computer** arrives without a folder here. It still answers to its name in keywords. Each computer tells the others where it keeps its projects (in its `machine.json`: the folder's name and its parent's, and the repository it belongs to with no user or token in it), so `mode-code sync projects`, which the setup also runs, looks for this computer's copy: the same repository first (and the same folder in it), then a folder with the name the others use, then one named like the project, in your home folder's usual places for projects and next to the projects you already have here. It offers only one folder for one project, shows them all and links them with one yes. A project it cannot place gets its folder with `mode-code sync project <id> <folder>`.
 
 ## How settings meet
 
@@ -106,8 +106,9 @@ The default is **Everything** for a repository Mode_Code set up, and **Only brin
 | `mode-code sync approve [<setting>…] [--all]` | takes settings from other computers that lower a protection                     |
 | `mode-code sync ignore <setting>…`            | keeps this computer's value                                                     |
 | `mode-code sync project <id> [<folder>]`      | a project's folder on this computer (the current folder unless you give one)    |
+| `mode-code sync projects [--yes]`             | finds the folders of projects from other computers and links them on one yes    |
 
-Each takes `--json`. `setup`, `approve`, `ignore` and `project` run only in your own terminal.
+Each takes `--json`. `setup`, `approve`, `ignore`, `project` and `projects` (except its `--json` list) run only in your own terminal.
 
 ## Settings
 
