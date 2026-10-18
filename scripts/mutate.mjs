@@ -97,6 +97,7 @@ const TARGETS = {
   'src/node/clipboard.ts': ['test/node/clipboard.test.ts'],
   // `/0` (docs/modes.md, "Session controls"): which terminal opens the control center, with which arguments.
   'src/core/launch.ts': ['test/core/launch.test.ts'],
+  'src/core/update.ts': ['test/core/update.test.ts'],
   'src/core/mo/state.ts': ['test/core/mo.test.ts'],
   'src/core/mo/cells.ts': ['test/core/mo.test.ts'],
   // What a keyword does to the session: the mode and the way of working change only where the person names them.

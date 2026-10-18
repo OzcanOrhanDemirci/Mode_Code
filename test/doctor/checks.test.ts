@@ -575,9 +575,17 @@ test('updates: a newer release is a note with the command; the daily check off, 
   assert.deepEqual(newer.summary.params, { version: '1.2.0', newer: '1.2.1' });
   assert.equal(newer.hint?.key, 'doc.update.hint');
   assert.equal(newer.protection, false);
-  assert.equal(brief(at({ check: false, current: '1.2.0', state: null })), 'info doc.update.off');
-  assert.equal(brief(at({ check: true, current: '1.2.0', state: null })), 'info doc.update.notYet');
-  assert.equal(brief(at({ check: true, current: '1.2.0', state: { checkedAt: 1, latest: '1.1.0', error: 'HTTP 503' } })), 'info doc.update.error');
+  const off = at({ check: false, current: '1.2.0', state: null });
+  const notYet = at({ check: true, current: '1.2.0', state: null });
+  const failed = at({ check: true, current: '1.2.0', state: { checkedAt: 1, latest: '1.1.0', error: 'HTTP 503' } });
+  assert.deepEqual(
+    [off, notYet, failed].map((r) => [brief(r), r.protection]),
+    [
+      ['info doc.update.off', false],
+      ['info doc.update.notYet', false],
+      ['info doc.update.error', false],
+    ],
+  );
 });
 
 test('bypass: off is a note; on, for how long and in how many sessions; a weakened floor rule is a warning', () => {

@@ -21,7 +21,8 @@ export const CHECK_EVERY_MS = 86_400_000;
 export function parseUpdateState(text: string | null): UpdateState | null {
   try {
     const o = JSON.parse(text ?? '') as Record<string, unknown>;
-    if (typeof o.checkedAt !== 'number' || !Number.isFinite(o.checkedAt)) return null;
+    // JSON has no NaN or Infinity: a number read is a time.
+    if (typeof o.checkedAt !== 'number') return null;
     return {
       checkedAt: o.checkedAt,
       latest: typeof o.latest === 'string' && parseVersion(o.latest) ? o.latest.slice(0, 40) : null,
