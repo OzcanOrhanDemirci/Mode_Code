@@ -17,6 +17,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - At the quota's hard limit, staging (`git add`) is allowed with the commit it prepares, as the refusal message always said; before, saving memory could not finish.
 - Yes/no questions use the letters of your language in one case (`[e/h]` in Turkish, not `[Y/n]`) and say what Enter answers, so the memory and sync setups' last question, where Enter means no, no longer cancels unnoticed.
 - The installer's question about the footer lines says what each choice does and shows two lines as they would appear; before, it listed only the names.
+- An installation that asks no questions (the simple view, `--yes`, the one-line installers) protects the memory folder Claude Code is set to keep (`autoMemoryDirectory`); before, it protected none.
 
 ## [1.1.0] - 2026-10-15
 

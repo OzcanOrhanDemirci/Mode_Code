@@ -159,6 +159,16 @@ export async function cmdStatus(a: Args): Promise<number> {
 
 // ── install / uninstall ──
 
+/**
+ * The memory a first installation protects when nobody chose one (the simple view, --yes): the folder Claude Code's
+ * autoMemoryDirectory names, which `memory setup` sets. Without that setting each project keeps its own memory, and
+ * none is guessed.
+ */
+function memoryBySetting(cwd: string): Config['memory'] | null {
+  const env = readClaudeEnv(cwd, { version: null });
+  return env.memoryDirFromSetting ? { ...cloneDefaults().memory, dirs: [env.memoryDir] } : null;
+}
+
 export async function cmdInstall(a: Args): Promise<number> {
   const ctx = appContext();
   const plan = planInstall(ctx.layout);
@@ -179,7 +189,8 @@ export async function cmdInstall(a: Args): Promise<number> {
     const view = value(a, 'view');
     if (view === 'simple' || view === 'recommended' || view === 'detailed') chosen.view = view;
     const mem = values(a, 'memory');
-    if (mem.length) chosen.memory = { ...cloneDefaults().memory, dirs: mem };
+    const memory = mem.length ? { ...cloneDefaults().memory, dirs: mem } : memoryBySetting(ctx.cwd);
+    if (memory) chosen.memory = memory;
     const r = applyInstall(ctx.layout, plan, { config: chosen });
     json('install', { ok: r.ok, steps: r.steps, manifest: r.manifest });
     return r.ok ? 0 : 1;
@@ -213,11 +224,14 @@ export async function cmdInstall(a: Args): Promise<number> {
   if (mem.length) chosen.memory = { ...cloneDefaults().memory, dirs: mem };
   // First installation in a terminal: a few choices, then one confirmation for everything.
   const firstTime = !plan.steps.find((s) => s.kind === 'config')?.done;
-  if (firstTime && !flag(a, 'yes', 'y') && process.stdin.isTTY && !chosen.view) {
+  const asking = firstTime && !flag(a, 'yes', 'y') && process.stdin.isTTY && !chosen.view;
+  let memoryAsked = false;
+  if (asking) {
     const v = await choose(ctx, T(ctx, 'install.ask.view'), [T(ctx, 'install.ask.simple'), T(ctx, 'install.ask.recommended'), T(ctx, 'install.ask.detailed')]);
     chosen.view = (['simple', 'recommended', 'detailed'] as const)[v];
     if (chosen.view !== 'simple') {
       if (!chosen.memory) {
+        memoryAsked = true;
         const suggestion = readClaudeEnv(ctx.cwd).memoryDir;
         const m = await askText(T(ctx, 'install.ask.memory', { suggestion: shortPath(suggestion, homedir(), 70) }));
         const dir = m === '' ? suggestion : m === '-' ? null : m;
@@ -227,6 +241,13 @@ export async function cmdInstall(a: Args): Promise<number> {
       const f = await choose(ctx, T(ctx, 'install.ask.footer'), [T(ctx, 'footer.mode.draw'), T(ctx, 'footer.mode.check'), T(ctx, 'footer.mode.off')], note);
       chosen.footer = { ...cloneDefaults().footer, mode: (['draw', 'check', 'off'] as const)[f]! };
     }
+  }
+  // Nobody chose a memory folder (the simple view, --yes): the one Claude Code is set to keep is protected.
+  if (firstTime && !chosen.memory && !memoryAsked) {
+    const memory = memoryBySetting(ctx.cwd);
+    if (memory) chosen.memory = memory;
+  }
+  if (asking) {
     say();
     say(bold(T(ctx, 'install.summary')));
     say(`  ${T(ctx, 'set.view')}: ${T(ctx, `view.${chosen.view ?? 'recommended'}` as MessageKey)}`);

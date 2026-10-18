@@ -115,12 +115,15 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
     if (skip(t)) return;
     const w = world({ lang: 'en' });
     try {
-      const mine = { theme: 'dark', hooks: { Notification: [{ hooks: [{ type: 'command', command: 'echo done' }] }] } };
+      const memory = join(w.claudeDir, 'memory-here');
+      const mine = { theme: 'dark', autoMemoryDirectory: memory, hooks: { Notification: [{ hooks: [{ type: 'command', command: 'echo done' }] }] } };
       writeFileSync(join(w.claudeDir, 'settings.json'), JSON.stringify(mine));
       const i = cli(w, ['install', '--yes', '--json', '--lang', 'en'], opt);
       assert.equal(i.code, 0, i.out + i.err);
       assert.equal(i.json?.ok, true);
       assert.ok(i.json?.steps.every((s: { ok: boolean }) => s.ok));
+      // Nobody chose a memory folder: the one Claude Code is set to keep is protected.
+      assert.deepEqual(JSON.parse(readFileSync(join(w.data, 'config.json'), 'utf8')).memory.dirs, [memory]);
       const settings = JSON.parse(readFileSync(join(w.claudeDir, 'settings.json'), 'utf8'));
       assert.equal(settings.theme, 'dark');
       assert.deepEqual(settings.hooks.Notification, mine.hooks.Notification);
