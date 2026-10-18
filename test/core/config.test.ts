@@ -73,14 +73,14 @@ test('setConfigValue changes one setting and round-trips through the file text',
 });
 
 test('full autonomy is off by default; its settings keep their ranges; a project carries its own definition of done', () => {
-  assert.deepEqual(parseConfig(null).config.autonomy, { enabled: false, maxHours: 12, stallMinutes: 90, reviewModel: null });
+  assert.deepEqual(parseConfig(null).config.autonomy, { enabled: false, maxHours: 12, stallMinutes: 90, atTimeLimit: 'continue', reviewModel: null });
   const { config, problems } = parseConfig(
     JSON.stringify({
       autonomy: { enabled: true, maxHours: 100, stallMinutes: 5, reviewModel: 'claude-opus-5-5[1m]', turbo: true },
       projects: [{ id: 'api', names: ['api'], path: '/home/ada/api', verify: ['npm run check', ' npm run check ', '', 'npm test'] }],
     }),
   );
-  assert.deepEqual(config.autonomy, { enabled: true, maxHours: 12, stallMinutes: 90, reviewModel: 'claude-opus-5-5[1m]' });
+  assert.deepEqual(config.autonomy, { enabled: true, maxHours: 12, stallMinutes: 90, atTimeLimit: 'continue', reviewModel: 'claude-opus-5-5[1m]' });
   assert.deepEqual(
     problems.map((p) => p.path),
     ['autonomy.turbo', 'autonomy.maxHours', 'autonomy.stallMinutes'],
@@ -100,6 +100,7 @@ test('full autonomy limits: both ends of each range are accepted', () => {
       enabled: false,
       maxHours,
       stallMinutes,
+      atTimeLimit: 'continue',
       reviewModel: null,
     });
   assert.equal(parseConfig(JSON.stringify({ autonomy: { maxHours: 73 } })).problems[0]!.path, 'autonomy.maxHours');

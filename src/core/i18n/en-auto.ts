@@ -325,7 +325,12 @@ export const enAuto = {
   'set.autonomy.enabledHelp': 'Runs that take one task to its end without asking you. Off until you turn it on; Claude cannot turn it on.',
   'set.autonomy.confirm': 'Press Enter again to turn it on.',
   'set.autonomy.maxHours': 'Time limit (hours)',
-  'set.autonomy.maxHoursHelp': 'Running hours after which a run pauses with its report.',
+  'set.autonomy.maxHoursHelp': 'Running hours after which a run pauses with its report, or goes on with a fresh limit (below).',
+  'set.autonomy.atTimeLimit': 'At the time limit',
+  'set.autonomy.atTimeLimitHelp':
+    'Go on: a run that reached a milestone within the stall time gets a fresh limit, and one that did not pauses. Pause: every run pauses at its limit and waits for you.',
+  'set.autonomy.atTimeLimit.continue': 'go on while it progresses',
+  'set.autonomy.atTimeLimit.pause': 'pause',
   'set.autonomy.stallMinutes': 'Stall time (minutes)',
   'set.autonomy.stallMinutesHelp': 'Minutes without a milestone after which Claude is told; twice as long and the run pauses as stalled.',
   'set.autonomy.check': 'Start checks, measured from here',

@@ -88,7 +88,7 @@ export interface FinishFacts {
 
 export interface RunEvent {
   at: number;
-  event: 'start' | 'plan' | 'revise' | 'milestone' | 'refused' | 'blocker' | 'deferred' | 'finish' | 'stuck' | 'pause' | 'resume' | 'cancel';
+  event: 'start' | 'plan' | 'revise' | 'milestone' | 'refused' | 'blocker' | 'deferred' | 'finish' | 'stuck' | 'pause' | 'resume' | 'cancel' | 'extend';
   detail?: string;
 }
 
@@ -270,6 +270,21 @@ export function activeTime(r: Run, now: number): number {
 /** The running time the time limit counts: since the run started, or since it was resumed after its time ran out. */
 export function limitTime(r: Run, now: number): number {
   return activeTime(r, now) - r.limitFrom;
+}
+
+/**
+ * The time limit against the setting (A10 of 1.2.0, `autonomy.atTimeLimit`): under it; past it with a milestone
+ * within the stall time and the setting `continue`, a fresh limit and the run goes on; otherwise it pauses. The
+ * person's word (2026-10-18): full autonomy is for when they do not have to do anything.
+ */
+export function atLimit(r: Run, now: number, o: { maxHours: number; stallMinutes: number; atTimeLimit: 'continue' | 'pause' }): 'under' | 'extend' | 'pause' {
+  if (limitTime(r, now) < o.maxHours * 3_600_000) return 'under';
+  return o.atTimeLimit === 'continue' && now - lastProgressAt(r) < o.stallMinutes * 60_000 ? 'extend' : 'pause';
+}
+
+/** A fresh time limit from now, recorded; the running time goes on counting. */
+export function extendLimit(r: Run, now: number): Run {
+  return log({ ...r, limitFrom: activeTime(r, now) }, { at: now, event: 'extend' });
 }
 
 /**

@@ -34,6 +34,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
+- Full autonomy at its time limit (`autonomy.maxHours`): a run that reached a milestone within the stall time goes on with a fresh limit, recorded in its history, instead of waiting for you to type `continue`; one that did not pauses as before. `autonomy.atTimeLimit: "pause"` keeps the old way. A run's end, pause or stuck state can also reach your phone through an ntfy topic you set (`notify.ntfy`). `docs/autonomy.md` says how to follow a run from elsewhere with Claude Code's Remote Control, and `docs/quota.md` names `/btw`, `/advisor` and `/voice`.
 - `git commit --no-verify` (and `-n`, and `git push --no-verify`) is asked about rather than noted: skipping the repository's own hooks is how a change slips past its lint, tests and secret checks. Turn it back into a note with `mode-code config set belt.verdicts '{"git.no-verify":"warn"}'`.
 - Checked against Claude Code 2.1.302: the plugin type-checks against its declarations, the engine's own test kit passes, and the live sessions run on it.
 

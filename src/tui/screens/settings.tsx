@@ -415,6 +415,19 @@ export function Autonomy({ width, open }: ScreenProps) {
       type: { kind: 'number', min: 1, max: 72 },
     },
     {
+      path: 'autonomy.atTimeLimit',
+      label: t('set.autonomy.atTimeLimit'),
+      help: t('set.autonomy.atTimeLimitHelp'),
+      value: a.atTimeLimit,
+      type: {
+        kind: 'enum',
+        options: [
+          { value: 'continue', label: t('set.autonomy.atTimeLimit.continue') },
+          { value: 'pause', label: t('set.autonomy.atTimeLimit.pause') },
+        ],
+      },
+    },
+    {
       path: 'autonomy.stallMinutes',
       label: t('set.autonomy.stallMinutes'),
       help: t('set.autonomy.stallMinutesHelp'),

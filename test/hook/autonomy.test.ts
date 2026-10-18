@@ -162,12 +162,14 @@ test('a paused run, a reached budget and background work let the session stop', 
   }
 });
 
-test('the time limit lets a run stop', () => {
+test('at the time limit a run that just progressed is turned back to its work; set to pause, the limit lets it stop', () => {
   const p = place((repo, head) => {
     const r = planned(repo, head);
     return { ...r, activeMs: 12 * 3_600_000 };
   });
   try {
+    assert.match(String(p.stop()?.hookSpecificOutput?.additionalContext ?? ''), /Limiter/);
+    writeFileSync(join(p.home, 'config.json'), JSON.stringify({ language: 'en', modules: { footer: false }, autonomy: { atTimeLimit: 'pause' } }));
     assert.equal(p.stop(), null);
     assert.equal(p.hookState().autoAllowed.why, 'timeout');
   } finally {

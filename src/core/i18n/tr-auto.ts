@@ -328,7 +328,12 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'set.autonomy.enabledHelp': 'Sana sormadan tek bir görevi sonuna kadar götüren koşular. Sen açana kadar kapalı; Claude açamaz.',
   'set.autonomy.confirm': "Açmak için Enter'a bir kez daha bas.",
   'set.autonomy.maxHours': 'Süre sınırı (saat)',
-  'set.autonomy.maxHoursHelp': 'Bir koşunun raporuyla duraklayacağı çalışma saati.',
+  'set.autonomy.maxHoursHelp': 'Bir koşunun raporuyla duraklayacağı ya da yeni bir sınırla süreceği (aşağıda) çalışma saati.',
+  'set.autonomy.atTimeLimit': 'Süre sınırında',
+  'set.autonomy.atTimeLimitHelp':
+    'Sürsün: takılma süresi içinde kilometre taşına ulaşmış koşu yeni bir sınırla sürer, ulaşmamış olan duraklar. Duraklasın: her koşu sınırında duraklar ve seni bekler.',
+  'set.autonomy.atTimeLimit.continue': 'ilerledikçe sürsün',
+  'set.autonomy.atTimeLimit.pause': 'duraklasın',
   'set.autonomy.stallMinutes': 'Takılma süresi (dakika)',
   'set.autonomy.stallMinutesHelp': 'Kilometre taşı gelmeyen bu kadar dakikadan sonra Claude uyarılır; iki katında koşu takıldı diye duraklar.',
   'set.autonomy.check': 'Buradan ölçülen başlangıç denetimleri',

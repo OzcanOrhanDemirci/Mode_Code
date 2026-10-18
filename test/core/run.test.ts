@@ -6,6 +6,8 @@ import {
   acceptPlan,
   activeTime,
   limitTime,
+  atLimit,
+  extendLimit,
   addBlocker,
   addDeferred,
   cancelRun,
@@ -240,6 +242,21 @@ test('resumed after its time ran out, a run gets a fresh time limit; any other r
   assert.equal(again.limitFrom, 120 * MIN, 'a pause for another reason keeps the limit running');
   assert.equal(limitTime(again, T + 300 * MIN), 30 * MIN);
   assert.equal(start().limitFrom, 0);
+});
+
+test('at the time limit: under it nothing; past it a run with a recent milestone gets a fresh limit when set to go on, else it pauses', () => {
+  const r = working();
+  // The plan was the last progress (T + 1 min); two hours of limit, an hour of stall time.
+  const o = { maxHours: 2, stallMinutes: 60, atTimeLimit: 'continue' as const };
+  assert.equal(atLimit(r, T + 120 * MIN - 1, o), 'under');
+  assert.equal(atLimit(r, T + 120 * MIN, o), 'pause', 'no milestone within the stall time');
+  const m = ok(acceptMilestone(r, { ...ms(1, 'b'), at: T + 100 * MIN }, T + 100 * MIN));
+  assert.equal(atLimit(m, T + 120 * MIN, o), 'extend');
+  assert.equal(atLimit(m, T + 160 * MIN, o), 'pause', 'exactly the stall time since the milestone');
+  assert.equal(atLimit(m, T + 120 * MIN, { ...o, atTimeLimit: 'pause' }), 'pause');
+  const x = extendLimit(m, T + 130 * MIN);
+  assert.deepEqual([x.limitFrom, limitTime(x, T + 130 * MIN), x.history.at(-1)?.event, x.status], [130 * MIN, 0, 'extend', 'active']);
+  assert.equal(atLimit(x, T + 140 * MIN, o), 'under');
 });
 
 test('the heartbeat is written at most once a minute and is not progress', () => {

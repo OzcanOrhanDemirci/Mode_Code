@@ -38,6 +38,7 @@ const facts = (o: Partial<StopFacts> = {}): StopFacts => ({
   background: 0,
   maxHours: 12,
   stallMinutes: 90,
+  atTimeLimit: 'pause',
   ...o,
 });
 const EMPTY: StopMemory = { runId: null, fingerprint: null, streak: 0 };
@@ -85,6 +86,10 @@ test('a stop is let through for a run that is over or paused, the budget, backgr
   assert.equal(why(r, { background: 1 }), 'waiting');
   assert.equal(why(r, { now: T + 12 * 60 * MIN }), 'timeout');
   assert.equal(why(r, { now: T + 12 * 60 * MIN - 1, maxHours: 12, stallMinutes: 720 }), 'block');
+  // Set to go on: past the limit a run with a milestone within the stall time is turned back to its work; one
+  // without pauses at the limit as before.
+  assert.equal(why(r, { now: T + 12 * 60 * MIN, stallMinutes: 720, atTimeLimit: 'continue' }), 'block');
+  assert.equal(why(r, { now: T + 12 * 60 * MIN, stallMinutes: 90, atTimeLimit: 'continue' }), 'timeout');
   // The stall needs twice the setting since the last progress (the plan was accepted at T + 1 min).
   assert.equal(why(r, { now: T + MIN + 179 * MIN }), 'block');
   assert.equal(why(r, { now: T + MIN + 180 * MIN }), 'stalled');

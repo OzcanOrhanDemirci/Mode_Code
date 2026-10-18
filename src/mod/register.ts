@@ -209,7 +209,8 @@ import {
   acceptMilestone,
   acceptPlan,
   activeTime,
-  limitTime,
+  atLimit,
+  extendLimit,
   addBlocker,
   addDeferred,
   cancelRun,
@@ -1652,11 +1653,21 @@ async function writeReport($: $, c: Ctx, r: Run): Promise<string> {
 
 async function autoNotify($: $, c: Ctx, key: 'auto.notify.done' | 'auto.notify.stuck' | 'auto.notify.paused', r: Run, reason = ''): Promise<void> {
   if (!c.config.modules.notifications) return;
+  const text = tIn(c.lang, key, { task: maskSecrets((r.task || r.id).split('\n')[0]!.slice(0, 120)), reason });
   try {
-    await $.ui.notify(tIn(c.lang, key, { task: (r.task || r.id).split('\n')[0]!.slice(0, 120), reason }), { title: APP_NAME });
+    await $.ui.notify(text, { title: APP_NAME });
   } catch {
     /* a convenience */
   }
+  // Away from the computer: the person's ntfy topic as well (docs/autonomy.md), with curl, which every system
+  // this runs on has (Windows 10 and later too). The message is the line above; nothing else is sent.
+  const topic = c.config.notify.ntfy;
+  if (topic)
+    try {
+      await $.process.run(['curl', '-sS', '-m', '10', '-H', `Title: ${APP_NAME}`, '-d', text, topic], { timeoutMs: 15_000 });
+    } catch {
+      /* a convenience too: the desktop and the report have it */
+    }
 }
 
 /** Pauses the attached run for a reason, writes its report and says so. */
@@ -2189,9 +2200,14 @@ async function autoGuard($: $, c: Ctx, tool: string, input: Record<string, unkno
   const now = await $.clock.now();
   if (r.status === 'active') {
     // Turned off in the settings while it ran: it pauses at this step, as docs/autonomy.md says.
+    const limit = atLimit(r, now, c.config.autonomy);
     if (!c.config.autonomy.enabled) await pauseAuto($, c, 'disabled');
-    else if (limitTime(r, now) >= c.config.autonomy.maxHours * 3_600_000) await pauseAuto($, c, 'timeout');
-    else if (now - lastProgressAt(r) >= 2 * c.config.autonomy.stallMinutes * 60_000) await pauseAuto($, c, 'stalled', 'no milestone');
+    else if (limit === 'pause') await pauseAuto($, c, 'timeout');
+    else if (limit === 'extend') {
+      // The time is up and the work goes on: a fresh limit, no one asked (docs/autonomy.md).
+      await saveRun($, c, extendLimit(r, now), true);
+      await logEvent($, c, { kind: 'run', run: r.id, action: 'extend', hours: c.config.autonomy.maxHours });
+    } else if (now - lastProgressAt(r) >= 2 * c.config.autonomy.stallMinutes * 60_000) await pauseAuto($, c, 'stalled', 'no milestone');
   }
   const run = c.run;
   if (!run) return null;

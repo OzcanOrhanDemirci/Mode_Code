@@ -513,3 +513,22 @@ test('turned off in the settings while a run works, the run pauses at its next s
   expect([run().status, run().pause.reason]).toEqual(['paused', 'disabled']);
   expect(String(call.deny)).toBe('🤖 Full autonomy: the run is paused (full autonomy turned off). Report what was done and stop.');
 });
+
+test('at its time limit a run that is progressing goes on with a fresh limit; one that is not pauses', async ($, on) => {
+  // The person's word (2026-10-18): full autonomy is for when they do not have to do anything.
+  const { w, run } = ready(on, {}, { autonomy: { enabled: true, maxHours: 1, stallMinutes: 90 }, notify: { ntfy: 'https://ntfy.sh/ada-runs' } });
+  await begin($, 'Add rate limiting. app full auto quota +10');
+  expect(run().status).toBe('active');
+  await w.clock.advance(60 * 60_000 + 1000);
+  await $.tool.call({ tool: 'Read', file_path: `${PROJECT}/README.md`, tool_use_id: 'toolu_r1' } as any);
+  expect([run().status, run().history.at(-1).event]).toEqual(['active', 'extend']);
+  expect(w.events().some((e: any) => e.kind === 'run' && e.action === 'extend' && e.hours === 1)).toBe(true);
+  // Another hour with nothing done since the start: the limit pauses it as before.
+  await w.clock.advance(60 * 60_000 + 1000);
+  await $.tool.call({ tool: 'Read', file_path: `${PROJECT}/README.md`, tool_use_id: 'toolu_r2' } as any);
+  expect([run().status, run().pause.reason]).toEqual(['paused', 'timeout']);
+  // The pause reaches the person's ntfy topic too, the notification's line and nothing else.
+  const post = w.ran.find((a: string[]) => a[0] === 'curl');
+  expect(post?.at(-1)).toBe('https://ntfy.sh/ada-runs');
+  expect(post?.[post.indexOf('-d') + 1]).toMatch(/Add rate limiting/);
+});
