@@ -60,7 +60,8 @@ export function terminalIO(ctx: AppContext): SetupIO {
     },
     async confirm(question, def) {
       for (;;) {
-        const a = await line(`${question} ${dim(def ? '[Y/n]' : '[y/N]')} `);
+        // The letters follow the language, and the hint names what Enter answers, so a question whose Enter is no says so.
+        const a = await line(`${question} ${dim(T(def ? 'mcli.yes' : 'mcli.no'))} `);
         if (a === '') return def;
         if (/^(?:y|yes|e|evet)$/i.test(a)) return true;
         if (/^(?:n|no|h|hayir|hayır)$/i.test(a)) return false;

@@ -282,7 +282,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
     'Sınır işletim sisteminindir; emniyet kemeri ve çit kaza önleyicidir.\n' +
     'İlk koşudan önce docs/autonomy.md dosyasını oku.',
   'auto.cli.needsYes': 'Onaylanacak bir terminal yok: kendi terminalinde çalıştır ya da --yes ekle.',
-  'auto.cli.confirm': 'Tam otonom açılsın mı?',
+  'auto.cli.confirm': 'Tam otonom açılsın mı? [e/h, Enter = hayır]',
   'auto.cli.unchanged': 'Hiçbir şey değişmedi.',
   'auto.cli.enabled': 'Tam otonom açık. Bir koşu "<görev>. <proje> tam otonom kota +N" ile başlar.',
   'auto.cli.disabled': 'Tam otonom kapalı; süren bir koşu bir sonraki adımında duraklar.',

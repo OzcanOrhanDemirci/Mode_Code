@@ -15,6 +15,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ### Fixed
 
 - At the quota's hard limit, staging (`git add`) is allowed with the commit it prepares, as the refusal message always said; before, saving memory could not finish.
+- Yes/no questions use the letters of your language in one case (`[e/h]` in Turkish, not `[Y/n]`) and say what Enter answers, so the memory and sync setups' last question, where Enter means no, no longer cancels unnoticed.
 
 ## [1.1.0] - 2026-10-15
 

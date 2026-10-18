@@ -280,7 +280,7 @@ export const enAuto = {
     "or when you type stop. The boundary is the operating system's; the safety belt and the fence are accident preventers.\n" +
     'Read docs/autonomy.md before the first run.',
   'auto.cli.needsYes': 'No terminal to confirm in: run it in your own terminal, or add --yes.',
-  'auto.cli.confirm': 'Turn full autonomy on?',
+  'auto.cli.confirm': 'Turn full autonomy on? [y/n, Enter = no]',
   'auto.cli.unchanged': 'Nothing changed.',
   'auto.cli.enabled': 'Full autonomy is on. A run starts with "<task>. <project> full auto quota +N".',
   'auto.cli.disabled': 'Full autonomy is off; a run that is going on pauses at its next step.',
