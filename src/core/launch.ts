@@ -150,7 +150,9 @@ export function terminalLaunch(input: LaunchInput): Launch | null {
   // terminal is a Windows program this side may not be able to reach.
   if (set(env.SSH_CONNECTION) || set(env.SSH_CLIENT) || set(env.SSH_TTY)) return null;
   if (platform === 'darwin') {
-    const line = asQuote(shellLine(input));
+    // Both type the line into a shell that may not be ready: the terminal echoes it, then the shell's prompt shows
+    // it again (the Mac, 2026-10-15). `clear` wipes the two before the program starts.
+    const line = asQuote(`clear && ${shellLine(input)}`);
     if (env.TERM_PROGRAM === 'iTerm.app')
       return {
         via: 'iterm',

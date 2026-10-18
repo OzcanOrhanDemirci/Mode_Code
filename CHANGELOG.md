@@ -24,6 +24,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Uninstalling leaves Claude Code's `settings.json` as it was: the empty `enabledPlugins` and `extraKnownMarketplaces` that Claude Code leaves behind are removed with the plugin's own records.
 - A memory folder already protected under another spelling (`~/notes/` beside `/Users/you/notes`) is not added again by the memory setup, and the doctor counts each folder once.
 - In Apple's Terminal, Mo beside a strip of two rows is drawn one row tall: the half blocks of the two-row Mo leave a gap between rows there, and it read as two Mos stacked.
+- On a Mac, the window `0` opens for the control center clears the command it typed before the program starts; Terminal showed it twice.
 
 ## [1.1.0] - 2026-10-15
 
