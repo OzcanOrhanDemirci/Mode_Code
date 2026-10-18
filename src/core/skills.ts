@@ -71,6 +71,19 @@ export const CORE_SKILLS: readonly CoreSkill[] = [
   { id: 'lessons', tr: 'ders-cikar', kind: 'skill', who: 'person', summary: 'The lessons of this session, as proposed memory notes.' },
   { id: 'session-search', tr: 'oturum-ara', kind: 'skill', who: 'person', summary: 'Find a past session by what was said or done in it.' },
   { id: 'report-issue', tr: 'sorun-bildir', kind: 'skill', who: 'person', summary: 'Draft an issue for Mode_Code, private details taken out.' },
+  // The project checks (A9 of 1.2.0): what is measured before a release, not remembered.
+  { id: 'store-check', tr: 'magaza-hazirlik', kind: 'skill', who: 'person', summary: 'Whether the app is ready for the App Store and Google Play, measured.' },
+  { id: 'live-check', tr: 'canli-denetim', kind: 'skill', who: 'person', summary: 'Whether production runs what the repository says.' },
+  { id: 'claims-check', tr: 'iddia-denetimi', kind: 'skill', who: 'person', summary: 'What the app says about data, against what its code sends.' },
+  {
+    id: 'turkish-text',
+    tr: 'turkce-metin',
+    kind: 'skill',
+    who: 'person',
+    summary: 'Turkish text: long dashes, the question particle, and what a script cannot judge.',
+  },
+  { id: 'build-source', tr: 'derleme-kaynagi', kind: 'skill', who: 'person', summary: 'Which commit a built app came from.' },
+  { id: 'machine-map', tr: 'makine-haritasi', kind: 'skill', who: 'person', summary: 'What this computer can build and release for the project.' },
   { id: 'commit', tr: 'commit', kind: 'skill', who: 'model', summary: 'Commit as the project expects: its style, one change, why and how.' },
   { id: 'measure', tr: 'olc', kind: 'skill', who: 'model', summary: 'Measure before stating a number.' },
   {

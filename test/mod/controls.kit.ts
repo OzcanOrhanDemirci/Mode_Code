@@ -102,6 +102,12 @@ test("the commands are declared at the start, in the person's language; the mode
     'ders-cikar',
     'oturum-ara',
     'sorun-bildir',
+    'magaza-hazirlik',
+    'canli-denetim',
+    'iddia-denetimi',
+    'turkce-metin',
+    'derleme-kaynagi',
+    'makine-haritasi',
   ]);
   expect(w.commands.find((c: any) => c.name === 'dogrula')).toMatchObject({ description: 'İşi bitti demeden önce taze kanıtla doğrula' });
   expect(w.commands.find((c: any) => c.name === 'komutlar')).toMatchObject({ immediate: true });

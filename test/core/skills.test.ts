@@ -18,7 +18,7 @@ test("Mode_Code's skills: unique names in both languages, each file where it bel
   const trs = CORE_SKILLS.map((s) => s.tr);
   assert.equal(new Set(ids).size, ids.length);
   assert.equal(new Set(trs).size, trs.length);
-  assert.equal(CORE_SKILLS.filter((s) => s.who === 'person').length, 20, 'the person runs 20 now; 2 more come with the project checks (A9)');
+  assert.equal(CORE_SKILLS.filter((s) => s.who === 'person').length, 26, 'the person runs 26: 20, and six project checks (A9)');
   assert.equal(CORE_SKILLS.filter((s) => s.who === 'model').length, 3);
   // No short command takes a control's name, nor the list's.
   for (const s of CORE_SKILLS) assert.ok(!COMMANDS.some((c) => c.name === s.tr) && !(LIST_COMMANDS as readonly string[]).includes(s.tr), s.tr);

@@ -56,6 +56,19 @@ test("a short command sends its skill's text as the person's message; a keyword'
   expect(list).toMatch(/\/mode-code:measure +Bir sayı söylemeden önce ölç/);
   // The memory note only once a memory is set up.
   expect(list).not.toMatch(/bellek-yaz|memory-note/);
+  expect(list).toMatch(/\/magaza-hazirlik +Uygulama App Store ve Google Play için hazır mı/);
+});
+
+test('a skill that runs a script of its own is sent with its folder filled in, as Claude Code fills it', async ($, on) => {
+  const w = world(on, {
+    lang: 'tr',
+    pluginFiles: { '/skills/store-check/SKILL.md': '---\nname: store-check\n---\n\nRun `node "${CLAUDE_SKILL_DIR}/check.mjs" .` and report.\n' },
+  });
+  await command($, 'magaza-hazirlik');
+  await w.clock.advance(5);
+  const sent = String(w.submitted.at(-1));
+  expect(sent).toMatch(/Run `node "[^"]*\/skills\/store-check\/check\.mjs" \.` and report\./);
+  expect(sent).not.toMatch(/CLAUDE_SKILL_DIR/);
 });
 
 test("a skill's use is logged once a session; the kept skills are put in line as the session starts", async ($, on) => {

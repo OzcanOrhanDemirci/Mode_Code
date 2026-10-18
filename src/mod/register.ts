@@ -3415,11 +3415,14 @@ async function shortCommand($: $, skill: CoreSkill, args: string): Promise<{ tex
   }
   // The skill's own text, sent as the person's message: what `/mode-code:<skill>` does, measured in the real engine
   // (a command run from a plugin's hook does not reach a skill there). Its arguments go where the skill names them.
-  const text = await readFile($, joinPath($.plugin.root, 'skills', skill.id, 'SKILL.md'));
+  const dir = joinPath($.plugin.root, 'skills', skill.id);
+  const text = await readFile($, joinPath(dir, 'SKILL.md'));
   if (!text) return { text: tIn(c.lang, 'skill.missing', { skill: `/${PLUGIN_NAME}:${skill.id}` }) };
+  // The skill's folder, as Claude Code fills it in a skill it loads (its scripts are run from there).
   const body = text
     .replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '')
     .replace(/\$ARGUMENTS/g, args.trim() || '-')
+    .replace(/\$\{CLAUDE_SKILL_DIR\}/g, dir)
     .trim();
   const prompt = `${skillRunPreamble(skill.id, skill.tr)}\n\n${body}`;
   c.selfSent = prompt;

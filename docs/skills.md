@@ -6,30 +6,38 @@ In a session, `/komutlar` (or `/commands`) lists every keyword, command and skil
 
 ## Mode_Code's own
 
-You run these; Claude never loads them by itself, so they add nothing to a session until you do (measured in `scripts/test-live.mjs`, case 14: the same session with and without the sixteen skill files differs by 0 tokens). In Turkish each has a short command; in English it is `/mode-code:<name>`, and Claude Code's `/` menu finds it by its name.
+You run these; Claude never loads them by itself, so they add nothing to a session until you do (measured in `scripts/test-live.mjs`, case 14: the same session with and without the skill files differs by 0 tokens; measured with the first sixteen). In Turkish each has a short command; in English it is `/mode-code:<name>`, and Claude Code's `/` menu finds it by its name.
 
-| Turkish                | Skill               | What it does                                                       |
-| ---------------------- | ------------------- | ------------------------------------------------------------------ |
-| `/toparla`             | the keyword         | Wrap up: finish the step, keep the work, write the handoff note    |
-| `/durum`               | the keyword         | Where the work, the mode and the quota stand                       |
-| `/devir`               | the keyword         | Write the handoff note for the next session                        |
-| `/geri-al`             | `/rewind` (below)   | The code or the conversation as it was before one of your messages |
-| `/dogrula`             | `verify`            | Verify the work with fresh evidence before calling it done         |
-| `/bagimsiz-goz`        | `second-opinion`    | An independent agent reviews the work against the request          |
-| `/kota-rapor`          | `quota-report`      | How the quota is being spent, from Mode_Code's measurements        |
-| `/maliyet-tahmin`      | `cost-estimate`     | What a planned task would take of the quota, from past work        |
-| `/paket`               | `packs`             | The tool packs: which are on here, which would help                |
-| `/guven-denetimi`      | `trust-audit`       | Audit the plugins, hooks, MCP servers and skills that run          |
-| `/kemer`               | `belt`              | What the safety belt stopped, and what it would do with a command  |
-| `/guvenlik`            | `security`          | Secrets, vulnerable dependencies and risky settings in the project |
-| `/proje-tanit`         | `project-intro`     | A true introduction to the project, from its files                 |
-| `/surum-hazirla`       | `release-prep`      | Prepare a release, stopping before anything is published           |
-| `/pr-hazirla`          | `pr-prep`           | Prepare a pull request, stopping before it is opened               |
-| `/bagimlilik-guncelle` | `dependency-update` | Update dependencies safely, each group tested                      |
-| `/hafiza-bakim`        | `memory-care`       | The memory: what no longer loads, repeats or contradicts itself    |
-| `/ders-cikar`          | `lessons`           | The lessons of this session, as proposed memory notes              |
-| `/oturum-ara`          | `session-search`    | Find a past session by what was said or done in it                 |
-| `/sorun-bildir`        | `report-issue`      | Draft an issue for Mode_Code, private details taken out            |
+| Turkish                | Skill               | What it does                                                                         |
+| ---------------------- | ------------------- | ------------------------------------------------------------------------------------ |
+| `/toparla`             | the keyword         | Wrap up: finish the step, keep the work, write the handoff note                      |
+| `/durum`               | the keyword         | Where the work, the mode and the quota stand                                         |
+| `/devir`               | the keyword         | Write the handoff note for the next session                                          |
+| `/geri-al`             | `/rewind` (below)   | The code or the conversation as it was before one of your messages                   |
+| `/dogrula`             | `verify`            | Verify the work with fresh evidence before calling it done                           |
+| `/bagimsiz-goz`        | `second-opinion`    | An independent agent reviews the work against the request                            |
+| `/kota-rapor`          | `quota-report`      | How the quota is being spent, from Mode_Code's measurements                          |
+| `/maliyet-tahmin`      | `cost-estimate`     | What a planned task would take of the quota, from past work                          |
+| `/paket`               | `packs`             | The tool packs: which are on here, which would help                                  |
+| `/guven-denetimi`      | `trust-audit`       | Audit the plugins, hooks, MCP servers and skills that run                            |
+| `/kemer`               | `belt`              | What the safety belt stopped, and what it would do with a command                    |
+| `/guvenlik`            | `security`          | Secrets, vulnerable dependencies and risky settings in the project                   |
+| `/proje-tanit`         | `project-intro`     | A true introduction to the project, from its files                                   |
+| `/surum-hazirla`       | `release-prep`      | Prepare a release, stopping before anything is published                             |
+| `/pr-hazirla`          | `pr-prep`           | Prepare a pull request, stopping before it is opened                                 |
+| `/bagimlilik-guncelle` | `dependency-update` | Update dependencies safely, each group tested                                        |
+| `/hafiza-bakim`        | `memory-care`       | The memory: what no longer loads, repeats or contradicts itself                      |
+| `/ders-cikar`          | `lessons`           | The lessons of this session, as proposed memory notes                                |
+| `/oturum-ara`          | `session-search`    | Find a past session by what was said or done in it                                   |
+| `/sorun-bildir`        | `report-issue`      | Draft an issue for Mode_Code, private details taken out                              |
+| `/magaza-hazirlik`     | `store-check`       | Whether the app is ready for the App Store and Google Play, measured (below)         |
+| `/canli-denetim`       | `live-check`        | Whether production runs what the repository says                                     |
+| `/iddia-denetimi`      | `claims-check`      | What the app says about data, against what its code sends                            |
+| `/turkce-metin`        | `turkish-text`      | Turkish text: long dashes, the question particle, what a script cannot judge (below) |
+| `/derleme-kaynagi`     | `build-source`      | Which commit a built app came from                                                   |
+| `/makine-haritasi`     | `machine-map`       | What this computer can build and release for the project                             |
+
+Two carry a script of their own, run from the skill's folder with Node.js and no packages: `store-check` (the application id, release signing, the manifest, `PrivacyInfo.xcprivacy` in the Xcode target, an iOS icon without alpha, a privacy text and account deletion in the app, the version; in a built APK or AAB, native libraries aligned for 16 KB pages: on the author's three Flutter apps it found what the scripts they kept by hand found) and `turkish-text` (long dashes, and the question particle against the word before it: `geldi mi`, `kitap mı`). Each prints one line per finding and exits 1 when something blocks.
 
 Three Claude may use by itself, when the work calls for them; each costs its one line in every session:
 
