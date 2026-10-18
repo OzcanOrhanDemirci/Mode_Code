@@ -86,6 +86,7 @@ test('wrap up asks for the note as part of wrapping up; a compaction keeps its s
   const r: any = await $.prompt.submit(typed('toparla'));
   expect(r.context.join('\n')).toMatch(/As part of wrapping up, write a handoff note: call mcp__mode-code__handoff/);
   expect(w.registered.map((t: any) => t.name)).toContain('handoff');
+  expect(r.context.join('\n')).not.toMatch(/Lessons:/);
   await $.session.compact({ trigger: 'manual', messages: [{ role: 'user', text: 'so far', toolUses: [] }] } as any);
   const files = [...w.files.keys()].filter((p) => p.startsWith(`${HANDOFFS}/ada-app/`));
   expect(files.length).toBe(1);
@@ -95,6 +96,14 @@ test('wrap up asks for the note as part of wrapping up; a compaction keeps its s
   // A compaction only computed ahead writes nothing.
   await $.session.compact({ trigger: 'precompute', messages: [] } as any);
   expect([...w.files.keys()].filter((p) => p.startsWith(`${HANDOFFS}/`)).length).toBe(1);
+});
+
+test('with a memory set up, wrap up also offers a lesson the person repeated, never written without their yes', async ($, on) => {
+  world(on, { config: { memory: { dirs: ['/home/ada/notes'] } }, git: repoGit() });
+  const r: any = await $.prompt.submit(typed('toparla'));
+  expect(r.context.join('\n')).toMatch(/Lessons: if the person corrected the same thing more than once.*only after they say yes/);
+  const plain: any = await $.prompt.submit(typed('what changed?'));
+  expect((plain.context ?? []).join('\n')).not.toMatch(/Lessons:/);
 });
 
 test('a session that changed something leaves a note from what code measured when it clears; one that did not, none', async ($, on) => {

@@ -380,3 +380,47 @@ export function bypassOffNote(why: 'person' | 'time' | 'disabled'): string {
   const reason = why === 'person' ? 'the person turned it off' : why === 'time' ? 'its time ran out' : 'it was turned off in the settings';
   return `${P} Bypass is off (${reason}): the safety belt asks and blocks again as before.`;
 }
+
+/** What Mode_Code adds by itself to a session's first prompt, together, at most: about 1,500 tokens (A8 of 1.2.0). */
+export const START_CHARS = 6000;
+
+/** A note's first sentence, marked as shortened; the note itself when it has only one. */
+function firstSentence(note: string): string {
+  const m = /^[\s\S]*?[.!?](?=\s|$)/.exec(note);
+  return m && m[0].length < note.length ? `${m[0]} (shortened)` : note;
+}
+
+/**
+ * The notes of a session's first prompt, with what Mode_Code added by itself (`byItself`: the introduction, what the
+ * memory brought in, a handoff note's line, other sessions here, pack hints) kept under START_CHARS together with the
+ * rest: each whole while it fits, then its first sentence, then left out and counted. What the person asked for (a
+ * keyword's note, a flow's step) and what warns (a secret in the message) are never cut, and count first.
+ */
+export function capStart(notes: readonly string[], byItself: (note: string) => boolean, max = START_CHARS): string[] {
+  let used = notes.filter((n) => !byItself(n)).reduce((s, n) => s + n.length, 0);
+  const out: string[] = [];
+  let left = 0;
+  for (const n of notes) {
+    if (!byItself(n)) {
+      out.push(n);
+      continue;
+    }
+    const kept = [n, firstSentence(n)].find((x) => used + x.length <= max);
+    if (kept === undefined) {
+      left++;
+      continue;
+    }
+    out.push(kept);
+    used += kept.length;
+  }
+  if (left) out.push(`${P} ${left} more note(s) of Mode_Code's were left out to keep the start of the session small.`);
+  return out;
+}
+
+/**
+ * With a wrap-up, when a memory is set up (A8 of 1.2.0): a lesson is offered only when the person corrected the same
+ * thing more than once in the session, with where it came from, one at a time, and written only on their yes.
+ */
+export function lessonNote(): string {
+  return `${P} Lessons: if the person corrected the same thing more than once in this session, offer it in one line as a lesson for the memory, quoting their words; one at a time, and write it (the memory-note skill) only after they say yes. A correction made once is not a lesson yet: say nothing about it.`;
+}

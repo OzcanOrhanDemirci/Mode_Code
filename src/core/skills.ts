@@ -8,7 +8,11 @@
  * person's skills also has a short command of its own (`/dogrula`). Pure.
  */
 import { APP_ID } from './app.js';
+import type { Config } from './config.js';
 import type { KeywordList } from './keywords.js';
+
+/** Whether a memory is set up here: the memory note and the lessons at a wrap-up apply. */
+export const memorySetUp = (c: Config) => c.memory.store !== null || c.memory.dirs.length > 0;
 
 export type SkillWho = 'person' | 'model';
 
