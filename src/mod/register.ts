@@ -22,6 +22,25 @@ import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '..
 import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
 import { taintedAct, taintSource, withoutInvisible } from '../core/taint.js';
 import { shellReadTool, shellTrap } from '../core/hygiene.js';
+import {
+  catalogGuide,
+  catalogList,
+  catalogRefusal,
+  CATEGORY_LABELS,
+  introNote,
+  missingProgram,
+  modeOf,
+  packById,
+  packHint,
+  packOfFile,
+  packOfProgram,
+  packOfTool,
+  PACKS,
+  packsInWords,
+  type Pack,
+  type PackRow,
+} from '../core/packs.js';
+import { analyzeCommand } from '../core/shell/analyze.js';
 import { comparePins, parsePins } from '../core/mcp-pins.js';
 import { partsAllowed, shellRules, type ShellRules } from '../core/permissions.js';
 import { isBeltTool, isFileTool, shellOf } from '../core/belt/tools.js';
@@ -92,6 +111,7 @@ import {
   mcpChangedNote,
   hygieneNote,
   trapNote,
+  packsOnNote,
   promptSecretNote,
   resumePrompt,
   stepGuidance,
@@ -291,6 +311,11 @@ interface Ctx {
   hinted: Set<string>;
   /** Notes the session's start found for the model (a changed MCP tool), told with the person's first prompt. */
   startNotes: string[];
+  /** Tool packs loaded in this folder as the session started, and those whose use was logged (docs/packs.md). */
+  packsOn: Set<string>;
+  packsUsed: Set<string>;
+  /** The session's first note (core/packs.ts introNote) is owed: a new session, after /clear, after a compaction. */
+  introDue: boolean;
   /** The sync at the session's start while it runs: the first prompt waits for it. */
   memStart: Promise<unknown> | null;
   /** The notes of sessions closed without ending, written at the start: the first prompt waits for them. */
@@ -565,6 +590,9 @@ async function load($: $): Promise<Ctx> {
     sharedWarned: new Set(),
     hinted: new Set(),
     startNotes: [],
+    packsOn: new Set(),
+    packsUsed: new Set(),
+    introDue: !(previous && previous.sessionId === sessionId),
     mo: {
       tools: 0,
       agents: 0,
@@ -2717,6 +2745,7 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
     c.hinted.add(trap);
     extra.push(trapNote(trap));
   }
+  if (ran && e.agentId === undefined) extra.push(...(await packNotes($, c, tool, input, result)));
   if (d.verdict === 'warn' && result && result.deny === undefined) {
     await logEvent($, c, { kind: 'belt', tool, verdict: 'warn', rules });
     extra.push(decisionText(d, ctx));
@@ -2760,6 +2789,11 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   const extra: string[] = [];
   // Strip presses not told yet go with this prompt, before its own keyword's note.
   if (human) extra.push(...takePressNotes(c), ...c.startNotes.splice(0));
+  // The session's first note: what Claude should know of this tool before anything happens (K12 of 1.2.0).
+  if (human && c.introDue) {
+    c.introDue = false;
+    extra.unshift(introNote({ packs: true, modes: c.config.modules.modes }));
+  }
   if (human) {
     c.turn = { startedAt: await $.clock.now(), uses: [], changed: false };
     // A start asked for at an earlier prompt and never taken up lapses: each prompt asks anew.
@@ -2802,6 +2836,8 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
       extra.push(promptSecretNote(kinds));
     }
   }
+  // A word of the person's that names a pack's work: a one-line hint, once per pack in a session (docs/packs.md).
+  if (human && kind !== 'plugin') for (const p of packsInWords(typed)) extra.push(...packHintOnce(c, p, 'words'));
   // A keyword typed with a slash in front (`/akış iptal`) is that keyword; the person is told how it was read.
   if (human && kind !== 'plugin' && c.config.modules.keywords) {
     const bare = withoutSlash(typed, projectRefs(c.config), keywordTables(c.config));
@@ -3297,6 +3333,136 @@ async function pinMcpTools($: $, c: Ctx): Promise<void> {
   }
 }
 
+// ── tool packs (docs/packs.md) ──
+
+/** `mode-code packs …` run for this session's folder: its JSON answer, or null when the program is not there. */
+async function packsCli($: $, c: Ctx, args: string[]): Promise<Record<string, unknown> | null> {
+  const program = centerProgram(await readFile($, c.layout.manifest));
+  if (!program) return null;
+  const cwd = await $.session.cwd();
+  const r = await $.process.run([...program, 'packs', ...args, '--json', '--dir', cwd], { cwd, timeoutMs: 180_000 });
+  try {
+    const o = JSON.parse(r.stdout) as unknown;
+    return o && typeof o === 'object' && !Array.isArray(o) ? (o as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+const packIds = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && !!packById(x)) : []);
+const packName = (id: string) => packById(id)?.name ?? id;
+
+/** As the session starts: Automatic use turns on the packs this folder's files call for; the ones loaded are kept. */
+async function startPacks($: $, c: Ctx): Promise<void> {
+  try {
+    const o = await packsCli($, c, c.config.packs.autoUse && !c.state.tainted ? ['here', '--auto'] : ['here']);
+    if (!o) return;
+    const turned = (Array.isArray(o.on) ? o.on : []).flatMap((x) => {
+      const r = x as { ok?: unknown; pack?: unknown } | null;
+      return r && r.ok === true && typeof r.pack === 'string' && packById(r.pack) ? [r.pack] : [];
+    });
+    const listed = Array.isArray(o.onHere)
+      ? packIds(o.onHere)
+      : Array.isArray(o.packs)
+        ? (o.packs as { id?: unknown; on?: unknown }[]).filter((p) => p?.on === true).map((p) => String(p.id))
+        : [];
+    // A pack turned on now loads at /reload-plugins or in the next session: not this one's yet.
+    c.packsOn = new Set(listed.filter((id) => !turned.includes(id)));
+    if (!turned.length) return;
+    $.ui.toast(tIn(c.lang, 'packs.toast.on', { packs: turned.map(packName).join(', ') }), { timeoutMs: 15_000 });
+    c.startNotes.push(packsOnNote(turned, 'auto'));
+    await logEvent($, c, { kind: 'packs', on: turned, by: 'auto' });
+  } catch {
+    /* the next session looks again */
+  }
+}
+
+/** A pack's hint, once per pack in a session; none for a pack the person refused. */
+function packHintOnce(c: Ctx, p: Pack | undefined, why: 'words' | 'program' | 'missing' | 'file', program?: string): string[] {
+  if (!p || c.hinted.has(`pack:${p.id}`) || modeOf(c.config.packs.items, p.id) === 'never') return [];
+  // A pack already loaded here needs no hint, unless a program it uses is missing.
+  if (why !== 'missing' && c.packsOn.has(p.id)) return [];
+  c.hinted.add(`pack:${p.id}`);
+  return [packHint(p, why, c.packsOn.has(p.id), program)];
+}
+
+/** After a call: a pack's use is logged once a session; a program or a file of a pack not on here, or a program the shell could not find, earns a hint. */
+async function packNotes($: $, c: Ctx, tool: string, input: Record<string, unknown>, result: { text?: unknown; isError?: boolean }): Promise<string[]> {
+  const used = packOfTool(tool, input);
+  if (used && !c.packsUsed.has(used.id)) {
+    c.packsUsed.add(used.id);
+    await logEvent($, c, { kind: 'pack', pack: used.id, via: tool === 'Skill' ? 'skill' : 'tool' });
+  }
+  const dialect = shellOf(tool);
+  if (dialect) {
+    const out: string[] = [];
+    const missing = typeof result.text === 'string' ? missingProgram(result.text) : null;
+    if (missing) out.push(...packHintOnce(c, packOfProgram(missing), 'missing', missing));
+    for (const inv of analyzeCommand(String(input.command ?? ''), dialect).invocations) {
+      const p = packOfProgram(inv.program);
+      if (p && c.packsOn.has(p.id) && !c.packsUsed.has(p.id)) {
+        c.packsUsed.add(p.id);
+        await logEvent($, c, { kind: 'pack', pack: p.id, via: 'program' });
+      } else out.push(...packHintOnce(c, p, 'program'));
+    }
+    return out;
+  }
+  if (isFileTool(tool)) return packHintOnce(c, packOfFile(String(input.file_path ?? input.notebook_path ?? '')), 'file');
+  return [];
+}
+
+/** The packs' catalog: the packs that match a need, a pack's guide, a pack turned on when the person allows it. */
+const CATALOG_TOOL = {
+  name: 'catalog',
+  description: `${APP_NAME}'s tool packs, each for a kind of work (${[...new Set(PACKS.map((p) => CATEGORY_LABELS[p.category]))].join(', ')}). With "need": the packs that match. With "pack": its guide, what it needs installed. With "pack" and "turn_on": turns it on in this project when the person's Automatic use allows; it loads at /reload-plugins or the next session.`,
+  inputSchema: {
+    type: 'object',
+    properties: {
+      need: { type: 'string', description: 'The work, in a few words.' },
+      pack: { type: 'string', enum: PACKS.map((p) => p.id), description: 'A pack, for its guide.' },
+      turn_on: { type: 'boolean', description: 'Turn the pack on in this project.' },
+    },
+    additionalProperties: false,
+  },
+  isDeferred: true,
+} as const;
+
+async function onCatalogTool($: $, e: any): Promise<any> {
+  const c = await ctxOf($);
+  const p = typeof e.pack === 'string' ? packById(e.pack) : undefined;
+  const listed = await packsCli($, c, ['list']);
+  const entries = (Array.isArray(listed?.packs) ? listed.packs : []) as { id?: unknown; on?: unknown; found?: unknown }[];
+  const rows: PackRow[] = PACKS.map((pack) => {
+    const r = entries.find((x) => x?.id === pack.id);
+    return {
+      pack,
+      mode: modeOf(c.config.packs.items, pack.id),
+      on: r?.on === true,
+      found: Array.isArray(r?.found) ? r.found.filter((s): s is string => typeof s === 'string') : [],
+    };
+  });
+  if (!p) return { result: catalogList(rows, typeof e.need === 'string' ? e.need.slice(0, 200) : '') };
+  const row = rows.find((r) => r.pack === p)!;
+  const guide = await readFile($, joinPath(c.layout.marketplace, 'packs', 'guides', `${p.id}.md`));
+  if (e.turn_on !== true || row.on) return { result: catalogGuide(row, guide) };
+  const refused = (why: Parameters<typeof catalogRefusal>[1], detail?: string) => ({
+    result: `${catalogRefusal(p.id, why, detail)}\n\n${catalogGuide(row, guide)}`,
+  });
+  if (e.agentId !== undefined) return refused('agent');
+  // Outside content read in this session could be what asks for a new pack (core/taint.ts): it waits for the person.
+  if (c.state.tainted) return refused('tainted');
+  const o = await packsCli($, c, ['here', '--pack', p.id]);
+  if (o?.ok !== true) {
+    const reason = o?.reason;
+    if (reason === 'auto-off' || reason === 'mode' || reason === 'risk') return refused(reason);
+    const change = (Array.isArray(o?.changes) ? o.changes : [])[0] as { detail?: unknown } | undefined;
+    return refused('failed', typeof change?.detail === 'string' ? change.detail.slice(0, 200) : '');
+  }
+  $.ui.toast(tIn(c.lang, 'packs.toast.claudeOn', { pack: p.name }), { timeoutMs: 15_000 });
+  await logEvent($, c, { kind: 'packs', on: [p.id], by: 'claude' });
+  return { result: `${packsOnNote([p.id], 'request')}\n\n${catalogGuide({ ...row, on: true }, guide)}` };
+}
+
 /**
  * The daily update check (core/update.ts), when the person said yes and one is due: the installed program asks the
  * release which version is the newest and keeps the answer, which the menu and the morning report then show.
@@ -3324,6 +3490,8 @@ async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.st
   void updateCheck($, c);
   // The MCP tools' descriptions against the ones first seen: a change is told (core/mcp-pins.ts).
   void pinMcpTools($, c);
+  // Tool packs: Automatic use turns on what this folder's files call for; what is on here is kept for the hints.
+  void startPacks($, c);
   if (c.fresh && c.config.modules.modes) await restoreLast($, c);
   await saveState($, c);
   if (c.state.resumeAt) await scheduleResume($, c);
@@ -3346,6 +3514,12 @@ async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.st
           { timeoutMs: 10_000 },
         );
     }
+  }
+  // The packs' catalog, behind tool search: its name costs nothing until Claude looks for it (docs/packs.md).
+  try {
+    await $.tool.register(CATALOG_TOOL);
+  } catch {
+    /* the packs then reach Claude through their hints alone */
   }
   // A run attached to this session (a resumed session) keeps its tool; a paused one in this folder is said once.
   if (c.run) await registerAutoTool($);
@@ -4736,6 +4910,7 @@ export function register(on: On): void {
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${FLOW_TOOL.name}` }, onFlowStep);
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${AUTO_TOOL.name}` }, onAutoTool);
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${HANDOFF_TOOL_DEF.name}` }, onHandoffTool);
+  on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${CATALOG_TOOL.name}` }, onCatalogTool);
   // Claude Code's own permission questions: during a run they are answered "deferred" instead of waiting.
   // A failure leaves Claude Code's verdict as it was (a question nobody answers, never a call let through).
   on('tool.check', onToolCheck).catch(($, e, next) => next(e));
@@ -4747,6 +4922,12 @@ export function register(on: On): void {
       ? await next({ ...e, instructions: [e.instructions, `Keep this in the summary, word for word: ${text}`].filter(Boolean).join('\n') })
       : await next(e);
     if (text) await restateSession($, text);
+    // The session's first note may be summarized away: it goes again with the next prompt.
+    try {
+      (await ctxOf($)).introDue = true;
+    } catch {
+      /* the next session gives it */
+    }
     // The compaction's own summary is the handoff note (docs/memory.md): no extra model call.
     await compactHandoff($, e.trigger, r);
     return r;

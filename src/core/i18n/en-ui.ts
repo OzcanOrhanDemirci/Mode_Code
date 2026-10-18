@@ -263,6 +263,8 @@ export const enUi = {
   'secrets.found': '{n} possible secrets in {files} scanned files:',
   'secrets.allowUsage': 'Usage: {cmd} <fingerprint>… (the 64 hex digits a held memory push printed)',
   'secrets.allowed': '{n} fingerprints allowed: a memory push may send those values now.',
+  'packs.toast.on': 'Packs on for this project: {packs}. They load at /reload-plugins or the next session.',
+  'packs.toast.claudeOn': 'Claude turned on the {pack} pack here (Automatic use).',
   'mcp.changed': '{n} MCP tool description(s) changed since first seen; check the server before you trust them: {tools}',
   'secrets.inPrompt': 'Your message held a secret ({kinds}); it went to the model. Pasted by mistake? Rotate it.',
   'secrets.note': 'Only masked previews are shown. Move real secrets out of these files and rotate any that were committed.',

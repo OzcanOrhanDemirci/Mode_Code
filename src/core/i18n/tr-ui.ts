@@ -255,6 +255,8 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'secrets.found': 'Taranan {files} dosyada {n} olası sır:',
   'secrets.allowUsage': 'Kullanım: {cmd} <parmak izi>… (bekletilen hafıza gönderiminin yazdığı 64 onaltılık hane)',
   'secrets.allowed': '{n} parmak izine izin verildi: hafıza gönderimi artık bu değerleri gönderebilir.',
+  'packs.toast.on': 'Bu projede açılan paketler: {packs}. /reload-plugins ile ya da sonraki oturumda yüklenir.',
+  'packs.toast.claudeOn': 'Claude {pack} paketini burada açtı (Otomatik kullan).',
   'mcp.changed': '{n} MCP aracının açıklaması ilk görüldüğünden beri değişti; güvenmeden önce sunucuya bak: {tools}',
   'secrets.inPrompt': 'Mesajında bir sır vardı ({kinds}); modele gitti. Yanlışlıkla mı yapıştırdın? Yenile.',
   'secrets.note': 'Yalnız maskeli önizlemeler gösterilir. Gerçek sırları bu dosyalardan çıkar, commit edilmiş olanları yenile.',

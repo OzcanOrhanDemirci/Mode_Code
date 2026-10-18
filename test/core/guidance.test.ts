@@ -15,6 +15,7 @@ import {
   hygieneNote,
   invisibleNote,
   mcpChangedNote,
+  packsOnNote,
   promptSecretNote,
   trapNote,
   keywordContext,
@@ -245,4 +246,9 @@ test('the notes of the second belt: each names what happened and what to do, and
   assert.match(notes[6]!, /<<'EOF'/);
   assert.match(notes[7]!, /pipefail/);
   assert.match(notes[8]!, /\(github-token\).*rotate/);
+  assert.match(
+    packsOnNote(['typst', 'ffmpeg'], 'auto'),
+    /^\[Mode_Code\] Tool packs turned on in this project by Automatic use, as this project's files call for them: typst, ffmpeg\. They load when the person types \/reload-plugins/,
+  );
+  assert.match(packsOnNote(['typst'], 'request'), /turned on in this project as you asked: typst\./);
 });

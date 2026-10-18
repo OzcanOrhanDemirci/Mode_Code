@@ -6,6 +6,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- Tool packs (`docs/packs.md`): Flutter and Dart, Firebase, the app stores, a browser, Typst, TypeScript and Python code intelligence, OpenSCAD and ffmpeg, each a plugin turned on only in the projects that need it, pinned and checked against eight trust rules. Automatic use (asked at install, on unless you say no) turns on what a project's files call for as a session starts, and lets Claude turn one on through the `catalog` tool; a one-line hint names a pack when the work matches it. `mode-code packs` lists them and turns them on or off; the control center has them under Claude Code › Tool packs; uninstalling turns off what was turned on.
+- The first prompt of a session (and the first after `/clear` or a compaction) carries a short note of what Claude should know of Mode_Code before anything happens, at most 1,000 characters.
+- Safety belt: an app store upload, submission or release (`publish.store`) and a payment (`outbound.payment`) are asked, with bypass on too. In a session that read outside content, turning on a plugin, an MCP server or a tool pack is asked.
 - `mode-code trust`: what runs inside Claude Code besides the model (plugins, hooks, MCP servers, skills, agents, commands), each with where it is set, and what is new or gone since you last looked.
 - The descriptions of connected MCP tools are kept as first seen (their fingerprint); one that changes later (a server rewriting its tools after you trusted it) is told to you, and to Claude with your first prompt, once.
 - Outside content (a web page, a connected service, a fetched page) that hides characters nobody sees (Unicode tags, direction overrides, zero-width spaces) reaches Claude without them, with a note saying how many were taken out; an emoji built with a joiner stays whole.

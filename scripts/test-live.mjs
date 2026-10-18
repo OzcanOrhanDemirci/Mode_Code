@@ -21,12 +21,14 @@
  *      session in its folder is told of it; once it is gone, the next is not, and writes the note it owed;
  *  11. bypass: in Claude Code's default permission mode a headless session cannot answer its question, so a
  *      command not approved beforehand is refused; with bypass on, the plugin answers it and the command runs;
- *  12. a compound command whose every part the project's allow rules cover runs in the default permission mode.
+ *  12. a compound command whose every part the project's allow rules cover runs in the default permission mode;
+ *  13. the tool packs: a pack's skill loads and its use is recorded; the catalog tool, behind tool search, is found.
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
  *        add --only-bypass to run case 11 alone (two sessions): what a Claude Code release could change for bypass
  *        add --only-auto to run cases 6 and 7 alone (two sessions): full autonomy, start to finish
  *        add --only-parts to run case 12 alone (one session): a compound command whose parts are allowed
+ *        add --only-packs to run case 13 alone (two sessions): the tool packs
  *        add --keep to leave the sessions' folders and the full-autonomy sessions' streams in place
  */
 import { spawn, spawnSync } from 'node:child_process';
@@ -597,6 +599,52 @@ function partsCase() {
   return r;
 }
 
+/**
+ * 13. The tool packs (docs/packs.md) in the real engine: a pack loaded from its built folder offers its skill, whose
+ * use the plugin records as the pack's; and the catalog tool, registered behind tool search, is found and answers.
+ */
+function packsCases() {
+  const dir = join(work, 'packs-project');
+  const home = join(work, 'packs-data');
+  mkdirSync(dir, { recursive: true });
+  mkdirSync(home, { recursive: true });
+  writeFileSync(join(dir, 'report.typ'), '= Report\n');
+  writeFileSync(join(home, 'config.json'), JSON.stringify({ language: 'en' }));
+  const pack = ['--plugin-dir', join(dist, 'packs', 'plugins', 'mode-code-typst')];
+  const skill = session(
+    'Use the Skill tool to load the skill named mode-code-typst:typst, then reply with the single word LOADED and nothing else.',
+    settings,
+    'Read,Skill',
+    { MODE_CODE_HOME: home },
+    dir,
+    pack,
+  );
+  const months = existsSync(join(home, 'events')) ? readdirSync(join(home, 'events')) : [];
+  const logged = months.flatMap((m) => readdirSync(join(home, 'events', m)).map((x) => readFileSync(join(home, 'events', m, x), 'utf8'))).join('\n');
+  const used = /"kind":"pack","pack":"typst","via":"skill"/.test(logged);
+  check(
+    "a pack's skill loads from its plugin, and its use is recorded as the pack's",
+    used,
+    used ? '' : (skill.final?.result?.slice?.(0, 120) ?? skill.stderr.slice(0, 200)),
+  );
+  const catalog = session(
+    'Find the mcp__mode-code__catalog tool (search for it if it is not loaded), call it with need "PDF documents", then reply with only the id of the first pack it lists.',
+    settings,
+    'Read,mcp__mode-code__catalog',
+    { MODE_CODE_HOME: home },
+    dir,
+  );
+  const called = catalog.events.some(
+    (e) => e.type === 'assistant' && (e.message?.content ?? []).some((b) => b.type === 'tool_use' && b.name === 'mcp__mode-code__catalog'),
+  );
+  check(
+    'the catalog tool, behind tool search, is found and answers',
+    called && /typst/i.test(catalog.final?.result ?? ''),
+    called ? (catalog.final?.result?.slice?.(0, 120) ?? '') : 'the tool was not called',
+  );
+  return [skill, catalog];
+}
+
 const results = [];
 const check = (name, ok, detail = '') => {
   results.push({ name, ok, detail });
@@ -607,6 +655,11 @@ try {
   if (process.argv.includes('--only-bypass')) {
     const b = bypassCases();
     const cost = b.reduce((n, x) => n + (x.final?.total_cost_usd ?? 0), 0);
+    console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
+    process.exitCode = results.every((r) => r.ok) ? 0 : 1;
+  } else if (process.argv.includes('--only-packs')) {
+    const p = packsCases();
+    const cost = p.reduce((n, x) => n + (x.final?.total_cost_usd ?? 0), 0);
     console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
     process.exitCode = results.every((r) => r.ok) ? 0 : 1;
   } else if (process.argv.includes('--only-parts')) {
@@ -696,7 +749,8 @@ try {
     const nine = syncCases();
     const eleven = bypassCases();
     const twelve = partsCase();
-    const cost = [one, two, three, plan, four, five, six, seven, ...eight, ...nine, ...ten, ...eleven, twelve]
+    const thirteen = packsCases();
+    const cost = [one, two, three, plan, four, five, six, seven, ...eight, ...nine, ...ten, ...eleven, twelve, ...thirteen]
       .filter(Boolean)
       .reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
     console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
