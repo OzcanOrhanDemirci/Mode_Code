@@ -10,7 +10,7 @@
  */
 import { build } from 'esbuild';
 import { mkdir, readFile, rm, writeFile, cp } from 'node:fs/promises';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -65,11 +65,19 @@ const mod = await build({
   platform: 'neutral',
   target: 'es2023',
   external: ['claude-code'],
-  // Keep top-level function names: the engine's validator reads them, and stack traces stay readable.
+  // Keep top-level function names: the engine's validator reads them, and stack traces name the function. Only the
+  // whitespace goes: Claude Code does not read a hooks module over 1 MiB, and the two languages' words fill much of it.
   keepNames: false,
   minify: false,
+  minifyWhitespace: true,
   banner: { js: banner },
 });
+// Claude Code skips a hooks module over 1 MiB ("was not read"), and the plugin then does nothing at all: refuse the
+// build, and say so early while there is room.
+const MOD_LIMIT = 1024 * 1024;
+const modBytes = statSync(join(dist, 'plugin', 'hooks', 'register.js')).size;
+if (modBytes > MOD_LIMIT) throw new Error(`register.js is ${modBytes} bytes, over the ${MOD_LIMIT} Claude Code reads of a hooks module`);
+if (modBytes > MOD_LIMIT * 0.9) console.warn(`build: register.js is ${modBytes} bytes, ${Math.round((modBytes / MOD_LIMIT) * 100)}% of what Claude Code reads`);
 
 // Mo in the strip: a surface module Claude Code loads beside the hooks module, by the path the strip names.
 const moStrip = await build({
