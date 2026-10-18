@@ -3,7 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 // @ts-expect-error: a plain JavaScript script, run by hand
-import { boundariesOf, callsOf, costOf, jsonLines, priceOf, readingsOf, tasksOf, unitsPerPoint, windowOf } from '../../scripts/measure/quota.mjs';
+import * as measure from '../../scripts/measure/quota.mjs';
+
+const { boundariesOf, callsOf, costOf, gitSubcommands, jsonLines, priceOf, readingsOf, tasksOf, unitsPerPoint, windowOf } = measure;
 
 type Usage = { input?: number; write5m?: number; write1h?: number; read?: number; output?: number };
 
@@ -116,6 +118,17 @@ test('commits and pushes end tasks; other git commands and look-alikes do not', 
   }
   const read = [{ type: 'tool_use', name: 'Read', input: { file_path: 'git commit' } }];
   assert.deepEqual(boundariesOf([line('2026-10-17T10:00:00.000Z', 'a', {}, { content: read })]), []);
+});
+
+test('git subcommands: where a command starts, past git options, not inside strings; long lines stay quick', () => {
+  assert.deepEqual(gitSubcommands('git -C "a; b" -c k=v --no-pager log && (git status) | { git push; }'), ['log', 'status', 'push']);
+  assert.deepEqual(gitSubcommands("echo 'git commit; git push' && npm test"), []);
+  assert.deepEqual(gitSubcommands('git'), []);
+  assert.deepEqual(gitSubcommands('"git" commit'), ['commit']);
+  // The lines CodeQL showed a nested pattern backtracking on (js/redos), long.
+  const started = Date.now();
+  for (const line of ['git' + ' -C --=!'.repeat(20_000), 'git -C ' + '"" -C '.repeat(20_000), 'git -' + '-- -'.repeat(20_000)]) gitSubcommands(line);
+  assert.ok(Date.now() - started < 2000);
 });
 
 test('a session is cut into tasks at the calls that commit or push; the rest is open', () => {

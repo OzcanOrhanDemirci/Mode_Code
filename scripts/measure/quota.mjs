@@ -28,10 +28,48 @@ export const PRICES = {
 export const WEIGHTS = { input: 1, write: 1, read: 0.76, output: 1.92 };
 
 const COMMAND_TOOLS = new Set(['Bash', 'PowerShell']);
-// A commit or a push run as a command: git at the start or after `;`, `&`, `|`, `(`, `{` or a line break, with
-// git's own options before it (`git -C dir commit`, `git -C "my dir" commit`, `git -c k=v push`). Inside a
-// string (`echo "git commit"`) it is text.
-const BOUNDARY = /(?:^|[;&|({\n])\s*git(?:\s+(?:-C|-c)\s+(?:"[^"]*"|'[^']*'|\S+)|\s+--?[\w-]+(?:=\S+)?)*\s+(commit|push)(?![\w-])/g;
+const SUBCOMMANDS = new Set(['commit', 'push']);
+
+/**
+ * The git subcommands a command line runs: git where a command starts (at the start, or after `;`, `&`, `|`,
+ * a bracket or a line break outside quotes), past git's own options (`-C "my dir"`, `-c k=v`, `--no-pager`).
+ * Inside a string (`echo "git commit"`) git is text. A walk, not a pattern: nested optional parts in one
+ * regular expression backtrack without end on some lines.
+ */
+export function gitSubcommands(command) {
+  const out = [];
+  let words = [];
+  let word = '';
+  let quoted = false;
+  let quote = '';
+  const endWord = () => {
+    if (word || quoted) words.push(word);
+    word = '';
+    quoted = false;
+  };
+  const endCommand = () => {
+    endWord();
+    if (words[0] === 'git') {
+      let i = 1;
+      while (i < words.length && words[i].startsWith('-')) i += words[i] === '-C' || words[i] === '-c' ? 2 : 1;
+      if (i < words.length) out.push(words[i]);
+    }
+    words = [];
+  };
+  for (const ch of command) {
+    if (quote) {
+      if (ch === quote) quote = '';
+      else word += ch;
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+      quoted = true;
+    } else if (';&|(){}\n'.includes(ch)) endCommand();
+    else if (/\s/.test(ch)) endWord();
+    else word += ch;
+  }
+  endCommand();
+  return out;
+}
 
 /** The JSON objects of a JSONL text; a line that is not JSON is left out. */
 export function jsonLines(text) {
@@ -105,7 +143,7 @@ export function boundariesOf(lines) {
     for (const b of o.message.content) {
       if (b?.type !== 'tool_use' || !COMMAND_TOOLS.has(b.name)) continue;
       // `git commit -m x && git push` is a push.
-      const kinds = [...String(b.input?.command ?? '').matchAll(BOUNDARY)].map((m) => m[1]);
+      const kinds = gitSubcommands(String(b.input?.command ?? '')).filter((s) => SUBCOMMANDS.has(s));
       if (kinds.length)
         out.push({
           session: o.sessionId ?? o.session_id ?? '',
