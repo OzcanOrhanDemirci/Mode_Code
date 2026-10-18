@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Box, Text } from 'ink';
 import type { MessageKey } from '../core/i18n/index.js';
+import { truncate } from '../core/text.js';
 import { useEnv, useScreenKeys, useT, ListView, Muted, type ListItem } from './ui.js';
 
 export interface Link extends ListItem {
@@ -196,14 +197,25 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
     if (f.type.kind === 'enum') return f.type.options.find((o) => o.value === f.value)?.label ?? String(f.value);
     return String(f.value);
   };
-  const labelW = Math.min(30, Math.max(...fields.map((f) => f.label.length)) + 2);
+  // The values stand in one column two cells past the longest label, as far as the longest value leaves room. A
+  // label too long for the column is cut: run into its value, "serbest" and "açık" read as one word.
+  const valueW = Math.max(
+    ...fields.map((f) =>
+      f.type.kind === 'enum'
+        ? Math.max(...f.type.options.map((o) => o.label.length))
+        : f.type.kind === 'bool'
+          ? Math.max(t('set.on').length, t('set.off').length)
+          : 5,
+    ),
+  );
+  const labelW = Math.max(12, Math.min(40, width - 2 - valueW, Math.max(...fields.map((f) => f.label.length)) + 2));
   return (
     <Box flexDirection="column" width={width}>
       {fields.map((f, i) => {
         const selected = i === sel && open;
         return (
           <Box key={f.path}>
-            <Text inverse={selected}>{(selected ? env.theme.sym.cursor : ' ') + ' ' + f.label.padEnd(labelW)}</Text>
+            <Text inverse={selected}>{(selected ? env.theme.sym.cursor : ' ') + ' ' + truncate(f.label, labelW - 2).padEnd(labelW)}</Text>
             <Text bold color={f.type.kind === 'bool' ? (f.value ? env.theme.ok : env.theme.muted) : env.theme.accent}>
               {typing !== null && i === sel ? typing + '▏' : show(f)}
             </Text>
