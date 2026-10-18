@@ -15,6 +15,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
+- `git commit --no-verify` (and `-n`, and `git push --no-verify`) is asked about rather than noted: skipping the repository's own hooks is how a change slips past its lint, tests and secret checks. Turn it back into a note with `mode-code config set belt.verdicts '{"git.no-verify":"warn"}'`.
 - Checked against Claude Code 2.1.302: the plugin type-checks against its declarations, the engine's own test kit passes, and the live sessions run on it.
 
 ### Fixed

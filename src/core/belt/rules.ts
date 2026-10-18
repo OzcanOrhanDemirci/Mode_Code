@@ -51,7 +51,8 @@ export const RULES: Readonly<Record<RuleId, RuleInfo>> = Object.freeze({
   'git.single-branch': r('git.single-branch', 'git', 'deny'),
   'git.history-rewrite': r('git.history-rewrite', 'git', 'ask'),
   'git.hooks-path': r('git.hooks-path', 'git', 'deny'),
-  'git.no-verify': r('git.no-verify', 'git', 'warn'),
+  // Skipping the repository's own hooks (lint, tests, secret checks) is how a change slips past them: asked (A3-9).
+  'git.no-verify': r('git.no-verify', 'git', 'ask'),
   'git.clean': r('git.clean', 'git', 'ask'),
   'git.discard-work': r('git.discard-work', 'git', 'warn'),
   'git.branch-force-delete': r('git.branch-force-delete', 'git', 'ask'),
