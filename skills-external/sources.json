@@ -1,0 +1,426 @@
+{
+  "grilling": {
+    "repo": "mattpocock/skills",
+    "commit": "49dd158d1076134a641b33efb035946536778336",
+    "path": "skills/productivity/grilling",
+    "license": "MIT",
+    "suggested": "on",
+    "description": "Grill the user relentlessly about a plan, decision, or idea. Use when the user wants to stress-test their thinking, or uses any 'grill' trigger phrases.",
+    "files": [
+      "SKILL.md"
+    ]
+  },
+  "grill-me": {
+    "repo": "mattpocock/skills",
+    "commit": "49dd158d1076134a641b33efb035946536778336",
+    "path": "skills/productivity/grill-me",
+    "license": "MIT",
+    "suggested": "me",
+    "description": "A relentless interview to sharpen a plan or design.",
+    "files": [
+      "SKILL.md"
+    ]
+  },
+  "diagnosing-bugs": {
+    "repo": "mattpocock/skills",
+    "commit": "49dd158d1076134a641b33efb035946536778336",
+    "path": "skills/engineering/diagnosing-bugs",
+    "license": "MIT",
+    "suggested": "on",
+    "description": "Diagnosis loop for hard bugs and performance regressions. Use when the user says \"diagnose\"/\"debug this\", or reports something broken/throwing/failing/slow.",
+    "files": [
+      "SKILL.md",
+      "scripts/hitl-loop.template.sh"
+    ]
+  },
+  "tdd": {
+    "repo": "mattpocock/skills",
+    "commit": "49dd158d1076134a641b33efb035946536778336",
+    "path": "skills/engineering/tdd",
+    "license": "MIT",
+    "suggested": "on",
+    "description": "Test-driven development. Use when the user wants to build features or fix bugs test-first, mentions \"red-green-refactor\", or wants integration tests.",
+    "files": [
+      "SKILL.md",
+      "mocking.md",
+      "tests.md"
+    ]
+  },
+  "codebase-design": {
+    "repo": "mattpocock/skills",
+    "commit": "49dd158d1076134a641b33efb035946536778336",
+    "path": "skills/engineering/codebase-design",
+    "license": "MIT",
+    "suggested": "on",
+    "description": "Shared vocabulary for designing deep modules. Use when the user wants to design or improve a module's interface, find deepening opportunities, decide where a seam goes, make code more testable or AI-navigable, or when another skill needs the deep-module vocabulary.",
+    "files": [
+      "DEEPENING.md",
+      "DESIGN-IT-TWICE.md",
+      "SKILL.md"
+    ]
+  },
+  "improve-codebase-architecture": {
+    "repo": "mattpocock/skills",
+    "commit": "49dd158d1076134a641b33efb035946536778336",
+    "path": "skills/engineering/improve-codebase-architecture",
+    "license": "MIT",
+    "suggested": "me",
+    "description": "Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.",
+    "files": [
+      "HTML-REPORT.md",
+      "SKILL.md"
+    ]
+  },
+  "domain-modeling": {
+    "repo": "mattpocock/skills",
+    "commit": "49dd158d1076134a641b33efb035946536778336",
+    "path": "skills/engineering/domain-modeling",
+    "license": "MIT",
+    "suggested": "on",
+    "description": "Build and sharpen a project's domain model. Use when discussing codebase terminology, writing or editing a GLOSSARY.md, or recording or editing an ADR.",
+    "files": [
+      "ADR-FORMAT.md",
+      "GLOSSARY-FORMAT.md",
+      "SKILL.md"
+    ]
+  },
+  "prototype": {
+    "repo": "mattpocock/skills",
+    "commit": "49dd158d1076134a641b33efb035946536778336",
+    "path": "skills/engineering/prototype",
+    "license": "MIT",
+    "suggested": "on",
+    "description": "Build a throwaway prototype to answer a design question. Use when the user wants to sanity-check whether a state model or logic feels right, or explore what a UI should look like.",
+    "files": [
+      "LOGIC.md",
+      "SKILL.md",
+      "UI.md"
+    ]
+  },
+  "teach": {
+    "repo": "mattpocock/skills",
+    "commit": "49dd158d1076134a641b33efb035946536778336",
+    "path": "skills/productivity/teach",
+    "license": "MIT",
+    "suggested": "me",
+    "description": "Teach the user a new skill or concept, within this workspace.",
+    "files": [
+      "GLOSSARY-FORMAT.md",
+      "LEARNING-RECORD-FORMAT.md",
+      "MISSION-FORMAT.md",
+      "RESOURCES-FORMAT.md",
+      "SKILL.md"
+    ]
+  },
+  "writing-for-agents": {
+    "repo": "mattpocock/skills",
+    "commit": "49dd158d1076134a641b33efb035946536778336",
+    "path": "skills/productivity/writing-for-agents",
+    "license": "MIT",
+    "suggested": "on",
+    "description": "Writing documents for agents. Use when creating or editing skills, or modifying AGENTS.md or CLAUDE.md.",
+    "files": [
+      "SKILL-MECHANICS.md",
+      "SKILL.md"
+    ]
+  },
+  "systematic-debugging": {
+    "repo": "obra/superpowers",
+    "commit": "bb92a77741419a4ab5f06e711a283343f1ada0c3",
+    "path": "skills/systematic-debugging",
+    "license": "MIT",
+    "suggested": "on",
+    "description": "Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes",
+    "files": [
+      "SKILL.md",
+      "condition-based-waiting-example.ts",
+      "condition-based-waiting.md",
+      "defense-in-depth.md",
+      "find-polluter.sh",
+      "root-cause-tracing.md"
+    ]
+  },
+  "verification-before-completion": {
+    "repo": "obra/superpowers",
+    "commit": "bb92a77741419a4ab5f06e711a283343f1ada0c3",
+    "path": "skills/verification-before-completion",
+    "license": "MIT",
+    "suggested": "on",
+    "description": "Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always",
+    "files": [
+      "SKILL.md"
+    ]
+  },
+  "receiving-code-review": {
+    "repo": "obra/superpowers",
+    "commit": "bb92a77741419a4ab5f06e711a283343f1ada0c3",
+    "path": "skills/receiving-code-review",
+    "license": "MIT",
+    "suggested": "on",
+    "description": "Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verification, not performative agreement or blind implementation",
+    "files": [
+      "SKILL.md"
+    ]
+  },
+  "source-driven-development": {
+    "repo": "addyosmani/agent-skills",
+    "commit": "aeac41d4d005999432bb7312f7ff06383a91d59d",
+    "path": "skills/source-driven-development",
+    "license": "MIT",
+    "suggested": "on",
+    "description": "Grounds every implementation decision in official documentation. Use when you want to verify an approach against the official docs before implementing it, or when you want authoritative, source-cited code free from outdated patterns. Use when building with any framework or library where correctness ",
+    "files": [
+      "SKILL.md"
+    ]
+  },
+  "gha-security-review": {
+    "repo": "getsentry/skills",
+    "commit": "f57ada2d0b640406ea7e25b11d636c530e77c58b",
+    "path": "skills/gha-security-review",
+    "license": "Apache-2.0",
+    "suggested": "on",
+    "description": "GitHub Actions security review for workflow exploitation vulnerabilities. Use when asked to \"review GitHub Actions\", \"audit workflows\", \"check CI security\", \"GHA security\", \"workflow security review\", or review .github/workflows/ for pwn requests, expression injection, credential theft, and supply c",
+    "files": [
+      "SKILL.md",
+      "references/ai-prompt-injection-via-ci.md",
+      "references/comment-triggered-commands.md",
+      "references/credential-escalation.md",
+      "references/expression-injection.md",
+      "references/permissions-and-secrets.md",
+      "references/pwn-request.md",
+      "references/real-world-attacks.md",
+      "references/runner-infrastructure.md",
+      "references/supply-chain.md"
+    ]
+  },
+  "humanizer": {
+    "repo": "blader/humanizer",
+    "commit": "8c307f367c91bd974002f10f2be2965d642c13df",
+    "path": "",
+    "license": "MIT",
+    "suggested": "on",
+    "description": "Rewrite AI-sounding text so it reads like the writer without changing what it says. Use when editing or reviewing prose for AI tells: not-X-but-Y contrasts, one-line closers, staged openers, forced triads, dashes everywhere, inflated claims, sales language, stock AI words, bold labels, or filler. Ba",
+    "files": [
+      "SKILL.md"
+    ]
+  },
+  "frontend-design": {
+    "repo": "anthropics/claude-plugins-official",
+    "commit": "ea10b213686c90bb1984b2016937310e05336cf3",
+    "path": "plugins/frontend-design/skills/frontend-design",
+    "license": "Apache-2.0",
+    "suggested": "on",
+    "description": "Guidance for distinctive, intentional visual design when building new UI or reshaping an existing one. Helps with aesthetic direction, typography, and making choices that don't read as templated defaults.",
+    "files": [
+      "LICENSE.txt",
+      "SKILL.md"
+    ]
+  },
+  "claude-md-improver": {
+    "repo": "anthropics/claude-plugins-official",
+    "commit": "ea10b213686c90bb1984b2016937310e05336cf3",
+    "path": "plugins/claude-md-management/skills/claude-md-improver",
+    "license": "Apache-2.0",
+    "suggested": "me",
+    "description": "Audit and improve CLAUDE.md files in repositories. Use when user asks to check, audit, update, improve, or fix CLAUDE.md files. Scans for all CLAUDE.md files, evaluates quality against templates, outputs quality report, then makes targeted updates. Also use when the user mentions \"CLAUDE.md maintena",
+    "files": [
+      "SKILL.md",
+      "references/quality-criteria.md",
+      "references/templates.md",
+      "references/update-guidelines.md"
+    ]
+  },
+  "session-report": {
+    "repo": "anthropics/claude-plugins-official",
+    "commit": "ea10b213686c90bb1984b2016937310e05336cf3",
+    "path": "plugins/session-report/skills/session-report",
+    "license": "Apache-2.0",
+    "suggested": "me",
+    "description": "Generate an explorable HTML report of Claude Code session usage (tokens, cache, subagents, skills, expensive prompts) from ~/.claude/projects transcripts.",
+    "files": [
+      "SKILL.md",
+      "analyze-sessions.mjs",
+      "template.html"
+    ]
+  },
+  "firebase-security-rules-auditor": {
+    "repo": "firebase/agent-skills",
+    "commit": "306cc1844c47839bd4f2c7dba7cc3c394e4f3e0b",
+    "path": "skills/firebase-security-rules-auditor",
+    "license": "Apache-2.0",
+    "suggested": "on",
+    "description": "Audits Firebase (Firestore, Cloud Storage) security rules for vulnerabilities, privilege escalation, role bypasses, create vs update inconsistencies, resource exhaustion, type safety, size limits, and hasOnly ownership checks. Use when auditing/reviewing rules, running red-team rule assessments, or ",
+    "files": [
+      "SKILL.md"
+    ]
+  },
+  "firestore-rules-creation": {
+    "repo": "firebase/agent-skills",
+    "commit": "306cc1844c47839bd4f2c7dba7cc3c394e4f3e0b",
+    "path": "skills/firestore-rules-creation",
+    "license": "Apache-2.0",
+    "suggested": "on",
+    "description": "Designs, authors, refactors, and hardens production-grade Cloud Firestore Security Rules (firestore.rules). IMPORTANT: If subagent delegation AND the firestore-rules-author subagent are available in your environment, delegate authoring firestore.rules to the firestore-rules-author subagent. If subag",
+    "files": [
+      "SKILL.md"
+    ]
+  },
+  "firebase-cloud-firestore": {
+    "repo": "evanca/flutter-ai-rules",
+    "commit": "30f908d3878ac8f2fe2c62c86b724be161d75a55",
+    "path": "skills/firebase-cloud-firestore",
+    "license": "MIT",
+    "suggested": "on",
+    "description": "Use when setting up Firestore, designing schemas, doing CRUD, creating listeners, paginating queries, configuring indexes, enabling offline persistence, or writing security rules.",
+    "files": [
+      "SKILL.md"
+    ]
+  },
+  "dart-3-updates": {
+    "repo": "evanca/flutter-ai-rules",
+    "commit": "30f908d3878ac8f2fe2c62c86b724be161d75a55",
+    "path": "skills/dart-3-updates",
+    "license": "MIT",
+    "suggested": "on",
+    "description": "Use when writing switch statements, refactoring if-else chains, creating data classes, choosing records vs classes, destructuring values, or modernizing pre-Dart-3 code.",
+    "files": [
+      "SKILL.md"
+    ]
+  },
+  "appstore-review": {
+    "repo": "devsemih/appstore-review-skill",
+    "commit": "ab77bb701fe9bee863b89db4634efcf6e128798e",
+    "path": "skills/appstore-review",
+    "license": "MIT",
+    "suggested": "me",
+    "description": "Checks an iOS/iPadOS/macOS app project against Apple's App Store Review Guidelines before submission. Works with native (Swift/Obj-C), Flutter, React Native, Expo, Kotlin Multiplatform, .NET MAUI, Cordova, Ionic, and Unity projects. Use when the user wants to verify their app complies with App Store",
+    "files": [
+      "SKILL.md"
+    ]
+  },
+  "playstore-review": {
+    "repo": "devsemih/appstore-review-skill",
+    "commit": "ab77bb701fe9bee863b89db4634efcf6e128798e",
+    "path": "skills/playstore-review",
+    "license": "MIT",
+    "suggested": "me",
+    "description": "Checks an Android app project against Google Play's Developer Program Policies before submission. Works with native (Kotlin/Java), Flutter, React Native, Expo, Kotlin Multiplatform, .NET MAUI, Cordova, Ionic, Capacitor, and Unity projects. Use when the user wants to verify their app complies with Go",
+    "files": [
+      "SKILL.md"
+    ]
+  },
+  "store-quirks": {
+    "repo": "tramlinehq/store-quirks",
+    "commit": "5b1f9fa9950902fd4b628c3afda72e28200ca800",
+    "path": "store-quirks",
+    "license": "CC0-1.0",
+    "suggested": "on",
+    "description": "Reference guide for mobile app store quirks and undocumented behaviors across Apple App Store and Google Play Store. Use when the user asks about app store release management, phased/staged rollouts, version codes, version names, build versioning, TestFlight, App Bundle Explorer, App Store Connect A",
+    "files": [
+      "SKILL.md"
+    ]
+  },
+  "aso": {
+    "repo": "coreyhaines31/marketingskills",
+    "commit": "365b412152b9542499ca1439426f7fc3cc92bb65",
+    "path": "skills/aso",
+    "license": "MIT",
+    "suggested": "me",
+    "description": "When the user wants to audit or optimize an App Store or Google Play listing. Also use when the user mentions 'ASO audit,' 'app store optimization,' 'optimize my app listing,' 'improve app visibility,' 'app store ranking,' 'audit my listing,' 'why aren't people downloading my app,' 'improve my app c",
+    "files": [
+      "SKILL.md",
+      "references/apple-specs.md",
+      "references/benchmarks.md",
+      "references/google-play-specs.md",
+      "references/report-template.md",
+      "references/scoring-criteria.md"
+    ]
+  },
+  "use-kicad-cli": {
+    "repo": "FradSer/dotclaude",
+    "commit": "f55ac1cea49240ca09c981e43e08f3bc1bc5b6ed",
+    "path": "hardware/skills/use-kicad-cli",
+    "license": "MIT",
+    "suggested": "me",
+    "description": "Drives the KiCad command-line interface (`kicad-cli`, version 9.0) to export schematics and PCBs, produce fabrication outputs, and run design checks. This skill should be used when the user asks to export gerbers, drill, or pick-and-place files, generate a BOM or netlist, run ERC or DRC (including i",
+    "files": [
+      "SKILL.md",
+      "references/checks.md",
+      "references/pcb-export.md",
+      "references/sch-export.md",
+      "references/setup.md",
+      "references/sym-fp-jobset.md",
+      "references/workflows.md"
+    ]
+  },
+  "wiring-safety-check": {
+    "repo": "wedsamuel1230/embedded-engineering-skills",
+    "commit": "869710ec3b9a40a4f14615b68ca1f1d3dfc88323",
+    "path": "skills/wiring-safety-check",
+    "license": "MIT",
+    "suggested": "on",
+    "description": "Use when wiring an Arduino, ESP32, ESP32-S3, Pico, or Pico W to sensors, LEDs, motors, relays, buses, or external supplies, especially when 5 V and 3.3 V logic, current limits, pull-ups, level shifting, inductive loads, or safe defaults matter.",
+    "files": [
+      "SKILL.md"
+    ]
+  },
+  "power-budget-calculator": {
+    "repo": "wedsamuel1230/embedded-engineering-skills",
+    "commit": "869710ec3b9a40a4f14615b68ca1f1d3dfc88323",
+    "path": "skills/power-budget-calculator",
+    "license": "MIT",
+    "suggested": "on",
+    "description": "Calculates total power consumption and battery life for Arduino/ESP32/RP2040 projects. Use when user asks about battery life, power requirements, current draw, or needs to estimate runtime. Includes sleep mode analysis, power optimization tips, and battery sizing recommendations. Run scripts/calcula",
+    "files": [
+      "SKILL.md",
+      "assets/example-project.json",
+      "references/component-database.md",
+      "scripts/calculate_power.py"
+    ]
+  },
+  "i2c-bringup-diagnostician": {
+    "repo": "wedsamuel1230/embedded-engineering-skills",
+    "commit": "869710ec3b9a40a4f14615b68ca1f1d3dfc88323",
+    "path": "skills/i2c-bringup-diagnostician",
+    "license": "MIT",
+    "suggested": "on",
+    "description": "Use when users need to diagnose I2C bring-up failures on Arduino or ESP32-class boards, including no devices found, wrong readings, address conflicts, scanner-detects-but-library-fails cases, pull-up problems, or board-family-specific bus quirks.",
+    "files": [
+      "SKILL.md",
+      "references/bringup-flow.md",
+      "references/esp32-and-board-quirks.md",
+      "references/scanner-vs-library.md"
+    ]
+  },
+  "openscad": {
+    "repo": "mitsuhiko/agent-stuff",
+    "commit": "0865c849befd2021490679f96a8dee58c84ac857",
+    "path": "skills/openscad",
+    "license": "Apache-2.0",
+    "suggested": "on",
+    "description": "Create and render OpenSCAD 3D models. Generate preview images from multiple angles, extract customizable parameters, validate syntax, and export STL files for 3D printing platforms like MakerWorld.",
+    "files": [
+      "SKILL.md",
+      "examples/parametric_box.scad",
+      "examples/phone_stand.scad",
+      "tools/common.sh",
+      "tools/export-stl.sh",
+      "tools/extract-params.sh",
+      "tools/multi-preview.sh",
+      "tools/preview.sh",
+      "tools/render-with-params.sh",
+      "tools/validate.sh"
+    ]
+  },
+  "cuda-profiling": {
+    "repo": "mohitmishra786/low-level-dev-skills",
+    "commit": "bdc58472fa9f309ed1b3f7d985a0d8e9bd8f4608",
+    "path": "skills/gpu/cuda-profiling",
+    "license": "MIT",
+    "suggested": "on",
+    "description": "CUDA profiling skill for NVIDIA GPU performance analysis. Use when profiling kernels with Nsight Systems or Nsight Compute, interpreting roofline models, diagnosing memory-bound vs compute-bound kernels, or annotating code with NVTX ranges. Activates on queries about Nsight, NCU, ncu CLI, GPU roofli",
+    "files": [
+      "SKILL.md"
+    ]
+  }
+}

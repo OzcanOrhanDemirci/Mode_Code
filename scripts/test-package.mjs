@@ -71,6 +71,15 @@ export const EXPECTED_FILES = [
   'dist/plugin/hooks/strip-pulse.js',
   'dist/plugin/types/index.d.ts',
   'package.json',
+  // The skills (docs/skills.md): Mode_Code's own as the reviewed folders hold them, and each skill of others with
+  // exactly the files its sources.json lists, its licence, and its notice where its repository has one.
+  ...readdirSync(join(root, 'skills')).map((id) => `dist/plugin/skills/${id}/SKILL.md`),
+  ...readdirSync(join(root, 'skills-managed')).map((id) => `dist/skills-source/own/${id}/SKILL.md`),
+  ...Object.entries(JSON.parse(readFileSync(join(root, 'skills-external', 'sources.json'), 'utf8'))).flatMap(([id, s]) => [
+    ...s.files.map((f) => `dist/skills-source/external/${id}/${f}`),
+    `dist/skills-source/external/${id}/LICENSE.source`,
+    ...(existsSync(join(root, 'skills-external', id, 'NOTICE.source')) ? [`dist/skills-source/external/${id}/NOTICE.source`] : []),
+  ]),
 ];
 
 class Failure extends Error {}

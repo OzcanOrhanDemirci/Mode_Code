@@ -326,6 +326,11 @@ export function trapNote(trap: 'heredoc' | 'pipe'): string {
     : `${P} That command pipes a build or test into a filter: the pipe's exit code is the filter's, so a failure reads as a success. Use set -o pipefail, or read the exit code without the pipe, before calling it passed.`;
 }
 
+/** Before a skill's text sent for the person's short command (`/dogrula`): whose request it is. */
+export function skillRunPreamble(id: string, short: string): string {
+  return `${P} The person ran /${short}, Mode_Code's \`${id}\` skill. Do what it says:`;
+}
+
 /** Told to the model when tool packs were turned on in this project (docs/packs.md): by Automatic use, or at its request. */
 export function packsOnNote(packs: readonly string[], by: 'auto' | 'request'): string {
   const why = by === 'auto' ? "by Automatic use, as this project's files call for them" : 'as you asked';

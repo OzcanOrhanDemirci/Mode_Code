@@ -126,6 +126,8 @@ export function taintedAct(
     // What runs inside Claude Code from now on: a plugin, an MCP server, a tool pack.
     if (inv.program === 'claude' && /^(?:plugin|plugins|mcp)$/.test(inv.args[0] ?? '') && /^(?:install|i|enable|add|add-json|update)$/.test(inv.args[1] ?? ''))
       return { act: 'persist', what: command };
+    // Turning on a skill of others: instructions Claude reads from then on.
+    if (inv.program === APP_ID && inv.args[0] === 'skills' && /^(?:on|me)$/.test(inv.args[1] ?? '')) return { act: 'persist', what: command };
     if (inv.program === APP_ID && inv.args[0] === 'packs') {
       const sub = inv.args[1] ?? '';
       if (/^(?:on|set|auto)$/.test(sub) || (sub === 'here' && inv.args.some((x) => x === '--auto' || x.startsWith('--pack'))))

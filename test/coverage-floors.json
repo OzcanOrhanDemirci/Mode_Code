@@ -121,6 +121,11 @@
       "branches": 43,
       "functions": 58
     },
+    "src/cli/skills.ts": {
+      "lines": 71,
+      "branches": 75,
+      "functions": 94
+    },
     "src/cli/style.ts": {
       "lines": 80,
       "branches": 36,
@@ -491,6 +496,16 @@
       "branches": 85,
       "functions": 94
     },
+    "src/core/skills-external.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/skills.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
     "src/core/sync-export.ts": {
       "lines": 94,
       "branches": 88,
@@ -610,6 +625,11 @@
       "lines": 76,
       "branches": 77,
       "functions": 64
+    },
+    "src/node/skills.ts": {
+      "lines": 94,
+      "branches": 87,
+      "functions": 94
     },
     "src/node/sync.ts": {
       "lines": 90,

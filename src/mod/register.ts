@@ -41,6 +41,7 @@ import {
   type PackRow,
 } from '../core/packs.js';
 import { analyzeCommand } from '../core/shell/analyze.js';
+import { CORE_SKILLS, commandsText, LIST_COMMANDS, shortCommands, type CoreSkill } from '../core/skills.js';
 import { comparePins, parsePins } from '../core/mcp-pins.js';
 import { partsAllowed, shellRules, type ShellRules } from '../core/permissions.js';
 import { isBeltTool, isFileTool, shellOf } from '../core/belt/tools.js';
@@ -49,6 +50,7 @@ import { checkFreeze, checkGuards, type ModeGuard } from '../core/guard.js';
 import {
   detectKeyword,
   isModeKeyword,
+  KEYWORD_LISTS,
   messageWithoutKeyword,
   MODE_KEYWORDS,
   nearKeyword,
@@ -112,6 +114,7 @@ import {
   hygieneNote,
   trapNote,
   packsOnNote,
+  skillRunPreamble,
   promptSecretNote,
   resumePrompt,
   stepGuidance,
@@ -316,6 +319,8 @@ interface Ctx {
   packsUsed: Set<string>;
   /** The session's first note (core/packs.ts introNote) is owed: a new session, after /clear, after a compaction. */
   introDue: boolean;
+  /** The skills whose use was logged this session. */
+  skillsUsed: Set<string>;
   /** The sync at the session's start while it runs: the first prompt waits for it. */
   memStart: Promise<unknown> | null;
   /** The notes of sessions closed without ending, written at the start: the first prompt waits for them. */
@@ -593,6 +598,7 @@ async function load($: $): Promise<Ctx> {
     packsOn: new Set(),
     packsUsed: new Set(),
     introDue: !(previous && previous.sessionId === sessionId),
+    skillsUsed: new Set(),
     mo: {
       tools: 0,
       agents: 0,
@@ -3316,6 +3322,111 @@ const FLOW_TOOL = {
   isDeferred: false,
 } as const;
 
+// ── skills (docs/skills.md) ──
+
+/** `mode-code …` run for this session's folder: its JSON answer, or null when the program is not there. */
+async function centerCli($: $, c: Ctx, args: string[]): Promise<Record<string, unknown> | null> {
+  try {
+    const program = centerProgram(await readFile($, c.layout.manifest));
+    if (!program) return null;
+    const cwd = await $.session.cwd();
+    const r = await $.process.run([...program, ...args], { cwd, timeoutMs: 60_000 });
+    const o = JSON.parse(r.stdout) as unknown;
+    return o && typeof o === 'object' && !Array.isArray(o) ? (o as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The short commands of the person's skills by name, in both languages' reach: a name typed is taken as it is. */
+const SHORT_COMMANDS = new Map(CORE_SKILLS.filter((s) => s.who === 'person').map((s) => [s.tr, s]));
+
+/** A short command: a keyword's (sent as the person's word), one of Claude Code's own, or a skill (run as if typed). */
+async function shortCommand($: $, skill: CoreSkill, args: string): Promise<{ text: string }> {
+  const c = await ctxOf($);
+  if (skill.kind === 'keyword' && skill.keyword) {
+    const word = keywordTables(c.config)[c.lang][skill.keyword][0] ?? skill.id;
+    const notes = await sendAsPerson($, c, args ? `${args} ${word}` : word);
+    if (notes.length) await appendNotes($, notes);
+    return { text: '' };
+  }
+  if (skill.kind === 'builtin' && skill.builtin) {
+    // One of Claude Code's own commands, run a moment after this command's hook, which the run would otherwise wait on.
+    const name = skill.builtin;
+    $.clock.after(1, () => {
+      $.command.run({ command: name, args } as never).catch(() => $.ui.toast(tIn(c.lang, 'skill.builtinFailed', { command: `/${name}` })));
+    });
+    return { text: tIn(c.lang, 'skill.builtin', { command: `/${name}` }) };
+  }
+  // The skill's own text, sent as the person's message: what `/mode-code:<skill>` does, measured in the real engine
+  // (a command run from a plugin's hook does not reach a skill there). Its arguments go where the skill names them.
+  const text = await readFile($, joinPath($.plugin.root, 'skills', skill.id, 'SKILL.md'));
+  if (!text) return { text: tIn(c.lang, 'skill.missing', { skill: `/${PLUGIN_NAME}:${skill.id}` }) };
+  const body = text
+    .replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '')
+    .replace(/\$ARGUMENTS/g, args.trim() || '-')
+    .trim();
+  const prompt = `${skillRunPreamble(skill.id, skill.tr)}\n\n${body}`;
+  c.selfSent = prompt;
+  if (!c.skillsUsed.has(`${PLUGIN_NAME}:${skill.id}`)) {
+    c.skillsUsed.add(`${PLUGIN_NAME}:${skill.id}`);
+    await logEvent($, c, { kind: 'skill', skill: `${PLUGIN_NAME}:${skill.id}`, via: 'short' });
+  }
+  $.clock.after(1, () => {
+    $.prompt.submit({ text: prompt, asUser: true }).catch((err: unknown) => $.ui.toast(`${APP_NAME}: ${String((err as Error)?.message ?? err).slice(0, 300)}`));
+  });
+  return { text: tIn(c.lang, 'skill.running', { skill: `/${PLUGIN_NAME}:${skill.id}` }) };
+}
+
+/** Every keyword, command and skill in the person's language, and how to run each. */
+async function commandsList($: $): Promise<string> {
+  const c = await ctxOf($);
+  const lang = c.lang;
+  const table = keywordTables(c.config)[lang];
+  const own = (who: 'person' | 'model') =>
+    CORE_SKILLS.filter((s) => s.who === who && (s.managed !== 'memory' || c.config.memory.store !== null || c.config.memory.dirs.length > 0)).map((s) => ({
+      name: lang === 'tr' && who === 'person' ? `/${s.tr}` : s.kind === 'skill' ? `/${PLUGIN_NAME}:${s.id}` : `/${s.tr}`,
+      text: tIn(lang, `skill.short.${s.id}` as MessageKey),
+    }));
+  return commandsText(
+    [
+      { head: tIn(lang, 'cmds.head.keywords'), rows: KEYWORD_LISTS.map((k) => ({ name: table[k][0] ?? k, text: table[k].slice(1, 4).join(' · ') })) },
+      {
+        head: tIn(lang, 'cmds.head.commands'),
+        rows: COMMANDS.filter((x) => !/^\d+$/.test(x.name) || x.name.length === 1).map((x) => ({
+          name: `/${x.name}`,
+          text: commandDescription(x.action, lang),
+        })),
+      },
+      { head: tIn(lang, 'cmds.head.skills'), rows: own('person') },
+      { head: tIn(lang, 'cmds.head.claude'), rows: own('model') },
+      {
+        head: tIn(lang, 'cmds.head.others'),
+        rows: Object.entries(c.config.skills.items)
+          .filter(([, s]) => s !== 'off')
+          .map(([id, s]) => ({ name: `/${PLUGIN_NAME}:${id}`, text: tIn(lang, `skills.state.${s}` as MessageKey) })),
+      },
+    ],
+    tIn(lang, 'cmds.tail'),
+  );
+}
+
+/** A skill's prompt as the engine expands it: its first use in a session is logged (the commands page's last use). */
+async function onSkillPrompt($: $, e: any, next: any): Promise<any> {
+  const r = await next(e);
+  try {
+    const c = await ctxOf($);
+    const skill = String(e.skill ?? '');
+    if (skill && !c.skillsUsed.has(skill)) {
+      c.skillsUsed.add(skill);
+      await logEvent($, c, { kind: 'skill', skill: skill.slice(0, 120) });
+    }
+  } catch {
+    /* the log never changes a skill */
+  }
+  return r;
+}
+
 /** The MCP tools' descriptions against their pins: a changed one told to the person now and to the model with the first prompt. */
 async function pinMcpTools($: $, c: Ctx): Promise<void> {
   try {
@@ -3492,6 +3603,8 @@ async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.st
   void pinMcpTools($, c);
   // Tool packs: Automatic use turns on what this folder's files call for; what is on here is kept for the hints.
   void startPacks($, c);
+  // The skills kept in the plugin's folder, in line with the settings (a memory set up, a skill turned on elsewhere).
+  void centerCli($, c, ['skills', 'sync', '--json']);
   if (c.fresh && c.config.modules.modes) await restoreLast($, c);
   await saveState($, c);
   if (c.state.resumeAt) await scheduleResume($, c);
@@ -4239,8 +4352,8 @@ function commandDescription(a: ControlAction, lang: Lang): string {
  */
 async function registerCommands($: $, c: Ctx): Promise<void> {
   // All asked at once, while the start's hook runs: a call made after it returned would not count.
-  await Promise.all(
-    COMMANDS.map((cmd) => {
+  await Promise.all([
+    ...COMMANDS.map((cmd) => {
       const hint = COMMAND_HINT[cmd.action.kind];
       const now = ['mode', 'style', 'menu', 'quota', 'close', 'bypass', 'freeze'].includes(cmd.action.kind);
       return $.command
@@ -4252,7 +4365,14 @@ async function registerCommands($: $, c: Ctx): Promise<void> {
         })
         .catch(() => undefined); // a name Claude Code keeps for itself: the digits and the other words still work
     }),
-  );
+    // The list of everything, and in Turkish the short commands of the person's skills (core/skills.ts).
+    ...LIST_COMMANDS.map((name) =>
+      $.command.register({ name, description: tIn(c.lang, 'ctl.desc.commands'), immediate: true as const }).catch(() => undefined),
+    ),
+    ...shortCommands(c.lang).map(({ name, skill }) =>
+      $.command.register({ name, description: tIn(c.lang, `skill.short.${skill.id}` as MessageKey) }).catch(() => undefined),
+    ),
+  ]);
 }
 
 /**
@@ -4434,6 +4554,9 @@ function whereOf(e: In<'command.run'>): 'here' | 'remote' {
 }
 
 async function onCommand($: $, e: In<'command.run'>, next: Nx<'command.run'>): Out<'command.run'> {
+  const short = SHORT_COMMANDS.get(e.command);
+  if (short) return shortCommand($, short, String(e.args ?? ''));
+  if ((LIST_COMMANDS as readonly string[]).includes(e.command)) return { text: await commandsList($) };
   if (!commandNamed(e.command)) return next(e);
   return control($, e.command, String(e.args ?? ''), viaOf(e), whereOf(e), (e.origin as { kind?: string } | undefined)?.kind);
 }
@@ -4911,6 +5034,7 @@ export function register(on: On): void {
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${AUTO_TOOL.name}` }, onAutoTool);
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${HANDOFF_TOOL_DEF.name}` }, onHandoffTool);
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${CATALOG_TOOL.name}` }, onCatalogTool);
+  on('skill.prompt', onSkillPrompt);
   // Claude Code's own permission questions: during a run they are answered "deferred" instead of waiting.
   // A failure leaves Claude Code's verdict as it was (a question nobody answers, never a call let through).
   on('tool.check', onToolCheck).catch(($, e, next) => next(e));

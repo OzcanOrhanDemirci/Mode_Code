@@ -41,6 +41,8 @@ export interface WorldOptions {
    * beneath the plugin as the hook does: after the plugin's own prompt hook, so not before its next step.
    */
   promptMode?: string;
+  /** Files of the plugin's own folder, by the end of their path (`/skills/verify/SKILL.md`): the world has no disk. */
+  pluginFiles?: Record<string, string>;
   /** No surface places a pane (a headless session): `$.ui.open` answers that it waits undrawn. */
   paneless?: boolean;
 }
@@ -87,7 +89,12 @@ export function world(on: any, opts: WorldOptions = {}) {
   });
   on('session.root', () => ({ value: opts.startedAtHome ? at.HOME : at.PROJECT }));
   on('session.id', () => ({ value: SESSION }));
-  on('fs.read', (_$: any, e: any) => (files.has(norm(e.path)) ? { value: files.get(norm(e.path))!.text } : { deny: `ENOENT: ${e.path}` }));
+  on('fs.read', (_$: any, e: any) => {
+    const p = norm(e.path);
+    if (files.has(p)) return { value: files.get(p)!.text };
+    const own = Object.entries(opts.pluginFiles ?? {}).find(([end]) => p.endsWith(end));
+    return own ? { value: own[1] } : { deny: `ENOENT: ${e.path}` };
+  });
   on('fs.write', (_$: any, e: any) => {
     write(norm(e.path), e.text);
     return { value: undefined };

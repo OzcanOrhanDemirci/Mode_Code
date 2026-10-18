@@ -70,6 +70,8 @@ test('a tainted session asks before it sends data out, persists, or writes the m
     'mode-code packs here --pack ffmpeg',
     'mode-code packs here --pack=ffmpeg',
     'mode-code packs here --auto',
+    'mode-code skills on tdd',
+    'mode-code skills me teach',
   ])
     assert.equal(act('Bash', bash(c)), 'persist', c);
   for (const c of [
@@ -78,6 +80,8 @@ test('a tainted session asks before it sends data out, persists, or writes the m
     'mode-code packs here --json',
     'mode-code packs guide typst',
     'mode-code config set footer.mode off',
+    'mode-code skills off tdd',
+    'mode-code skills',
   ])
     assert.equal(act('Bash', bash(c)), null, c);
   assert.equal(act('PowerShell', { command: 'schtasks /create /tn x /tr calc.exe /sc onlogon' }), 'persist');

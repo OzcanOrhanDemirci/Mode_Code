@@ -449,6 +449,11 @@ test('what lowers a protection, setting by setting', () => {
     ['packs.items.typst', 'always', 'me', false],
     ['packs.items.typst', undefined, 'never', false],
     ['packs.autoUse', true, true, false],
+    ['skills.items.tdd', undefined, 'me', true],
+    ['skills.items.tdd', 'me', 'on', true],
+    ['skills.items.tdd', 'on', 'me', false],
+    ['skills.items.tdd', 'on', undefined, false],
+    ['skills.items.tdd', 'me', 'me', false],
     ['packs.items.typst', 'me', 'me', false],
   ];
   for (const [key, from, to, expected] of cases)

@@ -10,6 +10,8 @@ import { RULE_IDS, RULES } from './belt/rules.js';
 import { VERDICT_ORDER, type RuleConfig, type RuleId, type Verdict } from './belt/types.js';
 import { KEYWORD_LISTS, type KeywordList } from './keywords.js';
 import { PACK_MODES, PACKS, type PackMode } from './packs.js';
+import { EXTERNAL_SKILLS } from './skills-external.js';
+import { SKILL_STATES, type SkillState } from './skills.js';
 
 export const CONFIG_VERSION = 1;
 
@@ -190,6 +192,13 @@ export interface Config {
     autoUse: boolean;
     items: Record<string, PackMode>;
   };
+  /**
+   * The skills of others (docs/skills.md): each off until the person turns it on, for themselves only (`me`) or for
+   * Claude too (`on`). Only the person changes it.
+   */
+  skills: {
+    items: Record<string, SkillState>;
+  };
   accessibility: {
     /** Plain text: no box drawing, no emoji-only signals. */
     plain: boolean;
@@ -228,6 +237,7 @@ export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
   bypass: { enabled: false, maxHours: 2 },
   update: { check: false },
   packs: { autoUse: true, items: {} },
+  skills: { items: {} },
   accessibility: { plain: false, highContrast: false, reduceMotion: false },
   sync: null,
 }) as Config;
@@ -424,6 +434,19 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
       }
     } else if (p.items !== undefined) problems.push({ path: 'packs.items', kind: 'type', detail: 'expected an object' });
   } else if (raw.packs !== undefined) problems.push({ path: 'packs', kind: 'type', detail: 'expected an object' });
+
+  if (isObj(raw.skills)) {
+    const s = raw.skills;
+    for (const k of Object.keys(s)) if (k !== 'items') problems.push({ path: `skills.${k}`, kind: 'unknown-key', detail: 'not a setting' });
+    if (isObj(s.items)) {
+      for (const [id, state] of Object.entries(s.items)) {
+        if (!Object.hasOwn(EXTERNAL_SKILLS, id)) problems.push({ path: `skills.items.${id}`, kind: 'unknown-key', detail: 'not a skill' });
+        else if (typeof state === 'string' && SKILL_STATES.includes(state as SkillState)) {
+          if (state !== 'off') c.skills.items[id] = state as SkillState;
+        } else problems.push({ path: `skills.items.${id}`, kind: 'type', detail: 'expected off, me or on' });
+      }
+    } else if (s.items !== undefined) problems.push({ path: 'skills.items', kind: 'type', detail: 'expected an object' });
+  } else if (raw.skills !== undefined) problems.push({ path: 'skills', kind: 'type', detail: 'expected an object' });
 
   if (raw.sync !== undefined && raw.sync !== null) c.sync = syncSetting(raw.sync, problems);
 

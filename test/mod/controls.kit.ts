@@ -79,7 +79,32 @@ test("the commands are declared at the start, in the person's language; the mode
     'freeze',
     'kapat',
     'close',
+    'komutlar',
+    'commands',
+    // In Turkish, the short commands of the person's skills (core/skills.ts).
+    'toparla',
+    'durum',
+    'devir',
+    'geri-al',
+    'dogrula',
+    'bagimsiz-goz',
+    'kota-rapor',
+    'maliyet-tahmin',
+    'paket',
+    'guven-denetimi',
+    'kemer',
+    'guvenlik',
+    'proje-tanit',
+    'surum-hazirla',
+    'pr-hazirla',
+    'bagimlilik-guncelle',
+    'hafiza-bakim',
+    'ders-cikar',
+    'oturum-ara',
+    'sorun-bildir',
   ]);
+  expect(w.commands.find((c: any) => c.name === 'dogrula')).toMatchObject({ description: 'İşi bitti demeden önce taze kanıtla doğrula' });
+  expect(w.commands.find((c: any) => c.name === 'komutlar')).toMatchObject({ immediate: true });
   expect(w.commands.find((c: any) => c.name === 'dondur')).toMatchObject({ immediate: true, argumentHint: '[klasör | kapat]' });
   const three = w.commands.find((c: any) => c.name === '3');
   expect(three.description).toMatch(/^Mod: 📐 plan/);

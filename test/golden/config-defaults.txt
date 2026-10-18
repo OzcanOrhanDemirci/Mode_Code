@@ -79,6 +79,9 @@
     "autoUse": true,
     "items": {}
   },
+  "skills": {
+    "items": {}
+  },
   "accessibility": {
     "plain": false,
     "highContrast": false,

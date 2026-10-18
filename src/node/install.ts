@@ -30,7 +30,7 @@ import {
   PLUGIN_NAME,
   SELF_TEST_SESSION,
 } from '../core/app.js';
-import { cloneDefaults, serializeConfig, type Config } from '../core/config.js';
+import { cloneDefaults, parseConfig, serializeConfig, type Config } from '../core/config.js';
 import { compareVersions } from '../core/version.js';
 import type { Layout } from '../core/layout.js';
 import { copyPrevious, findPrevious, movedMemorySetting, previousPlugin, type PreviousInstall } from './previous.js';
@@ -38,6 +38,7 @@ import { ensureDir, readJson, readText, writeAtomic, writeJsonAtomic } from './f
 import { claudeDir } from './env.js';
 import { claudeVersion, pluginsVia, realClaude, type ClaudeRunner } from './claude-env.js';
 import { claudeIn, turnAllOff } from './packs.js';
+import { skillsSource, syncKeptSkills } from './skills.js';
 
 export const HOOK_EVENTS = ['PreToolUse', 'UserPromptSubmit', 'Stop', 'SessionStart'] as const;
 import { BELT_MATCHER } from '../core/belt/tools.js';
@@ -331,7 +332,12 @@ export function applyInstall(l: Layout, plan: InstallPlan, opts: { config?: Part
   ok &&= step('hook-program', () => {
     cpSync(join(dist, 'hook.mjs'), hook);
   });
-  ok &&= step('marketplace', () => writeMarketplace(l, dist));
+  ok &&= step('marketplace', () => {
+    writeMarketplace(l, dist);
+    // The skills kept in the plugin's folder, as the settings say (a fresh folder each install): docs/skills.md.
+    const kept = syncKeptSkills(l, parseConfig(readText(l.config)).config);
+    return kept.added.length ? `skills kept: ${kept.added.join(', ')}` : undefined;
+  });
   let pluginInstalled = false;
   ok &&= step('plugin', () => {
     const r = claudeCli(runner, pluginInstallArgs(l));
@@ -417,6 +423,9 @@ export function writeMarketplace(l: Layout, dist: string): void {
   rmSync(l.pluginDir, { recursive: true, force: true });
   cpSync(join(dist, 'plugin'), l.pluginDir, { recursive: true });
   const pkgManifest = readJson<Record<string, unknown>>(join(l.pluginDir, '.claude-plugin', 'plugin.json')) ?? {};
+  // The skills kept only sometimes, and the skills of others (docs/skills.md), for syncKeptSkills to copy from.
+  rmSync(skillsSource(l), { recursive: true, force: true });
+  if (existsSync(join(dist, 'skills-source'))) cpSync(join(dist, 'skills-source'), skillsSource(l), { recursive: true });
   // The tool packs (docs/packs.md): each hosted pack a plugin of this marketplace, every pack's guide beside them.
   const packsDir = join(l.marketplace, 'packs');
   rmSync(packsDir, { recursive: true, force: true });

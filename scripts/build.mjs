@@ -144,6 +144,13 @@ for (const p of PACKS) {
   await cp(join(root, 'LICENSE'), join(dir, 'LICENSE'));
 }
 
+// ── skills (docs/skills.md): Mode_Code's own in the plugin; those it keeps only sometimes, and the skills of others,
+// beside it, for the installation to put in the plugin's folder when they apply or the person turns them on ──
+await cp(join(root, 'skills'), join(dist, 'plugin', 'skills'), { recursive: true });
+await cp(join(root, 'skills-managed'), join(dist, 'skills-source', 'own'), { recursive: true });
+const external = JSON.parse(await readFile(join(root, 'skills-external', 'sources.json'), 'utf8'));
+for (const id of Object.keys(external)) await cp(join(root, 'skills-external', id), join(dist, 'skills-source', 'external', id), { recursive: true });
+
 // ── third-party notices: every package that ended up in a bundle, with its license text ──
 const inputs = new Set();
 for (const r of [cli, hook, mod, moStrip, stripPulse]) for (const k of Object.keys(r.metafile.inputs)) inputs.add(k.replace(/\\/g, '/'));
@@ -183,6 +190,14 @@ let notices = `# Third-party notices\n\nThe published package of ${pkg.name} bun
 notices += sorted.map((p) => `- ${p.name} ${p.version} (${p.license})`).join('\n') + '\n';
 for (const p of sorted)
   notices += `\n---\n\n## ${p.name} ${p.version}\n\nLicense: ${p.license}${p.repository ? `\nSource: ${p.repository}` : ''}\n\n\`\`\`\n${p.text}\n\`\`\`\n`;
+// The skills of others the package carries, each under its own licence, whose full text is beside it
+// (LICENSE.source, and NOTICE.source where its repository has one). Their authors do not endorse Mode_Code.
+notices += `\n---\n\n# Skills by others\n\nThe package also carries these skills, off until the person turns one on, each copied unchanged from its author's repository at the commit named, under that repository's licence; the licence's full text, and its notice where there is one, is in the skill's folder (\`LICENSE.source\`, \`NOTICE.source\`). Their authors have not reviewed or endorsed ${pkg.name}.\n\n`;
+notices +=
+  Object.entries(external)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([id, s]) => `- ${id}: https://github.com/${s.repo}/tree/${s.commit}/${s.path} (${s.license})`)
+    .join('\n') + '\n';
 await writeFile(join(dist, 'THIRD_PARTY_NOTICES.md'), notices);
 await cp(join(dist, 'THIRD_PARTY_NOTICES.md'), join(root, 'THIRD_PARTY_NOTICES.md'));
 

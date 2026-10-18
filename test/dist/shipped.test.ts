@@ -48,10 +48,22 @@ test('nothing the package ships names the folder it was built in or the home fol
     );
   };
   const needles = [...spellings(ROOT), ...spellings(homedir())].filter((s) => s.length > 8);
+  // Others' skills ship as their authors wrote them: a path in their own text (a GitHub runner's /home/runner) is theirs.
+  const authors = (p: string, n: string) => {
+    const m = /^dist\/skills-source\/external\/(.+)$/.exec(rel(p));
+    if (!m) return false;
+    try {
+      return readFileSync(join(ROOT, 'skills-external', m[1]!), 'utf8')
+        .toLowerCase()
+        .includes(n);
+    } catch {
+      return false;
+    }
+  };
   const found: string[] = [];
   for (const p of shipped()) {
     const text = readFileSync(p, 'utf8').toLowerCase();
-    for (const n of needles) if (text.includes(n)) found.push(`${rel(p)}: ${n}`);
+    for (const n of needles) if (text.includes(n) && !authors(p, n)) found.push(`${rel(p)}: ${n}`);
   }
   assert.deepEqual(found, []);
 });
