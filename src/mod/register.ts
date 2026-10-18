@@ -40,6 +40,7 @@ import { exportMachine, parseSharedRecord, settingsInEffect, syncDue, type Share
 import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform } from '../core/paths.js';
 import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '../core/i18n/index.js';
 import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
+import { beltOffForDevelopment } from '../core/dev-switch.js';
 import { taintedAct, taintSource, withoutInvisible } from '../core/taint.js';
 import { shellReadTool, shellTrap, wholeRead } from '../core/hygiene.js';
 import { gitSubcommands } from '../core/measure.js';
@@ -129,6 +130,7 @@ import {
   bypassOffNote,
   bypassOnNote,
   bypassReminder,
+  devBeltOffNote,
   freezeNote,
   invisibleNote,
   mcpChangedNote,
@@ -476,6 +478,7 @@ async function readEnv($: $): Promise<Record<string, string | undefined>> {
     WSL_DISTRO_NAME,
     COMPUTERNAME,
     HOSTNAME,
+    MODE_CODE_DEV_BELT_OFF,
   ] = await Promise.all([
     $.env.get('HOME'),
     $.env.get('USERPROFILE'),
@@ -499,6 +502,8 @@ async function readEnv($: $): Promise<Record<string, string | undefined>> {
     $.env.get('WSL_DISTRO_NAME'),
     $.env.get('COMPUTERNAME'),
     $.env.get('HOSTNAME'),
+    // TEMPORARY (src/core/dev-switch.ts).
+    $.env.get('MODE_CODE_DEV_BELT_OFF'),
   ]);
   return {
     HOME,
@@ -523,6 +528,7 @@ async function readEnv($: $): Promise<Record<string, string | undefined>> {
     WSL_DISTRO_NAME,
     COMPUTERNAME,
     HOSTNAME,
+    MODE_CODE_DEV_BELT_OFF,
   };
 }
 
@@ -2477,6 +2483,8 @@ async function refreshStatus($: $, c: Ctx): Promise<void> {
       if (c.flow.status === 'waiting') band = tIn(c.lang, 'flow.band.waiting', { path: planPathOf(c, c.flow), approve: tIn(c.lang, 'kw.kind.approve') });
     }
   }
+  // TEMPORARY (src/core/dev-switch.ts): in view for as long as the belt is off.
+  if (beltOffForDevelopment(c.env)) band = tIn(c.lang, 'dev.beltOff.band');
   if (!band && c.boundary) band = tIn(c.lang, 'quota.boundary', { kind: c.boundary.kind, tokens: compact(c.boundary.tokens, c.lang) });
   if (c.run) {
     const p = runProgress(c.run);
@@ -2707,6 +2715,8 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
     const reason = tIn(c.lang, 'belt.reason.tainted', { source: c.state.tainted.source, act, what: truncate(maskSecrets(tainted.what), 160) });
     d = mergeDecisions(d, decide([{ rule: 'inject.tainted-act', verdict: 'ask', reason }], [], ctx));
   }
+  // TEMPORARY (src/core/dev-switch.ts): the person started this session with the belt off to develop Mode_Code.
+  if (beltOffForDevelopment(c.env)) d = { verdict: 'allow', findings: [], issues: [], lifted: [] };
   const rules = d.findings.map((f) => f.rule);
   // What bypass let through without a word: recorded once the call has run (or failed), for the person.
   const bypassed = d.lifted.filter((f) => f.verdict === 'allow');
@@ -2920,6 +2930,7 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
       const b = c.state.bypass;
       if (b) extra.push(bypassReminder(Math.max(1, Math.ceil((b.until - (await $.clock.now())) / 60_000))));
     }
+    if (beltOffForDevelopment(c.env)) extra.push(devBeltOffNote());
   }
   let flowSaid = false;
   // The first prompt after the session took up the folder's last choice: the model is told what holds,

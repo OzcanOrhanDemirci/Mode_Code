@@ -15,12 +15,17 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const hook = join(root, 'src', 'hook', 'main.ts');
 
-function run(event: string, input: object, home: string): { out: Record<string, any> | null; status: number | null; stderr: string } {
+function run(
+  event: string,
+  input: object,
+  home: string,
+  env: Record<string, string> = {},
+): { out: Record<string, any> | null; status: number | null; stderr: string } {
   const r = spawnSync(process.execPath, ['--import', 'tsx', hook, event], {
     cwd: root,
     input: JSON.stringify(input),
     encoding: 'utf8',
-    env: { ...process.env, MODE_CODE_HOME: home, MODE_CODE_LANG: 'en' },
+    env: { ...process.env, MODE_CODE_HOME: home, MODE_CODE_LANG: 'en', ...env },
     timeout: 30_000,
   });
   const text = (r.stdout ?? '').trim();
@@ -52,6 +57,26 @@ test('a write into the tool data folder is denied, with the reason in the person
     assert.equal(r.status, 0, r.stderr);
     assert.equal(r.out?.hookSpecificOutput?.permissionDecision, 'deny');
     assert.match(r.out?.hookSpecificOutput?.permissionDecisionReason, /safety tool's own files/);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test('the development switch: a session started with the belt off passes what the belt denies (temporary)', () => {
+  const home = fresh();
+  try {
+    const call = {
+      ...base(home),
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Write',
+      tool_use_id: 'toolu_dev',
+      tool_input: { file_path: join(home, 'x.txt'), content: 'hi' },
+    };
+    const off = run('PreToolUse', call, home, { MODE_CODE_DEV_BELT_OFF: '1' });
+    assert.equal(off.status, 0, off.stderr);
+    assert.equal(off.out, null);
+    const on = run('PreToolUse', call, home, { MODE_CODE_DEV_BELT_OFF: '0' });
+    assert.equal(on.out?.hookSpecificOutput?.permissionDecision, 'deny');
   } finally {
     rmSync(home, { recursive: true, force: true });
   }

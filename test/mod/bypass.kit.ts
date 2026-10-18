@@ -205,3 +205,25 @@ test('/freeze holds every write a call names to one folder, the strip shows it, 
   expect((await write(`${PROJECT}/README.md`, 'f4')).deny).toBeUndefined();
   expect((await run($, 'freeze', { kind: 'composer' }, 'no/such/folder')).text).toMatch(/is not a folder: nothing was frozen/);
 });
+
+test('the development switch: a session started with the belt off asks and blocks nothing, says so on the strip and to the model', async ($, on) => {
+  const w = world(on, { config: {}, env: { MODE_CODE_DEV_BELT_OFF: '1' }, answer: 'block' });
+  const r: any = await $.prompt.submit(typed('Work on Mode_Code.'));
+  expect(r.context.join('\n')).toMatch(/The safety belt is off in this session: the person started it so \(MODE_CODE_DEV_BELT_OFF\)/);
+  const asked = w.asked.length;
+  // Self-protection, which nothing else lifts, and what the belt asks: through, without a question.
+  expect((await bash($, `rm -rf ${DATA}`)).deny).toBeUndefined();
+  expect((await bash($, 'git push --force origin main', 'toolu_y')).deny).toBeUndefined();
+  expect(w.asked.length).toBe(asked);
+  const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+  const texts = (await ui.findAll({ type: 'Text' })).map((x: any) => x.text);
+  await ui.unmount();
+  expect(texts.some((t: string) => /^🛑 Development: the safety belt is off in this session/.test(t))).toBe(true);
+});
+
+test('without the switch, or with any other value, the belt stands', async ($, on) => {
+  world(on, { config: {}, env: { MODE_CODE_DEV_BELT_OFF: 'true' }, answer: 'block' });
+  const r: any = await $.prompt.submit(typed('Work on Mode_Code.'));
+  expect(r.context.join('\n')).not.toMatch(/safety belt is off/);
+  expect((await bash($, `rm -rf ${DATA}`)).deny).toMatch(/own files/);
+});

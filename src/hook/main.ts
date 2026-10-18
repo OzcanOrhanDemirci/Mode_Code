@@ -41,6 +41,7 @@ import { pulledContext } from '../core/memory.js';
 import type { SyncResult } from '../core/memory-sync.js';
 import { newestHandoffAt, projectKeyAt, pruneHandoffs } from '../node/handoffs.js';
 import { withHost } from '../node/host.js';
+import { beltOffForDevelopment } from '../core/dev-switch.js';
 
 type Input = Record<string, unknown>;
 
@@ -72,6 +73,7 @@ async function preToolUse(input: Input, lang: Lang): Promise<void> {
   const mod = modFile ? parseModState(readText(modFile)) : null;
   recordPermissionMode(l, sessionId, str(input.permission_mode), now);
   if (isApproved(mod, str(input.tool_use_id), now)) return; // the person approved this exact call when the mod asked
+  if (beltOffForDevelopment(process.env)) return; // TEMPORARY (src/core/dev-switch.ts): the person turned the belt off to develop Mode_Code
 
   // Bypass as the plugin recorded it for this session: on, in time, and still turned on in the settings.
   const ctx = { ...beltContext({ cwd, config, layout: l, lang }), bypass: config.bypass.enabled && bypassOn(mod, now) };
