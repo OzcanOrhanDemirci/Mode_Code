@@ -331,3 +331,23 @@ test('the plan: repointing Node.js rewrites the hooks, so the other hook repairs
     [['restore-hooks', ['y', 'z']]],
   );
 });
+
+test('sync-skills puts the kept skills back from the copy beside the marketplace, and fails on one that copy lacks', () => {
+  const s = sandbox();
+  try {
+    mkdirSync(`${s.dist}/skills-source/external/grilling`, { recursive: true });
+    writeFileSync(`${s.dist}/skills-source/external/grilling/SKILL.md`, '---\nname: grilling\ndescription: x\n---\nAsk.\n');
+    assert.equal(REPAIRS['restore-plugin-files'].run(s.env, healthyFacts()).ok, true);
+    s.env.config = { ...s.env.config, skills: { items: { grilling: 'me' } } };
+    const r = REPAIRS['sync-skills'].run(s.env, healthyFacts());
+    assert.deepEqual(r, { id: 'sync-skills', ok: true, detail: 'added grilling; removed none' });
+    assert.equal(readFileSync(`${s.env.layout.pluginDir}/skills/grilling/.kept`, 'utf8'), 'me');
+    assert.match(readFileSync(`${s.env.layout.pluginDir}/skills/grilling/SKILL.md`, 'utf8'), /disable-model-invocation: true/);
+    s.env.config = { ...s.env.config, skills: { items: { grilling: 'off', aso: 'on' } } };
+    const lacking = REPAIRS['sync-skills'].run(s.env, healthyFacts());
+    assert.deepEqual(lacking, { id: 'sync-skills', ok: false, detail: 'added none; removed grilling; not in the copy to take them from: aso' });
+    assert.equal(existsSync(`${s.env.layout.pluginDir}/skills/grilling`), false);
+  } finally {
+    s.done();
+  }
+});

@@ -138,6 +138,20 @@ export function healthyFacts(over: Partial<Facts> = {}): Facts {
     autonomy: { enabled: false, checks: [] },
     bypass: { enabled: false, maxHours: 2, onNow: 0, floorWeakened: [] },
     update: { check: true, current: '1.2.0', state: { checkedAt: 1, latest: '1.2.0', error: null } },
+    setup: {
+      deadHooks: [],
+      jqHooks: [],
+      modelHooks: [],
+      loosened: [],
+      unpinnedMcp: [],
+      secrets: [],
+      localTracked: false,
+      noGit: false,
+      memoryIndex: { path: 'C:/Users/ada/notes/MEMORY.md', lines: 40, bytes: 4000, maxLines: 200, maxBytes: 25_000 },
+      toolSearchOff: [],
+      autoMode: [],
+      skillsMissing: [],
+    },
     ...over,
   };
 }

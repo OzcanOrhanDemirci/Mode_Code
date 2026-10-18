@@ -3,4 +3,4 @@ Onarımlar
       yedek: ~/.mode-code/install/backups/settings.json.doctor.1
   Bu sürümün hook programını geri kopyala: ! yapıldı, ama denetim hâlâ geçmiyor
   Bozuk oturum dizinini kaldır (yeniden kurulur): ✗ onarılamadı: ~/.mode-code/index.db is locked
-Onarımlardan sonra: 35 tamam, 0 uyarı, 0 sorun.
+Onarımlardan sonra: 44 tamam, 0 uyarı, 0 sorun.

@@ -84,7 +84,7 @@ A block in the second tier says so: with bypass on, the same call is asked inste
 
 ## Auto mode
 
-In Claude Code's auto mode a classifier answers Claude Code's own permission questions in your place. The belt's questions are not among them: a command the belt asks about still comes to you, and in a session with no one to ask (`claude -p`) it is refused. Measured in the real engine with each release (`scripts/test-live.mjs`, case 16: in auto mode a commit the belt allows runs unasked, the same commit with `--no-verify` is refused; Claude Code 2.1.302, 2026-10-18).
+In Claude Code's auto mode a classifier answers Claude Code's own permission questions in your place. The belt's questions are not among them: a command the belt asks about still comes to you, and in a session with no one to ask (`claude -p`) it is refused. Measured in the real engine with each release (`scripts/test-live.mjs`, case 16: in auto mode a commit the belt allows runs unasked, the same commit with `--no-verify` is refused; Claude Code 2.1.302, 2026-10-18). The doctor notes when your settings start Claude Code in auto mode.
 
 ## Folded in
 

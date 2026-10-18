@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { pluginsVia, readClaudeEnv, type ClaudeRunner } from '../../src/node/claude-env.js';
+import { pluginHooks, pluginsVia, readClaudeEnv, type ClaudeRunner } from '../../src/node/claude-env.js';
 
 function sandbox() {
   const home = mkdtempSync(join(tmpdir(), 'tc-env-'));
@@ -76,13 +76,28 @@ test('the plugins Claude Code lists: what loads is the folder a plugin is read f
       readFromFolder: 'C:\\Users\\ada\\.mode-code\\marketplace\\plugins\\mode-code',
       folderVersion: '1.1.0',
     },
-    { id: 'other@market', version: '2.0.0', scope: 'project', enabled: false },
+    { id: 'other@market', version: '2.0.0', scope: 'project', enabled: false, installPath: 'C:\\Users\\ada\\.claude\\plugins\\cache\\market\\other\\2.0.0' },
     { name: 'bare', folderVersion: '3.0.0' },
   ]);
+  // The folder it loads from: the one read in place, else Claude Code's copy.
   assert.deepEqual(pluginsVia(answering(listed)), [
-    { id: 'mode-code@mode-code-local', enabled: true, version: '1.0.0', loads: '1.1.0', scope: 'user' },
-    { id: 'other@market', enabled: false, version: '2.0.0', loads: '2.0.0', scope: 'project' },
-    { id: 'bare', enabled: null, version: null, loads: null, scope: null },
+    {
+      id: 'mode-code@mode-code-local',
+      enabled: true,
+      version: '1.0.0',
+      loads: '1.1.0',
+      scope: 'user',
+      path: 'C:\\Users\\ada\\.mode-code\\marketplace\\plugins\\mode-code',
+    },
+    {
+      id: 'other@market',
+      enabled: false,
+      version: '2.0.0',
+      loads: '2.0.0',
+      scope: 'project',
+      path: 'C:\\Users\\ada\\.claude\\plugins\\cache\\market\\other\\2.0.0',
+    },
+    { id: 'bare', enabled: null, version: null, loads: null, scope: null, path: null },
   ]);
   assert.equal(pluginsVia(answering(listed, 1)), null, 'a list that failed');
   assert.equal(pluginsVia(answering('not json')), null);
@@ -101,6 +116,32 @@ test('instruction files count their lines as an editor does: the final newline s
     assert.equal(lines('a\nb\n'), 2);
     assert.equal(lines('a\n\n'), 2, 'an empty last line is a line');
     assert.equal(lines(''), 0);
+  } finally {
+    s.done();
+  }
+});
+
+test("a plugin's own hooks: hooks/hooks.json, files its manifest names, and hooks written in the manifest itself", () => {
+  const s = sandbox();
+  try {
+    const p = join(s.home, 'plug');
+    mkdirSync(join(p, 'hooks'), { recursive: true });
+    mkdirSync(join(p, '.claude-plugin'), { recursive: true });
+    const group = (command: string) => [{ hooks: [{ type: 'command', command }] }];
+    writeFileSync(join(p, 'hooks', 'hooks.json'), JSON.stringify({ hooks: { Stop: group('a') } }));
+    writeFileSync(join(p, 'b.json'), JSON.stringify({ hooks: { PreToolUse: group('b') } }));
+    writeFileSync(join(p, 'broken.json'), '{ not json');
+    const manifest = (hooks: unknown) => writeFileSync(join(p, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'plug', hooks }));
+    const read = () => pluginHooks(p, '.mode-code').map((h) => `${h.event}:${h.command}`);
+    manifest('./b.json');
+    assert.deepEqual(read(), ['Stop:a', 'PreToolUse:b']);
+    manifest(['./b.json', 'broken.json', 'missing.json', './hooks/hooks.json']);
+    assert.deepEqual(read(), ['Stop:a', 'PreToolUse:b'], 'each file once; one that cannot be read adds nothing');
+    manifest({ SessionStart: group('c') });
+    assert.deepEqual(read(), ['Stop:a', 'SessionStart:c']);
+    manifest({ hooks: { SessionStart: group('d') } });
+    assert.deepEqual(read(), ['Stop:a', 'SessionStart:d']);
+    assert.deepEqual(pluginHooks(join(s.home, 'none'), '.mode-code'), []);
   } finally {
     s.done();
   }

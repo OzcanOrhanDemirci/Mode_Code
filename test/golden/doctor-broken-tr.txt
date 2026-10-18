@@ -8,6 +8,9 @@ Claude Code
   ✓ Claude Code ayar dosyalarını hatasız okuyor (1 dosya okundu).
   ✓ Hiçbir ayar dosyası hook'ları kapatmıyor.
   ✓ mode-code@mode-code-local eklentisi kurulu ve açık (sürüm dev).
+  ✓ Ayarlardaki diğer bütün hook'lar çalışabiliyor.
+  ✓ Kendi modelini başlatan hook yok.
+  ✓ Claude Code'un araç araması açık: MCP araçları gerektiğinde yükleniyor.
 Kurulum
   ✓ dev sürümü 2026-10-11 tarihinde kuruldu.
   ✗ Hook programı yok: ~/.mode-code/bin/hook.mjs.
@@ -19,6 +22,7 @@ Kurulum
   ✓ Eklenti en son 2026-10-12 11:50 (UTC) zamanında bir oturumdan haber verdi.
   ✓ Mode_Code 1.2.0 en yeni sürüm.
   · Tam otonom kapalı (mode-code autonomy enable ile açılır).
+  ✓ Ayarlarının tuttuğu beceriler yerinde.
 Koruma
   ✗ Kurulu hook, 30 örnekten 1 tanesine bu sürümden farklı cevap verdi.
       Write ~/MODECO~1/config.json: bu sürüm "engelle" diyor, kurulu hook "izin" diyor.
@@ -28,6 +32,9 @@ Koruma
       ~/MODECO~1 = ~/.mode-code.
   ✓ 1 hafıza klasörü korunuyor ve git deposu.
   · Bypass kapalı: hiçbir oturum emniyet kemerini kaldıramaz.
+  ✓ Projenin paylaşılan ayarları hiçbir şeyi genişletmiyor.
+  ✓ En yeni sürüm hangisiyse onunla başlayan MCP sunucusu yok.
+  ✓ Claude Code ayar dosyalarında yazılı sır yok.
 Kabuklar ve terminal
   ✓ Git Bash (C:/Program Files/Git/bin/bash.exe), kemerin varsaydığı gibi /tmp'yi Temp klasörüne bağlıyor.
   ✓ PowerShell 7.6.6.
@@ -45,11 +52,13 @@ git
   ! git, 1 kayıtlı projeyi okuyamıyor.
       C:/dev/app: fatal: detected dubious ownership
       → C:/dev/app senin ise güvenli işaretle: git config --global --add safe.directory C:/dev/app
+  ✓ Bu klasörü git tutuyor.
 Veri
   ✓ Ayar dosyası geçerli.
   ✓ Oturum dizini sağlam (42 oturum).
   ✓ Yakın zamanda alınmış bir kota ölçümü kayıtlı.
   ✓ Hafızanın yeri: bu bilgisayar ve GitHub'ın · C:/dev/notes/memory. Claude Code onu kullanıyor.
+  ✓ Hafıza indeksi 40 satır, 4 KB: Claude Code'un yüklediği sınırın içinde (200 satır, 25 KB).
   · Bilgisayarlar arası eşitleme kurulmamış.
   ✓ Son 3 oturum kaydı okundu: 100 satır beklenen biçimde.
   ✓ Son oturumlarda komut çalıştıran ya da dosya yazan her aracı kemer denetliyor (Bash, Edit).
@@ -57,7 +66,7 @@ Veri
 Öz-sınama
   ✓ 1 paketteki 30 yerleşik örneğin hepsi beklenen cevabı verdi.
 
-2.1 sn içinde 43 denetim: 30 tamam, 2 uyarı, 3 sorun.
+2.1 sn içinde 53 denetim: 39 tamam, 2 uyarı, 3 sorun.
 Sorunlardan 3 tanesi bir korumayı zayıflatıyor.
 
 3 sorun kendiliğinden onarılabilir:

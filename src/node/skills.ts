@@ -19,6 +19,13 @@ export const skillsSource = (l: Layout) => join(l.marketplace, 'skills-source');
 /** Whether a memory is set up here: the memory note applies. */
 export const memorySetUp = (c: Config) => c.memory.store !== null || c.memory.dirs.length > 0;
 
+/** The skills the settings keep that the plugin's folder lacks (the doctor's install.skills). */
+export function missingKeptSkills(l: Layout, c: Config): string[] {
+  return keptSkills({ memory: memorySetUp(c), external: c.skills.items })
+    .filter((k) => !existsSync(join(l.pluginDir, 'skills', k.id, 'SKILL.md')))
+    .map((k) => k.id);
+}
+
 /**
  * Puts the skills that should be kept into the plugin's skills folder and takes away the kept ones that should not.
  * `source` is where they are copied from (the marketplace's copy, or a build's folder). Returns what changed.

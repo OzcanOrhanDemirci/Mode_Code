@@ -102,6 +102,25 @@ test('the problem report hides the home folder and the user name, and carries no
   golden('doctor-report', text);
 });
 
+test("the problem report leaves out the hooks' commands, the MCP servers' command lines and the permission rules", () => {
+  const f = healthyFacts({
+    setup: {
+      ...healthyFacts().setup,
+      deadHooks: [{ event: 'Stop', command: 'node C:/hooks/gone.js --token s3cr3t', missing: 'C:/hooks/gone.js' }],
+      modelHooks: [{ event: 'Stop', command: 'claude -p "for client Acme"' }],
+      jqHooks: [{ event: 'Stop', command: 'jq .x --arg key s3cr3t' }],
+      loosened: [{ scope: 'project', what: 'allow Bash(curl -H "X-Key: s3cr3t" *)' }],
+      unpinnedMcp: [{ scope: 'user', name: 'db', target: 'npx -y db-mcp --password s3cr3t' }],
+    },
+  });
+  const results = runChecks(f);
+  const text = renderReport({ facts: f, results, tally: tally(results), ms: 1 }, { home: HOME, user: 'ada' });
+  assert.doesNotMatch(text, /s3cr3t|Acme/);
+  assert.match(text, /\| claude\.hooksWork \| warn \|/);
+  assert.match(text, /\|  \|  \| Stop: C:\/hooks\/gone\.js is missing \|/, 'a missing file is named, its command is not');
+  assert.match(text, /\| protection\.mcpPinned \| warn \| 1 MCP servers/);
+});
+
 test('parameters: home written as ~, the user name hidden, "@key" values translated', () => {
   assert.deepEqual(maskParams({ p: 'C:\\Users\\Ada\\x', n: 3 }, HOME), { p: '~/x', n: 3 });
   assert.deepEqual(maskParams({ p: 'D:/ada-work/x' }, HOME, 'ada'), { p: 'D:/<user>-work/x' });

@@ -101,6 +101,7 @@ const ORDER: RepairId[] = [
   'update-plugin',
   'reinstall-plugin',
   'enable-plugin',
+  'sync-skills',
   'record-cli',
   'rebuild-index',
   'remove-stale-temp',

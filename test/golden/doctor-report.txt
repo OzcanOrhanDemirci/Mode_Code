@@ -1,7 +1,7 @@
 ## Problem report for Mode_Code
 
 - Mode_Code dev · Node.js 24.15.0 · win32 x64 10.0.26200 · Claude Code 2.1.295
-- 30 ok · 5 notes · 2 warnings · 3 problems · 3 skipped
+- 39 ok · 5 notes · 2 warnings · 3 problems · 4 skipped
 
 | check | status | result |
 | --- | --- | --- |
@@ -13,6 +13,9 @@
 | claude.settings | ok | Claude Code reads its settings files without errors (1 read). |
 | claude.hooksOn | ok | No settings file turns the hooks off. |
 | claude.plugin | ok | The plugin mode-code@mode-code-local is installed and on (version dev). |
+| claude.hooksWork | ok | Every other hook in the settings can run. |
+| claude.hookModels | ok | No hook starts a model of its own. |
+| claude.toolSearch | ok | Claude Code's tool search is on: MCP tools are loaded when they are needed. |
 | install.manifest | ok | Installed version dev on 2026-10-11. |
 | install.hookProgram | fail | The hook program is missing: ~/.mode-code/bin/hook.mjs. |
 | install.hooks | fail | Safety-net hooks are missing for Stop (3 of 4 in place). |
@@ -21,12 +24,16 @@
 | install.modSeen | ok | The plugin last reported in from a session at 2026-10-12 11:50 (UTC). |
 | install.update | ok | Mode_Code 1.2.0 is the newest release. |
 | install.autonomy | info | Full autonomy is off (mode-code autonomy enable turns it on). |
+| install.skills | ok | The skills your settings keep are in place. |
 | protect.agreement | fail | The installed hook answered 1 of 30 samples differently from this version. |
 |  |  | Write ~/MODECO~1/config.json: this version says block, the installed hook says allow. |
 | protect.links | ok | No protected folder is a link. |
 | protect.shortNames | ok | The belt protects the short names Windows gave the protected places (1). |
 | protect.memory | ok | Memory folders are protected and are git repositories (1). |
 | protection.bypass | info | Bypass is off: no session can lift the safety belt. |
+| protection.projectSettings | ok | The project's shared settings widen nothing. |
+| protection.mcpPinned | ok | No MCP server starts at whatever version is newest. |
+| protection.settingsSecrets | ok | No secret is written in the Claude Code settings files. |
 | shell.gitBash | ok | Git Bash (C:/Program Files/Git/bin/bash.exe) maps /tmp to your Temp folder, as the belt assumes. |
 | shell.powershell | ok | PowerShell 7.6.6. |
 | shell.terminal | info | Terminal: Windows Terminal, 120 columns, code page 65001. |
@@ -39,10 +46,12 @@
 | git.found | ok | git 2.55.0. |
 | git.projects | warn | git cannot read some registered projects (1). |
 |  |  | C:/dev/app: fatal: detected dubious ownership |
+| git.here | ok | Git keeps this folder. |
 | data.config | ok | The settings file is valid. |
 | data.index | ok | The session index is sound (42 sessions). |
 | data.quota | ok | A recent quota reading is stored. |
 | data.memoryStore | ok | Where the memory lives: this computer and your GitHub · C:/dev/notes/memory. Claude Code uses it. |
+| data.memoryIndex | ok | The memory index is 40 lines, 4 KB: within what Claude Code loads (200 lines, 25 KB). |
 | data.sync | info | Sync across computers is not set up. |
 | data.transcripts | ok | 3 recent session transcripts read: 100 rows in the expected shape. |
 | data.toolNames | ok | Every tool that ran commands or wrote files in recent sessions is checked by the belt (Bash, Edit). |

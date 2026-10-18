@@ -3,4 +3,4 @@ Repairs
       backup: ~/.mode-code/install/backups/settings.json.doctor.1
   Copy the hook program of this version back: ! done, but the check still fails
   Remove the damaged session index (it is built again): ✗ could not be repaired: ~/.mode-code/index.db is locked
-After the repairs: 35 ok, 0 warnings, 0 problems.
+After the repairs: 44 ok, 0 warnings, 0 problems.

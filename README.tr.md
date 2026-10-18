@@ -266,7 +266,7 @@ Bir ajanla makinen arasında duran bir araç güveni kanıtla kazanmalı. Kodun 
 - **Kurulum, senin çalıştırdığın gibi sınanıyor.** sh, bash, Windows PowerShell 5.1 ve PowerShell 7'de, her biri kendine ait bir ev klasöründe: Node.js varken ve yokken, sağlama toplamı tutması gereken bir sürümden; sonra güncellenir, çalıştırılır ve kaldırılır. Bir sürüm ancak taşıdığı kurulum betiği yayınlayacağı paketin ta kendisini Linux, macOS ve Windows'ta kurduktan sonra yayınlanır.
 - **Testler gerçek hatalar buldu**, her biri düzeltildi ve bir testle düzeltilmiş kalıyor: Windows kısa adlarıyla (`MODECO~1`) ya da sonda bir noktayla erişilebilen korumalı dosyalar, macOS'ta ev klasörü altındaki her özyinelemeli silmenin engellenmesi, `__proto__` sözcüğünde ayrıştırıcının çökmesi.
 
-Kendi makinende `mode-code doctor` aynı denetimleri yapar: Node.js, Claude Code ve ayarları, hook'lar ve eklenti, Git Bash, PowerShell ve zsh, terminal, dosya sistemi, git ve aracın kendi verisi. Güvenle onarabileceğini onarır, önce yedek alır, sonra yeniden denetler, sana kalanı tam olarak söyler. `npm run verify` bir makinede çalışabilen her katmanı koşar ve her katman için tek satır yazar.
+Kendi makinende `mode-code doctor` aynı denetimleri yapar: Node.js, Claude Code ve ayarları (çalışamayan ya da her seferinde model başlatan başka hook'lar, projenin paylaşılan ayarları, sürüme sabitlenmemiş MCP sunucuları, ayarlara yazılmış sırlar, hafıza indeksi), hook'lar ve eklenti, Git Bash, PowerShell ve zsh, terminal, dosya sistemi, git ve aracın kendi verisi. Güvenle onarabileceğini onarır, önce yedek alır, sonra yeniden denetler, sana kalanı tam olarak söyler. `npm run verify` bir makinede çalışabilen her katmanı koşar ve her katman için tek satır yazar.
 
 ## Sınırlar
 
