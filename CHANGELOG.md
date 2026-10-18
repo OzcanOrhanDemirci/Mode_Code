@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- Claude Code's question about a compound command (`cd app && npm test`, `npm run build && npm test`) is answered for you when each of its parts is one your allow rules already cover; a `cd` into the project only says where the rest runs. A part no rule covers, a redirect into a file or a nested command is asked as before.
 - Outside content taints a session: after it read a web page, an issue, a page fetched with `curl`, a connected service's data, a dependency's files or another session's message, sending data out, writing what starts by itself or configures Claude Code, and writing the memory are asked about, with bypass on too (`inject.tainted-act`, `docs/safety-belt.md`).
 - A key or token pasted into your message is told to you (it went to the model provider with the message; rotate it if it was a mistake), and Claude is told not to repeat, store or send it. The kind only, never the value.
 - A safety-belt rule for the project's own checks: changing the settings of a linter or a formatter (ESLint, Prettier, Biome, `analysis_options.yaml` …) is asked about, by any tool (`quality.check-config`).

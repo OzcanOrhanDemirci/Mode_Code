@@ -22,6 +22,7 @@ import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '..
 import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
 import { taintedAct, taintSource } from '../core/taint.js';
 import { shellReadTool, shellTrap } from '../core/hygiene.js';
+import { partsAllowed, shellRules, type ShellRules } from '../core/permissions.js';
 import { isBeltTool, isFileTool, shellOf } from '../core/belt/tools.js';
 import type { BeltContext, BeltDecision, GitFacts } from '../core/belt/types.js';
 import { checkGuards, type ModeGuard } from '../core/guard.js';
@@ -2280,6 +2281,22 @@ async function startBypass($: $, c: Ctx): Promise<string> {
  * answered yes and recorded; one a settings rule asks, the person's or their organisation's, stays theirs.
  * During a run, the question is answered "deferred" instead of waiting.
  */
+/** The person's allow rules for a shell tool: Claude Code's user and project settings, read as they are now. */
+async function shellAllowRules($: $, c: Ctx, tool: 'Bash' | 'PowerShell', cwd: string): Promise<ShellRules> {
+  const dir = c.env.CLAUDE_CONFIG_DIR ? resolvePath(c.env.CLAUDE_CONFIG_DIR, { platform: c.platform, home: c.home, cwd }) : joinPath(c.home, '.claude');
+  const files = [joinPath(dir, 'settings.json'), joinPath(cwd, '.claude', 'settings.json'), joinPath(cwd, '.claude', 'settings.local.json')];
+  const allow: unknown[] = [];
+  for (const f of files) {
+    try {
+      const p = (JSON.parse((await readFile($, f)) ?? '{}') as { permissions?: { allow?: unknown } }).permissions?.allow;
+      if (Array.isArray(p)) allow.push(...p);
+    } catch {
+      /* a settings file that does not read allows nothing */
+    }
+  }
+  return shellRules(allow, tool);
+}
+
 async function onToolCheck($: $, e: In<'tool.check'>, next: Nx<'tool.check'>): Out<'tool.check'> {
   const v = await next(e);
   if (v.decision !== 'ask' || !e.tool_use_id) return v;
@@ -2288,6 +2305,18 @@ async function onToolCheck($: $, e: In<'tool.check'>, next: Nx<'tool.check'>): O
     c = await ctxOf($);
   } catch {
     return v;
+  }
+  // A compound command whose every part the person allowed (`cd app && npm test`): what they said yes to already.
+  const shellTool = String(e.tool) === 'Bash' || String(e.tool) === 'PowerShell' ? (String(e.tool) as 'Bash' | 'PowerShell') : null;
+  if (shellTool && !v.rule) {
+    const cwd = await $.session.cwd();
+    const command = String((e.input as { command?: unknown } | undefined)?.command ?? '');
+    const rules = await shellAllowRules($, c, shellTool, cwd);
+    const env = pathEnv(c, cwd);
+    if (partsAllowed(command, shellTool === 'Bash' ? 'bash' : 'powershell', rules, env.cwd, env)) {
+      await logEvent($, c, { kind: 'permission', tool: shellTool, answer: 'parts' });
+      return { ...v, decision: 'allow' };
+    }
   }
   if (!v.rule && c.config.bypass.enabled && bypassOn(c.state, await $.clock.now())) {
     const tool = String(e.tool);

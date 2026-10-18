@@ -160,3 +160,19 @@ test('a new session never starts with bypass, even after one that had it', async
   expect(w.modState().bypass).toBe(null);
   void PROJECT;
 });
+
+test("Claude Code's question about a compound command whose every part the person allowed is answered: they said yes already", async ($, on) => {
+  const w = world(on, { config: {} });
+  w.write(`${HOME}/.claude/settings.json`, JSON.stringify({ permissions: { allow: ['Bash(npm test:*)', 'Bash(npm run build)'] } }));
+  let verdict: any = { decision: 'ask', reason: 'Compound command' };
+  on('tool.check', () => verdict);
+  const check = async (command: string, id: string) => ((await ($.tool as any).check({ tool: 'Bash', input: { command }, tool_use_id: id })) as any).decision;
+  expect(await check('npm run build && npm test', 'p1')).toBe('allow');
+  expect(await check(`cd ${PROJECT} && npm test`, 'p2')).toBe('allow');
+  expect(await check('npm run build && npm publish', 'p3')).toBe('ask');
+  expect(await check('cd /tmp && npm test', 'p4')).toBe('ask');
+  expect(w.events().filter((e: any) => e.kind === 'permission' && e.answer === 'parts').length).toBe(2);
+  // A question a settings rule of the person's asks stays theirs.
+  verdict = { decision: 'ask', reason: 'a rule of yours', rule: 'Bash(npm test:*)' };
+  expect(await check('npm run build && npm test', 'p5')).toBe('ask');
+});
