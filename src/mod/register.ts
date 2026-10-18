@@ -5135,6 +5135,9 @@ async function control(
 ): Promise<{ text: string; context?: string[]; toast?: string }> {
   const action = commandNamed(name)!;
   const c = await ctxOf($);
+  // A setting changed in the control center holds for a press as for a prompt: bypass set to 8 hours there, then
+  // turned on from the strip with no prompt between, opened for the 2 hours read when the session last read them.
+  await refreshConfig($, c).catch(() => undefined);
   // Bypass and full autonomy are the person's alone: a press, or their own Enter here or on the phone. A command
   // the engine stamps otherwise (a background notice, another session, an unclassified run) is refused.
   const person = via === 'strip' || origin === 'composer' || origin === 'bridge';
