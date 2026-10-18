@@ -622,10 +622,16 @@ function packsCases() {
   const months = existsSync(join(home, 'events')) ? readdirSync(join(home, 'events')) : [];
   const logged = months.flatMap((m) => readdirSync(join(home, 'events', m)).map((x) => readFileSync(join(home, 'events', m, x), 'utf8'))).join('\n');
   const used = /"kind":"pack","pack":"typst","via":"skill"/.test(logged);
+  // What the model called, for a failure's detail: the skill not called at all is the model's, not the plugin's.
+  const calls = skill.events.flatMap((e) =>
+    e.type === 'assistant'
+      ? (e.message?.content ?? []).filter((b) => b.type === 'tool_use').map((b) => `${b.name}(${JSON.stringify(b.input).slice(0, 80)})`)
+      : [],
+  );
   check(
     "a pack's skill loads from its plugin, and its use is recorded as the pack's",
     used,
-    used ? '' : (skill.final?.result?.slice?.(0, 120) ?? skill.stderr.slice(0, 200)),
+    used ? '' : `${calls.join(' ') || 'no tool called'} · ${skill.final?.result?.slice?.(0, 80) ?? skill.stderr.slice(0, 200)}`,
   );
   const catalog = session(
     'Find the mcp__mode-code__catalog tool (search for it if it is not loaded), call it with need "PDF documents", then reply with only the id of the first pack it lists.',
