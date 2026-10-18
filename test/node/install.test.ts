@@ -1,7 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { hookGroups, isOurHook, withOurHooks, withoutOurHooks } from '../../src/node/install.js';
+import { hookGroups, isOurHook, withOurHooks, withoutOurHooks, withoutOurRecords } from '../../src/node/install.js';
+
+test("the plugin's records leave with it, and the two plugin keys when nothing else is in them", () => {
+  const ours = { enabledPlugins: { 'mode-code@mode-code-local': true }, extraKnownMarketplaces: { 'mode-code-local': { source: {} } } };
+  assert.deepEqual(withoutOurRecords({ theme: 'dark', ...ours }), { theme: 'dark' });
+  assert.deepEqual(withoutOurRecords({ enabledPlugins: {}, extraKnownMarketplaces: {} }), {});
+  const others = { enabledPlugins: { 'other@x': false, 'mode-code@mode-code-local': true }, extraKnownMarketplaces: { x: { source: 1 } } };
+  assert.deepEqual(withoutOurRecords(others), { enabledPlugins: { 'other@x': false }, extraKnownMarketplaces: { x: { source: 1 } } });
+  assert.deepEqual(withoutOurRecords({ enabledPlugins: ['odd'], extraKnownMarketplaces: null }), { enabledPlugins: ['odd'], extraKnownMarketplaces: null });
+});
 
 const DATA = 'C:/Users/u/.mode-code';
 const NODE = 'C:/Program Files/nodejs/node.exe';

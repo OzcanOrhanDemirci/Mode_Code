@@ -180,6 +180,9 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       assert.ok(after.hooks.PreToolUse);
       assert.ok(existsSync(join(w.data, 'state', 'doctor.json')), 'the control center can show the last check');
 
+      // What Claude Code itself writes when a plugin is installed, and leaves empty when it is removed.
+      const withRecords = { ...after, enabledPlugins: { 'mode-code@mode-code-local': true }, extraKnownMarketplaces: { 'mode-code-local': { source: {} } } };
+      writeFileSync(join(w.claudeDir, 'settings.json'), JSON.stringify(withRecords));
       const u = cli(w, ['uninstall', '--yes', '--json'], opt);
       assert.equal(u.code, 0, u.out + u.err);
       const left = JSON.parse(readFileSync(join(w.claudeDir, 'settings.json'), 'utf8'));

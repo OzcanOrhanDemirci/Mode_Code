@@ -21,6 +21,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - An installation that asks no questions (the simple view, `--yes`, the one-line installers) protects the memory folder Claude Code is set to keep (`autoMemoryDirectory`); before, it protected none.
 - The sync setup offers a Mac its own name from System Settings; it offered the host name, which a network can set to the computer's address (`192.168.1.9`). An address is never offered as a name.
 - A handoff note's next step, when it is only the last request, is named in your language on the screens and in `mode-code memory`; it said "last request" in English.
+- Uninstalling leaves Claude Code's `settings.json` as it was: the empty `enabledPlugins` and `extraKnownMarketplaces` that Claude Code leaves behind are removed with the plugin's own records.
 
 ## [1.1.0] - 2026-10-15
 
