@@ -9,7 +9,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateToolCall, decisionText } from '../../src/core/belt/evaluate.js';
+import { evaluateToolCall, decisionText, mergeDecisions } from '../../src/core/belt/evaluate.js';
 import { bypassVerdict, RULE_IDS, RULES } from '../../src/core/belt/rules.js';
 import type { BeltContext, RuleConfig, Verdict } from '../../src/core/belt/types.js';
 
@@ -282,4 +282,16 @@ test('every rule has a bypass tier; self-protection keeps; locked rules never le
   assert.equal(bypassVerdict('fs.disk', 'deny'), 'ask');
   assert.equal(bypassVerdict('secrets.exfil', 'deny'), 'deny');
   assert.equal(bypassVerdict('git.no-verify', 'warn'), 'warn', 'a note asks nothing and stays');
+});
+
+test('two decisions about one call: the stricter verdict, every finding, everything either lifted', async () => {
+  const ask = await evaluateToolCall('Bash', { command: 'git push --no-verify' }, win());
+  const allow = await evaluateToolCall('Bash', { command: 'git status' }, win());
+  assert.deepEqual([ask.verdict, allow.verdict, allow.findings.length], ['ask', 'allow', 0]);
+  const both = mergeDecisions(allow, ask);
+  assert.deepEqual([both.verdict, both.findings.length], ['ask', ask.findings.length]);
+  assert.equal(mergeDecisions(allow, allow).verdict, 'allow', 'nothing found: allowed');
+  const lifted = { ...ask, lifted: [{ rule: 'x', was: 'ask' }] } as unknown as typeof ask;
+  assert.deepEqual(mergeDecisions(lifted, { ...ask, issues: ['i'] }).issues, ['i']);
+  assert.equal(mergeDecisions(lifted, ask).lifted.length, 1);
 });

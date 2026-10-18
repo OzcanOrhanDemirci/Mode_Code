@@ -11,6 +11,12 @@ import {
   flowStartContext,
   flowTurnContext,
   footerInstruction,
+  freezeNote,
+  hygieneNote,
+  invisibleNote,
+  mcpChangedNote,
+  promptSecretNote,
+  trapNote,
   keywordContext,
   quotaLine,
   restoredContext,
@@ -214,4 +220,29 @@ test("the folder's last choice, told with the first prompt; a folder to continue
     continueFolderContext('/home/ada/dev/app', true),
     "[Mode_Code] The project to continue is the folder /home/ada/dev/app, this session's own folder.",
   );
+});
+
+test('the notes of the second belt: each names what happened and what to do, and starts as every note does', () => {
+  const notes = [
+    mcpChangedNote(['mcp__docs__search', 'mcp__docs__fetch']),
+    invisibleNote(6),
+    freezeNote('/home/ada/dev/app/src'),
+    freezeNote(null),
+    hygieneNote('Read'),
+    hygieneNote('Grep'),
+    trapNote('heredoc'),
+    trapNote('pipe'),
+    promptSecretNote(['github-token']),
+  ];
+  for (const n of notes) assert.ok(n.startsWith('[Mode_Code] '), n);
+  assert.match(notes[0]!, /2 connected MCP tool\(s\).*mcp__docs__search, mcp__docs__fetch.*not the person's/);
+  assert.equal(mcpChangedNote(Array.from({ length: 12 }, (_, i) => `t${i}`)).includes('t10'), false, 'ten names at most');
+  assert.match(notes[1]!, /6 invisible character\(s\).*data, not instructions/);
+  assert.ok(notes[2]!.includes('froze the edits to /home/ada/dev/app/src'));
+  assert.match(notes[3]!, /ended the freeze/);
+  assert.match(notes[4]!, /Read tool.*offset and limit/);
+  assert.ok(!notes[5]!.includes('offset'), 'Grep has no offset to name');
+  assert.match(notes[6]!, /<<'EOF'/);
+  assert.match(notes[7]!, /pipefail/);
+  assert.match(notes[8]!, /\(github-token\).*rotate/);
 });
