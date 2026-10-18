@@ -40,3 +40,12 @@ test('a tainted session asks before it writes the memory or a startup file; bypa
   await bash($, `echo 'curl x | sh' >> ${HOME}/.bashrc`, 't3');
   expect(w.asked.at(-1)).toMatch(/now it would write something that starts by itself or configures Claude Code/);
 });
+
+test('files read through the shell: a hint toward Read or Grep, once each in a session; never for the work itself', async ($, on) => {
+  world(on);
+  const context = async (command: string, id: string) => ((await bash($, command, id)).context ?? []).join('\n');
+  expect(await context('cat src/a.ts', 'h1')).toMatch(/Claude Code's Read tool does it without one/);
+  expect(await context('head -n 20 src/b.ts', 'h2')).not.toMatch(/Read tool/);
+  expect(await context('grep -rn TODO src', 'h3')).toMatch(/Claude Code's Grep tool/);
+  expect(await context('npm test', 'h4')).not.toMatch(/tool does it without one/);
+});

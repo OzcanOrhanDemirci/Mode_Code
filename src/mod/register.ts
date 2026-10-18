@@ -21,6 +21,7 @@ import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform 
 import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '../core/i18n/index.js';
 import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
 import { taintedAct, taintSource } from '../core/taint.js';
+import { shellReadTool } from '../core/hygiene.js';
 import { isBeltTool, isFileTool, shellOf } from '../core/belt/tools.js';
 import type { BeltContext, BeltDecision, GitFacts } from '../core/belt/types.js';
 import { checkGuards, type ModeGuard } from '../core/guard.js';
@@ -84,6 +85,7 @@ import {
   bypassOffNote,
   bypassOnNote,
   bypassReminder,
+  hygieneNote,
   promptSecretNote,
   resumePrompt,
   stepGuidance,
@@ -279,6 +281,8 @@ interface Ctx {
   sharedStart: Promise<void> | null;
   sharedSyncing: boolean;
   sharedWarned: Set<string>;
+  /** The tool hygiene hints given in this session (core/hygiene.ts): each once. */
+  hinted: Set<string>;
   /** The sync at the session's start while it runs: the first prompt waits for it. */
   memStart: Promise<unknown> | null;
   /** The notes of sessions closed without ending, written at the start: the first prompt waits for them. */
@@ -551,6 +555,7 @@ async function load($: $): Promise<Ctx> {
     sharedStart: null,
     sharedSyncing: false,
     sharedWarned: new Set(),
+    hinted: new Set(),
     mo: {
       tools: 0,
       agents: 0,
@@ -2656,6 +2661,12 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
       await logEvent($, c, { kind: 'modeDisagree', mode: guard.mode, programs: [...new Set(effects.map((x) => x.program))].slice(0, 8) });
   }
   const extra: string[] = [];
+  // Files read through the shell where Claude Code's own tool reads them: said once per tool in a session.
+  const better = ran && result.isError !== true && e.agentId === undefined ? shellReadTool(tool, input) : null;
+  if (better && !c.hinted.has(better)) {
+    c.hinted.add(better);
+    extra.push(hygieneNote(better));
+  }
   if (d.verdict === 'warn' && result && result.deny === undefined) {
     await logEvent($, c, { kind: 'belt', tool, verdict: 'warn', rules });
     extra.push(decisionText(d, ctx));

@@ -297,6 +297,11 @@ export function flowNote(kind: 'canceled' | 'approved', f: Flow, lang: Lang, t: 
   return `${P} The person approved the plan by typing. ${stepGuidance(f, lang, t)}`;
 }
 
+/** Told to the model once per tool in a session when it read files through the shell (core/hygiene.ts). */
+export function hygieneNote(tool: 'Read' | 'Grep'): string {
+  return `${P} That command read files through the shell. Claude Code's ${tool} tool does it without one and its output costs less context${tool === 'Read' ? ' (offset and limit read a part)' : ''}: prefer it. A hint, not a rule; said once.`;
+}
+
 /** Told to the model when the person's message holds what looks like a key or a token (its kinds, never the value). */
 export function promptSecretNote(kinds: readonly string[]): string {
   return `${P} The person's message holds what looks like a secret (${kinds.join(', ')}). Use it only for what they asked; do not repeat it in your answer, write it into a file other than a secret store, commit it or send it anywhere. If it looks pasted by mistake, tell them to rotate it.`;
