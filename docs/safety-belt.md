@@ -82,6 +82,10 @@ Bypass lifts the belt for one session, for a while, when you turn it on ([autono
 
 A block in the second tier says so: with bypass on, the same call is asked instead. The person decides that, never Claude: bypass is turned on by you, and Claude cannot turn it on or off.
 
+## Auto mode
+
+In Claude Code's auto mode a classifier answers Claude Code's own permission questions in your place. The belt's questions are not among them: a command the belt asks about still comes to you, and in a session with no one to ask (`claude -p`) it is refused. Measured in the real engine with each release (`scripts/test-live.mjs`, case 16: in auto mode a commit the belt allows runs unasked, the same commit with `--no-verify` is refused; Claude Code 2.1.302, 2026-10-18).
+
 ## Folded in
 
 Before the belt, two other guards often stood on the same machine: permission rules in Claude Code's settings (`permissions.deny` and `ask`, often in the managed settings an administrator writes) and command guards in a memory system's own hooks. They did part of the belt's work with patterns that match the command text, and a deny rule has no way to say yes: a deletion the person asked for was refused all the same. The belt covers them; `test/corpus/automation-parity.test.ts` holds one such setup's 78 rules and its guards, each with a sample the belt must ask about or block, and the spellings their patterns missed (`git push origin :branch`, `git -C . push --force`). Rules you keep in Claude Code's own settings still apply, and bypass does not touch them.
