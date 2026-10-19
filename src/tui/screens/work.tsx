@@ -11,7 +11,7 @@ import { repoStatus, git } from '../../node/git.js';
 import { readTail } from '../../node/tail.js';
 import { readText, writeAtomic } from '../../node/fsx.js';
 import type { ScreenProps } from '../nav.js';
-import { Empty, Muted, Note, Row, Section, Table, useEnv, useScreenKeys, useT } from '../ui.js';
+import { Empty, Muted, Note, Row, Section, Table, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
 import { LinkList, type Link } from '../widgets.js';
 import type { MessageKey } from '../../core/i18n/index.js';
 import { evidenceText, flowTitle, statusText } from '../../core/flow-view.js';
@@ -67,19 +67,24 @@ export function SessionCard({ id, width, height, open }: ScreenProps & { id: str
   const s = data.session(id);
   const totals = data.sessionTotals(id);
   const tools = open ? data.tools({ session: id }) : [];
+  const exportIt = () => {
+    if (!s) return;
+    try {
+      const path = exportSession(s, data.layout.root);
+      setExported(path);
+      flash(t('session.exported'), 'ok');
+    } catch (err) {
+      flash(t('session.exportFailed', { detail: (err as Error).message }), 'bad');
+    }
+  };
   useScreenKeys((input) => {
     if (input === 'e' && s) {
-      try {
-        const path = exportSession(s, data.layout.root);
-        setExported(path);
-        flash(t('session.exported'), 'ok');
-      } catch (err) {
-        flash(t('session.exportFailed', { detail: (err as Error).message }), 'bad');
-      }
+      exportIt();
       return true;
     }
     return false;
   }, open);
+  useHints([{ key: 'e', label: t('keys.export'), run: exportIt }], open && !!s);
   if (!s) return <Empty>{t('session.missing')}</Empty>;
   const all = totals ? totals.input + totals.cacheWrite + totals.cacheRead + totals.output : 0;
   const hit = totals ? cacheHitRate(totals) : null;

@@ -46,6 +46,8 @@ async function main(argv: string[]): Promise<number> {
   const a = parseArgs(argv);
   if (flag(a, 'no-color', 'plain')) setColor(false);
   const [cmd, ...rest] = a.positionals;
+  // How the control center draws: plain marks, no colour, no mouse.
+  const center = { plain: flag(a, 'plain'), noColor: flag(a, 'no-color'), mouse: !flag(a, 'no-mouse') };
   const sub = { ...a, positionals: rest };
   if (flag(a, 'version', 'v') && !cmd) {
     process.stdout.write(`${APP_VERSION}\n`);
@@ -57,14 +59,14 @@ async function main(argv: string[]): Promise<number> {
   }
   switch (cmd) {
     case undefined:
-      if (process.stdout.isTTY && process.stdin.isTTY) return runControlCenter({ address: null, plain: flag(a, 'plain') });
+      if (process.stdout.isTTY && process.stdin.isTTY) return runControlCenter({ address: null, ...center });
       return cmdStatus(sub);
     case 'open':
       if (!process.stdout.isTTY || !process.stdin.isTTY) {
         process.stderr.write(tIn(appContext().lang, 'tui.needsTerminal') + '\n');
         return 2;
       }
-      return runControlCenter({ address: rest[0] ?? null, plain: flag(a, 'plain') });
+      return runControlCenter({ address: rest[0] ?? null, ...center });
     case 'status':
       return cmdStatus(sub);
     case 'doctor':

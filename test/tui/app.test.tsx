@@ -505,7 +505,7 @@ test('Automation › Recent tasks: the last tasks given full autonomy, the one p
       .replace(/\s+/g, ' ');
   try {
     const t = flat();
-    assert.match(t, /↑↓ seç · Enter ya da c görevin tamamını kopyalar/);
+    assert.match(t, /Enter\/c görevin tamamını kopyala/);
     assert.match(t, /kota \+20/);
     // The one picked is whole; the others show their first line.
     assert.match(t, /Hız sınırı ekle\. Sonra belgeleri güncelle\./);

@@ -96,7 +96,7 @@ test('Settings › Memory › Handoffs and morning report: each setting is edite
   const data = new FakeData();
   const s = await draw(data, { address: 'settings/memory/handoffs' });
   try {
-    assert.match(s.text(), /Handoff notes\s+on/);
+    assert.match(s.text(), /Handoff notes\s+● on/);
     assert.match(s.text(), /Notes kept per project\s+20/);
     await s.press(KEY.enter);
     assert.deepEqual(data.saved.at(-1), { path: 'memory.handoff.enabled', value: false });

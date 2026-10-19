@@ -6,7 +6,9 @@ import type { MessageKey } from '../core/i18n/index.js';
 import { truncate } from '../core/text.js';
 import type { Config } from '../core/config.js';
 import { amount, asksFirst, confirmText, effectOf, explain, nameOf, nextValue, settingOf, valueIn, valueText, type SettingPath } from '../core/ux/catalog.js';
-import { useEnv, useScreenKeys, useT, ListView, Muted, Row, type ListItem } from './ui.js';
+import { choiceValue, confirm, switchValue } from '../core/ux/kit.js';
+import { Pressable } from './press.js';
+import { useEnv, useHints, useKit, useScreenKeys, useT, ListView, Muted, Row, type ListItem } from './ui.js';
 
 export interface Link extends ListItem {
   address: string;
@@ -16,6 +18,10 @@ export interface Link extends ListItem {
 export function LinkList({ items, height, width, open, emptyText }: { items: Link[]; height: number; width: number; open: boolean; emptyText?: string }) {
   const env = useEnv();
   const [sel, setSel] = useState(0);
+  const follow = (i = sel) => {
+    const it = items[Math.min(i, items.length - 1)];
+    if (it) env.go(it.address);
+  };
   useScreenKeys((input, key) => {
     if (!items.length) return false;
     if (key.upArrow || input === 'k') {
@@ -27,14 +33,29 @@ export function LinkList({ items, height, width, open, emptyText }: { items: Lin
       return true;
     }
     if (key.return || key.rightArrow) {
-      const it = items[Math.min(sel, items.length - 1)];
-      if (it) env.go(it.address);
+      follow();
       return true;
     }
     return false;
   }, open);
+  useLinkHints(open && items.length > 0, () => follow());
   if (!items.length) return emptyText ? <Muted>{emptyText}</Muted> : null;
-  return <ListView items={items} selected={Math.min(sel, items.length - 1)} height={height} width={width} focused={open} />;
+  // A click on a row follows its link, here or beside a list (a preview's links lead too).
+  return (
+    <ListView
+      items={items}
+      selected={Math.min(sel, items.length - 1)}
+      height={height}
+      width={width}
+      focused={open}
+      onPress={(i) => {
+        setSel(i);
+        follow(i);
+      }}
+      onMove={open ? (d) => setSel((s) => Math.max(0, Math.min(items.length - 1, s + d))) : undefined}
+      describe={(i) => (items[i] ? `${items[i]!.label}${env.place(items[i]!.address) ? ` · ${env.place(items[i]!.address)}` : ''}` : null)}
+    />
+  );
 }
 
 /** A one-line text field that takes the keyboard while it is active. */
@@ -113,6 +134,7 @@ export interface Field {
 export function SettingsEditor({ fields, open, width }: { fields: Field[]; open: boolean; width: number }) {
   const env = useEnv();
   const t = useT();
+  const kit = useKit();
   const lang = env.lang;
   const [sel, setSel] = useState(0);
   const [pending, setPending] = useState<{ path: string; value: unknown } | null>(null);
@@ -120,12 +142,21 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
   const cur = fields[Math.min(sel, fields.length - 1)];
   const kindOf = (f: Field) => settingOf(f.path)!.def.kind;
 
+  /** Saves a value; the bar says what changed and offers to take it back (u), to the value it had. */
   const save = (f: Field, value: unknown) => {
+    const before = f.value;
     const problems = env.data.setConfig(f.path, value);
     setPending(null);
     setTyping(null);
-    if (problems.length) env.flash(t('set.rejected', { detail: problems.map((p) => p.detail).join('; ') }), 'bad');
-    else env.flash(t('set.changed', { name: nameOf(f.path, lang), value: valueText(f.path, value, lang) }), 'ok');
+    if (problems.length) {
+      env.flash(t('set.rejected', { detail: problems.map((p) => p.detail).join('; ') }), 'bad');
+      return;
+    }
+    env.flash(t('set.changed', { name: nameOf(f.path, lang), value: valueText(f.path, value, lang) }), 'ok', () => {
+      const again = env.data.setConfig(f.path, before);
+      if (again.length) env.flash(t('set.rejected', { detail: again.map((p) => p.detail).join('; ') }), 'bad');
+      else env.flash(t('set.undone', { name: nameOf(f.path, lang), value: valueText(f.path, before, lang) }), 'ok');
+    });
   };
   /** Applies `v`, or holds it for a second press when it asks first. */
   const offer = (f: Field, v: unknown) => {
@@ -136,19 +167,35 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
     save(f, v);
   };
 
+  /** Enter or Space on a setting: a number opens for typing; any other value moves to the next (asking first where it must). */
+  const change = (f: Field) => {
+    if (kindOf(f).kind === 'number') {
+      setTyping(String(f.value ?? ''));
+      return;
+    }
+    offer(f, pending && pending.path === f.path ? pending.value : nextValue(f.path, f.value));
+  };
+  const submitTyped = () => {
+    if (!cur || typing === null) return;
+    const k = kindOf(cur);
+    const n = typedNumber(typing, cur);
+    if (n !== null) offer(cur, n);
+    else env.flash(t('set.range', { min: k.kind === 'number' ? k.min : 0, max: k.kind === 'number' ? k.max : 0 }), 'warn');
+  };
+  const cancel = () => {
+    setTyping(null);
+    setPending(null);
+  };
+
   useScreenKeys((input, key) => {
     if (!cur) return false;
-    const k = kindOf(cur);
     if (typing !== null) {
       if (key.return) {
-        const n = typedNumber(typing, cur);
-        if (n !== null) offer(cur, n);
-        else env.flash(t('set.range', { min: k.kind === 'number' ? k.min : 0, max: k.kind === 'number' ? k.max : 0 }), 'warn');
+        submitTyped();
         return true;
       }
       if (key.escape) {
-        setTyping(null);
-        setPending(null);
+        cancel();
         return true;
       }
       if (key.backspace || key.delete) {
@@ -178,37 +225,71 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
       return true;
     }
     if (key.return || input === ' ') {
-      if (k.kind === 'number') {
-        setTyping(String(cur.value ?? ''));
-        return true;
-      }
-      offer(cur, pending && pending.path === cur.path ? pending.value : nextValue(cur.path, cur.value));
+      change(cur);
       return true;
     }
     return false;
   }, open);
 
-  // The values stand in one column two cells past the longest label, as far as the longest value leaves room. A
-  // label too long for the column is cut: run into its value, "serbest" and "açık" read as one word.
-  const valueW = Math.max(
-    ...fields.map((f) => {
-      const k = kindOf(f);
-      const values = k.kind === 'switch' ? [true, false] : k.kind === 'choice' ? [...k.options] : [k.max];
-      return Math.max(...values.map((v) => valueText(f.path, v, lang).length));
-    }),
+  // The keys of this list in the bar, each one a click away too.
+  const curKind = cur ? kindOf(cur).kind : 'switch';
+  useHints(
+    typing !== null
+      ? [
+          { key: '0-9', label: t('set.key.type') },
+          { key: 'Enter', label: t('set.key.save'), run: submitTyped },
+          { key: 'Esc', label: t('set.key.cancel'), run: cancel },
+        ]
+      : pending
+        ? [
+            { key: 'Enter', label: t('set.key.apply'), run: () => cur && change(cur) },
+            { key: 'Esc', label: t('set.key.cancel'), run: cancel },
+          ]
+        : [{ key: 'Enter', label: t(curKind === 'number' ? 'set.key.type' : 'set.key.change'), run: () => cur && change(cur) }],
+    open && !!cur,
   );
+
+  // The values stand in one column two cells past the longest label, as far as the longest value leaves room. A
+  // label too long for the column is cut: run into its value, "serbest" and "açık" read as one word. A switch reads
+  // `● on`, a choice `‹ value ›` (docs/design.md, the look tells the kind).
+  const valueW =
+    Math.max(
+      ...fields.map((f) => {
+        const k = kindOf(f);
+        const values = k.kind === 'switch' ? [true, false] : k.kind === 'choice' ? [...k.options] : [k.max];
+        return Math.max(...values.map((v) => valueText(f.path, v, lang).length));
+      }),
+    ) + 4;
   const labelW = Math.max(12, Math.min(40, width - 2 - valueW, Math.max(...fields.map((f) => nameOf(f.path, lang).length)) + 2));
+  const valueOf = (f: Field, i: number) => {
+    if (typing !== null && i === sel) return <Text bold>{typing + '▏'}</Text>;
+    const k = kindOf(f).kind;
+    const word = valueText(f.path, f.value, lang);
+    return k === 'switch' ? switchValue(kit, f.value === true, word) : k === 'choice' ? choiceValue(kit, word) : kit.text({ bold: true }, word);
+  };
   return (
     <Box flexDirection="column" width={width}>
       {fields.map((f, i) => {
         const selected = i === sel && open;
+        // A click selects the setting and changes it, as Enter does; pointing at it says what it is.
         return (
-          <Box key={f.path}>
-            <Text inverse={selected}>{(selected ? env.theme.sym.cursor : ' ') + ' ' + truncate(nameOf(f.path, lang), labelW - 2).padEnd(labelW)}</Text>
-            <Text bold color={kindOf(f).kind === 'switch' ? (f.value ? env.theme.ok : env.theme.muted) : env.theme.accent}>
-              {typing !== null && i === sel ? typing + '▏' : valueText(f.path, f.value, lang)}
-            </Text>
-          </Box>
+          <Pressable
+            key={f.path}
+            onPress={() => {
+              setSel(i);
+              if (open) change(f);
+            }}
+            describe={`${nameOf(f.path, lang)}: ${explain(env.data.config(), f.path, lang, env.place).what}`}
+          >
+            {(hovered) => (
+              <>
+                <Text inverse={selected} underline={hovered && !selected}>
+                  {(selected ? env.theme.sym.cursor : ' ') + ' ' + truncate(nameOf(f.path, lang), labelW - 2).padEnd(labelW)}
+                </Text>
+                {valueOf(f, i)}
+              </>
+            )}
+          </Pressable>
         );
       })}
       {cur ? (
@@ -217,6 +298,9 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
           typed={typing === null ? null : typedNumber(typing, cur)}
           pending={pending && pending.path === cur.path ? { value: pending.value } : null}
           open={open}
+          width={width}
+          onApply={() => change(cur)}
+          onCancel={cancel}
         />
       ) : null}
     </Box>
@@ -230,10 +314,30 @@ function typedNumber(typing: string, f: Field): number | null {
   return typing !== '' && k.kind === 'number' && Number.isFinite(n) && n >= k.min && n <= k.max ? n : null;
 }
 
-/** The four answers for the selected setting, from the catalog, and what a press is about to do when it asks first. */
-function SettingCard({ field, typed, pending, open }: { field: Field; typed: number | null; pending: { value: unknown } | null; open: boolean }) {
+/**
+ * The four answers for the selected setting, from the catalog, and, when a press asks first, what it is about to do
+ * with the two ways out (apply, cancel), each a key and a click.
+ */
+function SettingCard({
+  field,
+  typed,
+  pending,
+  open,
+  width,
+  onApply,
+  onCancel,
+}: {
+  field: Field;
+  typed: number | null;
+  pending: { value: unknown } | null;
+  open: boolean;
+  width: number;
+  onApply(): void;
+  onCancel(): void;
+}) {
   const env = useEnv();
   const t = useT();
+  const kit = useKit();
   const lang = env.lang;
   const e = explain(env.data.config(), field.path, lang, env.place);
   const k = settingOf(field.path)!.def.kind;
@@ -247,9 +351,12 @@ function SettingCard({ field, typed, pending, open }: { field: Field; typed: num
     <Box marginTop={1} flexDirection="column">
       {warning ? (
         <Box marginBottom={1}>
-          <Text color={env.theme.warn} wrap="wrap">
-            {warning}
-          </Text>
+          {confirm(kit, {
+            text: warning,
+            width,
+            apply: { id: 'apply', label: t('set.key.apply'), keyName: 'Enter', onPress: onApply },
+            cancel: { id: 'cancel', label: t('set.key.cancel'), keyName: 'Esc', onPress: onCancel },
+          })}
         </Box>
       ) : null}
       <Row label={t('ux.q.what')} width={w}>
@@ -287,9 +394,14 @@ function SettingCard({ field, typed, pending, open }: { field: Field; typed: num
           {t('ux.personOnly')}
         </Row>
       ) : null}
-      {open ? <Muted>{t(k.kind === 'number' ? 'set.hintNumber' : 'set.hint')}</Muted> : null}
     </Box>
   );
+}
+
+/** A link list's keys in the bar: Enter follows the selected link (a click on a row does the same). */
+function useLinkHints(open: boolean, follow: () => void): void {
+  const t = useT();
+  useHints([{ key: 'Enter', label: t('keys.open'), run: follow }], open);
 }
 
 export function tKey(k: string): MessageKey {

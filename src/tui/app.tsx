@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * The control center. Three columns (where you came from · where you are · what is selected), a location
- * bar with the address of the screen, and the same keys everywhere:
+ * The control center. Three columns (where you came from · where you are · what is selected), a bar at the bottom
+ * that says what is under the focus or the pointer and which keys work there, and the same keys everywhere:
  *   ↑↓ move · →/Enter open · ←/Esc back · 1-8 categories · / filter · Ctrl+K go anywhere · ? help · r refresh · q quit
+ * The mouse does what the keys do (docs/design.md, One way to act): a click acts on what it lands on, pointing at
+ * something says what it is, the wheel scrolls what is under the pointer.
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useApp, useInput, useWindowSize, type Key } from 'ink';
@@ -10,29 +12,61 @@ import { APP_NAME } from '../core/app.js';
 import { tIn, type MessageKey } from '../core/i18n/index.js';
 import { fold } from '../core/text.js';
 import { percent } from '../core/format.js';
+import { keyBar, notice, type Hint } from '../core/ux/kit.js';
+import { TOAST_MS } from '../core/ux/tokens.js';
 import { allEntries, CATEGORY_IDS, resolve, searchEntries, visible, type NavNode } from './nav.js';
 import type { DataSource } from './store.js';
 import { buildTree } from './tree.js';
-import { makeTheme, stateColor, type Theme } from './theme.js';
+import { makeTheme, noColorAsked, stateColor, type Theme } from './theme.js';
 import { MoGreeting } from './mo.js';
-import { dispatchKey, EnvContext, KeyHints, KeyScopeContext, ListView, Muted, type Env, type KeyScope, type LeaveAction, type ListItem } from './ui.js';
+import { inkHost } from './kit.js';
+import { textWidth } from '../node/width.js';
+import type { PointerEvent, PointerHub } from './pointer.js';
+import { PointerContext, PointerRegistry, Pressable } from './press.js';
+import {
+  dispatchKey,
+  EnvContext,
+  HintContext,
+  KeyScopeContext,
+  ListView,
+  Muted,
+  ProseWidth,
+  prose,
+  type Env,
+  type HintRegistry,
+  type KeyScope,
+  type LeaveAction,
+  type ListItem,
+  type ScreenHint,
+} from './ui.js';
 
 export interface AppProps {
   data: DataSource;
   /** Address to open at start ("security/rules"). */
   address?: string | null;
   plain?: boolean;
+  /** Colour off (NO_COLOR); read from the environment when not given. */
+  noColor?: boolean;
   /** Fixed clock for tests. */
   now?: () => number;
   size?: { columns: number; rows: number };
   /** Leaves the control center for something that talks in the terminal (the memory setup), then comes back at `back`. */
   onLeave?: (action: LeaveAction, back: string) => void;
+  /** The pointer's events (src/tui/pointer.ts), where the terminal reports the mouse. */
+  pointer?: PointerHub;
+  /**
+   * Called just before the control center ends, while the screen is still its own: what was turned on for it is
+   * turned off there (the mouse; under Windows' console a mode turned off after the screen was left is lost).
+   */
+  onQuit?: () => void;
 }
 
 interface Flash {
   text: string;
   kind: 'ok' | 'warn' | 'bad';
   at: number;
+  /** Takes back what the message reports (u, or a click on it). */
+  undo?: () => void;
 }
 
 function itemsOf(nodes: NavNode[]): ListItem[] {
@@ -47,15 +81,18 @@ export function App(props: AppProps) {
   const rows = props.size?.rows ?? win.rows ?? 30;
   const clock = props.now ?? Date.now;
   const config = data.config();
+  const noColor = props.noColor ?? noColorAsked(process.env);
   const theme = useMemo(
     () =>
       makeTheme({
         plain: props.plain || config.accessibility.plain,
         highContrast: config.accessibility.highContrast,
         reduceMotion: config.accessibility.reduceMotion,
+        noColor,
       }),
-    [props.plain, config.accessibility.plain, config.accessibility.highContrast, config.accessibility.reduceMotion],
+    [props.plain, config.accessibility.plain, config.accessibility.highContrast, config.accessibility.reduceMotion, noColor],
   );
+  const kit = useMemo(() => inkHost(theme), [theme]);
   const lang = data.lang;
   const view = config.view;
   const t = (k: MessageKey, p?: Record<string, string | number>) => tIn(lang, k, p);
@@ -74,6 +111,24 @@ export function App(props: AppProps) {
   const [flash, setFlash] = useState<Flash | null>(null);
   const [scroll, setScroll] = useState(0);
   const keyScope = useRef<KeyScope>({ handlers: [] }).current;
+  // What the pointer can reach, and what it rests on; the keys the open screen adds to the bar.
+  const pointer = useRef(new PointerRegistry()).current;
+  const [hover, setHover] = useState<{ id: string | null; describe: string | null }>({ id: null, describe: null });
+  pointer.onHoverGone = () => setHover({ id: null, describe: null });
+  const [screenHints, setScreenHints] = useState<ReadonlyMap<string, { current: ScreenHint[] }>>(new Map());
+  const hintRegistry = useMemo<HintRegistry>(
+    () => ({
+      set: (id, hints) =>
+        setScreenHints((m) => {
+          if (hints === null && !m.has(id)) return m;
+          const next = new Map(m);
+          if (hints === null) next.delete(id);
+          else next.set(id, hints);
+          return next;
+        }),
+    }),
+    [],
+  );
 
   const chainNodes = useMemo(() => resolve(roots, chain.join('/'), view), [roots, chain, view]);
   const listOwner = chainNodes[chainNodes.length - 1] ?? null;
@@ -117,12 +172,29 @@ export function App(props: AppProps) {
     }
   };
 
-  const showFlash = (text: string, kind: Flash['kind'] = 'ok') => setFlash({ text, kind, at: Date.now() });
+  const quit = () => {
+    props.onQuit?.();
+    app.exit();
+  };
+  const showFlash = (text: string, kind: Flash['kind'] = 'ok', undo?: () => void) => {
+    setFlash({ text, kind, at: Date.now(), ...(undo ? { undo } : {}) });
+    // A change was made: the lists beside it read their badges again ("off" turns "on" there too).
+    if (undo) setTick((x) => x + 1);
+  };
+  // A note goes after a few seconds, the result of a change (with its undo) stays longer, a problem longest.
   useEffect(() => {
     if (!flash) return;
-    const h = setTimeout(() => setFlash(null), 4000);
+    const h = setTimeout(() => setFlash(null), flash.kind !== 'ok' ? TOAST_MS.attention : flash.undo ? TOAST_MS.result : TOAST_MS.note);
     return () => clearTimeout(h);
   }, [flash]);
+  const undo = () => {
+    const u = flash?.undo;
+    if (!u) return false;
+    setFlash(null);
+    u();
+    setTick((x) => x + 1);
+    return true;
+  };
 
   useEffect(() => {
     if (props.address) go(props.address);
@@ -152,19 +224,31 @@ export function App(props: AppProps) {
       ? {
           leave: (action: LeaveAction, back: string) => {
             props.onLeave!(action, back);
-            app.exit();
+            quit();
           },
         }
       : {}),
   };
 
   const move = (delta: number) => setSel((s) => ({ ...s, [listKey]: Math.max(0, Math.min(list.length - 1, index + delta)) }));
-  const enter = () => {
-    if (!selected) return;
-    if (selected.children) {
-      setChain([...chain, selected.id]);
+  const enterNode = (node: NavNode | null) => {
+    if (!node) return;
+    if (node.children) {
+      setChain([...chain, node.id]);
       setFilter(null);
-    } else if (selected.screen) setOpen(true);
+    } else if (node.screen) setOpen(true);
+  };
+  const enter = () => enterNode(selected);
+  /** A click on a row of the list: it is selected and opened, as Enter would. */
+  const openAt = (i: number) => {
+    setSel((s) => ({ ...s, [listKey]: i }));
+    enterNode(list[i] ?? null);
+  };
+  /** Where a crumb of the location bar leads: the start, or the level it names. */
+  const toLevel = (k: number) => {
+    setChain(chain.slice(0, k));
+    setOpen(false);
+    setFilter(null);
   };
   const back = () => {
     if (open) {
@@ -188,7 +272,25 @@ export function App(props: AppProps) {
     [paletteEntries, palette.text, paletteRoom],
   );
 
+  // The pointer: the target under it acts or describes itself; a wheel step nothing took scrolls the page or the list.
+  const onPointer = useRef<(e: PointerEvent) => void>(() => {});
+  onPointer.current = (e) => {
+    const r = pointer.dispatch(e);
+    if (r.hoverChanged) setHover({ id: pointer.hovered, describe: r.describe });
+    if (e.kind === 'wheel' && !r.wheeled && !overlay) {
+      const d = e.wheel === 'up' ? -1 : 1;
+      if (open) setScroll((s) => Math.max(0, s + d));
+      else move(d);
+    }
+  };
+  useEffect(() => props.pointer?.on((e) => onPointer.current(e)), [props.pointer]);
+
   useInput((input: string, key: Key) => {
+    // 0. Ctrl+C ends it from anywhere (the app ends itself, so what it turned on is turned off first)
+    if (key.ctrl && input === 'c') {
+      quit();
+      return;
+    }
     // 1. overlays take every key
     if (overlay === 'help') {
       if (key.escape || input === '?' || input === 'q' || key.return) setOverlay(null);
@@ -225,9 +327,10 @@ export function App(props: AppProps) {
       }
       return;
     }
-    // 4. the same keys everywhere
+    // 4. the same keys everywhere; u takes back the change the bar reports (docs/design.md, Say, do, undo)
+    if (input === 'u' && !key.ctrl && undo()) return;
     if (input === 'q' && !open) {
-      app.exit();
+      quit();
       return;
     }
     if (input === 'q' && open) {
@@ -286,15 +389,31 @@ export function App(props: AppProps) {
   const belt = health.features.find((f) => f.id === 'belt');
   const q = data.quota();
 
+  // Each crumb of the location bar leads back to its level with a click; the screen open now is where you are.
   const header = (
     <Box width={columns} justifyContent="space-between">
-      <Text wrap="truncate-end">
-        <Text bold color={theme.accent}>
-          {crumbs[0]}
-        </Text>
-        <Text color={theme.muted}>{crumbs.length > 1 ? theme.sym.sep : ''}</Text>
-        <Text bold>{crumbs.slice(1).join(theme.sym.sep)}</Text>
-      </Text>
+      <Box flexShrink={1} overflow="hidden">
+        {crumbs.map((c, k) => {
+          const here = k === crumbs.length - 1;
+          const label = (
+            <Text bold {...(k === 0 ? { color: theme.accent } : {})} wrap="truncate-end">
+              {c}
+            </Text>
+          );
+          return (
+            <Box key={k} flexShrink={k === 0 ? 0 : 1}>
+              {k ? <Text color={theme.muted}>{theme.sym.sep}</Text> : null}
+              {here ? (
+                label
+              ) : (
+                <Pressable onPress={() => toLevel(k)} describe={t('nav.toLevel', { place: c })}>
+                  {label}
+                </Pressable>
+              )}
+            </Box>
+          );
+        })}
+      </Box>
       <Text color={theme.muted} wrap="truncate-start">
         {belt ? (
           <Text color={stateColor(theme, belt.state)}>
@@ -307,44 +426,68 @@ export function App(props: AppProps) {
     </Box>
   );
 
-  const allHints: [string, string][] = open
-    ? [
-        ['←/Esc', t('keys.back')],
-        ['?', t('keys.help')],
-        ['Ctrl+K', t('keys.palette')],
-        ['q', t('keys.close')],
-      ]
-    : [
-        ['↑↓', t('keys.move')],
-        ['→', t('keys.open')],
-        ['←', t('keys.back')],
-        ['1-8', t('keys.categories')],
-        ['/', t('keys.filter')],
-        ['Ctrl+K', t('keys.palette')],
-        ['?', t('keys.help')],
-        ['q', t('keys.quit')],
-      ];
+  // The keys that work here, the open screen's own first; each one a click does too, but moving (that is the rows).
+  const openPalette = () => {
+    setPalette({ text: '', sel: 0 });
+    setOverlay('palette');
+  };
+  // A click runs what the screen holds at that moment (its row may have changed since the bar was drawn).
+  const own: Hint[] = open
+    ? [...screenHints.values()].flatMap((r) =>
+        r.current.map((h, i) => ({ key: h.key, label: h.label, ...(h.run ? { onPress: () => r.current[i]?.run?.() } : {}) })),
+      )
+    : [];
+  const allHints: Hint[] = overlay
+    ? [{ key: 'Esc', label: t('keys.close'), onPress: () => setOverlay(null) }]
+    : open
+      ? [
+          ...own,
+          { key: '←/Esc', label: t('keys.back'), onPress: back },
+          { key: '?', label: t('keys.help'), onPress: () => setOverlay('help') },
+          { key: 'Ctrl+K', label: t('keys.palette'), onPress: openPalette },
+          { key: 'q', label: t('keys.close'), onPress: () => setOpen(false) },
+        ]
+      : [
+          { key: '↑↓', label: t('keys.move') },
+          { key: '→', label: t('keys.open'), onPress: enter },
+          { key: '←', label: t('keys.back'), onPress: back },
+          { key: '1-8', label: t('keys.categories') },
+          { key: '/', label: t('keys.filter'), onPress: () => setFilter({ text: '', typing: true }) },
+          { key: 'Ctrl+K', label: t('keys.palette'), onPress: openPalette },
+          { key: '?', label: t('keys.help'), onPress: () => setOverlay('help') },
+          { key: 'q', label: t('keys.quit'), onPress: quit },
+        ];
   // One line of hints: on a narrow terminal the less essential ones give way (help still lists them all).
-  const hintWidth = (h: [string, string][]) => h.reduce((n, [k, v]) => n + k.length + v.length + 3, 0);
+  const hintWidth = (h: Hint[]) => h.reduce((n, k) => n + textWidth(k.key) + textWidth(k.label) + 3, 0);
   const hints = [...allHints];
-  for (const drop of ['1-8', '/', 'Ctrl+K', '←']) {
+  for (const drop of ['1-8', '/', 'Ctrl+K', '←', '?']) {
     if (hintWidth(hints) <= columns) break;
-    const i = hints.findIndex(([k]) => k === drop);
+    const i = hints.findIndex((k) => k.key === drop);
     if (i >= 0) hints.splice(i, 1);
   }
+  // Still too wide: the screen's own keys give way from the last (its first one stays), then the rest from the end.
+  for (let mine = overlay ? 0 : own.length; hintWidth(hints) > columns && hints.length > 1;) {
+    if (mine > 1) hints.splice(--mine, 1);
+    else hints.pop();
+  }
 
+  // The bar: what was just done (and its undo), else what the pointer rests on, else the address of the screen (the
+  // one the palette and the command line take).
+  const context = flash
+    ? notice(kit, {
+        meaning: flash.kind === 'bad' ? 'bad' : flash.kind === 'warn' ? 'ask' : 'on',
+        text: flash.text,
+        ...(flash.undo ? { undo: { id: 'undo', label: t('keys.undo'), keyName: 'u', onPress: () => void undo() } } : {}),
+      })
+    : hover.describe
+      ? notice(kit, { meaning: 'focus', text: hover.describe })
+      : kit.text({ wrap: 'truncate-end', ...(theme.muted ? { color: theme.muted } : {}) }, address ? `${t('nav.address')}: ${address}` : ' ');
   const footer = (
     <Box width={columns} flexDirection="column">
-      {flash ? (
-        <Text color={flash.kind === 'bad' ? theme.bad : flash.kind === 'warn' ? theme.warn : theme.ok} wrap="truncate-end">
-          {flash.text}
-        </Text>
-      ) : (
-        <Text color={theme.muted} wrap="truncate-end">
-          {address ? `${t('nav.address')}: ${address}` : ' '}
-        </Text>
-      )}
-      <KeyHints hints={hints} />
+      <Box width={columns} overflow="hidden">
+        {context}
+      </Box>
+      {keyBar(kit, hints)}
     </Box>
   );
 
@@ -365,9 +508,11 @@ export function App(props: AppProps) {
         <Box marginTop={1} flexDirection="column">
           {paletteResults.length ? (
             paletteResults.map((e, i) => (
-              <Text key={e.address} inverse={i === palette.sel} wrap="truncate-end">
-                {i === palette.sel ? theme.sym.cursor : ' '} {e.path.join(theme.sym.sep)} <Text color={theme.muted}>{e.address}</Text>
-              </Text>
+              <Pressable key={e.address} onPress={() => go(e.address)} describe={t('nav.toLevel', { place: e.path.join(theme.sym.sep) })}>
+                <Text inverse={i === palette.sel} wrap="truncate-end">
+                  {i === palette.sel ? theme.sym.cursor : ' '} {e.path.join(theme.sym.sep)} <Text color={theme.muted}>{e.address}</Text>
+                </Text>
+              </Pressable>
             ))
           ) : (
             <Muted>{t('palette.none')}</Muted>
@@ -383,19 +528,29 @@ export function App(props: AppProps) {
       <Box width={columns} height={bodyH}>
         {side ? (
           <Box width={sideW} flexDirection="column" borderStyle={theme.border} borderColor={theme.muted} overflow="hidden">
-            <ListView items={itemsOf(list)} selected={index} height={bodyH - 3} width={sideW - 2} focused={false} />
+            <ListView
+              items={itemsOf(list)}
+              selected={index}
+              height={bodyH - 3}
+              width={sideW - 2}
+              focused={false}
+              onPress={(i) => setSel((s) => ({ ...s, [listKey]: i }))}
+              describe={(i) => describeNode(list[i])}
+            />
           </Box>
         ) : null}
         <Box width={mainW} height={bodyH} flexDirection="column" borderStyle={theme.border} borderColor={theme.accent} paddingX={1} overflow="hidden">
-          <Box flexDirection="column" flexShrink={0}>
-            <Text bold>{selected.label}</Text>
-            {selected.description ? <Muted>{selected.description}</Muted> : null}
-          </Box>
-          <Box marginTop={1} flexDirection="column" overflow="hidden" flexGrow={1}>
-            <Box flexDirection="column" flexShrink={0} marginTop={-scroll}>
-              {selected.screen({ width: mainW - 4, height: bodyH - 5, open: true })}
+          <ProseWidth.Provider value={mainW - 4}>
+            <Box flexDirection="column" flexShrink={0}>
+              <Text bold>{selected.label}</Text>
+              {selected.description ? <Muted>{selected.description}</Muted> : null}
             </Box>
-          </Box>
+            <Box marginTop={1} flexDirection="column" overflow="hidden" flexGrow={1}>
+              <Box flexDirection="column" flexShrink={0} marginTop={-scroll}>
+                {selected.screen({ width: mainW - 4, height: bodyH - 5, open: true })}
+              </Box>
+            </Box>
+          </ProseWidth.Provider>
         </Box>
       </Box>
     );
@@ -420,12 +575,29 @@ export function App(props: AppProps) {
       <Box width={columns} height={bodyH}>
         {aW && parentList ? (
           <Box width={aW} flexDirection="column" borderStyle={theme.border} borderColor={theme.muted} overflow="hidden">
-            <ListView items={itemsOf(parentList)} selected={parentIndex} height={bodyH - 2} width={aW - 2} focused={false} />
+            <ListView
+              items={itemsOf(parentList)}
+              selected={parentIndex}
+              height={bodyH - 2}
+              width={aW - 2}
+              focused={false}
+              onPress={(i) => go([...chain.slice(0, -1), parentList[i]!.id].join('/'))}
+              describe={(i) => describeNode(parentList[i])}
+            />
           </Box>
         ) : null}
         <Box width={bW} flexDirection="column" borderStyle={theme.border} borderColor={theme.accent} overflow="hidden">
           {list.length ? (
-            <ListView items={itemsOf(list)} selected={index} height={listH} width={bW - 2} focused />
+            <ListView
+              items={itemsOf(list)}
+              selected={index}
+              height={listH}
+              width={bW - 2}
+              focused
+              onPress={openAt}
+              onMove={move}
+              describe={(i) => describeNode(list[i])}
+            />
           ) : (
             <Box paddingX={1}>
               <Muted>{filter?.text ? t('nav.noMatch') : t('nav.empty')}</Muted>
@@ -441,23 +613,32 @@ export function App(props: AppProps) {
         </Box>
         {cW > 10 ? (
           <Box width={cW} flexDirection="column" borderStyle={theme.border} borderColor={theme.muted} paddingX={1} overflow="hidden">
-            {selected ? (
-              <Preview
-                node={selected}
-                width={cW - 4}
-                height={bodyH - 2}
-                theme={theme}
-                t={t}
-                below={
-                  // Mo greets beside the first screen: the home category, before anything was opened.
-                  !chain.length && selected.id === 'home'
-                    ? (room: number) => (
-                        <MoGreeting data={data} width={cW - 4} height={room} plain={theme.plain} still={theme.reduceMotion || !!props.now} t={t} />
-                      )
-                    : undefined
-                }
-              />
-            ) : null}
+            <ProseWidth.Provider value={cW - 4}>
+              {selected ? (
+                <Preview
+                  node={selected}
+                  width={cW - 4}
+                  height={bodyH - 2}
+                  theme={theme}
+                  t={t}
+                  below={
+                    // Mo greets beside the first screen: the home category, before anything was opened.
+                    !chain.length && selected.id === 'home'
+                      ? (room: number) => (
+                          <MoGreeting
+                            data={data}
+                            width={cW - 4}
+                            height={room}
+                            plain={theme.plain || theme.noColor}
+                            still={theme.reduceMotion || !!props.now}
+                            t={t}
+                          />
+                        )
+                      : undefined
+                  }
+                />
+              ) : null}
+            </ProseWidth.Provider>
           </Box>
         ) : null}
       </Box>
@@ -467,14 +648,24 @@ export function App(props: AppProps) {
   return (
     <EnvContext.Provider value={env}>
       <KeyScopeContext.Provider value={keyScope}>
-        <Box flexDirection="column" width={columns} height={rows}>
-          {header}
-          {body}
-          {footer}
-        </Box>
+        <PointerContext.Provider value={{ registry: pointer, hovered: hover.id }}>
+          <HintContext.Provider value={hintRegistry}>
+            <Box flexDirection="column" width={columns} height={rows}>
+              {header}
+              {body}
+              {footer}
+            </Box>
+          </HintContext.Provider>
+        </PointerContext.Provider>
       </KeyScopeContext.Provider>
     </EnvContext.Provider>
   );
+}
+
+/** What a click on a row of the map does, said where the pointer rests: its name, and what it is for. */
+function describeNode(n: NavNode | undefined): string | null {
+  if (!n) return null;
+  return n.description ? `${n.label}: ${n.description}` : n.label;
 }
 
 function Preview({
@@ -543,6 +734,8 @@ function Help({ env, width, height }: { env: Env; width: number; height: number 
     ['/', 'help.k.filter'],
     ['Ctrl+K', 'help.k.palette'],
     ['r', 'help.k.refresh'],
+    ['u', 'help.k.undo'],
+    [t('help.mouseKey'), 'help.k.mouse'],
     ['?', 'help.k.help'],
     ['q', 'help.k.quit'],
   ];
@@ -558,7 +751,7 @@ function Help({ env, width, height }: { env: Env; width: number; height: number 
                 {k}
               </Text>
             </Box>
-            <Text>{t(v)}</Text>
+            <Text>{prose(t(v), width - 18)}</Text>
           </Box>
         ))}
       </Box>
@@ -566,7 +759,7 @@ function Help({ env, width, height }: { env: Env; width: number; height: number 
         <Text bold>{t('help.terms')}</Text>
         {terms.map((k) => (
           <Text key={k} wrap="wrap">
-            {t(k)}
+            {prose(t(k), width - 4)}
           </Text>
         ))}
       </Box>

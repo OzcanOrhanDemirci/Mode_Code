@@ -225,5 +225,5 @@ export const trModes: Record<keyof typeof enModes, string> = {
   'flow.toast.held': 'Bu akış başka bir oturumda açık',
   'flow.toast.running': 'Burada zaten bir akış sürüyor ({step}). Bitirmek için: {cancel}',
   'flow.notify.waiting': 'Bir plan onayını bekliyor: {task}',
-  'flow.band.waiting': '⏸ Plan onayını bekliyor: {path}. Onaylamak için "{approve}" yaz ya da neyin değişeceğini söyle.',
+  'flow.band.waiting': 'Plan onayını bekliyor: {path}. Onaylamak için "{approve}" yaz ya da neyin değişeceğini söyle.',
 };

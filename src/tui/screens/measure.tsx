@@ -8,7 +8,7 @@ import { cacheHitRate } from '../../node/index-db.js';
 import { bucketize, type ReadingPoint } from '../../core/history.js';
 import { reportLines } from '../../app/report.js';
 import type { ScreenProps } from '../nav.js';
-import { Empty, Gauge, Muted, Note, Row, Section, Table, useEnv, useScreenKeys, useT } from '../ui.js';
+import { Empty, Gauge, Muted, Note, Row, Section, Table, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
 import { LinkList, type Link } from '../widgets.js';
 
 export function Quota({ width }: ScreenProps) {
@@ -65,13 +65,13 @@ export function ReportScreen({ width, open }: ScreenProps) {
     }
     return false;
   }, open);
+  useHints([{ key: 'p', label: t('keys.days'), run: () => setDays((d) => (d === 1 ? 7 : 1)) }], open);
   const lines = reportLines(data.report(days), lang, homedir());
   const w = Math.min(18, Math.max(...lines.map((l) => l.label.length)) + 2);
   return (
     <Box flexDirection="column" width={width}>
       <Box>
         <Text bold>{days === 1 ? t('report.titleDay') : t('report.title', { n: days })}</Text>
-        {open ? <Muted> {t('tokens.periodHint')}</Muted> : null}
       </Box>
       <Box marginTop={1} flexDirection="column">
         {lines.map((l) => (
@@ -130,6 +130,7 @@ export function Tokens({ width, open }: ScreenProps) {
     }
     return false;
   }, open);
+  useHints([{ key: 'p', label: t('keys.days'), run: () => setPi((i) => (i + 1) % PERIODS.length) }], open);
   const total = data.totals(days);
   if (!total) return <Empty>{t('tokens.noIndex')}</Empty>;
   const byDay = data.breakdown('day', Math.max(days, 14)).slice().reverse();
@@ -141,7 +142,6 @@ export function Tokens({ width, open }: ScreenProps) {
     <Box flexDirection="column" width={width}>
       <Box>
         <Text bold>{t('tokens.period', { n: days })}</Text>
-        {open ? <Text color={theme.muted}> {t('tokens.periodHint')}</Text> : null}
       </Box>
       <Box marginTop={1} flexDirection={width >= 70 ? 'row' : 'column'}>
         <Box flexDirection="column" width={half}>

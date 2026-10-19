@@ -167,7 +167,7 @@ export const tr: Record<MessageKey, string> = {
   'status.manual': 'manuel',
   'status.free': 'serbest',
   'status.wrapUp': 'toparlanıyor',
-  'quota.boundary': '✓ {kind}: sonraki işe /clear ile başlamak için iyi an; her çağrı {tokens} bağlamı yeniden okur.',
+  'quota.boundary': '{kind}: sonraki işe /clear ile başlamak için iyi an; her çağrı {tokens} bağlamı yeniden okur.',
   // GEÇİCİ (src/core/dev-switch.ts).
   'dev.beltOff.band': '🛑 Geliştirme: emniyet kemeri bu oturumda kapalı (MODE_CODE_DEV_BELT_OFF). Hiçbir şey sorulmuyor ve engellenmiyor.',
   'status.five': '5s %{n}',

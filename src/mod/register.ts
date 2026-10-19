@@ -40,6 +40,8 @@ import { exportMachine, parseSharedRecord, settingsInEffect, syncDue, type Share
 import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform } from '../core/paths.js';
 import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '../core/i18n/index.js';
 import { CONTROLS, controlOf, controlText, optionLabel } from '../core/ux/catalog.js';
+import { notice } from '../core/ux/kit.js';
+import { claudeHost } from './kit-host.js';
 import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
 import { beltOffForDevelopment } from '../core/dev-switch.js';
 import { taintedAct, taintSource, withoutInvisible } from '../core/taint.js';
@@ -419,7 +421,7 @@ let ctxPromise: Promise<Ctx> | null = null;
 
 /** Session state the drawings read (kept by Claude Code across reloads of this module). */
 const footersAtom = atom({ plugin: 'mode-code', key: 'footers' } as const, {} as ModeCodeFooters);
-const labelsAtom = atom({ plugin: 'mode-code', key: 'labels' } as const, { modes: [], tail: '', band: '', strip: null } as ModeCodeLabels);
+const labelsAtom = atom({ plugin: 'mode-code', key: 'labels' } as const, { modes: [], tail: '', band: '', bandMeaning: null, strip: null } as ModeCodeLabels);
 /** Below this width the strip keeps its room for the controls, and Mo steps aside. */
 const MO_MIN_COLUMNS = 72;
 const moAtom = atom(
@@ -2468,25 +2470,36 @@ async function refreshStatus($: $, c: Ctx): Promise<void> {
   }
   const strip = c.config.modules.modes ? { ...viewOf(c), lang: c.lang, still: c.config.accessibility.reduceMotion } : null;
   if (!c.config.modules.status) {
-    await update($, labelsAtom, () => ({ modes: [], tail: '', band: '', strip }));
+    await update($, labelsAtom, () => ({ modes: [], tail: '', band: '', bandMeaning: null, strip }));
     await publishMo($, c);
     return;
   }
   const q = await quotaNow($, c);
   const modes: string[] = [];
   let band = '';
+  // What the band says, by meaning: drawn with its mark and colour (src/core/ux/kit.ts, notice).
+  let bandMeaning: ModeCodeLabels['bandMeaning'] = null;
   if (c.config.modules.modes) {
     // The mode and the way of working are always in view, the defaults too (the person, 2026-10-13).
     modes.push(tIn(c.lang, `status.${modeNow(c)}` as MessageKey));
     if (c.flow) {
       const p = progress(c.flow);
       modes.push(c.flow.status === 'paused' ? tIn(c.lang, 'status.flowPaused') : tIn(c.lang, 'status.flow', { at: p.at, of: p.of }));
-      if (c.flow.status === 'waiting') band = tIn(c.lang, 'flow.band.waiting', { path: planPathOf(c, c.flow), approve: tIn(c.lang, 'kw.kind.approve') });
+      if (c.flow.status === 'waiting') {
+        band = tIn(c.lang, 'flow.band.waiting', { path: planPathOf(c, c.flow), approve: tIn(c.lang, 'kw.kind.approve') });
+        bandMeaning = 'ask';
+      }
     }
   }
   // TEMPORARY (src/core/dev-switch.ts): in view for as long as the belt is off.
-  if (beltOffForDevelopment(c.env)) band = tIn(c.lang, 'dev.beltOff.band');
-  if (!band && c.boundary) band = tIn(c.lang, 'quota.boundary', { kind: c.boundary.kind, tokens: compact(c.boundary.tokens, c.lang) });
+  if (beltOffForDevelopment(c.env)) {
+    band = tIn(c.lang, 'dev.beltOff.band');
+    bandMeaning = null;
+  }
+  if (!band && c.boundary) {
+    band = tIn(c.lang, 'quota.boundary', { kind: c.boundary.kind, tokens: compact(c.boundary.tokens, c.lang) });
+    bandMeaning = 'on';
+  }
   if (c.run) {
     const p = runProgress(c.run);
     modes.push(
@@ -2513,7 +2526,7 @@ async function refreshStatus($: $, c: Ctx): Promise<void> {
         ? tIn(c.lang, 'status.weekTarget', { n: Math.round(q.week.used), target: c.state.weeklyTarget })
         : tIn(c.lang, 'status.week', { n: Math.round(q.week.used) }),
     );
-  await update($, labelsAtom, () => ({ modes, tail: quota.length ? `🛡 ${quota.join(' · ')}` : '🛡', band, strip }));
+  await update($, labelsAtom, () => ({ modes, tail: quota.length ? `🛡 ${quota.join(' · ')}` : '🛡', band, bandMeaning, strip }));
   await publishMo($, c);
 }
 
@@ -5596,7 +5609,12 @@ export function register(on: On): void {
             ),
           ]
         : lines;
-    if (labels.band) shown.push(h(Text, { key: 'band' }, labels.band));
+    if (labels.band)
+      shown.push(
+        labels.bandMeaning
+          ? h(Box, { key: 'band' }, notice(claudeHost({ Box, Text, Button }), { meaning: labels.bandMeaning, text: labels.band, wrap: true }))
+          : h(Text, { key: 'band' }, labels.band),
+      );
     const tree = h(Box, { flexDirection: 'column' }, ...shown);
     return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
   });

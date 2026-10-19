@@ -12,8 +12,9 @@ import type { LeaveAction } from './ui.js';
 import { runMemorySetup } from '../cli/memory.js';
 import { runSyncSetup } from '../cli/sync.js';
 import { runUpdate } from '../cli/update.js';
+import { mouseReporting, PointerHub, pointerInput } from './pointer.js';
 
-export async function runControlCenter(opts: { address: string | null; plain: boolean }): Promise<number> {
+export async function runControlCenter(opts: { address: string | null; plain: boolean; noColor: boolean; mouse: boolean }): Promise<number> {
   const ctx = appContext();
   // The first index of a large history takes a few seconds: say so, instead of a blank screen.
   try {
@@ -32,18 +33,34 @@ export async function runControlCenter(opts: { address: string | null; plain: bo
   } catch (err) {
     process.stderr.write(`${tIn(ctx.lang, 'tui.indexFailed', { error: (err as Error).message })}\n`);
   }
+  // The mouse (src/tui/pointer.ts): reported while the control center is drawn, off as it ends and on every way out.
+  const mouse = opts.mouse && process.stdin.isTTY && process.stdout.isTTY ? mouseReporting((x) => process.stdout.write(x), process) : null;
   // The control center can leave for something that talks in the terminal (the memory setup) and come back.
   let address = opts.address;
   for (;;) {
     let leave: { action: LeaveAction; back: string } | null = null;
     const data = new LiveData(appContext());
-    const instance = render(<App data={data} address={address} plain={opts.plain} onLeave={(action, back) => (leave = { action, back })} />, {
-      alternateScreen: true,
-      exitOnCtrlC: true,
-      patchConsole: true,
-      // Only the lines that changed are written again: Mo moves without the whole screen being redrawn.
-      incrementalRendering: true,
-    });
+    const hub = new PointerHub();
+    const instance = render(
+      <App
+        data={data}
+        address={address}
+        plain={opts.plain}
+        {...(opts.noColor ? { noColor: true } : {})}
+        pointer={hub}
+        onLeave={(action, back) => (leave = { action, back })}
+        {...(mouse ? { onQuit: mouse.off } : {})}
+      />,
+      {
+        stdin: mouse ? pointerInput(process.stdin, hub) : process.stdin,
+        alternateScreen: true,
+        exitOnCtrlC: false,
+        patchConsole: true,
+        // Only the lines that changed are written again: Mo moves without the whole screen being redrawn.
+        incrementalRendering: true,
+      },
+    );
+    mouse?.on();
     try {
       await instance.waitUntilExit();
     } finally {
