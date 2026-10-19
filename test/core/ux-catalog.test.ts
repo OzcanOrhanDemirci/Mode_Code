@@ -33,6 +33,8 @@ import {
   valueIn,
   type SettingId,
   type SettingPath,
+  WINDOW_IDS,
+  WINDOWS,
 } from '../../src/core/ux/catalog.js';
 
 const has = (k: string) => typeof en[k as MessageKey] === 'string' && en[k as MessageKey].trim() !== '' && tr[k as MessageKey].trim() !== '';
@@ -302,4 +304,43 @@ test('only the person, never a script of theirs, uses the controls that let Clau
   assert.deepEqual(controlMissing('mode.plan', setConfigValue(c, 'modules.modes', false).config), ['modules.modes']);
   assert.match(controlText('mode.plan', 'what', 'tr'), /^Mod: 📐 plan/);
   assert.match(controlText('close', 'back', 'en'), /cannot be taken back/);
+});
+
+test('every window a control opens is in the catalog: its pane, the control, its title, what it is for and its action, in both languages', () => {
+  assert.deepEqual([...WINDOW_IDS].sort(), ['agents', 'bypass', 'flow', 'fullAuto', 'quota']);
+  const panes = WINDOW_IDS.map((id) => WINDOWS[id].pane);
+  assert.equal(new Set(panes).size, panes.length, 'one pane per window');
+  for (const id of WINDOW_IDS) {
+    const w = WINDOWS[id];
+    assert.ok(CONTROL_IDS.includes(w.control), id);
+    assert.deepEqual(
+      [w.title, w.what, w.apply, 'ux.win.now', 'ux.win.preview', 'ux.win.cancel'].filter((k) => !has(k)),
+      [],
+      id,
+    );
+  }
+  // Each window is opened by its control, and that control opens a window or acts with one: an opener, or the flow,
+  // bypass and the budget, whose window says what they will do before they do it.
+  assert.deepEqual(WINDOW_IDS.map((id) => CONTROLS[WINDOWS[id].control].kind).sort(), ['action', 'opener', 'opener', 'opener', 'switch']);
+});
+
+test("the strip's cards: every control has its short undo, and a control in effect says what a press does then", () => {
+  const backs = new Set(CONTROL_IDS.map((id) => CONTROLS[id].back));
+  assert.deepEqual(
+    [...backs].filter((b) => !has(`ux.ctl.backShort.${b}`)),
+    [],
+  );
+  assert.deepEqual(
+    ['bypass', 'freeze', 'fullAuto'].filter((id) => !has(`ux.ctl.${id}.pressOn`)),
+    [],
+  );
+  assert.deepEqual(
+    ['pressRunning', 'pressPaused', 'pressArmed'].filter((k) => !has(`ux.ctl.flow.${k}`)),
+    [],
+  );
+  for (const b of backs)
+    for (const lang of ['en', 'tr'] as const) {
+      const text = (lang === 'en' ? en : tr)[`ux.ctl.backShort.${b}` as MessageKey];
+      assert.ok(text.length <= 40 && !text.endsWith('.'), `${b} (${lang}): ${text}`);
+    }
 });

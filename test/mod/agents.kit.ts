@@ -31,6 +31,19 @@ let n = 0;
 const spawn = async ($: any, subagentType: string, prompt = 'Look into it.', extra: Record<string, unknown> = {}) =>
   (await $.agent.spawn({ subagentType, prompt, description: 'a task', tool_use_id: `tu${++n}`, ...extra } as any)) as any;
 
+/** The text of drawn children, strings and elements alike, in order: what a pressable shows ("◉ +10 → 51%"). */
+function flat(children: unknown[]): string {
+  return children.map((c: any) => (typeof c === 'string' ? c : flat(c?.children ?? []))).join('');
+}
+
+/** Every word a drawing shows, its wrapped lines joined back: a sentence the window wraps reads whole. */
+async function words(ui: any): Promise<string> {
+  return (await ui.findAll({ type: 'Text' }))
+    .map((t: any) => String(t.text))
+    .join(' ')
+    .replace(/\s+/g, ' ');
+}
+
 async function stripText($: any): Promise<string> {
   const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: BAND } as any);
   const t = (await ui.findAll({ type: 'Text' })).map((x: any) => String(x.text)).join(' | ');
@@ -53,7 +66,7 @@ test('on in the settings: every session starts with agents off; the read-only he
   world(on, { config: { agents: { enabled: true } } });
   const e = engine(on);
   await $.prompt.submit(typed('Hello.'));
-  expect(await stripText($)).toMatch(/👥 agents(?! ?[≤=·])/);
+  expect(await stripText($)).toMatch(/👥 agents…(?! ?[≤=·])/);
   expect((await spawn($, 'Explore')).deny).toBeUndefined();
   expect((await spawn($, 'Plan')).deny).toBeUndefined();
   const r = await spawn($, 'general-purpose');
@@ -83,7 +96,7 @@ test('free: at most N at once, helpers not counted; Claude is told once with the
   expect((await spawn($, 'Explore')).deny).toBeUndefined();
   expect((await spawn($, 'general-purpose')).deny).toBeUndefined();
   expect(String((await spawn($, 'general-purpose')).deny)).toMatch(/At most 2 agent\(s\) at once in this session, and as many are running/);
-  expect(await stripText($)).toMatch(/agents ≤2 · 2/);
+  expect(await stripText($)).toMatch(/👥 agents… ≤2 · 2/);
   e.list[0]!.status = 'completed';
   expect((await spawn($, 'general-purpose')).deny).toBeUndefined();
   expect(
@@ -113,14 +126,14 @@ test('assigned: exactly N for the next request, each fitted to its row; then no 
     ['general-purpose', '[2/2] a task'],
   ]);
   expect(String((await spawn($, 'general-purpose')).deny)).toMatch(/none is left to start/);
-  expect(await stripText($)).toMatch(/agents =2 · 2\/2/);
+  expect(await stripText($)).toMatch(/👥 agents… =2 · 2\/2/);
   for (const a of e.list) a.status = 'completed';
   // The person's next prompt: the batch is over; it closes, and Claude is told with this very prompt.
   const done = ((await $.prompt.submit(typed('Thanks.'))) as any).context.join('\n');
   expect(done).toMatch(/The assigned agents are done, and parallel agents are off again for this session/);
   expect(w.toasts.some((t) => /The assigned agents are done \(2\/2\): parallel agents are off again/.test(t))).toBe(true);
   expect(w.modState().agents.mode).toBe('off');
-  expect(await stripText($)).toMatch(/👥 agents(?! ?[≤=·])/);
+  expect(await stripText($)).toMatch(/👥 agents…(?! ?[≤=·])/);
   const after = ((await $.prompt.submit(typed('One more thing.'))) as any).context ?? [];
   expect(after.join('\n')).not.toMatch(/assigned agents are done/);
 });
@@ -132,12 +145,24 @@ test('the window: assigned with a written task and a model; the agent gets the t
   await person($, '');
   expect(w.panes).toEqual(['parallel-agents']);
   const pane: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'Pane', requestId: 'parallel-agents', props: PANE } as any);
-  await pane.select({ key: 'ag-mode', value: 'assigned' });
+  // Every choice is its options, each one a press (docs/design.md: arrows never change a value); what applying does is
+  // said before it does.
+  expect(await pane.findAll({ type: 'Select' })).toEqual([]);
+  await pane.press({ key: 'ag-mode-assigned' });
   await pane.input({ key: 'ag-n', text: '2', kind: 'change' });
+  expect(await words(pane)).toContain('If you apply Parallel agents: exactly 2 for your next request; the mode closes once they are done.');
   await pane.input({ key: 'ag-task-0', text: 'Measure the cold start.', kind: 'change' });
-  await pane.select({ key: 'ag-kind', value: 'research' });
-  await pane.select({ key: 'ag-model', value: 'sonnet' });
-  await pane.press({ key: 'ag-apply' });
+  await pane.press({ key: 'ag-kind-research' });
+  await pane.press({ key: 'ag-model-sonnet' });
+  const label = async (key: string) => flat((await pane.find({ key }))?.children ?? []);
+  expect([await label('ag-kind-research'), await label('ag-kind-code'), await label('ag-model-sonnet')]).toEqual(['◉ research', '○ code', '◉ sonnet']);
+  // The second row: its own task, kind and model; back to the first, its task is still there.
+  await pane.press({ key: 'ag-next' });
+  expect(await pane.find({ type: 'Text', text: 'Agent 2 of 2' })).toBeDefined();
+  expect(await pane.find({ key: 'ag-next' })).toBeUndefined();
+  await pane.press({ key: 'ag-prev' });
+  expect(await pane.find({ key: 'ag-task-0' })).toMatchObject({ props: { value: 'Measure the cold start.' } });
+  await pane.press({ key: 'apply' });
   expect(w.panes).toEqual([]);
   expect(w.modState().agents).toMatchObject({
     mode: 'assigned',
@@ -162,13 +187,13 @@ test('the window refuses a count it cannot take; a read-only mode offers no code
   await $.command.run({ command: '2', args: '', origin: { kind: 'composer' } } as any);
   await person($, '');
   const pane: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'Pane', requestId: 'parallel-agents', props: PANE } as any);
-  await pane.select({ key: 'ag-mode', value: 'assigned' });
+  await pane.press({ key: 'ag-mode-assigned' });
   await pane.input({ key: 'ag-n', text: '1000', kind: 'change' });
-  await pane.press({ key: 'ag-apply' });
+  await pane.press({ key: 'apply' });
   expect((await pane.find({ type: 'Text', text: 'A number of 1 to 999.' }))?.props.color).toBe('error');
   await pane.input({ key: 'ag-n', text: '1', kind: 'change' });
-  const kinds = (await pane.find({ key: 'ag-kind' }))?.props.options.map((o: any) => o.value);
-  expect(kinds).toEqual(['research', 'plan']);
+  const kinds = (await pane.findAll({ type: 'Button' })).map((b: any) => String(b.key)).filter((k: string) => k.startsWith('ag-kind-'));
+  expect(kinds).toEqual(['ag-kind-research', 'ag-kind-plan']);
   expect(await pane.find({ type: 'Text', text: 'This mode cannot write: no code agent here.' })).toBeDefined();
   await pane.unmount();
   expect(w.modState().agents.mode).toBe('off');
@@ -179,12 +204,12 @@ test('above 20 the window says what decides, and the toast keeps to what was set
   engine(on);
   await person($, '');
   const pane: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'Pane', requestId: 'parallel-agents', props: PANE } as any);
-  await pane.select({ key: 'ag-mode', value: 'free' });
+  await pane.press({ key: 'ag-mode-free' });
   await pane.input({ key: 'ag-n', text: '20', kind: 'change' });
   expect(await pane.find({ key: 'ag-many' })).toBeUndefined();
   await pane.input({ key: 'ag-n', text: '25', kind: 'change' });
   expect(await pane.find({ type: 'Text', text: 'Above 20, what really decides is how many Claude Code runs at once, and the quota.' })).toBeDefined();
-  await pane.press({ key: 'ag-apply' });
+  await pane.press({ key: 'apply' });
   await pane.unmount();
   expect(w.toasts.at(-1)).toBe('Parallel agents: free, at most 25 at once.');
   expect((await person($, '21')).text).toBe(
@@ -239,7 +264,8 @@ test('a full-autonomy run attached: exactly N waits, said in the window and on t
   expect(w.modState().agents?.mode ?? 'off').toBe('off');
   await person($, '');
   const pane: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'Pane', requestId: 'parallel-agents', props: PANE } as any);
-  expect((await pane.find({ key: 'ag-mode' }))?.props.options.map((o: any) => o.value)).toEqual(['off', 'free']);
+  const modes = (await pane.findAll({ type: 'Button' })).map((b: any) => String(b.key)).filter((k: string) => k.startsWith('ag-mode-'));
+  expect(modes).toEqual(['ag-mode-off', 'ag-mode-free']);
   await pane.unmount();
   expect((await person($, '3')).text).toBe('Parallel agents: free, at most 3 at once.');
   expect(w.modState().agents).toMatchObject({ mode: 'free', n: 3 });
@@ -255,7 +281,7 @@ test('workflows and ultracode: never touched; /effort ultracode stands the mode 
   await $.command.run({ command: 'effort', args: 'ultracode' } as any).catch(() => undefined);
   expect(w.toasts.at(-1)).toMatch(/Ultracode is on: Claude Code's workflows run the agents/);
   expect((await spawn($, 'general-purpose')).deny).toBeUndefined();
-  expect(await stripText($)).toMatch(/agents · ultracode/);
+  expect(await stripText($)).toMatch(/👥 agents… · ultracode/);
   await $.command.run({ command: 'effort', args: 'high' } as any).catch(() => undefined);
   expect(w.toasts.at(-1)).toBe('Ultracode is off: your parallel agent setting is back.');
   expect(String((await spawn($, 'general-purpose')).deny)).toMatch(/off in this session/);
@@ -281,6 +307,32 @@ test("stop: every agent at work is stopped with Claude Code's TaskStop; an assig
   expect((await person($, 'off')).text).toBe('Parallel agents: off for this session.');
   // What went wrong first (a toast's length), how it is used on a line of its own.
   expect((await person($, 'many')).text).toMatch(/^A number of 1 to 999\.\n\/parallel: the window · .*\/parallel exact 7: exactly 7/);
+});
+
+test("the window's agents at work: each one's conversation a press away, or stopped by itself; the window says how it is now", async ($, on) => {
+  const w = world(on, { config: { agents: { enabled: true } } });
+  const e = engine(on);
+  const views: unknown[] = [];
+  on('ui.view', (_$: any, x: any) => {
+    views.push(x);
+    return { value: {} };
+  });
+  await person($, '3');
+  await $.prompt.submit(typed('Go.'));
+  await spawn($, 'general-purpose');
+  await spawn($, 'Explore');
+  await person($, '');
+  const pane: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'Pane', requestId: 'parallel-agents', props: PANE } as any);
+  expect(await words(pane)).toContain('Now 👥 at most 3 agents at once · 2 at work');
+  expect(await words(pane)).toContain('Running now (2)');
+  await pane.press({ key: 'ag-view-ag2' });
+  expect(views).toEqual([{ agentId: 'ag2' }]);
+  expect(w.panes).toEqual([]);
+  await person($, '');
+  await pane.press({ key: 'ag-stop-ag1' });
+  expect(w.calls.filter((c: any) => c.tool === 'TaskStop').map((c: any) => c.task_id)).toEqual(['ag1']);
+  void e;
+  await pane.unmount();
 });
 
 test('an assigned batch whose agents finish in the background closes when the last one ends, without a prompt', async ($, on) => {

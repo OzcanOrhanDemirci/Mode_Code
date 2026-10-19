@@ -5,6 +5,7 @@ import {
   AUTO_BUDGETS,
   AUTO_PROMPTS_KEPT,
   budgetLabel,
+  budgetTarget,
   parseAutoPrompts,
   rememberAutoPrompt,
   serializeAutoPrompts,
@@ -82,4 +83,13 @@ test('a budget is named by the weekly limit it sets, in the person’s language'
   assert.equal(budgetLabel('90', 41, 'tr'), '%90');
   assert.equal(budgetLabel('90', null, 'en'), '90%');
   assert.equal(budgetLabel('abc', 41, 'en'), 'abc');
+});
+
+test('the weekly limit a budget sets: its number, or points above the reading, at most 100; none without a reading or a budget', () => {
+  assert.equal(budgetTarget('70', null), 70);
+  assert.equal(budgetTarget('+10', 41), 51);
+  assert.equal(budgetTarget('+20', 40.6), 61);
+  assert.equal(budgetTarget('+20', 95), 100);
+  assert.equal(budgetTarget('+10', null), null);
+  assert.equal(budgetTarget('abc', 41), null);
 });

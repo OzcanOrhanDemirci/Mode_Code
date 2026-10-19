@@ -122,6 +122,8 @@ const TARGETS = {
   'src/core/ux/changes.ts': ['test/core/ux-changes.test.ts'],
   'src/core/ux/activity.ts': ['test/core/ux-activity.test.ts'],
   'src/core/ux/why.ts': ['test/core/ux-why.test.ts'],
+  // The strip in words (docs/modes.md, "The line under the strip"): what Claude does now, each control's card, Mo's state.
+  'src/core/ux/say.ts': ['test/core/ux-say.test.ts'],
 };
 
 // ── finding mutation sites in TypeScript without a parser: code outside strings, comments and regexes ──

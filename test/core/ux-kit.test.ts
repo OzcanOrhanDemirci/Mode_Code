@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import {
   action,
   card,
+  choices,
   choiceValue,
   confirm,
   empty,
@@ -22,6 +23,7 @@ import {
   opener,
   row,
   switchValue,
+  windowFrame,
   type KitHost,
 } from '../../src/core/ux/kit.js';
 import { COLORS, labelColumn, MARKS, type Meaning } from '../../src/core/ux/tokens.js';
@@ -48,7 +50,15 @@ function recorder(color: (m: Meaning) => string | undefined = (m) => COLORS[m].c
     text: (p, ...c) => ({ type: 'Text', props: { ...p }, children: kids(c) }),
     press: (p, ...c) => ({
       type: 'Button',
-      props: { key: p.id, plain: true, onPress: p.onPress, ...(p.hotkey ? { hotkey: p.hotkey } : {}), ...(p.primary ? { variant: 'primary' } : {}) },
+      props: {
+        key: p.id,
+        plain: true,
+        onPress: p.onPress,
+        ...(p.hotkey ? { hotkey: p.hotkey } : {}),
+        ...(p.primary ? { variant: 'primary' } : {}),
+        ...(p.dismiss ? { role: 'dismiss' } : {}),
+        ...(p.autoFocus ? { autoFocus: true } : {}),
+      },
       children: kids(c),
     }),
     color,
@@ -84,7 +94,36 @@ function everything(h: KitHost<El>): El[] {
     ]),
     card(h, { lines: [{ label: 'What it is', text: 'A long sentence that wraps at word boundaries.' }], width: 30 }),
     empty(h, { text: 'Nothing yet.', width: 30, action: press }),
+    choices(h, {
+      options: [
+        { ...press, id: 'a', label: 'one', chosen: true },
+        { ...press, id: 'b', label: 'two', chosen: false },
+      ],
+    }),
+    aWindow(h),
   ];
+}
+
+/** A window as every one is drawn: a sentence, how it is now, a choice, what applying does, Apply and Cancel, an error. */
+function aWindow(h: KitHost<El>, onPress: (id: string) => void = () => {}): El {
+  return windowFrame(h, {
+    what: 'Helper Claudes work beside the main one; nothing changes until you apply.',
+    now: { label: 'Now', text: 'off' },
+    width: 40,
+    controls: [
+      choices(h, {
+        column: true,
+        options: [
+          { id: 'off', label: 'off', chosen: true, onPress: () => onPress('off') },
+          { id: 'free', label: 'free', chosen: false, onPress: () => onPress('free') },
+        ],
+      }),
+    ],
+    preview: { label: 'If you apply', text: 'Claude starts no helper agent.' },
+    apply: { id: 'apply', label: 'Apply', onPress: () => onPress('apply') },
+    cancel: { id: 'cancel', label: 'Cancel', onPress: () => onPress('cancel'), autoFocus: true },
+    error: 'A number of 1 to 999.',
+  });
 }
 
 test('the kit sets only the props Claude Code takes, and a button there holds only text', () => {
@@ -219,4 +258,81 @@ test('a card: the label on its first line, the lines it wraps to under the value
     rows.map((r) => textOf(texts(r)[0]!)),
     ['Now', ...rows.slice(1).map(() => '')],
   );
+});
+
+test('a choice: each option a press, the chosen one marked ◉ and bold in the focus colour, the others ○; side by side or one under another', () => {
+  const picked: string[] = [];
+  const opts = (chosen: string) => ['a', 'b', 'c'].map((id) => ({ id, label: id.toUpperCase(), chosen: id === chosen, onPress: () => picked.push(id) }));
+  const tree = choices(recorder(), { options: opts('b') });
+  assert.equal(tree.props.flexDirection, 'row');
+  const buttons: El[] = [];
+  walk(tree, (e) => e.type === 'Button' && buttons.push(e));
+  assert.deepEqual(
+    buttons.map((b) => [b.props.key, textOf(b)]),
+    [
+      ['a', '○ A'],
+      ['b', '◉ B'],
+      ['c', '○ C'],
+    ],
+  );
+  const chosen = buttons[1]!.children[0] as El;
+  assert.deepEqual(chosen.props, { bold: true, color: COLORS.focus.claude });
+  (buttons[2]!.props.onPress as () => void)();
+  assert.deepEqual(picked, ['c']);
+  assert.equal(choices(recorder(), { options: opts('a'), column: true }).props.flexDirection, 'column');
+  // With colour off the chosen one still reads apart, and plain marks spell it.
+  const plain = { ...recorder(() => undefined), plain: true };
+  assert.deepEqual((choices(plain, { options: opts('a') }).children as El[]).map(textOf), ['(*) A', '( ) B', '( ) C']);
+});
+
+test('a window: its sentence, how it is now, its controls, what applying does, Apply as the main action, Cancel that closes it', () => {
+  const pressed: string[] = [];
+  const w = aWindow(recorder(), (id) => pressed.push(id));
+  const lines = (w.children as El[]).map(textOf);
+  assert.match(lines[0]!, /^Helper Claudes work beside the main one;/);
+  // The label column is room, not a space: "Now" then its value, "If you apply" then what will happen, wrapped.
+  assert.ok(lines.includes('Nowoff'), lines.join(' | '));
+  assert.ok(lines.includes('If you applyClaude starts no helperagent.'), lines.join(' | '));
+  assert.ok(
+    lines.some((l) => l === '✗ A number of 1 to 999.'),
+    lines.join(' | '),
+  );
+  const buttons: El[] = [];
+  walk(w, (e) => e.type === 'Button' && buttons.push(e));
+  assert.deepEqual(
+    buttons.map((b) => b.props.key),
+    ['off', 'free', 'apply', 'cancel'],
+  );
+  const apply = buttons.find((b) => b.props.key === 'apply')!;
+  const cancel = buttons.find((b) => b.props.key === 'cancel')!;
+  assert.equal(apply.props.variant, 'primary');
+  assert.equal(textOf(apply), '[ Apply ]');
+  assert.deepEqual([cancel.props.role, cancel.props.autoFocus, textOf(cancel)], ['dismiss', true, '[ Cancel ]']);
+  for (const b of buttons) (b.props.onPress as () => void)();
+  assert.deepEqual(pressed, ['off', 'free', 'apply', 'cancel']);
+  // Without a preview or an error, neither line is drawn; the labels share one column.
+  const bare = windowFrame(recorder(), {
+    what: 'x',
+    now: { label: 'Now', text: 'off' },
+    width: 40,
+    controls: [],
+    preview: null,
+    apply: { id: 'apply', label: 'Apply', onPress: () => {} },
+    cancel: { id: 'cancel', label: 'Cancel', onPress: () => {} },
+    labelWidth: 16,
+  });
+  const bareLines = (bare.children as El[]).map(textOf);
+  assert.ok(!bareLines.some((l) => /If you apply|✗/.test(l)), bareLines.join(' | '));
+  let nowWidth: unknown;
+  walk(bare, (e) => {
+    if (e.type === 'Box' && e.props.width !== undefined && nowWidth === undefined) nowWidth = e.props.width;
+  });
+  assert.equal(nowWidth, 16);
+});
+
+test('options side by side stand two apart, the first at the edge; one under another, none is pushed in', () => {
+  const opts = ['a', 'b', 'c'].map((id) => ({ id, label: id, chosen: id === 'a', onPress: () => {} }));
+  const margins = (column: boolean) => (choices(recorder(), { options: opts, column }).children as El[]).map((c) => c.props.marginLeft);
+  assert.deepEqual(margins(false), [undefined, 2, 2]);
+  assert.deepEqual(margins(true), [undefined, undefined, undefined]);
 });

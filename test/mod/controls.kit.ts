@@ -381,7 +381,21 @@ test('the strip above the prompt: every control, those in effect marked; full au
   await run($, '3');
   const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
   const keys = (await ui.findAll({ type: 'Button' })).map((b: any) => b.key);
-  expect(keys).toEqual(['strip-1', 'strip-2', 'strip-3', 'strip-4', 'strip-5', 'strip-6', 'strip-7', 'strip-8', 'strip-full-auto', 'strip-0', 'strip-00']);
+  // Every control, then under the strip the count of this session's activity: a press opens it.
+  expect(keys).toEqual([
+    'strip-1',
+    'strip-2',
+    'strip-3',
+    'strip-4',
+    'strip-5',
+    'strip-6',
+    'strip-7',
+    'strip-8',
+    'strip-full-auto',
+    'strip-0',
+    'strip-00',
+    'strip-activity',
+  ]);
   expect((await ui.find({ key: 'strip-3' }))?.props.variant).toBe('primary');
   expect((await ui.find({ key: 'strip-4' }))?.props.variant).toBeUndefined();
   expect((await ui.find({ type: 'Text', text: 'full auto' }))?.props.dimColor).toBeFalsy();
@@ -419,7 +433,7 @@ test('full autonomy is not on the strip until it is turned on', async ($, on) =>
   await run($, '7');
   const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
   const keys = (await ui.findAll({ type: 'Button' })).map((b: any) => b.key);
-  expect(keys).toEqual(['strip-1', 'strip-2', 'strip-3', 'strip-4', 'strip-5', 'strip-6', 'strip-7', 'strip-8', 'strip-0', 'strip-00']);
+  expect(keys).toEqual(['strip-1', 'strip-2', 'strip-3', 'strip-4', 'strip-5', 'strip-6', 'strip-7', 'strip-8', 'strip-0', 'strip-00', 'strip-activity']);
   expect(await ui.find({ type: 'Text', text: 'full auto' })).toBeUndefined();
   await ui.unmount();
 });
@@ -461,9 +475,9 @@ test('the flow button: off asks and arms; armed, pressed again it is put away; o
     return drawn;
   };
   await run($, '6');
-  expect((await strip()).six).toMatchObject({ text: '6 flow …', props: { inverse: true } });
+  expect((await strip()).six).toMatchObject({ text: '6 flow ✎', props: { inverse: true } });
   expect((await run($, '6')).text).toBe('Flow put away: your next message is an ordinary one.');
-  expect((await strip()).six?.text).toBe('6 flow');
+  expect((await strip()).six?.text).toBe('6 flow…');
   await run($, '6');
   await $.prompt.submit(typed('Why is the cache slow?'));
   const id = w.modState().flowId;
@@ -482,7 +496,7 @@ test('the flow button: off asks and arms; armed, pressed again it is put away; o
   const closed = await run($, '6');
   expect(closed.text).toMatch(/^Flow closed\./);
   expect(w.json(`${DATA}/flows/${id}/flow.json`).status).toBe('canceled');
-  expect((await strip()).six?.text).toBe('6 flow');
+  expect((await strip()).six?.text).toBe('6 flow…');
 });
 
 test('the breathing control breathes on its own clock, and a press on it does what a press does', async ($, on) => {
@@ -540,6 +554,208 @@ test('the strip yields to a question of Claude Code, and fits a narrow terminal'
   expect((await narrow.findAll({ type: 'Button' })).length).toBe(10);
   expect(await narrow.find({ type: 'Text', text: '3📐' })).toBeDefined();
   await narrow.unmount();
+});
+
+/** The drawn tree's node keyed `key` (the kit's `drawn()` keeps each element's hover and key). */
+function node(tree: any, key: string): any {
+  if (!tree || typeof tree !== 'object') return null;
+  if (tree.key === key || tree.props?.key === key) return tree;
+  for (const c of tree.children ?? []) {
+    const found = node(c, key);
+    if (found) return found;
+  }
+  return null;
+}
+
+/** The text of a drawn node, its children in order. */
+function textOf(n: any): string {
+  if (typeof n === 'string') return n;
+  // A Button of one string child carries it as its label.
+  if (!n?.children?.length && typeof n?.props?.label === 'string') return n.props.label;
+  return (n?.children ?? []).map(textOf).join('');
+}
+
+/** Every word a drawing shows, its wrapped lines joined back: a sentence the window wraps reads whole. */
+async function words(ui: any): Promise<string> {
+  return (await ui.findAll({ type: 'Text' }))
+    .map((t: any) => String(t.text))
+    .join(' ')
+    .replace(/\s+/g, ' ');
+}
+
+/** A move of the band's focus ring onto `element`, as the person's Tab makes it (the engine beneath answers it). */
+const focusOn = ($: any, element: string) =>
+  $.ui.focus({ component: 'AbovePrompt', requestId: 'band', plugin: 'mode-code', element, origin: { kind: 'person' } });
+
+test("under the strip: what Claude does now, in words; the pointer on a control, or on Mo, shows that one's card there", async ($, on) => {
+  world(on, { config: { bypass: { enabled: true } } });
+  await run($, '3');
+  const ui: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+  const drawn = await ui.drawn();
+  const say = node(drawn, 'strip-say');
+  // One row at this width, of a fixed height: a card shown in its place moves nothing under the pointer.
+  expect(say.props).toMatchObject({ flexDirection: 'row', height: 1, overflow: 'hidden', width: 160 });
+  expect(textOf(node(drawn, 'say-text'))).toBe('📐 plan: reads and plans; writes the plan only · manual: one step, then it waits for you');
+  // Every control's card lies in the line unseen; the pointer on that control reveals it (one hover group).
+  const cards = new Map<string, any>(say.children.filter((c: any) => c.hover?.scope).map((c: any) => [c.hover.scope, c]));
+  const controls = ['1', '2', '3', '4', '5', '6', '7', '8', 'bypass', '0', '00'];
+  for (const id of controls) {
+    const scope = node(drawn, `strip-${id}`)?.hover?.scope;
+    expect(scope).toBe(`card-${id}`);
+    expect(cards.get(scope)).toMatchObject({ props: { display: 'none' }, hover: { display: 'flex', scope } });
+  }
+  // Each card: how it is now, what a press does, how it is taken back, its command.
+  expect(textOf(cards.get('card-3'))).toBe(
+    '◉ In effect: Claude reads and plans, and writes the plan only; nothing else changes. · Undo: pick another mode · /3',
+  );
+  expect(textOf(cards.get('card-4'))).toBe('Press: Claude develops, tests and commits in the project, inside the safety belt. · Undo: pick another mode · /4');
+  expect(textOf(cards.get('card-bypass'))).toMatch(/^○ Off\. Press: Its window says what bypass lifts and until when, .+ · Undo: press it again · \/bypass$/);
+  expect(textOf(cards.get('card-00'))).toMatch(/^Press: Writes the handoff note.+ · Cannot be undone · \/00$/);
+  // Mo: its state in words, and what a click on it does.
+  expect(node(drawn, 'mo-at')?.hover?.scope).toBe('card-mo');
+  expect(textOf(cards.get('card-mo'))).toBe('Mo: nothing is at work; Claude waits for you. · click: what happened');
+  await ui.unmount();
+  // Narrower than 120 columns the line is two rows tall, so a card is read whole.
+  const narrow: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: { ...band, bodyColumns: 90 } } as any);
+  expect(node(await narrow.drawn(), 'strip-say')?.props).toMatchObject({ height: 2, width: 90 });
+  await narrow.unmount();
+});
+
+test('the keyboard on the strip: the card of the control under the focus says itself in the line; typing, or a while, takes it away', async ($, on) => {
+  const w = world(on, { answer: 'third' });
+  on('ui.focus', () => ({}));
+  await run($, '6');
+  await $.prompt.submit(typed('Why is the cache slow?'));
+  const ui: any = await $.ui.mount({
+    plugin: 'mode-code',
+    surface: 'terminal',
+    component: 'AbovePrompt',
+    requestId: 'band',
+    props: { ...band, isWorking: true },
+  } as any);
+  const said = async () => textOf(node(await ui.drawn(), 'say-text'));
+  expect((await ui.find({ key: 'strip-2' }))?.type).toBe('Client');
+  await focusOn($, 'strip-1');
+  expect(await said()).toBe('▸ Press: Claude talks with you and changes no file, in the project or in the memory. · Undo: pick another mode · /1');
+  // A module takes no focus: under the keyboard the breathing step is a button too, so Tab reaches it.
+  expect((await ui.find({ key: 'strip-2' }))?.type).toBe('Button');
+  await focusOn($, 'strip-6');
+  expect(await said()).toBe('▸ Press: The flow closes; its record and what it wrote stay. · Undo: "flow cancel" · /6');
+  // The focus on what has no card (the activity count): the line says what Claude does now again.
+  await focusOn($, 'strip-activity');
+  expect(await said()).toMatch(/^🔍 research: reads and searches/);
+  // The person types at the prompt: the keyboard has left the strip.
+  await focusOn($, 'strip-4');
+  expect(await said()).toMatch(/^▸ Press: Claude develops/);
+  await $.prompt.submit(typed('Go on.'));
+  expect(await said()).not.toMatch(/^▸/);
+  // Esc back to the prompt is not told: the card leaves by itself.
+  await focusOn($, 'strip-4');
+  expect(await said()).toMatch(/^▸/);
+  await w.clock.advance(21_000);
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  expect(await said()).not.toMatch(/^▸/);
+  await ui.unmount();
+});
+
+test("the count of this session's activity, and Mo, open the control center at its Activity page; from the phone they say where it opens", async ($, on) => {
+  const w = world(on, { windows: true, env: { WT_SESSION: 'x' }, programs: opensTab });
+  installed(w);
+  await run($, '3');
+  const ui: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+  expect(textOf(node(await ui.drawn(), 'strip-activity'))).toMatch(/^activity \d+…$/);
+  await ui.press({ key: 'strip-activity' });
+  expect(w.ran.at(-1)).toEqual([
+    'wt.exe',
+    '-w',
+    '0',
+    'new-tab',
+    '--title',
+    'Mode_Code',
+    '-d',
+    'C:/dev/app',
+    'C:/Program Files/nodejs/node.exe',
+    'C:/dev/tc/dist/cli.mjs',
+    'open',
+    'home/activity',
+  ]);
+  expect(w.toasts.at(-1)).toBe('The control center opened in a new tab.');
+  await ui.pointer({ type: 'up', x: 1, y: 0, button: 'left', in: 'mo' });
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  expect(w.ran.length).toBe(2);
+  expect(w.ran.at(-1)?.slice(-2)).toEqual(['open', 'home/activity']);
+  await ui.unmount();
+  const desk: any = await $.ui.mount({ plugin: 'mode-code', surface: 'desktop', component: 'AbovePrompt', props: band } as any);
+  await desk.press({ key: 'strip-activity' });
+  expect(w.toasts.at(-1)).toBe('The control center opens on the computer: /0 typed there opens it in a new tab.');
+  expect(w.ran.length).toBe(2);
+  await desk.unmount();
+});
+
+test("an agent's conversation in view: the line under the strip says so, and leads back to the main one", async ($, on) => {
+  world(on);
+  const views: unknown[] = [];
+  on('ui.view', (_$: any, e: any) => {
+    views.push(e);
+    return { value: {} };
+  });
+  await run($, '3');
+  const ui: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: { ...band, view: { agentId: 'a1' } } } as any);
+  expect(textOf(node(await ui.drawn(), 'say-text'))).toBe("👥 You are looking at an agent's conversation; your next Enter goes to it.");
+  await ui.press({ key: 'strip-main' });
+  expect(views).toEqual([{}]);
+  await ui.unmount();
+});
+
+const PANE = { title: '', isFocused: true, bodyColumns: 100, placement: 'inline', scroll: { offset: 0, bodyRows: 14 }, view: {} } as any;
+
+test('/kota at the computer: a window to pick or type the budget, what it will hold said first; one the week passed is said in it', async ($, on) => {
+  const w = world(on);
+  await $.session.measure(measure(40, w.clock.now()));
+  const r = await runFrom($, 'kota', { kind: 'composer' });
+  expect(r.text).toBe('Weekly budget');
+  expect(w.panes).toEqual(['weekly-budget']);
+  expect(w.asked).toEqual([]);
+  const pane: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'Pane', requestId: 'weekly-budget', props: PANE } as any);
+  expect(await pane.findAll({ type: 'Select' })).toEqual([]);
+  const said = await words(pane);
+  expect(said).toContain('Now The week is at 40% · no budget of your own (the limit is 99%)');
+  expect(said).toContain('If you apply This session wraps up as the week nears 50% and stops there.');
+  expect(textOf(node(await pane.drawn(), 'quota-+10'))).toBe('◉ +10 → 50%');
+  await pane.press({ key: 'quota-+20' });
+  expect(await words(pane)).toContain('nears 60%');
+  // Typed, a number the week has passed: said in the window, which stays.
+  await pane.input({ key: 'quota-typed', text: '30' });
+  expect(await words(pane)).toContain('✗ The week is at 40% already, past 30%.');
+  expect(w.modState()?.weeklyTarget ?? null).toBe(null);
+  expect(w.panes).toEqual(['weekly-budget']);
+  await pane.input({ key: 'quota-typed', text: '', kind: 'change' });
+  await pane.press({ key: 'apply' });
+  expect(w.panes).toEqual([]);
+  expect(w.modState().weeklyTarget).toBe(60);
+  expect(w.toasts.at(-1)).toBe('Weekly budget: 60%.');
+  await pane.unmount();
+});
+
+test('/6 at the computer: a window to pick the flow; a task written there starts it, none leaves the next message to be its task', async ($, on) => {
+  const w = world(on);
+  expect((await runFrom($, '6', { kind: 'composer' })).text).toBe('Start a flow');
+  const pane: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'Pane', requestId: 'start-flow', props: PANE } as any);
+  expect(await words(pane)).toContain('If you apply With a task written here the flow starts now; without one, your next message is its task.');
+  await pane.press({ key: 'flow-research' });
+  expect(textOf(node(await pane.drawn(), 'flow-research'))).toBe('◉ 🔍 research only');
+  await pane.press({ key: 'apply' });
+  expect(w.panes).toEqual([]);
+  expect(w.toasts.at(-1)).toBe('Flow ready: 🔍 research only. Your next message is its task.');
+  await $.prompt.submit(typed('Why is the cache slow?'));
+  expect(w.json(`${DATA}/flows/${w.modState().flowId}/flow.json`).variant).toBe('research');
+  await run($, '6');
+  // A task written in the window: the flow starts with it at once, as the person's own message.
+  await runFrom($, '6', { kind: 'composer' });
+  await pane.input({ key: 'flow-task', text: 'Make the cold start faster.' });
+  await settle(w);
+  expect(w.submitted.at(-1)).toBe('Make the cold start faster.\n\nflow research');
+  await pane.unmount();
 });
 
 test("a new session takes up this folder's last choice, says so, and tells the model with the first prompt", async ($, on) => {

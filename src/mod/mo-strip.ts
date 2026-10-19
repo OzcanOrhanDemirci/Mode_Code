@@ -5,6 +5,9 @@
  * the state (src/core/mo/state.ts), so what just happened gives way by itself, and draws that state's frame
  * (src/core/mo/marks.ts) in half blocks. Nothing here reaches outside: no `$`, no files, no network.
  *
+ * A click on Mo opens what happened (the control center's activity); the pointer on it says its state in words
+ * under the strip (the hooks lay that line).
+ *
  * Mo moves only while Claude works and while something that just happened shows. At rest (nothing at work,
  * a question waiting for the person, a low quota) it is drawn still and not drawn again until something
  * changes: every frame Claude Code draws hides and shows the terminal's cursor, so a Mo breathing at rest made
@@ -56,6 +59,10 @@ const MoStrip: ClientModule<MoStripProps, Local> = (p: MoStripProps, s: ClientSu
       c.tick++;
       const next = stateAt(c);
       if (next !== c.state || moves(next, c.p)) s.setState({ clock: c });
+    });
+    // Pressed with the main button: what happened, in the control center's activity (the hooks open it, where `$` is).
+    s.onPointer((e) => {
+      if (e.type === 'up' && e.button === 'left') s.post({ press: 'mo' });
     });
   }
   clock.p = p;

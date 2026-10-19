@@ -11,7 +11,17 @@
  */
 import type { EngineInterface, EventName, Hook, On } from 'claude-code';
 import { atom, read, update } from 'claude-code';
-import type { ModeCodeAgentsPane, ModeCodeAutoPane, ModeCodeFooters, ModeCodeLabels, ModeCodeMo } from './contract.js';
+import type {
+  ModeCodeAgentsPane,
+  ModeCodeAutoPane,
+  ModeCodeBypassPane,
+  ModeCodeFlowPane,
+  ModeCodeFooters,
+  ModeCodeLabels,
+  ModeCodeMo,
+  ModeCodeQuotaPane,
+  ModeCodeStripFocus,
+} from './contract.js';
 import {
   AGENT_KINDS,
   AGENT_MODELS,
@@ -39,8 +49,11 @@ import { SYNC_MAX_BYTES, syncCommitMessage, type Pending } from '../core/sync.js
 import { exportMachine, parseSharedRecord, settingsInEffect, syncDue, type SharedRecord, type SyncFs } from '../core/sync-export.js';
 import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform } from '../core/paths.js';
 import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '../core/i18n/index.js';
-import { CONTROLS, controlOf, controlText, optionLabel } from '../core/ux/catalog.js';
-import { notice } from '../core/ux/kit.js';
+import { CONTROLS, controlOf, controlText, optionLabel, WINDOWS, type WindowDef } from '../core/ux/catalog.js';
+import { action, choices, notice, row as kitRow, windowFrame } from '../core/ux/kit.js';
+import { cardLine, controlOfItem, moLine, stripNow } from '../core/ux/say.js';
+import { COLORS, labelColumn, mark, TOAST_MS } from '../core/ux/tokens.js';
+import { moState } from '../core/mo/state.js';
 import { why, whyAll, whyRule, whySubjectNamed, whyText, WHY_SUBJECTS, type WhyFacts } from '../core/ux/why.js';
 import { activityOf, activityText, type ActivityEvent } from '../core/ux/activity.js';
 import { RULE_IDS } from '../core/belt/rules.js';
@@ -90,6 +103,7 @@ import {
 } from '../core/keywords.js';
 import {
   actionKeyword,
+  budgetProblem,
   cells,
   CHOICE_LINE,
   choicesText,
@@ -271,7 +285,7 @@ import { checkAutonomy, credentialPaths, type AutoEnv } from '../core/run-guard.
 import { diffSignals, parseReview, REVIEW_SYSTEM, reviewManifests, reviewPrompt } from '../core/run-review.js';
 import { checkDraft, composeReport, durationText } from '../core/run-report.js';
 import { pauseFor, type StopAllow } from '../core/run-stop.js';
-import { budgetLabel, parseAutoPrompts, rememberAutoPrompt, serializeAutoPrompts, startBudgets, type AutoPrompt } from '../core/auto-prompts.js';
+import { budgetLabel, budgetTarget, parseAutoPrompts, rememberAutoPrompt, serializeAutoPrompts, startBudgets, type AutoPrompt } from '../core/auto-prompts.js';
 import {
   autoNoTaskContext,
   autoPendingContext,
@@ -392,6 +406,8 @@ interface Ctx {
   /** `/00` is closing the session; `closed` once its end steps ran, so the end itself does not run them again. */
   closing: boolean;
   closed: boolean;
+  /** The lines of this session's activity a person reads (src/core/ux/activity.ts), counted under the strip. */
+  activity: number;
   /** What Mo shows (src/core/mo/state.ts): the main conversation's calls running now, and when things last happened. */
   mo: {
     tools: number;
@@ -448,8 +464,12 @@ const moAtom = atom(
     at: 0,
   } as ModeCodeMo,
 );
+/** The control of the strip under the keyboard's focus, its card shown under the strip (see ModeCodeStripFocus). */
+const stripFocusAtom = atom({ plugin: 'mode-code', key: 'stripFocus' } as const, { id: null, at: 0 } as ModeCodeStripFocus);
+/** How long a control's card stays under the strip after the focus last moved: Claude Code does not say when Esc took it back. */
+const FOCUS_MS = 20_000;
 /** The window full autonomy starts from: its pane's id, and what it shows besides the task (see ModeCodeAutoPane). */
-const AUTO_PANE = 'full-auto';
+const AUTO_PANE = WINDOWS.fullAuto.pane;
 const autoPaneAtom = atom(
   { plugin: 'mode-code', key: 'autoPane' } as const,
   { lang: 'en', budgets: ['+5', '+10', '+20'], budget: '+10', week: null, error: null } as ModeCodeAutoPane,
@@ -646,6 +666,7 @@ async function load($: $): Promise<Ctx> {
     packsUsed: new Set(),
     introDue: !(previous && previous.sessionId === sessionId),
     skillsUsed: new Set(),
+    activity: existing ? readableActivity(existing.split('\n'), lang) : 0,
     mo: {
       tools: 0,
       agents: 0,
@@ -788,13 +809,34 @@ async function saveState($: $, c: Ctx): Promise<void> {
 async function logEvent($: $, c: Ctx, rec: Record<string, unknown>): Promise<void> {
   if (!c.eventsPath) return;
   const now = await $.clock.now();
-  c.events.push(JSON.stringify({ v: 1, at: now, source: 'mod', session: c.sessionId, app: APP_VERSION, ...rec }));
+  const line = JSON.stringify({ v: 1, at: now, source: 'mod', session: c.sessionId, app: APP_VERSION, ...rec });
+  c.events.push(line);
   if (c.events.length > 5000) c.events = c.events.slice(-5000);
+  // A line a person reads is counted under the strip at once (docs/design.md, No invisible work).
+  if (readableActivity([line], c.lang)) {
+    c.activity++;
+    await update($, labelsAtom, (x) => ({ ...x, activity: c.activity })).catch(() => undefined);
+  }
   try {
     await $.fs.write(c.eventsPath, c.events.join('\n') + '\n');
   } catch {
     /* the log never changes a decision */
   }
+}
+
+/** How many of these event lines a person reads in the activity: the quiet ones (a quota reading, a note) not counted. */
+function readableActivity(lines: readonly string[], lang: Lang): number {
+  let n = 0;
+  for (const l of lines) {
+    if (!l) continue;
+    try {
+      const e = JSON.parse(l) as ActivityEvent;
+      if (typeof e.kind === 'string' && !activityOf(e, lang).quiet) n++;
+    } catch {
+      /* a torn line counts for nothing */
+    }
+  }
+  return n;
 }
 
 async function runGit($: $, dir: string, args: string[]): Promise<{ ok: boolean; out: string }> {
@@ -2474,7 +2516,7 @@ async function refreshStatus($: $, c: Ctx): Promise<void> {
   }
   const strip = c.config.modules.modes ? { ...viewOf(c), lang: c.lang, still: c.config.accessibility.reduceMotion } : null;
   if (!c.config.modules.status) {
-    await update($, labelsAtom, () => ({ modes: [], tail: '', band: '', bandMeaning: null, strip }));
+    await update($, labelsAtom, () => ({ modes: [], tail: '', band: '', bandMeaning: null, strip, activity: c.activity }));
     await publishMo($, c);
     return;
   }
@@ -2530,7 +2572,7 @@ async function refreshStatus($: $, c: Ctx): Promise<void> {
         ? tIn(c.lang, 'status.weekTarget', { n: Math.round(q.week.used), target: c.state.weeklyTarget })
         : tIn(c.lang, 'status.week', { n: Math.round(q.week.used) }),
     );
-  await update($, labelsAtom, () => ({ modes, tail: quota.length ? `🛡 ${quota.join(' · ')}` : '🛡', band, bandMeaning, strip }));
+  await update($, labelsAtom, () => ({ modes, tail: quota.length ? `🛡 ${quota.join(' · ')}` : '🛡', band, bandMeaning, strip, activity: c.activity }));
   await publishMo($, c);
 }
 
@@ -2908,6 +2950,8 @@ async function workBoundary($: $, c: Ctx, tool: string, input: Readonly<Record<s
 async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.submit'>): Out<'prompt.submit'> {
   const c = await ctxOf($);
   const kind = e.origin?.kind;
+  // Typing at the prompt: the keyboard has left the strip, and the card of the control it was on goes.
+  if (kind === 'composer') await update($, stripFocusAtom, (x) => (x.id ? { id: null, at: x.at } : x)).catch(() => undefined);
   // The person's own prompts, and this plugin's resume prompt (which ends with their continue keyword).
   const ours = kind === 'plugin' && (e.origin as { name?: string }).name === PLUGIN_NAME;
   const human = kind === 'composer' || kind === 'bridge' || kind === 'sdk' || ours;
@@ -4628,6 +4672,97 @@ async function press($: $, name: string, args = '', surface?: string): Promise<v
   }
 }
 
+/** The hover group of a control's card: the pointer on the control shows it under the strip (src/core/ux/say.ts). */
+function cardScope(id: string): string {
+  return `card-${id}`;
+}
+
+type Tag = Parameters<typeof h>[0];
+
+/**
+ * The line under the strip (docs/design.md, the four questions): what Claude does now, in words, and the count of
+ * this session's activity at its end, a press away. While the keyboard rests on a control, that control's card says
+ * itself there instead. The card of every control, and Mo's words, lie in it unseen: the surface shows one while the
+ * pointer rests on its control (a hover, no hook runs). Its height never changes, so nothing moves under the pointer;
+ * narrower than 120 columns it is two rows tall, so a card is read whole.
+ */
+function sayLine(
+  $: $,
+  els: { Box: unknown; Text: unknown; Button: unknown },
+  p: {
+    columns: number;
+    lang: Lang;
+    cards: readonly { scope: string; text: string }[];
+    mo: string | null;
+    focus: string | null;
+    now: string;
+    activity: number;
+    agentView: boolean;
+  },
+): ReturnType<typeof h> {
+  const Box = els.Box as Tag;
+  const Text = els.Text as Tag;
+  const Button = els.Button as Tag;
+  const height = p.columns >= 120 ? 1 : 2;
+  const wrap = height === 1 ? 'truncate-end' : 'wrap';
+  const reveal = (scope: string, text: string) =>
+    h(Box, { display: 'none', flexShrink: 0, width: p.columns, hover: { display: 'flex', scope } }, h(Text, { wrap }, text));
+  const said = p.agentView
+    ? [
+        h(Box, { key: 'say-text', flexGrow: 1, flexShrink: 1 }, h(Text, { wrap }, tIn(p.lang, 'ux.say.agentView'))),
+        h(
+          Box,
+          { key: 'say-main', flexShrink: 0, marginLeft: 2 },
+          h(Button, { key: 'strip-main', onPress: () => $.ui.view({}) }, tIn(p.lang, 'ux.say.mainView')),
+        ),
+      ]
+    : [
+        h(
+          Box,
+          { key: 'say-text', flexGrow: 1, flexShrink: 1 },
+          p.focus ? h(Text, { wrap, color: COLORS.focus.claude }, `${mark('focus', false)} ${p.focus}`) : h(Text, { wrap, dimColor: true }, p.now),
+        ),
+        ...(p.activity > 0
+          ? [
+              h(
+                Box,
+                { key: 'say-activity', flexShrink: 0, marginLeft: 2 },
+                h(
+                  Button,
+                  { key: 'strip-activity', plain: true, dimColor: true, onPress: (e?: { surface?: string }) => openActivity($, e?.surface) },
+                  `${tIn(p.lang, 'ux.say.activity', { n: p.activity })}${mark('opener', false)}`,
+                ),
+              ),
+            ]
+          : []),
+      ];
+  return h(
+    Box,
+    { key: 'strip-say', flexDirection: 'row', height, overflow: 'hidden', width: p.columns },
+    ...p.cards.map((c) => reveal(c.scope, c.text)),
+    ...(p.mo ? [reveal(cardScope('mo'), p.mo)] : []),
+    h(Box, { key: 'say-now', flexDirection: 'row', flexShrink: 0, width: p.columns }, ...said),
+  );
+}
+
+/** Opens the control center at Home › Activity beside the session; from the phone, says where it opens. Never silent. */
+async function openActivity($: $, surface?: string): Promise<void> {
+  try {
+    const c = await ctxOf($);
+    if (surface !== undefined && surface !== 'terminal') {
+      $.ui.toast(tIn(c.lang, 'ctl.center.remote'), { timeoutMs: TOAST_MS.result });
+      return;
+    }
+    const r = await openCenter($, c, ACTIVITY_PAGE);
+    $.ui.toast(r.ok ? tIn(c.lang, r.opens === 'tab' ? 'ctl.center.tab' : 'ctl.center.window') : r.text.split('\n')[0]!, { timeoutMs: TOAST_MS.result });
+  } catch {
+    /* the strip stays as it is */
+  }
+}
+
+/** The control center's page of what Mode_Code did in the background, and why (src/tui/tree.tsx). */
+const ACTIVITY_PAGE = 'home/activity';
+
 /** How long the strip stays still before its presses are told to Claude. */
 const PRESS_QUIET_MS = 2500;
 
@@ -4848,10 +4983,12 @@ async function launchEnv($: $): Promise<Record<(typeof LAUNCH_ENV)[number], stri
  * this terminal or a window of its own (src/core/launch.ts). Says what went wrong, with the command to open
  * it by hand, when it cannot.
  */
-async function openCenter($: $, c: Ctx): Promise<{ ok: true; opens: 'tab' | 'window' } | { ok: false; text: string }> {
+async function openCenter($: $, c: Ctx, address?: string): Promise<{ ok: true; opens: 'tab' | 'window' } | { ok: false; text: string }> {
   const lang = c.lang;
-  const program = centerProgram(await readFile($, c.layout.manifest));
-  if (!program || !(await $.fs.exists(program[1]).catch(() => false))) return { ok: false, text: tIn(lang, 'ctl.center.unknown', { app: CLI_NAME }) };
+  const recorded = centerProgram(await readFile($, c.layout.manifest));
+  if (!recorded || !(await $.fs.exists(recorded[1]).catch(() => false))) return { ok: false, text: tIn(lang, 'ctl.center.unknown', { app: CLI_NAME }) };
+  // At a page of its own (`open <address>`): what the strip's activity count and Mo lead to.
+  const program = address ? [...recorded, 'open', address] : recorded;
   const cmd = commandLine(program, c.platform);
   const env = await launchEnv($);
   const cwd = c.state.cwd ?? (await $.session.cwd());
@@ -4898,10 +5035,10 @@ async function rememberPrompt($: $, c: Ctx, text: string, budget: string): Promi
 // ── parallel agents (core/agents.ts, docs/agents.md) ──
 
 /** The window where the person sets the session's agents: its pane's id. */
-const AGENTS_PANE = 'parallel-agents';
+const AGENTS_PANE = WINDOWS.agents.pane;
 const agentsPaneAtom = atom(
   { plugin: 'mode-code', key: 'agentsPane' } as const,
-  { lang: 'en', mode: 'off', n: '5', rows: [], editing: 0, writable: true, runActive: false, running: [], error: null } as ModeCodeAgentsPane,
+  { lang: 'en', current: '', mode: 'off', n: '5', rows: [], editing: 0, writable: true, runActive: false, running: [], error: null } as ModeCodeAgentsPane,
 );
 /** The task typed for the row being edited, kept by the plugin while it is typed (a redraw per key would fight it). */
 const agentsDraft = { task: '' };
@@ -5087,6 +5224,7 @@ async function agentsPaneFrom($: $, c: Ctx): Promise<void> {
   await update($, agentsPaneAtom, (x) => ({
     ...x,
     lang: c.lang,
+    current: s.mode === 'off' ? tIn(c.lang, 'agents.mode.off') : tIn(c.lang, s.mode === 'free' ? 'ux.say.agents.free' : 'ux.say.agents.assigned', { n: s.n }),
     mode: s.mode,
     n: String(s.n),
     rows: s.mode === 'assigned' && s.rows.length ? s.rows : rowsFor(s.n, x.rows, writable),
@@ -5103,14 +5241,7 @@ async function agentsPaneFrom($: $, c: Ctx): Promise<void> {
 /** Opens the window; false where no window can be shown (a phone: the command's words work there). */
 async function openAgentsPane($: $, c: Ctx): Promise<boolean> {
   await agentsPaneFrom($, c);
-  try {
-    const opened = await $.ui.open({ id: AGENTS_PANE, title: tIn(c.lang, 'agents.pane.title'), focus: true, closeOnEscape: true, holdToasts: true, rows: 14 });
-    if (opened.isPlaced) return true;
-    await $.ui.close({ id: AGENTS_PANE });
-  } catch {
-    /* no window here */
-  }
-  return false;
+  return openWindow($, 'agents', c.lang, 18);
 }
 
 /** The window's rows with the task being typed kept in the row it belongs to. */
@@ -5180,14 +5311,8 @@ async function openAutoPane($: $, c: Ctx, given: string | null, task: string): P
   if (c.armed?.kind === 'fullAuto') c.armed = null;
   const week = q.usable && q.week ? Math.round(q.week.used) : null;
   await update($, autoPaneAtom, () => ({ lang: c.lang, budgets: options, budget: value, week, error: null }));
-  try {
-    const opened = await $.ui.open({ id: AUTO_PANE, title: tIn(c.lang, 'ctl.autoPane.title'), focus: true, closeOnEscape: true, holdToasts: true, rows: 8 });
-    if (opened.isPlaced) return true;
-    await $.ui.close({ id: AUTO_PANE });
-  } catch {
-    /* no window here: the command asks instead */
-  }
-  return false;
+  // No window here (a phone, a headless session): the command asks instead.
+  return openWindow($, 'fullAuto', c.lang, 13);
 }
 
 /**
@@ -5209,6 +5334,483 @@ async function startFromPane($: $, typed?: string): Promise<void> {
   await update($, autoPaneAtom, (x) => ({ ...x, error: null }));
   await $.ui.close({ id: AUTO_PANE }).catch(() => undefined);
   await appendNotes($, await sendAsPerson($, c, `${task}\n\n${fullAutoPhrase(budget, c.lang)}`));
+}
+
+// ── the windows (docs/design.md, Window; src/core/ux/catalog.ts, WINDOWS): one pattern, drawn with the kit ──
+
+const QUOTA_PANE = WINDOWS.quota.pane;
+const FLOW_PANE = WINDOWS.flow.pane;
+const BYPASS_PANE = WINDOWS.bypass.pane;
+const quotaPaneAtom = atom(
+  { plugin: 'mode-code', key: 'quotaPane' } as const,
+  { lang: 'en', week: null, target: null, limit: 99, pick: '+10', error: null } as ModeCodeQuotaPane,
+);
+/** A budget typed in its window: the plugin's own while it is typed (a redraw on every key would fight the typing). */
+const quotaDraft = { text: '' };
+const flowPaneAtom = atom({ plugin: 'mode-code', key: 'flowPane' } as const, { lang: 'en', pick: 'full', error: null } as ModeCodeFlowPane);
+/** A flow's task typed in its window, kept as the auto window keeps its own. */
+const flowDraft = { task: '' };
+const bypassPaneAtom = atom({ plugin: 'mode-code', key: 'bypassPane' } as const, { lang: 'en', hours: 2, until: '', error: null } as ModeCodeBypassPane);
+/** The budgets a window offers to pick (the full-autonomy window may add the one given with its command). */
+const BUDGET_PICKS = ['+5', '+10', '+20'] as const;
+
+/** The elements a window draws with: Claude Code's, as the surface resolves them. */
+type Els = { Box: unknown; Text: unknown; Button: unknown; Input?: unknown };
+type Node = ReturnType<typeof h>;
+
+/** The cells across a window's body, as the surface measured it. */
+function paneWidth(props: unknown): number {
+  return Math.max(30, Number((props as { bodyColumns?: number }).bodyColumns ?? 60));
+}
+
+/** Opens a window as a dialog: it takes the keys, Esc closes it, toasts wait behind it. False where none can be shown. */
+async function openWindow($: $, id: keyof typeof WINDOWS, lang: Lang, rows: number): Promise<boolean> {
+  const def = WINDOWS[id];
+  try {
+    const opened = await $.ui.open({ id: def.pane, title: tIn(lang, def.title), focus: true, closeOnEscape: true, holdToasts: true, rows });
+    if (opened.isPlaced) return true;
+    await $.ui.close({ id: def.pane });
+  } catch {
+    /* no window here */
+  }
+  return false;
+}
+
+/**
+ * A window's frame (src/core/ux/kit.ts, windowFrame): the catalog's sentence on what it is for, how it is now, its
+ * controls, what applying will do, Apply and Cancel. Cancel closes it and changes nothing.
+ */
+function windowTree(
+  $: $,
+  els: Els,
+  def: WindowDef,
+  p: {
+    lang: Lang;
+    width: number;
+    now: string;
+    controls: Node[];
+    preview: string | null;
+    apply: () => unknown;
+    error: string | null;
+    after?: Node[];
+    labelWidth: number;
+    cancelFirst?: boolean;
+  },
+): Node {
+  return windowFrame(claudeHost(els), {
+    what: tIn(p.lang, def.what),
+    now: { label: tIn(p.lang, 'ux.win.now'), text: p.now },
+    width: p.width,
+    controls: p.controls,
+    preview: p.preview ? { label: tIn(p.lang, 'ux.win.preview'), text: p.preview } : null,
+    apply: { id: 'apply', label: tIn(p.lang, def.apply), onPress: () => void p.apply() },
+    cancel: {
+      id: 'cancel',
+      label: tIn(p.lang, 'ux.win.cancel'),
+      onPress: () => void $.ui.close({ id: def.pane }).catch(() => undefined),
+      ...(p.cancelFirst ? { autoFocus: true } : {}),
+    },
+    error: p.error,
+    ...(p.after ? { after: p.after } : {}),
+    labelWidth: p.labelWidth,
+  });
+}
+
+/** The label column every row of a window shares, its own two labels counted in (docs/design.md, Grid). */
+function windowLabels(lang: Lang, labels: readonly string[]): number {
+  return labelColumn([...labels, tIn(lang, 'ux.win.now'), tIn(lang, 'ux.win.preview')], cells, 26);
+}
+
+/** The parallel agents window: the mode, its count, an assigned batch's rows one at a time, the agents at work. */
+function agentsWindow($: $, els: Els, pane: ModeCodeAgentsPane, width: number): Node {
+  const k = claudeHost(els);
+  const Box = els.Box as Tag;
+  const Text = els.Text as Tag;
+  const Input = els.Input as Tag;
+  const t = (key: MessageKey, params?: Record<string, string | number>) => tIn(pane.lang, key, params);
+  const set = (patch: (x: ModeCodeAgentsPane) => Partial<ModeCodeAgentsPane>) => void update($, agentsPaneAtom, (x) => ({ ...x, ...patch(x), error: null }));
+  const setRow = (patch: Partial<AgentRow>) => set((x) => ({ rows: x.rows.map((r, i) => (i === x.editing ? { ...r, task: agentsDraft.task, ...patch } : r)) }));
+  const row = pane.rows[pane.editing];
+  const n = agentCount(pane.n);
+  const countLabel = t(pane.mode === 'free' ? 'agents.pane.nFree' : 'agents.pane.nAssigned');
+  const taskLabel = `${t('agents.pane.task')} ${pane.editing + 1}`;
+  const lw = windowLabels(pane.lang, [t('agents.pane.mode'), countLabel, t('agents.pane.row'), taskLabel, t('agents.pane.kind'), t('agents.pane.model')]);
+  const line = (label: string, value: Node) => kitRow(k, { label, labelWidth: lw, value });
+  const controls: Node[] = [
+    line(
+      t('agents.pane.mode'),
+      choices(k, {
+        column: true,
+        options: AGENT_MODES.filter((m) => m !== 'assigned' || !pane.runActive).map((m) => ({
+          id: `ag-mode-${m}`,
+          label: t(`agents.mode.${m}` as MessageKey),
+          chosen: pane.mode === m,
+          onPress: () => set((x) => ({ mode: m, ...rowsForCount(x, x.n) })),
+        })),
+      }),
+    ),
+  ];
+  if (pane.mode !== 'off') {
+    controls.push(
+      line(countLabel, h(Input, { key: 'ag-n', value: pane.n, onInput: (v: string) => set((x) => rowsForCount(x, v)), onSubmit: () => applyAgentsPane($) })),
+    );
+    if ((n ?? 0) > MANY_AGENTS) controls.push(h(Text, { key: 'ag-many', dimColor: true }, t('agents.many').trim()));
+  }
+  if (pane.mode === 'assigned' && row) {
+    const go = (to: number) =>
+      set((x) => {
+        const rows = rowsWithDraft(x);
+        agentsDraft.task = rows[to]?.task ?? '';
+        return { rows, editing: to };
+      });
+    controls.push(
+      line(
+        t('agents.pane.row'),
+        h(
+          Box,
+          { flexDirection: 'row' },
+          ...(pane.editing > 0
+            ? [action(k, { id: 'ag-prev', label: t('agents.pane.prev'), onPress: () => go(pane.editing - 1) }), h(Text, { key: 'ag-gap1' }, ' ')]
+            : []),
+          h(Text, { key: 'ag-row', bold: true }, t('agents.pane.rowOf', { i: pane.editing + 1, n: pane.rows.length })),
+          ...(pane.editing < pane.rows.length - 1
+            ? [h(Text, { key: 'ag-gap2' }, ' '), action(k, { id: 'ag-next', label: t('agents.pane.next'), onPress: () => go(pane.editing + 1) })]
+            : []),
+        ),
+      ),
+      line(
+        taskLabel,
+        h(Input, {
+          key: `ag-task-${pane.editing}`,
+          placeholder: t('agents.pane.taskHint'),
+          value: agentsDraft.task,
+          onInput: (v: string) => {
+            agentsDraft.task = v;
+          },
+          onSubmit: (v: string) => {
+            agentsDraft.task = v;
+            return applyAgentsPane($);
+          },
+        }),
+      ),
+      line(
+        t('agents.pane.kind'),
+        choices(k, {
+          options: AGENT_KINDS.filter((x) => pane.writable || x !== 'code').map((x) => ({
+            id: `ag-kind-${x}`,
+            label: t(`agents.kind.${x}` as MessageKey),
+            chosen: row.kind === x,
+            onPress: () => setRow({ kind: x as AgentKind }),
+          })),
+        }),
+      ),
+      line(
+        t('agents.pane.model'),
+        choices(k, {
+          options: ['', ...AGENT_MODELS].map((m) => ({
+            id: `ag-model-${m || 'session'}`,
+            label: m || t('agents.model.session'),
+            chosen: (row.model ?? '') === m,
+            onPress: () => setRow({ model: m || null }),
+          })),
+        }),
+      ),
+    );
+    if (!pane.writable) controls.push(h(Text, { key: 'ag-ro', dimColor: true }, t('agents.pane.readOnly')));
+  }
+  const preview = pane.mode === 'off' ? t('agents.set.off') : n === null ? null : t(pane.mode === 'free' ? 'agents.set.free' : 'agents.set.assigned', { n });
+  const after: Node[] = pane.running.length
+    ? [
+        h(Box, { key: 'ag-running', marginTop: 1 }, h(Text, { bold: true }, `${t('agents.pane.running')} (${pane.running.length})`)),
+        ...pane.running
+          .slice(0, 8)
+          .map((a) =>
+            h(
+              Box,
+              { key: `ag-r-${a.id}`, flexDirection: 'row' },
+              h(Box, { flexGrow: 1, flexShrink: 1 }, h(Text, { wrap: 'truncate-end' }, a.label)),
+              h(
+                Box,
+                { flexShrink: 0, marginLeft: 1 },
+                action(k, { id: `ag-view-${a.id}`, label: t('agents.pane.view'), onPress: () => void viewAgent($, a.id) }),
+              ),
+              h(
+                Box,
+                { flexShrink: 0, marginLeft: 1 },
+                action(k, { id: `ag-stop-${a.id}`, label: t('agents.pane.stop'), onPress: () => void stopOneFromPane($, a.id) }),
+              ),
+            ),
+          ),
+        action(k, { id: 'ag-stop-all', label: t('agents.pane.stopAll'), onPress: () => void stopAllFromPane($) }),
+      ]
+    : [];
+  return windowTree($, els, WINDOWS.agents, {
+    lang: pane.lang,
+    width,
+    now: t('agents.pane.now', {
+      mode: pane.current,
+      running: pane.running.length ? t('agents.pane.atWork', { n: pane.running.length }) : t('agents.pane.noneRunning'),
+    }),
+    controls,
+    preview,
+    apply: () => applyAgentsPane($),
+    error: pane.error,
+    after,
+    labelWidth: lw,
+  });
+}
+
+/** An agent's conversation in the main view, as the person's own switch from the tasks list does; the window goes. */
+async function viewAgent($: $, id: string): Promise<void> {
+  await $.ui.close({ id: AGENTS_PANE }).catch(() => undefined);
+  const r = await $.ui.view({ agentId: id }).catch((err: unknown) => ({ deny: String((err as Error)?.message ?? err) }));
+  if ('deny' in r && r.deny) $.ui.toast(String(r.deny).slice(0, 200), { timeoutMs: TOAST_MS.result });
+}
+
+/** Full autonomy's start window: the budget, the task, start or cancel (Esc closes it, the task stays). */
+function autoWindow($: $, els: Els, pane: ModeCodeAutoPane, width: number): Node {
+  const k = claudeHost(els);
+  const Input = els.Input as Tag;
+  const Text = els.Text as Tag;
+  const t = (key: MessageKey, params?: Record<string, string | number>) => tIn(pane.lang, key, params);
+  const lw = windowLabels(pane.lang, [t('ctl.autoPane.budget'), t('ctl.autoPane.task')]);
+  const target = budgetTarget(pane.budget, pane.week);
+  return windowTree($, els, WINDOWS.fullAuto, {
+    lang: pane.lang,
+    width,
+    now: t('ctl.autoPane.now', { week: percentText(pane.week, pane.lang) }),
+    controls: [
+      kitRow(k, {
+        label: t('ctl.autoPane.budget'),
+        labelWidth: lw,
+        value: choices(k, {
+          options: pane.budgets.map((v) => ({
+            id: `auto-budget-${v}`,
+            label: budgetLabel(v, pane.week, pane.lang),
+            chosen: v === pane.budget,
+            onPress: () => void update($, autoPaneAtom, (x) => ({ ...x, budget: v, error: null })),
+          })),
+        }),
+      }),
+      kitRow(k, {
+        label: t('ctl.autoPane.task'),
+        labelWidth: lw,
+        value: h(Input, {
+          key: 'auto-task',
+          placeholder: t('ctl.autoPane.placeholder'),
+          value: autoDraft.task,
+          submitLabel: t('ctl.autoPane.submit'),
+          autoFocus: true,
+          onInput: (v: string) => {
+            autoDraft.task = v;
+          },
+          onSubmit: (v: string) => startFromPane($, v),
+        }),
+      }),
+    ],
+    preview: target !== null ? t('ctl.autoPane.preview', { target: percent(target, pane.lang) }) : t('ctl.autoPane.previewNoReading', { budget: pane.budget }),
+    apply: () => startFromPane($),
+    error: pane.error,
+    after: [h(Text, { key: 'auto-kept', dimColor: true }, t('ctl.autoPane.kept'))],
+    labelWidth: lw,
+  });
+}
+
+/** The weekly budget window: three to pick, or one typed; what it will hold before it does. */
+async function openQuotaPane($: $, c: Ctx, week: number | null): Promise<boolean> {
+  quotaDraft.text = '';
+  await update($, quotaPaneAtom, () => ({
+    lang: c.lang,
+    week,
+    target: c.state.weeklyTarget,
+    limit: c.config.quota.defaultWeeklyTarget,
+    pick: '+10',
+    error: null,
+  }));
+  return openWindow($, 'quota', c.lang, 12);
+}
+
+function quotaWindow($: $, els: Els, pane: ModeCodeQuotaPane, width: number): Node {
+  const k = claudeHost(els);
+  const Input = els.Input as Tag;
+  const t = (key: MessageKey, params?: Record<string, string | number>) => tIn(pane.lang, key, params);
+  const lw = windowLabels(pane.lang, [t('ctl.quotaPane.pick'), t('ctl.quotaPane.typed')]);
+  const target = budgetTarget(pane.pick, pane.week);
+  const problem = budgetProblem(parseBudget(pane.pick), pane.week);
+  return windowTree($, els, WINDOWS.quota, {
+    lang: pane.lang,
+    width,
+    now: t('ctl.quotaPane.now', {
+      week: percentText(pane.week, pane.lang),
+      budget:
+        pane.target !== null
+          ? t('ctl.quotaPane.budget', { target: percent(pane.target, pane.lang) })
+          : t('ctl.quotaPane.noBudget', { limit: percent(pane.limit, pane.lang) }),
+    }),
+    controls: [
+      kitRow(k, {
+        label: t('ctl.quotaPane.pick'),
+        labelWidth: lw,
+        value: choices(k, {
+          options: BUDGET_PICKS.map((v) => ({
+            id: `quota-${v}`,
+            label: budgetLabel(v, pane.week, pane.lang),
+            chosen: v === pane.pick,
+            onPress: () => void update($, quotaPaneAtom, (x) => ({ ...x, pick: v, error: null })),
+          })),
+        }),
+      }),
+      kitRow(k, {
+        label: t('ctl.quotaPane.typed'),
+        labelWidth: lw,
+        value: h(Input, {
+          key: 'quota-typed',
+          placeholder: t('ctl.quotaPane.placeholder'),
+          value: quotaDraft.text,
+          onInput: (v: string) => {
+            quotaDraft.text = v;
+          },
+          onSubmit: (v: string) => applyQuotaPane($, v),
+        }),
+      }),
+    ],
+    preview: problem ? t(problem.key, problem.params) : target !== null ? t('ctl.quotaPane.preview', { target: percent(target, pane.lang) }) : null,
+    apply: () => applyQuotaPane($),
+    error: pane.error,
+    labelWidth: lw,
+  });
+}
+
+/** The window's Apply: what was typed, else the budget picked; what cannot be set is said in the window. */
+async function applyQuotaPane($: $, typed?: string): Promise<void> {
+  const c = await ctxOf($);
+  const pane = await read($, quotaPaneAtom);
+  const value = (typed ?? quotaDraft.text).trim() || pane.pick;
+  const problem = budgetProblem(parseBudget(value), pane.week);
+  if (problem) {
+    await update($, quotaPaneAtom, (x) => ({ ...x, error: tIn(c.lang, problem.key, problem.params) }));
+    return;
+  }
+  quotaDraft.text = '';
+  await $.ui.close({ id: QUOTA_PANE }).catch(() => undefined);
+  await press($, commandOfQuota(c.lang), value);
+}
+
+/** `/kota` or `/quota`, as the person's language names it. */
+function commandOfQuota(lang: Lang): string {
+  return lang === 'tr' ? 'kota' : 'quota';
+}
+
+/** The window that starts a flow: which one, and its task now or with the next message. */
+async function openFlowPane($: $, c: Ctx): Promise<boolean> {
+  flowDraft.task = '';
+  const pick = (await lastFlowVariant($, c)) ?? 'full';
+  await update($, flowPaneAtom, () => ({ lang: c.lang, pick, error: null }));
+  return openWindow($, 'flow', c.lang, 14);
+}
+
+function flowWindow($: $, els: Els, pane: ModeCodeFlowPane, width: number): Node {
+  const k = claudeHost(els);
+  const Input = els.Input as Tag;
+  const t = (key: MessageKey, params?: Record<string, string | number>) => tIn(pane.lang, key, params);
+  const lw = windowLabels(pane.lang, [t('ctl.flowPane.pick'), t('ctl.flowPane.task')]);
+  return windowTree($, els, WINDOWS.flow, {
+    lang: pane.lang,
+    width,
+    now: t('ctl.flowPane.now'),
+    controls: [
+      kitRow(k, {
+        label: t('ctl.flowPane.pick'),
+        labelWidth: lw,
+        value: choices(k, {
+          column: true,
+          options: FLOW_PRESETS.map((v) => ({
+            id: `flow-${v}`,
+            label: flowPresetLine(v, pane.lang),
+            chosen: v === pane.pick,
+            onPress: () => void update($, flowPaneAtom, (x) => ({ ...x, pick: v, error: null })),
+          })),
+        }),
+      }),
+      kitRow(k, {
+        label: t('ctl.flowPane.task'),
+        labelWidth: lw,
+        value: h(Input, {
+          key: 'flow-task',
+          placeholder: t('ctl.flowPane.placeholder'),
+          value: flowDraft.task,
+          onInput: (v: string) => {
+            flowDraft.task = v;
+          },
+          onSubmit: (v: string) => applyFlowPane($, v),
+        }),
+      }),
+    ],
+    preview: t('ctl.flowPane.preview', { steps: flowPresetLine(pane.pick, pane.lang) }),
+    apply: () => applyFlowPane($),
+    error: pane.error,
+    labelWidth: lw,
+  });
+}
+
+/** The window's Choose: with a task the flow starts now, as `/6 <task>` does; without one the next message is its task. */
+async function applyFlowPane($: $, typed?: string): Promise<void> {
+  const c = await ctxOf($);
+  const pane = await read($, flowPaneAtom);
+  const task = (typed ?? flowDraft.task).trim();
+  flowDraft.task = '';
+  await $.ui.close({ id: FLOW_PANE }).catch(() => undefined);
+  const steps = flowPresetLine(pane.pick, c.lang);
+  if (task) {
+    await appendNotes($, await sendAsPerson($, c, `${task}\n\n${flowPhrase(pane.pick, c.lang)}`));
+    $.ui.toast(steps, { timeoutMs: TOAST_MS.result });
+    return;
+  }
+  c.armed = { kind: 'flow', variant: pane.pick };
+  await refreshStatus($, c);
+  $.ui.toast(tIn(c.lang, 'ctl.flow.armed', { steps }), { timeoutMs: TOAST_MS.result });
+}
+
+/** The window that turns bypass on: what it lifts, for how long, until when; Cancel holds the keyboard first. */
+async function openBypassPane($: $, c: Ctx): Promise<boolean> {
+  const hours = c.config.bypass.maxHours;
+  const until = timeOfDay((await $.clock.now()) + hours * 3_600_000, c.lang);
+  await update($, bypassPaneAtom, () => ({ lang: c.lang, hours, until, error: null }));
+  return openWindow($, 'bypass', c.lang, 10);
+}
+
+function bypassWindow($: $, els: Els, pane: ModeCodeBypassPane, width: number): Node {
+  const t = (key: MessageKey, params?: Record<string, string | number>) => tIn(pane.lang, key, params);
+  return windowTree($, els, WINDOWS.bypass, {
+    lang: pane.lang,
+    width,
+    now: t('ctl.bypassPane.now', { hours: pane.hours }),
+    controls: [],
+    preview: t('ctl.bypassPane.preview', { hours: pane.hours, until: pane.until }),
+    apply: () => applyBypassPane($),
+    error: pane.error,
+    labelWidth: windowLabels(pane.lang, []),
+    // It lowers a protection: Enter on the window's first stop cancels, and turning it on takes a deliberate press.
+    cancelFirst: true,
+  });
+}
+
+/** The window's Turn on: bypass for the hours set, as `/bypass` confirmed does; Claude is told with a note. */
+async function applyBypassPane($: $): Promise<void> {
+  const c = await ctxOf($);
+  await refreshConfig($, c).catch(() => undefined);
+  if (!c.config.bypass.enabled) {
+    await update($, bypassPaneAtom, (x) => ({ ...x, error: tIn(c.lang, 'ctl.bypass.notEnabled') }));
+    return;
+  }
+  await $.ui.close({ id: BYPASS_PANE }).catch(() => undefined);
+  await bypassClock($, c);
+  if (c.state.bypass) return;
+  const note = await startBypass($, c);
+  await appendNotes($, [note]);
+  $.ui.toast(tIn(c.lang, 'ctl.bypass.started', { hours: c.config.bypass.maxHours, until: timeOfDay(c.state.bypass!.until, c.lang) }), {
+    timeoutMs: TOAST_MS.result,
+  });
 }
 
 /**
@@ -5303,14 +5905,16 @@ async function control(
       const week = q.usable && q.week ? Math.round(q.week.used) : null;
       let budget = args ? parseBudget(args) : null;
       if (args && !budget) return say(tIn(lang, 'ctl.quota.bad'));
+      // At the computer: the window, where the budget is picked or typed. Elsewhere (a phone): asked.
+      if (!budget && where === 'here' && (await openQuotaPane($, c, week))) return say(tIn(lang, 'ctl.quotaPane.title'), undefined, '');
       if (!budget) {
         const answer = await askOptions($, tIn(lang, 'ctl.quota.ask', { week: percentText(week, lang) }), ['+5', '+10', '+20']);
         if (answer === null) return say(tIn(lang, 'ctl.cancelled'));
         budget = parseBudget(answer);
         if (!budget) return say(tIn(lang, 'ctl.quota.bad'));
       }
-      if (budget.plus && week === null) return say(tIn(lang, 'ctl.quota.noReading'));
-      if (!budget.plus && week !== null && week >= budget.n) return say(tIn(lang, 'ctl.quota.past', { week, target: budget.n }));
+      const problem = budgetProblem(budget, week);
+      if (problem) return say(tIn(lang, problem.key, problem.params));
       const kw: KeywordMatch = {
         kind: 'quota',
         lang,
@@ -5375,6 +5979,8 @@ async function control(
         const variant = (await lastFlowVariant($, c)) ?? 'full';
         return say(flowPresetLine(variant, lang), await sendAsPerson($, c, `${args}\n\n${flowPhrase(variant, lang)}`));
       }
+      // At the computer: the window, where the flow is picked and its task written now or sent next. Elsewhere: asked.
+      if (where === 'here' && (await openFlowPane($, c))) return say(tIn(lang, 'ctl.flowPane.title'), undefined, '');
       const lines = FLOW_PRESETS.map((v) => flowPresetLine(v, lang));
       const answer = await askOptions($, tIn(lang, 'ctl.flow.ask'), lines);
       if (answer === null) return say(tIn(lang, 'ctl.cancelled'));
@@ -5395,6 +6001,8 @@ async function control(
         const ended = await endBypass($, c, 'person');
         return say(ended?.line ?? tIn(lang, 'ctl.cancelled'), ended ? [ended.note] : []);
       }
+      // At the computer: the window, which says what it lifts and until when before it does. Elsewhere: asked.
+      if (where === 'here' && (await openBypassPane($, c))) return say(tIn(lang, 'ctl.bypassPane.title'), undefined, '');
       const yes = tIn(lang, 'ctl.bypass.yes');
       const answer = await askOptions($, tIn(lang, 'ctl.bypass.confirm', { hours: c.config.bypass.maxHours }), [yes, tIn(lang, 'ctl.bypass.no')]);
       if (answer === null || fold(answer) !== fold(yes)) return say(tIn(lang, 'ctl.cancelled'));
@@ -5597,16 +6205,38 @@ export function register(on: On): void {
   on('session.end', onSessionEnd);
   // The slash commands of the controls: /0 to /8, /00, /devam, /kota, /akis, /tam-otonom, /kapat and their English names.
   on('command.run', onCommand);
-  // Above the prompt: the strip with the mode and the way of working, always in view and pressable; and while a
-  // plan waits for approval, a line that says so and how to approve. A question of Claude Code's own goes first.
-  // A press on the breathing control (src/mod/strip-pulse.ts) arrives as a message from its module.
+  // Above the prompt: the strip with the mode and the way of working, always in view and pressable; under it the line
+  // that says what Claude does now, where a control's card shows while the pointer or the keyboard rests on it; and
+  // while a plan waits for approval, a line that says so and how to approve. A question of Claude Code's own goes first.
+  // A press on the breathing control (src/mod/strip-pulse.ts) or on Mo (src/mod/mo-strip.ts) arrives as a message.
   on('ui.message', async ($, e, next) => {
     const data = e.data as { press?: unknown } | null;
     if (e.module.endsWith('strip-pulse.js') && data && typeof data.press === 'string' && commandNamed(data.press)) {
       await press($, data.press, '', e.surface);
       return {};
     }
+    if (e.module.endsWith('mo-strip.js') && data?.press === 'mo') {
+      await openActivity($, e.surface);
+      return {};
+    }
     return next(e);
+  });
+  on('ui.focus', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const r = await next(e);
+    try {
+      // Only the strip's own controls have a card; the focus anywhere else in the band (or not ours) has none.
+      const key = e.plugin === PLUGIN_NAME && typeof e.element === 'string' ? e.element : '';
+      const id = key.startsWith('strip-') && controlOfItem(key.slice('strip-'.length)) ? key.slice('strip-'.length) : null;
+      const at = await $.clock.now();
+      await update($, stripFocusAtom, () => ({ id, at }));
+      if (id)
+        $.clock.after(FOCUS_MS, () => {
+          void update($, stripFocusAtom, (x) => (x.at === at ? { id: null, at } : x)).catch(() => undefined);
+        });
+    } catch {
+      /* the card shows what it showed */
+    }
+    return r;
   });
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e);
@@ -5614,22 +6244,35 @@ export function register(on: On): void {
     const strip = labels.strip;
     if (!strip && !labels.band) return next(e);
     const { Box, Text, Button } = $.ui.resolve(e);
-    const props = e.props as { bodyColumns?: number };
+    const props = e.props as { bodyColumns?: number; view?: { agentId?: string } };
     const columns = Number(props.bodyColumns ?? e.viewport?.columns ?? 80);
     const onPress = (id: string) => (p?: { surface?: string }) => press($, id, '', p?.surface);
     const els = $.ui.resolve(e);
     const Client = 'Client' in els ? els.Client : undefined;
     const still = strip?.still === true;
     const working = (e.props as { isWorking?: boolean }).isWorking === true;
+    // The keyboard on the strip: nothing breathes under it (a module takes no focus), and the line says the card.
+    const focus = strip ? (await read($, stripFocusAtom)).id : null;
     const item = (it: StripItem) =>
       // The mode a running flow's step works in breathes on Claude Code's clock (src/mod/strip-pulse.ts) while
       // Claude works; between turns (the person may be typing: every frame blinks the terminal's cursor), with
-      // less motion asked for, or where no module is drawn (a phone), it is marked instead: bold, underlined.
-      it.pulse && Client && !still && working
-        ? h(Client, { key: `strip-${it.id}`, module: './strip-pulse.js', width: cells(it.label), height: 1, props: { id: it.id, label: it.label } })
+      // less motion asked for, where no module is drawn (a phone), or while the keyboard is on the strip, it is
+      // marked instead: bold, underlined. Either way the pointer on it shows its card under the strip.
+      it.pulse && Client && !still && working && focus === null
+        ? h(
+            Box,
+            { key: `pulse-${it.id}`, hover: { scope: cardScope(it.id) } },
+            h(Client, { key: `strip-${it.id}`, module: './strip-pulse.js', width: cells(it.label), height: 1, props: { id: it.id, label: it.label } }),
+          )
         : h(
             Button,
-            { key: `strip-${it.id}`, plain: true, onPress: onPress(it.id), ...(it.active ? { variant: 'primary' } : {}) },
+            {
+              key: `strip-${it.id}`,
+              plain: true,
+              onPress: onPress(it.id),
+              hover: { scope: cardScope(it.id) },
+              ...(it.active ? { variant: 'primary' } : {}),
+            },
             h(
               Text,
               {
@@ -5666,18 +6309,43 @@ export function register(on: On): void {
             h(
               Box,
               { key: 'strip', flexDirection: 'row' },
-              h(Client, {
-                key: 'mo',
-                module: './mo-strip.js',
-                width: MARK_W,
-                height: tall ? 2 : 1,
-                props: { ...mo, working, rows: tall ? 2 : 1 },
-              }),
+              h(
+                Box,
+                { key: 'mo-at', hover: { scope: cardScope('mo') } },
+                h(Client, {
+                  key: 'mo',
+                  module: './mo-strip.js',
+                  width: MARK_W,
+                  height: tall ? 2 : 1,
+                  props: { ...mo, working, rows: tall ? 2 : 1 },
+                }),
+              ),
               h(Text, { key: 'mo-gap' }, '  '),
               h(Box, { key: 'strip-rows', flexDirection: 'column', flexGrow: 1 }, ...lines),
             ),
           ]
         : lines;
+    if (strip) {
+      const view = strip as StripView;
+      const lang = strip.lang as Lang;
+      const moWords = withMo && mo ? moLine(moState({ ...mo, working }, await $.clock.now()), lang) : null;
+      shown.push(
+        sayLine(
+          $,
+          { Box, Text, Button },
+          {
+            columns,
+            lang,
+            cards: rows.flat().flatMap((s) => s.items.map((it) => ({ scope: cardScope(it.id), text: cardLine(it.id, view, lang) }))),
+            mo: moWords,
+            focus: focus ? cardLine(focus, view, lang) : null,
+            now: stripNow(view, lang),
+            activity: labels.activity ?? 0,
+            agentView: !!props.view?.agentId,
+          },
+        ),
+      );
+    }
     if (labels.band)
       shown.push(
         labels.bandMeaning
@@ -5687,155 +6355,36 @@ export function register(on: On): void {
     const tree = h(Box, { flexDirection: 'column' }, ...shown);
     return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
   });
-  // Full autonomy's start window: the budget, the task, start or cancel (a dialog: Esc closes it, the task stays).
-  // The parallel agents window: the mode, its count, an assigned batch's rows one at a time, and the agents at work.
+  // The windows a control opens (docs/design.md, Window): one pattern for all, each a dialog (Esc closes it). A
+  // surface that draws no field (a phone) never gets one: the command asks there instead.
   on('ui.render', { component: 'Pane', requestId: AGENTS_PANE }, async ($, e, next) => {
-    const pane = await read($, agentsPaneAtom);
     const els = $.ui.resolve(e);
-    if (!('Input' in els) || !('Select' in els)) return next(e);
-    const { Box, Text, Button, Input, Select } = els;
-    const t = (k: MessageKey) => tIn(pane.lang, k);
-    const row = pane.rows[pane.editing];
-    const setRow = (patch: Partial<AgentRow>) =>
-      void update($, agentsPaneAtom, (x) => ({ ...x, rows: x.rows.map((r, i) => (i === x.editing ? { ...r, task: agentsDraft.task, ...patch } : r)) }));
-    const rowLine = (r: AgentRow, i: number) => {
-      const task = (i === pane.editing ? agentsDraft.task : r.task).trim();
-      return `${i + 1} · ${t(`agents.kind.${r.kind}` as MessageKey)}${r.model ? ` · ${r.model}` : ''} · ${task ? task.slice(0, 48) : t('agents.pane.taskHint')}`;
-    };
-    const tree = h(
-      Box,
-      { flexDirection: 'column' },
-      h(Select, {
-        key: 'ag-mode',
-        label: t('agents.pane.mode'),
-        options: AGENT_MODES.filter((m) => m !== 'assigned' || !pane.runActive).map((m) => ({ value: m, label: t(`agents.mode.${m}` as MessageKey) })),
-        value: pane.mode,
-        onSelect: (v: string) => void update($, agentsPaneAtom, (x) => ({ ...x, mode: v as AgentMode, ...rowsForCount(x, x.n), error: null })),
-      }),
-      ...(pane.mode === 'off'
-        ? []
-        : [
-            h(Input, {
-              key: 'ag-n',
-              label: t(pane.mode === 'free' ? 'agents.pane.nFree' : 'agents.pane.nAssigned'),
-              value: pane.n,
-              onInput: (v: string) => void update($, agentsPaneAtom, (x) => ({ ...x, ...rowsForCount(x, v), error: null })),
-              onSubmit: () => applyAgentsPane($),
-            }),
-            ...((agentCount(pane.n) ?? 0) > MANY_AGENTS ? [h(Text, { key: 'ag-many', dimColor: true }, t('agents.many').trim())] : []),
-          ]),
-      ...(pane.mode === 'assigned' && row
-        ? [
-            h(Select, {
-              key: 'ag-row',
-              label: t('agents.pane.row'),
-              options: pane.rows.map((r, i) => ({ value: String(i), label: rowLine(r, i) })),
-              value: String(pane.editing),
-              onSelect: (v: string) =>
-                void update($, agentsPaneAtom, (x) => {
-                  const rows = rowsWithDraft(x);
-                  const editing = Number(v);
-                  agentsDraft.task = rows[editing]?.task ?? '';
-                  return { ...x, rows, editing };
-                }),
-            }),
-            h(Input, {
-              key: `ag-task-${pane.editing}`,
-              label: `${t('agents.pane.task')} ${pane.editing + 1}`,
-              placeholder: t('agents.pane.taskHint'),
-              value: agentsDraft.task,
-              onInput: (v: string) => {
-                agentsDraft.task = v;
-              },
-              onSubmit: (v: string) => {
-                agentsDraft.task = v;
-                return applyAgentsPane($);
-              },
-            }),
-            h(Select, {
-              key: 'ag-kind',
-              label: t('agents.pane.kind'),
-              options: AGENT_KINDS.filter((k) => pane.writable || k !== 'code').map((k) => ({ value: k, label: t(`agents.kind.${k}` as MessageKey) })),
-              value: row.kind,
-              onSelect: (v: string) => setRow({ kind: v as AgentKind }),
-            }),
-            h(Select, {
-              key: 'ag-model',
-              label: t('agents.pane.model'),
-              options: [{ value: '', label: t('agents.model.session') }, ...AGENT_MODELS.map((m) => ({ value: m, label: m }))],
-              value: row.model ?? '',
-              onSelect: (v: string) => setRow({ model: v || null }),
-            }),
-            ...(pane.writable ? [] : [h(Text, { key: 'ag-ro', dimColor: true }, t('agents.pane.readOnly'))]),
-          ]
-        : []),
-      h(
-        Box,
-        { key: 'ag-buttons', flexDirection: 'row' },
-        h(Button, { key: 'ag-apply', variant: 'primary', onPress: () => applyAgentsPane($) }, t('agents.pane.apply')),
-        h(Text, { key: 'ag-gap' }, '  '),
-        h(Button, { key: 'ag-close', onPress: () => $.ui.close({ id: AGENTS_PANE }) }, t('agents.pane.close')),
-      ),
-      ...(pane.error ? [h(Text, { key: 'ag-error', color: 'error' }, pane.error)] : []),
-      ...(pane.running.length
-        ? [
-            h(Text, { key: 'ag-running', bold: true }, `${t('agents.pane.running')} (${pane.running.length})`),
-            ...pane.running
-              .slice(0, 8)
-              .map((a) =>
-                h(
-                  Box,
-                  { key: `ag-r-${a.id}`, flexDirection: 'row' },
-                  h(Text, { key: 'label' }, `${a.label.slice(0, 60)}  `),
-                  h(Button, { key: 'stop', onPress: () => stopOneFromPane($, a.id) }, t('agents.pane.stop')),
-                ),
-              ),
-            h(Button, { key: 'ag-stop-all', onPress: () => stopAllFromPane($) }, t('agents.pane.stopAll')),
-          ]
-        : []),
-    );
+    if (!('Input' in els)) return next(e);
+    const tree = agentsWindow($, els, await read($, agentsPaneAtom), paneWidth(e.props));
     return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
   });
   on('ui.render', { component: 'Pane', requestId: AUTO_PANE }, async ($, e, next) => {
-    const pane = await read($, autoPaneAtom);
     const els = $.ui.resolve(e);
-    // A surface that draws no field (a phone) never gets the window: `/tam-otonom` asks there.
-    if (!('Input' in els) || !('Select' in els)) return next(e);
-    const { Box, Text, Button, Input, Select } = els;
-    const t = (k: MessageKey) => tIn(pane.lang, k);
-    const tree = h(
-      Box,
-      { flexDirection: 'column' },
-      h(Text, { key: 'auto-what', dimColor: true }, t('ctl.autoPane.what')),
-      h(Select, {
-        key: 'auto-budget',
-        label: t('ctl.autoPane.budget'),
-        options: pane.budgets.map((v) => ({ value: v, label: budgetLabel(v, pane.week, pane.lang) })),
-        value: pane.budget,
-        onSelect: (v: string) => void update($, autoPaneAtom, (x) => ({ ...x, budget: v, error: null })),
-      }),
-      h(Input, {
-        key: 'auto-task',
-        label: t('ctl.autoPane.task'),
-        placeholder: t('ctl.autoPane.placeholder'),
-        value: autoDraft.task,
-        submitLabel: t('ctl.autoPane.submit'),
-        autoFocus: true,
-        onInput: (v: string) => {
-          autoDraft.task = v;
-        },
-        onSubmit: (v: string) => startFromPane($, v),
-      }),
-      h(
-        Box,
-        { key: 'auto-buttons', flexDirection: 'row' },
-        h(Button, { key: 'auto-start', variant: 'primary', onPress: () => startFromPane($) }, t('ctl.auto.start')),
-        h(Text, { key: 'auto-gap' }, '  '),
-        h(Button, { key: 'auto-cancel', onPress: () => $.ui.close({ id: AUTO_PANE }) }, t('ctl.auto.cancel')),
-      ),
-      ...(pane.error ? [h(Text, { key: 'auto-error', color: 'error' }, pane.error)] : []),
-      h(Text, { key: 'auto-kept', dimColor: true }, t('ctl.autoPane.kept')),
-    );
+    if (!('Input' in els)) return next(e);
+    const tree = autoWindow($, els, await read($, autoPaneAtom), paneWidth(e.props));
+    return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
+  });
+  on('ui.render', { component: 'Pane', requestId: QUOTA_PANE }, async ($, e, next) => {
+    const els = $.ui.resolve(e);
+    if (!('Input' in els)) return next(e);
+    const tree = quotaWindow($, els, await read($, quotaPaneAtom), paneWidth(e.props));
+    return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
+  });
+  on('ui.render', { component: 'Pane', requestId: FLOW_PANE }, async ($, e, next) => {
+    const els = $.ui.resolve(e);
+    if (!('Input' in els)) return next(e);
+    const tree = flowWindow($, els, await read($, flowPaneAtom), paneWidth(e.props));
+    return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
+  });
+  on('ui.render', { component: 'Pane', requestId: BYPASS_PANE }, async ($, e, next) => {
+    const els = $.ui.resolve(e);
+    if (!('Input' in els)) return next(e);
+    const tree = bypassWindow($, els, await read($, bypassPaneAtom), paneWidth(e.props));
     return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
   });
   // The list `/devam` printed: each row pressable, as `/devam <n>` is.

@@ -63,10 +63,19 @@ export function startBudgets(given: string | null, kept: readonly AutoPrompt[]):
   return { options: [...AUTO_BUDGETS], value: last && AUTO_BUDGETS.includes(last) ? last : '+10' };
 }
 
+/** The weekly limit a budget sets: its number, or points above the week's reading; null without a reading or a budget. */
+export function budgetTarget(value: string, week: number | null): number | null {
+  const b = parseBudget(value);
+  if (!b) return null;
+  if (!b.plus) return b.n;
+  return week === null ? null : Math.min(100, Math.round(week) + b.n);
+}
+
 /** A budget as the window names it: "+10 → %89" with the week's reading (the weekly limit it sets), else as written. */
 export function budgetLabel(value: string, week: number | null, lang: Lang): string {
   const b = parseBudget(value);
   if (!b) return value;
   if (!b.plus) return percent(b.n, lang);
-  return week === null ? value : `${value} → ${percent(Math.min(100, Math.round(week) + b.n), lang)}`;
+  const target = budgetTarget(value, week);
+  return target === null ? value : `${value} → ${percent(target, lang)}`;
 }
