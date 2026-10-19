@@ -29,6 +29,8 @@
 
 The core holds every decision: the shell parsers and the belt, keywords, quota assessment, footer lines, settings parsing, session state transitions, messages in both languages. The mod and the hook only adapt it to their environment, so they decide identically.
 
+Claude Code does not read a hooks module over 1 MiB, and then the plugin does nothing at all, with no error shown. So the build gives the plugin only the messages its own code names (`scripts/plugin-words.mjs`: about four in ten, since most belong to the control center and the command line), refuses a module over the limit and warns above 90%. `test/dist/plugin-words.test.ts` holds the built plugin to its sources.
+
 ## Data folder
 
 | Path                                             | Writer                  | Contents                                                                                                        |
