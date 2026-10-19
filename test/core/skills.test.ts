@@ -9,6 +9,8 @@ import { commandsText, CORE_SKILLS, keptSkills, LIST_COMMANDS, memorySetUp, pers
 import { cloneDefaults } from '../../src/core/config.js';
 import { EXTERNAL_SKILLS } from '../../src/core/skills-external.js';
 import { COMMANDS } from '../../src/core/controls.js';
+import { en } from '../../src/core/i18n/en.js';
+import { tr } from '../../src/core/i18n/tr.js';
 
 const root = join(import.meta.dirname, '..', '..');
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
@@ -56,6 +58,10 @@ test('the skills of others: each folder with its skill and its licence, a permis
     assert.equal(skillHeader(read(`skills-external/${id}/SKILL.md`)).name, id, `${id}: its own name`);
     for (const f of s.files) assert.ok(existsSync(join(root, 'skills-external', id, f)), `${id}: ${f}`);
   }
+  // The control center says what each does in the person's language, not the skill's English for Claude.
+  const about = Object.keys(en).filter((k) => k.startsWith('skills.about.'));
+  assert.deepEqual(about.map((k) => k.slice('skills.about.'.length)).sort(), [...ids].sort(), 'one line for each skill, none for a skill gone');
+  for (const k of about) assert.notEqual((tr as Record<string, string>)[k], (en as Record<string, string>)[k], `${k}: in Turkish`);
 });
 
 test("a skill made the person's alone: the flag set once, the rest of the file as it was", () => {

@@ -244,12 +244,20 @@ export function reminderDue(s: AgentsState | null | undefined, remindedAt: numbe
   return s.batch.started.length < s.n && remindedAt !== s.batch.at;
 }
 
-/** The strip's words: "agents off", "agents ≤5 · 2", "agents =7 · 3/7", "agents · ultracode". */
+/** The control's icon on the strip: set apart from bypass's ⚡ beside it, two cells wide like the modes' icons. */
+export const AGENTS_ICON = '👥';
+
+/**
+ * The strip's words: "👥 agents", "👥 agents ≤5 · 2", "👥 agents =7 · 3/7", "👥 agents · ultracode"; tight, the icon
+ * in the word's place: "👥", "👥≤5·2". Off is the control not lit, as bypass's is. It had a ✕, read as a second
+ * close control, and a terminal draws ✕ wider than the one cell it is given: the lit ground cut it in half.
+ */
 export function stripAgents(s: AgentsState, running: number, word: string, tight: boolean): string {
   const sep = tight ? '' : ' ';
-  if (s.ultracode) return tight ? `${word}∞` : `${word} · ultracode`;
-  if (s.mode === 'off') return `${word}${sep}✕`;
-  if (s.mode === 'free') return `${word}${sep}≤${s.n}${running ? `${tight ? '·' : ' · '}${running}` : ''}`;
+  const name = tight ? AGENTS_ICON : `${AGENTS_ICON} ${word}`;
+  if (s.ultracode) return tight ? `${name}∞` : `${name} · ultracode`;
+  if (s.mode === 'off') return name;
+  if (s.mode === 'free') return `${name}${sep}≤${s.n}${running ? `${tight ? '·' : ' · '}${running}` : ''}`;
   const started = s.batch?.started.length ?? 0;
-  return `${word}${sep}=${s.n}${s.batch ? `${tight ? '·' : ' · '}${started}/${s.n}` : ''}`;
+  return `${name}${sep}=${s.n}${s.batch ? `${tight ? '·' : ' · '}${started}/${s.n}` : ''}`;
 }

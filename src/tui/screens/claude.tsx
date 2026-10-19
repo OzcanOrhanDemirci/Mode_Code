@@ -294,7 +294,7 @@ export function Skills({ width, open }: ScreenProps) {
   const fields: Field[] = Object.entries(EXTERNAL_SKILLS).map(([id, s]) => ({
     path: `skills.items.${id}`,
     label: id,
-    help: `${s.description} (${s.repo}, ${s.license}; ${t('skills.suggested', { state: t(`skills.state.${s.suggested}` as MessageKey) })})`,
+    help: `${t(`skills.about.${id}` as MessageKey)} (${s.repo}, ${s.license}; ${t('skills.suggested', { state: t(`skills.state.${s.suggested}` as MessageKey) })})`,
     value: c.skills.items[id] ?? 'off',
     type: { kind: 'enum', options: states },
     confirmOn: { value: 'on', text: t('skills.onConfirm') },

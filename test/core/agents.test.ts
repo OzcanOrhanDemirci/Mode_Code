@@ -213,17 +213,18 @@ test("what Claude is told: the mode set, the batch's rows, the batch done; and t
 });
 
 test("the strip's words, wide and tight", () => {
-  assert.equal(stripAgents(off, 0, 'agents', false), 'agents ✕');
-  assert.equal(stripAgents(off, 0, 'ag', true), 'ag✕');
-  assert.equal(stripAgents(free(5), 0, 'agents', false), 'agents ≤5');
-  assert.equal(stripAgents(free(5), 2, 'agents', false), 'agents ≤5 · 2');
-  assert.equal(stripAgents(free(5), 2, 'ag', true), 'ag≤5·2');
+  // Off is the control not lit: no ✕ beside the close control's.
+  assert.equal(stripAgents(off, 0, 'agents', false), '👥 agents');
+  assert.equal(stripAgents(off, 0, 'agents', true), '👥');
+  assert.equal(stripAgents(free(5), 0, 'agents', false), '👥 agents ≤5');
+  assert.equal(stripAgents(free(5), 2, 'agents', false), '👥 agents ≤5 · 2');
+  assert.equal(stripAgents(free(5), 2, 'agents', true), '👥≤5·2');
   const s = assigned([{ task: '', kind: 'code', model: null }], false);
-  assert.equal(stripAgents(s, 0, 'agents', false), 'agents =1');
-  assert.equal(stripAgents(withStarted(onPersonPrompt(s, 1), 0, 'a'), 0, 'agents', false), 'agents =1 · 1/1');
-  assert.equal(stripAgents(withStarted(onPersonPrompt(s, 1), 0, 'a'), 0, 'ag', true), 'ag=1·1/1');
-  assert.equal(stripAgents({ ...off, ultracode: true }, 0, 'agents', false), 'agents · ultracode');
-  assert.equal(stripAgents({ ...off, ultracode: true }, 0, 'ag', true), 'ag∞');
+  assert.equal(stripAgents(s, 0, 'agents', false), '👥 agents =1');
+  assert.equal(stripAgents(withStarted(onPersonPrompt(s, 1), 0, 'a'), 0, 'agents', false), '👥 agents =1 · 1/1');
+  assert.equal(stripAgents(withStarted(onPersonPrompt(s, 1), 0, 'a'), 0, 'agents', true), '👥=1·1/1');
+  assert.equal(stripAgents({ ...off, ultracode: true }, 0, 'agents', false), '👥 agents · ultracode');
+  assert.equal(stripAgents({ ...off, ultracode: true }, 0, 'agents', true), '👥∞');
 });
 
 test('the state as a file holds it: what is broken falls back, what is right is kept', () => {

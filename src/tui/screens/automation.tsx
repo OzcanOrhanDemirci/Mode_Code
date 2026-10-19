@@ -6,6 +6,7 @@
  */
 import { useState } from 'react';
 import { Box, Text } from 'ink';
+import { AGENTS_ICON } from '../../core/agents.js';
 import { ago } from '../../core/format.js';
 import type { MessageKey } from '../../core/i18n/index.js';
 import type { ToolEvent } from '../../app/data.js';
@@ -101,8 +102,8 @@ export function Bypass({ width, open }: ScreenProps) {
 
 /**
  * Parallel agents (docs/agents.md): whether the mode can be set in a session, and whether Claude Code's read-only
- * helpers stay free; what each of the strip's three settings does; the Claude Code sessions running on this computer,
- * each one's own agents beside the others' work.
+ * helpers stay free; what each of the strip's three settings does, as the strip shows it; the Claude Code sessions
+ * running on this computer, each one's own agents beside the others' work.
  */
 export function ParallelAgents({ width, open }: ScreenProps) {
   const { data, lang, now, theme } = useEnv();
@@ -126,8 +127,8 @@ export function ParallelAgents({ width, open }: ScreenProps) {
       <Section title={t('set.agents.modes')}>
         {(['off', 'free', 'assigned'] as const).map((m) => (
           <Box key={m}>
-            <Box width={3} flexShrink={0}>
-              <Text>{m === 'off' ? '✕' : m === 'free' ? '≤' : '='}</Text>
+            <Box width={14} flexShrink={0}>
+              <Text>{`${AGENTS_ICON} ${t('ctl.strip.agents')}${m === 'off' ? '' : m === 'free' ? ' ≤N' : ' =N'}`}</Text>
             </Box>
             <Text wrap="wrap">{t(`set.agents.mode.${m}` as MessageKey)}</Text>
           </Box>

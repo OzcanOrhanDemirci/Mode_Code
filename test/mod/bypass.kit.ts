@@ -142,6 +142,17 @@ test('a reminder with each prompt; ten minutes before its time a warning; at its
   expect(String((await bash($, `echo key >> ${HOME}/.ssh/authorized_keys`)).deny)).toMatch(/persist\.ssh/);
 });
 
+test('a length set in the control center since the last prompt holds when bypass is turned on from the strip', async ($, on) => {
+  const w = world(on, { config: enabled, answer: 'allow' });
+  await $.prompt.submit(typed('Look around.'));
+  w.write(`${DATA}/config.json`, JSON.stringify({ version: 1, bypass: { enabled: true, maxHours: 8 } }));
+  const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+  await ui.press({ key: 'strip-bypass' });
+  await ui.unmount();
+  expect(w.asked.at(-1)).toMatch(/^Turn bypass on for 8 h?/);
+  expect(w.toasts.at(-1)).toMatch(/(8 h)/);
+});
+
 test('turned off in the settings mid-session, bypass ends at the next call; the end of a session ends it too', async ($, on) => {
   const w = world(on, { config: enabled, answer: 'allow' });
   await run($, 'bypass');

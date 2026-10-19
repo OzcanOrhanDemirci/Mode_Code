@@ -53,6 +53,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - The installer's question about the footer lines says what each choice does and shows two lines as they would appear; before, it listed only the names.
 - An installation that asks no questions (the simple view, `--yes`, the one-line installers) protects the memory folder Claude Code is set to keep (`autoMemoryDirectory`); before, it protected none.
 - The sync setup offers a Mac its own name from System Settings; it offered the host name, which a network can set to the computer's address (`192.168.1.9`). An address is never offered as a name.
+- A handoff note of a project you named (`terminal devam`) in a session opened in another folder (the home folder, say) measures the project's own folder: its branch, the session's commits and what is left uncommitted. It measured the folder the session was opened in, and said "none" for commits made in the project.
 - A handoff note's next step, when it is only the last request, is named in your language on the screens and in `mode-code memory`; it said "last request" in English.
 - Uninstalling leaves Claude Code's `settings.json` as it was: the empty `enabledPlugins` and `extraKnownMarketplaces` that Claude Code leaves behind are removed with the plugin's own records.
 - A memory folder already protected under another spelling (`~/notes/` beside `/Users/you/notes`) is not added again by the memory setup, and the doctor counts each folder once.

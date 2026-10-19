@@ -157,7 +157,7 @@ export const enControls = {
   'ctl.close.already': 'The session is already closing.',
   'ctl.close.failed': 'Claude Code did not exit; /exit closes it. ({reason})',
   'ctl.strip.agents': 'agents',
-  'ctl.strip.agentsShort': 'ag',
+  'ctl.line.agentsOff': 'agents off',
   'ctl.desc.agents': 'Parallel agents: off, at most N at once, or exactly N for your next request (once turned on under Automation)',
   'ctl.hint.agents': '[N | exact N | off | stop]',
   'agents.notEnabled': 'Parallel agents are not turned on. Control center: Automation › Parallel agents (/0 opens it).',

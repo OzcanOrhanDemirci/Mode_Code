@@ -5,7 +5,7 @@
  * after a turn; the morning line after a long gap; approved notes from runs handed to a session once.
  */
 import { test, expect } from 'claude-code/testing';
-import { DATA, PROJECT, SESSION, world } from './world.ts';
+import { DATA, HOME, PROJECT, SESSION, world } from './world.ts';
 
 const typed = (text: string) => ({ text, wait: false, origin: { kind: 'composer' } }) as any;
 const TOOL = 'mcp__mode-code__handoff';
@@ -251,6 +251,66 @@ test('with end notes turned off, no note is written for a closed session either'
   await $.prompt.submit(typed('Where were we?'));
   expect([...w.files.keys()].filter((p) => p.startsWith(`${HANDOFFS}/`)).length).toBe(0);
   expect(w.events().some((e: any) => e.kind === 'handoff')).toBe(false);
+});
+
+test('a project named in a session opened in another folder is measured in its own folder: at its end, and when it was shut', async ($, on) => {
+  // The home folder the session was opened in is no repository; the project and the session's work are at PROJECT.
+  const w = world(on, {
+    startedAtHome: true,
+    config: {
+      projects: [
+        { id: 'app', names: ['app'], path: PROJECT },
+        { id: 'far', names: ['far'], path: `${HOME}/dev/far` },
+      ],
+    },
+    git: repoGit((_args, dir) => (dir === PROJECT ? undefined : { exitCode: 128, stdout: '' })),
+    programs: (argv) => (argv[0] === 'ps' ? { exitCode: 1, stdout: '' } : undefined),
+  });
+  on('turn.complete', (_$: any, e: any) => ({ text: e.answer }));
+  on('session.end', (_$: any, e: any) => ({ sessionId: e.sessionId }));
+  on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }));
+  const notes = (project: string) => [...w.files.keys()].filter((p) => p.startsWith(`${HANDOFFS}/${project}/`)).sort();
+  await $.prompt.submit(typed('app devam'));
+  await $.tool.call({ tool: 'Write', file_path: `${PROJECT}/src/a.ts`, content: 'x' } as any);
+  await $.turn.complete({ answer: 'Fixed.', durationMs: 5, isAborted: false, turnId: 't1', reason: 'answer' } as any);
+  await $.session.end({ reason: 'prompt_input_exit', sessionId: SESSION, resume: {} } as any);
+  expect(notes('app').length).toBe(1);
+  const ended = w.read(notes('app')[0]!)!;
+  expect(ended).toMatch(/^---\ntype: handoff\nproject: app\ncwd: \/home\/ada\/dev\/app\n/);
+  expect(ended).toMatch(/- Folder: \/home\/ada\/dev\/app\n- Branch: feature at cccccccccccc\n/);
+  expect(ended).toMatch(/### Commits in this session\n\n- ccccccc feat: the store\n/);
+  expect(ended).toMatch(/### Uncommitted\n\n- src\/a\.ts\n/);
+  // A named project with no repository here: the session's own folder, as before.
+  await $.prompt.submit(typed('far devam'));
+  await w.clock.advance(1000);
+  await $.tool.call({ tool: 'Write', file_path: `${HOME}/notes.md`, content: 'x' } as any);
+  await $.turn.complete({ answer: 'Noted.', durationMs: 5, isAborted: false, turnId: 't2', reason: 'answer' } as any);
+  await $.session.end({ reason: 'clear', sessionId: SESSION, resume: {} } as any);
+  const far = w.read(notes('far')[0]!)!;
+  expect(far).toMatch(/- Folder: \/home\/ada\n- Branch: none\n/);
+  expect(far).toMatch(/### Commits in this session\n\n- none\n/);
+  // A session shut without ending, opened at home on the same project: the next session measures the project.
+  w.write(
+    `${DATA}/state/sessions/shut0001.mod.json`,
+    JSON.stringify({
+      v: 1,
+      sessionId: 'shut0001',
+      aliveAt: NOW - 600_000,
+      cwd: HOME,
+      project: 'app',
+      work: { startedAt: NOW - 3600_000, changedAt: NOW - 300_000, handoffAt: 0, project: 'app', request: 'Fix the login.' },
+    }),
+  );
+  w.write(
+    `${DATA}/state/sessions/shut0001.hook.json`,
+    JSON.stringify({ v: 1, sessionId: 'shut0001', lastRunAt: 0, blocks: {}, host: { pid: 222, name: 'claude' } }),
+  );
+  await $.session.start({ source: 'startup', cwd: HOME } as any);
+  await $.prompt.submit(typed('Where were we?'));
+  const shut = w.read(`${HANDOFFS}/app/20261012-095500-shut0001.md`)!;
+  expect(shut).toMatch(/trigger: closed\n/);
+  expect(shut).toMatch(/- Folder: \/home\/ada\/dev\/app\n- Branch: feature at cccccccccccc\n/);
+  expect(shut).toMatch(/### Commits in this session\n\n- ccccccc feat: the store\n/);
 });
 
 test('after a turn the store is synced: a quick look first, then commit and send; a problem is told once', async ($, on) => {
