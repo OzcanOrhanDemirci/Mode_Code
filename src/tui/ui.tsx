@@ -20,6 +20,8 @@ export interface Env {
   now: number;
   /** Go to an address (used by links on screens). */
   go(address: string): void;
+  /** An address as the person reads it: "Settings › Features". */
+  place(address: string): string;
   /** Show a short message in the status bar. */
   flash(text: string, kind?: 'ok' | 'warn' | 'bad'): void;
   /** Bumps when data should be read again. */

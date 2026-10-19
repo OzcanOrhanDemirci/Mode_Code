@@ -22,7 +22,7 @@ Every element on every surface answers four questions where it stands, without a
 3. **What exactly happens if I change it?** For each value, before it is applied.
 4. **Can I take it back?** And how.
 
-The catalog (`src/core/ux/catalog.ts`) holds the four answers for every setting, control, command, window and kind of event, in both languages. Every surface draws them from there; none writes its own.
+The catalog (`src/core/ux/catalog.ts`) holds the four answers for every setting and every control of the strip (the `/` commands are its controls), in both languages; the windows and the kinds of background event join it with the stages that build them (D5, D4). Every surface draws them from there: the control center's card under a setting, `mode-code config explain`, the `/` menu; none writes its own.
 
 ## The contract
 
@@ -95,22 +95,29 @@ Only the 16 basic colours, so the person's terminal theme decides the contrast; 
 
 ## Glossary
 
-| Idea                                               | English                       | Turkish                               | Not                           |
-| -------------------------------------------------- | ----------------------------- | ------------------------------------- | ----------------------------- |
-| the protection that stops risky commands           | safety belt                   | emniyet kemeri                        | belt alone, kemer alone, hook |
-| a session where the belt asks nothing              | bypass (works without asking) | bypass (sormadan çalış)               | izinsiz                       |
-| a task carried to its end alone                    | full-autonomy run             | tam otonom iş                         | koşu                          |
-| research → plan → approve → code                   | flow                          | akış (adım adım iş)                   |                               |
-| helper Claudes that run beside the main one        | agents                        | ajanlar (yardımcı Claude'lar)         | alt ajan                      |
-| Anthropic's usage limit                            | quota                         | kota                                  |                               |
-| the ceiling you set on it                          | budget                        | bütçe                                 | sınır, hedef                  |
-| the 5-hour and weekly periods                      | period                        | dönem                                 | pencere                       |
-| a summary Claude makes to shorten the conversation | summary (compaction)          | özet (sıkıştırma)                     |                               |
-| notes left for the next session                    | handoff note                  | devir notu                            |                               |
-| a part Mode_Code adds inside Claude Code           | the plugin                    | Mode_Code'un Claude Code'daki parçası | eklenti, for both meanings    |
-| Claude Code's own add-ons                          | Claude Code plugins           | Claude Code eklentileri               |                               |
-| a connection to an outside tool                    | outside tool (MCP)            | dış araç (MCP)                        |                               |
-| thousands of tokens                                | 250k tokens                   | 250 bin token                         | 250 B                         |
+| Idea                                               | English                       | Turkish                                         | Not (✓: the test refuses it)  |
+| -------------------------------------------------- | ----------------------------- | ----------------------------------------------- | ----------------------------- |
+| the protection that stops risky commands           | safety belt                   | emniyet kemeri                                  | hook (Claude Code's own part) |
+| a session where the safety belt asks nothing       | bypass (works without asking) | bypass (sormadan çalış)                         | izinsiz ✓                     |
+| a task Claude carries to its end alone             | full-autonomy run             | tam otonom iş                                   | koşu ✓                        |
+| what keeps such a task's writes in the project     | write limits                  | yazma sınırları                                 | fence ✓, çit ✓                |
+| research → plan → approve → code                   | flow                          | akış (adım adım iş)                             |                               |
+| helper Claudes that run beside the main one        | agents                        | ajanlar (yardımcı Claude'lar)                   | subagent ✓, alt ajan ✓        |
+| Anthropic's usage limit                            | quota                         | kota                                            |                               |
+| the ceiling you set on it                          | budget                        | bütçe                                           | hedef                         |
+| the 5-hour and weekly periods of the quota         | period                        | dönem                                           | window ✓, pencere ✓           |
+| a summary Claude makes to shorten the conversation | summary (compaction)          | özet (sıkıştırma)                               |                               |
+| notes left for the next session                    | handoff note                  | devir notu                                      |                               |
+| the part Mode_Code adds inside Claude Code         | the plugin                    | Mode_Code'un Claude Code'daki parçası (eklenti) |                               |
+| Claude Code's own add-ons                          | Claude Code plugins           | Claude Code eklentileri                         |                               |
+| a connection to an outside tool                    | outside tool (MCP)            | dış araç (MCP)                                  |                               |
+| thousands of tokens                                | 250K tokens                   | 250 bin token                                   | 250 B ✓                       |
+
+The rows marked ✓ live in `src/core/ux/glossary.ts`, and `test/core/ux-glossary.test.ts` reads every message of both languages against them. The rest guide the writing and are not refused:
+
+- "The belt" and "kemer" may stand for the safety belt once a screen has named it in full; a page title under Security reads in that light.
+- "Sınır" stays for limits of time and writes ("Süre sınırı", "yazma sınırları"); the ceiling the person sets on the quota is always "bütçe".
+- "Eklenti" names both the plugin and Claude Code's add-ons, because Claude Code calls both plugins; where it means Mode_Code's part, the sentence names Mode_Code or Claude Code beside it.
 
 ## Components
 
@@ -134,12 +141,17 @@ One kit, two hosts. Each component is written once against a small table of elem
 
 ## Where it is enforced
 
-| Rule                                                                | Test                                                             |
-| ------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Four questions for every visible setting                            | `test/core/ux-catalog.test.ts`                                   |
-| Every reference like _"Settings › General"_ leads to a real place   | `test/core/ux-catalog.test.ts`                                   |
-| Mouse and keyboard reach the same result                            | `test/tui/pointer.test.tsx`, the engine kit                      |
-| No state told by colour alone                                       | `test/tui/widths.test.tsx` (plain mode keeps every state's word) |
-| Right edges of a block line up; no wrapped line starts with a space | `test/tui/grid.test.tsx`                                         |
-| Every background job writes an activity line                        | `test/core/activity.test.ts`                                     |
-| From 60 to 200 columns                                              | `test/tui/widths.test.tsx`, `test/core/controls.test.ts`         |
+A row whose test is still to come names the stage that brings it; `test/core/design-doc.test.ts` holds every other path to a file that exists.
+
+| Rule                                                                         | Test                                                                                                  |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Four questions for every setting and every control of the strip              | `test/core/ux-catalog.test.ts`, `test/tui/settings-card.test.tsx`                                     |
+| The command line gives the same answers, and names a page as the screen does | `test/process/human.test.ts`, `test/tui/settings-card.test.tsx`                                       |
+| Every reference like _"Settings › Features"_ leads to a real place           | `test/tui/references.test.tsx`                                                                        |
+| One idea, one name                                                           | `test/core/ux-glossary.test.ts`                                                                       |
+| No wrapped line starts with a space                                          | `test/core/ux-text.test.ts` (`wrapText`); the control center's own wrap: `test/tui/grid.test.tsx`, D3 |
+| Mouse and keyboard reach the same result                                     | `test/tui/pointer.test.tsx` and the engine kit, D3                                                    |
+| No state told by colour alone                                                | `test/tui/widths.test.tsx` (plain mode keeps every state's word)                                      |
+| Right edges of a block line up                                               | `test/tui/grid.test.tsx`, D3                                                                          |
+| Every background job writes an activity line                                 | `test/core/activity.test.ts`, D4                                                                      |
+| From 60 to 200 columns                                                       | `test/tui/widths.test.tsx`, `test/core/controls.test.ts`                                              |

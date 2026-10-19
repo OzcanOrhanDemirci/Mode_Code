@@ -7,6 +7,7 @@
 import { APP_ID, APP_VERSION, PLUGIN_NAME } from '../core/app.js';
 import { serializeConfig, setConfigValue } from '../core/config.js';
 import { tIn, type MessageKey } from '../core/i18n/index.js';
+import { optionLabel } from '../core/ux/catalog.js';
 import { CORE_SKILLS, SKILL_STATES, type SkillState } from '../core/skills.js';
 import { EXTERNAL_SKILLS } from '../core/skills-external.js';
 import { appContext } from '../app/context.js';
@@ -52,7 +53,7 @@ export async function cmdSkills(a: Args): Promise<number> {
     say();
     say(bold(T('skills.cli.others')));
     for (const o of others) {
-      const state = o.state === 'off' ? dim(T('skills.state.off')) : green(T(`skills.state.${o.state}` as MessageKey));
+      const state = (o.state === 'off' ? dim : green)(optionLabel('skills.items.*', o.state, ctx.lang));
       say(`  ${o.id.padEnd(32)} ${state} ${dim(`· ${o.source} (${o.license})`)}`);
     }
     say();
@@ -77,7 +78,7 @@ export async function cmdSkills(a: Args): Promise<number> {
   const r = setConfigValue(ctx.config, `skills.items.${id}`, state);
   writeAtomic(ctx.layout.config, serializeConfig(r.config));
   syncKeptSkills(ctx.layout, r.config);
-  say(green(T('skills.cli.set', { skill: id, state: T(`skills.state.${state}` as MessageKey) })));
+  say(green(T('skills.cli.set', { skill: id, state: optionLabel('skills.items.*', state, ctx.lang) })));
   if (state !== 'off') say(dim(T('skills.cli.reload')));
   return 0;
 }

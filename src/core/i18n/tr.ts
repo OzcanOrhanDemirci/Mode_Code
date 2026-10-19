@@ -12,6 +12,7 @@ import { trAuto } from './tr-auto.js';
 import { trMemory } from './tr-memory.js';
 import { trSync } from './tr-sync.js';
 import { trControls } from './tr-controls.js';
+import { trCatalog } from './tr-catalog.js';
 
 export const tr: Record<MessageKey, string> = {
   ...trUi,
@@ -22,6 +23,7 @@ export const tr: Record<MessageKey, string> = {
   ...trMemory,
   ...trSync,
   ...trControls,
+  ...trCatalog,
   'belt.reason.inline': 'Yorumlayıcıya verilen kodun içinde: {reason}',
   'belt.reason.deleteUnknown': 'Hedefi ancak çalışırken belli olan özyinelemeli silme: {target}.',
   'belt.reason.deleteCritical': '{target} siliniyor; bu konum {critical} konumunun kendisi ya da onu içeriyor.',
@@ -176,5 +178,5 @@ export const tr: Record<MessageKey, string> = {
   'quota.toast.stop': 'Kota sınırı doldu ({window} %{used}): duruluyor.',
   'quota.window.five_hour': '5 saatlik',
   'quota.window.seven_day': 'haftalık',
-  'quota.notify.resume': 'Kota penceresi sıfırlandı. Çalışma şimdi sürüyor.',
+  'quota.notify.resume': 'Kota dönemi sıfırlandı. Çalışma şimdi sürüyor.',
 };

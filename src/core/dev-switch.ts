@@ -8,7 +8,8 @@
  * Only the person sets it, by starting Claude Code with it: the model cannot change the environment of the program it
  * runs in. The strip says so for as long as it holds, and the model is told with every prompt.
  *
- * It goes before 1.2.0 is released: test/core/dev-switch.test.ts fails once the version is 1.2.0 while it is here.
+ * It goes before 1.2.0 is released: test/core/dev-switch.test.ts fails once the version is 1.2.0 while it is here. The
+ * test runs' cleaner (test/helpers/clean-env.mjs) goes with it.
  */
 
 /** The variable, and the one value that turns the belt off. */

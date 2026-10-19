@@ -3,8 +3,6 @@
 
 export const enModes = {
   // ── modes ──
-  'mod.modes': 'Modes and flows',
-  'mod.modes.help': 'Chat, research, plan and code modes, and flows that chain them (research ▶ plan → approval → code), enforced by code.',
   'feature.modes': 'Modes and flows',
   'mode.name.free': 'free',
   'mode.name.chat': 'chat',
@@ -131,7 +129,7 @@ export const enModes = {
   'flow.step.paused': 'The flow is paused at its {step} step. Only the person resumes it (they type "{cont}").',
   'flow.step.terminal': 'This flow has ended ({status}).',
   'flow.step.notCurrent': 'The flow is at its {current} step, not {asked}: steps run in order and none is skipped.',
-  'flow.step.agent': 'Only the main session finishes flow steps, not a subagent.',
+  'flow.step.agent': 'Only the main session finishes flow steps, not an agent.',
   'flow.step.refused': 'The {step} step is not done yet:',
   'flow.step.refusedTail': 'Fix these in {path} and call flow_step again.',
   'flow.step.doneResearch': 'The research step is done: {findings} and {sources} checked. The checked report is kept at {copy}.',

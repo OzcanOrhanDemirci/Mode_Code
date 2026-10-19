@@ -35,8 +35,6 @@ test('keys built at run time all exist', () => {
   for (const s of ['managed', 'user', 'project', 'local']) need.push(`scope.${s}`);
   for (const i of ['user', 'project', 'project-dir', 'local', 'memory-index']) need.push(`instr.${i}`);
   for (const k of ['continue', 'manual', 'chat', 'quota', 'wrapUp', 'stop', 'status', 'help']) need.push(`kw.kind.${k}`);
-  for (const m of Object.keys(DEFAULT_CONFIG.modules)) need.push(`mod.${m}`, `mod.${m}.help`);
-  for (const a of Object.keys(DEFAULT_CONFIG.accessibility)) need.push(`a11y.${a}`, `a11y.${a}.help`);
   for (const s of ['data-folder', 'hook-program', 'marketplace', 'plugin', 'settings-hooks', 'config', 'self-test']) need.push(`install.step.${s}`);
   for (const s of ['plugin', 'marketplace', 'settings-hooks', 'files', 'data']) need.push(`uninstall.step.${s}`);
   for (const c of CATEGORY_IDS) need.push(`cat.${c}`);

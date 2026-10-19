@@ -6,7 +6,7 @@ Claude Code can hand parts of a task to agents that work beside the session: a s
 
 Control center › Automation › Parallel agents:
 
-- **Parallel agents can be set.** Asked twice, because with it on every session starts with agents off: Claude starts no agent until you set them on the strip.
+- **I set the number of agents.** Asked twice, because with it on every session starts with agents off: Claude starts no agent until you set them on the strip.
 - **Read-only helpers stay free** (on by default). Claude Code's Explore and Plan agents only read and search: they run even with agents off and are not counted. Off, they count like any agent.
 
 The same in the settings file: `"agents": { "enabled": true, "helpers": true }` ([cli.md](cli.md)). The page also lists the Claude Code sessions running on this computer (`claude agents --json`): their name, kind, status, age and folder, so another session at work in the same repository is seen before a commit sweeps up its changes.

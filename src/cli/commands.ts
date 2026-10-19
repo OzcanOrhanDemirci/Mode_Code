@@ -8,6 +8,20 @@ import { createInterface } from 'node:readline/promises';
 import { homedir } from 'node:os';
 import { APP_NAME, APP_VERSION, CLI_NAME, MIN_CLAUDE_CODE_FOR_HOOKS, REPO_URL } from '../core/app.js';
 import { cloneDefaults, serializeConfig, setConfigValue, type Config } from '../core/config.js';
+import {
+  allSettingPaths,
+  effectOf,
+  explain,
+  nameOf,
+  nearestSettings,
+  personOnly,
+  placeOf,
+  settingOf,
+  valueIn,
+  valueText,
+  type SettingPath,
+} from '../core/ux/catalog.js';
+import { wrapText } from '../core/ux/text.js';
 import { evaluateToolCall } from '../core/belt/evaluate.js';
 import { RULES, RULE_IDS } from '../core/belt/rules.js';
 import { compact, percent, ago, until, dateTime, bar, shortPath, integer } from '../core/format.js';
@@ -243,9 +257,19 @@ export async function cmdInstall(a: Args): Promise<number> {
         const dir = m === '' ? suggestion : m === '-' ? null : m;
         if (dir) chosen.memory = { ...cloneDefaults().memory, dirs: [dir] };
       }
-      const note = [T(ctx, 'set.footerModeHelp'), T(ctx, 'install.ask.footerExample'), ...sampleFooter(ctx.lang).map((l) => `    ${l}`)];
-      const f = await choose(ctx, T(ctx, 'install.ask.footer'), [T(ctx, 'footer.mode.draw'), T(ctx, 'footer.mode.check'), T(ctx, 'footer.mode.off')], note);
-      chosen.footer = { ...cloneDefaults().footer, mode: (['draw', 'check', 'off'] as const)[f]! };
+      const modes = ['draw', 'check', 'off'] as const;
+      const note = [
+        ...modes.map((m) => `${valueText('footer.mode', m, ctx.lang)}: ${effectOf('footer.mode', m, ctx.lang)}`),
+        T(ctx, 'install.ask.footerExample'),
+        ...sampleFooter(ctx.lang).map((l) => `    ${l}`),
+      ];
+      const f = await choose(
+        ctx,
+        T(ctx, 'install.ask.footer'),
+        modes.map((m) => valueText('footer.mode', m, ctx.lang)),
+        note,
+      );
+      chosen.footer = { ...cloneDefaults().footer, mode: modes[f]! };
     }
   }
   // Nobody chose a memory folder (the simple view, --yes): the one Claude Code is set to keep is protected.
@@ -256,11 +280,11 @@ export async function cmdInstall(a: Args): Promise<number> {
   if (asking) {
     say();
     say(bold(T(ctx, 'install.summary')));
-    say(`  ${T(ctx, 'set.view')}: ${T(ctx, `view.${chosen.view ?? 'recommended'}` as MessageKey)}`);
+    say(`  ${nameOf('view', ctx.lang)}: ${valueText('view', chosen.view ?? 'recommended', ctx.lang)}`);
     if (chosen.memory) say(`  ${T(ctx, 'page.memory')}: ${chosen.memory.dirs.map((d) => shortPath(d, homedir(), 70)).join(', ')}`);
-    if (chosen.footer) say(`  ${T(ctx, 'set.footerMode')}: ${T(ctx, `footer.mode.${chosen.footer.mode}` as MessageKey)}`);
-    if (chosen.update) say(`  ${T(ctx, 'set.updateCheck')}: ${T(ctx, chosen.update.check ? 'footer.yes' : 'footer.no')}`);
-    if (chosen.packs) say(`  ${T(ctx, 'packs.autoUse')}: ${T(ctx, chosen.packs.autoUse ? 'footer.yes' : 'footer.no')}`);
+    if (chosen.footer) say(`  ${nameOf('footer.mode', ctx.lang)}: ${valueText('footer.mode', chosen.footer.mode, ctx.lang)}`);
+    if (chosen.update) say(`  ${nameOf('update.check', ctx.lang)}: ${valueText('update.check', chosen.update.check, ctx.lang)}`);
+    if (chosen.packs) say(`  ${nameOf('packs.autoUse', ctx.lang)}: ${valueText('packs.autoUse', chosen.packs.autoUse, ctx.lang)}`);
     say();
   }
   if (!flag(a, 'yes', 'y') && !(await confirm(T(ctx, 'install.confirm')))) {
@@ -1078,9 +1102,6 @@ export async function cmdAutonomy(a: Args): Promise<number> {
 
 // ── config ──
 
-/** Settings an agent's shell may not change: they lower a protection or widen what a session does unasked. */
-const PROTECTIVE = /^(?:belt|memory|modules\.(?:quota|secrets)|autonomy|bypass|agents|projects|sync|update|packs|skills)(?:\.|$)/;
-
 export async function cmdConfig(a: Args): Promise<number> {
   const ctx = appContext();
   const sub = a.positionals[0] ?? 'get';
@@ -1096,6 +1117,7 @@ export async function cmdConfig(a: Args): Promise<number> {
     else say(String(v));
     return v === undefined ? 1 : 0;
   }
+  if (sub === 'explain') return explainSetting(ctx, a.positionals[1], flag(a, 'json'));
   if (sub === 'set') {
     const key = a.positionals[1];
     const raw = a.positionals[2];
@@ -1103,7 +1125,7 @@ export async function cmdConfig(a: Args): Promise<number> {
       say(red(T(ctx, 'config.usage')));
       return 2;
     }
-    if (PROTECTIVE.test(key) && underAgent()) {
+    if (personOnly(key) && underAgent()) {
       say(red(T(ctx, 'cli.agentRefused')));
       return 1;
     }
@@ -1125,6 +1147,75 @@ export async function cmdConfig(a: Args): Promise<number> {
   }
   say(red(T(ctx, 'cli.unknownSub', { sub, cmd: 'config' })));
   return 2;
+}
+
+/**
+ * `config explain`: a setting's four answers from the catalog, as the control center's card gives them (what it is,
+ * now, what each change does, how to take it back, who changes it), and the command that changes it. Without a name,
+ * every setting page by page with its value now. An unknown name: the nearest ones, exit 2.
+ */
+function explainSetting(ctx: AppContext, key: string | undefined, json: boolean): number {
+  const lang = ctx.lang;
+  const cols = Math.max(48, Math.min(process.stdout.columns || 100, 120));
+  if (json) {
+    const paths = key ? (settingOf(key) ? [key as SettingPath] : []) : allSettingPaths();
+    say(
+      JSON.stringify(
+        key
+          ? paths[0]
+            ? { path: key, ...explain(ctx.config, paths[0], lang, placeOf) }
+            : { error: 'not-a-setting', nearest: nearestSettings(key) }
+          : paths.map((p) => ({ path: p, ...explain(ctx.config, p, lang, placeOf) })),
+        null,
+        2,
+      ),
+    );
+    return key && !paths.length ? 2 : 0;
+  }
+  if (!key) {
+    let page = '';
+    for (const p of allSettingPaths()) {
+      const s = settingOf(p)!;
+      if (s.def.page !== page) {
+        page = s.def.page;
+        say();
+        say(bold(placeOf(page, lang)));
+      }
+      say(`  ${cyan(p.padEnd(34))} ${nameOf(p, lang)}: ${valueText(p, valueIn(ctx.config, p), lang)}`);
+    }
+    say();
+    say(dim(T(ctx, 'config.explainHint', { cmd: `${CLI_NAME} config explain <setting>` })));
+    return 0;
+  }
+  const s = settingOf(key);
+  if (!s) {
+    say(red(T(ctx, 'config.notASetting', { key })));
+    const near = nearestSettings(key);
+    if (near.length) say(T(ctx, 'config.didYouMean', { names: near.join(', ') }));
+    say(dim(T(ctx, 'config.explainList', { cmd: `${CLI_NAME} config explain` })));
+    return 2;
+  }
+  const p = key as SettingPath;
+  const e = explain(ctx.config, p, lang, placeOf);
+  const k = s.def.kind;
+  const rows: [MessageKey | '', string][] = [
+    ['ux.q.what', e.what],
+    ['ux.q.now', `${e.now} (${e.isDefault ? T(ctx, 'ux.default') : T(ctx, 'ux.defaultIs', { value: e.defaultText })}). ${e.nowEffect}`],
+    ...(e.blocked ? [['', e.blocked] as [MessageKey | '', string]] : []),
+    ...(e.range
+      ? [['ux.q.change', T(ctx, 'ux.range', e.range)] as [MessageKey | '', string]]
+      : e.changes.map((c, i): [MessageKey | '', string] => [i === 0 ? 'ux.q.change' : '', `${c.text}: ${c.effect}`])),
+    ['ux.q.back', e.back],
+    ...(e.personOnly ? [['ux.q.who', T(ctx, 'ux.personOnly')] as [MessageKey | '', string]] : []),
+  ];
+  const lw = Math.max(...rows.map(([l]) => (l ? T(ctx, l).length : 0))) + 2;
+  say(`${bold(e.name)} ${dim(`(${p}) · ${placeOf(s.def.page, lang)}`)}`);
+  say();
+  for (const [l, text] of rows) wrapText(text, cols - 2 - lw).forEach((line, i) => say(`  ${(i === 0 && l ? T(ctx, l) : '').padEnd(lw)}${line}`));
+  say();
+  const values = k.kind === 'switch' ? 'true|false' : k.kind === 'choice' ? k.options.join('|') : `${k.min}-${k.max}`;
+  say(dim(T(ctx, 'config.explainSet', { cmd: `${CLI_NAME} config set ${p} ${values}` })));
+  return 0;
 }
 
 /** A transcript export with secrets masked, for sharing a session. */
@@ -1162,6 +1253,7 @@ export function helpText(lang: Lang): string {
     `  ${c('belt rules|events|test|replay'.padEnd(31))}${L('help.belt')}`,
     `  ${c('secrets [path…]'.padEnd(31))}${L('help.secrets')}`,
     `  ${c('config get|set|path'.padEnd(31))}${L('help.config')}`,
+    `  ${c('config explain [setting]'.padEnd(31))}${L('help.configExplain')}`,
     `  ${c('update [--check] [--yes]'.padEnd(31))}${L('help.update')}`,
     `  ${c('trust'.padEnd(31))}${L('help.trust')}`,
     `  ${c('packs [on|off|set|auto|guide]'.padEnd(31))}${L('help.packs')}`,

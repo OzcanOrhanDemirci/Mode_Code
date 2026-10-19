@@ -11,6 +11,7 @@ import { enAuto } from './en-auto.js';
 import { enMemory } from './en-memory.js';
 import { enSync } from './en-sync.js';
 import { enControls } from './en-controls.js';
+import { enCatalog } from './en-catalog.js';
 
 export const en = {
   ...enUi,
@@ -21,6 +22,7 @@ export const en = {
   ...enMemory,
   ...enSync,
   ...enControls,
+  ...enCatalog,
   // ── safety belt: reasons (one per situation; {placeholders} are filled in) ──
   'belt.reason.inline': 'Inside code passed to an interpreter: {reason}',
   'belt.reason.deleteUnknown': 'Recursive delete whose target is only known at run time: {target}.',
@@ -182,7 +184,7 @@ export const en = {
   'quota.toast.stop': 'Quota limit reached ({window} {used}%): stopping.',
   'quota.window.five_hour': '5-hour',
   'quota.window.seven_day': 'weekly',
-  'quota.notify.resume': 'The quota window reset. Work resumes now.',
+  'quota.notify.resume': 'The quota period reset. Work resumes now.',
 } as const;
 
 export type MessageKey = keyof typeof en;

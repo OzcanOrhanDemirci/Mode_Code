@@ -42,6 +42,8 @@ const run = spawnSync(
   [
     '--import',
     'tsx',
+    '--import',
+    './test/helpers/clean-env.mjs',
     '--test',
     '--test-reporter=spec',
     `--test-reporter-destination=${reportPath}`,
