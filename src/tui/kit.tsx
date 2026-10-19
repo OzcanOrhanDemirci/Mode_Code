@@ -31,7 +31,8 @@ export function themeColor(theme: Theme, m: Meaning): string | undefined {
 
 export function inkHost(theme: Theme): KitHost<ReactNode> {
   return {
-    box: (p, ...c) => createElement(Box, p, ...c),
+    // No hover here: the pointer's sentence comes from a pressable's own `describe` (src/tui/press.tsx).
+    box: ({ scope: _scope, ...p }, ...c) => createElement(Box, p, ...c),
     text: (p, ...c) => createElement(Text, p, ...c),
     press: (p, ...c) => createElement(Pressable, { key: p.id, onPress: p.onPress, describe: p.describe }, ...c),
     color: (m) => themeColor(theme, m),

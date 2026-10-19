@@ -260,8 +260,8 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.ctl.flow.what': 'Akış: araştırma ▶ plan → onay → kod, adımları kod denetler',
   'ux.ctl.flow.press':
     'Penceresi adımları (araştırma, plan, onayın, kod) ve bir görev sunar: görevi orada yazarsan akış hemen başlar; boş bırakırsan sonraki mesajın görev olur.',
-  'ux.ctl.menu.what': 'Kontrol merkezini yeni sekmede açar; oturumun durumunu söyler',
-  'ux.ctl.menu.press': 'Kontrol merkezi yeni bir sekmede ya da pencerede açılır; bu oturum sürer.',
+  'ux.ctl.cockpit.what': "Kokpit: Claude'un şu an ne yapabildiği, ne çalıştığı, kota ve hızlı ayarlar, konuşmanın yanında",
+  'ux.ctl.cockpit.press': 'Kokpit açılır: geniş ekranda konuşmanın yanında, değilse istemin üstünde. Kontrol merkezi oradan bir basış.',
   'ux.ctl.continue.what': 'Bir projeye ya da klasöre devam: verilmezse hepsini listeler',
   'ux.ctl.continue.press': 'Bir projeyi son devir notunun bıraktığı yerden açar; verirsen bütçesiyle.',
   'ux.ctl.why.what': 'Neden böyle: her parça şu an nasıl, arkasındaki ayarlar ve seçimler',
@@ -288,6 +288,7 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.ctl.back.bypass': 'Yeniden bas (⚡ ya da /bypass) ya da süresi dolsun; oturumla biter.',
   'ux.ctl.back.freeze': 'Yeniden dondur ya da "kapat" yaz; biter (şeritte ❄).',
   'ux.ctl.back.agents': 'Aynı yoldan başka bir sayı ver ya da kapat.',
+  'ux.ctl.back.cockpit': 'Bir daha bas (şeritte 0 ya da /0): kapanır ya da açılır, başka hiçbir şeyi değiştirmez.',
   'ux.ctl.back.close': 'Geri alınmaz. Claude çalışırken önce sorar; sonraki oturum nottan devralır.',
 
   // Denetim geçerliyken basmak ne yapar (src/core/ux/say.ts): bitirir, sürdürür ya da kaldırır.
@@ -296,6 +297,7 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.ctl.flow.pressArmed': 'Kaldırılır: sıradaki mesajın sıradan bir mesaj olur.',
   'ux.ctl.bypass.pressOn': 'Bypass hemen biter; emniyet kemeri yine sorar.',
   'ux.ctl.freeze.pressOn': 'Dondurma biter; yazmalar yine emniyet kemerinin izin verdiği her yere gidebilir.',
+  'ux.ctl.cockpit.pressOn': 'Kokpit kapanır; oturum sürer.',
   'ux.ctl.fullAuto.pressOn': 'İş "tam otonom iptal" gibi biter; o ana kadarki iş commit\'li kalır.',
   // Nasıl geri alınır, şeridin altındaki satıra sığacak kısalıkta.
   'ux.ctl.backShort.mode': 'Geri: başka bir mod seç',
@@ -309,6 +311,7 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.ctl.backShort.freeze': 'Geri: yeniden bas',
   'ux.ctl.backShort.agents': 'Geri: başka bir sayı ya da kapat',
   'ux.ctl.backShort.close': 'Geri alınmaz',
+  'ux.ctl.backShort.cockpit': 'Geri: bir daha bas',
 
   // ── şeridin sözleri (src/core/ux/say.ts): altındaki satır ve her denetimin kartı ──
   'ux.say.mode.chat': 'yalnız konuşur; hiçbir dosyayı değiştirmez',
@@ -329,6 +332,7 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.say.agents.assigned': '👥 sıradaki isteğin için tam {n} ajan',
   'ux.say.agents.ultracode': "👥 ajanları Claude Code'un iş akışları çalıştırır",
   'ux.say.activity': 'etkinlik {n}',
+  'ux.say.waiting': '{n} seni bekliyor',
   'ux.say.agentView': '👥 Bir ajanın konuşmasına bakıyorsun; sıradaki Enter ona gider.',
   'ux.say.mainView': 'Ana konuşmaya dön',
   'ux.say.mo.idle': 'Mo: çalışan bir iş yok; Claude seni bekliyor.',
@@ -342,7 +346,7 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.say.mo.stopped': 'Mo: çalışma durduruldu.',
   'ux.say.mo.auto': 'Mo: bir tam otonom iş sürüyor.',
   'ux.say.mo.low': 'Mo: kota sınırına yakın.',
-  'ux.say.mo.click': 'tıkla: neler oldu',
+  'ux.say.mo.click': 'tıkla: kokpit',
   'ux.card.what': 'Ne',
   'ux.card.now': 'Şu an',
   'ux.card.press': 'Basarsan',

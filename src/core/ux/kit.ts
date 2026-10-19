@@ -24,6 +24,11 @@ export interface KitBox {
   marginRight?: number;
   paddingX?: number;
   justifyContent?: 'flex-start' | 'flex-end' | 'space-between';
+  /**
+   * The hover group it joins where the host has one (Claude Code): pointing at it reveals what shares the scope, its
+   * card. A host without a pointer's hover leaves it out; the card is reached by the keyboard there.
+   */
+  scope?: string;
 }
 
 /** The text props both hosts take. */
@@ -51,6 +56,8 @@ export interface KitPress {
   dismiss?: boolean;
   /** The window's keyboard starts here, Enter acting on it at once: Cancel, where the main action lowers a protection. */
   autoFocus?: boolean;
+  /** The hover group it joins, as a box's (KitBox.scope): pointing at it reveals its card where the host can. */
+  scope?: string;
 }
 
 export interface KitHost<N> {
@@ -99,7 +106,7 @@ export function opener<N>(h: KitHost<N>, p: KitPress & { label: string }): N {
  * button, `›`). Rows of one block share `labelWidth`, so their values start, and their trailing ends, together.
  */
 export function row<N>(h: KitHost<N>, p: { label: string; labelWidth: number; value: Child<N>; trailing?: Child<N>; width?: number; muted?: boolean }): N {
-  const label = fit(h, p.label, p.labelWidth - 2);
+  const label = fitText(h, p.label, p.labelWidth - 2);
   return h.box(
     { flexDirection: 'row', ...(p.width ? { width: p.width } : {}) },
     h.box({ width: p.labelWidth, flexShrink: 0 }, h.text(colored(h.color('off')), label)),
@@ -147,7 +154,7 @@ export function meter<N>(
   const word = p.words?.[level];
   return h.box(
     { flexDirection: 'row' },
-    h.box({ width: p.labelWidth, flexShrink: 0 }, h.text({ wrap: 'truncate-end' }, fit(h, p.label, p.labelWidth - 1))),
+    h.box({ width: p.labelWidth, flexShrink: 0 }, h.text({ wrap: 'truncate-end' }, fitText(h, p.label, p.labelWidth - 1))),
     h.text(colored(h.color(meaning)), bar.slice(0, filled).join('')),
     h.text(colored(h.color('off')), bar.slice(filled).join('')),
     h.text({}, ` ${p.value}`),
@@ -279,7 +286,7 @@ export function card<N>(h: KitHost<N>, p: { lines: readonly { label: string; tex
       wrapText(l.text, vw, h.measure).map((line, i) =>
         h.box(
           { flexDirection: 'row' },
-          h.box({ width: lw, flexShrink: 0 }, h.text(colored(h.color('off')), i === 0 ? fit(h, l.label, lw - 2) : '')),
+          h.box({ width: lw, flexShrink: 0 }, h.text(colored(h.color('off')), i === 0 ? fitText(h, l.label, lw - 2) : '')),
           h.text(l.meaning ? colored(h.color(l.meaning)) : {}, line),
         ),
       ),
@@ -297,7 +304,7 @@ export function empty<N>(h: KitHost<N>, p: { text: string; width: number; action
 }
 
 /** Text cut to `max` columns with an ellipsis, never run into the next column. */
-function fit<N>(h: KitHost<N>, s: string, max: number): string {
+export function fitText<N>(h: Pick<KitHost<N>, 'measure'>, s: string, max: number): string {
   if (max <= 0) return '';
   if (h.measure(s) <= max) return s;
   let out = '';

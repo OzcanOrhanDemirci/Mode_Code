@@ -61,7 +61,7 @@ test('every control has its number, 0 to 8 and 00, and the words that take a val
   assert.equal(commandNamed('000'), null);
   assert.equal(digitOf({ kind: 'mode', mode: 'chat' }), '1');
   assert.equal(digitOf({ kind: 'style', style: 'manual' }), '7');
-  assert.equal(digitOf({ kind: 'menu' }), '0');
+  assert.equal(digitOf({ kind: 'cockpit' }), '0');
   assert.equal(digitOf({ kind: 'close' }), '00', 'a number of two digits is on the strip too');
   // Every command name is one Claude Code takes: letters, digits, "_" and "-".
   for (const n of names) assert.match(n, /^[A-Za-z0-9_-]{1,64}$/);
@@ -248,8 +248,16 @@ test('the strip: every control on every layout, one row when it fits, never wide
       String(columns),
     );
   }
-  assert.equal(stripRows(view, 'tr', 400).flat().at(-1)!.items[0]!.label, '0 ≡ menü…');
-  assert.equal(stripRows(view, 'tr', 50).flat().at(-1)!.items[0]!.label, '0≡…');
+  assert.equal(stripRows(view, 'tr', 400).flat().at(-1)!.items[0]!.label, '0 ≡ kokpit ○');
+  assert.equal(stripRows(view, 'tr', 50).flat().at(-1)!.items[0]!.label, '0≡○');
+  assert.deepEqual(
+    {
+      ...stripRows({ ...view, cockpit: true }, 'en', 400)
+        .flat()
+        .at(-1)!.items[0]!,
+    },
+    { id: '0', label: '0 ≡ cockpit ●', active: true },
+  );
   assert.equal(last(stripRows(view, 'en', 200)).label, '00 ✕ close');
   assert.equal(last(stripRows(view, 'tr', 50)).label, '00✕');
 });
@@ -265,7 +273,7 @@ test('the controls in a line and the menu', () => {
   assert.ok(!menu.includes('/tam-otonom'), 'full autonomy is listed only once turned on');
   assert.match(menuText({ ...view, fullAutoShown: true }, 'tr', '—'), /\/8 otonom\*\* · \/tam-otonom$/m);
   assert.match(menuText({ ...view, flow: { at: '2/4', state: 'running' } }, 'tr', '—'), /\/5 serbest · \*\*\/6 akış 2\/4\*\*$/m);
-  assert.match(menuText(view, 'en', '—'), /\/0 menu · \/00 close$/m);
+  assert.match(menuText(view, 'en', '—'), /\/0 cockpit · \/00 close$/m);
 });
 
 test('the flow on the strip: lit while on, the mode of its working step breathing; paused it waits, marked', () => {
@@ -438,9 +446,18 @@ test('the look tells the kind on the strip, on every layout: an opener ends in �
         .flat()
         .flatMap((s) => s.items);
       const label = (id: string) => items.find((i) => i.id === id)!.label;
-      for (const id of ['0', commandOf({ kind: 'fullAuto' }, lang), commandOf({ kind: 'agents' }, lang), '6'])
+      for (const id of [commandOf({ kind: 'fullAuto' }, lang), commandOf({ kind: 'agents' }, lang), '6'])
         assert.ok(label(id).includes('…'), `${lang} ${columns} ${id}: ${label(id)}`);
       assert.ok(label('bypass').includes('○'), `${lang} ${columns} bypass`);
+      // The cockpit is a switch too: shown or not.
+      assert.ok(label('0').includes('○'), `${lang} ${columns} 0: ${label('0')}`);
+      assert.ok(
+        stripRows({ ...all, cockpit: true }, lang, columns)
+          .flat()
+          .flatMap((s) => s.items)
+          .find((i) => i.id === '0')!
+          .label.includes('●'),
+      );
       assert.ok(label(commandOf({ kind: 'freeze' }, lang)).includes('●'), `${lang} ${columns} freeze`);
       // A choice and an action carry no such mark: the lit one is the choice made, closing acts at once.
       for (const id of ['1', '2', '3', '4', '5', '7', '8', '00']) assert.ok(!/[…●○]/.test(label(id)), `${lang} ${columns} ${id}: ${label(id)}`);
@@ -459,7 +476,7 @@ test('a budget that cannot be set says why: none given, points above now with no
 
 test('the command of each control: its number, or its word in the person language for those without one', () => {
   assert.equal(commandOf({ kind: 'mode', mode: 'plan' }, 'tr'), '3');
-  assert.equal(commandOf({ kind: 'menu' }, 'en'), '0');
+  assert.equal(commandOf({ kind: 'cockpit' }, 'en'), '0');
   assert.equal(commandOf({ kind: 'close' }, 'tr'), '00');
   assert.deepEqual([commandOf({ kind: 'why' }, 'tr'), commandOf({ kind: 'why' }, 'en')], ['neden', 'why']);
   assert.deepEqual([commandOf({ kind: 'freeze' }, 'tr'), commandOf({ kind: 'agents' }, 'en')], ['dondur', 'parallel']);

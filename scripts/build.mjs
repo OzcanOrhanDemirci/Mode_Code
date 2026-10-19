@@ -121,6 +121,18 @@ const stripPulse = await build({
   banner: { js: banner },
 });
 
+// A call's running time in the cockpit: a third surface module, counting on its own clock.
+const cockpitClock = await build({
+  ...common,
+  entryPoints: [join(root, 'src', 'mod', 'cockpit-clock.ts')],
+  outfile: join(dist, 'plugin', 'hooks', 'cockpit-clock.js'),
+  platform: 'neutral',
+  target: 'es2023',
+  external: ['claude-code'],
+  minify: false,
+  banner: { js: banner },
+});
+
 const manifest = {
   name: pkg.name,
   version: pkg.version,
@@ -179,7 +191,7 @@ for (const id of Object.keys(external)) await cp(join(root, 'skills-external', i
 
 // ── third-party notices: every package that ended up in a bundle, with its license text ──
 const inputs = new Set();
-for (const r of [cli, hook, mod, moStrip, stripPulse]) for (const k of Object.keys(r.metafile.inputs)) inputs.add(k.replace(/\\/g, '/'));
+for (const r of [cli, hook, mod, moStrip, stripPulse, cockpitClock]) for (const k of Object.keys(r.metafile.inputs)) inputs.add(k.replace(/\\/g, '/'));
 const packages = new Map();
 for (const input of inputs) {
   const m = /node_modules\/((?:@[^/]+\/)?[^/]+)\//.exec(input);

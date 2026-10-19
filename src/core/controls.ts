@@ -23,7 +23,7 @@ export type ControlAction =
   | { kind: 'style'; style: 'manual' | 'autonomous' }
   | { kind: 'fullAuto' }
   | { kind: 'flow' }
-  | { kind: 'menu' }
+  | { kind: 'cockpit' }
   | { kind: 'continue' }
   | { kind: 'quota' }
   | { kind: 'close' }
@@ -42,7 +42,7 @@ export const COMMANDS: readonly { name: string; action: ControlAction }[] = [
   { name: '6', action: { kind: 'flow' } },
   { name: '7', action: { kind: 'style', style: 'manual' } },
   { name: '8', action: { kind: 'style', style: 'autonomous' } },
-  { name: '0', action: { kind: 'menu' } },
+  { name: '0', action: { kind: 'cockpit' } },
   { name: '00', action: { kind: 'close' } },
   { name: 'devam', action: { kind: 'continue' } },
   { name: 'continue', action: { kind: 'continue' } },
@@ -265,7 +265,7 @@ export interface StripItem {
 }
 
 /**
- * A group of controls: the mode with the flow and the way of working, each titled; and the menu with
+ * A group of controls: the mode with the flow and the way of working, each titled; and the cockpit with
  * closing, which belong to no way of working: untitled, at the row's far end, as a window's own buttons.
  */
 export interface StripSegment {
@@ -302,6 +302,8 @@ export interface StripView {
   frozen?: string | null;
   /** Parallel agents: on the strip once turned on (Automation); the session's mode, and how many run now. */
   agents?: { shown: boolean; state: AgentsState; running: number };
+  /** The cockpit is open (src/core/ux/cockpit.ts): beside the conversation, or above the prompt. */
+  cockpit?: boolean;
 }
 
 /**
@@ -368,7 +370,7 @@ function modeLabel(m: WorkMode, lang: Lang): string {
 
 /**
  * The strip's rows for `columns`: one row when it fits, else the mode on one and the way of working on the
- * next, else numbers and icons only. The menu and closing end the last row, apart from the way of working.
+ * next, else numbers and icons only. The cockpit and closing end the last row, apart from the way of working.
  * Every layout carries every control, the number of each in its label.
  */
 export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[] {
@@ -438,7 +440,8 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
       title: '',
       end: true,
       items: [
-        { id: '0', label: tight ? `0≡${OPENER}` : `0 ≡ ${tIn(lang, 'ctl.strip.menu')}${OPENER}`, active: false },
+        // The cockpit, a switch: shown or not, and a press flips it (the person, 2026-10-18: "≡ kokpit").
+        { id: '0', label: tight ? `0≡${switchMark(!!v.cockpit)}` : `0 ≡ ${tIn(lang, 'ctl.strip.cockpit')} ${switchMark(!!v.cockpit)}`, active: !!v.cockpit },
         { id: '00', label: tight ? '00✕' : `00 ✕ ${tIn(lang, 'ctl.strip.close')}`, active: false },
       ],
     },
@@ -481,7 +484,7 @@ export function menuText(v: StripView, lang: Lang, quota: string, update: string
     ...(v.bypass.shown || v.bypass.on ? [mark(v.bypass.on, `/bypass`)] : []),
     ...(v.agents?.shown ? [mark(v.agents.state.mode !== 'off', `/${commandOf({ kind: 'agents' }, lang)}`)] : []),
   ].join(' · ');
-  const other = ['/devam', '/kota', `/0 ${tIn(lang, 'ctl.strip.menu')}`, `/00 ${tIn(lang, 'ctl.strip.close')}`].join(' · ');
+  const other = ['/devam', '/kota', `/0 ${tIn(lang, 'ctl.strip.cockpit')}`, `/00 ${tIn(lang, 'ctl.strip.close')}`].join(' · ');
   return [
     tIn(lang, 'ctl.menu.now', { controls: controlsLine(v, lang), quota }),
     ...(update ? ['', tIn(lang, 'ctl.menu.update', { newer: update })] : []),

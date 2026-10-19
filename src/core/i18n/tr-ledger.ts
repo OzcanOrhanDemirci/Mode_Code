@@ -16,6 +16,7 @@ export const trLedger: Record<keyof typeof enLedger, string> = {
   'changes.who.sync': 'başka bir bilgisayar, burada onaylandı',
   'changes.who.undo': 'bir geri alma',
   'changes.who.default': 'varsayılana dönüş',
+  'changes.who.cockpit': 'kokpit',
   'changes.key.undo': 'geri al',
   'page.history': 'Değişiklik geçmişi',
   'desc.history': 'Bir ayardaki her değişiklik: ne zaman, neyden neye ve nereden geldiği. Enter ya da tıklama birini geri alır.',

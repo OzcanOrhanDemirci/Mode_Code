@@ -13,11 +13,11 @@ import { defaultOf, nameOf, SETTING_IDS, SETTINGS, valueIn, valueText, type Sett
 
 /**
  * Who made a change: the control center, the command line, a setup, a template, the doctor, another computer's change
- * approved here, an undo, a page put back to its defaults.
+ * approved here, an undo, a page put back to its defaults, the cockpit inside Claude Code (src/core/ux/cockpit.ts).
  */
-export type ChangeWho = 'center' | 'command' | 'setup' | 'template' | 'doctor' | 'sync' | 'undo' | 'default';
+export type ChangeWho = 'center' | 'command' | 'setup' | 'template' | 'doctor' | 'sync' | 'undo' | 'default' | 'cockpit';
 
-export const CHANGE_WHO: readonly ChangeWho[] = ['center', 'command', 'setup', 'template', 'doctor', 'sync', 'undo', 'default'];
+export const CHANGE_WHO: readonly ChangeWho[] = ['center', 'command', 'setup', 'template', 'doctor', 'sync', 'undo', 'default', 'cockpit'];
 
 export interface ChangeRow {
   v: 1;

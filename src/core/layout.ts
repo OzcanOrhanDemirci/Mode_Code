@@ -4,7 +4,8 @@
  * (through `$.fs`) and Node code (through `node:fs`) compute the same paths from the same folder.
  *
  * Every runtime file has exactly one writer, so no two processes ever race on a file:
- *   config.json                      the person (through the interface or an editor)
+ *   config.json                      the person (through the control center, the command line, the cockpit, or an editor)
+ *   state/changes.jsonl              whoever wrote config.json for the person: a row per setting changed (core/ux/changes.ts)
  *   state/quota.json                 the mod (the latest rate-limit reading)
  *   state/sessions/<id>.mod.json     the mod (mode, budget, approvals for this session)
  *   state/sessions/<id>.hook.json    the safety-net hook
@@ -28,6 +29,7 @@
  *   state/update.json                the command line (the last check for a newer release: core/update.ts)
  *   secrets-allow.json               the command line (fingerprints of secrets the person let a memory push send)
  *   state/mcp-pins.json              the mod (fingerprints of the MCP tools' descriptions as first seen: core/mcp-pins.ts)
+ *   state/cockpit.json               the mod (whether the person keeps the cockpit open: core/ux/cockpit.ts)
  */
 import { joinPath } from './paths.js';
 import { APP_ID } from './app.js';
@@ -60,6 +62,8 @@ export interface Layout {
   updateState: string;
   secretsAllow: string;
   mcpPins: string;
+  /** Whether the person keeps the cockpit open, so the next session opens it in its place. */
+  cockpit: string;
 }
 
 export function layout(root: string): Layout {
@@ -91,6 +95,7 @@ export function layout(root: string): Layout {
     updateState: joinPath(root, 'state', 'update.json'),
     secretsAllow: joinPath(root, 'secrets-allow.json'),
     mcpPins: joinPath(root, 'state', 'mcp-pins.json'),
+    cockpit: joinPath(root, 'state', 'cockpit.json'),
   };
 }
 

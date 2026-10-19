@@ -17,6 +17,7 @@ export const enLedger = {
   'changes.who.sync': 'another computer, approved here',
   'changes.who.undo': 'an undo',
   'changes.who.default': 'back to the default',
+  'changes.who.cockpit': 'the cockpit',
   'changes.key.undo': 'take it back',
   'page.history': 'History of changes',
   'desc.history': 'Every change to a setting: when, from what to what, and where it came from. Enter or a click takes one back.',

@@ -124,6 +124,10 @@ const TARGETS = {
   'src/core/ux/why.ts': ['test/core/ux-why.test.ts'],
   // The strip in words (docs/modes.md, "The line under the strip"): what Claude does now, each control's card, Mo's state.
   'src/core/ux/say.ts': ['test/core/ux-say.test.ts'],
+  // The cockpit (docs/design.md, The cockpit): what Claude may do now, worked out from the settings and the session.
+  'src/core/ux/cockpit.ts': ['test/core/ux-cockpit.test.ts'],
+  'src/core/ux/cockpit-view.ts': ['test/core/ux-cockpit.test.ts'],
+  'src/core/ux/elapsed.ts': ['test/core/ux-cockpit.test.ts'],
 };
 
 // ── finding mutation sites in TypeScript without a parser: code outside strings, comments and regexes ──

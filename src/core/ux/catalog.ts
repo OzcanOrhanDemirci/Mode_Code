@@ -454,7 +454,7 @@ export type ControlId =
   | 'style.autonomous'
   | 'fullAuto'
   | 'flow'
-  | 'menu'
+  | 'cockpit'
   | 'continue'
   | 'quota'
   | 'bypass'
@@ -471,7 +471,7 @@ export interface ControlDef {
   /** The settings that must be on for it to be there at all. */
   needs?: readonly SettingId[];
   /** How it is taken back: `ux.ctl.back.<back>`. */
-  back: 'mode' | 'style' | 'fullAuto' | 'flow' | 'none' | 'continue' | 'quota' | 'bypass' | 'freeze' | 'agents' | 'close';
+  back: 'mode' | 'style' | 'fullAuto' | 'flow' | 'none' | 'continue' | 'quota' | 'bypass' | 'freeze' | 'agents' | 'close' | 'cockpit';
 }
 
 const mode = { kind: 'choice', needs: ['modules.modes'], back: 'mode' } as const;
@@ -486,7 +486,7 @@ export const CONTROLS: Readonly<Record<ControlId, ControlDef>> = {
   'style.autonomous': { kind: 'choice', needs: ['modules.modes'], back: 'style' },
   fullAuto: { kind: 'opener', personOnly: true, needs: ['modules.modes', 'autonomy.enabled'], back: 'fullAuto' },
   flow: { kind: 'action', needs: ['modules.modes'], back: 'flow' },
-  menu: { kind: 'opener', back: 'none' },
+  cockpit: { kind: 'switch', back: 'cockpit' },
   continue: { kind: 'opener', back: 'continue' },
   quota: { kind: 'opener', back: 'quota' },
   bypass: { kind: 'switch', personOnly: true, needs: ['bypass.enabled'], back: 'bypass' },

@@ -41,6 +41,8 @@ export function controlOn(id: ControlId, v: StripView): boolean {
       return !!v.frozen;
     case 'agents':
       return !!v.agents && (v.agents.state.mode !== 'off' || v.agents.state.ultracode);
+    case 'cockpit':
+      return !!v.cockpit;
     default:
       return false;
   }
@@ -79,7 +81,7 @@ const FLOW_PRESS = {
 /** What a press does now: a control in effect is pressed to end it (a switch, the flow, a run); the rest as the catalog says. */
 function pressText(id: ControlId, v: StripView, lang: Lang): string {
   if (id === 'flow' && v.flow) return tIn(lang, FLOW_PRESS[v.flow.state]);
-  if ((id === 'bypass' || id === 'freeze' || id === 'fullAuto') && controlOn(id, v)) return t(lang, `ux.ctl.${id}.pressOn`);
+  if ((id === 'bypass' || id === 'freeze' || id === 'fullAuto' || id === 'cockpit') && controlOn(id, v)) return t(lang, `ux.ctl.${id}.pressOn`);
   return controlText(id, 'press', lang);
 }
 

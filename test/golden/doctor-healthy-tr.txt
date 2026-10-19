@@ -16,7 +16,7 @@ Kurulum
   ✓ Hook programı bu sürümle aynı (sha256 aaaaaaaaaaaa…).
   ✓ Güvenlik ağı hook'ları 4 olayın hepsinde yerinde ve hata olursa engelliyor.
   ✓ Eklenti dosyaları bu sürümle aynı.
-  ✓ /0 kontrol merkezini C:/dev/mode-code/dist/cli.mjs ile açar.
+  ✓ Kontrol merkezi kokpitten C:/dev/mode-code/dist/cli.mjs ile açılır.
   ✓ Eklenti en son 2026-10-12 11:50 (UTC) zamanında bir oturumdan haber verdi.
   ✓ Mode_Code 1.2.0 en yeni sürüm.
   · Tam otonom kapalı (mode-code autonomy enable ile açılır).

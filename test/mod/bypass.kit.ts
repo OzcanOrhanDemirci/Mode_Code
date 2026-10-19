@@ -39,7 +39,7 @@ async function turnOn($: any): Promise<any> {
 test('until it is turned on in the settings, there is no bypass: /bypass says where to turn it on', async ($, on) => {
   const w = world(on, { answer: 'allow' });
   const r = await run($, 'bypass');
-  expect(r.text).toBe('Bypass is not turned on. Turn it on in the control center: Automation › Bypass (/0 opens it).');
+  expect(r.text).toBe('Bypass is not allowed yet: allow it in the cockpit (/0) or under Automation › Bypass.');
   expect(w.modState()?.bypass ?? null).toBe(null);
   expect(w.asked).toEqual([]);
 });

@@ -13,11 +13,13 @@ import { COLORS } from '../core/ux/tokens.js';
 type Tag = Parameters<typeof h>[0];
 type Node = ReturnType<typeof h>;
 
-const box = (p: KitBox): BoxProps => p;
+// A scope is the hover group the element joins: pointing at it reveals what shares the scope (its card). A box that
+// has one is keyed by it too, so it is found by its scope (a scope is unique among what is drawn together).
+const box = ({ scope, ...p }: KitBox): BoxProps => (scope ? { ...p, key: scope, hover: { scope } } : p);
 const text = (p: KitText): TextProps => p;
 // An assignment lets a prop Claude Code lacks through (TypeScript checks extra keys on literals only): name none.
 type Only<A, B> = [Exclude<keyof A, keyof B>] extends [never] ? true : Exclude<keyof A, keyof B>;
-const boxKeys: Only<KitBox, BoxProps> = true;
+const boxKeys: Only<Omit<KitBox, 'scope'>, BoxProps> = true;
 const textKeys: Only<KitText, TextProps> = true;
 void boxKeys;
 void textKeys;
@@ -29,6 +31,7 @@ const button = (p: KitPress): Omit<ButtonProps, 'label'> => ({
   ...(p.primary ? { variant: 'primary' as const } : {}),
   ...(p.dismiss ? { role: 'dismiss' as const } : {}),
   ...(p.autoFocus ? { autoFocus: true as const } : {}),
+  ...(p.scope ? { hover: { scope: p.scope } } : {}),
 });
 
 /** Children as the surface takes them: nothing drawn for an absent one. */

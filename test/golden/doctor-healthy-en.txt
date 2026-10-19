@@ -16,7 +16,7 @@ Installation
   ✓ The hook program matches this version (sha256 aaaaaaaaaaaa…).
   ✓ The safety-net hooks are in place for all 4 events and block on failure.
   ✓ The plugin files match this version.
-  ✓ /0 opens the control center from C:/dev/mode-code/dist/cli.mjs.
+  ✓ The control center opens from the cockpit with C:/dev/mode-code/dist/cli.mjs.
   ✓ The plugin last reported in from a session at 2026-10-12 11:50 (UTC).
   ✓ Mode_Code 1.2.0 is the newest release.
   · Full autonomy is off (mode-code autonomy enable turns it on).

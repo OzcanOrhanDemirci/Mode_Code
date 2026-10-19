@@ -121,7 +121,7 @@ test('the reader of references finds a broken one, and a setting named as the la
   const roots = buildTree(new FakeData('en', { view: 'detailed' }), 'en', NOW);
   const one = (text: string) => resolveChain(roots, references(text)[0]!.parts, 'en');
   assert.equal(one('Turn it on under Automation › Full autonomy.'), null);
-  assert.equal(one('Control center: Automation › Parallel agents (/0 opens it).'), null);
+  assert.equal(one('Turn them on in the cockpit (/0) or under Automation › Parallel agents.'), null);
   assert.equal(one('With bypass on (control center › Automation › Bypass), it asks.'), null);
   assert.equal(one('The daily check is off: Settings › Language and view › Check for updates daily.'), null);
   assert.match(one('Modes are off (Settings › Moods).') ?? '', /"Moods" is not under settings/);

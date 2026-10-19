@@ -22,7 +22,7 @@ Every element on every surface answers four questions where it stands, without a
 3. **What exactly happens if I change it?** For each value, before it is applied.
 4. **Can I take it back?** And how.
 
-The catalog (`src/core/ux/catalog.ts`) holds the four answers for every setting and every control of the strip (the `/` commands are its controls), in both languages, and every window a control opens (`WINDOWS`: its pane, its title, what it is for, its action); the kinds of background event have their lines in `src/core/ux/activity.ts`. Every surface draws them from there: the control center's card under a setting, `mode-code config explain`, the `/` menu, and the line under the strip, where the card of the control under the pointer or the keyboard says itself in one line (`src/core/ux/say.ts`); none writes its own.
+The catalog (`src/core/ux/catalog.ts`) holds the four answers for every setting and every control of the strip (the `/` commands are its controls), in both languages, and every window a control opens (`WINDOWS`: its pane, its title, what it is for, its action); the kinds of background event have their lines in `src/core/ux/activity.ts`. Every surface draws them from there: the control center's card under a setting, `mode-code config explain`, the `/` menu, the cockpit's quick settings, and the line under the strip, where the card of the control under the pointer or the keyboard says itself in one line (`src/core/ux/say.ts`); none writes its own.
 
 ## The contract
 
@@ -141,25 +141,41 @@ One kit, two hosts (`src/core/ux/kit.ts`). Each component is written once agains
 | **Empty state**     | what will appear · the one action that makes it appear                                |
 | **Window**          | title · one sentence · now · controls · _"If you apply: …"_ · primary action · cancel |
 
+## The cockpit
+
+The panel you open beside Claude Code's conversation (`/0`, or `0 ≡ cockpit` on the strip, a switch): in the fullscreen layout from 110 columns it stands beside the conversation from top to bottom; narrower, it opens above the prompt with its sections side by side. Left open, the next session opens it in its place where the screen leaves room. Worked out by code from the settings and the session (`src/core/ux/cockpit.ts`), drawn with the kit (`src/core/ux/cockpit-view.ts`), it holds:
+
+- **A line that says.** It opens with one sentence on what the cockpit is for. The card of whatever the pointer rests on, or the keyboard, takes its place there, so every line says itself without a press. Its height never changes.
+- **Claude right now.** What Claude may do in this session, in words, each line marked ✓ it does, ? it asks you first, ✗ it cannot, or · it waits for you: change the project's files, take a risky step, delete outside the project, touch its own protection (locked), the way of working, helper agents; and while they hold, outside content read and the quota near its limit. Each line follows the mode in force (a flow's step and Claude Code's plan mode included), the way of working, the safety belt's rules, bypass, a freeze and the agents. A press opens its reasons, the why engine's chain, and what changes it.
+- **At work now.** Claude's state in words; the call running, its time counted by the surface (`src/mod/cockpit-clock.ts`); each agent at work with **Open** (its conversation in the main view, the cockpit staying beside it) and **Stop**; a flow's step; a full-autonomy run's.
+- **Waiting for you, or In this session.** The session's activity, what waits for you first, five lines; a line whose rule or setting has a place opens the control center there, and **All activity…** opens the whole.
+- **Quota.** The two periods as meters, where the work wraps up marked on each track, and when each starts over; the weekly budget, and **Budget…**.
+- **Quick settings.** The controls whose permission is a setting (bypass, the agents, full autonomy) and the freeze, both doors in one row. Not allowed yet, the row says so, and a press first says what allowing it means, with **Allow** and **Cancel**; allowed, a press is the strip's own. A permission allowed here is written as the control center writes it, recorded as the cockpit's in the history of changes, and **Undo** takes it back. **Control center…** opens everything else.
+
+Only your press changes anything in the cockpit: Claude has no way to press.
+
 ## Where it is enforced
 
 A row whose test is still to come names the stage that brings it; `test/core/design-doc.test.ts` holds every other path to a file that exists.
 
-| Rule                                                                         | Test                                                                                                  |
-| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Four questions for every setting and every control of the strip              | `test/core/ux-catalog.test.ts`, `test/tui/settings-card.test.tsx`                                     |
-| The command line gives the same answers, and names a page as the screen does | `test/process/human.test.ts`, `test/tui/settings-card.test.tsx`                                       |
-| Every reference like _"Settings › Features"_ leads to a real place           | `test/tui/references.test.tsx`                                                                        |
-| One idea, one name                                                           | `test/core/ux-glossary.test.ts`                                                                       |
-| No wrapped line starts with a space                                          | `test/core/ux-text.test.ts` (`wrapText`); the control center's own wrap: `test/tui/grid.test.tsx`     |
-| Mouse and keyboard reach the same result                                     | `test/tui/pointer.test.tsx`                                                                           |
-| No state told by colour alone                                                | `test/core/ux-kit.test.ts`, `test/tui/grid.test.tsx` (`NO_COLOR`), `test/tui/widths.test.tsx` (plain) |
-| Right edges of a block line up                                               | `test/tui/grid.test.tsx`                                                                              |
-| The kit sets only what Claude Code's elements take                           | `test/core/ux-kit.test.ts`; the installed version's declarations: `src/mod/kit-host.ts`               |
-| Every background job writes an activity line                                 | `test/core/ux-activity.test.ts` (every kind written has its line)                                     |
-| Every control of the strip has its card, for the pointer and the keyboard    | `test/core/ux-say.test.ts`, the engine kit (`test/mod/controls.kit.ts`)                               |
-| The look tells the kind on the strip, on every layout                        | `test/core/controls.test.ts`                                                                          |
-| Every window is drawn to one pattern, and no window takes a value by arrow   | `test/core/ux-kit.test.ts`, `test/core/ux-catalog.test.ts`, the engine kit (`test/mod/agents.kit.ts`) |
-| Every change to a setting is recorded and can be taken back                  | `test/core/ux-changes.test.ts`, `test/tui/ledger.test.tsx`                                            |
-| "Why is it so" is worked out by code, from the settings and the session      | `test/core/ux-why.test.ts` (30 situations), the engine kit (`/why`, the `why` tool)                   |
-| From 60 to 200 columns                                                       | `test/tui/widths.test.tsx`, `test/core/controls.test.ts`                                              |
+| Rule                                                                             | Test                                                                                                  |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Four questions for every setting and every control of the strip                  | `test/core/ux-catalog.test.ts`, `test/tui/settings-card.test.tsx`                                     |
+| The command line gives the same answers, and names a page as the screen does     | `test/process/human.test.ts`, `test/tui/settings-card.test.tsx`                                       |
+| Every reference like _"Settings › Features"_ leads to a real place               | `test/tui/references.test.tsx`                                                                        |
+| One idea, one name                                                               | `test/core/ux-glossary.test.ts`                                                                       |
+| No wrapped line starts with a space                                              | `test/core/ux-text.test.ts` (`wrapText`); the control center's own wrap: `test/tui/grid.test.tsx`     |
+| Mouse and keyboard reach the same result                                         | `test/tui/pointer.test.tsx`                                                                           |
+| No state told by colour alone                                                    | `test/core/ux-kit.test.ts`, `test/tui/grid.test.tsx` (`NO_COLOR`), `test/tui/widths.test.tsx` (plain) |
+| Right edges of a block line up                                                   | `test/tui/grid.test.tsx`                                                                              |
+| The kit sets only what Claude Code's elements take                               | `test/core/ux-kit.test.ts`; the installed version's declarations: `src/mod/kit-host.ts`               |
+| Every background job writes an activity line                                     | `test/core/ux-activity.test.ts` (every kind written has its line)                                     |
+| Every control of the strip has its card, for the pointer and the keyboard        | `test/core/ux-say.test.ts`, the engine kit (`test/mod/controls.kit.ts`)                               |
+| The look tells the kind on the strip, on every layout                            | `test/core/controls.test.ts`                                                                          |
+| Every window is drawn to one pattern, and no window takes a value by arrow       | `test/core/ux-kit.test.ts`, `test/core/ux-catalog.test.ts`, the engine kit (`test/mod/agents.kit.ts`) |
+| Every change to a setting is recorded and can be taken back                      | `test/core/ux-changes.test.ts`, `test/tui/ledger.test.tsx`                                            |
+| "Why is it so" is worked out by code, from the settings and the session          | `test/core/ux-why.test.ts` (30 situations), the engine kit (`/why`, the `why` tool)                   |
+| What Claude may do now is worked out by code, in every situation that changes it | `test/core/ux-cockpit.test.ts` (31 situations)                                                        |
+| Every line of the cockpit says itself to the pointer and to the keyboard         | `test/core/ux-cockpit.test.ts`, the engine kit (`test/mod/cockpit.kit.ts`)                            |
+| A permission allowed in the cockpit is recorded, and taken back                  | the engine kit (`test/mod/cockpit.kit.ts`)                                                            |
+| From 60 to 200 columns                                                           | `test/tui/widths.test.tsx`, `test/core/controls.test.ts`                                              |

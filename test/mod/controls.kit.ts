@@ -185,8 +185,8 @@ test('/0 from the phone says where the session stands and lists every command; i
     expect(r.text).toMatch(/^Şu an: 🔨 kod · manuel/);
     expect(r.text).toMatch(/\*\*\/4 🔨 kod\*\*/);
     expect(r.text).toMatch(/\/5 serbest · \/6 akış$/m);
-    expect(r.text).toMatch(/\/devam · \/kota · \/0 menü · \/00 kapat/);
-    expect(r.text).toMatch(/Kontrol merkezi bilgisayarda açılır: orada yazılan \/0 onu yeni sekmede açar\.$/);
+    expect(r.text).toMatch(/\/devam · \/kota · \/0 kokpit · \/00 kapat/);
+    expect(r.text).toMatch(/Kokpit ve kontrol merkezi bilgisayarda açılır: orada yazılan \/0 kokpiti gösterir\.$/);
   }
   expect(w.ran).toEqual([]);
 });
@@ -198,8 +198,10 @@ const installed = (w: any, cli = 'C:/dev/tc/dist/cli.mjs') => {
 };
 const opensTab = (argv: string[]) => (argv[0] === 'wt.exe' ? { exitCode: 0 } : undefined);
 
-test('/0 at the terminal opens the control center in a new tab of Windows Terminal, in the session folder', async ($, on) => {
-  const w = world(on, { lang: 'tr', windows: true, env: { WT_SESSION: 'f7502808' }, programs: opensTab });
+// Where no surface draws a pane (a session with no screen), /0 opens the control center itself, as before the cockpit;
+// at a screen the cockpit's Control center does the same (test/mod/cockpit.kit.ts).
+test('/0 with no pane to draw opens the control center in a new tab of Windows Terminal, in the session folder', async ($, on) => {
+  const w = world(on, { lang: 'tr', windows: true, env: { WT_SESSION: 'f7502808' }, programs: opensTab, paneless: true });
   installed(w);
   await run($, '4');
   const r = await runFrom($, '0', { kind: 'composer' });
@@ -214,6 +216,7 @@ test('/0 at the terminal opens the control center in a new tab of Windows Termin
 
 test('/0 that cannot open says why and how to open it by hand, then the menu', async ($, on) => {
   const w = world(on, {
+    paneless: true,
     windows: true,
     env: { WT_SESSION: 'x' },
     programs: (argv) => (argv[0] === 'wt.exe' ? { exitCode: 1, stderr: 'boom\nmore' } : undefined),
@@ -236,7 +239,13 @@ test('/0 runs Windows Terminal by its alias, by the full path: Claude Code will 
   // As Claude Code 2.1.296 does: a bare name found in the alias folder, under the session's folder, is refused.
   const refusedByName = (argv: string[]) =>
     argv[0] === `${APPS}/wt.exe` ? { exitCode: 0 } : argv[0] === 'wt.exe' ? { exitCode: 1, stderr: 'not found or is in an unsafe location' } : undefined;
-  const w = world(on, { windows: true, startedAtHome: true, env: { WT_SESSION: 'x', LOCALAPPDATA: 'C:/Users/ada/AppData/Local' }, programs: refusedByName });
+  const w = world(on, {
+    windows: true,
+    startedAtHome: true,
+    env: { WT_SESSION: 'x', LOCALAPPDATA: 'C:/Users/ada/AppData/Local' },
+    programs: refusedByName,
+    paneless: true,
+  });
   installed(w);
   w.link(`${APPS}/wt.exe`);
   w.link(`${APPS}/winget.exe`);
@@ -248,7 +257,13 @@ test('/0 runs Windows Terminal by its alias, by the full path: Claude Code will 
 });
 
 test('/0 does not run a program copied into the alias folder: only a link is an alias; the name goes to Claude Code', async ($, on) => {
-  const w = world(on, { windows: true, startedAtHome: true, env: { WT_SESSION: 'x', LOCALAPPDATA: 'C:/Users/ada/AppData/Local' }, programs: opensTab });
+  const w = world(on, {
+    windows: true,
+    startedAtHome: true,
+    env: { WT_SESSION: 'x', LOCALAPPDATA: 'C:/Users/ada/AppData/Local' },
+    programs: opensTab,
+    paneless: true,
+  });
   installed(w);
   w.write(`${APPS}/wt.exe`, 'MZ');
   await runFrom($, '0', { kind: 'composer' });
@@ -256,7 +271,7 @@ test('/0 does not run a program copied into the alias folder: only a link is an 
 });
 
 test('/0 with no record of the installation, or a program that is gone, names the repair and runs nothing', async ($, on) => {
-  const w = world(on, { windows: true, env: { WT_SESSION: 'x' }, programs: opensTab });
+  const w = world(on, { windows: true, env: { WT_SESSION: 'x' }, programs: opensTab, paneless: true });
   const none = await runFrom($, '0', { kind: 'composer' });
   expect(none.text.split('\n')[0]).toBe('Where the control center is was not recorded at installation: "mode-code doctor --fix" records it.');
   w.write(`${WIN.DATA}/install/manifest.json`, JSON.stringify({ v: 1, node: 'C:/n.exe', cli: 'C:/gone/cli.mjs' }));
@@ -266,7 +281,7 @@ test('/0 with no record of the installation, or a program that is gone, names th
 });
 
 test('/0 in a terminal that cannot be asked for a tab says the command to type, in its shell', async ($, on) => {
-  const w = world(on, { programs: () => ({ exitCode: 0 }) });
+  const w = world(on, { programs: () => ({ exitCode: 0 }), paneless: true });
   w.write(`${DATA}/install/manifest.json`, JSON.stringify({ v: 1, node: '/usr/bin/node', cli: `${HOME}/tc/cli.mjs` }));
   w.write(`${HOME}/tc/cli.mjs`, '//');
   const r = await runFrom($, '0', { kind: 'composer' });
@@ -275,26 +290,36 @@ test('/0 in a terminal that cannot be asked for a tab says the command to type, 
 });
 
 test('/0 inside tmux opens a window of that tmux, in the session folder', async ($, on) => {
-  const w = world(on, { env: { TMUX: '/tmp/tmux-1000/default,1,0' }, programs: (argv) => (argv[0] === 'tmux' ? { exitCode: 0 } : undefined) });
+  const w = world(on, { env: { TMUX: '/tmp/tmux-1000/default,1,0' }, programs: (argv) => (argv[0] === 'tmux' ? { exitCode: 0 } : undefined), paneless: true });
   w.write(`${DATA}/install/manifest.json`, JSON.stringify({ v: 1, node: '/usr/bin/node', cli: `${HOME}/tc/cli.mjs` }));
   w.write(`${HOME}/tc/cli.mjs`, '//');
   expect((await runFrom($, '0', { kind: 'composer' })).text.split('\n')[0]).toBe('The control center opened in a new tab.');
   expect(w.ran).toEqual([['tmux', 'new-window', '-n', 'Mode_Code', '-c', PROJECT, `cd '${PROJECT}' && exec '/usr/bin/node' '${HOME}/tc/cli.mjs'`]]);
 });
 
-test('a press on "0" of the strip at the terminal opens the control center; on the phone it says the menu', async ($, on) => {
+test('a press on "0" of the strip at the terminal shows the cockpit, and again hides it; on the phone it says the menu', async ($, on) => {
   const w = world(on, { windows: true, env: { WT_SESSION: 'x' }, programs: opensTab });
   installed(w);
   await run($, '3');
-  const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+  const ui: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+  const zero = async () => textOf(node(await ui.drawn(), 'strip-0'));
+  expect(await zero()).toBe('0 ≡ cockpit ○');
+  const toasts = w.toasts.length;
   await ui.press({ key: 'strip-0' });
-  expect(w.toasts.at(-1)).toBe('The control center opened in a new tab.');
-  expect(w.ran.length).toBe(1);
+  // The cockpit appearing is what the press says: no toast, nothing run, and the switch lit.
+  expect(w.panes).toEqual(['cockpit']);
+  expect(w.toasts.length).toBe(toasts);
+  expect(await zero()).toBe('0 ≡ cockpit ●');
+  await ui.press({ key: 'strip-0' });
+  expect(w.panes).toEqual([]);
+  expect(await zero()).toBe('0 ≡ cockpit ○');
+  expect(w.ran.length).toBe(0);
   await ui.unmount();
   const phone = await $.ui.mount({ plugin: 'mode-code', surface: 'mobile', component: 'AbovePrompt', props: band } as any);
   await phone.press({ key: 'strip-0' });
   expect(w.toasts.at(-1)).toMatch(/^Now: 📐 plan · manual/);
-  expect(w.ran.length).toBe(1);
+  expect(w.ran.length).toBe(0);
+  expect(w.panes).toEqual([]);
   await phone.unmount();
 });
 
@@ -613,7 +638,7 @@ test("under the strip: what Claude does now, in words; the pointer on a control,
   expect(textOf(cards.get('card-00'))).toMatch(/^Press: Writes the handoff note.+ · Cannot be undone · \/00$/);
   // Mo: its state in words, and what a click on it does.
   expect(node(drawn, 'mo-at')?.hover?.scope).toBe('card-mo');
-  expect(textOf(cards.get('card-mo'))).toBe('Mo: nothing is at work; Claude waits for you. · click: what happened');
+  expect(textOf(cards.get('card-mo'))).toBe('Mo: nothing is at work; Claude waits for you. · click: the cockpit');
   await ui.unmount();
   // Narrower than 120 columns the line is two rows tall, so a card is read whole.
   const narrow: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: { ...band, bodyColumns: 90 } } as any);
@@ -658,12 +683,33 @@ test('the keyboard on the strip: the card of the control under the focus says it
   await ui.unmount();
 });
 
-test("the count of this session's activity, and Mo, open the control center at its Activity page; from the phone they say where it opens", async ($, on) => {
+test("the count of this session's activity, and Mo, open the cockpit; where none can be drawn, the control center's Activity; from the phone they say where", async ($, on) => {
   const w = world(on, { windows: true, env: { WT_SESSION: 'x' }, programs: opensTab });
   installed(w);
   await run($, '3');
   const ui: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
   expect(textOf(node(await ui.drawn(), 'strip-activity'))).toMatch(/^activity \d+…$/);
+  await ui.press({ key: 'strip-activity' });
+  expect(w.panes).toEqual(['cockpit']);
+  expect(w.ran).toEqual([]);
+  // Open already: Mo brings it forward, and leaves it open.
+  await ui.pointer({ type: 'up', x: 1, y: 0, button: 'left', in: 'mo' });
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  expect(w.panes).toEqual(['cockpit']);
+  expect(textOf(node(await ui.drawn(), 'strip-0'))).toBe('0 ≡ cockpit ●');
+  await ui.unmount();
+  const desk: any = await $.ui.mount({ plugin: 'mode-code', surface: 'desktop', component: 'AbovePrompt', props: band } as any);
+  await desk.press({ key: 'strip-activity' });
+  expect(w.toasts.at(-1)).toBe('The cockpit and the control center open on the computer: /0 typed there shows the cockpit.');
+  expect(w.ran).toEqual([]);
+  await desk.unmount();
+});
+
+test("where no pane can be drawn, the activity's count opens the control center at its Activity page", async ($, on) => {
+  const w = world(on, { windows: true, env: { WT_SESSION: 'x' }, programs: opensTab, paneless: true });
+  installed(w);
+  await run($, '3');
+  const ui: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
   await ui.press({ key: 'strip-activity' });
   expect(w.ran.at(-1)).toEqual([
     'wt.exe',
@@ -680,16 +726,27 @@ test("the count of this session's activity, and Mo, open the control center at i
     'home/activity',
   ]);
   expect(w.toasts.at(-1)).toBe('The control center opened in a new tab.');
-  await ui.pointer({ type: 'up', x: 1, y: 0, button: 'left', in: 'mo' });
-  for (let i = 0; i < 20; i++) await Promise.resolve();
-  expect(w.ran.length).toBe(2);
-  expect(w.ran.at(-1)?.slice(-2)).toEqual(['open', 'home/activity']);
   await ui.unmount();
-  const desk: any = await $.ui.mount({ plugin: 'mode-code', surface: 'desktop', component: 'AbovePrompt', props: band } as any);
-  await desk.press({ key: 'strip-activity' });
-  expect(w.toasts.at(-1)).toBe('The control center opens on the computer: /0 typed there opens it in a new tab.');
-  expect(w.ran.length).toBe(2);
-  await desk.unmount();
+});
+
+test('what waits for you turns the count into a question: how many wait, in the colour of one', async ($, on) => {
+  const w = world(on);
+  const now = w.clock.now();
+  // The 5-hour period near its limit: the work wraps up, and that waits for the person.
+  await $.session.measure({
+    context: { window: 200000 },
+    rateLimits: [
+      { kind: 'five_hour', percentUsed: 96, resetsAt: new Date(now + 3600_000).toISOString() },
+      { kind: 'seven_day', percentUsed: 20, resetsAt: new Date(now + 5 * 86400_000).toISOString() },
+    ],
+    changed: ['rateLimits'],
+  } as any);
+  await $.prompt.submit(typed('Go on.'));
+  const ui: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+  const count = node(await ui.drawn(), 'strip-activity');
+  expect(textOf(count)).toBe('? 1 waiting for you…');
+  expect(count.children[0]?.props?.color).toBe('warning');
+  await ui.unmount();
 });
 
 test("an agent's conversation in view: the line under the strip says so, and leads back to the main one", async ($, on) => {
