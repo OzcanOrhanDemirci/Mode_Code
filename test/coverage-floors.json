@@ -581,6 +581,11 @@
       "branches": 70,
       "functions": 94
     },
+    "src/core/ux/say.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
     "src/core/ux/tokens.ts": {
       "lines": 94,
       "branches": 92,

@@ -47,6 +47,10 @@ export interface KitPress {
   primary?: boolean;
   /** One sentence for pointing at it: what a press does (docs/design.md, the four questions). */
   describe?: string;
+  /** It closes the window it stands in (Cancel): a host that draws a native close control draws it so. */
+  dismiss?: boolean;
+  /** The window's keyboard starts here, Enter acting on it at once: Cancel, where the main action lowers a protection. */
+  autoFocus?: boolean;
 }
 
 export interface KitHost<N> {
@@ -175,6 +179,68 @@ export function confirm<N>(
     { flexDirection: 'column' },
     ...wrapText(`${mark('look', h.plain)} ${p.text}`, p.width, h.measure).map((line) => h.text(colored(h.color('ask')), line)),
     h.box({ flexDirection: 'row', marginTop: 1 }, action(h, { ...p.apply, primary: true }), h.text({}, '  '), action(h, p.cancel)),
+  );
+}
+
+/** One option of a choice: its words, whether it is the one chosen now, and what picking it does. */
+export interface ChoiceOption extends KitPress {
+  label: string;
+  chosen: boolean;
+}
+
+/**
+ * A choice drawn as its options (docs/design.md, Choice): `◉ one  ○ two  ○ three`, each one pressable. The arrows and
+ * Tab walk them and never change the value; only a press (Enter, Space, a click) picks. Side by side, or one under
+ * another for long options.
+ */
+export function choices<N>(h: KitHost<N>, p: { options: readonly ChoiceOption[]; column?: boolean }): N {
+  return h.box(
+    { flexDirection: p.column ? 'column' : 'row' },
+    ...p.options.map((o, i) =>
+      h.box(
+        { flexDirection: 'row', ...(i && !p.column ? { marginLeft: 2 } : {}) },
+        h.press(
+          o,
+          h.text({ bold: o.chosen, ...colored(h.color(o.chosen ? 'focus' : 'off')) }, `${mark(o.chosen ? 'chosen' : 'option', h.plain)} `),
+          h.text({ bold: o.chosen }, o.label),
+        ),
+      ),
+    ),
+  );
+}
+
+/**
+ * A window (docs/design.md, Window): one sentence on what it is for, how it is now, its controls, then what applying
+ * will do before it does, the main action and Cancel, and what went wrong if anything did. The same pattern in every
+ * window, so each reads the same way.
+ */
+export function windowFrame<N>(
+  h: KitHost<N>,
+  p: {
+    what: string;
+    now: { label: string; text: string };
+    width: number;
+    controls: readonly Child<N>[];
+    preview: { label: string; text: string } | null;
+    apply: KitPress & { label: string };
+    cancel: KitPress & { label: string };
+    error?: string | null;
+    after?: readonly Child<N>[];
+    /** The label column the window's rows share (docs/design.md, Grid): its controls' labels counted in. */
+    labelWidth?: number;
+  },
+): N {
+  const width = Math.max(20, p.width);
+  const labelWidth = p.labelWidth ?? Math.min(24, Math.max(h.measure(p.now.label), p.preview ? h.measure(p.preview.label) : 0) + 2);
+  return h.box(
+    { flexDirection: 'column' },
+    ...wrapText(p.what, width, h.measure).map((line) => h.text(colored(h.color('off')), line)),
+    h.box({ marginTop: 1 }, card(h, { lines: [p.now], width, labelWidth })),
+    p.controls.length ? h.box({ flexDirection: 'column', marginTop: 1 }, ...p.controls) : null,
+    p.preview ? h.box({ marginTop: 1 }, card(h, { lines: [{ ...p.preview, meaning: 'focus' }], width, labelWidth })) : null,
+    h.box({ flexDirection: 'row', marginTop: 1 }, action(h, { ...p.apply, primary: true }), h.text({}, '  '), action(h, { ...p.cancel, dismiss: true })),
+    p.error ? h.text({ wrap: 'wrap', ...colored(h.color('bad')) }, `${mark('bad', h.plain)} ${p.error}`) : null,
+    ...(p.after ?? []),
   );
 }
 

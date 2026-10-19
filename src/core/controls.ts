@@ -13,6 +13,7 @@ import { baseName, pathKey, type Platform } from './paths.js';
 import { fold } from './text.js';
 import { AGENTS_ICON, stripAgents, type AgentsState } from './agents.js';
 import { tIn, type Lang, type MessageKey } from './i18n/index.js';
+import { mark } from './ux/tokens.js';
 
 export type Style = 'manual' | 'autonomous' | 'full';
 export type StartableVariant = Exclude<FlowVariant, 'cancel'>;
@@ -118,6 +119,17 @@ export function parseBudget(text: string): Budget | null {
   if (!m) return null;
   const n = parseInt(m[2]!, 10);
   return n >= 0 && n <= 100 ? { n, plus: m[1] === '+' } : null;
+}
+
+/**
+ * Why a weekly budget cannot be set now, as its message and values; null when it can. Points above now need a
+ * reading of the week, and a number the week has already passed would stop the work at once.
+ */
+export function budgetProblem(budget: Budget | null, week: number | null): { key: MessageKey; params?: Record<string, number> } | null {
+  if (!budget) return { key: 'ctl.quota.bad' };
+  if (budget.plus && week === null) return { key: 'ctl.quota.noReading' };
+  if (!budget.plus && week !== null && week >= budget.n) return { key: 'ctl.quota.past', params: { week, target: budget.n } };
+  return null;
 }
 
 /** A budget at either end of the arguments ("kota +10 <task>", "<task> kota +10"), and the rest. */
@@ -292,10 +304,21 @@ export interface StripView {
   agents?: { shown: boolean; state: AgentsState; running: number };
 }
 
-/** "⚡ bypass", and while it is on the calls it let through: "⚡ bypass · 3". */
-function bypassText(b: StripView['bypass'], tight: boolean): string {
+/**
+ * The marks that tell a control's kind on the strip (docs/design.md, the look tells the kind): a switch says
+ * whether it is on, `● ` or `○ `; an opener ends in `…`, a window opens and nothing changes until you act there.
+ */
+const OPENER = mark('opener', false);
+const switchMark = (on: boolean) => mark(on ? 'on' : 'off', false);
+
+/**
+ * Bypass, a switch: "⚡ bypass ○", and while it is on the calls it let through: "⚡ bypass ● · 3". In a line
+ * of text it is named only while on, and nothing there is a control: "⚡ bypass · 3".
+ */
+function bypassText(b: StripView['bypass'], tight: boolean, strip = true): string {
   const count = b.on && b.count > 0 ? (tight ? `${b.count}` : ` · ${b.count}`) : '';
-  return tight ? `⚡${count}` : `⚡ bypass${count}`;
+  const state = strip ? (tight ? switchMark(b.on) : ` ${switchMark(b.on)}`) : '';
+  return tight ? `⚡${state}${count}` : `⚡ bypass${state}${count}`;
 }
 
 const MODES: readonly WorkMode[] = ['chat', 'research', 'plan', 'code', 'free'];
@@ -307,11 +330,14 @@ function flowOn(v: StripView): boolean {
   return v.flow !== null && v.flow.state !== 'paused';
 }
 
-/** The flow's words: "flow", "flow 2/4", "flow · approve?", "flow ⏸ 2/4", "flow …". */
-function flowText(f: FlowView | null, lang: Lang, tight: boolean): string {
+/**
+ * The flow's words: "flow", "flow 2/4", "flow · approve?", "flow ⏸ 2/4", and armed "flow ✎" (the next message is
+ * its task). On the strip a flow that is off ends in the opener's `…`: a press asks which flow, and starts none.
+ */
+function flowText(f: FlowView | null, lang: Lang, tight: boolean, strip = false): string {
   const word = tight ? '⇢' : tIn(lang, 'ctl.strip.flow');
   const sep = tight ? '' : ' ';
-  if (!f) return word;
+  if (!f) return strip ? `${word}${OPENER}` : word;
   switch (f.state) {
     case 'running':
       return `${word}${sep}${f.at}`;
@@ -320,7 +346,7 @@ function flowText(f: FlowView | null, lang: Lang, tight: boolean): string {
     case 'paused':
       return `${word}${sep}⏸${sep}${f.at}`;
     case 'armed':
-      return `${word}${sep}…`;
+      return `${word}${sep}✎`;
   }
 }
 
@@ -362,7 +388,7 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
             ...(v.flow?.state === 'running' && v.mode === m ? { pulse: true } : {}),
           };
         }),
-        { id: flowDigit, label: `${flowDigit}${tight ? '' : ' '}${flowText(v.flow, lang, tight)}`, active: on },
+        { id: flowDigit, label: `${flowDigit}${tight ? '' : ' '}${flowText(v.flow, lang, tight, true)}`, active: on },
       ],
     },
     {
@@ -377,7 +403,8 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
           ? [
               {
                 id: commandOf({ kind: 'fullAuto' }, lang),
-                label: tIn(lang, tight ? 'ctl.style.short.full' : 'ctl.style.full'),
+                // Off, it opens the start window; with a run attached, a press ends the run.
+                label: `${tIn(lang, tight ? 'ctl.style.short.full' : 'ctl.style.full')}${v.style === 'full' ? '' : OPENER}`,
                 active: v.style === 'full',
               },
             ]
@@ -392,12 +419,14 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
               },
             ]
           : []),
-        ...(v.frozen ? [{ id: commandOf({ kind: 'freeze' }, lang), label: tight ? '❄' : `❄ ${v.frozen}`, active: true }] : []),
+        ...(v.frozen
+          ? [{ id: commandOf({ kind: 'freeze' }, lang), label: tight ? `❄${switchMark(true)}` : `❄ ${v.frozen} ${switchMark(true)}`, active: true }]
+          : []),
         ...(v.agents?.shown
           ? [
               {
                 id: commandOf({ kind: 'agents' }, lang),
-                label: stripAgents(v.agents.state, v.agents.running, tIn(lang, 'ctl.strip.agents'), tight),
+                label: stripAgents(v.agents.state, v.agents.running, tIn(lang, 'ctl.strip.agents'), tight, OPENER),
                 // Lit while agents may run: the person sees at a glance which way it is.
                 active: v.agents.state.mode !== 'off' || v.agents.state.ultracode,
               },
@@ -409,7 +438,7 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
       title: '',
       end: true,
       items: [
-        { id: '0', label: tight ? '0≡' : `0 ≡ ${tIn(lang, 'ctl.strip.menu')}`, active: false },
+        { id: '0', label: tight ? `0≡${OPENER}` : `0 ≡ ${tIn(lang, 'ctl.strip.menu')}${OPENER}`, active: false },
         { id: '00', label: tight ? '00✕' : `00 ✕ ${tIn(lang, 'ctl.strip.close')}`, active: false },
       ],
     },
@@ -432,7 +461,7 @@ export function controlsLine(v: StripView, lang: Lang): string {
     : a.state.mode === 'off' && !a.state.ultracode
       ? ` · ${AGENTS_ICON} ${tIn(lang, 'ctl.line.agentsOff')}`
       : ` · ${stripAgents(a.state, a.running, tIn(lang, 'ctl.strip.agents'), false)}`;
-  return `${modeLabel(v.mode, lang)} · ${style}${flow}${v.bypass.on ? ` · ${bypassText(v.bypass, false)}` : ''}${v.frozen ? ` · ❄ ${v.frozen}` : ''}${agents}`;
+  return `${modeLabel(v.mode, lang)} · ${style}${flow}${v.bypass.on ? ` · ${bypassText(v.bypass, false, false)}` : ''}${v.frozen ? ` · ❄ ${v.frozen}` : ''}${agents}`;
 }
 
 /**

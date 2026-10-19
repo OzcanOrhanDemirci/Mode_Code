@@ -514,3 +514,30 @@ export function controlText(id: ControlId, part: 'what' | 'press' | 'back', lang
 export function controlMissing(id: ControlId, config: Readonly<Config>): SettingId[] {
   return (CONTROLS[id].needs ?? []).filter((s) => valueIn(config, s as SettingPath) !== true);
 }
+
+// ── the windows ──
+
+export type WindowId = 'agents' | 'fullAuto' | 'quota' | 'flow' | 'bypass';
+
+/**
+ * A window a control opens inside Claude Code (docs/design.md, Window): every one is drawn to the same pattern, a
+ * sentence on what it is for, how it is now, its controls, what applying does, the main action and Cancel. Here
+ * are its id (the pane's), the control that opens it, and the words of its title, its sentence and its action.
+ */
+export interface WindowDef {
+  pane: string;
+  control: ControlId;
+  title: MessageKey;
+  what: MessageKey;
+  apply: MessageKey;
+}
+
+export const WINDOWS: Readonly<Record<WindowId, WindowDef>> = {
+  agents: { pane: 'parallel-agents', control: 'agents', title: 'agents.pane.title', what: 'agents.pane.what', apply: 'agents.pane.apply' },
+  fullAuto: { pane: 'full-auto', control: 'fullAuto', title: 'ctl.autoPane.title', what: 'ctl.autoPane.what', apply: 'ctl.auto.start' },
+  quota: { pane: 'weekly-budget', control: 'quota', title: 'ctl.quotaPane.title', what: 'ux.ctl.quota.press', apply: 'ctl.quotaPane.apply' },
+  flow: { pane: 'start-flow', control: 'flow', title: 'ctl.flowPane.title', what: 'ctl.flowPane.what', apply: 'ctl.flowPane.apply' },
+  bypass: { pane: 'bypass', control: 'bypass', title: 'ctl.bypassPane.title', what: 'ux.ctl.bypass.what', apply: 'ctl.bypass.yes' },
+};
+
+export const WINDOW_IDS = Object.keys(WINDOWS) as WindowId[];

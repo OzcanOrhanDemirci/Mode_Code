@@ -108,6 +108,10 @@ const ALLOWED = new Set([
   // Parallel agents (docs/agents.md): the session's agents and their status, for the count and the stop buttons. A
   // read of the engine's own list; starting and stopping stay Claude Code's (the Agent tool, TaskStop).
   'agent.list',
+  // The windows and the strip (D5 of 1.2.0): an agent's conversation shown in the main view from its row in the agents
+  // window, as the person's own switch from the tasks list does, and the way back to the main one under the strip.
+  // It moves the view only, and only on the person's press.
+  'ui.view',
 ]);
 const notes = (report.contents ?? []).flatMap((c) => c.notes ?? []);
 const callsNote = notes.find((n) => / calls: /.test(n)) ?? '';

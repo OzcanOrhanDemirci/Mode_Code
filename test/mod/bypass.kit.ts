@@ -17,6 +17,24 @@ const settle = async () => {
   for (let i = 0; i < 20; i++) await Promise.resolve();
 };
 const enabled = { bypass: { enabled: true, maxHours: 2 } };
+const PANE = { title: 'Bypass', isFocused: true, bodyColumns: 100, placement: 'inline', scroll: { offset: 0, bodyRows: 10 }, view: {} } as any;
+
+/** Every word a drawing shows, its wrapped lines joined back: a sentence the window wraps reads whole. */
+async function words(ui: any): Promise<string> {
+  return (await ui.findAll({ type: 'Text' }))
+    .map((t: any) => String(t.text))
+    .join(' ')
+    .replace(/\s+/g, ' ');
+}
+
+/** Bypass turned on at the computer: `/bypass` opens its window, and its Turn on is pressed. */
+async function turnOn($: any): Promise<any> {
+  const r = await run($, 'bypass');
+  const pane: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'Pane', requestId: 'bypass', props: PANE } as any);
+  await pane.press({ key: 'apply' });
+  await pane.unmount();
+  return r;
+}
 
 test('until it is turned on in the settings, there is no bypass: /bypass says where to turn it on', async ($, on) => {
   const w = world(on, { answer: 'allow' });
@@ -46,13 +64,28 @@ test("the other controls are the person's too, or a script of theirs: a schedule
   for (const kind of ['composer', 'bridge', 'sdk']) expect((await run($, '3', { kind })).text).not.toMatch(/^Only you/);
 });
 
-test('turned on: asked once; the belt lets through and records; self-protection and secrets stay; the floor is asked', async ($, on) => {
+test('turned on: its window says what it lifts and until when; the belt lets through and records; self-protection and secrets stay; the floor is asked', async ($, on) => {
   const w = world(on, { config: enabled, answer: 'allow' });
+  const session = mock.session(on);
   const r = await run($, 'bypass');
-  // Short: the tiers are told under Automation › Bypass, not in the question.
-  expect(w.asked.at(-1)).toBe('Turn bypass on for 2 h? Claude works without asking in this session; every call is recorded.');
-  expect(r.text).toMatch(/^Bypass on until .+ \(2 h\)\. \/bypass, or ⚡ on the strip, turns it off\.$/);
-  expect(r.context.join('\n')).toMatch(/Bypass is on\. The person turned it on themselves, for 2 h/);
+  expect(r.text).toBe('Bypass');
+  expect(w.panes).toEqual(['bypass']);
+  const pane: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'Pane', requestId: 'bypass', props: PANE } as any);
+  // Said before it is done, and nothing on until the press; Cancel holds the keyboard first, as it lowers a protection.
+  expect(await words(pane)).toMatch(/If you apply For 2 h, until .+?, the safety belt asks almost nothing in this session/);
+  expect(w.modState()?.bypass ?? null).toBe(null);
+  expect((await pane.find({ key: 'cancel' }))?.props).toMatchObject({ autoFocus: true, role: 'dismiss' });
+  expect(w.asked).toEqual([]);
+  await pane.press({ key: 'apply' });
+  await pane.unmount();
+  expect(w.panes).toEqual([]);
+  expect(w.toasts.at(-1)).toMatch(/^Bypass on until .+ \(2 h\)\. \/bypass, or ⚡ on the strip, turns it off\.$/);
+  expect(
+    session
+      .appended()
+      .map((x: any) => JSON.stringify(x.message))
+      .join('\n'),
+  ).toMatch(/Bypass is on\. The person turned it on themselves, for 2 h/);
   expect(w.modState().bypass).toMatchObject({ count: 0 });
   const asked = w.asked.length;
   // What the belt asks about, and what it blocks for anyone else: through, without a question.
@@ -81,7 +114,7 @@ test("Claude Code's own question: its mode's is answered and recorded; one a set
   const w = world(on, { config: enabled, answer: 'allow' });
   let verdict: any = { decision: 'ask', reason: 'Edit outside the working directory' };
   on('tool.check', () => verdict);
-  await run($, 'bypass');
+  await turnOn($);
   const v: any = await ($.tool as any).check({ tool: 'Edit', input: { file_path: '/etc/hosts' }, tool_use_id: 'toolu_1' });
   expect(v.decision).toBe('allow');
   expect(
@@ -107,11 +140,12 @@ test('on the strip: ⚡ once turned on, red and unfilled while on with the calls
     await ui.unmount();
     return t;
   };
-  expect((await strip())?.text).toBe('⚡ bypass');
-  await run($, 'bypass');
+  // A switch: its mark says off or on.
+  expect((await strip())?.text).toBe('⚡ bypass ○');
+  await turnOn($);
   await bash($, 'npm publish');
   // Red and bold, not filled: on a red ground the coloured ⚡ would vanish.
-  expect(await strip()).toMatchObject({ text: '⚡ bypass · 1', props: { inverse: false, bold: true, color: 'error' } });
+  expect(await strip()).toMatchObject({ text: '⚡ bypass ● · 1', props: { inverse: false, bold: true, color: 'error' } });
   const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
   await ui.press({ key: 'strip-bypass' });
   await ui.unmount();
@@ -122,7 +156,7 @@ test('on the strip: ⚡ once turned on, red and unfilled while on with the calls
 test('a reminder with each prompt; ten minutes before its time a warning; at its time it ends by itself and says so', async ($, on) => {
   const w = world(on, { config: enabled, answer: 'allow' });
   const session = mock.session(on);
-  await run($, 'bypass');
+  await turnOn($);
   const sent: any = await $.prompt.submit(typed('go on'));
   expect((sent.context ?? []).join('\n')).toMatch(/Bypass is on \(120 min left\): full authority, no questions/);
   await w.clock.advance(111 * 60_000);
@@ -149,13 +183,20 @@ test('a length set in the control center since the last prompt holds when bypass
   const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
   await ui.press({ key: 'strip-bypass' });
   await ui.unmount();
-  expect(w.asked.at(-1)).toMatch(/^Turn bypass on for 8 h?/);
+  const pane: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'Pane', requestId: 'bypass', props: PANE } as any);
+  expect(await words(pane)).toMatch(/For 8 h, until/);
+  await pane.press({ key: 'apply' });
+  await pane.unmount();
   expect(w.toasts.at(-1)).toMatch(/(8 h)/);
+  // From the phone, where no window opens, it is asked as before.
+  await run($, 'bypass');
+  await run($, 'bypass', { kind: 'bridge' });
+  expect(w.asked.at(-1)).toMatch(/^Turn bypass on for 8 h\?/);
 });
 
 test('turned off in the settings mid-session, bypass ends at the next call; the end of a session ends it too', async ($, on) => {
   const w = world(on, { config: enabled, answer: 'allow' });
-  await run($, 'bypass');
+  await turnOn($);
   w.write(`${DATA}/config.json`, JSON.stringify({ version: 1, bypass: { enabled: false } }));
   await $.prompt.submit(typed('go on'));
   expect(w.modState().bypass).toBe(null);
@@ -165,7 +206,7 @@ test('turned off in the settings mid-session, bypass ends at the next call; the 
 test('a new session never starts with bypass, even after one that had it', async ($, on) => {
   const w = world(on, { config: enabled, answer: 'allow' });
   on('session.end', (_$: any, e: any) => ({ sessionId: e.sessionId }));
-  await run($, 'bypass');
+  await turnOn($);
   await $.session.end({ reason: 'prompt_input_exit', sessionId: SESSION, resume: {} } as any);
   expect(w.events().some((e: any) => e.kind === 'bypass' && e.action === 'off' && e.why === 'session')).toBe(true);
   expect(w.modState().bypass).toBe(null);

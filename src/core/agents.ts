@@ -252,9 +252,10 @@ export const AGENTS_ICON = '👥';
  * in the word's place: "👥", "👥≤5·2". Off is the control not lit, as bypass's is. It had a ✕, read as a second
  * close control, and a terminal draws ✕ wider than the one cell it is given: the lit ground cut it in half.
  */
-export function stripAgents(s: AgentsState, running: number, word: string, tight: boolean): string {
+export function stripAgents(s: AgentsState, running: number, word: string, tight: boolean, mark = ''): string {
   const sep = tight ? '' : ' ';
-  const name = tight ? AGENTS_ICON : `${AGENTS_ICON} ${word}`;
+  // `mark`: the opener's `…` on the strip, where a press opens the window (docs/design.md, the look tells the kind).
+  const name = tight ? `${AGENTS_ICON}${mark}` : `${AGENTS_ICON} ${word}${mark}`;
   if (s.ultracode) return tight ? `${name}∞` : `${name} · ultracode`;
   if (s.mode === 'off') return name;
   if (s.mode === 'free') return `${name}${sep}≤${s.n}${running ? `${tight ? '·' : ' · '}${running}` : ''}`;

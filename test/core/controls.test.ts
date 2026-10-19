@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  budgetProblem,
   actionKeyword,
   cells,
   CHOICE_LINE,
@@ -219,9 +220,11 @@ test('the strip: every control on every layout, one row when it fits, never wide
   assert.ok(!items(view).some((i) => i.id === 'full-auto'));
   assert.deepEqual(
     items({ ...view, fullAutoShown: true }).find((i) => i.id === 'full-auto'),
-    { id: 'full-auto', label: 'full auto', active: false },
+    { id: 'full-auto', label: 'full auto…', active: false },
   );
-  assert.deepEqual(items({ ...view, fullAutoShown: true }, 'tr').find((i) => i.id === 'tam-otonom')?.label, 'tam otonom');
+  // An opener ends in `…`: off, a press opens the start window; with a run attached it ends the run, and says so plainly.
+  assert.deepEqual(items({ ...view, fullAutoShown: true }, 'tr').find((i) => i.id === 'tam-otonom')?.label, 'tam otonom…');
+  assert.equal(items({ ...view, style: 'full' }).find((i) => i.id === 'full-auto')?.label, 'full auto');
   assert.ok(
     items({ ...view, style: 'full' }).some((i) => i.id === 'full-auto' && i.active),
     'a run attached shows it, lit',
@@ -245,7 +248,8 @@ test('the strip: every control on every layout, one row when it fits, never wide
       String(columns),
     );
   }
-  assert.equal(stripRows(view, 'tr', 400).flat().at(-1)!.items[0]!.label, '0 ≡ menü');
+  assert.equal(stripRows(view, 'tr', 400).flat().at(-1)!.items[0]!.label, '0 ≡ menü…');
+  assert.equal(stripRows(view, 'tr', 50).flat().at(-1)!.items[0]!.label, '0≡…');
   assert.equal(last(stripRows(view, 'en', 200)).label, '00 ✕ close');
   assert.equal(last(stripRows(view, 'tr', 50)).label, '00✕');
 });
@@ -296,7 +300,11 @@ test('the flow on the strip: lit while on, the mode of its working step breathin
   assert.deepEqual(lit(paused), ['1', '8'], 'the mode chosen is lit; the flow waits');
   assert.equal(flowItem(paused).label, '6 akış ⏸ 2/4');
   const armed: StripView = { ...view, flow: { at: '', state: 'armed' } };
-  assert.deepEqual([flowItem(armed).label, flowItem(armed).active], ['6 akış …', true]);
+  assert.deepEqual([flowItem(armed).label, flowItem(armed).active], ['6 akış ✎', true]);
+  // Off, a press asks which flow and starts none: an opener's `…`. In a line of text it is the word alone.
+  assert.equal(flowItem({ ...view, flow: null }).label, '6 akış…');
+  assert.equal(flowItem({ ...view, flow: null }, 50).label, '6⇢…');
+  assert.equal(controlsLine({ ...view, flow: { at: '', state: 'armed' } }, 'tr'), '📐 plan · otonom · akış ✎');
   assert.equal(controlsLine(paused, 'en'), '💬 chat · autonomous · flow ⏸ 2/4');
 });
 
@@ -371,9 +379,9 @@ test('a freeze is on the strip and in the session line only while it holds', () 
       .flatMap((s) => s.items);
   assert.deepEqual(
     items(frozen, 'tr', 200).find((i) => i.id === 'dondur'),
-    { id: 'dondur', label: '❄ feature', active: true },
+    { id: 'dondur', label: '❄ feature ●', active: true },
   );
-  assert.equal(items(frozen, 'en', 40).find((i) => i.id === 'freeze')?.label, '❄');
+  assert.equal(items(frozen, 'en', 40).find((i) => i.id === 'freeze')?.label, '❄●');
   assert.equal(
     items(view, 'en', 200).find((i) => i.id === 'freeze'),
     undefined,
@@ -394,12 +402,13 @@ test('parallel agents: on the strip, in the line and the menu once turned on; li
       .find((i) => i.id === commandOf({ kind: 'agents' }, lang));
   assert.equal(item(view), undefined);
   assert.equal(item(shown(free, 0, false)), undefined, 'not turned on');
-  assert.deepEqual(item(shown(off)), { id: 'parallel', label: '👥 agents', active: false });
-  assert.deepEqual(item(shown(off), 'tr'), { id: 'ajan', label: '👥 ajan', active: false });
-  assert.deepEqual(item(shown(free, 2)), { id: 'parallel', label: '👥 agents ≤5 · 2', active: true });
-  assert.equal(item(shown(free, 2), 'en', 40)?.label, '👥≤5·2');
-  assert.deepEqual(item(shown(assigned, 1)), { id: 'parallel', label: '👥 agents =3 · 1/3', active: true });
-  assert.deepEqual(item(shown({ ...off, ultracode: true })), { id: 'parallel', label: '👥 agents · ultracode', active: true });
+  // An opener: the window opens, nothing changes until the person acts there; its state follows the mark.
+  assert.deepEqual(item(shown(off)), { id: 'parallel', label: '👥 agents…', active: false });
+  assert.deepEqual(item(shown(off), 'tr'), { id: 'ajan', label: '👥 ajan…', active: false });
+  assert.deepEqual(item(shown(free, 2)), { id: 'parallel', label: '👥 agents… ≤5 · 2', active: true });
+  assert.equal(item(shown(free, 2), 'en', 40)?.label, '👥…≤5·2');
+  assert.deepEqual(item(shown(assigned, 1)), { id: 'parallel', label: '👥 agents… =3 · 1/3', active: true });
+  assert.deepEqual(item(shown({ ...off, ultracode: true })), { id: 'parallel', label: '👥 agents… · ultracode', active: true });
   // Every layout still fits the room with it, and with the other optional controls beside it.
   const full = { ...shown(assigned, 1), fullAutoShown: true, bypass: { shown: true, on: false, count: 0 }, frozen: 'feature' };
   for (const lang of ['tr', 'en'] as const)
@@ -413,4 +422,45 @@ test('parallel agents: on the strip, in the line and the menu once turned on; li
   assert.match(menuText(shown(free), 'en', '—'), /\/8 autonomous\*\* · \*\*\/parallel\*\*$/m);
   assert.match(menuText(shown(off), 'tr', '—'), /\/8 otonom\*\* · \/ajan$/m);
   assert.doesNotMatch(menuText(view, 'en', '—'), /parallel/);
+});
+
+test('the look tells the kind on the strip, on every layout: an opener ends in …, a switch says ● or ○, a choice is lit', () => {
+  const all: StripView = {
+    ...view,
+    fullAutoShown: true,
+    bypass: { shown: true, on: false, count: 0 },
+    frozen: 'feature',
+    agents: { shown: true, state: { ...DEFAULT_AGENTS }, running: 0 },
+  };
+  for (const lang of ['tr', 'en'] as const)
+    for (const columns of [40, 60, 80, 120, 200]) {
+      const items = stripRows(all, lang, columns)
+        .flat()
+        .flatMap((s) => s.items);
+      const label = (id: string) => items.find((i) => i.id === id)!.label;
+      for (const id of ['0', commandOf({ kind: 'fullAuto' }, lang), commandOf({ kind: 'agents' }, lang), '6'])
+        assert.ok(label(id).includes('…'), `${lang} ${columns} ${id}: ${label(id)}`);
+      assert.ok(label('bypass').includes('○'), `${lang} ${columns} bypass`);
+      assert.ok(label(commandOf({ kind: 'freeze' }, lang)).includes('●'), `${lang} ${columns} freeze`);
+      // A choice and an action carry no such mark: the lit one is the choice made, closing acts at once.
+      for (const id of ['1', '2', '3', '4', '5', '7', '8', '00']) assert.ok(!/[…●○]/.test(label(id)), `${lang} ${columns} ${id}: ${label(id)}`);
+    }
+});
+
+test('a budget that cannot be set says why: none given, points above now with no reading, a number the week has passed', () => {
+  assert.deepEqual(budgetProblem(null, 40), { key: 'ctl.quota.bad' });
+  assert.deepEqual(budgetProblem({ n: 5, plus: true }, null), { key: 'ctl.quota.noReading' });
+  assert.deepEqual(budgetProblem({ n: 30, plus: false }, 40), { key: 'ctl.quota.past', params: { week: 40, target: 30 } });
+  assert.deepEqual(budgetProblem({ n: 40, plus: false }, 40), { key: 'ctl.quota.past', params: { week: 40, target: 40 } });
+  assert.equal(budgetProblem({ n: 41, plus: false }, 40), null);
+  assert.equal(budgetProblem({ n: 30, plus: false }, null), null);
+  assert.equal(budgetProblem({ n: 5, plus: true }, 40), null);
+});
+
+test('the command of each control: its number, or its word in the person language for those without one', () => {
+  assert.equal(commandOf({ kind: 'mode', mode: 'plan' }, 'tr'), '3');
+  assert.equal(commandOf({ kind: 'menu' }, 'en'), '0');
+  assert.equal(commandOf({ kind: 'close' }, 'tr'), '00');
+  assert.deepEqual([commandOf({ kind: 'why' }, 'tr'), commandOf({ kind: 'why' }, 'en')], ['neden', 'why']);
+  assert.deepEqual([commandOf({ kind: 'freeze' }, 'tr'), commandOf({ kind: 'agents' }, 'en')], ['dondur', 'parallel']);
 });

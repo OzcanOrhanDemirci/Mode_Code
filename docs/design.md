@@ -22,7 +22,7 @@ Every element on every surface answers four questions where it stands, without a
 3. **What exactly happens if I change it?** For each value, before it is applied.
 4. **Can I take it back?** And how.
 
-The catalog (`src/core/ux/catalog.ts`) holds the four answers for every setting and every control of the strip (the `/` commands are its controls), in both languages; the windows join it with the stage that builds them (D5); the kinds of background event have their lines in `src/core/ux/activity.ts`. Every surface draws them from there: the control center's card under a setting, `mode-code config explain`, the `/` menu; none writes its own.
+The catalog (`src/core/ux/catalog.ts`) holds the four answers for every setting and every control of the strip (the `/` commands are its controls), in both languages, and every window a control opens (`WINDOWS`: its pane, its title, what it is for, its action); the kinds of background event have their lines in `src/core/ux/activity.ts`. Every surface draws them from there: the control center's card under a setting, `mode-code config explain`, the `/` menu, and the line under the strip, where the card of the control under the pointer or the keyboard says itself in one line (`src/core/ux/say.ts`); none writes its own.
 
 ## The contract
 
@@ -39,16 +39,16 @@ The catalog (`src/core/ux/catalog.ts`) holds the four answers for every setting 
 
 4. **One way to act.** Mouse and keyboard do the same thing everywhere:
 
-   | You                                        | Does                                          |
-   | ------------------------------------------ | --------------------------------------------- |
-   | click · Enter · Space                      | act on what is under the pointer or the focus |
-   | point at it (hover) · move the focus to it | show its card: the four answers               |
-   | wheel                                      | scroll what is under the pointer              |
-   | Esc                                        | back, or close the window                     |
-   | `?`                                        | what is this, and why is it so                |
-   | `u`                                        | undo the last change                          |
-   | arrows                                     | move. **Arrows never change a value.**        |
-   | digits                                     | jump to the numbered control                  |
+   | You                                        | Does                                                                                                                                |
+   | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+   | click · Enter · Space                      | act on what is under the pointer or the focus                                                                                       |
+   | point at it (hover) · move the focus to it | show its card: the four answers                                                                                                     |
+   | wheel                                      | scroll what is under the pointer                                                                                                    |
+   | Esc                                        | back, or close the window                                                                                                           |
+   | `?`                                        | what is this, and why is it so                                                                                                      |
+   | `u`                                        | undo the last change                                                                                                                |
+   | arrows                                     | move. **Arrows never change a value.**                                                                                              |
+   | digits                                     | jump to the numbered control; at Claude Code's prompt `/3` presses the strip's 3, and a digit typed alone stays a message to Claude |
 
    Every click target shows its key; everything reachable by a key can be clicked; pointing only explains, it never acts.
 
@@ -128,7 +128,7 @@ One kit, two hosts (`src/core/ux/kit.ts`). Each component is written once agains
 | Component           | Anatomy                                                                               |
 | ------------------- | ------------------------------------------------------------------------------------- |
 | **Switch**          | label · `● On` / `○ Off` · default badge · changed dot                                |
-| **Choice**          | label · options with `◉` / `○`, or `‹ value ›`                                        |
+| **Choice**          | label · options with `◉` / `○`, each one a press, or `‹ value ›`                      |
 | **Number**          | label · value · unit · range in its card                                              |
 | **Action**          | `[ Verb ]`, primary drawn in the accent                                               |
 | **Opener**          | label `…` · what it opens in its card                                                 |
@@ -157,6 +157,9 @@ A row whose test is still to come names the stage that brings it; `test/core/des
 | Right edges of a block line up                                               | `test/tui/grid.test.tsx`                                                                              |
 | The kit sets only what Claude Code's elements take                           | `test/core/ux-kit.test.ts`; the installed version's declarations: `src/mod/kit-host.ts`               |
 | Every background job writes an activity line                                 | `test/core/ux-activity.test.ts` (every kind written has its line)                                     |
+| Every control of the strip has its card, for the pointer and the keyboard    | `test/core/ux-say.test.ts`, the engine kit (`test/mod/controls.kit.ts`)                               |
+| The look tells the kind on the strip, on every layout                        | `test/core/controls.test.ts`                                                                          |
+| Every window is drawn to one pattern, and no window takes a value by arrow   | `test/core/ux-kit.test.ts`, `test/core/ux-catalog.test.ts`, the engine kit (`test/mod/agents.kit.ts`) |
 | Every change to a setting is recorded and can be taken back                  | `test/core/ux-changes.test.ts`, `test/tui/ledger.test.tsx`                                            |
 | "Why is it so" is worked out by code, from the settings and the session      | `test/core/ux-why.test.ts` (30 situations), the engine kit (`/why`, the `why` tool)                   |
 | From 60 to 200 columns                                                       | `test/tui/widths.test.tsx`, `test/core/controls.test.ts`                                              |

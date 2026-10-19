@@ -313,6 +313,24 @@ test('stop pauses the run with its report; continue runs the checks again and re
 const BAND = { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 160, scroll: { offset: 0, bodyRows: 10 } } as any;
 const PANE = { title: 'Full autonomy', isFocused: true, bodyColumns: 100, placement: 'inline', scroll: { offset: 0, bodyRows: 8 }, view: {} } as any;
 /** What a press sends on goes from a timer the moment it is done (see sendAsPerson): the clock moves it. */
+/** The text of drawn children, strings and elements alike, in order: what a pressable shows ("◉ +10 → 51%"). */
+function flat(children: unknown[]): string {
+  return children.map((c: any) => (typeof c === 'string' ? c : flat(c?.children ?? []))).join('');
+}
+
+/** What a pressable shows: its texts, as one string ("◉ +10 → 51%"). */
+async function shown(pane: any, key: string): Promise<string> {
+  return flat((await pane.find({ key }))?.children ?? []);
+}
+
+/** Every word a drawing shows, its wrapped lines joined back: a sentence the window wraps reads whole. */
+async function words(ui: any): Promise<string> {
+  return (await ui.findAll({ type: 'Text' }))
+    .map((t: any) => String(t.text))
+    .join(' ')
+    .replace(/\s+/g, ' ');
+}
+
 async function settle(w: { clock: { advance(ms: number): Promise<unknown> } }) {
   await w.clock.advance(5);
   for (let i = 0; i < 20; i++) await Promise.resolve();
@@ -329,24 +347,26 @@ test('full autonomy opens with a press: its window takes the budget and the task
   expect(w.asked).toEqual([]);
   expect(w.panes).toEqual(['full-auto']);
   const pane: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'Pane', requestId: 'full-auto', props: PANE } as any);
-  const budget = await pane.find({ key: 'auto-budget' });
-  expect(budget?.props.value).toBe('+10');
-  // The weekly limit each budget sets, from the week's reading (41%).
-  expect(budget?.props.options).toEqual([
-    { value: '+5', label: '+5 → 46%' },
-    { value: '+10', label: '+10 → 51%' },
-    { value: '+20', label: '+20 → 61%' },
+  // The weekly limit each budget sets, from the week's reading (41%); the one picked is marked, and each is a press.
+  expect([await shown(pane, 'auto-budget-+5'), await shown(pane, 'auto-budget-+10'), await shown(pane, 'auto-budget-+20')]).toEqual([
+    '○ +5 → 46%',
+    '◉ +10 → 51%',
+    '○ +20 → 61%',
   ]);
+  expect(await pane.findAll({ type: 'Select' })).toEqual([]);
+  // What starting will do, said before it does.
+  expect(await words(pane)).toContain('If you apply The task starts as a full-autonomy run. It wraps up as the week nears 51% and stops there');
   expect((await pane.find({ key: 'auto-task' }))?.props).toMatchObject({ value: '', autoFocus: true });
   // Started with no task: the window stays and says what is missing.
-  await pane.press({ key: 'auto-start' });
-  const missing = { type: 'Text', text: 'Write the task first.' };
+  await pane.press({ key: 'apply' });
+  const missing = { type: 'Text', text: '✗ Write the task first.' };
   expect((await pane.find(missing))?.props.color).toBe('error');
   expect(w.submitted).toEqual(['Hello.']);
-  await pane.select({ key: 'auto-budget', value: '+20' });
+  await pane.press({ key: 'auto-budget-+20' });
   expect(await pane.find(missing)).toBeUndefined();
+  expect(await words(pane)).toContain('nears 61%');
   await pane.input({ key: 'auto-task', text: 'Add rate limiting to the API.', kind: 'change' });
-  await pane.press({ key: 'auto-start' });
+  await pane.press({ key: 'apply' });
   await settle(w);
   // The task goes as the person's message ending in the keyword, as if typed; the window closes.
   expect(w.submitted).toEqual(['Hello.', 'Add rate limiting to the API.\n\nfull auto quota +20']);
@@ -372,11 +392,11 @@ test('the window keeps a task while it is closed, starts on Enter, and keeps the
   await $.command.run({ command: 'full-auto', args: 'quota +5 First task', origin: { kind: 'composer' } } as any);
   const pane: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'Pane', requestId: 'full-auto', props: PANE } as any);
   // What was given with the command fills the window.
-  expect((await pane.find({ key: 'auto-budget' }))?.props.value).toBe('+5');
+  expect(await shown(pane, 'auto-budget-+5')).toBe('◉ +5 → 46%');
   expect((await pane.find({ key: 'auto-task' }))?.props.value).toBe('First task');
   // Closed with what was typed since: opened again, it is still there.
   await pane.input({ key: 'auto-task', text: 'First task, revised', kind: 'change' });
-  await pane.press({ key: 'auto-cancel' });
+  await pane.press({ key: 'cancel' });
   expect(w.panes).toEqual([]);
   await $.command.run({ command: 'full-auto', args: '', origin: { kind: 'composer' } } as any);
   expect((await pane.find({ key: 'auto-task' }))?.props.value).toBe('First task, revised');

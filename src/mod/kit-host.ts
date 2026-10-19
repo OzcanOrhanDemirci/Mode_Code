@@ -27,6 +27,8 @@ const button = (p: KitPress): Omit<ButtonProps, 'label'> => ({
   onPress: () => p.onPress(),
   ...(p.hotkey ? { hotkey: p.hotkey } : {}),
   ...(p.primary ? { variant: 'primary' as const } : {}),
+  ...(p.dismiss ? { role: 'dismiss' as const } : {}),
+  ...(p.autoFocus ? { autoFocus: true as const } : {}),
 });
 
 /** Children as the surface takes them: nothing drawn for an absent one. */

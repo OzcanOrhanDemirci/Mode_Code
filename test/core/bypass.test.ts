@@ -73,17 +73,18 @@ test('the strip: no bypass until it is turned on; then ⚡, lit in red while on,
   const shown: StripView = { ...base, bypass: { shown: true, on: false, count: 0 } };
   assert.deepEqual(
     items(shown).find((i) => i.id === 'bypass'),
-    { id: 'bypass', label: '⚡ bypass', active: false },
+    { id: 'bypass', label: '⚡ bypass ○', active: false },
   );
   const on: StripView = { ...base, bypass: { shown: true, on: true, count: 3 } };
   assert.deepEqual(
     items(on).find((i) => i.id === 'bypass'),
-    { id: 'bypass', label: '⚡ bypass · 3', active: true, alert: true },
+    { id: 'bypass', label: '⚡ bypass ● · 3', active: true, alert: true },
   );
-  assert.equal(items(on, 50).find((i) => i.id === 'bypass')?.label, '⚡3');
-  // A count only while on, and only once something went through.
-  assert.equal(items({ ...base, bypass: { shown: true, on: true, count: 0 } }).find((i) => i.id === 'bypass')?.label, '⚡ bypass');
-  assert.equal(items({ ...base, bypass: { shown: true, on: false, count: 3 } }).find((i) => i.id === 'bypass')?.label, '⚡ bypass');
+  assert.equal(items(on, 50).find((i) => i.id === 'bypass')?.label, '⚡●3');
+  // A switch: its mark says on or off. A count only while on, and only once something went through.
+  assert.equal(items({ ...base, bypass: { shown: true, on: true, count: 0 } }).find((i) => i.id === 'bypass')?.label, '⚡ bypass ●');
+  assert.equal(items({ ...base, bypass: { shown: true, on: false, count: 3 } }).find((i) => i.id === 'bypass')?.label, '⚡ bypass ○');
+  assert.equal(items(shown, 50).find((i) => i.id === 'bypass')?.label, '⚡○');
   // Turned on for this computer, off in this session: the menu lists it, not in bold.
   assert.match(menuText(shown, 'tr', '—'), /\/8 otonom · \/bypass$/m);
   assert.equal(controlsLine(on, 'en'), '🔨 code · manual · ⚡ bypass · 3');

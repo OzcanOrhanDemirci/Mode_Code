@@ -14,6 +14,8 @@ export type ModeCodeLabels = {
   band: string;
   /** What the band says, by meaning (src/core/ux/tokens.ts): drawn with its mark and colour; null, as it is. */
   bandMeaning: 'on' | 'ask' | null;
+  /** The lines of this session's activity a person reads (src/core/ux/activity.ts): the count under the strip. */
+  activity?: number;
   strip: {
     mode: 'free' | 'chat' | 'research' | 'plan' | 'code';
     style: 'manual' | 'autonomous' | 'full';
@@ -75,6 +77,8 @@ export type ModeCodeAutoPane = {
  */
 export type ModeCodeAgentsPane = {
   lang: 'en' | 'tr';
+  /** The session's agents as the window opened, in words: how it is now. */
+  current: string;
   mode: 'off' | 'free' | 'assigned';
   n: string;
   rows: { task: string; kind: 'code' | 'research' | 'plan'; model: string | null }[];
@@ -85,8 +89,49 @@ export type ModeCodeAgentsPane = {
   error: string | null;
 };
 
+/**
+ * The control of the strip that holds the keyboard's focus (its command's name), and when it took it: its card shows
+ * under the strip. Claude Code says nothing when the focus goes back to the prompt, so the card leaves on its own.
+ */
+export type ModeCodeStripFocus = { id: string | null; at: number };
+
+/** The window where the weekly budget is set: the week's reading, the budget now, the limit, the option picked. */
+export type ModeCodeQuotaPane = {
+  lang: 'en' | 'tr';
+  week: number | null;
+  target: number | null;
+  limit: number;
+  pick: string;
+  error: string | null;
+};
+
+/** The window where a flow is started: the one picked; the task typed is the plugin's own while it is typed. */
+export type ModeCodeFlowPane = {
+  lang: 'en' | 'tr';
+  pick: 'full' | 'plan' | 'research' | 'researchPlan';
+  error: string | null;
+};
+
+/** The window that turns bypass on: for how long, and until when, read as it opened. */
+export type ModeCodeBypassPane = {
+  lang: 'en' | 'tr';
+  hours: number;
+  until: string;
+  error: string | null;
+};
+
 declare module 'claude-code' {
   interface PluginState {
-    'mode-code': { footers: ModeCodeFooters; labels: ModeCodeLabels; mo: ModeCodeMo; autoPane: ModeCodeAutoPane; agentsPane: ModeCodeAgentsPane };
+    'mode-code': {
+      footers: ModeCodeFooters;
+      labels: ModeCodeLabels;
+      mo: ModeCodeMo;
+      autoPane: ModeCodeAutoPane;
+      agentsPane: ModeCodeAgentsPane;
+      stripFocus: ModeCodeStripFocus;
+      quotaPane: ModeCodeQuotaPane;
+      flowPane: ModeCodeFlowPane;
+      bypassPane: ModeCodeBypassPane;
+    };
   }
 }
