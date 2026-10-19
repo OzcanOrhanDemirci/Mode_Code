@@ -8,6 +8,7 @@ import { existsSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
 import { APP_ID, APP_VERSION, CLI_NAME } from '../core/app.js';
 import { serializeConfig } from '../core/config.js';
+import { saveConfig } from '../node/changes.js';
 import { dateTime, shortPath } from '../core/format.js';
 import { nextOf } from '../core/handoff.js';
 import { tIn, type MessageKey } from '../core/i18n/index.js';
@@ -127,7 +128,7 @@ export async function runMemorySetup(ctx: AppContext): Promise<number> {
     now: Date.now,
   });
   if (out.ok && out.config) {
-    writeAtomic(ctx.layout.config, serializeConfig(out.config));
+    saveConfig(ctx.layout, ctx.config, out.config, 'setup');
     if (out.sync) recordSync(ctx.layout, 'cli', 'setup', null, out.sync);
   }
   return out.ok ? 0 : 1;

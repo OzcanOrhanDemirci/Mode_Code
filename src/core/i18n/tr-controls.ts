@@ -50,6 +50,7 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.hint.flow': '[görev]',
   'ctl.hint.continue': '[numara ya da ad] [kota N]',
   'ctl.hint.quota': '[N ya da +N]',
+  'ctl.hint.why': '[bir parça | bir kural | son]',
   'ctl.hint.freeze': '[klasör | kapat]',
   'ctl.desc.commands': 'Her anahtar kelime, komut ve beceri; her biri nasıl çalıştırılır',
   'skill.running': '{skill} çalışıyor.',

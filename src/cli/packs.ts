@@ -24,6 +24,7 @@ import { appContext, type AppContext } from '../app/context.js';
 import { loadEvents } from '../app/data.js';
 import { ago } from '../core/format.js';
 import { writeAtomic } from '../node/fsx.js';
+import { saveConfig } from '../node/changes.js';
 import { distDir, underAgent } from '../node/install.js';
 import { autoPacks, claudeIn, listedPlugins, packGuide, packRows, readPackRecord, turnOff, turnOn } from '../node/packs.js';
 import { flag, value, type Args } from './args.js';
@@ -110,7 +111,7 @@ export async function cmdPacks(a: Args): Promise<number> {
       for (const p of mine) say(red(T('cli.doctor.configProblem', { path: p.path, detail: p.detail })));
       return false;
     }
-    writeAtomic(ctx.layout.config, serializeConfig(r.config));
+    saveConfig(ctx.layout, ctx.config, r.config, 'command');
     return true;
   };
   if (sub === 'auto') {

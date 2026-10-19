@@ -37,6 +37,8 @@ export interface Layout {
   config: string;
   stateDir: string;
   quota: string;
+  /** Every change to a setting, by whom and when (src/core/ux/changes.ts). */
+  changes: string;
   sessionsDir: string;
   eventsDir: string;
   index: string;
@@ -67,6 +69,7 @@ export function layout(root: string): Layout {
     config: joinPath(root, 'config.json'),
     stateDir: joinPath(root, 'state'),
     quota: joinPath(root, 'state', 'quota.json'),
+    changes: joinPath(root, 'state', 'changes.jsonl'),
     sessionsDir: joinPath(root, 'state', 'sessions'),
     eventsDir: joinPath(root, 'events'),
     index: joinPath(root, 'index.db'),

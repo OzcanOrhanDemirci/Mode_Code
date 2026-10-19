@@ -348,6 +348,7 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'help.secrets': 'Dosyaları ya da hafıza klasörünü sırlar için tara',
   'help.config': 'Bir ayarı oku ya da değiştir',
   'help.configExplain': 'Bir ayarın ne yaptığı, değiştirmeden önce',
+  'help.configHistory': 'Bir ayardaki her değişiklik ve sonuncusunu geri almak',
   'help.json': 'Makinenin okuyacağı çıktı için her komuta --json ekle.',
   'help.privacy': 'Her şey bu makinede kalır. Telemetri yok. Güncelleme denetimi, açarsan, yalnız en yeni sürümün sağlama listesini indirir.',
   'help.trust': "Claude Code'un içinde modelden başka neler çalışıyor; son bakışından beri ne değişti",

@@ -566,6 +566,16 @@
       "branches": 92,
       "functions": 94
     },
+    "src/core/ux/activity.ts": {
+      "lines": 94,
+      "branches": 76,
+      "functions": 87
+    },
+    "src/core/ux/changes.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
     "src/core/ux/kit.ts": {
       "lines": 94,
       "branches": 70,
@@ -574,6 +584,11 @@
     "src/core/ux/tokens.ts": {
       "lines": 94,
       "branches": 92,
+      "functions": 94
+    },
+    "src/core/ux/why.ts": {
+      "lines": 92,
+      "branches": 81,
       "functions": 94
     },
     "src/core/version.ts": {
@@ -585,6 +600,11 @@
       "lines": 88,
       "branches": 71,
       "functions": 89
+    },
+    "src/node/changes.ts": {
+      "lines": 87,
+      "branches": 58,
+      "functions": 94
     },
     "src/node/claude-env.ts": {
       "lines": 80,
@@ -716,6 +736,11 @@
       "branches": 92,
       "functions": 0
     },
+    "src/tui/screens/activity.tsx": {
+      "lines": 84,
+      "branches": 25,
+      "functions": 64
+    },
     "src/tui/screens/automation.tsx": {
       "lines": 93,
       "branches": 74,
@@ -725,6 +750,11 @@
       "lines": 77,
       "branches": 0,
       "functions": 79
+    },
+    "src/tui/screens/history.tsx": {
+      "lines": 88,
+      "branches": 55,
+      "functions": 51
     },
     "src/tui/screens/home.tsx": {
       "lines": 83,

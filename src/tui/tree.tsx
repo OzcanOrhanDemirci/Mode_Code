@@ -15,6 +15,8 @@ import { flowTitle, statusText } from '../core/flow-view.js';
 import { Events, Protection, RuleDetail, Secrets, TestCommand } from './screens/security.js';
 import { Extensions, Hooks, Instructions, Mcp, Packs, Permissions, Plugins, SettingsSources, Skills } from './screens/claude.js';
 import { Templates } from './screens/templates.js';
+import { History } from './screens/history.js';
+import { Activity } from './screens/activity.js';
 import { Bypass, Bypassed, ParallelAgents, RecentTasks } from './screens/automation.js';
 import {
   About,
@@ -64,6 +66,7 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
         })(),
         screen: (p) => <Inbox {...p} />,
       }),
+      n('activity', 'page.activity', { description: d('desc.activity'), screen: (p) => <Activity {...p} /> }),
     ],
   });
 
@@ -327,6 +330,7 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
       n('projects', 'page.projects', { description: d('desc.projectsSet'), screen: (p) => <Projects {...p} /> }),
       n('keywords', 'page.keywords', { description: d('desc.keywords'), screen: (p) => <Keywords {...p} /> }),
       n('accessibility', 'page.accessibility', { description: d('desc.accessibility'), screen: (p) => <Accessibility {...p} /> }),
+      n('history', 'page.history', { description: d('desc.history'), screen: (p) => <History {...p} /> }),
       n('maintenance', 'page.maintenance', { description: d('desc.maintenance'), screen: (p) => <Maintenance {...p} /> }),
       n('about', 'page.about', { description: d('desc.about'), screen: (p) => <About {...p} /> }),
     ],

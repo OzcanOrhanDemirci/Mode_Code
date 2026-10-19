@@ -19,6 +19,7 @@ import { syncSetup } from '../app/sync-setup.js';
 import { syncView } from '../app/sync.js';
 import { home, platform } from '../node/env.js';
 import { readText, writeAtomic, writeJsonAtomic } from '../node/fsx.js';
+import { saveConfig } from '../node/changes.js';
 import { underAgent } from '../node/install.js';
 import { nodeRunner } from '../node/memory.js';
 import { candidateFolders, computerName, mergedConfig, othersHints, syncShared } from '../node/sync.js';
@@ -90,7 +91,7 @@ export async function runSyncSetup(ctx: AppContext): Promise<number> {
     hostname: computerName(),
     random: () => randomBytes(2).toString('hex'),
   });
-  if (out.ok && out.config) writeAtomic(ctx.layout.config, serializeConfig(out.config));
+  if (out.ok && out.config) saveConfig(ctx.layout, ctx.config, out.config, 'setup');
   if (!out.ok) return 1;
   // The projects that came with the other computers: their folders here, found and asked about once.
   const after = appContext();
@@ -149,7 +150,7 @@ export async function linkProjects(ctx: AppContext, yes: boolean, asJson: boolea
   }
   let next = local;
   for (const m of usable) next = withFolder(ctx.config, next, m.id, m.path);
-  writeAtomic(ctx.layout.config, serializeConfig(next));
+  saveConfig(ctx.layout, ctx.config, next, 'command');
   say(green(T(ctx, 'scli.projects.done', { n: usable.length })));
   return 0;
 }
@@ -209,7 +210,7 @@ export async function cmdSync(a: Args): Promise<number> {
     if (sub === 'approve') {
       // Written into this computer's own settings: from now on it is this computer's change too.
       const next = applyShared(local, Object.fromEntries(chosen.map((p) => [p.key, p.incoming])));
-      writeAtomic(ctx.layout.config, serializeConfig(next));
+      saveConfig(ctx.layout, ctx.config, next, 'sync');
     } else {
       const ignored: Record<string, number> = {};
       try {
@@ -248,7 +249,7 @@ export async function cmdSync(a: Args): Promise<number> {
       say(red(T(ctx, 'scli.project.notDir', { dir })));
       return 1;
     }
-    writeAtomic(ctx.layout.config, serializeConfig(withFolder(ctx.config, local, id, dir)));
+    saveConfig(ctx.layout, ctx.config, withFolder(ctx.config, local, id, dir), 'command');
     say(green(T(ctx, 'scli.project.done', { id, dir })));
     return 0;
   }

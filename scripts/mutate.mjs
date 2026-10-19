@@ -118,6 +118,10 @@ const TARGETS = {
   'src/core/ux/kit.ts': ['test/core/ux-kit.test.ts'],
   // The mouse: the terminal's pointer sequences read and taken out of the keys.
   'src/tui/pointer.ts': ['test/tui/pointer.test.tsx'],
+  // The record of changes, the activity and the reasons (docs/design.md, rules 5 to 7).
+  'src/core/ux/changes.ts': ['test/core/ux-changes.test.ts'],
+  'src/core/ux/activity.ts': ['test/core/ux-activity.test.ts'],
+  'src/core/ux/why.ts': ['test/core/ux-why.test.ts'],
 };
 
 // ── finding mutation sites in TypeScript without a parser: code outside strings, comments and regexes ──

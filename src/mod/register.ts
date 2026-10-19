@@ -41,6 +41,10 @@ import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform 
 import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '../core/i18n/index.js';
 import { CONTROLS, controlOf, controlText, optionLabel } from '../core/ux/catalog.js';
 import { notice } from '../core/ux/kit.js';
+import { why, whyAll, whyRule, whySubjectNamed, whyText, WHY_SUBJECTS, type WhyFacts } from '../core/ux/why.js';
+import { activityOf, activityText, type ActivityEvent } from '../core/ux/activity.js';
+import { RULE_IDS } from '../core/belt/rules.js';
+import type { RuleId } from '../core/belt/types.js';
 import { claudeHost } from './kit-host.js';
 import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
 import { beltOffForDevelopment } from '../core/dev-switch.js';
@@ -2828,6 +2832,7 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   if (better && !c.hinted.has(better)) {
     c.hinted.add(better);
     extra.push(hygieneNote(better));
+    await logEvent($, c, { kind: 'hint', hint: better });
   }
   if (
     ran &&
@@ -2838,13 +2843,19 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   ) {
     c.hinted.add('whole-read');
     extra.push(wholeReadNote());
+    await logEvent($, c, { kind: 'hint', hint: 'whole-read' });
   }
   const trap = ran && e.agentId === undefined ? shellTrap(tool, input, c.platform) : null;
   if (trap && !c.hinted.has(trap)) {
     c.hinted.add(trap);
     extra.push(trapNote(trap));
+    await logEvent($, c, { kind: 'hint', hint: trap });
   }
-  if (ran && e.agentId === undefined) extra.push(...(await packNotes($, c, tool, input, result)));
+  if (ran && e.agentId === undefined) {
+    const packs = await packNotes($, c, tool, input, result);
+    if (packs.length) await logEvent($, c, { kind: 'hint', hint: 'pack' });
+    extra.push(...packs);
+  }
   if (ran && result.isError !== true && e.agentId === undefined) await workBoundary($, c, tool, input);
   if (d.verdict === 'warn' && result && result.deny === undefined) {
     await logEvent($, c, { kind: 'belt', tool, verdict: 'warn', rules });
@@ -3038,6 +3049,8 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   const notes = human && (c.prompts === 1 || starting) ? capStart(extra, (n) => byItself.has(n)) : extra;
   if (notes !== extra && notes.join('').length < extra.join('').length)
     await logEvent($, c, { kind: 'startCap', before: extra.join('').length, after: notes.join('').length });
+  // What went to Claude unseen with the prompt is no invisible work: its count is in the activity.
+  if (human && notes.length) await logEvent($, c, { kind: 'notes', count: notes.length, chars: notes.join('').length });
   return notes.length ? next({ ...e, context: [...(e.context ?? []), ...notes] }) : next(e);
 }
 
@@ -3697,6 +3710,23 @@ const CATALOG_TOOL = {
   isDeferred: true,
 } as const;
 
+/** Why something is as it is (src/core/ux/why.ts), asked by Claude: the answer comes from the settings and the log. */
+const WHY_TOOL = {
+  name: 'why',
+  description: `Why ${APP_NAME} does what it does in this session, worked out from the person's settings and what happened: "last" for the last call refused and its rule, a part (${WHY_SUBJECTS.join(', ')}), a rule of the safety belt by its id, or nothing for every part. Use it before telling the person why something was blocked or is off.`,
+  inputSchema: {
+    type: 'object',
+    properties: { about: { type: 'string', description: '"last", a part, or a rule id; empty for every part.' } },
+    additionalProperties: false,
+  },
+  isDeferred: true,
+} as const;
+
+async function onWhyTool($: $, e: any): Promise<any> {
+  const c = await ctxOf($);
+  return { result: await whyAnswer($, c, typeof e.about === 'string' ? e.about.slice(0, 80) : '') };
+}
+
 async function onCatalogTool($: $, e: any): Promise<any> {
   const c = await ctxOf($);
   const p = typeof e.pack === 'string' ? packById(e.pack) : undefined;
@@ -3796,6 +3826,12 @@ async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.st
     await $.tool.register(CATALOG_TOOL);
   } catch {
     /* the packs then reach Claude through their hints alone */
+  }
+  // Why something is so, behind tool search too: its name costs nothing until Claude looks for it.
+  try {
+    await $.tool.register(WHY_TOOL);
+  } catch {
+    /* /neden still answers the person */
   }
   // A run attached to this session (a resumed session) keeps its tool; a paused one in this folder is said once.
   if (c.run) await registerAutoTool($);
@@ -4507,6 +4543,7 @@ const COMMAND_HINT: Record<ControlAction['kind'], MessageKey | null> = {
   bypass: null,
   freeze: 'ctl.hint.freeze',
   agents: 'ctl.hint.agents',
+  why: 'ctl.hint.why',
 };
 
 /** A command's line in the `/` menu: its control's own words in the catalog. */
@@ -4727,6 +4764,35 @@ async function onCommand($: $, e: In<'command.run'>, next: Nx<'command.run'>): O
   if ((LIST_COMMANDS as readonly string[]).includes(e.command)) return { text: await commandsList($) };
   if (!commandNamed(e.command)) return next(e);
   return control($, e.command, String(e.args ?? ''), viaOf(e), whereOf(e), (e.origin as { kind?: string } | undefined)?.kind);
+}
+
+/**
+ * Why something is as it is (src/core/ux/why.ts), for `/neden` and the `why` tool: every part with no word, one part
+ * or one rule of the belt with one, and "last" for the last call this session refused, with its rule's reasons.
+ */
+async function whyAnswer($: $, c: Ctx, word: string): Promise<string> {
+  const facts: WhyFacts = { config: c.config, session: c.state, now: await $.clock.now(), beltOff: beltOffForDevelopment(c.env) };
+  const w = word.trim();
+  if (!w) return whyAll(facts, c.lang).map(whyText).join('\n');
+  if ((RULE_IDS as readonly string[]).includes(w)) return whyText(whyRule(w as RuleId, facts, c.lang));
+  if (/^(?:last|son)$/i.test(w)) {
+    for (let i = c.events.length - 1; i >= 0; i--) {
+      let e: ActivityEvent;
+      try {
+        e = JSON.parse(c.events[i]!) as ActivityEvent;
+      } catch {
+        continue;
+      }
+      if (e.verdict !== 'deny' && !(e.kind === 'belt' && e.answer !== 'allow' && e.verdict === 'ask')) continue;
+      const line = activityOf(e, c.lang);
+      const rule =
+        Array.isArray(e.rules) && typeof e.rules[0] === 'string' && (RULE_IDS as readonly string[]).includes(e.rules[0]) ? (e.rules[0] as RuleId) : null;
+      return [activityText(line, facts.now, c.lang), ...(rule ? [whyText(whyRule(rule, facts, c.lang))] : [])].join('\n');
+    }
+    return tIn(c.lang, 'why.noBlock');
+  }
+  const subject = whySubjectNamed(w);
+  return subject ? whyText(why(subject, facts, c.lang)) : tIn(c.lang, 'why.none', { subjects: [...WHY_SUBJECTS, 'last'].join(', ') });
 }
 
 /** What the terminal the session runs in says about itself (LAUNCH_ENV), each name spelled out for the plugin's validator. */
@@ -5182,6 +5248,8 @@ async function control(
     return say(tIn(lang, 'ctl.modesOff'));
   const letRunGo = `${tIn(lang, 'kw.kind.fullAuto')} ${tIn(lang, 'kw.word.cancel')}`;
   switch (action.kind) {
+    case 'why':
+      return say(await whyAnswer($, c, args));
     case 'agents': {
       if (!c.config.agents.enabled) return say(tIn(lang, 'agents.notEnabled'));
       const line = await agentsCommand($, c, args);
@@ -5502,6 +5570,7 @@ export function register(on: On): void {
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${AUTO_TOOL.name}` }, onAutoTool);
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${HANDOFF_TOOL_DEF.name}` }, onHandoffTool);
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${CATALOG_TOOL.name}` }, onCatalogTool);
+  on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${WHY_TOOL.name}` }, onWhyTool);
   on('skill.prompt', onSkillPrompt);
   // Claude Code's own permission questions: during a run they are answered "deferred" instead of waiting.
   // A failure leaves Claude Code's verdict as it was (a question nobody answers, never a call let through).

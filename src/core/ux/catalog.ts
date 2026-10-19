@@ -460,7 +460,8 @@ export type ControlId =
   | 'bypass'
   | 'freeze'
   | 'agents'
-  | 'close';
+  | 'close'
+  | 'why';
 
 export interface ControlDef {
   /** The four kinds of docs/design.md: picks one of several, flips, does something now, or opens a window. */
@@ -492,6 +493,7 @@ export const CONTROLS: Readonly<Record<ControlId, ControlDef>> = {
   freeze: { kind: 'switch', personOnly: true, back: 'freeze' },
   agents: { kind: 'opener', personOnly: true, needs: ['agents.enabled'], back: 'agents' },
   close: { kind: 'action', back: 'close' },
+  why: { kind: 'opener', back: 'none' },
 };
 
 export const CONTROL_IDS = Object.keys(CONTROLS) as ControlId[];

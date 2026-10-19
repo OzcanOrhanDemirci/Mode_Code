@@ -35,6 +35,7 @@ import { compareVersions } from '../core/version.js';
 import type { Layout } from '../core/layout.js';
 import { copyPrevious, findPrevious, movedMemorySetting, previousPlugin, type PreviousInstall } from './previous.js';
 import { ensureDir, readJson, readText, writeAtomic, writeJsonAtomic } from './fsx.js';
+import { saveConfig } from './changes.js';
 import { claudeDir } from './env.js';
 import { claudeVersion, pluginsVia, realClaude, type ClaudeRunner } from './claude-env.js';
 import { claudeIn, turnAllOff } from './packs.js';
@@ -369,7 +370,7 @@ export function applyInstall(l: Layout, plan: InstallPlan, opts: { config?: Part
   ok &&= step('config', () => {
     if (existsSync(l.config)) return 'kept';
     const c = { ...cloneDefaults(), ...opts.config } as Config;
-    writeAtomic(l.config, serializeConfig(c));
+    saveConfig(l, cloneDefaults(), c, 'setup');
     createdConfig = true;
   });
   ok &&= step('self-test', () => {

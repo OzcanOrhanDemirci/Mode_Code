@@ -269,6 +269,8 @@ export const enCatalog = {
   'ux.ctl.menu.press': 'The control center opens in a new tab or window; this session goes on.',
   'ux.ctl.continue.what': 'Continue a project or a folder: lists them all when none is given',
   'ux.ctl.continue.press': 'Picks a project up where its last handoff note left it, with a budget if you give one.',
+  'ux.ctl.why.what': 'Why it is so: how each part is now, and the settings and choices behind it',
+  'ux.ctl.why.press': 'Shows how each part is now and why; with a word (agents, bypass, quota, or a rule) that part alone. Changes nothing.',
   'ux.ctl.quota.what': 'Weekly budget: a number (70) or points above now (+5)',
   'ux.ctl.quota.press': 'Sets how much of the weekly quota this session may use: work wraps up near it and stops at it.',
   'ux.ctl.bypass.what': 'Bypass: Claude works without asking in this session for a while, each call recorded (once allowed under Automation)',

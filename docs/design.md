@@ -22,7 +22,7 @@ Every element on every surface answers four questions where it stands, without a
 3. **What exactly happens if I change it?** For each value, before it is applied.
 4. **Can I take it back?** And how.
 
-The catalog (`src/core/ux/catalog.ts`) holds the four answers for every setting and every control of the strip (the `/` commands are its controls), in both languages; the windows and the kinds of background event join it with the stages that build them (D5, D4). Every surface draws them from there: the control center's card under a setting, `mode-code config explain`, the `/` menu; none writes its own.
+The catalog (`src/core/ux/catalog.ts`) holds the four answers for every setting and every control of the strip (the `/` commands are its controls), in both languages; the windows join it with the stage that builds them (D5); the kinds of background event have their lines in `src/core/ux/activity.ts`. Every surface draws them from there: the control center's card under a setting, `mode-code config explain`, the `/` menu; none writes its own.
 
 ## The contract
 
@@ -54,7 +54,7 @@ The catalog (`src/core/ux/catalog.ts`) holds the four answers for every setting 
 
    In the control center the mouse is the terminal's own (`src/tui/pointer.ts`: xterm's reporting, the SGR encoding, taken out of the input before Ink reads it, and turned off again on every way out). The bar at the bottom says what the pointer rests on, or what was just done with its undo, and shows the keys that work where you are, each one a click as well. Hold Shift to select text as usual; `mode-code --no-mouse` leaves the mouse to the terminal.
 
-5. **Say, do, undo.** The effect is said before it is applied. Once applied: _"Changed · undo (u)"_. Every setting shows its default and can go back to it (a preview first). The history of changes is a page. Only what cannot be undone asks for a confirmation.
+5. **Say, do, undo.** The effect is said before it is applied. Once applied: _"Changed · undo (u)"_. Every setting shows its default and can go back to it (a preview first: `d` one setting, `D` its page). Every change is recorded with who made it (`src/core/ux/changes.ts`, `state/changes.jsonl`), and the history of changes is a page (Settings › History of changes, `mode-code config history`). Only what cannot be undone asks for a confirmation.
 6. **No invisible work.** Everything Mode_Code does in the background writes an activity line: what, when, **why** (the setting or rule behind it) and a way to change it. Mo and the strip say what runs now.
 7. **"Why is it so?" is always answered.** The reason for any state is worked out by code from the settings and the session, not guessed, and shown in one press. Something switched off is not hidden: it is dimmed and says why.
 8. **The person is in command.** The AI proposes, the person decides: only the person's press changes a setting. What Claude may do right now is visible at a glance. Every autonomous run is visible and can be stopped.
@@ -156,5 +156,7 @@ A row whose test is still to come names the stage that brings it; `test/core/des
 | No state told by colour alone                                                | `test/core/ux-kit.test.ts`, `test/tui/grid.test.tsx` (`NO_COLOR`), `test/tui/widths.test.tsx` (plain) |
 | Right edges of a block line up                                               | `test/tui/grid.test.tsx`                                                                              |
 | The kit sets only what Claude Code's elements take                           | `test/core/ux-kit.test.ts`; the installed version's declarations: `src/mod/kit-host.ts`               |
-| Every background job writes an activity line                                 | `test/core/activity.test.ts`, D4                                                                      |
+| Every background job writes an activity line                                 | `test/core/ux-activity.test.ts` (every kind written has its line)                                     |
+| Every change to a setting is recorded and can be taken back                  | `test/core/ux-changes.test.ts`, `test/tui/ledger.test.tsx`                                            |
+| "Why is it so" is worked out by code, from the settings and the session      | `test/core/ux-why.test.ts` (30 situations), the engine kit (`/why`, the `why` tool)                   |
 | From 60 to 200 columns                                                       | `test/tui/widths.test.tsx`, `test/core/controls.test.ts`                                              |
