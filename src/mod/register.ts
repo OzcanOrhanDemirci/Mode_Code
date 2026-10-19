@@ -414,6 +414,8 @@ interface Ctx {
   closed: boolean;
   /** The lines of this session's activity a person reads (src/core/ux/activity.ts), counted under the strip. */
   activity: number;
+  /** Those of them that wait for the person: the count under the strip turns to them, in the colour of a question. */
+  waiting: number;
   /** The cockpit (src/core/ux/cockpit.ts) is open in this session: what it shows is worked out while it is. */
   cockpit: { open: boolean };
   /** The main conversation's calls at work, by their tool_use id: the cockpit's line of what runs now. */
@@ -676,7 +678,7 @@ async function load($: $): Promise<Ctx> {
     packsUsed: new Set(),
     introDue: !(previous && previous.sessionId === sessionId),
     skillsUsed: new Set(),
-    activity: existing ? readableActivity(existing.split('\n'), lang) : 0,
+    ...activityCounts(existing ? existing.split('\n') : [], lang),
     cockpit: { open: false },
     calls: new Map(),
     mo: {
@@ -825,9 +827,11 @@ async function logEvent($: $, c: Ctx, rec: Record<string, unknown>): Promise<voi
   c.events.push(line);
   if (c.events.length > 5000) c.events = c.events.slice(-5000);
   // A line a person reads is counted under the strip at once (docs/design.md, No invisible work).
-  if (readableActivity([line], c.lang)) {
-    c.activity++;
-    await update($, labelsAtom, (x) => ({ ...x, activity: c.activity })).catch(() => undefined);
+  const counted = activityCounts([line], c.lang);
+  if (counted.activity) {
+    c.activity += counted.activity;
+    c.waiting += counted.waiting;
+    await update($, labelsAtom, (x) => ({ ...x, activity: c.activity, waiting: c.waiting })).catch(() => undefined);
     await publishCockpit($, c);
   }
   try {
@@ -837,19 +841,27 @@ async function logEvent($: $, c: Ctx, rec: Record<string, unknown>): Promise<voi
   }
 }
 
-/** How many of these event lines a person reads in the activity: the quiet ones (a quota reading, a note) not counted. */
-function readableActivity(lines: readonly string[], lang: Lang): number {
-  let n = 0;
+/**
+ * How many of these event lines a person reads in the activity (the quiet ones, a quota reading or a note, not
+ * counted), and how many of them wait for the person.
+ */
+function activityCounts(lines: readonly string[], lang: Lang): { activity: number; waiting: number } {
+  let activity = 0;
+  let waiting = 0;
   for (const l of lines) {
     if (!l) continue;
     try {
       const e = JSON.parse(l) as ActivityEvent;
-      if (typeof e.kind === 'string' && !activityOf(e, lang).quiet) n++;
+      if (typeof e.kind !== 'string') continue;
+      const a = activityOf(e, lang);
+      if (a.quiet) continue;
+      activity++;
+      if (a.cls === 'waiting') waiting++;
     } catch {
       /* a torn line counts for nothing */
     }
   }
-  return n;
+  return { activity, waiting };
 }
 
 async function runGit($: $, dir: string, args: string[]): Promise<{ ok: boolean; out: string }> {
@@ -2529,7 +2541,7 @@ async function refreshStatus($: $, c: Ctx): Promise<void> {
   }
   const strip = c.config.modules.modes ? { ...viewOf(c), lang: c.lang, still: c.config.accessibility.reduceMotion } : null;
   if (!c.config.modules.status) {
-    await update($, labelsAtom, () => ({ modes: [], tail: '', band: '', bandMeaning: null, strip, activity: c.activity }));
+    await update($, labelsAtom, () => ({ modes: [], tail: '', band: '', bandMeaning: null, strip, activity: c.activity, waiting: c.waiting }));
     await publishMo($, c);
     return;
   }
@@ -2585,7 +2597,15 @@ async function refreshStatus($: $, c: Ctx): Promise<void> {
         ? tIn(c.lang, 'status.weekTarget', { n: Math.round(q.week.used), target: c.state.weeklyTarget })
         : tIn(c.lang, 'status.week', { n: Math.round(q.week.used) }),
     );
-  await update($, labelsAtom, () => ({ modes, tail: quota.length ? `🛡 ${quota.join(' · ')}` : '🛡', band, bandMeaning, strip, activity: c.activity }));
+  await update($, labelsAtom, () => ({
+    modes,
+    tail: quota.length ? `🛡 ${quota.join(' · ')}` : '🛡',
+    band,
+    bandMeaning,
+    strip,
+    activity: c.activity,
+    waiting: c.waiting,
+  }));
   await publishMo($, c);
 }
 
@@ -4703,7 +4723,8 @@ type Tag = Parameters<typeof h>[0];
 
 /**
  * The line under the strip (docs/design.md, the four questions): what Claude does now, in words, and the count of
- * this session's activity at its end, a press away. While the keyboard rests on a control, that control's card says
+ * this session's activity at its end (what waits for you, in the colour of a question, when something does), a press
+ * away from the cockpit. While the keyboard rests on a control, that control's card says
  * itself there instead. The card of every control, and Mo's words, lie in it unseen: the surface shows one while the
  * pointer rests on its control (a hover, no hook runs). Its height never changes, so nothing moves under the pointer;
  * narrower than 120 columns it is two rows tall, so a card is read whole.
@@ -4719,6 +4740,7 @@ function sayLine(
     focus: string | null;
     now: string;
     activity: number;
+    waiting: number;
     agentView: boolean;
   },
 ): ReturnType<typeof h> {
@@ -4749,11 +4771,17 @@ function sayLine(
               h(
                 Box,
                 { key: 'say-activity', flexShrink: 0, marginLeft: 2 },
-                h(
-                  Button,
-                  { key: 'strip-activity', plain: true, dimColor: true, onPress: (e?: { surface?: string }) => openActivity($, e?.surface) },
-                  `${tIn(p.lang, 'ux.say.activity', { n: p.activity })}${mark('opener', false)}`,
-                ),
+                p.waiting > 0
+                  ? h(
+                      Button,
+                      { key: 'strip-activity', plain: true, onPress: (e?: { surface?: string }) => showCockpit($, e?.surface) },
+                      h(Text, { color: COLORS.ask.claude }, `${mark('ask', false)} ${tIn(p.lang, 'ux.say.waiting', { n: p.waiting })}${mark('opener', false)}`),
+                    )
+                  : h(
+                      Button,
+                      { key: 'strip-activity', plain: true, dimColor: true, onPress: (e?: { surface?: string }) => showCockpit($, e?.surface) },
+                      `${tIn(p.lang, 'ux.say.activity', { n: p.activity })}${mark('opener', false)}`,
+                    ),
               ),
             ]
           : []),
@@ -4765,6 +4793,23 @@ function sayLine(
     ...(p.mo ? [reveal(cardScope('mo'), p.mo)] : []),
     h(Box, { key: 'say-now', flexDirection: 'row', flexShrink: 0, width: p.columns }, ...said),
   );
+}
+
+/**
+ * The cockpit at a press on the strip's activity or on Mo (docs/design.md, The cockpit): opened, or brought forward
+ * when it is open; where no pane can be drawn, the control center's activity; from the phone, where they open.
+ */
+async function showCockpit($: $, surface?: string): Promise<void> {
+  try {
+    const c = await ctxOf($);
+    if (surface !== undefined && surface !== 'terminal') {
+      $.ui.toast(tIn(c.lang, 'ctl.center.remote'), { timeoutMs: TOAST_MS.result });
+      return;
+    }
+    if (!(await openCockpit($, c, true))) await openActivity($);
+  } catch {
+    /* the strip stays as it is */
+  }
 }
 
 /** Opens the control center at Home › Activity beside the session; from the phone, says where it opens. Never silent. */
@@ -6554,7 +6599,7 @@ export function register(on: On): void {
       return {};
     }
     if (e.module.endsWith('mo-strip.js') && data?.press === 'mo') {
-      await openActivity($, e.surface);
+      await showCockpit($, e.surface);
       return {};
     }
     return next(e);
@@ -6679,6 +6724,7 @@ export function register(on: On): void {
             focus: focus ? cardLine(focus, view, lang) : null,
             now: stripNow(view, lang),
             activity: labels.activity ?? 0,
+            waiting: labels.waiting ?? 0,
             agentView: !!props.view?.agentId,
           },
         ),

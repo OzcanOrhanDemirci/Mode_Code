@@ -638,7 +638,7 @@ test("under the strip: what Claude does now, in words; the pointer on a control,
   expect(textOf(cards.get('card-00'))).toMatch(/^Press: Writes the handoff note.+ · Cannot be undone · \/00$/);
   // Mo: its state in words, and what a click on it does.
   expect(node(drawn, 'mo-at')?.hover?.scope).toBe('card-mo');
-  expect(textOf(cards.get('card-mo'))).toBe('Mo: nothing is at work; Claude waits for you. · click: what happened');
+  expect(textOf(cards.get('card-mo'))).toBe('Mo: nothing is at work; Claude waits for you. · click: the cockpit');
   await ui.unmount();
   // Narrower than 120 columns the line is two rows tall, so a card is read whole.
   const narrow: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: { ...band, bodyColumns: 90 } } as any);
@@ -683,12 +683,33 @@ test('the keyboard on the strip: the card of the control under the focus says it
   await ui.unmount();
 });
 
-test("the count of this session's activity, and Mo, open the control center at its Activity page; from the phone they say where it opens", async ($, on) => {
+test("the count of this session's activity, and Mo, open the cockpit; where none can be drawn, the control center's Activity; from the phone they say where", async ($, on) => {
   const w = world(on, { windows: true, env: { WT_SESSION: 'x' }, programs: opensTab });
   installed(w);
   await run($, '3');
   const ui: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
   expect(textOf(node(await ui.drawn(), 'strip-activity'))).toMatch(/^activity \d+…$/);
+  await ui.press({ key: 'strip-activity' });
+  expect(w.panes).toEqual(['cockpit']);
+  expect(w.ran).toEqual([]);
+  // Open already: Mo brings it forward, and leaves it open.
+  await ui.pointer({ type: 'up', x: 1, y: 0, button: 'left', in: 'mo' });
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+  expect(w.panes).toEqual(['cockpit']);
+  expect(textOf(node(await ui.drawn(), 'strip-0'))).toBe('0 ≡ cockpit ●');
+  await ui.unmount();
+  const desk: any = await $.ui.mount({ plugin: 'mode-code', surface: 'desktop', component: 'AbovePrompt', props: band } as any);
+  await desk.press({ key: 'strip-activity' });
+  expect(w.toasts.at(-1)).toBe('The cockpit and the control center open on the computer: /0 typed there shows the cockpit.');
+  expect(w.ran).toEqual([]);
+  await desk.unmount();
+});
+
+test("where no pane can be drawn, the activity's count opens the control center at its Activity page", async ($, on) => {
+  const w = world(on, { windows: true, env: { WT_SESSION: 'x' }, programs: opensTab, paneless: true });
+  installed(w);
+  await run($, '3');
+  const ui: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
   await ui.press({ key: 'strip-activity' });
   expect(w.ran.at(-1)).toEqual([
     'wt.exe',
@@ -705,16 +726,27 @@ test("the count of this session's activity, and Mo, open the control center at i
     'home/activity',
   ]);
   expect(w.toasts.at(-1)).toBe('The control center opened in a new tab.');
-  await ui.pointer({ type: 'up', x: 1, y: 0, button: 'left', in: 'mo' });
-  for (let i = 0; i < 20; i++) await Promise.resolve();
-  expect(w.ran.length).toBe(2);
-  expect(w.ran.at(-1)?.slice(-2)).toEqual(['open', 'home/activity']);
   await ui.unmount();
-  const desk: any = await $.ui.mount({ plugin: 'mode-code', surface: 'desktop', component: 'AbovePrompt', props: band } as any);
-  await desk.press({ key: 'strip-activity' });
-  expect(w.toasts.at(-1)).toBe('The cockpit and the control center open on the computer: /0 typed there shows the cockpit.');
-  expect(w.ran.length).toBe(2);
-  await desk.unmount();
+});
+
+test('what waits for you turns the count into a question: how many wait, in the colour of one', async ($, on) => {
+  const w = world(on);
+  const now = w.clock.now();
+  // The 5-hour period near its limit: the work wraps up, and that waits for the person.
+  await $.session.measure({
+    context: { window: 200000 },
+    rateLimits: [
+      { kind: 'five_hour', percentUsed: 96, resetsAt: new Date(now + 3600_000).toISOString() },
+      { kind: 'seven_day', percentUsed: 20, resetsAt: new Date(now + 5 * 86400_000).toISOString() },
+    ],
+    changed: ['rateLimits'],
+  } as any);
+  await $.prompt.submit(typed('Go on.'));
+  const ui: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
+  const count = node(await ui.drawn(), 'strip-activity');
+  expect(textOf(count)).toBe('? 1 waiting for you…');
+  expect(count.children[0]?.props?.color).toBe('warning');
+  await ui.unmount();
 });
 
 test("an agent's conversation in view: the line under the strip says so, and leads back to the main one", async ($, on) => {

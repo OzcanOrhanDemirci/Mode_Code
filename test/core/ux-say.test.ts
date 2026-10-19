@@ -145,9 +145,9 @@ test("Mo's state in words, every state in both languages, with what a click does
   for (const lang of LANGS)
     for (const s of MO_STATES) {
       const line = moLine(s, lang);
-      assert.match(line, /^Mo: .+ · (click: what happened|tıkla: neler oldu)$/, `${lang} ${s}`);
+      assert.match(line, /^Mo: .+ · (click: the cockpit|tıkla: kokpit)$/, `${lang} ${s}`);
       assert.ok(!leaked(line), `${lang} ${s}`);
     }
-  assert.equal(moLine('block', 'tr'), 'Mo: emniyet kemeri az önce bir çağrıyı durdurdu; /neden son nedenini söyler. · tıkla: neler oldu');
+  assert.equal(moLine('block', 'tr'), 'Mo: emniyet kemeri az önce bir çağrıyı durdurdu; /neden son nedenini söyler. · tıkla: kokpit');
   assert.equal(new Set(MO_STATES.map((s) => moLine(s, 'en'))).size, MO_STATES.length, 'each state says something of its own');
 });

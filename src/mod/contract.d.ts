@@ -16,6 +16,8 @@ export type ModeCodeLabels = {
   bandMeaning: 'on' | 'ask' | null;
   /** The lines of this session's activity a person reads (src/core/ux/activity.ts): the count under the strip. */
   activity?: number;
+  /** Those of them that wait for the person: the count says them instead, in the colour of a question. */
+  waiting?: number;
   strip: {
     mode: 'free' | 'chat' | 'research' | 'plan' | 'code';
     style: 'manual' | 'autonomous' | 'full';
