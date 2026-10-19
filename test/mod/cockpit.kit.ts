@@ -204,7 +204,7 @@ test('at work now: the call running with its time counted by the surface; an age
   });
   let release: () => void = () => {};
   const list = [{ id: 'ag1', type: 'Explore', description: 'Find the slow step', status: 'running' }];
-  on('agent.list', () => ({ value: list }));
+  on('agent.list', () => ({ value: list }) as any);
   const views: unknown[] = [];
   on('ui.view', (_$: any, e: any) => {
     views.push(e);
