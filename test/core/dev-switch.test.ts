@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { beltOffForDevelopment, DEV_BELT_OFF } from '../../src/core/dev-switch.js';
+import { devBeltOffNote } from '../../src/core/guidance.js';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 
@@ -15,6 +16,14 @@ test('only the value 1 turns the belt off', () => {
   assert.equal(beltOffForDevelopment({ [DEV_BELT_OFF]: '1' }), true);
   for (const v of [undefined, '', '0', 'true', 'yes', ' 1']) assert.equal(beltOffForDevelopment({ [DEV_BELT_OFF]: v }), false, String(v));
   assert.equal(beltOffForDevelopment({}), false);
+});
+
+test('the model is told the belt is off, who turned it off, and to take the care it would', () => {
+  const note = devBeltOffNote();
+  assert.match(note, /^\[Mode_Code\] The safety belt is off in this session/);
+  assert.ok(note.includes(DEV_BELT_OFF), note);
+  assert.match(note, /the person started it so/);
+  assert.match(note, /the reversible path, nothing outside the task/);
 });
 
 test('the switch is gone before 1.2.0 is released', () => {
