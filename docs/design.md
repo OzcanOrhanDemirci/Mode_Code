@@ -52,6 +52,8 @@ The catalog (`src/core/ux/catalog.ts`) holds the four answers for every setting 
 
    Every click target shows its key; everything reachable by a key can be clicked; pointing only explains, it never acts.
 
+   In the control center the mouse is the terminal's own (`src/tui/pointer.ts`: xterm's reporting, the SGR encoding, taken out of the input before Ink reads it, and turned off again on every way out). The bar at the bottom says what the pointer rests on, or what was just done with its undo, and shows the keys that work where you are, each one a click as well. Hold Shift to select text as usual; `mode-code --no-mouse` leaves the mouse to the terminal.
+
 5. **Say, do, undo.** The effect is said before it is applied. Once applied: _"Changed · undo (u)"_. Every setting shows its default and can go back to it (a preview first). The history of changes is a page. Only what cannot be undone asks for a confirmation.
 6. **No invisible work.** Everything Mode_Code does in the background writes an activity line: what, when, **why** (the setting or rule behind it) and a way to change it. Mo and the strip say what runs now.
 7. **"Why is it so?" is always answered.** The reason for any state is worked out by code from the settings and the session, not guessed, and shown in one press. Something switched off is not hidden: it is dimmed and says why.
@@ -121,7 +123,7 @@ The rows marked ✓ live in `src/core/ux/glossary.ts`, and `test/core/ux-glossar
 
 ## Components
 
-One kit, two hosts. Each component is written once against a small table of elements (`Box`, `Text`), so the same code draws in the control center (Ink) and inside Claude Code (a `Client` region in a pane or the cockpit).
+One kit, two hosts (`src/core/ux/kit.ts`). Each component is written once against a host that makes a box, a text and a pressable, so the same code draws in the control center (Ink, `src/tui/kit.tsx`) and inside Claude Code (its elements, `src/mod/kit-host.ts`; the band above the prompt is drawn with it). The marks, the colours of each meaning in both hosts and the toast lengths are one table, `src/core/ux/tokens.ts`.
 
 | Component           | Anatomy                                                                               |
 | ------------------- | ------------------------------------------------------------------------------------- |
@@ -149,9 +151,10 @@ A row whose test is still to come names the stage that brings it; `test/core/des
 | The command line gives the same answers, and names a page as the screen does | `test/process/human.test.ts`, `test/tui/settings-card.test.tsx`                                       |
 | Every reference like _"Settings › Features"_ leads to a real place           | `test/tui/references.test.tsx`                                                                        |
 | One idea, one name                                                           | `test/core/ux-glossary.test.ts`                                                                       |
-| No wrapped line starts with a space                                          | `test/core/ux-text.test.ts` (`wrapText`); the control center's own wrap: `test/tui/grid.test.tsx`, D3 |
-| Mouse and keyboard reach the same result                                     | `test/tui/pointer.test.tsx` and the engine kit, D3                                                    |
-| No state told by colour alone                                                | `test/tui/widths.test.tsx` (plain mode keeps every state's word)                                      |
-| Right edges of a block line up                                               | `test/tui/grid.test.tsx`, D3                                                                          |
+| No wrapped line starts with a space                                          | `test/core/ux-text.test.ts` (`wrapText`); the control center's own wrap: `test/tui/grid.test.tsx`     |
+| Mouse and keyboard reach the same result                                     | `test/tui/pointer.test.tsx`                                                                           |
+| No state told by colour alone                                                | `test/core/ux-kit.test.ts`, `test/tui/grid.test.tsx` (`NO_COLOR`), `test/tui/widths.test.tsx` (plain) |
+| Right edges of a block line up                                               | `test/tui/grid.test.tsx`                                                                              |
+| The kit sets only what Claude Code's elements take                           | `test/core/ux-kit.test.ts`; the installed version's declarations: `src/mod/kit-host.ts`               |
 | Every background job writes an activity line                                 | `test/core/activity.test.ts`, D4                                                                      |
 | From 60 to 200 columns                                                       | `test/tui/widths.test.tsx`, `test/core/controls.test.ts`                                              |

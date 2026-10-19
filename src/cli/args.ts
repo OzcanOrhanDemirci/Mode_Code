@@ -19,6 +19,7 @@ const BOOLEAN = new Set([
   'version',
   'v',
   'no-color',
+  'no-mouse',
   'plain',
   'update',
   'no-update',

@@ -114,6 +114,10 @@ const TARGETS = {
   'src/core/session.ts': ['test/core/session.test.ts', 'test/core/modes.test.ts', 'test/core/bypass.test.ts'],
   // Whether a session is still open: its process looked up, the answer read, a freed number told apart.
   'src/core/host.ts': ['test/core/host.test.ts'],
+  // The UI kit: what each control, meter and notice shows, in every host (docs/design.md, Components).
+  'src/core/ux/kit.ts': ['test/core/ux-kit.test.ts'],
+  // The mouse: the terminal's pointer sequences read and taken out of the keys.
+  'src/tui/pointer.ts': ['test/tui/pointer.test.tsx'],
 };
 
 // ── finding mutation sites in TypeScript without a parser: code outside strings, comments and regexes ──

@@ -371,7 +371,7 @@ export const enAuto = {
   'page.autoPrompts': 'Recent tasks',
   'desc.autoPrompts': "The last three tasks you gave full autonomy, from the strip's window or typed, kept so none is lost: copy one to use it again.",
   'prompts.empty': 'No task yet. The tasks you give full autonomy (in its window on the strip, or typed) are kept here, the last three.',
-  'prompts.keys': '↑↓ pick · Enter or c copies the whole task',
+  'prompts.copy': 'copy the whole task',
   'prompts.meta': '{ago} · budget {budget}',
   'prompts.copied': 'Copied: paste it wherever you like.',
   'prompts.copiedTerminal': 'Sent to the terminal; if nothing pastes, select the text.',

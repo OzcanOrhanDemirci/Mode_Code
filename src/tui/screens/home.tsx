@@ -104,6 +104,7 @@ export function Overview({ width, height, open }: ScreenProps) {
                 label={t('cli.quota.week')}
                 pct={q.assessment.week.used}
                 width={gw}
+                threshold={q.assessment.target.explicit ? q.assessment.target.value : null}
                 right={`${percent(q.assessment.week.used, lang)}${q.target ? ' / ' + percent(q.target.value, lang) : ''} · ${t('cli.quota.resets', { when: until(q.assessment.week.resetsAt, now, lang) })}`}
               />
             ) : null}

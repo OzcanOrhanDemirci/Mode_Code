@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 /** Building blocks every screen uses, so all screens look and behave the same. */
-import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useMemo, useRef, type ReactNode } from 'react';
 import { Box, Text } from 'ink';
 import type { Key } from 'ink';
 import type { Lang, MessageKey } from '../core/i18n/index.js';
 import { tIn } from '../core/i18n/index.js';
-import { bar as barText } from '../core/format.js';
+import { meter, type KitHost, type MeterLevel } from '../core/ux/kit.js';
+import { wrapText } from '../core/ux/text.js';
 import { fitWidth, textWidth } from '../node/width.js';
 import type { HealthState } from '../app/health.js';
 import type { DataSource } from './store.js';
+import { inkHost } from './kit.js';
+import { Pressable, Wheel } from './press.js';
 import { makeTheme, stateColor, stateSymbol, type Theme } from './theme.js';
 
 // ── context: data, theme, language, navigation, key routing ──
@@ -22,8 +25,8 @@ export interface Env {
   go(address: string): void;
   /** An address as the person reads it: "Settings › Features". */
   place(address: string): string;
-  /** Show a short message in the status bar. */
-  flash(text: string, kind?: 'ok' | 'warn' | 'bad'): void;
+  /** Show a short message in the bar at the bottom; with `undo`, it offers to take back what it reports (u). */
+  flash(text: string, kind?: 'ok' | 'warn' | 'bad', undo?: () => void): void;
   /** Bumps when data should be read again. */
   tick: number;
   /** Leaves for something that talks in the terminal, and comes back at `back` (absent in tests and without a terminal). */
@@ -79,6 +82,12 @@ export function useScreenKeys(handler: KeyHandler, active: boolean): void {
 
 export const defaultTheme = makeTheme();
 
+/** The UI kit (src/core/ux/kit.ts), drawn with this screen's theme. */
+export function useKit(): KitHost<ReactNode> {
+  const { theme } = useEnv();
+  return useMemo(() => inkHost(theme), [theme]);
+}
+
 // ── pieces ──
 
 export function Title({ children }: { children: ReactNode }) {
@@ -90,11 +99,32 @@ export function Title({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * The columns prose has where it is drawn: the open screen's, the preview's. Text in these pieces is wrapped here at
+ * word boundaries (src/core/ux/text.ts), so no line starts with the space a break fell on, as Ink's own wrap leaves it
+ * (docs/design.md, Grid and spacing). Unknown (null), Ink wraps.
+ */
+export const ProseWidth = createContext<number | null>(null);
+
+/** The words of children that are only text, or null when they hold anything else. */
+function plainText(children: ReactNode): string | null {
+  if (typeof children === 'string' || typeof children === 'number') return String(children);
+  if (Array.isArray(children) && children.every((c) => typeof c === 'string' || typeof c === 'number')) return children.join('');
+  return null;
+}
+
+/** Text children wrapped to `width` columns; anything else as it is. */
+export function prose(children: ReactNode, width: number | null): ReactNode {
+  const text = width === null ? null : plainText(children);
+  return text === null ? children : wrapText(text, Math.max(8, width!), textWidth).join('\n');
+}
+
 export function Muted({ children, wrap }: { children: ReactNode; wrap?: 'wrap' | 'truncate-end' }) {
   const { theme } = useEnv();
+  const width = useContext(ProseWidth);
   return (
     <Text color={theme.muted} wrap={wrap ?? 'wrap'}>
-      {children}
+      {wrap === 'truncate-end' ? children : prose(children, width)}
     </Text>
   );
 }
@@ -119,9 +149,10 @@ export function StateMark({ state, word = true }: { state: HealthState; word?: b
   );
 }
 
-/** A label: value row with the label column aligned. */
-export function Row({ label, children, width = 22, color }: { label: string; children: ReactNode; width?: number; color?: string }) {
+/** A label: value row with the label column aligned; a long value wraps under itself, never under the label. */
+export function Row({ label, children, width = 22, color }: { label: string; children: ReactNode; width?: number; color?: string | undefined }) {
   const { theme } = useEnv();
+  const room = useContext(ProseWidth);
   return (
     <Box>
       <Box width={width} flexShrink={0} paddingRight={1}>
@@ -131,35 +162,45 @@ export function Row({ label, children, width = 22, color }: { label: string; chi
       </Box>
       <Box flexGrow={1}>
         <Text {...(color ? { color } : {})} wrap="wrap">
-          {children}
+          {prose(children, room === null ? null : room - width)}
         </Text>
       </Box>
     </Box>
   );
 }
 
-/** A labelled bar for 0-100 values (quota windows, limits). */
-export function Gauge({ label, pct, width, right, labelWidth = 14 }: { label: string; pct: number; width: number; right?: string; labelWidth?: number }) {
-  const { theme } = useEnv();
-  const w = Math.max(6, width);
-  const color = pct >= 95 ? theme.bad : pct >= 80 ? theme.warn : theme.ok;
-  return (
-    <Box>
-      <Box width={labelWidth} flexShrink={0}>
-        <Text wrap="truncate-end">{label}</Text>
-      </Box>
-      <Text color={color}>{barText(pct, w, theme.plain)}</Text>
-      {right ? <Text> {right}</Text> : null}
-    </Box>
-  );
+/**
+ * A labelled meter for 0-100 values (quota periods, limits): the kit's meter, its track showing where it ends, the
+ * threshold marked when there is one (a budget), and words beside it once it is near or over.
+ */
+export function Gauge({
+  label,
+  pct,
+  width,
+  right,
+  labelWidth = 14,
+  threshold = null,
+}: {
+  label: string;
+  pct: number;
+  width: number;
+  right?: string;
+  labelWidth?: number;
+  threshold?: number | null;
+}) {
+  const kit = useKit();
+  const t = useT();
+  const words: Record<MeterLevel, string> = { low: '', near: t('meter.near'), over: t(threshold === null ? 'meter.full' : 'meter.over') };
+  return <>{meter(kit, { label, labelWidth, pct, width: Math.max(6, width), value: right ?? '', threshold, words })}</>;
 }
 
 export function Note({ children, kind = 'info' }: { children: ReactNode; kind?: 'info' | 'warn' | 'bad' | 'ok' }) {
   const { theme } = useEnv();
+  const width = useContext(ProseWidth);
   const color = kind === 'warn' ? theme.warn : kind === 'bad' ? theme.bad : kind === 'ok' ? theme.ok : theme.muted;
   return (
     <Text color={color} wrap="wrap">
-      {children}
+      {prose(children, width)}
     </Text>
   );
 }
@@ -167,10 +208,11 @@ export function Note({ children, kind = 'info' }: { children: ReactNode; kind?: 
 /** What an empty screen says: what would be here and how to get it. */
 export function Empty({ children }: { children: ReactNode }) {
   const { theme } = useEnv();
+  const width = useContext(ProseWidth);
   return (
     <Box marginTop={1}>
       <Text color={theme.muted} wrap="wrap">
-        {children}
+        {prose(children, width)}
       </Text>
     </Box>
   );
@@ -184,19 +226,29 @@ export interface ListItem {
   dim?: boolean;
 }
 
-/** A scrolling list with one selected row. */
+/**
+ * A scrolling list with one selected row. With `onPress`, a click on a row does what Enter does on it, and the wheel
+ * over the list moves the selection (`onMove`).
+ */
 export function ListView({
   items,
   selected,
   height,
   width,
   focused,
+  onPress,
+  onMove,
+  describe,
 }: {
   items: ListItem[];
   selected: number;
   height: number;
   width: number;
   focused: boolean;
+  onPress?: ((index: number) => void) | undefined;
+  onMove?: ((delta: number) => void) | undefined;
+  /** What a click on the row does, for the bar at the bottom while the pointer is on it. */
+  describe?: ((index: number) => string | null) | undefined;
 }) {
   const { theme } = useEnv();
   // The "1-18 / 39" line takes a row of its own, so the rows never outgrow the height they were given.
@@ -204,8 +256,8 @@ export function ListView({
   const h = Math.max(1, counter ? height - 1 : height);
   const start = Math.max(0, Math.min(selected - Math.floor(h / 2), items.length - h));
   const visibleItems = items.slice(start, start + h);
-  return (
-    <Box flexDirection="column" width={width} flexShrink={0}>
+  const rows = (
+    <>
       {visibleItems.map((it, i) => {
         const idx = start + i;
         const sel = idx === selected;
@@ -216,9 +268,9 @@ export function ListView({
         const rightMax = Math.max(0, inner - Math.min(textWidth(it.label), 12) - 2);
         const right = it.right ? fitWidth(it.right, Math.min(rightMax, Math.ceil(inner * 0.45))) : '';
         const label = fitWidth(it.label, Math.max(1, inner - (right ? textWidth(right) + 2 : 0)));
-        return (
-          <Box key={it.key} width={width} flexShrink={0}>
-            <Text inverse={sel && focused} bold={sel} {...(it.dim ? { color: theme.muted } : {})} wrap="truncate-end">
+        const line = (hovered: boolean) => (
+          <>
+            <Text inverse={sel && focused} bold={sel} underline={hovered && !sel} {...(it.dim ? { color: theme.muted } : {})} wrap="truncate-end">
               {mark} {label}
             </Text>
             <Box flexGrow={1} />
@@ -227,6 +279,15 @@ export function ListView({
                 {right}{' '}
               </Text>
             ) : null}
+          </>
+        );
+        return onPress ? (
+          <Pressable key={it.key} width={width} onPress={() => onPress(idx)} describe={describe?.(idx) ?? undefined}>
+            {line}
+          </Pressable>
+        ) : (
+          <Box key={it.key} width={width} flexShrink={0}>
+            {line(false)}
           </Box>
         );
       })}
@@ -236,6 +297,15 @@ export function ListView({
           {start + 1}-{Math.min(items.length, start + h)} / {items.length}
         </Text>
       ) : null}
+    </>
+  );
+  return onMove ? (
+    <Wheel flexDirection="column" width={width} flexShrink={0} onWheel={(dir) => (onMove(dir === 'up' ? -1 : 1), true)}>
+      {rows}
+    </Wheel>
+  ) : (
+    <Box flexDirection="column" width={width} flexShrink={0}>
+      {rows}
     </Box>
   );
 }
@@ -263,19 +333,33 @@ export function Table({ rows, widths, right = [] }: { rows: string[][]; widths: 
   );
 }
 
-/** Key hints at the bottom of the screen: "↑↓ move  → open  …". */
-export function KeyHints({ hints }: { hints: [string, string][] }) {
-  const { theme } = useEnv();
-  return (
-    <Box flexWrap="wrap">
-      {hints.map(([k, v]) => (
-        <Box key={k + v} marginRight={2}>
-          <Text bold color={theme.accent}>
-            {k}
-          </Text>
-          <Text color={theme.muted}> {v}</Text>
-        </Box>
-      ))}
-    </Box>
-  );
+/** A key an open screen takes, as the bar at the bottom shows it; with `run`, a click on it does the same. */
+export interface ScreenHint {
+  key: string;
+  label: string;
+  run?: () => void;
+}
+
+/** Where open screens put their keys for the bar at the bottom (the app keeps them while the screen is drawn). */
+export interface HintRegistry {
+  set(id: string, hints: { current: ScreenHint[] } | null): void;
+}
+
+export const HintContext = createContext<HintRegistry | null>(null);
+
+/**
+ * Puts a screen's keys in the bar while `active` (docs/design.md: every click target shows its key, and what a key
+ * reaches can be clicked). `run` does what the key does; the key itself stays the screen's (useScreenKeys).
+ */
+export function useHints(hints: ScreenHint[], active: boolean): void {
+  const registry = useContext(HintContext);
+  const id = useId();
+  const ref = useRef(hints);
+  ref.current = hints;
+  const shape = hints.map((h) => `${h.key}\u0000${h.label}\u0000${h.run ? 1 : 0}`).join('\u0001');
+  useEffect(() => {
+    if (!registry || !active) return;
+    registry.set(id, ref);
+    return () => registry.set(id, null);
+  }, [registry, active, id, shape]);
 }

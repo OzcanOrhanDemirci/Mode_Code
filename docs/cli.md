@@ -2,6 +2,8 @@
 
 `mode-code` with no command opens the control center in a terminal; piped or in CI it prints the status instead. Every command accepts `--json` and `--no-color` (also honoured: `NO_COLOR`, `FORCE_COLOR`). The interface language follows the settings file, then `MODE_CODE_LANG`, `LC_ALL`, `LC_MESSAGES`, `LANG`, then the system locale.
 
+The control center takes the mouse as well as the keys: a click does what Enter does, pointing at something says what it is in the bar at the bottom, the wheel scrolls (hold Shift to select text). `--no-mouse` leaves the mouse to the terminal, `--plain` draws ASCII marks and no borders, and `--no-color` or `NO_COLOR` draws no colour, every state still in a mark and a word.
+
 ## JSON output
 
 `--json` prints one JSON document. Its `schema` field names the command and a version, for example `mode-code.status/1`. Within a version fields are only added, never renamed or removed, so scripts keep working. `version` is the tool's version.

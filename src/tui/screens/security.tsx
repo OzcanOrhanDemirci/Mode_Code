@@ -10,7 +10,8 @@ import { ago, shortPath } from '../../core/format.js';
 import type { MessageKey } from '../../core/i18n/index.js';
 import { beltContext } from '../../node/context.js';
 import type { ScreenProps } from '../nav.js';
-import { Empty, Muted, Note, Row, Section, StateMark, useEnv, useScreenKeys, useT } from '../ui.js';
+import { Empty, Muted, Note, Row, Section, StateMark, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
+import { Pressable } from '../press.js';
 import { TextField } from '../widgets.js';
 import { eventTitle } from './home.js';
 
@@ -123,14 +124,18 @@ export function TestCommand({ width, open }: ScreenProps) {
   const [text, setText] = useState('');
   const [result, setResult] = useState<{ input: string; d: BeltDecision } | null>(null);
   const [busy, setBusy] = useState(false);
+  const pick = (i: number) => {
+    setTool(i);
+    setResult(null);
+  };
   useScreenKeys((_input, key) => {
     if (key.tab) {
-      setTool((i) => (i + 1) % TOOLS.length);
-      setResult(null);
+      pick((tool + 1) % TOOLS.length);
       return true;
     }
     return false;
   }, open);
+  useHints([{ key: 'Tab', label: t('keys.tool'), run: () => pick((tool + 1) % TOOLS.length) }], open);
   const run = (v: string) => {
     if (!v.trim()) return;
     setBusy(true);
@@ -149,12 +154,13 @@ export function TestCommand({ width, open }: ScreenProps) {
       <Muted>{t('test.intro')}</Muted>
       <Box marginTop={1}>
         {TOOLS.map((x, i) => (
-          <Text key={x} inverse={i === tool} color={i === tool ? undefined : theme.muted}>
-            {' '}
-            {x === 'Write' ? t('test.path') : x}{' '}
-          </Text>
+          <Pressable key={x} onPress={() => pick(i)} describe={t('keys.tool')}>
+            <Text inverse={i === tool} color={i === tool ? undefined : theme.muted}>
+              {' '}
+              {x === 'Write' ? t('test.path') : x}{' '}
+            </Text>
+          </Pressable>
         ))}
-        {open ? <Text color={theme.muted}> {t('test.tabHint')}</Text> : null}
       </Box>
       <Box marginTop={1}>
         <TextField
@@ -196,6 +202,7 @@ export function Secrets({ width, open }: ScreenProps) {
     }
     return false;
   }, open);
+  useHints([{ key: 's', label: t('keys.scan'), run: () => setRun((n) => n + 1) }], open);
   const dirs = data.config().memory.dirs;
   if (!dirs.length) return <Empty>{t('secrets.noMemory')}</Empty>;
   if (!open && run === 0) return <Muted>{t('secrets.openToScan', { n: dirs.length })}</Muted>;
@@ -222,7 +229,6 @@ export function Secrets({ width, open }: ScreenProps) {
           <Note kind="ok">{t('secrets.clean', { n: r.files })}</Note>
         )}
       </Box>
-      {open ? <Muted>{t('secrets.rescanHint')}</Muted> : null}
     </Box>
   );
 }

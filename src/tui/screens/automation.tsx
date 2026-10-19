@@ -11,7 +11,8 @@ import { ago } from '../../core/format.js';
 import type { MessageKey } from '../../core/i18n/index.js';
 import type { ToolEvent } from '../../app/data.js';
 import type { ScreenProps } from '../nav.js';
-import { Empty, Muted, Section, useEnv, useScreenKeys, useT } from '../ui.js';
+import { Empty, Muted, Section, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
+import { Pressable } from '../press.js';
 import { fieldsOf, SettingsEditor } from '../widgets.js';
 
 /**
@@ -24,6 +25,12 @@ export function RecentTasks({ width, open }: ScreenProps) {
   const list = data.autoPrompts();
   const [sel, setSel] = useState(0);
   const at = Math.min(sel, Math.max(0, list.length - 1));
+  const copy = (i = at) => {
+    const p = list[i];
+    if (!p) return;
+    const r = data.copy(p.text);
+    flash(t(r.via === 'system' ? 'prompts.copied' : 'prompts.copiedTerminal'), r.via === 'system' ? 'ok' : 'warn');
+  };
   useScreenKeys((input, key) => {
     if (!list.length) return false;
     if (key.upArrow || input === 'k') {
@@ -35,18 +42,27 @@ export function RecentTasks({ width, open }: ScreenProps) {
       return true;
     }
     if (key.return || input === 'c') {
-      const r = data.copy(list[at]!.text);
-      flash(t(r.via === 'system' ? 'prompts.copied' : 'prompts.copiedTerminal'), r.via === 'system' ? 'ok' : 'warn');
+      copy();
       return true;
     }
     return false;
   }, open);
+  useHints([{ key: 'Enter/c', label: t('prompts.copy'), run: () => copy() }], open && list.length > 0);
   if (!list.length) return <Empty>{t('prompts.empty')}</Empty>;
+  // A click on a task picks it and copies it, as Enter does.
   return (
     <Box flexDirection="column" width={width}>
-      <Muted>{t('prompts.keys')}</Muted>
       {list.map((p, i) => (
-        <Box key={`${p.at}-${i}`} flexDirection="column" marginTop={1}>
+        <Pressable
+          key={`${p.at}-${i}`}
+          flexDirection="column"
+          marginTop={i ? 1 : 0}
+          onPress={() => {
+            setSel(i);
+            copy(i);
+          }}
+          describe={t('prompts.copy')}
+        >
           <Text bold={i === at} inverse={i === at && open} color={i === at ? undefined : theme.muted} wrap="truncate-end">
             {i === at ? theme.sym.cursor : ' '} {t('prompts.meta', { ago: ago(p.at, now, lang), budget: p.budget })}
           </Text>
@@ -55,7 +71,7 @@ export function RecentTasks({ width, open }: ScreenProps) {
               {i === at ? p.text : p.text.split('\n')[0]}
             </Text>
           </Box>
-        </Box>
+        </Pressable>
       ))}
     </Box>
   );

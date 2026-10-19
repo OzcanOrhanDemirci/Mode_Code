@@ -53,12 +53,15 @@ export function getLanguage(): Lang {
   return current;
 }
 
-/** Looks a message up in the current language and fills its {placeholders}. */
+/**
+ * Looks a message up in the current language and fills its {placeholders}. The plugin carries only the messages its
+ * code names (scripts/plugin-words.mjs): one it missed shows its key rather than fail.
+ */
 export function t(key: MessageKey, params?: Readonly<Record<string, string | number>>): string {
-  return format(DICTS[current][key] ?? en[key], params);
+  return format(DICTS[current][key] ?? en[key] ?? key, params);
 }
 
 /** The same lookup in an explicit language, for text that goes somewhere other than this screen. */
 export function tIn(lang: Lang, key: MessageKey, params?: Readonly<Record<string, string | number>>): string {
-  return format(DICTS[lang][key] ?? en[key], params);
+  return format(DICTS[lang][key] ?? en[key] ?? key, params);
 }

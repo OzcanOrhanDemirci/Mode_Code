@@ -372,7 +372,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'desc.autoPrompts':
     'Tam otonoma verdiğin son üç görev, şeritteki pencereden ya da yazarak; hiçbiri kaybolmasın diye saklanır: birini kopyalayıp yeniden kullan.',
   'prompts.empty': 'Henüz görev yok. Tam otonoma verdiğin görevler (şeritteki penceresinden ya da yazarak) burada kalır, son üçü.',
-  'prompts.keys': '↑↓ seç · Enter ya da c görevin tamamını kopyalar',
+  'prompts.copy': 'görevin tamamını kopyala',
   'prompts.meta': '{ago} · kota {budget}',
   'prompts.copied': 'Kopyalandı: istediğin yere yapıştırabilirsin.',
   'prompts.copiedTerminal': 'Terminale gönderildi; yapışmazsa metni fareyle seç.',

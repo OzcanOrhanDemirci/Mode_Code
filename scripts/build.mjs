@@ -13,6 +13,7 @@ import { mkdir, readFile, rm, writeFile, cp } from 'node:fs/promises';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { dictionaries, only, wordsUsed } from './plugin-words.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
@@ -58,7 +59,20 @@ const hook = await build({
   banner: { js: banner },
 });
 
-const mod = await build({
+// The two languages' dictionaries, whole, read here to give the plugin the part it uses (scripts/plugin-words.mjs).
+const wordsFile = join(dist, '.words.mjs');
+await build({
+  ...common,
+  metafile: false,
+  stdin: { contents: "export { en } from './en.ts'; export { tr } from './tr.ts';", resolveDir: join(root, 'src', 'core', 'i18n'), loader: 'ts' },
+  outfile: wordsFile,
+  platform: 'neutral',
+  target: 'es2023',
+});
+const words = await import(pathToFileURL(wordsFile).href);
+await rm(wordsFile, { force: true });
+
+const modOptions = {
   ...common,
   entryPoints: [join(root, 'src', 'mod', 'register.ts')],
   outfile: join(dist, 'plugin', 'hooks', 'register.js'),
@@ -66,13 +80,16 @@ const mod = await build({
   target: 'es2023',
   external: ['claude-code'],
   // Nothing is renamed, so the engine's validator reads the functions by their own names and stack traces name them
-  // (keepNames would only add helpers). Only the whitespace goes: Claude Code does not read a hooks module over 1 MiB,
-  // and the two languages' words fill much of it.
+  // (keepNames would only add helpers). Only the whitespace goes: Claude Code does not read a hooks module over 1 MiB.
   keepNames: false,
   minify: false,
   minifyWhitespace: true,
   banner: { js: banner },
-});
+};
+// First the plugin's code alone, to read which messages it names; then the plugin with those messages only.
+const bare = await build({ ...modOptions, write: false, plugins: [dictionaries(() => ({ en: {}, tr: {} }))] });
+const used = wordsUsed(bare.outputFiles[0].text, Object.keys(words.en));
+const mod = await build({ ...modOptions, plugins: [dictionaries(() => ({ en: only(words.en, used), tr: only(words.tr, used) }))] });
 // Claude Code skips a hooks module over 1 MiB ("was not read"), and the plugin then does nothing at all: refuse the
 // build, and say so early while there is room.
 const MOD_LIMIT = 1024 * 1024;
@@ -212,7 +229,7 @@ await cp(join(dist, 'THIRD_PARTY_NOTICES.md'), join(root, 'THIRD_PARTY_NOTICES.m
 
 const size = (r) => Object.values(r.metafile.outputs).reduce((n, o) => n + o.bytes, 0);
 console.log(
-  `built ${pkg.name} ${pkg.version}: cli ${(size(cli) / 1024).toFixed(0)} KiB · hook ${(size(hook) / 1024).toFixed(0)} KiB · mod ${(size(mod) / 1024).toFixed(0)} KiB · ${packages.size} bundled packages`,
+  `built ${pkg.name} ${pkg.version}: cli ${(size(cli) / 1024).toFixed(0)} KiB · hook ${(size(hook) / 1024).toFixed(0)} KiB · mod ${(size(mod) / 1024).toFixed(0)} KiB (${used.size} of ${Object.keys(words.en).length} messages) · ${packages.size} bundled packages`,
 );
 if (bad.length) {
   console.error(`license check failed for: ${bad.map((p) => `${p.name} (${p.license}${p.text ? '' : ', no license file'})`).join(', ')}`);

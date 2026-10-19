@@ -11,7 +11,8 @@ import { KEYWORD_LISTS } from '../../core/keywords.js';
 import { nextOf } from '../../core/handoff.js';
 import { newerThan } from '../../core/update.js';
 import type { ScreenProps } from '../nav.js';
-import { Muted, Note, Row, Section, StateMark, useEnv, useScreenKeys, useT } from '../ui.js';
+import { Muted, Note, Row, Section, StateMark, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
+import { Pressable } from '../press.js';
 import { fieldsOf, SettingsEditor, TextField } from '../widgets.js';
 
 export function General({ width, open }: ScreenProps) {
@@ -94,6 +95,16 @@ function StringList({
   const [sel, setSel] = useState(0);
   const [adding, setAdding] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  /** x: the first press asks, the second removes. */
+  const remove = () => {
+    if (!items.length) return;
+    if (!confirmRemove) setConfirmRemove(true);
+    else {
+      onRemove(Math.min(sel, items.length - 1));
+      setConfirmRemove(false);
+      setSel((s) => Math.max(0, s - 1));
+    }
+  };
   useScreenKeys(
     (input, key) => {
       if (adding !== null) return false;
@@ -112,12 +123,7 @@ function StringList({
         return true;
       }
       if (input === 'x' && items.length) {
-        if (!confirmRemove) setConfirmRemove(true);
-        else {
-          onRemove(Math.min(sel, items.length - 1));
-          setConfirmRemove(false);
-          setSel((s) => Math.max(0, s - 1));
-        }
+        remove();
         return true;
       }
       if (key.escape && confirmRemove) {
@@ -128,13 +134,31 @@ function StringList({
     },
     open && adding === null,
   );
+  useHints(
+    confirmRemove
+      ? [
+          { key: 'x', label: t('list.key.removeNow'), run: remove },
+          { key: 'Esc', label: t('list.key.keep'), run: () => setConfirmRemove(false) },
+        ]
+      : [{ key: 'a', label: t('list.key.add'), run: () => setAdding('') }, ...(items.length ? [{ key: 'x', label: t('list.key.remove'), run: remove }] : [])],
+    open && adding === null,
+  );
+  // A click on a row selects it (removing stays x, asked twice).
   return (
     <Box flexDirection="column" width={width}>
       {items.length ? (
         items.map((s, i) => (
-          <Text key={s + i} inverse={open && i === sel} wrap="truncate-end">
-            {open && i === sel ? theme.sym.cursor : ' '} {render ? render(s) : s}
-          </Text>
+          <Pressable
+            key={s + i}
+            onPress={() => {
+              setSel(i);
+              setConfirmRemove(false);
+            }}
+          >
+            <Text inverse={open && i === sel} wrap="truncate-end">
+              {open && i === sel ? theme.sym.cursor : ' '} {render ? render(s) : s}
+            </Text>
+          </Pressable>
         ))
       ) : (
         <Muted>{emptyText}</Muted>
@@ -154,10 +178,6 @@ function StringList({
             active={open}
           />
         </Box>
-      ) : open ? (
-        <Box marginTop={1}>
-          <Muted>{t('list.hint')}</Muted>
-        </Box>
       ) : null}
     </Box>
   );
@@ -168,12 +188,16 @@ export function MemoryStore({ width, open }: ScreenProps) {
   const { data, flash, theme, leave, lang, now } = useEnv();
   const t = useT();
   const v = data.memory();
-  useScreenKeys((input) => {
-    if (input !== 's') return false;
+  const setup = () => {
     if (leave) leave('memory-setup', 'settings/memory/store');
     else flash(t('mem.setupCli'), 'warn');
+  };
+  useScreenKeys((input) => {
+    if (input !== 's') return false;
+    setup();
     return true;
   }, open);
+  useHints([{ key: 's', label: t('keys.setup'), run: setup }], open);
   const s = v.store;
   const last = v.last;
   return (
@@ -230,12 +254,16 @@ export function Sync({ width, open }: ScreenProps) {
   const { data, flash, theme, leave, lang, now } = useEnv();
   const t = useT();
   const v = data.sync();
-  useScreenKeys((input) => {
-    if (input !== 's') return false;
+  const setup = () => {
     if (leave) leave('sync-setup', 'settings/sync');
     else flash(t('sync.setupCli'), 'warn');
+  };
+  useScreenKeys((input) => {
+    if (input !== 's') return false;
+    setup();
     return true;
   }, open);
+  useHints([{ key: 's', label: t('keys.setup'), run: setup }], open);
   const s = v.setting;
   const names = new Map(v.machines.map((m) => [m.id, m.name]));
   return (
@@ -429,12 +457,16 @@ export function Maintenance({ width, open }: ScreenProps) {
   const last = data.doctorSummary();
   const update = data.updateState();
   const newer = newerThan(APP_VERSION, update?.latest ?? null);
-  useScreenKeys((input) => {
-    if (input !== 'u') return false;
+  const runUpdate = () => {
     if (leave) leave('update', 'settings/maintenance');
     else flash(t('maint.updateCli', { cmd: `${CLI_NAME} update` }), 'warn');
+  };
+  useScreenKeys((input) => {
+    if (input !== 'u') return false;
+    runUpdate();
     return true;
   }, open);
+  useHints([{ key: 'u', label: t('keys.update'), run: runUpdate }], open);
   return (
     <Box flexDirection="column" width={width}>
       <Section title={t('maint.update')}>

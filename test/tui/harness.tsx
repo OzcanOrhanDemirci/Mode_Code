@@ -8,6 +8,8 @@ import type { HandoffItem, MemoryView } from '../../src/app/memory.js';
 import type { SyncView } from '../../src/app/sync.js';
 import { EventEmitter } from 'node:events';
 import { App, type AppProps } from '../../src/tui/app.js';
+import { PointerHub, pointerInput } from '../../src/tui/pointer.js';
+import { textWidth } from '../../src/node/width.js';
 import { cloneDefaults, setConfigValue, type Config, type ConfigProblem } from '../../src/core/config.js';
 import { layout } from '../../src/core/layout.js';
 import type { Lang } from '../../src/core/i18n/index.js';
@@ -389,27 +391,51 @@ export interface Screen {
   ansi(): string;
   press(...keys: string[]): Promise<void>;
   type(s: string): Promise<void>;
+  /** The pointer, as a terminal reports it (SGR, 1006): a click (press and release), a rest, a wheel step at a cell. */
+  click(x: number, y: number): Promise<void>;
+  hover(x: number, y: number): Promise<void>;
+  wheel(x: number, y: number, dir: 'up' | 'down'): Promise<void>;
+  /** The cell where `text` starts on the screen now (its `nth` time, from 0), or null. */
+  find(text: string, nth?: number): { x: number; y: number } | null;
+  /** A click on the middle of `text` where it is on the screen now; fails when it is not there. */
+  clickText(text: string, nth?: number): Promise<void>;
+  hoverText(text: string, nth?: number): Promise<void>;
   close(): void;
 }
 
+/** The SGR sequence a terminal sends for a pointer event at a cell (0-based here, 1-based on the wire). */
+export const sgr = (code: number, x: number, y: number, release = false) => `\u001B[<${code};${x + 1};${y + 1}${release ? 'm' : 'M'}`;
+
 export async function draw(
   data: DataSource,
-  opts: { columns?: number; rows?: number; address?: string | null; plain?: boolean; onLeave?: AppProps['onLeave'] } = {},
+  opts: {
+    columns?: number;
+    rows?: number;
+    address?: string | null;
+    plain?: boolean;
+    noColor?: boolean;
+    onLeave?: AppProps['onLeave'];
+    onQuit?: AppProps['onQuit'];
+  } = {},
 ): Promise<Screen> {
   const stdout = new FakeStdout(opts.columns ?? 110, opts.rows ?? 32);
   const stdin = new FakeStdin();
+  const hub = new PointerHub();
   const inst = render(
     <App
       data={data}
       size={{ columns: stdout.columns, rows: stdout.rows }}
       address={opts.address ?? null}
       plain={opts.plain ?? false}
+      noColor={opts.noColor ?? false}
       now={() => NOW}
+      pointer={hub}
       {...(opts.onLeave ? { onLeave: opts.onLeave } : {})}
+      {...(opts.onQuit ? { onQuit: opts.onQuit } : {})}
     />,
     {
       stdout: stdout as unknown as NodeJS.WriteStream,
-      stdin: stdin as unknown as NodeJS.ReadStream,
+      stdin: pointerInput(stdin as unknown as NodeJS.ReadStream, hub),
       debug: true,
       exitOnCtrlC: false,
       patchConsole: false,
@@ -423,17 +449,54 @@ export async function draw(
   if (opts.address && !(await until(() => stdout.last.includes(`: ${opts.address}`), START_CAP_MS)))
     throw new Error(`the screen at ${opts.address} did not open within ${START_CAP_MS} ms`);
   await wait(80);
-  return {
-    // eslint-disable-next-line no-control-regex
-    text: () => stdout.last.replace(/\u001B\[[0-9;?]*[A-Za-z]/g, ''),
-    ansi: () => stdout.last,
-    async press(...keys: string[]) {
-      for (const k of keys) {
-        const before = stdout.frames;
-        stdin.send(k);
-        // The frame the key causes, then a moment for the renders that follow from it (effects, data).
-        if (await until(() => stdout.frames > before, FRAME_CAP_MS)) await wait(25);
+  // eslint-disable-next-line no-control-regex
+  const text = () => stdout.last.replace(/\u001B\[[0-9;?]*[A-Za-z]/g, '');
+  const press = async (...keys: string[]) => {
+    for (const k of keys) {
+      const before = stdout.frames;
+      stdin.send(k);
+      // The frame the key causes, then a moment for the renders that follow from it (effects, data).
+      if (await until(() => stdout.frames > before, FRAME_CAP_MS)) await wait(25);
+    }
+  };
+  const find = (s: string, nth = 0) => {
+    let n = 0;
+    const lines = text().split('\n');
+    for (let y = 0; y < lines.length; y++) {
+      let from = 0;
+      for (;;) {
+        const i = lines[y]!.indexOf(s, from);
+        if (i < 0) break;
+        if (n++ === nth) return { x: textWidth(lines[y]!.slice(0, i)), y };
+        from = i + 1;
       }
+    }
+    return null;
+  };
+  // What a press shows may come a frame later (a screen's keys reach the bar after its effect): wait for it a while.
+  const at = async (s: string, nth = 0) => {
+    await until(() => find(s, nth) !== null, FRAME_CAP_MS);
+    const p = find(s, nth);
+    if (!p) throw new Error(`"${s}" is not on the screen:\n${text()}`);
+    return { x: p.x + Math.floor(textWidth(s) / 2), y: p.y };
+  };
+  const click = (x: number, y: number) => press(sgr(0, x, y) + sgr(0, x, y, true));
+  const hover = (x: number, y: number) => press(sgr(35, x, y));
+  return {
+    text,
+    ansi: () => stdout.last,
+    press,
+    click,
+    hover,
+    wheel: (x, y, dir) => press(sgr(dir === 'up' ? 64 : 65, x, y)),
+    find,
+    clickText: async (s, nth) => {
+      const p = await at(s, nth);
+      return click(p.x, p.y);
+    },
+    hoverText: async (s, nth) => {
+      const p = await at(s, nth);
+      return hover(p.x, p.y);
     },
     async type(s: string) {
       for (const ch of s) {

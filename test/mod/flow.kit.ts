@@ -12,6 +12,7 @@ const typed = (text: string) => ({ text, wait: false, origin: { kind: 'composer'
 const WORK = '/tmp/mode-code/flows';
 const STEP = 'mcp__mode-code__flow_step';
 const step = (s: string) => ({ tool: STEP, step: s }) as any;
+const strip = { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 160, scroll: { offset: 0, bodyRows: 10 } } as any;
 
 const REPORT = `# Sign-in
 
@@ -139,6 +140,13 @@ test('no one to ask: the plan waits; "approve" typed by the person approves it; 
   const r: any = await $.tool.call(step('plan'));
   expect(String(r.result)).toMatch(/The plan waits for the person's approval\. Stop here/);
   expect(flowOf(w).status).toBe('waiting');
+  // Above the prompt, the kit's notice (src/core/ux/kit.ts) says so: its mark, its words, the colour of "asks you".
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const ui = await $.ui.mount({ plugin: 'mode-code', surface, component: 'AbovePrompt', props: strip } as any);
+    const waits = (await ui.findAll({ type: 'Text', text: /^\? The plan waits for your approval: / } as any))[0];
+    expect(waits?.props.color).toBe('warning');
+    await ui.unmount();
+  }
   // Code cannot change the project while the plan waits.
   const write: any = await $.tool.call({ tool: 'Write', file_path: '/home/ada/dev/app/a.ts', content: 'x' } as any);
   expect(write.deny).toMatch(/^📐 plan mode/);

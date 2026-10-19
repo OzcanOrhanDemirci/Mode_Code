@@ -12,6 +12,8 @@ export type ModeCodeLabels = {
   modes: string[];
   tail: string;
   band: string;
+  /** What the band says, by meaning (src/core/ux/tokens.ts): drawn with its mark and colour; null, as it is. */
+  bandMeaning: 'on' | 'ask' | null;
   strip: {
     mode: 'free' | 'chat' | 'research' | 'plan' | 'code';
     style: 'manual' | 'autonomous' | 'full';

@@ -13,11 +13,16 @@ import { lookUpHost, sessionGone, withHost } from '../../src/node/host.js';
 /** This program as the lookup names it: Windows names the program; ps names the main thread, which Node calls MainThread. */
 const OWN = process.platform === 'win32' ? /^node\.exe$/i : /./;
 
-/** The number of a process that ran and has exited. */
+/**
+ * The number of a process that ran and has exited, and that nothing took again yet: on a busy Windows the number of
+ * a process that just ended is soon given to another (a console host was seen taking it within the test).
+ */
 function exited(): number {
-  const r = spawnSync(process.execPath, ['-e', ''], { windowsHide: true });
-  assert.ok(r.pid && r.status === 0);
-  return r.pid;
+  for (let i = 0; ; i++) {
+    const r = spawnSync(process.execPath, ['-e', ''], { windowsHide: true });
+    assert.ok(r.pid && r.status === 0);
+    if (!lookUpHost(r.pid)?.running || i === 4) return r.pid;
+  }
 }
 
 test('a running process is found with its program; one that exited is not running', () => {

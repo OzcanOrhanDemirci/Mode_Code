@@ -60,10 +60,10 @@ test('the core is pure: no Node.js module and nothing outside the core (it also 
   assert.deepEqual(bad, []);
 });
 
-test('the mod imports only the core and Claude Code', () => {
+test('the mod imports only the core, Claude Code and its own files', () => {
   const bad = files('src/mod')
     .flatMap((p) => imports(read(p)).map((s) => [p, s] as const))
-    .filter(([p, s]) => !(s === 'claude-code' || (s.startsWith('../core/') && join(dirname(p), s).includes(join('src', 'core'))) || s === './contract.js'))
+    .filter(([p, s]) => !(s === 'claude-code' || (s.startsWith('../core/') && join(dirname(p), s).includes(join('src', 'core'))) || /^\.\/[\w-]+\.js$/.test(s)))
     .map(([p, s]) => `${rel(p)}: ${s}`);
   assert.deepEqual(bad, []);
 });
