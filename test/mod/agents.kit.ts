@@ -58,7 +58,7 @@ test('off in the settings: nothing is touched, and the strip shows no agents', a
   expect(e.started.length).toBe(1);
   await $.prompt.submit(typed('Hello.'));
   expect(await stripText($)).not.toMatch(/agents/);
-  expect((await person($, '3')).text).toMatch(/not turned on\. Control center: Automation › Parallel agents \(\/0 opens it\)/);
+  expect((await person($, '3')).text).toBe('Parallel agents are not on: turn them on in the cockpit (/0) or under Automation › Parallel agents.');
   expect(w.events().filter((x: any) => x.kind === 'agents')).toEqual([]);
 });
 

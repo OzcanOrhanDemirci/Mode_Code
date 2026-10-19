@@ -15,6 +15,8 @@ import type {
   ModeCodeAgentsPane,
   ModeCodeAutoPane,
   ModeCodeBypassPane,
+  ModeCodeCockpit,
+  ModeCodeCockpitUi,
   ModeCodeFlowPane,
   ModeCodeFooters,
   ModeCodeLabels,
@@ -43,13 +45,17 @@ import {
   type AgentsSettings,
 } from '../core/agents.js';
 import { APP_ID, APP_NAME, APP_VERSION, CLI_NAME, DATA_DIR_NAME, PLUGIN_NAME } from '../core/app.js';
-import { parseConfig, type Config } from '../core/config.js';
+import { parseConfig, serializeConfig, setConfigValue, type Config } from '../core/config.js';
 import { layout, sessionFile, eventsFile, flowDir, memorySeenFile, memorySyncFile, runDir, syncRecordFile, type Layout } from '../core/layout.js';
 import { SYNC_MAX_BYTES, syncCommitMessage, type Pending } from '../core/sync.js';
 import { exportMachine, parseSharedRecord, settingsInEffect, syncDue, type SharedRecord, type SyncFs } from '../core/sync-export.js';
 import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform } from '../core/paths.js';
 import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '../core/i18n/index.js';
-import { CONTROLS, controlOf, controlText, optionLabel, WINDOWS, type WindowDef } from '../core/ux/catalog.js';
+import { CONTROLS, controlOf, controlText, optionLabel, valueIn, WINDOWS, type SettingPath, type WindowDef } from '../core/ux/catalog.js';
+import { callLine, COCKPIT_COLUMNS, COCKPIT_PANE, COCKPIT_ROWS, cockpitData, type CockpitAct, type CockpitData, type ModeFrom } from '../core/ux/cockpit.js';
+import { cockpitBody, type CockpitActs } from '../core/ux/cockpit-view.js';
+import { appendChanges, changeRows, changeText, type ChangeWho } from '../core/ux/changes.js';
+import { wrapText } from '../core/ux/text.js';
 import { action, choices, notice, row as kitRow, windowFrame } from '../core/ux/kit.js';
 import { cardLine, controlOfItem, moLine, stripNow } from '../core/ux/say.js';
 import { COLORS, labelColumn, mark, TOAST_MS } from '../core/ux/tokens.js';
@@ -408,6 +414,10 @@ interface Ctx {
   closed: boolean;
   /** The lines of this session's activity a person reads (src/core/ux/activity.ts), counted under the strip. */
   activity: number;
+  /** The cockpit (src/core/ux/cockpit.ts) is open in this session: what it shows is worked out while it is. */
+  cockpit: { open: boolean };
+  /** The main conversation's calls at work, by their tool_use id: the cockpit's line of what runs now. */
+  calls: Map<string, { tool: string; what: string; at: number }>;
   /** What Mo shows (src/core/mo/state.ts): the main conversation's calls running now, and when things last happened. */
   mo: {
     tools: number;
@@ -667,6 +677,8 @@ async function load($: $): Promise<Ctx> {
     introDue: !(previous && previous.sessionId === sessionId),
     skillsUsed: new Set(),
     activity: existing ? readableActivity(existing.split('\n'), lang) : 0,
+    cockpit: { open: false },
+    calls: new Map(),
     mo: {
       tools: 0,
       agents: 0,
@@ -816,6 +828,7 @@ async function logEvent($: $, c: Ctx, rec: Record<string, unknown>): Promise<voi
   if (readableActivity([line], c.lang)) {
     c.activity++;
     await update($, labelsAtom, (x) => ({ ...x, activity: c.activity })).catch(() => undefined);
+    await publishCockpit($, c);
   }
   try {
     await $.fs.write(c.eventsPath, c.events.join('\n') + '\n');
@@ -2604,13 +2617,19 @@ async function publishMo($: $, c: Ctx): Promise<void> {
   } catch {
     /* the strip keeps the last picture */
   }
+  // What Mo knows, the cockpit says in words: what runs now.
+  await publishCockpit($, c);
 }
 
 /** One more (or one fewer) of the main conversation's calls running, or of the questions waiting for the person. */
-async function moCount($: $, kind: 'tools' | 'agents' | 'asking', by: 1 | -1): Promise<void> {
+async function moCount($: $, kind: 'tools' | 'agents' | 'asking', by: 1 | -1, call?: In<'tool.call'>): Promise<void> {
   try {
     const c = await ctxOf($);
     c.mo[kind] = Math.max(0, c.mo[kind] + by);
+    // The call itself, for the cockpit's line of what runs now: started, or done.
+    if (call && by > 0)
+      c.calls.set(call.tool_use_id, { tool: String(call.tool), what: callLine(String(call.tool), call as Record<string, unknown>), at: await $.clock.now() });
+    else if (call) c.calls.delete(call.tool_use_id);
     await publishMo($, c);
   } catch {
     /* a picture only */
@@ -2637,13 +2656,13 @@ function moKind(tool: string): 'tools' | 'agents' | 'asking' {
 /** The gate of every call (onToolCall), with Mo counting the main conversation's call while it runs and showing a refusal. */
 async function onToolCallWithMo($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<'tool.call'> {
   const kind = e.agentId === undefined ? moKind(String(e.tool)) : null;
-  if (kind) await moCount($, kind, 1);
+  if (kind) await moCount($, kind, 1, e);
   try {
     const result = await onToolCall($, e, next);
     if (kind && result.deny !== undefined) await moRefused($);
     return result;
   } finally {
-    if (kind) await moCount($, kind, -1);
+    if (kind) await moCount($, kind, -1, e);
   }
 }
 
@@ -3884,6 +3903,8 @@ async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.st
     const waiting = await runToResume($, c, null, cwd);
     if (waiting && waiting.status === 'paused') $.ui.toast(tIn(c.lang, 'auto.toast.found', { cont: tIn(c.lang, 'kw.kind.continue') }), { timeoutMs: 10_000 });
   }
+  // The cockpit, where the person kept it open: beside the conversation again, where the screen leaves room.
+  await reopenCockpit($, c);
   // The session's start waits for the memory's pull; the sync across computers goes on while the person types.
   await c.memStart;
   await commands;
@@ -4561,6 +4582,7 @@ function viewOf(c: Ctx): StripView {
     bypass: { shown: c.config.bypass.enabled, on: c.config.bypass.enabled && !!c.state.bypass, count: c.state.bypass?.count ?? 0 },
     frozen: c.state.frozen ? (c.state.frozen.split('/').filter(Boolean).pop() ?? c.state.frozen) : null,
     agents: { shown: c.config.agents.enabled, state: c.state.agents, running: c.agentsRunning },
+    cockpit: c.cockpit.open,
   };
 }
 
@@ -4580,7 +4602,7 @@ const COMMAND_HINT: Record<ControlAction['kind'], MessageKey | null> = {
   style: 'ctl.hint.text',
   fullAuto: 'ctl.hint.fullAuto',
   flow: 'ctl.hint.flow',
-  menu: null,
+  cockpit: null,
   continue: 'ctl.hint.continue',
   quota: 'ctl.hint.quota',
   close: null,
@@ -4604,7 +4626,7 @@ async function registerCommands($: $, c: Ctx): Promise<void> {
   await Promise.all([
     ...COMMANDS.map((cmd) => {
       const hint = COMMAND_HINT[cmd.action.kind];
-      const now = ['mode', 'style', 'menu', 'quota', 'close', 'bypass', 'freeze', 'agents'].includes(cmd.action.kind);
+      const now = ['mode', 'style', 'cockpit', 'quota', 'close', 'bypass', 'freeze', 'agents'].includes(cmd.action.kind);
       return $.command
         .register({
           name: cmd.name,
@@ -4747,16 +4769,21 @@ function sayLine(
 
 /** Opens the control center at Home › Activity beside the session; from the phone, says where it opens. Never silent. */
 async function openActivity($: $, surface?: string): Promise<void> {
+  return openCenterAt($, ACTIVITY_PAGE, surface);
+}
+
+/** Opens the control center beside the session, at a page of its own or at home; from the phone, says where. Never silent. */
+async function openCenterAt($: $, address: string | undefined, surface?: string): Promise<void> {
   try {
     const c = await ctxOf($);
     if (surface !== undefined && surface !== 'terminal') {
       $.ui.toast(tIn(c.lang, 'ctl.center.remote'), { timeoutMs: TOAST_MS.result });
       return;
     }
-    const r = await openCenter($, c, ACTIVITY_PAGE);
+    const r = await openCenter($, c, address);
     $.ui.toast(r.ok ? tIn(c.lang, r.opens === 'tab' ? 'ctl.center.tab' : 'ctl.center.window') : r.text.split('\n')[0]!, { timeoutMs: TOAST_MS.result });
   } catch {
-    /* the strip stays as it is */
+    /* what was on the screen stays as it is */
   }
 }
 
@@ -5813,6 +5840,310 @@ async function applyBypassPane($: $): Promise<void> {
   });
 }
 
+// ── the cockpit (docs/design.md, The cockpit; src/core/ux/cockpit.ts): beside the conversation, opened by the person ──
+
+/** What the cockpit shows, worked out by the hooks while it is open, and what the person opened or started in it. */
+const cockpitAtom = atom({ plugin: 'mode-code', key: 'cockpit' } as const, { data: null } as ModeCodeCockpit);
+const COCKPIT_UI: ModeCodeCockpitUi = { open: null, confirm: null, changed: null, undo: null, focus: null };
+const cockpitUiAtom = atom({ plugin: 'mode-code', key: 'cockpitUi' } as const, COCKPIT_UI);
+
+/** The permissions a press in the cockpit may turn on, each after its own warning: the first doors of its controls. */
+const ALLOWABLE: ReadonlySet<string> = new Set(['bypass.enabled', 'agents.enabled', 'autonomy.enabled']);
+
+/** Where the mode in force comes from, in the order effectiveMode takes them. */
+function modeFromOf(c: Ctx): ModeFrom {
+  if (c.state.turnMode) return 'turn';
+  if (flowRunning(c) && currentStep(c.flow!)) return 'flow';
+  if (autoPlanning(c)) return 'run';
+  if (c.state.nativePlan?.on) return 'plan';
+  return 'session';
+}
+
+/**
+ * Works out what the cockpit shows (src/core/ux/cockpit.ts) and keeps it for the drawing: while it is open, on
+ * every change the strip, Mo or the activity sees. The cockpit is a view: whatever fails here leaves it as it was.
+ */
+async function publishCockpit($: $, c: Ctx): Promise<void> {
+  if (!c.cockpit.open) return;
+  try {
+    const now = await $.clock.now();
+    const working = c.turnId !== null;
+    const agents = (await agentList($)).filter((a) => AT_WORK.has(a.status)).map((a) => ({ id: a.id, label: `${a.description || a.type} · ${a.type}` }));
+    const step = c.flow && isOpen(c.flow) ? currentStep(c.flow) : null;
+    const fp = c.flow && isOpen(c.flow) ? progress(c.flow) : null;
+    const rp = c.run ? runProgress(c.run) : null;
+    // The activity's newest lines are enough here: the whole of it is a press away, in the control center.
+    const events: ActivityEvent[] = [];
+    for (const l of c.events.slice(-400)) {
+      try {
+        const e = JSON.parse(l) as ActivityEvent;
+        if (typeof e.kind === 'string') events.push(e);
+      } catch {
+        /* a torn line says nothing */
+      }
+    }
+    const data = cockpitData(
+      {
+        config: c.config,
+        session: c.state,
+        mode: modeNow(c),
+        modeFrom: modeFromOf(c),
+        style: styleOf(c.state.interaction, !!c.run),
+        now,
+        beltOff: beltOffForDevelopment(c.env),
+        quota: await quotaNow($, c),
+        working,
+        mo: moState(
+          {
+            working,
+            tools: c.mo.tools,
+            agents: c.mo.agents,
+            asking: c.mo.asking,
+            waiting: c.flow?.status === 'waiting',
+            auto: autoRunning(c) !== null,
+            low: c.announced !== 'ok',
+            blockAt: c.mo.blockAt,
+            errorAt: c.mo.errorAt,
+            doneAt: c.mo.doneAt,
+            stoppedAt: c.mo.stoppedAt,
+          },
+          now,
+        ),
+        calls: [...c.calls.values()],
+        agents,
+        flow:
+          c.flow && fp && c.config.modules.modes
+            ? {
+                at: `${fp.at}/${fp.of}`,
+                step: step ? stepName(step.kind, c.lang) : '',
+                state: c.flow.status === 'paused' ? 'paused' : step?.kind === 'approve' ? 'approval' : 'running',
+              }
+            : null,
+        run: c.run && rp ? { at: `${rp.done}/${rp.of}`, paused: c.run.status === 'paused', planning: c.run.phase === 'plan' } : null,
+        events,
+      },
+      c.lang,
+    );
+    await update($, cockpitAtom, () => ({ data }));
+  } catch {
+    /* the cockpit shows what it showed */
+  }
+}
+
+/** Whether the person keeps the cockpit open: the next session opens it in its place (state/cockpit.json). */
+async function rememberCockpit($: $, c: Ctx, open: boolean): Promise<void> {
+  try {
+    await $.fs.write(c.layout.cockpit, JSON.stringify({ v: 1, open }) + '\n');
+  } catch {
+    /* the next session starts without it, as the person can open it again */
+  }
+}
+
+/**
+ * Opens the cockpit: asked (a press, `/0`), at any width, the keyboard in it; unasked (a session starting where the
+ * person kept it open), only where the screen leaves room beside the conversation. False where it is not drawn.
+ */
+async function openCockpit($: $, c: Ctx, asked: boolean): Promise<boolean> {
+  c.cockpit.open = true;
+  await publishCockpit($, c);
+  let placed = false;
+  try {
+    const opened = await $.ui.open({
+      id: COCKPIT_PANE,
+      title: tIn(c.lang, 'ck.title'),
+      ...(asked ? { focus: true as const } : {}),
+      rows: COCKPIT_ROWS,
+      columns: COCKPIT_COLUMNS,
+    });
+    placed = opened.isPlaced;
+    // A cockpit no one sees is not left waiting: the strip would say it is open.
+    if (!placed) await $.ui.close({ id: COCKPIT_PANE });
+  } catch {
+    placed = false;
+  }
+  c.cockpit.open = placed;
+  if (asked && placed) await rememberCockpit($, c, true);
+  await refreshStatus($, c);
+  return placed;
+}
+
+/** Closes the cockpit at the person's word; the next session starts without it. */
+async function closeCockpit($: $, c: Ctx): Promise<void> {
+  c.cockpit.open = false;
+  await $.ui.close({ id: COCKPIT_PANE }).catch(() => undefined);
+  await rememberCockpit($, c, false);
+  await update($, cockpitUiAtom, () => COCKPIT_UI);
+  await refreshStatus($, c);
+}
+
+/** A session starting where the person kept the cockpit open opens it again, beside the conversation. */
+async function reopenCockpit($: $, c: Ctx): Promise<void> {
+  try {
+    const kept = JSON.parse((await readFile($, c.layout.cockpit)) ?? '{}') as { open?: unknown };
+    if (kept.open === true && !c.cockpit.open) await openCockpit($, c, false);
+  } catch {
+    /* no record: the person opens it */
+  }
+}
+
+/**
+ * A setting the person changed inside Claude Code (the cockpit's press, never the model's): written to config.json as
+ * the control center writes it, its row in the record of changes (src/core/ux/changes.ts), in effect at once. The
+ * change made, or null when the setting already had that value.
+ */
+async function saveSetting(
+  $: $,
+  c: Ctx,
+  path: SettingPath,
+  value: string | number | boolean | null,
+  who: ChangeWho,
+): Promise<{ path: string; from: string | number | boolean | null; to: string | number | boolean | null } | null> {
+  const before = parseConfig(await readFile($, c.layout.config)).config;
+  const after = setConfigValue(before, path, value).config;
+  const rows = changeRows(before, after, who, await $.clock.now());
+  if (!rows.length) return null;
+  await $.fs.write(c.layout.config, serializeConfig(after));
+  try {
+    await $.fs.write(c.layout.changes, appendChanges(await readFile($, c.layout.changes), rows));
+  } catch {
+    /* the setting is saved; only its row is lost */
+  }
+  await refreshConfig($, c);
+  await refreshStatus($, c);
+  return { path, from: valueIn(before, path) as string | number | boolean | null, to: valueIn(after, path) as string | number | boolean | null };
+}
+
+/** What a press in the cockpit does: a control of the strip, a page of the control center, or a permission's warning. */
+async function cockpitAct($: $, a: CockpitAct): Promise<void> {
+  if (a.kind === 'allow') {
+    await update($, cockpitUiAtom, (x) => ({ ...x, confirm: a.path, open: null }));
+    return;
+  }
+  if (a.kind === 'center') return openCenterAt($, a.address);
+  await press($, a.name);
+}
+
+/** The warning confirmed: the permission is turned on, said with its undo. Only the three the cockpit offers. */
+async function cockpitAllow($: $, path: string): Promise<void> {
+  const c = await ctxOf($);
+  if (!ALLOWABLE.has(path)) return;
+  try {
+    const r = await saveSetting($, c, path as SettingPath, true, 'cockpit');
+    await update($, cockpitUiAtom, (x) => ({
+      ...x,
+      confirm: null,
+      ...(r ? { changed: tIn(c.lang, 'ck.changed', { change: changeText(r as Parameters<typeof changeText>[0], c.lang) }), undo: r } : {}),
+    }));
+  } catch (err) {
+    $.ui.toast(String((err as Error)?.message ?? err).slice(0, 200), { timeoutMs: TOAST_MS.attention });
+  }
+}
+
+/** The cockpit's undo: the last change made there goes back, unless the setting changed again since. */
+async function cockpitUndo($: $): Promise<void> {
+  const c = await ctxOf($);
+  const u = (await read($, cockpitUiAtom)).undo;
+  if (!u) return;
+  await refreshConfig($, c).catch(() => undefined);
+  if (JSON.stringify(valueIn(c.local, u.path as SettingPath)) !== JSON.stringify(u.to)) {
+    $.ui.toast(tIn(c.lang, 'changes.changedSince'), { timeoutMs: TOAST_MS.result });
+    await update($, cockpitUiAtom, (x) => ({ ...x, changed: null, undo: null }));
+    return;
+  }
+  const r = await saveSetting($, c, u.path as SettingPath, u.from, 'undo');
+  await update($, cockpitUiAtom, (x) => ({ ...x, changed: null, undo: null }));
+  if (r) $.ui.toast(tIn(c.lang, 'changes.undone', { change: changeText(r as Parameters<typeof changeText>[0], c.lang) }), { timeoutMs: TOAST_MS.result });
+}
+
+/** An agent's conversation in the main view; the cockpit stays beside it and says so. */
+async function cockpitView($: $, id: string): Promise<void> {
+  const r = await $.ui.view({ agentId: id }).catch((err: unknown) => ({ deny: String((err as Error)?.message ?? err) }));
+  if ('deny' in r && r.deny) $.ui.toast(String(r.deny).slice(0, 200), { timeoutMs: TOAST_MS.result });
+}
+
+/** One agent stopped from the cockpit, as the agents window stops it. */
+async function cockpitStop($: $, id: string): Promise<void> {
+  const c = await ctxOf($);
+  const ok = await stopAgent($, id);
+  await logEvent($, c, { kind: 'agents', action: 'stop', stopped: ok ? 1 : 0, failed: ok ? 0 : 1 });
+  $.ui.toast(tIn(c.lang, ok ? 'agents.stopped' : 'agents.stopFailed', { n: 1 }), { timeoutMs: TOAST_MS.result });
+  await publishCockpit($, c);
+}
+
+/**
+ * The cockpit (docs/design.md, The cockpit): the line it opens with, where the card of what the pointer or the keyboard
+ * rests on says itself (every card lies in it unseen; the surface shows one under the pointer, no hook runs), then
+ * the body the kit lays out. Its height never changes, so nothing moves under the pointer.
+ */
+function cockpitTree($: $, els: Els & { Client?: unknown }, d: CockpitData, ui: ModeCodeCockpitUi, props: unknown, still: boolean): Node {
+  const Box = els.Box as Tag;
+  const Text = els.Text as Tag;
+  const Button = els.Button as Tag;
+  const Client = els.Client as Tag | undefined;
+  const p = props as { bodyColumns?: number; isFocused?: boolean; view?: { agentId?: string } };
+  const width = Math.max(30, Number(p.bodyColumns ?? COCKPIT_COLUMNS));
+  const acts: CockpitActs<Node> = {
+    toggle: (id) => void update($, cockpitUiAtom, (x) => ({ ...x, open: x.open === id ? null : id, confirm: null })),
+    act: (a) => void cockpitAct($, a),
+    allow: (path) => void cockpitAllow($, path),
+    cancel: () => void update($, cockpitUiAtom, (x) => ({ ...x, confirm: null })),
+    undo: () => void cockpitUndo($),
+    view: (id) => void cockpitView($, id),
+    stop: (id) => void cockpitStop($, id),
+    open: (address) => void openCenterAt($, address),
+    activity: () => void openCenterAt($, ACTIVITY_PAGE),
+    center: () => void openCenterAt($, undefined),
+    // A call's running time, counted by the surface (src/mod/cockpit-clock.ts); a surface with no module shows none.
+    ...(Client
+      ? { elapsed: (since: number, at: number) => h(Client, { key: 'ck-clock', module: './cockpit-clock.js', props: { since, at, lang: d.lang, still } }) }
+      : {}),
+  };
+  const { body, cards } = cockpitBody(
+    claudeHost(els),
+    d as CockpitData,
+    { open: ui.open, confirm: ui.confirm as SettingPath | null, changed: ui.changed },
+    acts,
+    {
+      width,
+    },
+  );
+  const lines = (s: string) => wrapText(s, width, cells);
+  // Beside the conversation the cockpit is narrow: a card takes up to five rows there; above the prompt, where rows
+  // are few and the line is wide, two.
+  const height = width < 80 ? Math.min(5, Math.max(2, ...Object.values(cards).map((s) => lines(s).length))) : 2;
+  /** Text in at most `height` lines: a card longer than the line says its start, and the rest is a press away. */
+  const shown = (s: string) => {
+    const all = lines(s);
+    return all.length <= height ? all : [...all.slice(0, height - 1), `${all[height - 1]!.replace(/.$/u, '')}…`];
+  };
+  // The keyboard's card while the cockpit holds the keyboard: Claude Code says nothing when Esc hands it back.
+  const focus = ui.focus && p.isFocused ? cards[ui.focus] : undefined;
+  const lead = focus
+    ? shown(`${mark('focus', false)} ${focus}`).map((l, i) => h(Text, { key: `ck-f-${i}`, color: COLORS.focus.claude }, l))
+    : shown(tIn(d.lang, p.isFocused ? 'ck.leadKeys' : 'ck.lead')).map((l, i) => h(Text, { key: `ck-l-${i}`, dimColor: true }, l));
+  const say = h(
+    Box,
+    { key: 'ck-say', flexDirection: 'row', height, overflow: 'hidden', width },
+    ...Object.entries(cards).map(([scope, text]) =>
+      h(
+        Box,
+        { key: `ck-card-${scope}`, display: 'none', flexDirection: 'column', flexShrink: 0, width, height, hover: { display: 'flex', scope } },
+        ...shown(text).map((l, i) => h(Text, { key: `ck-c-${scope}-${i}` }, l)),
+      ),
+    ),
+    h(Box, { key: 'ck-now', flexDirection: 'column', flexShrink: 0, width, height }, ...lead),
+  );
+  const agent = p.view?.agentId
+    ? h(
+        Box,
+        { key: 'ck-agent', flexDirection: 'row', width, marginBottom: 1 },
+        h(Box, { flexGrow: 1, flexShrink: 1 }, h(Text, { wrap: 'truncate-end', color: COLORS.agents.claude }, tIn(d.lang, 'ck.agentView'))),
+        h(Box, { flexShrink: 0, marginLeft: 1 }, h(Button, { key: 'ck-main', plain: true, onPress: () => void $.ui.view({}) }, tIn(d.lang, 'ux.say.mainView'))),
+      )
+    : null;
+  return h(Box, { flexDirection: 'column', width }, ...(agent ? [agent] : []), say, body);
+}
+
 /**
  * A control, by its command's name: what `/3` and a press on the strip both do. Answers the line to show and
  * the notes for the model; a press shows its first line as a toast, or `toast` where that line alone says less.
@@ -5887,12 +6218,19 @@ async function control(
       const sent = args ? await sendAsPerson($, c, args) : [];
       return say(tIn(lang, 'ctl.done', { controls: controlsLine(viewOf(c), lang) }), [...said.context, ...sent]);
     }
-    case 'menu': {
-      // The control center opens beside the session; the row keeps where the session stands. From the phone, the menu.
+    case 'cockpit': {
+      // The cockpit, shown or not (src/core/ux/cockpit.ts). From the phone, where the session stands and every command.
       const quota = (await quotaTail($)).replace(/^🛡\s*/, '') || '—';
       const newer = newerThan(APP_VERSION, parseUpdateState(await readFile($, c.layout.updateState))?.latest ?? null);
       const menu = menuText(viewOf(c), lang, quota, newer);
       if (where === 'remote') return say(`${menu}\n\n${tIn(lang, 'ctl.center.remote')}`);
+      // A press: the cockpit appearing or going is what it says; typed, the row says it too.
+      if (c.cockpit.open) {
+        await closeCockpit($, c);
+        return say(tIn(lang, 'ck.closed'), undefined, '');
+      }
+      if (await openCockpit($, c, true)) return say(`${tIn(lang, 'ck.opened')}${newer ? `\n${tIn(lang, 'ctl.menu.update', { newer })}` : ''}`, undefined, '');
+      // No surface places a pane here (a session with no screen): the control center opens, as before the cockpit.
       const opened = await openCenter($, c);
       if (!opened.ok) return say(`${opened.text}\n\n${menu}`);
       const now = tIn(lang, 'ctl.menu.now', { controls: controlsLine(viewOf(c), lang), quota });
@@ -6386,6 +6724,43 @@ export function register(on: On): void {
     if (!('Input' in els)) return next(e);
     const tree = bypassWindow($, els, await read($, bypassPaneAtom), paneWidth(e.props));
     return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
+  });
+  // The cockpit (docs/design.md, The cockpit): beside the conversation in fullscreen, above the prompt otherwise. Drawn
+  // from what the hooks worked out; a drawing that fails gives the engine's own, never a broken pane.
+  on('ui.render', { component: 'Pane', requestId: COCKPIT_PANE }, async ($, e, next) => {
+    const data = (await read($, cockpitAtom)).data;
+    if (!data) return next(e);
+    const ui = await read($, cockpitUiAtom);
+    const still = (await read($, moAtom)).still;
+    const tree = cockpitTree($, $.ui.resolve(e), data as CockpitData, ui, e.props, still);
+    return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
+  });
+  // The person closed it (its close mark, ctrl+x x): the strip says so, and the next session starts without it.
+  on('ui.close', { id: COCKPIT_PANE }, async ($, e, next) => {
+    const r = await next(e);
+    try {
+      if (e.origin.kind === 'person') {
+        const c = await ctxOf($);
+        c.cockpit.open = false;
+        await rememberCockpit($, c, false);
+        await update($, cockpitUiAtom, () => COCKPIT_UI);
+        await refreshStatus($, c);
+      }
+    } catch {
+      /* the next press opens it again */
+    }
+    return r;
+  });
+  // The keyboard in the cockpit: the element it rests on says itself in the line the cockpit opens with.
+  on('ui.focus', { component: 'Pane', requestId: COCKPIT_PANE }, async ($, e, next) => {
+    const r = await next(e);
+    try {
+      const key = e.plugin === PLUGIN_NAME && typeof e.element === 'string' ? e.element : null;
+      await update($, cockpitUiAtom, (x) => ({ ...x, focus: key }));
+    } catch {
+      /* the line says what it said */
+    }
+    return r;
   });
   // The list `/devam` printed: each row pressable, as `/devam <n>` is.
   for (const command of ['devam', 'continue'])

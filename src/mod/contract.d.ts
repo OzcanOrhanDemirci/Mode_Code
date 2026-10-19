@@ -25,6 +25,8 @@ export type ModeCodeLabels = {
     lang: 'en' | 'tr';
     /** The person asked for less motion: the flow's step is marked, not breathing. */
     still: boolean;
+    /** The cockpit is open: "0 ≡ cockpit" is lit. */
+    cockpit?: boolean;
   } | null;
 };
 
@@ -120,6 +122,65 @@ export type ModeCodeBypassPane = {
   error: string | null;
 };
 
+/** A meaning a line is drawn in (src/core/ux/tokens.ts). */
+export type ModeCodeCockpitMeaning = 'on' | 'off' | 'ask' | 'bad' | 'focus' | 'bypass' | 'agents';
+/** What a press in the cockpit does (src/core/ux/cockpit.ts, CockpitAct). */
+export type ModeCodeCockpitAct = { label: string; card: string; opens: boolean } & (
+  { kind: 'control'; name: string } | { kind: 'center'; address: string } | { kind: 'allow'; path: string }
+);
+
+/**
+ * What the cockpit shows (src/core/ux/cockpit.ts, CockpitData), worked out by the hooks from the settings and the
+ * session and drawn from here; null before the cockpit is first opened in the session.
+ */
+export type ModeCodeCockpit = {
+  data: {
+    lang: 'en' | 'tr';
+    at: number;
+    can: {
+      id: string;
+      mark: string;
+      meaning: ModeCodeCockpitMeaning;
+      text: string;
+      locked: boolean;
+      why: { title: string; now: string; because: string[] };
+      card: string;
+      act: ModeCodeCockpitAct | null;
+    }[];
+    now: { id: string; mark: string; meaning: ModeCodeCockpitMeaning; text: string; since: number | null; card: string; agent?: string }[];
+    waiting: number;
+    activity: { id: string; time: string; mark: string; meaning: ModeCodeCockpitMeaning; text: string; card: string; address: string | null }[];
+    activityTotal: number;
+    quota: {
+      meters: { id: 'five' | 'week'; label: string; pct: number; value: string; threshold: number | null; resets: string; card: string }[];
+      budget: string;
+      note: string | null;
+    };
+    quick: {
+      id: string;
+      label: string;
+      value: string;
+      on: boolean;
+      meaning: ModeCodeCockpitMeaning;
+      gate: { path: string; allowed: boolean } | null;
+      press: ModeCodeCockpitAct;
+      card: string;
+    }[];
+  } | null;
+};
+
+/**
+ * What the person opened or started in the cockpit: the line opened to its reasons, a permission waiting for its
+ * warning to be confirmed, the last change made there (to take back), and the element under the keyboard's focus.
+ */
+export type ModeCodeCockpitUi = {
+  open: string | null;
+  confirm: string | null;
+  changed: string | null;
+  undo: { path: string; from: string | number | boolean | null; to: string | number | boolean | null } | null;
+  focus: string | null;
+};
+
 declare module 'claude-code' {
   interface PluginState {
     'mode-code': {
@@ -132,6 +193,8 @@ declare module 'claude-code' {
       quotaPane: ModeCodeQuotaPane;
       flowPane: ModeCodeFlowPane;
       bypassPane: ModeCodeBypassPane;
+      cockpit: ModeCodeCockpit;
+      cockpitUi: ModeCodeCockpitUi;
     };
   }
 }

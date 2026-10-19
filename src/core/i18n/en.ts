@@ -13,6 +13,7 @@ import { enSync } from './en-sync.js';
 import { enControls } from './en-controls.js';
 import { enCatalog } from './en-catalog.js';
 import { enLedger } from './en-ledger.js';
+import { enCockpit } from './en-cockpit.js';
 
 export const en = {
   ...enUi,
@@ -25,6 +26,7 @@ export const en = {
   ...enControls,
   ...enCatalog,
   ...enLedger,
+  ...enCockpit,
   // ── safety belt: reasons (one per situation; {placeholders} are filled in) ──
   'belt.reason.inline': 'Inside code passed to an interpreter: {reason}',
   'belt.reason.deleteUnknown': 'Recursive delete whose target is only known at run time: {target}.',

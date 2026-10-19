@@ -90,7 +90,10 @@ test('what a press does follows the state: the flow closes, goes on or is put aw
   assert.equal(nowText('flow', { ...view, flow: { at: '2/4', state: 'paused' } }, 'en'), 'flow paused at 2/4');
   assert.equal(nowText('flow', view, 'tr'), 'Akış yok; mesajların sıradan mesajlar');
   assert.equal(nowText('fullAuto', { ...view, style: 'full' }, 'en'), '● A full-autonomy run is attached');
-  assert.equal(nowText('menu', view, 'en'), 'Opens a window; nothing changes until you act there');
+  // The cockpit is a switch: shown or not.
+  assert.equal(nowText('cockpit', view, 'en'), '○ Off');
+  assert.equal(nowText('cockpit', { ...view, cockpit: true }, 'tr'), '● Açık');
+  assert.match(cardLine('0', { ...view, cockpit: true }, 'en'), /^● On\. Press: The cockpit closes; the session goes on\./);
   assert.equal(nowText('close', view, 'en'), 'Acts at once when pressed');
   assert.equal(nowText('freeze', { ...view, frozen: 'src' }, 'en'), '● On: writes stay in src');
   assert.equal(nowText('bypass', view, 'tr'), '○ Kapalı');
@@ -98,7 +101,8 @@ test('what a press does follows the state: the flow closes, goes on or is put aw
   // Each control says its own state, whatever else holds beside it.
   const crowded: StripView = { ...view, frozen: 'src', agents: { shown: true, state: { ...DEFAULT_AGENTS, mode: 'free', n: 4 }, running: 0 } };
   assert.equal(nowText('bypass', crowded, 'en'), '○ Off');
-  assert.equal(nowText('menu', crowded, 'en'), 'Opens a window; nothing changes until you act there');
+  assert.equal(nowText('cockpit', crowded, 'en'), '○ Off');
+  assert.equal(nowText('why', crowded, 'en'), 'Opens a window; nothing changes until you act there');
   // The state's colour follows its meaning: bypass on is bypass's own, anything else on is on, off is off.
   const meaning = (id: string, v: StripView) => cardRows(id, v, 'en')[1]!.meaning;
   assert.deepEqual(

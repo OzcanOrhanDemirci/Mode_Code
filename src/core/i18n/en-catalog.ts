@@ -265,8 +265,8 @@ export const enCatalog = {
   'ux.ctl.flow.what': 'Flow: research ▶ plan → approval → code, steps checked by code',
   'ux.ctl.flow.press':
     'Its window offers the steps (research, plan, your approval, code) and a task: written there, the flow starts now; left empty, your next message is the task.',
-  'ux.ctl.menu.what': 'Opens the control center in a new tab; says where this session stands',
-  'ux.ctl.menu.press': 'The control center opens in a new tab or window; this session goes on.',
+  'ux.ctl.cockpit.what': 'Cockpit: what Claude may do now, what is at work, the quota and quick settings, beside the conversation',
+  'ux.ctl.cockpit.press': 'The cockpit opens: beside the conversation on a wide screen, above the prompt otherwise. The control center is one press from it.',
   'ux.ctl.continue.what': 'Continue a project or a folder: lists them all when none is given',
   'ux.ctl.continue.press': 'Picks a project up where its last handoff note left it, with a budget if you give one.',
   'ux.ctl.why.what': 'Why it is so: how each part is now, and the settings and choices behind it',
@@ -292,6 +292,7 @@ export const enCatalog = {
   'ux.ctl.back.bypass': 'Press it again (⚡ or /bypass), or let its time run out; it never outlives the session.',
   'ux.ctl.back.freeze': 'Freeze again, or "off", to end it (❄ on the strip).',
   'ux.ctl.back.agents': 'Set another number the same way, or turn them off.',
+  'ux.ctl.back.cockpit': 'Press it again (0 on the strip, or /0): it closes or opens, and changes nothing else.',
   'ux.ctl.back.close': 'It cannot be taken back. It asks first while Claude is working, and the next session takes over from the note.',
 
   // What a press does while the control is in effect (src/core/ux/say.ts): ends it, goes on, or puts it away.
@@ -300,6 +301,7 @@ export const enCatalog = {
   'ux.ctl.flow.pressArmed': 'Put away: your next message is an ordinary one.',
   'ux.ctl.bypass.pressOn': 'Bypass ends at once; the safety belt asks again.',
   'ux.ctl.freeze.pressOn': 'The freeze ends; writes may go wherever the safety belt allows again.',
+  'ux.ctl.cockpit.pressOn': 'The cockpit closes; the session goes on.',
   'ux.ctl.fullAuto.pressOn': 'The run ends as "full auto cancel" ends it; the work so far stays, committed.',
   // How it is taken back, short enough for the line under the strip.
   'ux.ctl.backShort.mode': 'Undo: pick another mode',
@@ -313,6 +315,7 @@ export const enCatalog = {
   'ux.ctl.backShort.freeze': 'Undo: press it again',
   'ux.ctl.backShort.agents': 'Undo: another number, or off',
   'ux.ctl.backShort.close': 'Cannot be undone',
+  'ux.ctl.backShort.cockpit': 'Undo: press it again',
 
   // ── the strip in words (src/core/ux/say.ts): the line under it and each control's card ──
   'ux.say.mode.chat': 'talks only; changes no file',

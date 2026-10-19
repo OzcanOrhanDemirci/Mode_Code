@@ -276,6 +276,11 @@
       "branches": 92,
       "functions": 94
     },
+    "src/core/i18n/en-cockpit.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
     "src/core/i18n/en-doctor.ts": {
       "lines": 94,
       "branches": 92,
@@ -317,6 +322,11 @@
       "functions": 65
     },
     "src/core/i18n/tr-auto.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/i18n/tr-cockpit.ts": {
       "lines": 94,
       "branches": 92,
       "functions": 94
@@ -572,6 +582,21 @@
       "functions": 87
     },
     "src/core/ux/changes.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/ux/cockpit-view.ts": {
+      "lines": 94,
+      "branches": 84,
+      "functions": 94
+    },
+    "src/core/ux/cockpit.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/ux/elapsed.ts": {
       "lines": 94,
       "branches": 92,
       "functions": 94

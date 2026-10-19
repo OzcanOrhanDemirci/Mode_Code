@@ -76,6 +76,12 @@ export function clock(at: number, lang: Lang): string {
   return new Date(at).toLocaleTimeString(locale(lang), { hour: '2-digit', minute: '2-digit' });
 }
 
+/** The day of the week and the time, for a moment within the week: "Sun 09:00" / "Paz 09:00". */
+export function dayClock(at: number, lang: Lang): string {
+  const day = new Date(at).toLocaleDateString(locale(lang), { weekday: 'short' });
+  return `${day} ${clock(at, lang)}`;
+}
+
 /**
  * A horizontal bar of `width` cells for 0-100. Eighth blocks give sub-cell precision; `plain` uses only
  * ASCII for terminals and screen readers that do not show block characters.

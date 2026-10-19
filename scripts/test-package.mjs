@@ -69,6 +69,7 @@ export const EXPECTED_FILES = [
   'dist/plugin/hooks/register.js',
   'dist/plugin/hooks/mo-strip.js',
   'dist/plugin/hooks/strip-pulse.js',
+  'dist/plugin/hooks/cockpit-clock.js',
   'dist/plugin/types/index.d.ts',
   'package.json',
   // The skills (docs/skills.md): Mode_Code's own as the reviewed folders hold them, and each skill of others with
