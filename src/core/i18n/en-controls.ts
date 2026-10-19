@@ -48,6 +48,7 @@ export const enControls = {
   'ctl.hint.flow': '[task]',
   'ctl.hint.continue': '[number or name] [quota N]',
   'ctl.hint.quota': '[N or +N]',
+  'ctl.hint.why': '[a part | a rule | last]',
   'ctl.hint.freeze': '[folder | off]',
   'ctl.desc.commands': 'Every keyword, command and skill, and how to run each',
   'skill.running': 'Running {skill}.',

@@ -9,6 +9,8 @@ import type { Lang } from '../core/i18n/index.js';
 import type { Layout } from '../core/layout.js';
 import { join } from 'node:path';
 import { readJson, readText, writeAtomic, writeJsonAtomic } from '../node/fsx.js';
+import { readChanges, saveConfig } from '../node/changes.js';
+import type { ChangeRow, ChangeWho } from '../core/ux/changes.js';
 import { git } from '../node/git.js';
 import { appliedTemplates, repoKey, templateById, withTemplates } from '../core/templates.js';
 import { claudeDir } from '../node/env.js';
@@ -56,7 +58,11 @@ export interface DataSource {
   readonly cwd: string;
   config(): Config;
   configProblems(): ConfigProblem[];
-  setConfig(path: string, value: unknown): ConfigProblem[];
+  /** Changes a setting and records who did (src/core/ux/changes.ts); several at once are one save. */
+  setConfig(path: string, value: unknown, who?: ChangeWho): ConfigProblem[];
+  setConfigMany(values: readonly { path: string; value: unknown }[], who: ChangeWho): ConfigProblem[];
+  /** The record of changes, oldest first. */
+  changes(): ChangeRow[];
   health(): Health;
   quota(): QuotaView;
   events(days: number): ToolEvent[];
@@ -157,15 +163,25 @@ export class LiveData implements DataSource {
   configProblems(): ConfigProblem[] {
     return this.ctx.problems;
   }
-  setConfig(path: string, value: unknown): ConfigProblem[] {
-    const r = setConfigValue(this.ctx.config, path, value);
-    const mine = r.problems.filter((p) => p.path === path || p.path.startsWith(path + '.') || path.startsWith(p.path + '.'));
-    if (mine.length) return mine;
-    writeAtomic(this.ctx.layout.config, serializeConfig(r.config));
+  changes(): ChangeRow[] {
+    return readChanges(this.ctx.layout);
+  }
+  setConfig(path: string, value: unknown, who: ChangeWho = 'center'): ConfigProblem[] {
+    return this.setConfigMany([{ path, value }], who);
+  }
+  setConfigMany(values: readonly { path: string; value: unknown }[], who: ChangeWho): ConfigProblem[] {
+    let next = this.ctx.config;
+    for (const { path, value } of values) {
+      const r = setConfigValue(next, path, value);
+      const mine = r.problems.filter((p) => p.path === path || p.path.startsWith(path + '.') || path.startsWith(p.path + '.'));
+      if (mine.length) return mine;
+      next = r.config;
+    }
+    saveConfig(this.ctx.layout, this.ctx.config, next, who);
     this.ctx = reloadConfig(this.ctx);
     this.cache.clear();
     // A skill turned on or off, a memory set up: the plugin's folder follows (docs/skills.md).
-    if (/^(?:skills|memory)(?:\.|$)/.test(path)) {
+    if (values.some(({ path }) => /^(?:skills|memory)(?:\.|$)/.test(path))) {
       try {
         syncKeptSkills(this.ctx.layout, this.ctx.config);
       } catch {
@@ -232,7 +248,7 @@ export class LiveData implements DataSource {
     let cfg = this.ctx.config;
     const changes = on ? (t.changes?.(remote) ?? []) : [];
     for (const ch of changes) cfg = setConfigValue(cfg, ch.path, ch.apply(cfg)).config;
-    if (changes.length) writeAtomic(this.ctx.layout.config, serializeConfig(cfg));
+    if (changes.length) saveConfig(this.ctx.layout, this.ctx.config, cfg, 'template');
     const md = join(this.ctx.cwd, 'CLAUDE.md');
     const ids = on ? [...new Set([...applied, id])] : applied.filter((x) => x !== id);
     writeAtomic(md, withTemplates(readText(md), ids, this.ctx.lang));

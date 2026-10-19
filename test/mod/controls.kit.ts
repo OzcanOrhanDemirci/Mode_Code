@@ -79,6 +79,8 @@ test("the commands are declared at the start, in the person's language; the mode
     'freeze',
     'ajan',
     'parallel',
+    'neden',
+    'why',
     'kapat',
     'close',
     'komutlar',
@@ -731,4 +733,27 @@ test('a keyword typed with a slash is applied and said so; one typo from a keywo
   expect(w.modState().mode).toBe('code');
   expect(w.toasts.at(-1)).toMatch(/"serbes": "serbest" mi demek istedin\?/);
   expect((near.context ?? []).join('\n')).toMatch(/looks like the keyword "serbest" with a typo; it was not applied/);
+});
+
+test('/why: every part and why; one part by its word; "last" names the last refusal and its rule; Claude asks the same', async ($, on) => {
+  const w = world(on, { config: { bypass: { enabled: true } }, answer: 'block' });
+  on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }));
+  const all = await run($, 'why');
+  expect(all.text).toMatch(/^Safety belt: on: it checks every command and file write\n {2}- the safety belt is always on/);
+  expect(all.text).toMatch(/\nBypass: off in this session: ⚡ on the strip switches it on\n {2}- "Allow bypass" is on \(Automation › Bypass\)/);
+  expect((await run($, 'why', 'agents')).text).toMatch(
+    /^Agents: Claude decides how many agents it starts\n {2}- "Parallel agents" is off|^Agents: Claude decides how many agents it starts\n {2}- ".+" is off \(Automation › Parallel agents\)$/,
+  );
+  expect((await run($, 'why', 'last')).text).toBe('Nothing was refused in this session.');
+  // A command the belt blocks, then why: the line, and the rule's own reasons.
+  await $.tool.call({ tool: 'Bash', command: 'git clean -fdx', tool_use_id: 'w1' } as any);
+  const last = await run($, 'why', 'last');
+  expect(last.text).toMatch(/· You blocked Bash: .+\n.+\n {2}- its own verdict: ask/);
+  expect((await run($, 'why', 'nonsense')).text).toMatch(/^No such subject\. Ask one of: belt, mode, /);
+  // Claude asks through its tool, behind tool search, and gets the same words.
+  await $.session.start({ source: 'startup', cwd: PROJECT } as any);
+  for (let i = 0; i < 40; i++) await Promise.resolve();
+  expect(w.registered.find((t: any) => t.name === 'why')?.isDeferred).toBe(true);
+  const told: any = await $.tool.call({ tool: 'mcp__mode-code__why', about: 'bypass', tool_use_id: 'w2' } as any);
+  expect(String(told.result)).toMatch(/^Bypass: off in this session/);
 });

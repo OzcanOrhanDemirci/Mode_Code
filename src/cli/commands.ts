@@ -8,6 +8,8 @@ import { createInterface } from 'node:readline/promises';
 import { homedir } from 'node:os';
 import { APP_NAME, APP_VERSION, CLI_NAME, MIN_CLAUDE_CODE_FOR_HOOKS, REPO_URL } from '../core/app.js';
 import { cloneDefaults, serializeConfig, setConfigValue, type Config } from '../core/config.js';
+import { readChanges, saveConfig } from '../node/changes.js';
+import { changeText, lastUndoable, undoOf } from '../core/ux/changes.js';
 import {
   allSettingPaths,
   effectOf,
@@ -562,7 +564,7 @@ export async function cmdTemplate(a: Args): Promise<number> {
   }
   let cfg = ctx.config;
   for (const ch of changes) cfg = setConfigValue(cfg, ch.path, ch.apply(cfg)).config;
-  if (changes.length) writeAtomic(ctx.layout.config, serializeConfig(cfg));
+  if (changes.length) saveConfig(ctx.layout, ctx.config, cfg, 'template');
   writeAtomic(mdPath, withTemplates(md, ids, ctx.lang));
   say(green(T(ctx, sub === 'apply' ? 'template.applied' : 'template.removed')));
   return 0;
@@ -969,7 +971,7 @@ export async function cmdAutonomy(a: Args): Promise<number> {
       }
     }
     const r = setConfigValue(ctx.config, 'autonomy.enabled', on);
-    writeAtomic(ctx.layout.config, serializeConfig(r.config));
+    saveConfig(ctx.layout, ctx.config, r.config, 'command');
     say(green(T(ctx, on ? 'auto.cli.enabled' : 'auto.cli.disabled')));
     return 0;
   }
@@ -1118,6 +1120,33 @@ export async function cmdConfig(a: Args): Promise<number> {
     return v === undefined ? 1 : 0;
   }
   if (sub === 'explain') return explainSetting(ctx, a.positionals[1], flag(a, 'json'));
+  // The record of changes (src/core/ux/changes.ts): every change, newest first; the newest that can still be taken back.
+  if (sub === 'history') {
+    const rows = readChanges(ctx.layout).reverse();
+    if (flag(a, 'json')) {
+      json('config-history', { changes: rows });
+      return 0;
+    }
+    if (!rows.length) say(dim(T(ctx, 'changes.none')));
+    for (const r of rows.slice(0, 50)) say(`  ${changeText(r, ctx.lang)}`);
+    return 0;
+  }
+  if (sub === 'undo') {
+    const row = lastUndoable(ctx.config, readChanges(ctx.layout));
+    const back = row && undoOf(ctx.config, row);
+    if (!row || !back) {
+      say(dim(T(ctx, 'changes.nothingToUndo')));
+      return 1;
+    }
+    if (personOnly(row.path) && underAgent()) {
+      say(red(T(ctx, 'cli.agentRefused')));
+      return 1;
+    }
+    const r = setConfigValue(ctx.config, back.path, back.to);
+    saveConfig(ctx.layout, ctx.config, r.config, 'undo');
+    say(green(T(ctx, 'changes.undone', { change: changeText({ path: row.path, from: row.to, to: row.from }, ctx.lang) })));
+    return 0;
+  }
   if (sub === 'set') {
     const key = a.positionals[1];
     const raw = a.positionals[2];
@@ -1141,7 +1170,7 @@ export async function cmdConfig(a: Args): Promise<number> {
       for (const p of mine) say(red(T(ctx, 'cli.doctor.configProblem', { path: p.path, detail: p.detail })));
       return 1;
     }
-    writeAtomic(ctx.layout.config, serializeConfig(r.config));
+    saveConfig(ctx.layout, ctx.config, r.config, 'command');
     say(green(T(ctx, 'config.saved', { key })));
     return 0;
   }
@@ -1254,6 +1283,7 @@ export function helpText(lang: Lang): string {
     `  ${c('secrets [path…]'.padEnd(31))}${L('help.secrets')}`,
     `  ${c('config get|set|path'.padEnd(31))}${L('help.config')}`,
     `  ${c('config explain [setting]'.padEnd(31))}${L('help.configExplain')}`,
+    `  ${c('config history|undo'.padEnd(31))}${L('help.configHistory')}`,
     `  ${c('update [--check] [--yes]'.padEnd(31))}${L('help.update')}`,
     `  ${c('trust'.padEnd(31))}${L('help.trust')}`,
     `  ${c('packs [on|off|set|auto|guide]'.padEnd(31))}${L('help.packs')}`,

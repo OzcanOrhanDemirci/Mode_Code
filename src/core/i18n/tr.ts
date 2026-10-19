@@ -13,6 +13,7 @@ import { trMemory } from './tr-memory.js';
 import { trSync } from './tr-sync.js';
 import { trControls } from './tr-controls.js';
 import { trCatalog } from './tr-catalog.js';
+import { trLedger } from './tr-ledger.js';
 
 export const tr: Record<MessageKey, string> = {
   ...trUi,
@@ -24,6 +25,7 @@ export const tr: Record<MessageKey, string> = {
   ...trSync,
   ...trControls,
   ...trCatalog,
+  ...trLedger,
   'belt.reason.inline': 'Yorumlayıcıya verilen kodun içinde: {reason}',
   'belt.reason.deleteUnknown': 'Hedefi ancak çalışırken belli olan özyinelemeli silme: {target}.',
   'belt.reason.deleteCritical': '{target} siliniyor; bu konum {critical} konumunun kendisi ya da onu içeriyor.',

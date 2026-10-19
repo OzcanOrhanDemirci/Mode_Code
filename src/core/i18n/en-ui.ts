@@ -357,6 +357,7 @@ export const enUi = {
   'help.secrets': 'Scan files or the memory folder for secrets',
   'help.config': 'Read or change a setting',
   'help.configExplain': 'What a setting does, before you change it',
+  'help.configHistory': 'Every change to a setting, and taking the last one back',
   'help.json': 'Add --json to any command for machine-readable output.',
   'help.privacy': "Everything stays on this machine. No telemetry. The update check, when you turn it on, only downloads the newest release's checksum list.",
   'help.trust': 'What runs inside Claude Code besides the model, and what changed since you last looked',

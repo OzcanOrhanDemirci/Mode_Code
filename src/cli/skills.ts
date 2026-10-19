@@ -12,6 +12,7 @@ import { CORE_SKILLS, SKILL_STATES, type SkillState } from '../core/skills.js';
 import { EXTERNAL_SKILLS } from '../core/skills-external.js';
 import { appContext } from '../app/context.js';
 import { writeAtomic } from '../node/fsx.js';
+import { saveConfig } from '../node/changes.js';
 import { underAgent } from '../node/install.js';
 import { memorySetUp, syncKeptSkills } from '../node/skills.js';
 import { flag, type Args } from './args.js';
@@ -76,7 +77,7 @@ export async function cmdSkills(a: Args): Promise<number> {
     return 2;
   }
   const r = setConfigValue(ctx.config, `skills.items.${id}`, state);
-  writeAtomic(ctx.layout.config, serializeConfig(r.config));
+  saveConfig(ctx.layout, ctx.config, r.config, 'command');
   syncKeptSkills(ctx.layout, r.config);
   say(green(T('skills.cli.set', { skill: id, state: optionLabel('skills.items.*', state, ctx.lang) })));
   if (state !== 'off') say(dim(T('skills.cli.reload')));

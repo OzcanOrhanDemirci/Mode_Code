@@ -264,6 +264,9 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.ctl.menu.press': 'Kontrol merkezi yeni bir sekmede ya da pencerede açılır; bu oturum sürer.',
   'ux.ctl.continue.what': 'Bir projeye ya da klasöre devam: verilmezse hepsini listeler',
   'ux.ctl.continue.press': 'Bir projeyi son devir notunun bıraktığı yerden açar; verirsen bütçesiyle.',
+  'ux.ctl.why.what': 'Neden böyle: her parça şu an nasıl, arkasındaki ayarlar ve seçimler',
+  'ux.ctl.why.press':
+    'Her parçanın şu an nasıl olduğunu ve nedenini gösterir; bir kelimeyle (ajanlar, bypass, kota ya da bir kural) yalnız o parçayı. Hiçbir şeyi değiştirmez.',
   'ux.ctl.quota.what': 'Haftalık bütçe: bir sayı (70) ya da şimdinin üstüne puan (+5)',
   'ux.ctl.quota.press': 'Bu oturumun haftalık kotanın ne kadarını kullanabileceğini koyar: iş yaklaşınca toparlanır, bütçede durur.',
   'ux.ctl.bypass.what': "Bypass: bu oturumda Claude bir süre sormadan çalışır, her çağrı kaydedilir (Otomasyon'dan izin verildikten sonra)",

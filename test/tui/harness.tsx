@@ -11,6 +11,7 @@ import { App, type AppProps } from '../../src/tui/app.js';
 import { PointerHub, pointerInput } from '../../src/tui/pointer.js';
 import { textWidth } from '../../src/node/width.js';
 import { cloneDefaults, setConfigValue, type Config, type ConfigProblem } from '../../src/core/config.js';
+import { changeRows, type ChangeRow, type ChangeWho } from '../../src/core/ux/changes.js';
 import { layout } from '../../src/core/layout.js';
 import type { Lang } from '../../src/core/i18n/index.js';
 import type { DataSource } from '../../src/tui/store.js';
@@ -78,11 +79,22 @@ export class FakeData implements DataSource {
   configProblems(): ConfigProblem[] {
     return [];
   }
-  setConfig(path: string, value: unknown) {
-    const r = setConfigValue(this.cfg, path, value);
-    this.cfg = r.config;
-    this.saved.push({ path, value });
+  /** The record of changes this fake keeps, as the live one writes it (src/core/ux/changes.ts). */
+  rows: ChangeRow[] = [];
+  setConfig(path: string, value: unknown, who: ChangeWho = 'center') {
+    return this.setConfigMany([{ path, value }], who);
+  }
+  setConfigMany(values: readonly { path: string; value: unknown }[], who: ChangeWho) {
+    const before = this.cfg;
+    for (const { path, value } of values) {
+      this.cfg = setConfigValue(this.cfg, path, value).config;
+      this.saved.push({ path, value });
+    }
+    this.rows.push(...changeRows(before, this.cfg, who, NOW + this.rows.length));
     return [];
+  }
+  changes() {
+    return this.rows;
   }
   health(): Health {
     const f = (id: Health['features'][number]['id'], protection = false) => ({

@@ -28,7 +28,8 @@ export type ControlAction =
   | { kind: 'close' }
   | { kind: 'bypass' }
   | { kind: 'freeze' }
-  | { kind: 'agents' };
+  | { kind: 'agents' }
+  | { kind: 'why' };
 
 /** Every slash command, by name: a number for everything on the strip, a word for those that take a value and for closing. */
 export const COMMANDS: readonly { name: string; action: ControlAction }[] = [
@@ -60,6 +61,9 @@ export const COMMANDS: readonly { name: string; action: ControlAction }[] = [
   // that is Claude Code's own command for agent definitions.
   { name: 'ajan', action: { kind: 'agents' } },
   { name: 'parallel', action: { kind: 'agents' } },
+  // Why something is as it is (src/core/ux/why.ts): shows, changes nothing.
+  { name: 'neden', action: { kind: 'why' } },
+  { name: 'why', action: { kind: 'why' } },
   { name: 'kapat', action: { kind: 'close' } },
   { name: 'close', action: { kind: 'close' } },
 ];
@@ -75,6 +79,7 @@ export function commandOf(action: ControlAction, lang: Lang): string {
   if (action.kind === 'bypass') return 'bypass';
   if (action.kind === 'freeze') return lang === 'tr' ? 'dondur' : 'freeze';
   if (action.kind === 'agents') return lang === 'tr' ? 'ajan' : 'parallel';
+  if (action.kind === 'why') return lang === 'tr' ? 'neden' : 'why';
   return digitOf(action);
 }
 

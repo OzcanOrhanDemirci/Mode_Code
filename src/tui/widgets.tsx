@@ -5,7 +5,21 @@ import { Box, Text } from 'ink';
 import type { MessageKey } from '../core/i18n/index.js';
 import { truncate } from '../core/text.js';
 import type { Config } from '../core/config.js';
-import { amount, asksFirst, confirmText, effectOf, explain, nameOf, nextValue, settingOf, valueIn, valueText, type SettingPath } from '../core/ux/catalog.js';
+import {
+  amount,
+  asksFirst,
+  confirmText,
+  defaultOf,
+  effectOf,
+  explain,
+  nameOf,
+  nextValue,
+  settingOf,
+  valueIn,
+  valueText,
+  type SettingPath,
+} from '../core/ux/catalog.js';
+import { changeText } from '../core/ux/changes.js';
 import { choiceValue, confirm, switchValue } from '../core/ux/kit.js';
 import { Pressable } from './press.js';
 import { useEnv, useHints, useKit, useScreenKeys, useT, ListView, Muted, Row, type ListItem } from './ui.js';
@@ -128,8 +142,9 @@ export interface Field {
 
 /**
  * Edits settings in place: ↑↓ choose, Enter or Space changes (twice for anything that lowers a protection or says
- * what it means first), numbers are typed. Under the list the selected setting answers the four questions
- * (docs/design.md): what it is, how it is now, what the change does before it is made, and how to take it back.
+ * what it means first), numbers are typed; d puts the selected setting back to its default, D the whole list, each
+ * after showing what goes back. Under the list the selected setting answers the four questions (docs/design.md):
+ * what it is, how it is now, what the change does before it is made, and how to take it back.
  */
 export function SettingsEditor({ fields, open, width }: { fields: Field[]; open: boolean; width: number }) {
   const env = useEnv();
@@ -139,13 +154,15 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
   const [sel, setSel] = useState(0);
   const [pending, setPending] = useState<{ path: string; value: unknown } | null>(null);
   const [typing, setTyping] = useState<string | null>(null);
+  // Back to the defaults: what would change, shown before it does.
+  const [reset, setReset] = useState<{ path: SettingPath; from: unknown; to: unknown }[] | null>(null);
   const cur = fields[Math.min(sel, fields.length - 1)];
   const kindOf = (f: Field) => settingOf(f.path)!.def.kind;
 
   /** Saves a value; the bar says what changed and offers to take it back (u), to the value it had. */
   const save = (f: Field, value: unknown) => {
     const before = f.value;
-    const problems = env.data.setConfig(f.path, value);
+    const problems = env.data.setConfig(f.path, value, 'center');
     setPending(null);
     setTyping(null);
     if (problems.length) {
@@ -153,7 +170,7 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
       return;
     }
     env.flash(t('set.changed', { name: nameOf(f.path, lang), value: valueText(f.path, value, lang) }), 'ok', () => {
-      const again = env.data.setConfig(f.path, before);
+      const again = env.data.setConfig(f.path, before, 'undo');
       if (again.length) env.flash(t('set.rejected', { detail: again.map((p) => p.detail).join('; ') }), 'bad');
       else env.flash(t('set.undone', { name: nameOf(f.path, lang), value: valueText(f.path, before, lang) }), 'ok');
     });
@@ -185,6 +202,34 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
   const cancel = () => {
     setTyping(null);
     setPending(null);
+    setReset(null);
+  };
+  /** d (one) or D (the list): what goes back to its default, held for Enter; nothing to do is said so. */
+  const askReset = (list: Field[]) => {
+    const back = list.map((f) => ({ path: f.path, from: f.value, to: defaultOf(f.path) })).filter((c) => JSON.stringify(c.from) !== JSON.stringify(c.to));
+    setPending(null);
+    if (back.length) setReset(back);
+    else env.flash(list.length === 1 ? t('set.atDefault', { name: nameOf(list[0]!.path, lang) }) : t('set.pageAtDefaults'), 'ok');
+  };
+  const applyReset = () => {
+    if (!reset) return;
+    const back = reset;
+    setReset(null);
+    const problems = env.data.setConfigMany(
+      back.map((c) => ({ path: c.path, value: c.to })),
+      'default',
+    );
+    if (problems.length) {
+      env.flash(t('set.rejected', { detail: problems.map((p) => p.detail).join('; ') }), 'bad');
+      return;
+    }
+    env.flash(t('set.defaulted', { changes: back.map((c) => changeText(c, lang)).join('; ') }), 'ok', () => {
+      env.data.setConfigMany(
+        back.map((c) => ({ path: c.path, value: c.from })),
+        'undo',
+      );
+      env.flash(t('changes.undone', { change: back.map((c) => changeText({ path: c.path, from: c.to, to: c.from }, lang)).join('; ') }), 'ok');
+    });
   };
 
   useScreenKeys((input, key) => {
@@ -220,12 +265,22 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
       setPending(null);
       return true;
     }
+    if (reset) {
+      if (key.return) applyReset();
+      else if (key.escape) setReset(null);
+      else return false;
+      return true;
+    }
     if (key.escape && pending) {
       setPending(null);
       return true;
     }
     if (key.return || input === ' ') {
       change(cur);
+      return true;
+    }
+    if (input === 'd' || input === 'D') {
+      askReset(input === 'd' ? [cur] : fields);
       return true;
     }
     return false;
@@ -240,12 +295,21 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
           { key: 'Enter', label: t('set.key.save'), run: submitTyped },
           { key: 'Esc', label: t('set.key.cancel'), run: cancel },
         ]
-      : pending
+      : reset
         ? [
-            { key: 'Enter', label: t('set.key.apply'), run: () => cur && change(cur) },
+            { key: 'Enter', label: t('set.key.apply'), run: applyReset },
             { key: 'Esc', label: t('set.key.cancel'), run: cancel },
           ]
-        : [{ key: 'Enter', label: t(curKind === 'number' ? 'set.key.type' : 'set.key.change'), run: () => cur && change(cur) }],
+        : pending
+          ? [
+              { key: 'Enter', label: t('set.key.apply'), run: () => cur && change(cur) },
+              { key: 'Esc', label: t('set.key.cancel'), run: cancel },
+            ]
+          : [
+              { key: 'Enter', label: t(curKind === 'number' ? 'set.key.type' : 'set.key.change'), run: () => cur && change(cur) },
+              { key: 'd', label: t('set.key.default'), run: () => cur && askReset([cur]) },
+              { key: 'D', label: t('set.key.pageDefault'), run: () => askReset(fields) },
+            ],
     open && !!cur,
   );
 
@@ -292,6 +356,19 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
           </Pressable>
         );
       })}
+      {reset ? (
+        <Box marginTop={1}>
+          {confirm(kit, {
+            text:
+              reset.length === 1
+                ? t('set.defaultConfirm', { change: changeText(reset[0]!, lang) })
+                : t('set.pageDefaultConfirm', { changes: reset.map((c) => changeText(c, lang)).join('; ') }),
+            width,
+            apply: { id: 'apply-default', label: t('set.key.apply'), keyName: 'Enter', onPress: applyReset },
+            cancel: { id: 'cancel-default', label: t('set.key.cancel'), keyName: 'Esc', onPress: cancel },
+          })}
+        </Box>
+      ) : null}
       {cur ? (
         <SettingCard
           field={cur}
