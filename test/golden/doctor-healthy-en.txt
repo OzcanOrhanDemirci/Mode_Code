@@ -19,7 +19,7 @@ Installation
   ✓ The control center opens from the cockpit with C:/dev/mode-code/dist/cli.mjs.
   ✓ The plugin last reported in from a session at 2026-10-12 11:50 (UTC).
   ✓ Mode_Code 1.2.0 is the newest release.
-  · Full autonomy is off (mode-code autonomy enable turns it on).
+  i Full autonomy is off (mode-code autonomy enable turns it on).
   ✓ The skills your settings keep are in place.
 Protection
   ✓ The installed hook answered all 30 samples exactly as this version does.
@@ -27,15 +27,15 @@ Protection
   ✓ The belt protects the short names Windows gave the protected places (1).
       ~/MODECO~1 is ~/.mode-code.
   ✓ Memory folders are protected and are git repositories (1).
-  · Bypass is off: no session can lift the safety belt.
+  i Bypass is off: no session can lift the safety belt.
   ✓ The project's shared settings widen nothing.
   ✓ No MCP server starts at whatever version is newest.
   ✓ No secret is written in the Claude Code settings files.
 Shells and terminal
   ✓ Git Bash (C:/Program Files/Git/bin/bash.exe) maps /tmp to your Temp folder, as the belt assumes.
   ✓ PowerShell 7.6.6.
-  · Terminal: Windows Terminal, 120 columns, code page 65001.
-  · System locale en-US, LANG -; the interface speaks en.
+  i Terminal: Windows Terminal, 120 columns, code page 65001.
+  i System locale en-US, LANG -; the interface speaks en.
 Files
   ✓ The data folder is writable and atomic writes work.
   ✓ 100.0 GB free for the data folder.
@@ -51,7 +51,7 @@ Data
   ✓ A recent quota reading is stored.
   ✓ Where the memory lives: this computer and your GitHub · C:/dev/notes/memory. Claude Code uses it.
   ✓ The memory index is 40 lines, 4 KB: within what Claude Code loads (200 lines, 25 KB).
-  · Sync across computers is not set up.
+  i Sync across computers is not set up.
   ✓ 3 recent session transcripts read: 100 rows in the expected shape.
   ✓ Every tool that ran commands or wrote files in recent sessions is checked by the belt (Bash, Edit).
   ✓ Session ids have the expected shape.

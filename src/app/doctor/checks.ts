@@ -491,7 +491,7 @@ const dataConfig: Check = (f) => {
   if (!f.config.exists) return result(id, 'data', false, 'info', m('doc.data.config.none'));
   if (f.config.problems.length)
     return result(id, 'data', false, 'warn', m('doc.data.config.problems', { n: f.config.problems.length }), {
-      details: f.config.problems.slice(0, 6).map((p) => m('doc.line', { text: `${p.path || '(file)'}: ${p.detail}` })),
+      details: f.config.problems.slice(0, 6).map((p) => m('doc.config.line', { path: p.path || '@doc.config.file', detail: `@problem:${p.detail}` })),
       repair: 'rewrite-config',
     });
   return result(id, 'data', false, 'ok', m('doc.data.config.ok'));

@@ -57,13 +57,14 @@ Then start a new Claude Code session (`claude`). The strip above the prompt show
 
 Read them before you run them: [install.sh](install.sh) · [install.ps1](install.ps1).
 
-| To                                     | macOS and Linux                              | Windows                                                |
-| -------------------------------------- | -------------------------------------------- | ------------------------------------------------------ |
-| pass options                           | `curl -fsSL <address> \| sh -s -- <options>` | `& ([scriptblock]::Create((irm <address>))) <options>` |
-| answer yes to every question (scripts) | `--yes`                                      | `-Yes`                                                 |
-| install a given version                | `--version 1.1.0`                            | `-Version 1.1.0`                                       |
-| leave PATH alone                       | `--no-modify-path`                           | `-NoModifyPath`                                        |
-| install the program only               | `--no-setup`                                 | `-NoSetup`                                             |
+| To                                         | macOS and Linux                              | Windows                                                |
+| ------------------------------------------ | -------------------------------------------- | ------------------------------------------------------ |
+| pass options                               | `curl -fsSL <address> \| sh -s -- <options>` | `& ([scriptblock]::Create((irm <address>))) <options>` |
+| answer yes to every question (scripts)     | `--yes`                                      | `-Yes`                                                 |
+| install Claude Code too when it is missing | `--install-claude`                           | `-InstallClaude`                                       |
+| install a given version                    | `--version 1.1.0`                            | `-Version 1.1.0`                                       |
+| leave PATH alone                           | `--no-modify-path`                           | `-NoModifyPath`                                        |
+| install the program only                   | `--no-setup`                                 | `-NoSetup`                                             |
 
 **Try it first.** Install with `--no-setup` (Windows: `-NoSetup`), then run `mode-code try`: it starts one Claude Code session with everything loaded and changes nothing in your Claude Code configuration.
 

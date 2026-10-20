@@ -101,6 +101,11 @@
       "branches": 81,
       "functions": 94
     },
+    "src/cli/ask.ts": {
+      "lines": 90,
+      "branches": 90,
+      "functions": 90
+    },
     "src/cli/commands.ts": {
       "lines": 68,
       "branches": 50,
@@ -210,6 +215,11 @@
       "lines": 94,
       "branches": 75,
       "functions": 94
+    },
+    "src/core/config-words.ts": {
+      "lines": 100,
+      "branches": 85,
+      "functions": 100
     },
     "src/core/config.ts": {
       "lines": 93,

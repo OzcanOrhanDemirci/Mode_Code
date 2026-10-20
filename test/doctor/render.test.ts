@@ -147,3 +147,19 @@ test('a time parameter ("@at:<ms>") is a local date and time in the person\'s la
   assert.match(say('en', { key: 'doc.memory.diverged', params: { when: '@at:0' } }, HOME), /\(\?\)/, 'no record time: a question mark, not 1970');
   assert.deepEqual(maskParams({ when: `@at:${at}` }, HOME, 'at'), { when: `@at:${at}` });
 });
+
+test("a refused setting is said in the person's language, the whole file named in words", () => {
+  const f = healthyFacts({
+    config: {
+      exists: true,
+      problems: [
+        { path: 'autonomy.maxHours', kind: 'range', detail: 'expected 1 to 72' },
+        { path: '', kind: 'type', detail: 'the settings file must hold an object' },
+      ],
+    },
+  });
+  const r = runChecks(f).find((c) => c.details?.some((d) => d.key === 'doc.config.line'))!;
+  const lines = (lang: Lang) => r.details!.map((d) => say(lang, d, HOME));
+  assert.deepEqual(lines('tr'), ['autonomy.maxHours: 1 ile 72 arası bir sayı bekleniyordu', '(dosyanın tamamı): ayar dosyası bir nesne tutmalı']);
+  assert.deepEqual(lines('en'), ['autonomy.maxHours: expected 1 to 72', '(the file): the settings file must hold an object']);
+});

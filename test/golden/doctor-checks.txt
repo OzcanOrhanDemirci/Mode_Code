@@ -219,7 +219,7 @@ git.projects warn hint=doc.git.projects.safeHint doc.git.projects.unreadable {"n
     doc.line {"text":"C:/dev/app: fatal: detected dubious ownership"}
 git.here ok doc.setup.gitOk
 data.config warn repair=rewrite-config doc.data.config.problems {"n":1}
-    doc.line {"text":"view: expected simple, recommended or detailed"}
+    doc.config.line {"path":"view","detail":"@problem:expected simple, recommended or detailed"}
 data.index warn repair=rebuild-index doc.data.index.bad {"detail":"malformed"}
 data.quota warn repair=remove-bad-quota doc.data.quota.bad
 data.memoryStore ok doc.memory.ok {"place":"@msetup.place.both","dir":"C:/dev/notes/memory"}

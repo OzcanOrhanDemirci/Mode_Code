@@ -14,7 +14,7 @@ export const trSync: Record<keyof typeof enSync, string> = {
 
   'ssetup.title': 'Mode_Code · bilgisayarlar arası eşitleme',
   'ssetup.intro':
-    "Bilgisayarların Mode_Code'un ayarlarını, geçmişini ve devir notlarını senin seçtiğin tek bir yer üzerinden paylaşır. Her bilgisayar orada yalnız kendi klasörüne yazar. Listenin tamamını görüp onay verene kadar hiçbir şey değişmez.",
+    "Bilgisayarların Mode_Code'un ayarlarını, geçmişini ve devir notlarını senin seçtiğin tek bir yer üzerinden paylaşır. Her bilgisayar orada yalnız kendi klasörüne yazar. Listenin tamamını görüp onay verene kadar hiçbir şey değişmez; listeden önce yalnız gereken bir araç (git, GitHub'ın gh'si) kurulur ya da GitHub girişi açılır, her biri ona evet dersen.",
   'ssetup.now': 'Şu anki kurulum: {place} · {dir} · bu bilgisayar {name}',
   'ssetup.ask.place': 'Ortak kopya nerede dursun?',
   'ssetup.option.github': "GitHub'ında, adını senin koyduğun özel bir depo (yeni ya da var olan)",
@@ -57,7 +57,7 @@ export const trSync: Record<keyof typeof enSync, string> = {
   'ssetup.diff.more': 've {n} tane daha',
   'ssetup.diff.none': '(yok)',
   'ssetup.ask.diff': 'Hangisi kalsın?',
-  'ssetup.diff.theirs': 'Diğer bilgisayarlarınki (yeni bir bilgisayar için olağan seçim)',
+  'ssetup.diff.theirs': 'Diğer bilgisayarlarınki (yeni bir bilgisayar için olağan seçim; orada gevşetilen bir koruma buraya da gelir)',
   'ssetup.diff.mine': 'Bu bilgisayarınki onlara gitsin',
   'ssetup.diff.took': 'diğer bilgisayarlardan {n} ayar alındı',
   'ssetup.diff.kept': 'bu bilgisayarın {n} ayarı diğerlerine gider',

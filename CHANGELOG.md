@@ -49,6 +49,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Now, the control center's first screen (`docs/design.md`, The control center): Mo says the one thing that matters most and a press leads there (protection that does not work, a flow or a run waiting for you, what happened while you were away, a run at work, a quota near its limit, a session at work, or calm); under it the goals people come for, each one a press (leave Claude on a task, work in parallel, guard my quota, what happened, why is it so); then what Claude may do in the session at work on this computer, in the cockpit's own words, each line opening its reasons and where it is changed; what is at work; what waits for you and today's numbers; the quota. The keys walk every press in order, and the line under Mo shows the card of the one they rest on.
 - Working › Modes and ways of working: what each mode lets Claude change, how each way of working goes on, and the key that picks it on the strip, beside the two features they need.
 
+- The memory and sync setups say where they are (_Step 2 of 7 · The tools it needs_), a step a choice makes unneeded saying so; back from one started in the control center, its last lines stay until Enter, and the bar says how it went.
+- `--install-claude` (Windows: `-InstallClaude`) for the installers: a script that wants Claude Code installed too when it is missing says so; `--yes` alone no longer installs it.
+
 ### Changed
 
 - `/0` and `0 ≡ cockpit` on the strip show the cockpit, a switch, instead of opening the control center, which is one press from it (**Control center…**); where no surface draws a pane, `/0` still opens the control center itself, and from the phone it still says where the session stands. The messages that sent you to the control center for bypass or the agents name the cockpit first.
@@ -75,8 +78,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - The location bar keeps its crumbs whole beside the protection and the quota; on a narrow terminal the middle ones give way to `…` instead of running into each other.
 - Whatever the pointer rests on that a click presses is underlined in the control center, the crumbs of the location bar and the keys in the bar at the bottom too, and a key pointed at says what it does.
 
+- Every question on the command line asks one way: what Enter answers is shown in the person's language, another word asks again, and nothing is a yes without a terminal. Installing git or GitHub's gh, signing in to GitHub in a browser and installing Claude Code answer no to Enter; so does the daily update check at install, which stays off until you say yes.
+- Where the other computers' settings differ, the sync setup names each by its name and value in words, and when one lowers a protection here, Enter keeps this computer's.
+- Command-line prose is wrapped to the terminal's width; the middle dot only joins facts (off or not reached yet is `○`, a doctor's note `i`); the hook's paths at install are shortened; `--help` names `--no-color`, `--plain` and `--no-mouse`, and colour off reaches the installer an update runs.
+
 ### Fixed
 
+- A refused setting said why in English in a Turkish control center, doctor and command line (`expected 1 to 72`): every reason the settings check gives is said in the person's language now, wherever it is shown; `--json` keeps the check's own words.
+- The POSIX installer said to run `mode-code` here and to open a new terminal at once: where the installer has just added the command to PATH, it now says a new terminal opens the control center too.
 - A long line in the control center that wrapped could start its next line with a space (Ink keeps the space a break falls on); the control center now wraps its own prose at word boundaries.
 - Two messages sent you to places that do not exist: the daily update check is under Settings › Language and view, and the protected memory folders under Memory and projects › Protected folders. A test now walks every place a message names.
 - "This lowers a protection" named the value as `false`; it says it in words.

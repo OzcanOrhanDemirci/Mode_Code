@@ -552,3 +552,13 @@ test('Working › Recent tasks: the last tasks given full autonomy, the one pick
     empty.close();
   }
 });
+
+test('back from a setup, the bar says how it went, and where the person was is where they are', async () => {
+  const s = await draw(new FakeData(), { address: 'memory/store', notice: { text: 'Done: the memory setup.', kind: 'ok' } });
+  try {
+    assert.match(s.text(), /✓ Done: the memory setup\./);
+    assert.match(s.text(), /Memory and projects › Memory/);
+  } finally {
+    s.close();
+  }
+});

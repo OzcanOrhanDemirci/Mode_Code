@@ -5,7 +5,6 @@
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { createInterface } from 'node:readline/promises';
 import { APP_ID, APP_VERSION, CLI_NAME } from '../core/app.js';
 import { serializeConfig } from '../core/config.js';
 import { saveConfig } from '../node/changes.js';
@@ -15,7 +14,7 @@ import { tIn, type MessageKey } from '../core/i18n/index.js';
 import { heldText, syncProblem, type SyncResult } from '../core/memory-sync.js';
 import { morningLines } from '../core/morning.js';
 import { appContext, type AppContext } from '../app/context.js';
-import { memorySetup, type SetupIO } from '../app/memory-setup.js';
+import { memorySetup } from '../app/memory-setup.js';
 import { decideNotes, handoffsOf, memoryView, morningFacts, morningWindow, newestHandoff, pendingNoteRuns, projectKeyFor } from '../app/memory.js';
 import { findRun, loadRuns } from '../app/runs.js';
 import { claudeDir, home, platform } from '../node/env.js';
@@ -24,57 +23,13 @@ import { underAgent } from '../node/install.js';
 import { nodeRunner, recordSync, seenSince, syncStore } from '../node/memory.js';
 import { flag, intValue, value, type Args } from './args.js';
 import { bold, cyan, dim, gray, green, red, yellow } from './style.js';
-
-const say = (s = '') => process.stdout.write(s + '\n');
+import { say, terminalIO } from './ask.js';
 
 function json(schema: string, data: object): void {
   process.stdout.write(JSON.stringify({ schema: `${APP_ID}.${schema}/1`, version: APP_VERSION, ...data }, null, 2) + '\n');
 }
 
-/** The setup's questions, asked in this terminal. */
-export function terminalIO(ctx: AppContext): SetupIO {
-  const T = (k: MessageKey, p?: Record<string, string | number>) => tIn(ctx.lang, k, p);
-  const line = async (q: string): Promise<string> => {
-    const rl = createInterface({ input: process.stdin, output: process.stdout });
-    try {
-      return (await rl.question(q)).trim();
-    } finally {
-      rl.close();
-    }
-  };
-  return {
-    say,
-    async choose(question, options, def) {
-      say(bold(question));
-      options.forEach((o, i) => say(`  ${cyan(String(i + 1))}  ${o}${i === def ? dim(` (${T('mcli.default')})`) : ''}`));
-      for (;;) {
-        // The prompt names the option Enter takes: the one marked above, not always the first.
-        const a = await line(`${T('mcli.pick', { n: options.length, def: def + 1 })} `);
-        if (a === '') return def;
-        const n = parseInt(a, 10);
-        if (n >= 1 && n <= options.length) return n - 1;
-      }
-    },
-    async ask(question, def) {
-      const a = await line(`${bold(question)}${def ? dim(` [${def}]`) : ''}: `);
-      return a === '' ? def : a;
-    },
-    async confirm(question, def) {
-      for (;;) {
-        // The letters follow the language, and the hint names what Enter answers, so a question whose Enter is no says so.
-        const a = await line(`${question} ${dim(T(def ? 'mcli.yes' : 'mcli.no'))} `);
-        if (a === '') return def;
-        if (/^(?:y|yes|e|evet)$/i.test(a)) return true;
-        if (/^(?:n|no|h|hayir|hayır)$/i.test(a)) return false;
-      }
-    },
-    async interactive(argv) {
-      say(dim(`$ ${argv.join(' ')}`));
-      const r = spawnSync(argv[0]!, argv.slice(1), { stdio: 'inherit', windowsHide: false });
-      return r.status ?? 1;
-    },
-  };
-}
+export { terminalIO };
 
 /** Whether a program answers on this PATH. */
 export async function has(program: string): Promise<boolean> {
@@ -114,7 +69,7 @@ export async function runMemorySetup(ctx: AppContext): Promise<number> {
     say(red(T(ctx, 'mcli.needsTerminal')));
     return 2;
   }
-  const out = await memorySetup(terminalIO(ctx), {
+  const out = await memorySetup(terminalIO(ctx.lang), {
     lang: ctx.lang,
     platform,
     home: home(),

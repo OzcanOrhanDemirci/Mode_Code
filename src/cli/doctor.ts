@@ -4,7 +4,6 @@
  * with --fix), measures again. --self-check tests the doctor itself in a sandbox; --report prints a
  * problem report to paste into an issue; --json prints everything for scripts.
  */
-import { createInterface } from 'node:readline/promises';
 import { homedir, userInfo } from 'node:os';
 import { APP_NAME, APP_VERSION, MIN_CLAUDE_CODE_FOR_HOOKS } from '../core/app.js';
 import { tIn } from '../core/i18n/index.js';
@@ -16,19 +15,10 @@ import { selfCheck } from '../app/doctor/selfcheck.js';
 import { toolPath } from '../node/env.js';
 import { flag, type Args } from './args.js';
 import { bold, dim, green, red, yellow } from './style.js';
+import { confirm } from './ask.js';
 
 const say = (s = '') => process.stdout.write(s + '\n');
 const STYLE: Style = { ok: green, warn: yellow, fail: red, dim, bold };
-
-async function confirm(question: string): Promise<boolean> {
-  if (!process.stdin.isTTY) return false;
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  try {
-    return /^(?:y|yes|e|evet)$/i.test((await rl.question(`${question} `)).trim());
-  } finally {
-    rl.close();
-  }
-}
 
 function json(schema: string, data: object): void {
   process.stdout.write(JSON.stringify({ schema: `mode-code.${schema}/1`, version: APP_VERSION, ...data }, null, 2) + '\n');
@@ -102,7 +92,7 @@ export async function cmdDoctor(a: Args): Promise<number> {
   say(bold(tIn(ctx.lang, 'doc.repairs.title')));
   for (const l of renderPlan(plans, ctx.lang, STYLE)) say(l);
   if (!plans.some((p) => !p.refused)) return before.tally.fail ? 1 : 0;
-  if (!fix && !(process.stdin.isTTY && (await confirm(tIn(ctx.lang, 'doc.repairs.ask'))))) {
+  if (!fix && !(process.stdin.isTTY && (await confirm(ctx.lang, tIn(ctx.lang, 'doc.repairs.ask'), false)))) {
     if (!process.stdin.isTTY) say(dim(tIn(ctx.lang, 'doc.repairs.hint')));
     return before.tally.fail ? 1 : 0;
   }

@@ -15,7 +15,7 @@ import { programReceipt } from '../node/program.js';
 import { checkUpdate, runInstaller } from '../node/update.js';
 import { flag, type Args } from './args.js';
 import { terminalIO } from './memory.js';
-import { bold, dim, green, red, yellow } from './style.js';
+import { bold, colorOn, dim, green, red, yellow } from './style.js';
 
 const say = (s = '') => process.stdout.write(s + '\n');
 
@@ -59,12 +59,12 @@ export async function runUpdate(ctx: AppContext, opts: { yes: boolean; check: bo
     say(yellow(T('update.notInstaller')));
     return 1;
   }
-  if (!opts.yes && !(process.stdin.isTTY && (await terminalIO(ctx).confirm(T('update.confirm', { to: newer }), true)))) {
+  if (!opts.yes && !(process.stdin.isTTY && (await terminalIO(ctx.lang).confirm(T('update.confirm', { to: newer }), true)))) {
     say(T('cli.cancelled'));
     return 1;
   }
   say();
-  const r = await runInstaller(newer, { base });
+  const r = await runInstaller(newer, { base, noColor: !colorOn() });
   if (!r.ok) {
     say(red(T(`update.failed.${r.error ?? 'failed'}` as MessageKey, { detail: r.detail ?? '' })));
     return 1;

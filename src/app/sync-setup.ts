@@ -34,6 +34,7 @@ import { copyNotes } from '../node/memory-store.js';
 import { findTool, ghCreatePrivate, ghHasPath, ghRepo, ghUser, noreplyEmail, type ToolFound } from '../node/memory-tools.js';
 import { syncShared } from '../node/sync.js';
 import { offerInstall, remoteOf, run, type SetupIO } from './memory-setup.js';
+import { nameOf, settingOf, valueText, type SettingPath } from '../core/ux/catalog.js';
 
 export interface SyncSetupEnv {
   lang: Lang;
@@ -148,6 +149,13 @@ export async function syncSetup(io: SetupIO, env: SyncSetupEnv): Promise<SyncOut
   const res = (p: string) => resolvePath(expandHome(p.trim(), env.home), { platform: env.platform, home: env.home, cwd: env.cwd });
   const same = (a: string, b: string) => pathKey(a, env.platform) === pathKey(b, env.platform);
   const current = env.config.sync;
+  // Where the setup is, six steps in all, each said once; a step this choice does not need says so.
+  const shown = new Set<number>();
+  const step = (n: number, key: MessageKey, skip = false) => {
+    if (shown.has(n)) return;
+    shown.add(n);
+    io.step?.(n, 6, T(key), skip ? T('msetup.step.notNeeded') : undefined);
+  };
 
   io.say(T('ssetup.title'));
   io.say(T('ssetup.intro'));
@@ -155,6 +163,7 @@ export async function syncSetup(io: SetupIO, env: SyncSetupEnv): Promise<SyncOut
   if (current) io.say(T('ssetup.now', { place: T(`scli.place.${current.place}` as MessageKey), dir: current.dir, name: current.machine.name }));
 
   // ── 1 · where ──
+  step(1, 'ssetup.step.where');
   let place: SyncPlace =
     (await io.choose(T('ssetup.ask.place'), [T('ssetup.option.github'), T('ssetup.option.folder')], current?.place === 'folder' ? 1 : 0)) === 1
       ? 'folder'
@@ -172,7 +181,8 @@ export async function syncSetup(io: SetupIO, env: SyncSetupEnv): Promise<SyncOut
   let subfolder = '.';
 
   if (place === 'github') {
-    // ── 2 · git, the GitHub CLI, signing in ──
+    // ── 2 · git, the GitHub CLI, signing in: before the list, each on its own yes (Enter is no) ──
+    step(2, 'msetup.step.tools');
     gitTool = await findTool(env.runner, 'git', env.platform, env.exists);
     if (!gitTool) {
       io.say(T('msetup.tool.missing', { tool: 'git' }));
@@ -188,7 +198,7 @@ export async function syncSetup(io: SetupIO, env: SyncSetupEnv): Promise<SyncOut
       login = await ghUser(env.runner, ghTool.command);
       if (!login) {
         io.say(T('msetup.gh.notSignedIn'));
-        if (await io.confirm(T('msetup.gh.signIn'), true)) {
+        if (await io.confirm(T('msetup.gh.signIn'), false)) {
           await io.interactive([ghTool.command, 'auth', 'login', '--hostname', 'github.com', '--git-protocol', 'https', '--web']);
           login = await ghUser(env.runner, ghTool.command);
         }
@@ -198,6 +208,7 @@ export async function syncSetup(io: SetupIO, env: SyncSetupEnv): Promise<SyncOut
     }
 
     // ── 3 · the repository, named by the person ──
+    step(3, 'ssetup.step.copy');
     if (login && ghTool) {
       for (;;) {
         const typed = (await io.ask(T('ssetup.ask.repo', { owner: login.login }), current?.repo ?? 'mode-code-sync')).trim();
@@ -296,6 +307,8 @@ export async function syncSetup(io: SetupIO, env: SyncSetupEnv): Promise<SyncOut
     dir = subfolder === '.' ? top : joinPath(top, ...subfolder.replace(/\\/g, '/').split('/').filter(Boolean));
   } else {
     // ── 2 · a folder another service keeps in sync ──
+    step(2, 'msetup.step.tools', true);
+    step(3, 'ssetup.step.copy');
     for (;;) {
       dir = res(await io.ask(T('ssetup.ask.folder'), current?.place === 'folder' ? current.dir : joinPath(env.home, 'mode-code-sync')));
       if (isUnder(dir, env.layout.root, env.platform)) {
@@ -318,6 +331,7 @@ export async function syncSetup(io: SetupIO, env: SyncSetupEnv): Promise<SyncOut
   }
 
   // ── 5 · this computer, as the others will show it ──
+  step(4, 'ssetup.step.computer');
   const known = place === 'folder' || !clone ? machinesIn(dir) : [];
   if (known.length) io.say(T('ssetup.known', { names: known.map((k) => k.name).join(', ') }));
   let id: string | null = current?.machine && known.some((k) => k.id === current.machine.id) ? current.machine.id : null;
@@ -333,6 +347,7 @@ export async function syncSetup(io: SetupIO, env: SyncSetupEnv): Promise<SyncOut
   const machine = { id: id ?? current?.machine.id ?? machineId(name, env.random()), name };
 
   // ── 6 · handoff notes ──
+  step(5, 'ssetup.step.handoffs');
   let handoffs = false;
   if (env.config.memory.store?.handoffs) io.say(T('ssetup.handoffs.inMemory'));
   else handoffs = await io.confirm(T('ssetup.ask.handoffs'), current?.handoffs ?? true);
@@ -366,6 +381,7 @@ export async function syncSetup(io: SetupIO, env: SyncSetupEnv): Promise<SyncOut
   };
 
   // ── 8 · the whole list, one yes ──
+  step(6, 'msetup.step.plan');
   io.say();
   io.say(T('msetup.plan.title'));
   for (const line of describeSyncPlan(plan, env.lang)) io.say(`  • ${line}`);
@@ -469,12 +485,15 @@ export async function applySyncPlan(io: SetupIO, env: SyncSetupEnv, p: SyncPlan)
     if (diffs.length) {
       const names = new Map(machinesIn(p.dir).map((m) => [m.id, m.name]));
       io.say(T('ssetup.diff.title', { n: diffs.length }));
+      // Each difference in words where the setting has them (its name, its values), its key otherwise.
       for (const d of diffs.slice(0, 12))
         io.say(
-          `    ${d.key}: ${show(d.here, T('ssetup.diff.none'))} → ${show(d.theirs, T('ssetup.diff.none'))} (${names.get(d.machine) ?? d.machine})${lowersProtection(d.key, d.here, d.theirs) ? ` · ${T('ssetup.diff.lowers')}` : ''}`,
+          `    ${settingWords(d.key, d.here, d.theirs, env.lang, T('ssetup.diff.none'))} (${names.get(d.machine) ?? d.machine})${lowersProtection(d.key, d.here, d.theirs) ? ` · ${T('ssetup.diff.lowers')}` : ''}`,
         );
       if (diffs.length > 12) io.say(`    ${T('ssetup.diff.more', { n: diffs.length - 12 })}`);
-      const theirs = (await io.choose(T('ssetup.ask.diff'), [T('ssetup.diff.theirs'), T('ssetup.diff.mine')], 0)) === 0;
+      // Enter takes the other computers' settings, the usual choice, unless one of them lowers a protection here.
+      const lowers = diffs.some((d) => lowersProtection(d.key, d.here, d.theirs));
+      const theirs = (await io.choose(T('ssetup.ask.diff'), [T('ssetup.diff.theirs'), T('ssetup.diff.mine')], lowers ? 1 : 0)) === 0;
       if (theirs) {
         config = applyShared(config, Object.fromEntries(diffs.map((d) => [d.key, d.theirs])));
         firstStamp = () => 0;
@@ -522,6 +541,14 @@ export async function applySyncPlan(io: SetupIO, env: SyncSetupEnv, p: SyncPlan)
   io.say(T(p.place === 'github' ? 'ssetup.done.other' : 'ssetup.done.otherFolder', { repo: p.repo ?? p.remote ?? '', dir: p.dir }));
   io.say(T('ssetup.done.status'));
   return { ok: true, plan: p, config, record };
+}
+
+/** A setting that differs, as the person reads it: "Allow bypass: off → on", or its key and values for one the catalog does not name. */
+function settingWords(key: string, here: unknown, theirs: unknown, lang: Lang, none: string): string {
+  const s = settingOf(key);
+  if (!s) return `${key}: ${show(here, none)} → ${show(theirs, none)}`;
+  const word = (v: unknown) => (v === undefined ? none : valueText(key as SettingPath, v, lang));
+  return `${nameOf(key as SettingPath, lang)}: ${word(here)} → ${word(theirs)}`;
 }
 
 function show(v: unknown, none: string): string {

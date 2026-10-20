@@ -8,6 +8,7 @@ import { createInterface } from 'node:readline/promises';
 import { homedir } from 'node:os';
 import { APP_NAME, APP_VERSION, CLI_NAME, MIN_CLAUDE_CODE_FOR_HOOKS, REPO_URL } from '../core/app.js';
 import { cloneDefaults, serializeConfig, setConfigValue, type Config } from '../core/config.js';
+import { problemWords } from '../core/config-words.js';
 import { readChanges, saveConfig } from '../node/changes.js';
 import { changeText, lastUndoable, undoOf } from '../core/ux/changes.js';
 import {
@@ -42,7 +43,7 @@ import { appContext, type AppContext } from '../app/context.js';
 import { loadEvents, loadQuota, openIndex, scanPaths } from '../app/data.js';
 import { checkHealth, healthCounts, type FeatureHealth } from '../app/health.js';
 import { buildReport, reportLines } from '../app/report.js';
-import { terminalIO } from './memory.js';
+import { confirm, say as sayWrapped, terminalIO, typed } from './ask.js';
 import { sampleFooter } from '../core/footer.js';
 import { replay } from '../app/replay.js';
 import { findFlow, flowFiles, loadFlows } from '../app/flows.js';
@@ -62,7 +63,8 @@ import { flag, intValue, value, values, type Args } from './args.js';
 import { bold, dim, green, red, yellow, gray, cyan, table, colorDepth, colorOn } from './style.js';
 
 type Out = (s?: string) => void;
-const say: Out = (s = '') => process.stdout.write(s + '\n');
+// Said wrapped to the terminal's width (src/cli/ask.ts); --json goes out whole through json().
+const say: Out = sayWrapped;
 
 function json(schema: string, data: object): void {
   process.stdout.write(JSON.stringify({ schema: `mode-code.${schema}/1`, version: APP_VERSION, ...data }, null, 2) + '\n');
@@ -77,19 +79,7 @@ function stateMark(ctx: AppContext, s: FeatureHealth['state']): string {
   if (s === 'ok') return green(`✓ ${word}`);
   if (s === 'red') return red(`✗ ${word}`);
   if (s === 'gray') return yellow(`◌ ${word}`);
-  return gray(`· ${word}`);
-}
-
-async function confirm(question: string, word?: string): Promise<boolean> {
-  if (!process.stdin.isTTY) return false;
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  try {
-    const answer = (await rl.question(`${question} `)).trim();
-    if (word) return answer === word;
-    return /^(?:y|yes|e|evet)$/i.test(answer);
-  } finally {
-    rl.close();
-  }
+  return gray(`○ ${word}`);
 }
 
 /** Asks the person to pick one of a few options by number; Enter picks the first. A note, dimmed, comes before the options. */
@@ -218,12 +208,14 @@ export async function cmdInstall(a: Args): Promise<number> {
   say(T(ctx, 'install.intro'));
   say();
   for (const s of plan.steps) {
-    const mark = s.done ? gray('·') : cyan('+');
+    const mark = s.done ? gray('✓') : cyan('+');
     say(`  ${mark} ${T(ctx, `install.step.${s.kind}` as MessageKey)}`);
     for (const t of s.targets) say(dim(`      ${shortPath(t, homedir(), 90)}`));
   }
   say();
-  say(dim(T(ctx, 'install.hookCommand', { cmd: `${plan.hookCommand.command} ${plan.hookCommand.args.join(' ')}` })));
+  // The hook's program and its file, each shortened from the home folder (the full paths are in --json).
+  const short = (p: string) => shortPath(p, homedir(), 70);
+  say(dim(T(ctx, 'install.hookCommand', { cmd: [plan.hookCommand.command, ...plan.hookCommand.args].map(short).join(' ') })));
   for (const w of plan.warnings) say(yellow(`  ! ${T(ctx, w.key, w.params)}`));
   for (const b of plan.blockers) say(red(`  ✗ ${T(ctx, b.key, b.params)}`));
   if (plan.blockers.length) return 1;
@@ -248,9 +240,10 @@ export async function cmdInstall(a: Args): Promise<number> {
     const v = await choose(ctx, T(ctx, 'install.ask.view'), [T(ctx, 'install.ask.simple'), T(ctx, 'install.ask.recommended'), T(ctx, 'install.ask.detailed')]);
     chosen.view = (['simple', 'recommended', 'detailed'] as const)[v];
     // Asked in every view: it is the one thing that reaches the network unasked, so it is never on without a yes.
-    chosen.update = { check: await terminalIO(ctx).confirm(T(ctx, 'install.ask.update'), true) };
+    // Off until the person says yes (help.privacy): Enter is no.
+    chosen.update = { check: await terminalIO(ctx.lang).confirm(T(ctx, 'install.ask.update'), false) };
     // Automatic use of the tool packs (docs/packs.md): on unless the person says no (K5 of 1.2.0).
-    chosen.packs = { autoUse: await terminalIO(ctx).confirm(T(ctx, 'install.ask.packs'), true), items: {} };
+    chosen.packs = { autoUse: await terminalIO(ctx.lang).confirm(T(ctx, 'install.ask.packs'), true), items: {} };
     if (chosen.view !== 'simple') {
       if (!chosen.memory) {
         memoryAsked = true;
@@ -289,7 +282,7 @@ export async function cmdInstall(a: Args): Promise<number> {
     if (chosen.packs) say(`  ${nameOf('packs.autoUse', ctx.lang)}: ${valueText('packs.autoUse', chosen.packs.autoUse, ctx.lang)}`);
     say();
   }
-  if (!flag(a, 'yes', 'y') && !(await confirm(T(ctx, 'install.confirm')))) {
+  if (!flag(a, 'yes', 'y') && !(await confirm(ctx.lang, T(ctx, 'install.confirm'), false))) {
     say(T(ctx, 'cli.cancelled'));
     return 1;
   }
@@ -385,7 +378,7 @@ export async function cmdUninstall(a: Args): Promise<number> {
   say();
   const word = purge ? CLI_NAME : undefined;
   if (!flag(a, 'yes', 'y') || purge) {
-    const ok = await confirm(purge ? T(ctx, 'uninstall.typeName', { name: CLI_NAME }) : T(ctx, 'uninstall.confirm'), word);
+    const ok = purge ? await typed(T(ctx, 'uninstall.typeName', { name: CLI_NAME }), word!) : await confirm(ctx.lang, T(ctx, 'uninstall.confirm'), false);
     if (!ok) {
       say(T(ctx, 'cli.cancelled'));
       return 1;
@@ -558,7 +551,7 @@ export async function cmdTemplate(a: Args): Promise<number> {
   for (const ch of changes) say(`  ${cyan('+')} ${ch.text[ctx.lang]}`);
   if (sub === 'remove' && t.changes) say(dim(T(ctx, 'template.settingsStay')));
   if (flag(a, 'dry-run')) return 0;
-  if (!flag(a, 'yes', 'y') && !(await confirm(T(ctx, 'template.confirm')))) {
+  if (!flag(a, 'yes', 'y') && !(await confirm(ctx.lang, T(ctx, 'template.confirm'), false))) {
     say(T(ctx, 'cli.cancelled'));
     return 1;
   }
@@ -654,7 +647,7 @@ export async function cmdFlow(a: Args): Promise<number> {
     say(`  ${T(ctx, 'flow.card.updated').padEnd(16)}${ago(f.updatedAt, now, ctx.lang)}`);
     say();
     for (const s of f.steps) {
-      const mark = s.status === 'done' ? green('✓') : s.status === 'active' ? yellow('▶') : gray('·');
+      const mark = s.status === 'done' ? green('✓') : s.status === 'active' ? yellow('▶') : gray('○');
       say(
         `  ${mark} ${stepName(s.kind, ctx.lang).padEnd(16)}${s.evidence ? evidenceText(s.evidence, ctx.lang) : dim(T(ctx, `flow.step.status.${s.status}` as MessageKey))}`,
       );
@@ -965,7 +958,7 @@ export async function cmdAutonomy(a: Args): Promise<number> {
         say(red(T(ctx, 'auto.cli.needsYes')));
         return 2;
       }
-      if (!(await confirm(T(ctx, 'auto.cli.confirm')))) {
+      if (!(await confirm(ctx.lang, T(ctx, 'auto.cli.confirm'), false))) {
         say(T(ctx, 'auto.cli.unchanged'));
         return 1;
       }
@@ -982,7 +975,7 @@ export async function cmdAutonomy(a: Args): Promise<number> {
       return g.ok ? 0 : 1;
     }
     for (const c of g.checks) {
-      const mark = c.ok === true ? green('✓') : c.ok === false ? red('✗') : gray('·');
+      const mark = c.ok === true ? green('✓') : c.ok === false ? red('✗') : gray('○');
       say(`  ${mark} ${T(ctx, `auto.gate.name.${c.id}` as MessageKey).padEnd(20)}${c.ok === null ? dim(T(ctx, c.key, c.params)) : T(ctx, c.key, c.params)}`);
     }
     say();
@@ -1040,7 +1033,7 @@ export async function cmdAutonomy(a: Args): Promise<number> {
       say();
       for (const s of r.plan.steps) {
         const m = r.milestones.find((x) => x.n === s.n);
-        const mark = m ? green('✓') : nextRunStep(r)?.n === s.n ? yellow('▶') : gray('·');
+        const mark = m ? green('✓') : nextRunStep(r)?.n === s.n ? yellow('▶') : gray('○');
         say(
           `  ${mark} ${String(s.n).padStart(2)}. ${s.title}${m ? dim(`  ${m.commit.slice(0, 12)} · ${T(ctx, `auto.verdict.${m.review.verdict}` as MessageKey)}`) : ''}`,
         );
@@ -1167,7 +1160,7 @@ export async function cmdConfig(a: Args): Promise<number> {
     const r = setConfigValue(ctx.config, key, parsed);
     const mine = r.problems.filter((p) => p.path === key || p.path.startsWith(key + '.') || key.startsWith(p.path + '.'));
     if (mine.length) {
-      for (const p of mine) say(red(T(ctx, 'cli.doctor.configProblem', { path: p.path, detail: p.detail })));
+      for (const p of mine) say(red(T(ctx, 'cli.doctor.configProblem', { path: p.path, detail: problemWords(p.detail, ctx.lang) })));
       return 1;
     }
     saveConfig(ctx.layout, ctx.config, r.config, 'command');
@@ -1290,6 +1283,7 @@ export function helpText(lang: Lang): string {
     `  ${c('skills [on|me|off <skill>]'.padEnd(31))}${L('help.skills')}`,
     '',
     dim(L('help.json')),
+    dim(L('help.look')),
     dim(L('help.privacy')),
     dim(`${REPO_URL}`),
   ].join('\n');

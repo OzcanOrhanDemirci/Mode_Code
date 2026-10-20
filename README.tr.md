@@ -61,6 +61,7 @@ Sonra yeni bir Claude Code oturumu başlat (`claude`). İstem satırının üst�
 | ------------------------------- | --------------------------------------------- | ------------------------------------------------------- |
 | seçenek vermek                  | `curl -fsSL <adres> \| sh -s -- <seçenekler>` | `& ([scriptblock]::Create((irm <adres>))) <seçenekler>` |
 | her soruya evet (betikler için) | `--yes`                                       | `-Yes`                                                  |
+| eksikse Claude Code'u da kurmak | `--install-claude`                            | `-InstallClaude`                                        |
 | belirli bir sürümü kurmak       | `--version 1.1.0`                             | `-Version 1.1.0`                                        |
 | PATH'e dokunmamak               | `--no-modify-path`                            | `-NoModifyPath`                                         |
 | yalnız programı kurmak          | `--no-setup`                                  | `-NoSetup`                                              |

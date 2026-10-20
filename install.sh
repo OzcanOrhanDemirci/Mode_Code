@@ -21,6 +21,7 @@
 #
 # Options:
 #   --yes               answer yes to every question (for scripts: nothing is asked)
+#   --install-claude    install Claude Code too when it is missing (Anthropic's installer; --yes alone does not)
 #   --version <v>       install that version instead of the newest
 #   --no-modify-path    leave your shell's startup files alone
 #   --no-setup          install the program only; run `mode-code install` yourself later
@@ -86,12 +87,23 @@ ask() {
   case "$answer" in '' | y | Y | yes | Yes | YES | e | E | evet | Evet | EVET) return 0 ;; *) return 1 ;; esac
 }
 
+# ask_no <question>: for a program of another maker. Enter means no, and --yes does not answer it: only
+# --install-claude does (a script that wants Claude Code too says so).
+ask_no() {
+  [ "$CLAUDE" = 1 ] && return 0
+  [ "$TTY" = 1 ] || return 1
+  printf '%s %s ' "$1" "$(t '[y/N]' '[e/H]')"
+  read -r answer </dev/tty || answer=n
+  case "$answer" in y | Y | yes | Yes | YES | e | E | evet | Evet | EVET) return 0 ;; *) return 1 ;; esac
+}
+
 usage() {
   say "$NAME installer for macOS and Linux: https://github.com/$REPO#install"
   say
   say "  curl -fsSL https://raw.githubusercontent.com/$REPO/main/install.sh | sh -s -- [options]"
   say
   say "  --yes               answer yes to every question (for scripts: nothing is asked)"
+  say "  --install-claude    install Claude Code too when it is missing (Anthropic's installer; --yes alone does not)"
   say "  --version <v>       install that version instead of the newest"
   say "  --no-modify-path    leave your shell's startup files alone"
   say "  --no-setup          install the program only; run \`$APP install\` yourself later"
@@ -375,7 +387,7 @@ find_claude() {
 install_claude() {
   say
   say "$(t "$NAME works inside Claude Code, which was not found on this computer." "$NAME, Claude Code'un içinde çalışır ve Claude Code bu bilgisayarda bulunamadı.")"
-  if ! ask "$(t "Install Claude Code now with Anthropic's official installer (claude.ai/install.sh)?" "Claude Code şimdi Anthropic'in resmî kurulum betiğiyle (claude.ai/install.sh) kurulsun mu?")"; then
+  if ! ask_no "$(t "Install Claude Code now with Anthropic's official installer (claude.ai/install.sh)?" "Claude Code şimdi Anthropic'in resmî kurulum betiğiyle (claude.ai/install.sh) kurulsun mu?")"; then
     return 1
   fi
   has bash || die "$(t "Anthropic's installer needs bash, which is not installed." "Anthropic'in kurulum betiği bash istiyor ve bash kurulu değil.")"
@@ -411,10 +423,11 @@ setup() {
 main() {
   UI=$(ui_lang)
   colors
-  YES=0 VERSION="" MODIFY_PATH=1 SETUP=1 NEW_SHELL=0 STAGE=""
+  YES=0 CLAUDE=0 VERSION="" MODIFY_PATH=1 SETUP=1 NEW_SHELL=0 STAGE=""
   while [ $# -gt 0 ]; do
     case "$1" in
       -y | --yes) YES=1 ;;
+      --install-claude) CLAUDE=1 ;;
       --version)
         [ $# -ge 2 ] || die "--version <v>"
         VERSION=${2#v}
@@ -482,7 +495,12 @@ main() {
     say "${B}$(t "$NAME $PKG_VERSION is installed. Next: $NEXT" "$NAME $PKG_VERSION kuruldu. Sıradaki: $NEXT")$N"
   else
     say "${G}${B}$(t "$NAME $PKG_VERSION is ready." "$NAME $PKG_VERSION hazır.")$N"
-    say "$(t 'Start a new Claude Code session: the mode strip shows above the prompt. Type /0 there, or run mode-code here, for the control center.' "Yeni bir Claude Code oturumu başlat: mod şeridi istem satırının üstünde görünür. Kontrol merkezi için orada /0 yaz ya da burada mode-code çalıştır.")"
+    # This terminal reaches the command only when its PATH already held the folder; else a new one does.
+    if [ "$NEW_SHELL" = 1 ]; then
+      say "$(t 'Start a new Claude Code session: the mode strip shows above the prompt. Type /0 there for the control center; in a new terminal, mode-code opens it too.' "Yeni bir Claude Code oturumu başlat: mod şeridi istem satırının üstünde görünür. Kontrol merkezi için orada /0 yaz; yeni bir terminalde mode-code da açar.")"
+    else
+      say "$(t 'Start a new Claude Code session: the mode strip shows above the prompt. Type /0 there, or run mode-code here, for the control center.' "Yeni bir Claude Code oturumu başlat: mod şeridi istem satırının üstünde görünür. Kontrol merkezi için orada /0 yaz ya da burada mode-code çalıştır.")"
+    fi
   fi
   if [ "$NEW_SHELL" = 1 ]; then
     say "${D}$(t "Open a new terminal to use the $APP command (or run: export PATH=\"$BIN_DIR:\$PATH\")." "$APP komutunu kullanmak için yeni bir terminal aç (ya da şunu çalıştır: export PATH=\"$BIN_DIR:\$PATH\").")$N"

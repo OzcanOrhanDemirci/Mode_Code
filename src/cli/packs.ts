@@ -6,6 +6,7 @@
  */
 import { APP_ID, APP_VERSION } from '../core/app.js';
 import { serializeConfig, setConfigValue } from '../core/config.js';
+import { problemWords } from '../core/config-words.js';
 import { tIn, type MessageKey } from '../core/i18n/index.js';
 import { optionLabel } from '../core/ux/catalog.js';
 import {
@@ -108,7 +109,7 @@ export async function cmdPacks(a: Args): Promise<number> {
     const r = setConfigValue(ctx.config, key, v);
     const mine = r.problems.filter((p) => p.path.startsWith('packs'));
     if (mine.length) {
-      for (const p of mine) say(red(T('cli.doctor.configProblem', { path: p.path, detail: p.detail })));
+      for (const p of mine) say(red(T('cli.doctor.configProblem', { path: p.path, detail: problemWords(p.detail, ctx.lang) })));
       return false;
     }
     saveConfig(ctx.layout, ctx.config, r.config, 'command');

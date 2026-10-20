@@ -400,6 +400,7 @@ export const trTui: Record<keyof typeof enTui, string> = {
   'set.saved': 'Kaydedildi.',
   'set.changed': '{name}: {value}. Kaydedildi.',
   'set.rejected': 'Kaydedilmedi: {detail}',
+  'set.file': '(dosyanın tamamı)',
   'set.undone': '{name}: geri alındı, yine {value}.',
   'set.key.change': 'değiştir',
   'set.key.type': 'sayı yaz',

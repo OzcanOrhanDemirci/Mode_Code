@@ -5,6 +5,8 @@ import type { enDoctor } from './en-doctor.js';
 export const trDoctor: Record<keyof typeof enDoctor, string> = {
   // ── ortak ──
   'doc.line': '{text}',
+  'doc.config.line': '{path}: {detail}',
+  'doc.config.file': '(dosyanın tamamı)',
   'doc.notInstalled': 'Kurulu değil.',
   'doc.notMeasured': 'Burada ölçülmedi.',
   'doc.windowsOnly': 'Yalnız Windows için.',
@@ -248,7 +250,7 @@ export const trDoctor: Record<keyof typeof enDoctor, string> = {
   'doc.setup.indexHint': 'İndekste her hafıza için tek kısa satır tut, ayrıntıyı gösterdiği dosyalarda.',
   'doc.setup.skillsOk': 'Ayarlarının tuttuğu beceriler yerinde.',
   'doc.setup.skillsMissing': 'Ayarlarının tuttuğu beceriler eklentide yok: {skills}.',
-  'doc.repairs.ask': 'Şimdi onarılsın mı? Değişen her dosyanın önce yedeği alınır. [e/h, Enter = hayır]',
+  'doc.repairs.ask': 'Şimdi onarılsın mı? Değişen her dosyanın önce yedeği alınır.',
   'doc.repairs.hint': 'Onarmak için "mode-code doctor --fix" çalıştır.',
   'doc.repairs.refused': 'Bu komutu bir ajan çalıştırdığı için onarılmadı: {what}. "mode-code doctor --fix" komutunu kendin çalıştır.',
   'doc.repairs.verified': 'onarıldı ve yeniden denetlendi',

@@ -2,7 +2,8 @@
 /** Starts the control center: brings the session index up to date (with progress on the first run), then draws. */
 import { render } from 'ink';
 import { join } from 'node:path';
-import { tIn } from '../core/i18n/index.js';
+import { createInterface } from 'node:readline/promises';
+import { tIn, type MessageKey } from '../core/i18n/index.js';
 import { appContext } from '../app/context.js';
 import { SessionIndex } from '../node/index-db.js';
 import { claudeDir } from '../node/env.js';
@@ -43,6 +44,8 @@ export async function runControlCenter(opts: { address: string | null; plain: bo
   const mouse = opts.mouse && process.stdin.isTTY && process.stdout.isTTY ? mouseReporting((x) => process.stdout.write(x), process) : null;
   // The control center can leave for something that talks in the terminal (the memory setup) and come back.
   let address = opts.address;
+  /** What the last setup came to, said in the bar as the control center comes back. */
+  let back: { text: string; kind: 'ok' | 'warn' } | null = null;
   for (;;) {
     let leave: { action: LeaveAction; back: string } | null = null;
     const data = new LiveData(appContext());
@@ -55,7 +58,8 @@ export async function runControlCenter(opts: { address: string | null; plain: bo
         {...(opts.noColor ? { noColor: true } : {})}
         pointer={hub}
         terminal={terminal}
-        onLeave={(action, back) => (leave = { action, back })}
+        onLeave={(action, where) => (leave = { action, back: where })}
+        {...(back ? { notice: back } : {})}
         {...(mouse ? { onQuit: mouse.off } : {})}
       />,
       {
@@ -75,12 +79,33 @@ export async function runControlCenter(opts: { address: string | null; plain: bo
     }
     const left = leave as { action: LeaveAction; back: string } | null;
     if (!left) return 0;
-    if (left.action === 'memory-setup') await runMemorySetup(appContext());
-    if (left.action === 'sync-setup') await runSyncSetup(appContext());
+    let code = 0;
+    if (left.action === 'memory-setup') code = await runMemorySetup(appContext());
+    if (left.action === 'sync-setup') code = await runSyncSetup(appContext());
     // Updated, this process is the old program: the person opens the new one.
-    if (left.action === 'update' && (await runUpdate(appContext(), { yes: false, check: false, json: false })) === 0) return 0;
-    process.stdout.write(`\n${tIn(ctx.lang, 'tui.backSoon')}\n`);
-    await new Promise((r) => setTimeout(r, 1200));
+    if (left.action === 'update' && (code = await runUpdate(appContext(), { yes: false, check: false, json: false })) === 0) return 0;
+    // The setup's last lines stay until the person has read them: Enter takes them back, and the bar says how it went.
+    const what = tIn(ctx.lang, `tui.back.${left.action === 'memory-setup' ? 'memory' : left.action === 'sync-setup' ? 'sync' : 'update'}` as MessageKey);
+    back =
+      code === 0
+        ? { text: tIn(ctx.lang, 'tui.back.done', { what }), kind: 'ok' }
+        : { text: tIn(ctx.lang, 'tui.back.notDone', { what: what.charAt(0).toLocaleUpperCase(ctx.lang) + what.slice(1) }), kind: 'warn' };
+    await pressEnter(`\n${tIn(ctx.lang, 'tui.backSoon')}`);
     address = left.back;
+  }
+}
+
+/** Waits for Enter where there is a terminal to press it in; elsewhere a moment, the line said. */
+async function pressEnter(text: string): Promise<void> {
+  if (!process.stdin.isTTY) {
+    process.stdout.write(`${text}\n`);
+    await new Promise((r) => setTimeout(r, 1200));
+    return;
+  }
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    await rl.question(`${text} `);
+  } finally {
+    rl.close();
   }
 }

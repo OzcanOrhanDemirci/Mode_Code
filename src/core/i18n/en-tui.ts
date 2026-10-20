@@ -410,6 +410,7 @@ export const enTui = {
   'set.saved': 'Saved.',
   'set.changed': '{name}: {value}. Saved.',
   'set.rejected': 'Not saved: {detail}',
+  'set.file': '(the file)',
   'set.undone': '{name}: back to {value}.',
   'set.key.change': 'change',
   'set.key.type': 'type a number',

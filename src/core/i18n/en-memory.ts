@@ -14,7 +14,7 @@ export const enMemory = {
   // ── the setup ──
   'msetup.title': 'Memory setup',
   'msetup.intro':
-    'Claude Code keeps its memory, the notes it writes for itself, in a folder on this computer. Choose where that memory should live. Nothing changes until you have seen the whole list of changes and said yes.',
+    "Claude Code keeps its memory, the notes it writes for itself, in a folder on this computer. Choose where that memory should live. Nothing changes until you have seen the whole list of changes and said yes; only a tool it needs (git, GitHub's gh) is installed, or a GitHub sign-in opened, before the list, each when you say yes to it.",
   'msetup.now.store': 'Set up now: {place} · {dir}',
   'msetup.place.local': 'this computer only',
   'msetup.place.github': 'your GitHub only',
@@ -202,7 +202,7 @@ export const enMemory = {
   'doc.memory.ok': 'Where the memory lives: {place} · {dir}. Claude Code uses it.',
 
   // ── the control center ──
-  'tui.backSoon': 'Back to the control center…',
+  'tui.backSoon': 'Press Enter to go back to the control center.',
   'page.memoryStore': 'Memory',
   'desc.memoryStore': 'This computer, your GitHub or both; whether Claude Code uses it; its sync. "s" opens the setup.',
   'page.memoryHandoffs': 'Handoffs and morning report',
@@ -273,4 +273,24 @@ export const enMemory = {
   'morning.sum.memory': 'the memory sync needs you',
   'morning.sum.ahead': '{n} memory change(s) wait to go up',
   'morning.sum.handoffs': '{n} handoff note(s)',
+
+  // ── a setup's steps, and the way back to the control center (src/cli/ask.ts, src/tui/run.tsx) ──
+  'mcli.step': 'Step {n} of {of}',
+  'msetup.step.where': 'Where the memory lives',
+  'msetup.step.tools': 'The tools it needs',
+  'msetup.step.folder': 'The folder',
+  'msetup.step.repo': 'The repository on GitHub',
+  'msetup.step.bring': 'What comes along',
+  'msetup.step.protect': 'Protection',
+  'msetup.step.plan': 'The list of changes',
+  'msetup.step.notNeeded': 'not needed for this choice',
+  'ssetup.step.where': 'Where the shared copy lives',
+  'ssetup.step.copy': 'The shared copy',
+  'ssetup.step.computer': 'This computer',
+  'ssetup.step.handoffs': 'Handoff notes',
+  'tui.back.done': 'Done: {what}.',
+  'tui.back.notDone': '{what}: nothing more changed.',
+  'tui.back.memory': 'the memory setup',
+  'tui.back.sync': 'the sync setup',
+  'tui.back.update': 'the update',
 } as const;

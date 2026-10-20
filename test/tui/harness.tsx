@@ -435,6 +435,8 @@ export async function draw(
     opens?: string;
     /** What the terminal takes beyond drawing, and where its sequences go. */
     terminal?: AppProps['terminal'];
+    /** What a setup the control center left for came to, said as it comes back. */
+    notice?: AppProps['notice'];
   } = {},
 ): Promise<Screen> {
   const stdout = new FakeStdout(opts.columns ?? 110, opts.rows ?? 32);
@@ -456,6 +458,7 @@ export async function draw(
       onRegistry={(r) => (registry = r)}
       onAddress={(a) => (shown = a)}
       {...(opts.terminal ? { terminal: opts.terminal } : {})}
+      {...(opts.notice ? { notice: opts.notice } : {})}
     />,
     {
       stdout: stdout as unknown as NodeJS.WriteStream,

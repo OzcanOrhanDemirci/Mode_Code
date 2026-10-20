@@ -6,6 +6,7 @@
 import { APP_NAME, APP_VERSION, REPO_URL } from '../../core/app.js';
 import { tIn, type Lang, type MessageKey } from '../../core/i18n/index.js';
 import { dateTime } from '../../core/format.js';
+import { problemWords } from '../../core/config-words.js';
 import type { Tally } from './checks.js';
 import type { RepairReport, PlannedRepair, DoctorRun } from './doctor.js';
 import type { SelfCheckReport } from './selfcheck.js';
@@ -21,7 +22,8 @@ export interface Style {
 
 export const PLAIN: Style = { ok: (s) => s, warn: (s) => s, fail: (s) => s, dim: (s) => s, bold: (s) => s };
 
-const MARK: Record<CheckStatus, string> = { ok: '✓', info: '·', warn: '!', fail: '✗', skip: '-' };
+// One mark, one meaning (docs/design.md): the middle dot only joins facts on a line; information is an i.
+const MARK: Record<CheckStatus, string> = { ok: '✓', info: 'i', warn: '!', fail: '✗', skip: '-' };
 
 /** Paths in the parameters with the home folder written as ~ (and, for reports, the user name hidden). */
 export function maskParams(params: Message['params'], home: string, user?: string): Message['params'] {
@@ -44,7 +46,8 @@ export function maskParams(params: Message['params'], home: string, user?: strin
 
 /**
  * A message in the person's language. A parameter written "@key" is itself a message, translated too; one
- * written "@at:<epoch ms>" is a local date and time, as the person's language writes it.
+ * written "@at:<epoch ms>" is a local date and time, as the person's language writes it, and one written
+ * "@problem:<reason>" a refusal of the settings in its words.
  */
 export function say(lang: Lang, msg: Message, home: string, user?: string): string {
   const params = maskParams(msg.params, home, user);
@@ -52,6 +55,8 @@ export function say(lang: Lang, msg: Message, home: string, user?: string): stri
     if (typeof v !== 'string') return v;
     const at = /^@at:(\d+)$/.exec(v);
     if (at) return Number(at[1]) > 0 ? dateTime(Number(at[1]), lang) : '?';
+    // A refusal of the settings ("@problem:<reason>"), said in the person's language (core/config-words.ts).
+    if (v.startsWith('@problem:')) return problemWords(v.slice(9), lang);
     return /^@[\w.-]+$/.test(v) ? tIn(lang, v.slice(1) as MessageKey) : v;
   };
   const translated = params ? Object.fromEntries(Object.entries(params).map(([k, v]) => [k, word(v)])) : params;

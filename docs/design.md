@@ -141,6 +141,14 @@ One kit, two hosts (`src/core/ux/kit.ts`). Each component is written once agains
 | **Empty state**     | what will appear · the one action that makes it appear                                |
 | **Window**          | title · one sentence · now · controls · _"If you apply: …"_ · primary action · cancel |
 
+## Command line and setup
+
+Every question on the command line asks the same way (`src/cli/ask.ts`). A yes or no names what Enter answers, in the person's language (_[y/n, Enter = no]_, _[e/h, Enter = hayır]_), asks again on any other word, and is never a yes where no terminal can answer. What installs or runs a program of another maker (git, GitHub's gh, Claude Code), or opens a browser, answers **no** to Enter, and the installers' `--yes` does not answer it: only `--install-claude` does. A pick marks the option Enter takes.
+
+The setups say where they are: _Step 2 of 7 · The tools it needs_, each step in order, a step this choice does not need saying so instead of disappearing. Nothing changes before the list of changes and its yes, but for a tool a setup needs, installed (or a GitHub sign-in opened) on its own yes. Where the other computers' settings differ, each is said by its name and in words, and a difference that lowers a protection here makes keeping this computer's the answer to Enter.
+
+Prose is wrapped to the terminal's width at word boundaries, a list item running on under itself; `--json` goes out whole. The middle dot only joins facts on a line: something off or not reached yet is `○`, a note of the doctor is `i`. `--no-color` and `NO_COLOR` reach the installer an update runs. A setup started from the control center leaves its last lines to be read: Enter goes back, and the bar says how it went. Why a setting is refused is said in the person's language wherever it shows (the control center, the doctor, `mode-code config`): no English is left in a Turkish line, and `--json` keeps the settings check's own words (`src/core/config-words.ts`).
+
 ## The cockpit
 
 The panel you open beside Claude Code's conversation (`/0`, or `0 ≡ cockpit` on the strip, a switch): in the fullscreen layout from 110 columns it stands beside the conversation from top to bottom; narrower, it opens above the prompt with its sections side by side. Left open, the next session opens it in its place where the screen leaves room. Worked out by code from the settings and the session (`src/core/ux/cockpit.ts`), drawn with the kit (`src/core/ux/cockpit-view.ts`), it holds:
@@ -208,4 +216,6 @@ A row whose test is still to come names the stage that brings it; `test/core/des
 | Every line of the cockpit says itself to the pointer and to the keyboard         | `test/core/ux-cockpit.test.ts`, the engine kit (`test/mod/cockpit.kit.ts`)                            |
 | A stopped answer: told both ways, said once, nothing done for the person         | `test/core/flagged.test.ts`, the engine kit (`test/mod/flagged.kit.ts`)                               |
 | A permission allowed in the cockpit is recorded, and taken back                  | the engine kit (`test/mod/cockpit.kit.ts`)                                                            |
+| One way to ask; another maker's program never on Enter; a setup's steps          | `test/cli/ask.test.ts`, `test/app/memory-setup.test.ts`, `test/app/sync-setup.test.ts`                |
+| Every reason a setting is refused, in the person's language                      | `test/core/config-words.test.ts`, `test/doctor/render.test.ts`                                        |
 | From 60 to 200 columns                                                           | `test/tui/widths.test.tsx`, `test/core/controls.test.ts`                                              |
