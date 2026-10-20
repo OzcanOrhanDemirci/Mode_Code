@@ -13,8 +13,11 @@ import type { Platform } from './paths.js';
 /** Settings given on every call, above every file's: no file system monitor, no signature check. */
 export const SAFE_GIT_CONFIG: readonly string[] = ['core.fsmonitor=false', 'log.showSignature=false'];
 
-/** The calls that read the work tree's files, where git runs the filters the repository's attributes name. */
-const READS_WORK_TREE = new Set(['status', 'diff', 'ls-files']);
+/**
+ * The calls that read the work tree's files, where git runs the filters the repository's attributes name (the
+ * safety net's `stash create` among them: it hashes the changed files' content).
+ */
+const READS_WORK_TREE = new Set(['status', 'diff', 'ls-files', 'stash']);
 
 /** The calls that can show a diff, where git runs a converter or an outside diff program. */
 const SHOWS_DIFFS = new Set(['diff', 'show', 'log']);

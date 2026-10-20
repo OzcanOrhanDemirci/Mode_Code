@@ -17,6 +17,7 @@ import { expandVars as expandVarsIn } from '../shell/vars.js';
 import { hitsCritical, protectedPaths, under, claudeDir, type ProtectedPaths } from './protect.js';
 import { isProtectedBranch, looksLikeUrl, parseGit, planPush, remoteMatches } from './git.js';
 import type { BeltContext, Finding, RuleId } from './types.js';
+import type { NetPlan } from '../net.js';
 
 /** Issues that hide what runs: always worth asking about. */
 const STRONG_UNCERTAIN = new Set(['eval-dynamic', 'encoded-command-undecodable', 'dynamic-shell-code', 'too-deep', 'stdin-code']);
@@ -94,8 +95,14 @@ function say(s: Scope, key: MessageKey, params?: Record<string, string | number>
   return s.inline ? tIn(s.ctx.lang, 'belt.reason.inline', { reason: text }) : text;
 }
 
-function add(s: Scope, rule: RuleId, key: MessageKey, params?: Record<string, string | number>): void {
-  s.findings.push({ rule, verdict: 'deny', reason: say(s, key, params) }); // verdict is set from the catalog later
+/** A finding; `net` names what a safety net would keep before the call, where the check knows it. */
+function add(s: Scope, rule: RuleId, key: MessageKey, params?: Record<string, string | number>, net?: NetPlan): void {
+  s.findings.push({ rule, verdict: 'deny', reason: say(s, key, params), ...(net ? { net } : {}) }); // verdict is set from the catalog later
+}
+
+/** What a delete would remove, kept whole: a named path, never a pattern still to be matched. */
+function pathsNet(t: Target): NetPlan | undefined {
+  return t.path !== null && !(t.glob && /[*?[]/.test(t.path)) ? { kind: 'paths', paths: [t.path] } : undefined;
 }
 
 function show(p: string): string {
@@ -197,16 +204,16 @@ function checkDelete(t: Target, recursive: boolean, s: Scope): void {
   const project = paths.canonical(resolvePath(ctx.projectDir, { platform: ctx.platform, home: ctx.home, cwd: ctx.cwd }));
   const gitDir = /\/\.git(?:\/|$)/.test(t.path) && isUnder(t.path, project, ctx.platform);
   if (gitDir && /\/\.git$/.test(t.path)) {
-    add(s, 'fs.delete-git-dir', 'belt.reason.deleteGitDir', { target: show(t.path) });
+    add(s, 'fs.delete-git-dir', 'belt.reason.deleteGitDir', { target: show(t.path) }, pathsNet(t));
     return;
   }
   if (isUnder(t.path, paths.canonical(claudeDir(ctx)), ctx.platform)) {
-    add(s, 'fs.delete-outside-project', 'belt.reason.deleteInClaudeDir', { target: show(t.path) });
+    add(s, 'fs.delete-outside-project', 'belt.reason.deleteInClaudeDir', { target: show(t.path) }, pathsNet(t));
     return;
   }
   if (!recursive || insideAProject(t.path, project, ctx, paths)) return;
-  if (homeIsProject(project, ctx, paths)) add(s, 'fs.delete-outside-project', 'belt.reason.deleteOutsideProjects', { target: show(t.path) });
-  else add(s, 'fs.delete-outside-project', 'belt.reason.deleteOutside', { target: show(t.path), project: show(project) });
+  if (homeIsProject(project, ctx, paths)) add(s, 'fs.delete-outside-project', 'belt.reason.deleteOutsideProjects', { target: show(t.path) }, pathsNet(t));
+  else add(s, 'fs.delete-outside-project', 'belt.reason.deleteOutside', { target: show(t.path), project: show(project) }, pathsNet(t));
 }
 
 /** A session started in the home folder (or above it) has no project of its own: the home folder is not one. */
@@ -648,6 +655,8 @@ async function checkGit(inv: Invocation, ws: Word[], cwd: string | null, s: Scop
   const a = call.args;
   const has = (...flags: string[]) => a.some((x) => flags.includes(x));
   const protectedBranches = cfg.protectedBranches?.length ? cfg.protectedBranches : ['main', 'master'];
+  // What a safety net keeps before a call that rewrites what the repository holds: every tip, and what is not committed.
+  const refsNet: NetPlan | undefined = dir === null ? undefined : { kind: 'refs', repo: dir };
 
   switch (call.sub) {
     case 'push': {
@@ -660,17 +669,21 @@ async function checkGit(inv: Invocation, ws: Word[], cwd: string | null, s: Scop
       if (inMemory && (plan.force || plan.mirror || plan.targets.some((t) => t.delete)))
         add(s, 'self.memory-history', 'belt.reason.memoryHistory', { command: show(inv.raw) });
       if (plan.mirror || plan.prune) add(s, 'git.mirror-or-prune', 'belt.reason.mirrorPrune', { command: show(inv.raw) });
+      // The remote's tip, as its remote-tracking branch has it: a remote given as an address has none.
+      const remoteName = plan.remote === null ? 'origin' : looksLikeUrl(plan.remote) ? null : plan.remote;
+      const remoteNet = (branch: string): NetPlan | undefined =>
+        dir === null || remoteName === null ? undefined : { kind: 'remote', repo: dir, remote: remoteName, branch };
       for (const t of plan.targets) {
         const branchLabel = t.dst ?? tIn(ctx.lang, 'belt.word.currentBranchUnknown');
         const prot = t.dst === null ? false : isProtectedBranch(t.dst, protectedBranches);
         if (t.delete) {
           if (prot || t.dst === null) add(s, 'git.delete-remote-branch-protected', 'belt.reason.deleteRemoteProtected', { branch: branchLabel });
-          else add(s, 'git.delete-remote-branch', 'belt.reason.deleteRemote', { branch: branchLabel });
+          else add(s, 'git.delete-remote-branch', 'belt.reason.deleteRemote', { branch: branchLabel }, remoteNet(t.dst));
           continue;
         }
         if (t.force) {
           if (prot || t.dst === null) add(s, 'git.force-push-protected', 'belt.reason.forcePushProtected', { branch: branchLabel });
-          else add(s, 'git.force-push', 'belt.reason.forcePush', { branch: branchLabel });
+          else add(s, 'git.force-push', 'belt.reason.forcePush', { branch: branchLabel }, remoteNet(t.dst));
         }
         if (prOnly && (prot || t.dst === null)) add(s, 'git.push-pr-only', 'belt.reason.prOnly', { branch: branchLabel, remote: remoteUrl ?? '?' });
       }
@@ -679,9 +692,13 @@ async function checkGit(inv: Invocation, ws: Word[], cwd: string | null, s: Scop
     case 'branch': {
       const forceDelete = has('-D') || (has('-d', '--delete') && has('-f', '--force')) || a.some((x) => /^-[a-zA-Z]*D/.test(x));
       if (forceDelete) {
-        add(s, inMemory ? 'self.memory-history' : 'git.branch-force-delete', inMemory ? 'belt.reason.memoryHistory' : 'belt.reason.branchForceDelete', {
-          command: show(inv.raw),
-        });
+        add(
+          s,
+          inMemory ? 'self.memory-history' : 'git.branch-force-delete',
+          inMemory ? 'belt.reason.memoryHistory' : 'belt.reason.branchForceDelete',
+          { command: show(inv.raw) },
+          refsNet,
+        );
         break;
       }
       const creating = a.length > 0 && !a[0]!.startsWith('-');
@@ -696,7 +713,7 @@ async function checkGit(inv: Invocation, ws: Word[], cwd: string | null, s: Scop
         add(s, 'git.single-branch', 'belt.reason.singleBranch', { branch: a[ci + 1]! });
       if (inMemory && has('--orphan')) add(s, 'self.memory-history', 'belt.reason.memoryHistory', { command: show(inv.raw) });
       if (call.sub === 'checkout' && (has('--') || has('.')) && !has('-b', '-B'))
-        add(s, 'git.discard-work', 'belt.reason.discardWork', { command: show(inv.raw) });
+        add(s, 'git.discard-work', 'belt.reason.discardWork', { command: show(inv.raw) }, refsNet);
       break;
     }
     case 'worktree':
@@ -705,35 +722,55 @@ async function checkGit(inv: Invocation, ws: Word[], cwd: string | null, s: Scop
       break;
     case 'reset':
       if (has('--hard', '--merge', '--keep'))
-        add(s, inMemory ? 'self.memory-history' : 'git.discard-work', inMemory ? 'belt.reason.memoryHistory' : 'belt.reason.discardWork', {
-          command: show(inv.raw),
-        });
+        add(
+          s,
+          inMemory ? 'self.memory-history' : 'git.discard-work',
+          inMemory ? 'belt.reason.memoryHistory' : 'belt.reason.discardWork',
+          { command: show(inv.raw) },
+          refsNet,
+        );
       break;
     case 'restore':
-      if (!has('--staged', '-S') || has('--worktree', '-W')) add(s, 'git.discard-work', 'belt.reason.discardWork', { command: show(inv.raw) });
+      if (!has('--staged', '-S') || has('--worktree', '-W')) add(s, 'git.discard-work', 'belt.reason.discardWork', { command: show(inv.raw) }, refsNet);
       break;
     case 'stash':
-      if (a[0] === 'drop' || a[0] === 'clear') add(s, 'git.discard-work', 'belt.reason.discardWork', { command: show(inv.raw) });
+      if (a[0] === 'drop' || a[0] === 'clear') add(s, 'git.discard-work', 'belt.reason.discardWork', { command: show(inv.raw) }, refsNet);
       break;
     case 'clean': {
       const dry = a.some((x) => x === '-n' || x === '--dry-run' || /^-[a-zA-Z]*n/.test(x));
       const forced = a.some((x) => x === '--force' || /^-[a-zA-Z]*f/.test(x));
+      // What clean would remove, asked of git itself with the same flags (src/core/net.ts).
+      const cleanNet: NetPlan | undefined = dir === null || call.dynamic.some(Boolean) ? undefined : { kind: 'untracked', repo: dir, args: a };
       if (forced && !dry)
-        add(s, inMemory ? 'self.memory-history' : 'git.clean', inMemory ? 'belt.reason.memoryHistory' : 'belt.reason.clean', { command: show(inv.raw) });
+        add(
+          s,
+          inMemory ? 'self.memory-history' : 'git.clean',
+          inMemory ? 'belt.reason.memoryHistory' : 'belt.reason.clean',
+          { command: show(inv.raw) },
+          cleanNet,
+        );
       break;
     }
     case 'filter-branch':
     case 'filter-repo':
     case 'replace':
-      add(s, inMemory ? 'self.memory-history' : 'git.history-rewrite', inMemory ? 'belt.reason.memoryHistory' : 'belt.reason.historyRewrite', {
-        command: show(inv.raw),
-      });
+      add(
+        s,
+        inMemory ? 'self.memory-history' : 'git.history-rewrite',
+        inMemory ? 'belt.reason.memoryHistory' : 'belt.reason.historyRewrite',
+        { command: show(inv.raw) },
+        refsNet,
+      );
       break;
     case 'update-ref':
       if (has('-d', '--delete'))
-        add(s, inMemory ? 'self.memory-history' : 'git.history-rewrite', inMemory ? 'belt.reason.memoryHistory' : 'belt.reason.historyRewrite', {
-          command: show(inv.raw),
-        });
+        add(
+          s,
+          inMemory ? 'self.memory-history' : 'git.history-rewrite',
+          inMemory ? 'belt.reason.memoryHistory' : 'belt.reason.historyRewrite',
+          { command: show(inv.raw) },
+          refsNet,
+        );
       break;
     case 'reflog':
       if (inMemory && (a[0] === 'expire' || a[0] === 'delete')) add(s, 'self.memory-history', 'belt.reason.memoryHistory', { command: show(inv.raw) });

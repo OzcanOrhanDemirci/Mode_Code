@@ -65,7 +65,26 @@ The rules are the same in every way of working; the way of working on the strip 
 - **A secret leaving the computer is stopped** outright: nobody is told to run it.
 - **Your own question stays yours.** A rule in your Claude Code settings (or your organisation's), another hook's question and an option's own check are put to you, never to a classifier; in full autonomy, with nobody to ask, the step is left to you. What Claude Code or your rules deny stays denied.
 - **Manual waits for you before a commit and a push**, whatever else lets them through (`git commit`, `git push`, in any spelling of git); with nobody to ask (a headless run) they do not run.
+- **A safety net turns a question into an undoable step** in Autonomous and full autonomy (below): with what the call takes away kept first, it runs.
 - `mode-code belt test --level autonomous --command "git reset --hard"` shows what a way of working decides; `mode-code belt rules` lists each rule's verdict in Manual.
+
+## Safety net
+
+Some risky calls take away only what can be kept first. In Autonomous and full autonomy the belt lets them through once it is kept; Manual asks as before. The safety-net hook keeps it, in a process of its own, before the call runs (`src/core/net.ts`, `src/node/net.ts`), and the activity says what was kept and how to put it back.
+
+| Rule                                                                          | What is kept before the call                                                                                           | With it, Autonomous and full autonomy |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `git.discard-work` (`reset --hard`, `checkout -- .`, `restore`, `stash drop`) | every branch, tag and remote-tracking tip, the stash, and the changes not committed (as `git stash create` makes them) | runs without a word                   |
+| `git.clean`                                                                   | the untracked files it would remove, asked of git itself with the call's own flags (`clean -n`)                        | runs without a word                   |
+| `git.branch-force-delete`, `git.history-rewrite`                              | every branch, tag and remote-tracking tip, the stash, the changes not committed                                        | runs, and Claude is told              |
+| `git.force-push`, `git.delete-remote-branch` (not a protected branch)         | the remote branch's tip as this computer last saw it (its remote-tracking branch)                                      | runs, and Claude is told              |
+| `fs.delete-outside-project`, `fs.delete-git-dir`                              | the files and folders it would remove (a pattern still to be matched keeps nothing)                                    | runs, and Claude is told              |
+
+- **Where it is kept.** The commits under `refs/modecode/net/<id>/` in the repository, so git's cleanup never takes them; files in Mode_Code's data folder (`net/<id>/`), a hard link per file where the drive allows (no copy, no space), else a copy up to 50 MB in all and 20,000 files. The belt keeps Claude out of both.
+- **When it cannot be kept** (no git, no remote-tracking branch, a limit passed, more than five seconds, or the safety-net hook not running in the session), the call is decided as without a net: Autonomous asks, full autonomy leaves it to you.
+- **A rule you gave a verdict of your own** keeps it: no net changes your decision.
+- **Putting it back** never overwrites: `mode-code net` lists the nets, newest first; `mode-code net show <id>` says what each kept and the steps back as things stand now; `mode-code net restore <id>` takes them. A branch that is gone comes back under its name, one that moved gets a branch beside it at its old tip (`modecode/net-<id>/<branch>`), the changes go back into the stash list, a file or folder comes back only where nothing is now. A remote branch is yours to put back: its command is said (`git push --force-with-lease …`).
+- **For how long.** Fourteen days, at most a hundred nets; older ones go at a session's start, with their refs.
 
 ## What else runs
 

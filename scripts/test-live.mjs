@@ -10,8 +10,8 @@
  *   3. a keyword typed as the prompt reaches the mod, which logs it (one that asks for a summary, not for work);
  *   4. research mode keeps the project unchanged: the guard refuses the write, or the model, told the mode, does not try;
  *   5. a research flow: the model writes a sourced report, calls flow_step, and code checks it and ends the flow;
- *   6. full autonomy (/9): Claude Code's own question about a write is answered, and a command the belt would ask
- *      about is left to the person with its command while the rest of the task is done;
+ *   6. full autonomy (/9): Claude Code's own question about a write is answered, `git clean` runs once the safety
+ *      net kept what it removes, and a command the belt would ask about with no net is left to the person;
  *   7. there too, the end of a turn reaches the person away from the computer through their ntfy topic;
  *   8. the memory: a change made elsewhere is pulled at the start and reaches Claude before it answers, the
  *      handoff keyword has Claude write a note that is kept and sent, and the next session is told about it;
@@ -247,8 +247,9 @@ async function closedCases() {
 
 /**
  * 6. Full autonomy (docs/autonomy.md), chosen with /9, in Claude Code's default permission mode, where a headless
- * session has no one to answer. Claude Code's own question about a file write is answered by the way of working; a
- * command the belt would ask about (`git clean`) is left to the person, with its command, and does not run.
+ * session has no one to answer. Claude Code's own question about a file write is answered by the way of working;
+ * `git clean` runs once the safety-net hook kept what it removes (docs/safety-belt.md, "Safety net"); a command the
+ * belt would ask about and no net can undo (`git push --mirror`) is left to the person, with its command.
  */
 function fullAutonomyLeft() {
   const dir = join(work, 'full-project');
@@ -269,7 +270,7 @@ function fullAutonomyLeft() {
   const r = session(
     [
       '/9',
-      'Do both steps, in this order. First use the Write tool to write the text hi to the file notes.txt in the current folder. Then use the Bash tool to run exactly this command: git clean -f build.tmp . Then reply with the single word DONE.',
+      'Do these three steps, in this order. First use the Write tool to write the text hi to the file notes.txt in the current folder. Then use the Bash tool to run exactly this command: git clean -f build.tmp . Then use the Bash tool to run exactly this command: git push --mirror origin . Then reply with the single word DONE.',
     ],
     settings,
     'Read',
@@ -284,10 +285,16 @@ function fullAutonomyLeft() {
     existsSync(join(dir, 'notes.txt')) && /"kind":"permission"[^\n]*"answer":"full"/.test(logged),
     existsSync(join(dir, 'notes.txt')) ? '' : (r.final?.result?.slice?.(0, 120) ?? r.stderr.slice(0, 200)),
   );
+  const nets = existsSync(join(home, 'net')) ? readdirSync(join(home, 'net')).filter((n) => /^\d{8}-/.test(n)) : [];
   check(
-    'full autonomy: a command the belt would ask about is left to the person with its command, and does not run',
-    existsSync(join(dir, 'build.tmp')) && /"kind":"belt"[^\n]*"left":true/.test(logged) && /Full autonomy asks nobody/.test(r.text),
-    existsSync(join(dir, 'build.tmp')) ? (/"left":true/.test(logged) ? '' : 'not recorded as left') : 'the command ran',
+    'full autonomy: git clean runs once the safety net kept what it removes',
+    !existsSync(join(dir, 'build.tmp')) && nets.length === 1 && /"kind":"net"[^\n]*"rule":"git.clean"/.test(logged),
+    existsSync(join(dir, 'build.tmp')) ? 'the file is still there' : `${nets.length} net(s)`,
+  );
+  check(
+    'full autonomy: a command the belt would ask about with no net is left to the person with its command, and does not run',
+    /"kind":"belt"[^\n]*git\.mirror-or-prune[^\n]*"left":true/.test(logged) && /Full autonomy asks nobody/.test(r.text),
+    /"left":true/.test(logged) ? '' : 'not recorded as left',
   );
   return r;
 }

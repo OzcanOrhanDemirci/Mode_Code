@@ -42,6 +42,7 @@ test("a call that reads the work tree switches each of the repository's filters 
   assert.equal(needsFilterDrivers(['status']), true);
   assert.equal(needsFilterDrivers(['diff', 'a..b']), true);
   assert.equal(needsFilterDrivers(['ls-files']), true);
+  assert.equal(needsFilterDrivers(['stash', 'create']), true);
   for (const other of [['log'], ['show'], ['rev-parse'], ['config'], []]) assert.equal(needsFilterDrivers(other), false, other.join(' '));
 });
 

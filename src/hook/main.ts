@@ -38,6 +38,8 @@ import { pulledContext } from '../core/memory.js';
 import type { SyncResult } from '../core/memory-sync.js';
 import { newestHandoffAt, projectKeyAt, pruneHandoffs } from '../node/handoffs.js';
 import { withHost } from '../node/host.js';
+import { layNet, pruneNets } from '../node/net.js';
+import type { BeltDecision } from '../core/belt/types.js';
 import { beltOffForDevelopment } from '../core/dev-switch.js';
 
 type Input = Record<string, unknown>;
@@ -69,12 +71,16 @@ async function preToolUse(input: Input, lang: Lang): Promise<void> {
   const modFile = sessionFile(l, sessionId, 'mod');
   const mod = modFile ? parseModState(readText(modFile)) : null;
   recordPermissionMode(l, sessionId, str(input.permission_mode), now);
-  if (isApproved(mod, str(input.tool_use_id), now)) return; // the person approved this exact call when the mod asked
   if (beltOffForDevelopment(process.env)) return; // TEMPORARY (src/core/dev-switch.ts): the person turned the belt off to develop Mode_Code
 
-  // The way of working the plugin recorded for the session says how much is asked (Manual without one).
-  const ctx = { ...beltContext({ cwd, config, layout: l, lang }), level: levelOf(mod?.interaction) };
-  const d = await evaluateToolCall(tool, toolInput, ctx);
+  // The way of working the plugin recorded for the session says how much is asked (Manual without one). The safety
+  // net is laid here, in a process of its own, before the call runs (src/core/net.ts); the doctor's samples lay none.
+  const ctx = { ...beltContext({ cwd, config, layout: l, lang }), level: levelOf(mod?.interaction), net: sessionId !== SELF_TEST_SESSION };
+  let d = await evaluateToolCall(tool, toolInput, ctx);
+  const netsLaid = layNets(l, d, { tool, toolInput, sessionId, now });
+  if (isApproved(mod, str(input.tool_use_id), now)) return; // the person approved this exact call when the mod asked
+  // A net that could not be laid: the call is decided as it would be without one.
+  if (!netsLaid) d = await evaluateToolCall(tool, toolInput, { ...ctx, net: false });
   if (d.verdict === 'allow') return;
 
   // The self-test's samples are not real calls: no session state, no events.
@@ -114,6 +120,34 @@ async function preToolUse(input: Input, lang: Lang): Promise<void> {
   if (d.verdict === 'deny') preToolDeny(text);
   else if (d.verdict === 'ask') out({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'ask', permissionDecisionReason: text } });
   else if (!mod) out({ hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: text } });
+}
+
+/**
+ * Lays the safety nets a decision stands on (src/core/net.ts), each recorded in the activity with how to put it
+ * back. False when one could not be laid in full, so the call is decided without the nets.
+ */
+function layNets(
+  l: ReturnType<typeof dataLayout>,
+  d: BeltDecision,
+  call: { tool: string; toolInput: Record<string, unknown>; sessionId: string; now: number },
+): boolean {
+  if (!d.nets?.length) return true;
+  const raw = shellOf(call.tool) ? str(call.toolInput.command) : `${call.tool} ${str(call.toolInput.file_path) ?? ''}`;
+  const command = maskSecrets(raw ?? '').slice(0, 600);
+  for (const n of d.nets) {
+    const r = layNet({ layout: l, plan: n.plan, rule: n.rule, tool: call.tool, command, session: call.sessionId || null, now: call.now });
+    if (!r) return false;
+    if (!r.refs.length && !r.work && !r.stashes.length && !r.remote && !r.files.length) continue;
+    try {
+      appendLine(
+        eventsFile(l, call.sessionId, 'hook', call.now),
+        JSON.stringify({ v: 1, at: call.now, kind: 'net', source: 'hook', tool: call.tool, rule: n.rule, id: r.id, what: command, app: APP_VERSION }),
+      );
+    } catch {
+      /* the net stands; only its line is missing */
+    }
+  }
+  return true;
 }
 
 /**
@@ -316,6 +350,7 @@ function sessionStart(input: Input, lang: Lang): void {
   try {
     pruneHandoffs(config, l);
     pruneShared(local);
+    pruneNets(l, Date.now());
   } catch {
     /* tried again at the next start */
   }

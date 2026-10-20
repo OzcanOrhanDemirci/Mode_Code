@@ -31,6 +31,7 @@ import { cmdMemory, cmdMorning } from './memory.js';
 import { cmdSync } from './sync.js';
 import { cmdUpdate } from './update.js';
 import { cmdTrust } from './trust.js';
+import { cmdNet } from './net.js';
 import { cmdPacks } from './packs.js';
 import { cmdSkills } from './skills.js';
 import { cmdMeasure } from './measure.js';
@@ -110,6 +111,8 @@ async function main(argv: string[]): Promise<number> {
       return cmdUpdate(sub);
     case 'trust':
       return cmdTrust(sub);
+    case 'net':
+      return cmdNet(sub);
     case 'packs':
       return cmdPacks(sub);
     case 'skills':

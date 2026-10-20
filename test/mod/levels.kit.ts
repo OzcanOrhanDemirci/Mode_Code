@@ -5,7 +5,7 @@
  * is in memory (see world.ts).
  */
 import { test, expect } from 'claude-code/testing';
-import { PROJECT, world } from './world.ts';
+import { DATA, PROJECT, SESSION, world } from './world.ts';
 
 const check = ($: any, input: object, id = 'toolu_c') => ($.tool as any).check({ tool: 'Edit', input, tool_use_id: id }) as Promise<any>;
 const style = ($: any, n: '7' | '8') => $.command.run({ command: n, args: '' } as any);
@@ -67,4 +67,23 @@ test('Manual, and the person says yes: the push runs', async ($, on) => {
   expect(((await $.tool.call({ tool: 'Bash', command: 'git push', tool_use_id: 'toolu_2' } as any)) as any).deny).toBeUndefined();
   expect(w.reached).toEqual(['Bash']);
   expect(w.events().find((e: any) => e.kind === 'manual')).toMatchObject({ what: ['push'], answer: 'allow' });
+});
+
+test('a call a safety net makes undoable passes in Autonomous where the safety-net hook runs, and is asked where it does not', async ($, on) => {
+  const w = world(on, { answer: 'block' });
+  await style($, '8');
+  // No safety-net hook in this session: nothing would keep what clean removes, so the person is asked.
+  const before = w.asked.length;
+  const asked: any = await $.tool.call({ tool: 'Bash', command: 'git clean -fd', tool_use_id: 'toolu_n1' } as any);
+  expect(w.asked.length).toBe(before + 1);
+  expect(String(asked.deny)).toMatch(/git clean -fd/);
+  // The hook has run in this session: it keeps what the call removes before it runs, so the call goes on unasked.
+  w.write(`${DATA}/state/sessions/${SESSION}.hook.json`, JSON.stringify({ v: 1, sessionId: SESSION, lastRunAt: 1, blocks: {} }));
+  const passed: any = await $.tool.call({ tool: 'Bash', command: 'git clean -fd', tool_use_id: 'toolu_n2' } as any);
+  expect(passed.deny).toBeUndefined();
+  expect(w.asked.length).toBe(before + 1);
+  // Manual still asks, net or not.
+  await style($, '7');
+  await $.tool.call({ tool: 'Bash', command: 'git clean -fd', tool_use_id: 'toolu_n3' } as any);
+  expect(w.asked.length).toBe(before + 2);
 });

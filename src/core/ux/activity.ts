@@ -67,6 +67,7 @@ export const ACTIVITY_KINDS = [
   'permission',
   'manual',
   'flagged',
+  'net',
 ] as const;
 
 const str = (v: unknown, max = 120): string => (typeof v === 'string' ? v : v === null || v === undefined ? '' : String(v)).replace(/\s+/g, ' ').slice(0, max);
@@ -177,6 +178,16 @@ export function activityOf(e: ActivityEvent, lang: Lang): ActivityLine {
         t('act.flow', { flow, status: t(`flow.status.${status}`) }),
         null,
         flow ? `work/flows/${flow}` : null,
+      );
+    }
+    case 'net': {
+      // A safety net laid before a call the belt let through on its strength (src/core/net.ts): how to put it back.
+      const rule = str(e.rule, 60);
+      return line(
+        'done',
+        t('act.net', { what: str(e.what, 100), id: str(e.id, 40) }),
+        rule ? t('act.why.rule', { rule: t(`rulename.${rule}`) }) : null,
+        rule ? `protection/rules/${rule}` : 'protection/events',
       );
     }
     case 'full':

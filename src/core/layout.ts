@@ -27,6 +27,7 @@
  *   secrets-allow.json               the command line (fingerprints of secrets the person let a memory push send)
  *   state/mcp-pins.json              the mod (fingerprints of the MCP tools' descriptions as first seen: core/mcp-pins.ts)
  *   state/cockpit.json               the mod (whether the person keeps the cockpit open: core/ux/cockpit.ts)
+ *   net/<id>/                        the safety-net hook (what a call took away, kept before it ran: core/net.ts)
  */
 import { joinPath } from './paths.js';
 import { APP_ID } from './app.js';
@@ -59,6 +60,8 @@ export interface Layout {
   mcpPins: string;
   /** Whether the person keeps the cockpit open, so the next session opens it in its place. */
   cockpit: string;
+  /** The safety nets: what a call took away, kept before it ran (src/core/net.ts). */
+  netDir: string;
 }
 
 export function layout(root: string): Layout {
@@ -88,6 +91,7 @@ export function layout(root: string): Layout {
     secretsAllow: joinPath(root, 'secrets-allow.json'),
     mcpPins: joinPath(root, 'state', 'mcp-pins.json'),
     cockpit: joinPath(root, 'state', 'cockpit.json'),
+    netDir: joinPath(root, 'net'),
   };
 }
 

@@ -2,6 +2,7 @@
 /** Shapes of the safety belt: the rule-based guard that stands between Claude and risky tool calls. */
 import type { PathAlias, Platform } from '../paths.js';
 import type { Lang } from '../i18n/index.js';
+import type { NetPlan } from '../net.js';
 
 /** allow: nothing to say · warn: allowed, Claude gets a note · ask: the person must confirm · deny: blocked. */
 export type Verdict = 'allow' | 'warn' | 'ask' | 'deny';
@@ -25,6 +26,8 @@ export interface Finding {
   reason: string;
   /** What the rule does at the session's level (set by decide). */
   act?: Act;
+  /** What a safety net would keep before the call (src/core/net.ts), where the check could name it. */
+  net?: NetPlan;
 }
 
 export interface BeltDecision {
@@ -32,6 +35,8 @@ export interface BeltDecision {
   findings: Finding[];
   /** Analysis problems (unterminated quote, eval of a runtime value, …); see meta.unverifiable. */
   issues: string[];
+  /** The safety nets this decision stands on: each is laid before the call, or the call is decided without them. */
+  nets?: { rule: RuleId; plan: NetPlan }[];
 }
 
 export type RuleId =
@@ -136,6 +141,8 @@ export interface BeltContext {
   config: RuleConfig;
   /** How much the session's way of working asks; Manual when not given. */
   level?: Level;
+  /** Whether a safety net can be laid before the call (the safety-net hook lays it): rules that have one may then let it through. */
+  net?: boolean;
   git?: GitFacts;
   /** Size in bytes of an existing file, or null. Used for the memory shrink rule. */
   fileSize?(path: string): Promise<number | null>;

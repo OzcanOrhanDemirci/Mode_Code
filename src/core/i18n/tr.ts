@@ -105,6 +105,7 @@ export const tr: Record<MessageKey, string> = {
   'belt.tail.ask': 'Yalnız gerçekten bunu istiyorsan onayla.',
   'belt.tail.repeat': 'Bu kural bu oturumda {n} denemeyi engelledi. Yeniden deneme: dur ve kullanıcıya bildir.',
   'belt.tail.command': 'Kullanıcı için, çalışacağı hâliyle: ! {command}',
+  'belt.tail.net': 'Bir güvenlik ağı bunun götüreceğini çalışmadan önce sakladı: kullanıcı mode-code net restore ile geri koyabilir.',
   'belt.tail.full': 'Tam otonom kimseye sormaz: bu adımı kullanıcıya bırak, işin geri kalanına devam et ve raporunda komutuyla birlikte yaz.',
   'belt.tail.stop':
     'Bu her çalışma biçiminde engelli kalır ve kullanıcıya çalıştırması için verilecek bir şey değil. Dolanmaya çalışma (başka yazımla, başka araçla ya da betikle): kullanıcıya ne yaptığını söyle.',

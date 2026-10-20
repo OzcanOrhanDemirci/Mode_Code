@@ -82,7 +82,16 @@ const SAMPLES: ActivityEvent[] = [
   { at: 1, kind: 'manual', tool: 'Bash', what: ['push'], answer: 'block' },
   { at: 1, kind: 'flagged', category: 'cyber', model: 'Opus 5.5', via: 'refusal' },
   { at: 1, kind: 'flagged', category: null, model: null, via: 'error' },
+  { at: 1, kind: 'net', tool: 'Bash', rule: 'git.clean', id: '20261020-210709-abc', what: 'git clean -fd' },
+  { at: 1, kind: 'net', tool: 'Bash', id: '20261020-210709-abd', what: 'rm -rf x' },
 ];
+
+test('a safety net reads as what was kept and how to put it back', () => {
+  assert.equal(
+    activityOf({ at: 1, kind: 'net', tool: 'Bash', rule: 'git.clean', id: '20261020-210709-abc', what: 'git clean -fd' }, 'en').text,
+    'Kept first, so it can be undone: git clean -fd · mode-code net restore 20261020-210709-abc',
+  );
+});
 
 test("Manual's question before a commit or a push reads as what you decided", () => {
   const said = (answer: string, lang: 'en' | 'tr') => activityOf({ at: 1, kind: 'manual', tool: 'Bash', what: ['commit', 'push'], answer }, lang).text;
@@ -208,6 +217,8 @@ test('every sample: its class, whether it is routine, where it is changed, and w
     ['blocked', false, 'work/modes', true],
     ['blocked', false, null, true],
     ['blocked', false, null, true],
+    ['done', false, 'protection/rules/git.clean', true],
+    ['done', false, 'protection/events', false],
   ];
   assert.equal(want.length, SAMPLES.length);
   SAMPLES.forEach((e, i) => {
