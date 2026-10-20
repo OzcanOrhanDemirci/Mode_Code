@@ -173,7 +173,13 @@ test('everything a click presses shows the pointer resting on it, on every kind 
         if (target.y < 0 || target.y >= 40 || target.x < 0 || target.x >= 120) continue;
         const before = underlines(s.ansi(), target.y);
         await s.hover(target.x, target.y);
-        const after = underlines(s.ansi(), target.y);
+        // The hover's frame, not merely the next one: a screen with a clock (Now) may draw for its own reasons
+        // between the move and the frame it causes, as a loaded CI runner showed (Windows, Node 22).
+        let after = underlines(s.ansi(), target.y);
+        for (let i = 0; i < 50 && after <= before; i++) {
+          await new Promise((r) => setTimeout(r, 20));
+          after = underlines(s.ansi(), target.y);
+        }
         pointed++;
         if (after <= before)
           silent.push(
@@ -183,8 +189,10 @@ test('everything a click presses shows the pointer resting on it, on every kind 
               [target.y]!.slice(target.x, target.x + target.width)
               .trim()}`,
           );
-        // Off it again, onto the header's right end, which presses nothing.
+        // Off it again, onto the header's right end, which presses nothing, until its row is as it was: the next
+        // target on the same row (the key bar's) is measured from there.
         await s.hover(119, 0);
+        for (let i = 0; i < 50 && underlines(s.ansi(), target.y) > before; i++) await new Promise((r) => setTimeout(r, 20));
       }
     } finally {
       s.close();
