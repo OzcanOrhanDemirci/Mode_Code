@@ -24,7 +24,8 @@ function context(on: any, size: { tokens: number }) {
 }
 
 test('a commit with a large context: the strip says /clear until the next prompt; a push says push', async ($, on) => {
-  world(on);
+  // Manual waits for the person before a commit or a push: here they say yes.
+  world(on, { answer: 'allow' });
   context(on, { tokens: 300_000 });
   await $.prompt.submit(typed('fix the parser'));
   expect(await band($)).toBe(null);

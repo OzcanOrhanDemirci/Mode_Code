@@ -54,7 +54,7 @@ test('settings change a verdict: an open rule can be switched off or softened, a
 
 test('a decision: switched-off rules drop out, duplicates merge, the strongest verdict leads', () => {
   const f = (rule: RuleId, reason = rule) => ({ rule, verdict: 'deny' as const, reason });
-  const d = decide([f('git.clean'), f('git.clean'), f('git.discard-work'), f('self.tool-files')], [], { config: { disabled: ['git.clean'] } });
+  const d = decide([f('git.clean'), f('git.clean'), f('git.discard-work'), f('self.tool-files')], [], { config: { disabled: ['git.clean'] }, level: 'auto' });
   assert.deepEqual(
     d.findings.map((x) => `${x.verdict} ${x.rule}`),
     ['deny self.tool-files', 'warn git.discard-work'],
@@ -67,7 +67,7 @@ test('a decision: switched-off rules drop out, duplicates merge, the strongest v
 test('the words of a decision: head and tail per verdict, and the repeat count only from the second time', () => {
   const deny = decide([{ rule: 'self.tool-files', verdict: 'deny', reason: 'R1' }], [], { config: {} });
   const ask = decide([{ rule: 'git.clean', verdict: 'ask', reason: 'R2' }], [], { config: {} });
-  const warn = decide([{ rule: 'git.discard-work', verdict: 'warn', reason: 'R3' }], [], { config: {} });
+  const warn = decide([{ rule: 'git.discard-work', verdict: 'warn', reason: 'R3' }], [], { config: {}, level: 'auto' });
   const d = decisionText(deny, { lang: 'en' });
   assert.match(d, /^🛡 Blocked by the safety belt:\n• R1 \[self\.tool-files\]\n/);
   assert.match(d, /Do not work around this/);

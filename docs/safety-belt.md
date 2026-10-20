@@ -51,6 +51,22 @@ Run `mode-code belt rules` (or open Protection › Safety belt rules) for the cu
 - **the project's checks:** changing the settings of its linters and formatters (ESLint, Prettier, Biome, Stylelint, `analysis_options.yaml`, Ruff, golangci-lint …) is asked: loosening a rule is how a failing check is made to pass. Running them, or reading their settings, is not.
 - **unverifiable commands (locked):** what the belt cannot follow: code built at run time (`eval "$X"`, `bash -c "$X"`, `| iex`), and code that comes down a pipe into a shell or an interpreter (`curl … | sh`, `… | base64 -d | bash`, `… | python3 -`) or is handed over by process substitution (`bash <(curl …)`). Data piped into a named script or into inline code is not asked about. Mode_Code's own one-line installer, run this way from inside a session, is asked about too: run it in your own terminal.
 
+## Ways of working
+
+The rules are the same in every way of working; the way of working on the strip says how much is asked (decided with the person, 2026-10-20: one protection, always on).
+
+| Way of working | A rule that would ask                                                                                                 | Claude Code's own question                            |
+| -------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Manual         | asks you                                                                                                              | stays yours: Claude Code asks you, one step at a time |
+| Autonomous     | asks you where it matters; what is only the project's own (skipping its hooks, discarding uncommitted work) is a note | answered yes, once the belt let the call through      |
+| Full autonomy  | asks nobody: the step is **left to you**, with the command exactly as it would run, and Claude goes on with the rest  | answered yes, once the belt let the call through      |
+
+- **What is blocked stays blocked**, in every way of working: deleting the home folder or a system folder, a protected branch's history, the tool's own files. The refusal says what was meant and the command for you to run yourself (`! <command>`), every character shown, the invisible ones too.
+- **A secret leaving the computer is stopped** outright: nobody is told to run it.
+- **Your own question stays yours.** A rule in your Claude Code settings (or your organisation's), another hook's question and an option's own check are put to you, never to a classifier; in full autonomy, with nobody to ask, the step is left to you. What Claude Code or your rules deny stays denied.
+- **Manual waits for you before a commit and a push**, whatever else lets them through (`git commit`, `git push`, in any spelling of git); with nobody to ask (a headless run) they do not run.
+- `mode-code belt test --level autonomous --command "git reset --hard"` shows what a way of working decides; `mode-code belt rules` lists each rule's verdict in Manual.
+
 ## What else runs
 
 The belt judges what the model asks for. Plugins and their mods run unsandboxed in Claude Code's own process and can answer its tool calls; hooks run a command on every event they name; an MCP server reads what Claude sends it, and its tools describe themselves to the model in their own words. `mode-code trust` lists all of them with where each is set and marks what is new since you last looked (run in your own terminal: inside a session it only shows). The plugin keeps each MCP tool's description as first seen and tells you when one changes.
@@ -59,7 +75,7 @@ The belt judges what the model asks for. Plugins and their mods run unsandboxed 
 
 ## Questions you already answered
 
-Claude Code asks about a compound command (`cd app && npm test`, `npm run build && npm test`) even when your allow rules cover each part. The plugin answers yes for you when an allow rule in your settings (user, project or local: `Bash(npm test:*)`, `Bash(git status)`) covers every part, and a `cd`, `pushd` or `Set-Location` only moves into the project or a folder in it. A part no rule covers, a `cd` elsewhere, a redirect into a file or a nested command is asked as before. Each answer is recorded (`permission`, `parts` in the events). Measured in a real session (`scripts/test-live.mjs`, case 12): Claude Code asked, and the plugin's answer let the command run.
+Claude Code asks about a compound command (`cd app && npm test`, `npm run build && npm test`) even when your allow rules cover each part. In every way of working, the plugin answers yes for you when an allow rule in your settings (user, project or local: `Bash(npm test:*)`, `Bash(git status)`) covers every part, and a `cd`, `pushd` or `Set-Location` only moves into the project or a folder in it. A part no rule covers, a `cd` elsewhere, a redirect into a file or a nested command is asked as before. Each answer is recorded (`permission`, `parts` in the events). Measured in a real session (`scripts/test-live.mjs`, case 12): Claude Code asked, and the plugin's answer let the command run.
 
 ## Hints
 
@@ -87,7 +103,7 @@ mode-code config set belt.disabled '["git.no-verify"]'
 mode-code config set belt.protectedBranches '["main","develop"]'
 ```
 
-Locked rules accept only stricter actions; the settings file cannot switch them off.
+Locked rules accept only stricter actions; the settings file cannot switch them off. A verdict you set holds in every way of working; in full autonomy, where nobody is asked, a rule you set to ask leaves the step to you.
 
 ## Testing
 

@@ -65,6 +65,7 @@ export const ACTIVITY_KINDS = [
   'flow',
   'run',
   'permission',
+  'manual',
   'flagged',
 ] as const;
 
@@ -189,7 +190,22 @@ export function activityOf(e: ActivityEvent, lang: Lang): ActivityLine {
       );
     }
     case 'permission':
+      // Left to the person in full autonomy: it waits for them. Answered by the way of working, or by their own rules.
+      if (e.answer === 'left') return line('waiting', t('act.permission.left', { tool }), t('act.why.level'), 'work/modes');
+      if (e.answer === 'auto' || e.answer === 'full') return line('done', t(`act.permission.${e.answer}`, { tool }), t('act.why.level'), 'work/modes', true);
       return line('done', t('act.permission', { tool }), t('act.why.permission'), 'claude-code/permissions', true);
+    case 'manual': {
+      // Manual's own question before a commit or a push (src/core/manual.ts).
+      const what = list(e.what)
+        .map((w) => t(`manual.what.${w}`))
+        .join(t('manual.and'));
+      return line(
+        e.answer === 'allow' ? 'done' : 'blocked',
+        t(e.answer === 'allow' ? 'act.manual.allowed' : 'act.manual.declined', { what }),
+        t('act.why.level'),
+        'work/modes',
+      );
+    }
     case 'flagged': {
       const category = str(e.category, 40);
       return line('blocked', category ? t('act.flagged.named', { category }) : t('act.flagged'), t('act.why.flagged'));

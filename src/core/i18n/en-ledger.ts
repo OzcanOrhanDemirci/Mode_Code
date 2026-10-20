@@ -89,6 +89,12 @@ export const enLedger = {
   'act.why.agents': 'the number of agents you set',
   'act.why.autonomy': 'the start checks of full autonomy',
   'act.why.permission': 'your allow rules in Claude Code',
+  'act.permission.auto': "Claude Code's question about {tool} was answered yes: Autonomous, and the safety belt let it through",
+  'act.permission.full': "Claude Code's question about {tool} was answered yes: full autonomy, and the safety belt let it through",
+  'act.permission.left': '{tool} was left to you: a rule of yours asks about it, and full autonomy asks nobody',
+  'act.why.level': 'the way of working on the strip',
+  'act.manual.allowed': 'You approved the {what} (Manual waits for you before one)',
+  'act.manual.declined': 'The {what} waited for you, and did not run',
   'act.why.flagged': "a check on Anthropic's server, not Mode_Code: edit the message, another model (/model), or /feedback",
   // ── why (src/core/ux/why.ts) ──
   'why.setting': '"{name}" is {value} ({place})',

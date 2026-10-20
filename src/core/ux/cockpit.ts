@@ -9,7 +9,7 @@
  */
 import type { Config } from '../config.js';
 import type { Style } from '../controls.js';
-import { effectiveVerdict } from '../belt/rules.js';
+import { effectiveAct, levelOf } from '../belt/rules.js';
 import { tIn, type Lang, type MessageKey } from '../i18n/index.js';
 import { activityLines, type ActivityEvent } from './activity.js';
 import { clock, dayClock, duration, percent, until } from '../format.js';
@@ -249,14 +249,16 @@ export function canNow(f: CockpitFacts, lang: Lang): CanRow[] {
     );
   else add({ id: 'write', mark: 'ok', meaning: 'on', text: t(lang, 'ck.can.write.yes'), act: null }, mode, [t(lang, 'ck.r.beltWatches')]);
 
-  // Risky steps: the safety belt asks; the development switch has the belt off.
+  // Risky steps: the safety belt asks, or in full autonomy leaves them to you; the development switch has the belt off.
+  const level = levelOf(f.style);
   if (f.beltOff) add({ id: 'risky', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.risky.devOff'), act: null }, why('belt', wf, lang));
   else if (restricted) add({ id: 'risky', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.risky.mode'), act: null }, mode);
+  else if (level === 'full') add({ id: 'risky', mark: 'none', meaning: 'off', text: t(lang, 'ck.can.risky.full'), act: null }, why('style', wf, lang));
   else add({ id: 'risky', mark: 'ask', meaning: 'ask', text: t(lang, 'ck.can.risky.ask'), act: null }, why('belt', wf, lang));
 
   // Deleting outside the project: one rule of the belt, the question a person asks first (docs/design.md, test 10).
   const delId = 'fs.delete-outside-project';
-  const verdict = effectiveVerdict(delId, beltConfigOf(f.config as Config));
+  const act = effectiveAct(delId, level, beltConfigOf(f.config as Config));
   const rule: CockpitAct = {
     kind: 'center',
     address: `protection/rules/${delId}`,
@@ -266,12 +268,15 @@ export function canNow(f: CockpitFacts, lang: Lang): CanRow[] {
   };
   if (f.beltOff) add({ id: 'delete', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.delete.devOff'), act: null }, why('belt', wf, lang));
   else if (restricted) add({ id: 'delete', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.delete.no'), act: null }, mode);
-  else if (verdict === 'deny') add({ id: 'delete', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.delete.no'), act: rule }, whyRule(delId, wf, lang));
-  else if (verdict === 'ask') add({ id: 'delete', mark: 'ask', meaning: 'ask', text: t(lang, 'ck.can.delete.ask'), act: rule }, whyRule(delId, wf, lang));
+  else if (act === 'self' && level === 'full')
+    add({ id: 'delete', mark: 'none', meaning: 'off', text: t(lang, 'ck.can.delete.left'), act: rule }, whyRule(delId, wf, lang));
+  else if (act === 'self' || act === 'stop')
+    add({ id: 'delete', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.delete.no'), act: rule }, whyRule(delId, wf, lang));
+  else if (act === 'ask') add({ id: 'delete', mark: 'ask', meaning: 'ask', text: t(lang, 'ck.can.delete.ask'), act: rule }, whyRule(delId, wf, lang));
   // Off, or a note only: it deletes without asking; a protection lowered by the person needs a look.
   else
     add(
-      { id: 'delete', mark: 'look', meaning: 'ask', text: t(lang, verdict === 'warn' ? 'ck.can.delete.warn' : 'ck.can.delete.yes'), act: rule },
+      { id: 'delete', mark: 'look', meaning: 'ask', text: t(lang, act === 'note' ? 'ck.can.delete.warn' : 'ck.can.delete.yes'), act: rule },
       whyRule(delId, wf, lang),
     );
 

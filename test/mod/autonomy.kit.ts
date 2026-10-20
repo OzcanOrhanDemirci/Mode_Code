@@ -217,7 +217,9 @@ test('a whole run: start, plan, milestones on commits with reviews, what waits f
   const push: any = await $.tool.call({ tool: 'Bash', command: 'git push origin main' } as any);
   expect(push.deny).toMatch(/^🤖 Full autonomy: deferred: git push origin main \(pushes to the protected branch main\)/);
   const forced: any = await $.tool.call({ tool: 'Bash', command: 'git push --force origin run/limits' } as any);
-  expect(forced.deny).toMatch(/^🤖 Full autonomy: deferred: git push --force origin run\/limits .*\[git\.force-push\]/);
+  // The belt leaves it to the person, with the command as it would run, and the run's report lists it.
+  expect(forced.deny).toMatch(/\[git\.force-push\][\s\S]*! git push --force origin run\/limits[\s\S]*Full autonomy asks nobody/);
+  expect(run().deferred.some((d: any) => d.kind === 'belt' && /git push --force origin run\/limits/.test(d.what))).toBe(true);
   expect(w.asked.length).toBe(0);
   const ask: any = await $.tool.call({ tool: 'AskUserQuestion', questions: [] } as any);
   expect(ask.deny).toMatch(/AskUserQuestion puts something to the person, and nobody is there/);
@@ -266,13 +268,19 @@ test("the plan cannot drop the person's commands; a milestone cannot skip a step
   expect(String(agent.result)).toMatch(/Only the main session drives the run/);
 });
 
-test("Claude Code's own permission question during a run is answered as deferred, never left waiting", async ($, on) => {
+test("Claude Code's own permission question during a run: its mode's is answered; a rule's is left to the person, never left waiting", async ($, on) => {
   const { run } = ready(on);
-  on('tool.check', () => ({ decision: 'ask', reason: 'Edit outside the working directory' }));
+  let rule: string | undefined;
+  on('tool.check', () => ({ decision: 'ask', reason: 'Edit outside the working directory', ...(rule ? { rule } : {}) }));
   await begin($, 'Add rate limiting. app full auto quota +10');
+  // Asked by the mode itself: the belt let the call through, so full autonomy answers it.
+  const mode: any = await ($.tool as any).check({ tool: 'Edit', input: { file_path: '/home/ada/dev/app/a.ts' }, tool_use_id: 'toolu_0' });
+  expect(mode.decision).toBe('allow');
+  // Asked by a rule of the person's: theirs, and nobody is there to answer.
+  rule = 'Edit(/etc/**)';
   const v: any = await ($.tool as any).check({ tool: 'Edit', input: { file_path: '/etc/hosts' }, tool_use_id: 'toolu_1' });
   expect(v.decision).toBe('deny');
-  expect(v.reason).toMatch(/^🤖 Full autonomy: deferred: Edit \/etc\/hosts \(Edit outside the working directory\)/);
+  expect(v.reason).toMatch(/^🛡 Left to the user: Claude Code would ask about this \(Edit outside the working directory\)/);
   expect(run().deferred.map((d: any) => d.kind)).toEqual(['permission']);
   // A query carries no call: the verdict beneath stands (the plugin answers real calls only).
   const q: any = await ($.tool as any).check({ tool: 'Edit', input: { file_path: '/etc/hosts' } });

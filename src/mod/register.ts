@@ -62,7 +62,8 @@ import { moState } from '../core/mo/state.js';
 import { flagInText, flagLines, flagOfTurn, type Flag } from '../core/flagged.js';
 import { why, whyAll, whyRule, whySubjectNamed, whyText, WHY_SUBJECTS, type WhyFacts } from '../core/ux/why.js';
 import { activityOf, activityText, type ActivityEvent } from '../core/ux/activity.js';
-import { RULE_IDS } from '../core/belt/rules.js';
+import { levelOf, RULE_IDS } from '../core/belt/rules.js';
+import { promisedIn } from '../core/manual.js';
 import type { RuleId } from '../core/belt/types.js';
 import { claudeHost } from './kit-host.js';
 import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
@@ -966,6 +967,7 @@ async function beltContextFor($: $, c: Ctx): Promise<BeltContext> {
     managedSettingsFiles: managedFiles(c.platform),
     lang: c.lang,
     config: beltConfigOf(c.config),
+    level: levelOf(c.state.interaction),
     git: await gitFactsFor($),
     fileSize: (p) => statSize($, p),
     aliases: await aliasesFor($, c, cwd),
@@ -2375,12 +2377,12 @@ async function autoGuard($: $, c: Ctx, tool: string, input: Record<string, unkno
   }
 }
 
-/** A belt question during a run: nobody is there to answer, so the step waits for the person. */
+/** A step the belt leaves to the person during a run: nobody is there to answer, so it waits in the run's report. */
 async function autoDeferBelt($: $, c: Ctx, tool: string, input: Record<string, unknown>, d: BeltDecision): Promise<string> {
   const r = c.run!;
   const what = callSummary(tool, input);
   const reason = d.findings
-    .filter((f) => f.verdict === 'ask')
+    .filter((f) => f.verdict === d.verdict)
     .map((f) => `${maskSecrets(f.reason)} [${f.rule}]`)
     .join(' ');
   const res = addDeferred(r, { kind: 'belt', tool, what, reason }, await $.clock.now());
@@ -2406,8 +2408,12 @@ async function shellAllowRules($: $, c: Ctx, tool: 'Bash' | 'PowerShell', cwd: s
 }
 
 /**
- * Claude Code's own permission question: a compound command whose every part the person allowed is answered yes;
- * during a run, the question is answered "deferred" instead of waiting.
+ * Claude Code's own permission question (docs/safety-belt.md, "Ways of working"). By the time it is asked, the safety
+ * belt has let the call through or the person said yes to it. A question of the person's own (a rule in their
+ * settings or their organisation's, another hook's, an option's check) stays theirs: put to them, never to a
+ * classifier; in full autonomy, with nobody to ask, the step is left to them. One Claude Code's mode asks by itself
+ * (an edit, a command) is answered in Autonomous and full autonomy; Manual leaves it to the person, a step at a time.
+ * A compound command whose every part the person allowed is answered in every way of working.
  */
 async function onToolCheck($: $, e: In<'tool.check'>, next: Nx<'tool.check'>): Out<'tool.check'> {
   const v = await next(e);
@@ -2418,11 +2424,27 @@ async function onToolCheck($: $, e: In<'tool.check'>, next: Nx<'tool.check'>): O
   } catch {
     return v;
   }
+  const tool = String(e.tool);
+  const input = (typeof e.input === 'object' && e.input !== null ? e.input : {}) as Record<string, unknown>;
+  const level = levelOf(c.state.interaction);
+  if (v.rule || v.hook || v.setting) {
+    if (level !== 'full') return { ...v, decider: 'person' };
+    const what = callSummary(tool, input);
+    const reason = maskSecrets(v.reason ?? v.rule ?? v.hook ?? v.setting ?? '');
+    const r = autoRunning(c);
+    if (r) {
+      const res = addDeferred(r, { kind: 'permission', tool, what, reason }, await $.clock.now());
+      if (res.ok) await saveRun($, c, res.run, false);
+      await runEvent($, c, r, 'deferred', { defer: 'permission', tool });
+    }
+    await logEvent($, c, { kind: 'permission', tool, answer: 'left' });
+    return { decision: 'deny', reason: tIn(c.lang, 'belt.claude.left', { what, reason }) };
+  }
   // A compound command whose every part the person allowed (`cd app && npm test`): what they said yes to already.
-  const shellTool = String(e.tool) === 'Bash' || String(e.tool) === 'PowerShell' ? (String(e.tool) as 'Bash' | 'PowerShell') : null;
-  if (shellTool && !v.rule) {
+  const shellTool = tool === 'Bash' || tool === 'PowerShell' ? tool : null;
+  if (shellTool) {
     const cwd = await $.session.cwd();
-    const command = String((e.input as { command?: unknown } | undefined)?.command ?? '');
+    const command = String(input.command ?? '');
     const rules = await shellAllowRules($, c, shellTool, cwd);
     const env = pathEnv(c, cwd);
     if (partsAllowed(command, shellTool === 'Bash' ? 'bash' : 'powershell', rules, env.cwd, env)) {
@@ -2430,15 +2452,9 @@ async function onToolCheck($: $, e: In<'tool.check'>, next: Nx<'tool.check'>): O
       return { ...v, decision: 'allow' };
     }
   }
-  const r = autoRunning(c);
-  if (!r) return v;
-  const tool = String(e.tool);
-  const what = callSummary(tool, (typeof e.input === 'object' && e.input !== null ? e.input : {}) as Record<string, unknown>);
-  const reason = maskSecrets(v.reason ?? 'Claude Code asks for permission');
-  const res = addDeferred(r, { kind: 'permission', tool, what, reason }, await $.clock.now());
-  if (res.ok) await saveRun($, c, res.run, false);
-  await runEvent($, c, r, 'deferred', { defer: 'permission', tool });
-  return { decision: 'deny', reason: tIn(c.lang, 'auto.guard.deferred', { what, reason }) };
+  if (level === 'manual') return v;
+  await logEvent($, c, { kind: 'permission', tool, answer: level });
+  return { ...v, decision: 'allow' };
 }
 
 /** After a turn: a stop the safety-net hook let through for a measured reason pauses the run. */
@@ -2714,6 +2730,29 @@ async function askPerson($: $, c: Ctx, tool: string, d: BeltDecision): Promise<'
   }
 }
 
+/** "commit", "push", "commit and push", in the person's language. */
+function promisedWords(promised: readonly ('commit' | 'push')[], lang: Lang): string {
+  return promised.map((p) => tIn(lang, `manual.what.${p}` as MessageKey)).join(tIn(lang, 'manual.and'));
+}
+
+/** Manual's question before a commit or a push: the command in full, allow once or not. */
+async function askManual($: $, c: Ctx, promised: readonly ('commit' | 'push')[], command: string): Promise<'allow' | 'block' | 'none'> {
+  const allow = tIn(c.lang, 'belt.ask.allow');
+  const block = tIn(c.lang, 'belt.ask.block');
+  await moCount($, 'asking', 1);
+  try {
+    const answer = await $.ui.ask(tIn(c.lang, 'manual.question', { what: promisedWords(promised, c.lang), command: truncate(maskSecrets(command), 300) }), {
+      options: [allow, block],
+      header: tIn(c.lang, 'manual.header').slice(0, 12),
+    });
+    return answer === allow ? 'allow' : 'block';
+  } catch {
+    return 'none';
+  } finally {
+    await moCount($, 'asking', -1);
+  }
+}
+
 async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<'tool.call'> {
   const c = await ctxOf($);
   const tool = String(e.tool);
@@ -2746,8 +2785,20 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
     for (const r of new Set(d.findings.filter((f) => f.verdict === 'deny').map((f) => f.rule))) c.state.blocks[r] = (c.state.blocks[r] ?? 0) + 1;
     const repeat = Math.max(0, ...d.findings.filter((f) => f.verdict === 'deny').map((f) => c.state.blocks[f.rule] ?? 0));
     await saveState($, c);
-    await logEvent($, c, { kind: 'belt', tool, verdict: 'deny', rules, reasons: d.findings.map((f) => maskSecrets(f.reason)), issues: d.issues });
-    return { deny: decisionText(d, ctx, { repeatCount: repeat }) };
+    await logEvent($, c, {
+      kind: 'belt',
+      tool,
+      verdict: 'deny',
+      level: ctx.level,
+      rules,
+      reasons: d.findings.map((f) => maskSecrets(f.reason)),
+      issues: d.issues,
+    });
+    const command = typeof input.command === 'string' && shellOf(tool) ? input.command : null;
+    // Full autonomy asks nobody: what Autonomous would ask about is left to the person, and a run's report lists it.
+    const leftInRun = ctx.level === 'full' && autoRunning(c) && d.findings.every((f) => f.verdict !== 'deny' || f.act === 'self');
+    if (leftInRun) await autoDeferBelt($, c, tool, input, d);
+    return { deny: decisionText(d, ctx, { repeatCount: repeat, command }) };
   }
 
   if (d.verdict === 'ask' && autoRunning(c)) {
@@ -2765,6 +2816,14 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
     if (typeof tool_use_id === 'string') {
       c.state = addApproval(c.state, { toolUseId: tool_use_id, at: await $.clock.now(), rules });
       await saveState($, c);
+    }
+  } else if (ctx.level === 'manual') {
+    const shell = shellOf(tool);
+    const promised = shell && typeof input.command === 'string' ? promisedIn(input.command, shell, pathEnv(c, cwd)) : [];
+    if (promised.length) {
+      const answer = await askManual($, c, promised, String(input.command));
+      await logEvent($, c, { kind: 'manual', tool, what: promised, answer });
+      if (answer !== 'allow') return { deny: tIn(c.lang, answer === 'none' ? 'manual.noOne' : 'manual.declined', { what: promisedWords(promised, c.lang) }) };
     }
   }
 
@@ -2851,7 +2910,7 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   }
   if (ran && result.isError !== true && e.agentId === undefined) await workBoundary($, c, tool, input);
   if (d.verdict === 'warn' && result && result.deny === undefined) {
-    await logEvent($, c, { kind: 'belt', tool, verdict: 'warn', rules });
+    await logEvent($, c, { kind: 'belt', tool, verdict: 'warn', level: ctx.level, rules, reasons: d.findings.map((f) => maskSecrets(f.reason)) });
     extra.push(decisionText(d, ctx));
   }
   // No milestone for the stall time: said once every ten minutes, on a call of the main session.

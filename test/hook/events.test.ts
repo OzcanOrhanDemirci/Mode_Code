@@ -51,16 +51,25 @@ const bash = (home: string, command: string, id = 'toolu_1') => ({
 test('a note: the call passes, Claude gets the note, nothing is blocked', () => {
   const home = fresh();
   try {
-    const r = run('PreToolUse', bash(home, 'git reset --hard'), home);
+    // What looks like a key written into a file: a note in every way of working.
+    const token = 'ghp' + '_' + 'aB3dE5fG7hJ9kL2mN4pQ6rS8tU0vW1xYzA1b';
+    const write = {
+      ...base(home),
+      hook_event_name: 'PreToolUse',
+      tool_name: 'Write',
+      tool_use_id: 't1',
+      tool_input: { file_path: join(tmpdir(), 'tc-hookev-note.txt'), content: `key = "${token}"` },
+    };
+    const r = run('PreToolUse', write, home);
     assert.equal(r.status, 0);
     assert.equal(r.out?.hookSpecificOutput?.permissionDecision, undefined);
-    assert.match(r.out?.hookSpecificOutput?.additionalContext ?? '', /git\.discard-work/);
+    assert.match(r.out?.hookSpecificOutput?.additionalContext ?? '', /secrets\.write/);
   } finally {
     rmSync(home, { recursive: true, force: true });
   }
 });
 
-test('when the mod runs in the session it decides notes and logs; the hook still blocks on its own', () => {
+test('when the mod runs in the session it decides notes and logs; the hook still blocks on its own, at the way of working it recorded', () => {
   const home = fresh();
   try {
     mkdirSync(join(home, 'state', 'sessions'), { recursive: true });
@@ -72,7 +81,8 @@ test('when the mod runs in the session it decides notes and logs; the hook still
         aliveAt: Date.now(),
         modVersion: 'x',
         mode: 'free',
-        interaction: 'default',
+        // Autonomous: discarding uncommitted work is a note there (Manual asks).
+        interaction: 'autonomous',
         project: null,
         weeklyTarget: null,
         weeklyTargetSource: null,
