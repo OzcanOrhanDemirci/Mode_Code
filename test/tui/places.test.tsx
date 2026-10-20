@@ -169,6 +169,15 @@ test('everything a click presses shows the pointer resting on it, on every kind 
   for (const address of screens) {
     const s = await draw(new FakeData('en', { view: 'detailed' }), { address, columns: 120, rows: 40 });
     try {
+      // The targets are read once the screen has settled: its keys join the bar a frame or two after it opens, and a
+      // loaded runner (Windows, Node 22) read the bar's targets where they stood before, the pointer then resting on
+      // the wrong words.
+      for (let still = 0, last = s.ansi(), i = 0; still < 8 && i < 100; i++) {
+        await new Promise((r) => setTimeout(r, 25));
+        const now = s.ansi();
+        still = now === last ? still + 1 : 0;
+        last = now;
+      }
       for (const target of s.registry().pressables()) {
         if (target.y < 0 || target.y >= 40 || target.x < 0 || target.x >= 120) continue;
         const before = underlines(s.ansi(), target.y);
@@ -187,7 +196,7 @@ test('everything a click presses shows the pointer resting on it, on every kind 
               .text()
               .split('\n')
               [target.y]!.slice(target.x, target.x + target.width)
-              .trim()}`,
+              .trim()} (at ${target.x},${target.y}, ${target.width} wide, in "${s.text().split('\n')[target.y]!.trim()}")`,
           );
         // Off it again, onto the header's right end, which presses nothing, until its row is as it was: the next
         // target on the same row (the key bar's) is measured from there.
