@@ -576,4 +576,5 @@ export const trTui: Record<keyof typeof enTui, string> = {
   'jump.say': 'Basmak istediğin şeyin yanındaki harfleri yaz · Esc vazgeçer',
   'jump.none': '"{typed}" diye bir etiket yok: hiçbir şeye basılmadı.',
   'jump.empty': 'Bu ekranda basılacak bir şey yok.',
+  'keys.scroll': 'kaydır',
 };

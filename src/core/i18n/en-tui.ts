@@ -587,4 +587,5 @@ export const enTui = {
   'jump.say': 'Type the letters beside what you want to press · Esc cancels',
   'jump.none': 'No label is "{typed}": nothing pressed.',
   'jump.empty': 'Nothing on this screen to press.',
+  'keys.scroll': 'scroll',
 } as const;

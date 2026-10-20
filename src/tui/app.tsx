@@ -127,6 +127,8 @@ export function App(props: AppProps) {
   /** Jump mode: a label beside each target on the screen, and what has been typed of one (src/tui/jump.ts). */
   const [jump, setJump] = useState<{ targets: { id: string; label: string; x: number; y: number }[]; typed: string } | null>(null);
   const [palette, setPalette] = useState({ text: '', sel: 0 });
+  /** How far the help is scrolled: on a short terminal it runs below the screen. */
+  const [helpScroll, setHelpScroll] = useState(0);
   const [flash, setFlash] = useState<Flash | null>(null);
   const [scroll, setScroll] = useState(0);
   const keyScope = useRef<KeyScope>({ handlers: [] }).current;
@@ -331,6 +333,7 @@ export function App(props: AppProps) {
     if (jump && e.kind === 'press') setJump(null);
     const r = pointer.dispatch(e);
     if (r.hoverChanged) setHover({ id: pointer.hovered, describe: r.describe });
+    if (e.kind === 'wheel' && overlay === 'help') setHelpScroll((x) => Math.max(0, x + (e.wheel === 'up' ? -1 : 1)));
     if (e.kind === 'wheel' && !r.wheeled && !overlay) {
       const d = e.wheel === 'up' ? -1 : 1;
       if (open) setScroll((s) => Math.max(0, s + d));
@@ -369,7 +372,13 @@ export function App(props: AppProps) {
       return;
     }
     if (overlay === 'help') {
-      if (key.escape || input === '?' || input === 'q' || key.return) setOverlay(null);
+      if (key.escape || input === '?' || input === 'q' || key.return) {
+        setOverlay(null);
+        setHelpScroll(0);
+      } else if (key.downArrow || input === 'j') setHelpScroll((x) => x + 1);
+      else if (key.upArrow || input === 'k') setHelpScroll((x) => Math.max(0, x - 1));
+      else if (key.pageDown) setHelpScroll((x) => x + 10);
+      else if (key.pageUp) setHelpScroll((x) => Math.max(0, x - 10));
       return;
     }
     if (overlay === 'palette') {
@@ -532,7 +541,7 @@ export function App(props: AppProps) {
     : [];
   // In jump mode the bar stays as it was: its keys are targets with labels of their own.
   const allHints: Hint[] = overlay
-    ? [{ key: 'Esc', label: t('keys.close'), onPress: () => setOverlay(null) }]
+    ? [...(overlay === 'help' ? [{ key: '↑↓', label: t('keys.scroll') }] : []), { key: 'Esc', label: t('keys.close'), onPress: () => setOverlay(null) }]
     : open
       ? [
           ...own,
@@ -590,7 +599,7 @@ export function App(props: AppProps) {
   );
 
   let body: React.ReactNode;
-  if (overlay === 'help') body = <Help env={env} width={columns} height={bodyH} />;
+  if (overlay === 'help') body = <Help env={env} width={columns} height={bodyH} scroll={helpScroll} />;
   else if (overlay === 'palette')
     body = (
       <Box flexDirection="column" width={columns} height={bodyH} borderStyle={theme.border} borderColor={theme.accent} paddingX={1}>
@@ -819,7 +828,8 @@ function Preview({
   );
 }
 
-function Help({ env, width, height }: { env: Env; width: number; height: number }) {
+/** The keys and the terms; on a short terminal it scrolls (↑↓, the wheel), it is never squeezed. */
+function Help({ env, width, height, scroll }: { env: Env; width: number; height: number; scroll: number }) {
   const t = (k: MessageKey) => tIn(env.lang, k);
   const keys: [string, MessageKey][] = [
     ['↑ ↓  j k', 'help.k.move'],
@@ -838,29 +848,31 @@ function Help({ env, width, height }: { env: Env; width: number; height: number 
   const terms: MessageKey[] = ['term.belt', 'term.mod', 'term.hook', 'term.quota', 'term.cache', 'term.keyword', 'term.view'];
   return (
     <Box flexDirection="column" width={width} height={height} borderStyle={env.theme.border} borderColor={env.theme.accent} paddingX={1} overflow="hidden">
-      <Text bold>{t('help.title')}</Text>
-      <Box marginTop={1} flexDirection="column">
-        {keys.map(([k, v]) => (
-          <Box key={k}>
-            <Box width={14} flexShrink={0}>
-              <Text bold color={env.theme.accent}>
-                {k}
-              </Text>
+      <Box flexDirection="column" flexShrink={0} marginTop={-Math.max(0, scroll)}>
+        <Text bold>{t('help.title')}</Text>
+        <Box marginTop={1} flexDirection="column">
+          {keys.map(([k, v]) => (
+            <Box key={k}>
+              <Box width={14} flexShrink={0}>
+                <Text bold color={env.theme.accent}>
+                  {k}
+                </Text>
+              </Box>
+              <Text>{prose(t(v), width - 18)}</Text>
             </Box>
-            <Text>{prose(t(v), width - 18)}</Text>
-          </Box>
-        ))}
-      </Box>
-      <Box marginTop={1} flexDirection="column">
-        <Text bold>{t('help.terms')}</Text>
-        {terms.map((k) => (
-          <Text key={k} wrap="wrap">
-            {prose(t(k), width - 4)}
-          </Text>
-        ))}
-      </Box>
-      <Box marginTop={1}>
-        <Muted>{t('help.close')}</Muted>
+          ))}
+        </Box>
+        <Box marginTop={1} flexDirection="column">
+          <Text bold>{t('help.terms')}</Text>
+          {terms.map((k) => (
+            <Text key={k} wrap="wrap">
+              {prose(t(k), width - 4)}
+            </Text>
+          ))}
+        </Box>
+        <Box marginTop={1}>
+          <Muted>{t('help.close')}</Muted>
+        </Box>
       </Box>
     </Box>
   );
