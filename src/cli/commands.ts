@@ -1101,6 +1101,7 @@ export function helpText(lang: Lang): string {
     `  ${c('config history|undo'.padEnd(31))}${L('help.configHistory')}`,
     `  ${c('update [--check] [--yes]'.padEnd(31))}${L('help.update')}`,
     `  ${c('trust'.padEnd(31))}${L('help.trust')}`,
+    `  ${c('net [show|restore <id>]'.padEnd(31))}${L('help.net')}`,
     `  ${c('packs [on|off|set|auto|guide]'.padEnd(31))}${L('help.packs')}`,
     `  ${c('skills [on|me|off <skill>]'.padEnd(31))}${L('help.skills')}`,
     '',

@@ -126,6 +126,11 @@
       "branches": 57,
       "functions": 66
     },
+    "src/cli/net.ts": {
+      "lines": 100,
+      "branches": 64,
+      "functions": 100
+    },
     "src/cli/packs.ts": {
       "lines": 84,
       "branches": 43,
@@ -224,11 +229,6 @@
     "src/core/flagged.ts": {
       "lines": 100,
       "branches": 90,
-      "functions": 100
-    },
-    "src/core/manual.ts": {
-      "lines": 100,
-      "branches": 100,
       "functions": 100
     },
     "src/core/flow-checks.ts": {
@@ -396,6 +396,11 @@
       "branches": 92,
       "functions": 94
     },
+    "src/core/manual.ts": {
+      "lines": 100,
+      "branches": 100,
+      "functions": 100
+    },
     "src/core/mcp-pins.ts": {
       "lines": 94,
       "branches": 92,
@@ -425,6 +430,11 @@
       "lines": 94,
       "branches": 90,
       "functions": 94
+    },
+    "src/core/net.ts": {
+      "lines": 100,
+      "branches": 95,
+      "functions": 100
     },
     "src/core/packs.ts": {
       "lines": 94,
@@ -690,6 +700,11 @@
       "lines": 87,
       "branches": 68,
       "functions": 87
+    },
+    "src/node/net.ts": {
+      "lines": 92,
+      "branches": 70,
+      "functions": 92
     },
     "src/node/packs.ts": {
       "lines": 94,

@@ -22,6 +22,7 @@ Only the person chooses a way of working; Claude cannot press the strip. A new s
 |                                                                      | Autonomous              | Full autonomy                                                                                      |
 | -------------------------------------------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------- |
 | a step the safety belt would ask about                               | asked, where it matters | **left to you**: refused with its command, Claude goes on with the rest and lists it in its answer |
+| a step a safety net makes undoable (a hard reset, `git clean`, …)    | runs once kept          | runs once kept ([safety-belt.md](safety-belt.md#safety-net))                                       |
 | a step a rule of yours asks about (your settings, another hook)      | asked                   | **left to you**, the same way                                                                      |
 | Claude Code's own permission question, once the belt let the call by | answered yes            | answered yes                                                                                       |
 | what the belt blocks; a secret leaving the computer                  | blocked; stopped        | blocked; stopped                                                                                   |

@@ -286,6 +286,8 @@ interface Ctx {
   flow: Flow | null;
   /** Steps left to the person in this turn (full autonomy): the turn's notification says they wait. */
   leftThisTurn: number;
+  /** The safety-net hook has run in this session: it lays the safety nets (src/core/net.ts), so the belt may count on them. */
+  hookSeen: boolean;
   // ── memory (docs/memory.md) ──
   /** When this session's context was loaded: the commits of the session are counted from here. */
   startedAt: number;
@@ -555,6 +557,7 @@ async function load($: $): Promise<Ctx> {
     aliases: null,
     flow: flow && isOpen(flow) ? flow : null,
     leftThisTurn: 0,
+    hookSeen: false,
     startedAt: now,
     prompts: 0,
     lastPrompt: null,
@@ -863,6 +866,17 @@ async function aliasesFor($: $, c: Ctx, cwd: string): Promise<PathAlias[]> {
   return list;
 }
 
+/**
+ * Whether the safety-net hook runs in this session (it records the session the first time it sees it): only then is
+ * a call let through on the strength of a safety net, which the hook lays before the call runs.
+ */
+async function hookSeen($: $, c: Ctx): Promise<boolean> {
+  if (c.hookSeen) return true;
+  const path = sessionFile(c.layout, c.sessionId, 'hook');
+  c.hookSeen = !!path && (await readFile($, path)) !== null;
+  return c.hookSeen;
+}
+
 async function beltContextFor($: $, c: Ctx): Promise<BeltContext> {
   const cwd = await $.session.cwd();
   const root = await $.session.root();
@@ -883,6 +897,7 @@ async function beltContextFor($: $, c: Ctx): Promise<BeltContext> {
     lang: c.lang,
     config: beltConfigOf(c.config),
     level: levelOf(c.state.interaction),
+    net: await hookSeen($, c),
     git: await gitFactsFor($),
     fileSize: (p) => statSize($, p),
     aliases: await aliasesFor($, c, cwd),

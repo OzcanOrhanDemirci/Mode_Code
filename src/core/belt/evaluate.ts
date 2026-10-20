@@ -6,7 +6,7 @@
 import { tIn } from '../i18n/index.js';
 import { visibleText } from '../text.js';
 import { checkCommand, checkFileTool, checkOutward } from './check.js';
-import { ACT_ORDER, effectiveAct, VERDICT_OF } from './rules.js';
+import { ACT_ORDER, effectiveAct, netAct, VERDICT_OF } from './rules.js';
 import { isFileTool, isOutwardTool, shellOf } from './tools.js';
 import type { BeltContext, BeltDecision, Finding, Verdict } from './types.js';
 
@@ -47,11 +47,15 @@ const byAct = (a: Finding, b: Finding) => ACT_ORDER[b.act ?? 'pass'] - ACT_ORDER
  * Applies the catalog at the session's level (Manual when none is given) and the person's configuration to raw
  * findings, dedupes, and picks the verdict.
  */
-export function decide(raw: readonly Finding[], issues: readonly string[], ctx: Pick<BeltContext, 'config' | 'level'>): BeltDecision {
+export function decide(raw: readonly Finding[], issues: readonly string[], ctx: Pick<BeltContext, 'config' | 'level' | 'net'>): BeltDecision {
   const seen = new Set<string>();
   const findings: Finding[] = [];
+  const nets: NonNullable<BeltDecision['nets']> = [];
   for (const f of raw) {
-    const act = effectiveAct(f.rule, ctx.level ?? 'manual', ctx.config);
+    // A call a safety net can make undoable is decided as with the net; the net is then the caller's to lay.
+    const withNet = ctx.net && f.net ? netAct(f.rule, ctx.level ?? 'manual', ctx.config) : null;
+    const act = withNet ?? effectiveAct(f.rule, ctx.level ?? 'manual', ctx.config);
+    if (withNet && f.net) nets.push({ rule: f.rule, plan: f.net });
     if (!act || act === 'pass') continue;
     const key = f.rule + '\u0000' + f.reason;
     if (seen.has(key)) continue;
@@ -60,7 +64,8 @@ export function decide(raw: readonly Finding[], issues: readonly string[], ctx: 
   }
   findings.sort(byAct);
   const verdict: Verdict = findings[0]?.verdict ?? 'allow';
-  return { verdict, findings, issues: [...issues] };
+  // A net matters only for a call that may run: one refused for another reason keeps nothing.
+  return { verdict, findings, issues: [...issues], ...(nets.length && verdict !== 'deny' ? { nets } : {}) };
 }
 
 /** Two decisions about one call as one: the stricter verdict, every finding. */
@@ -84,7 +89,10 @@ export function decisionText(d: BeltDecision, ctx: Pick<BeltContext, 'lang' | 'l
     d.verdict === 'ask'
       ? [tIn(ctx.lang, 'belt.tail.ask')]
       : d.verdict !== 'deny'
-        ? []
+        ? // A note that runs on the strength of a safety net says so: the person can put it back.
+          d.nets?.length
+          ? [tIn(ctx.lang, 'belt.tail.net')]
+          : []
         : stopped
           ? [tIn(ctx.lang, 'belt.tail.stop')]
           : [

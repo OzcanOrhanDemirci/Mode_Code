@@ -105,6 +105,7 @@ export const en = {
   'belt.tail.ask': 'Approve only if this is what you meant.',
   'belt.tail.repeat': 'This rule has blocked {n} attempts in this session. Do not try again: stop and report to the user.',
   'belt.tail.command': 'For the user, exactly as it would run: ! {command}',
+  'belt.tail.net': 'A safety net kept what this takes away before it ran: the user can put it back with mode-code net restore.',
   'belt.tail.full': 'Full autonomy asks nobody: leave this step for the user, go on with the rest of the task, and list it with its command in your report.',
   'belt.tail.stop':
     'This stays blocked in every way of working, and it is not something to hand to the user to run. Do not work around it (no other spelling, tool or script): tell the user what you were doing.',

@@ -9,8 +9,9 @@
  * "Ways of working"). Manual asks whatever is the person's to decide; Autonomous asks only what matters and
  * stops what is bad; full autonomy asks nothing and leaves to the person, with the command, what it would have
  * asked about. The table is the one the person approved on 2026-10-20 (the 1.2.0 core's decision table). Where it
- * lets a call through once a safety net has kept a copy, or once the person's own words name its target, this
- * catalog holds its answer without them until those are built: asked, or left to the person.
+ * lets a call through once a safety net has kept what the call takes away (src/core/net.ts), the rule says what it
+ * does then, beside what it does when no net can be laid. Where it waits for the person's own words to name its
+ * target, this catalog holds its answer without them until those are built: asked, or left to the person.
  */
 import type { Act, Level, RuleConfig, RuleId, Verdict } from './types.js';
 import { VERDICT_ORDER } from './types.js';
@@ -26,6 +27,8 @@ export interface RuleInfo {
   category: RuleCategory;
   /** What it does in each way of working. */
   acts: LevelActs;
+  /** What it does once a safety net has kept what the call takes away; `acts` hold when no net can be laid. */
+  net?: LevelActs;
   /** The verdict in Manual: what the rule is called by, in the lists and the settings. */
   verdict: Verdict;
   locked: boolean;
@@ -46,37 +49,43 @@ const ASK: LevelActs = ['ask', 'ask', 'self'];
 /** Left to the person in every way of working, with the command they would run. */
 const SELF: LevelActs = ['self', 'self', 'self'];
 
-const r = (id: RuleId, category: RuleCategory, acts: LevelActs, locked = false, pack?: RuleInfo['pack']): RuleInfo => ({
+/** With a safety net: Manual still asks; Autonomous and full autonomy let it through and say so. */
+const NET_NOTE: LevelActs = ['ask', 'note', 'note'];
+/** With a safety net: Manual still asks; Autonomous and full autonomy let it through without a word. */
+const NET_PASS: LevelActs = ['ask', 'pass', 'pass'];
+
+const r = (id: RuleId, category: RuleCategory, acts: LevelActs, locked = false, pack?: RuleInfo['pack'], net?: LevelActs): RuleInfo => ({
   id,
   category,
   acts,
   verdict: VERDICT_OF[acts[0]],
   locked,
   ...(pack ? { pack } : {}),
+  ...(net ? { net } : {}),
 });
 
 export const RULES: Readonly<Record<RuleId, RuleInfo>> = Object.freeze({
   'git.force-push-protected': r('git.force-push-protected', 'git', SELF),
-  'git.force-push': r('git.force-push', 'git', ASK),
+  'git.force-push': r('git.force-push', 'git', ASK, false, undefined, NET_NOTE),
   'git.delete-remote-branch-protected': r('git.delete-remote-branch-protected', 'git', SELF),
-  'git.delete-remote-branch': r('git.delete-remote-branch', 'git', ASK),
+  'git.delete-remote-branch': r('git.delete-remote-branch', 'git', ASK, false, undefined, NET_NOTE),
   'git.mirror-or-prune': r('git.mirror-or-prune', 'git', ASK),
   'git.push-pr-only': r('git.push-pr-only', 'git', SELF),
   'git.single-branch': r('git.single-branch', 'git', SELF),
-  'git.history-rewrite': r('git.history-rewrite', 'git', ASK),
+  'git.history-rewrite': r('git.history-rewrite', 'git', ASK, false, undefined, NET_NOTE),
   'git.hooks-path': r('git.hooks-path', 'git', ASK),
   // Skipping the repository's own hooks (lint, tests, secret checks) is the project's gate, not one of the four
   // kinds the core decides on: asked in Manual, a line for the person otherwise (the decision table, answer 4).
   'git.no-verify': r('git.no-verify', 'git', ['ask', 'note', 'note']),
-  'git.clean': r('git.clean', 'git', ASK),
+  'git.clean': r('git.clean', 'git', ASK, false, undefined, NET_PASS),
   // Uncommitted work thrown away: a note, as before, until the safety net keeps it; Manual asks.
-  'git.discard-work': r('git.discard-work', 'git', ['ask', 'note', 'note']),
-  'git.branch-force-delete': r('git.branch-force-delete', 'git', ASK),
+  'git.discard-work': r('git.discard-work', 'git', ['ask', 'note', 'note'], false, undefined, NET_PASS),
+  'git.branch-force-delete': r('git.branch-force-delete', 'git', ASK, false, undefined, NET_NOTE),
   'github.admin-merge': r('github.admin-merge', 'git', ASK),
   'github.delete': r('github.delete', 'git', ASK),
   'fs.delete-critical': r('fs.delete-critical', 'fs', SELF, true),
-  'fs.delete-outside-project': r('fs.delete-outside-project', 'fs', ASK),
-  'fs.delete-git-dir': r('fs.delete-git-dir', 'fs', ASK),
+  'fs.delete-outside-project': r('fs.delete-outside-project', 'fs', ASK, false, undefined, NET_NOTE),
+  'fs.delete-git-dir': r('fs.delete-git-dir', 'fs', ASK, false, undefined, NET_NOTE),
   'fs.move-critical': r('fs.move-critical', 'fs', SELF, true),
   'fs.disk': r('fs.disk', 'fs', SELF, true),
   'self.claude-settings': r('self.claude-settings', 'self', SELF, true),
@@ -157,6 +166,17 @@ export function effectiveVerdict(id: RuleId, config: RuleConfig): Verdict | null
  * person set holds at every level, except that full autonomy asks nobody: a question becomes the person's to do.
  * On a locked rule the person's verdict counts only where it is stricter than the rule's own.
  */
+/**
+ * What a rule does at a level once a safety net is laid; null where a net changes nothing: the rule has none, the
+ * person gave it a verdict of their own (which holds as it is), it is off, or at this level it asks all the same.
+ */
+export function netAct(id: RuleId, level: Level, config: RuleConfig): Act | null {
+  const info = RULES[id];
+  if (!info.net || config.verdicts?.[id] || effectiveAct(id, level, config) === null) return null;
+  const withNet = info.net[LEVEL_INDEX[level]];
+  return withNet === info.acts[LEVEL_INDEX[level]] ? null : withNet;
+}
+
 export function effectiveAct(id: RuleId, level: Level, config: RuleConfig): Act | null {
   const info = RULES[id];
   if (info.pack && !config.packs?.[info.pack]) return null;
