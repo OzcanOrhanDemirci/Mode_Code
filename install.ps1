@@ -98,7 +98,7 @@ param(
   }
 
   # For a program of another maker: Enter means no, and -Yes does not answer it; only -InstallClaude does.
-  function Ask-No([string]$question) {
+  function AskNo([string]$question) {
     if ($InstallClaude) { return $true }
     if (-not $S.Interactive) { return $false }
     $answer = Read-Host ($question + ' ' + (T '[y/N]' '[e/H]'))
@@ -398,7 +398,7 @@ param(
   function Install-Claude {
     Say ''
     Say (T "$Name works inside Claude Code, which was not found on this computer." "$Name, Claude Code'un i\u00e7inde \u00e7al\u0131\u015f\u0131r ve Claude Code bu bilgisayarda bulunamad\u0131.")
-    if (-not (Ask-No (T "Install Claude Code now with Anthropic's official installer (claude.ai/install.ps1)?" "Claude Code \u015fimdi Anthropic'in resm\u00ee kurulum beti\u011fiyle (claude.ai/install.ps1) kurulsun mu?"))) { return $false }
+    if (-not (AskNo (T "Install Claude Code now with Anthropic's official installer (claude.ai/install.ps1)?" "Claude Code \u015fimdi Anthropic'in resm\u00ee kurulum beti\u011fiyle (claude.ai/install.ps1) kurulsun mu?"))) { return $false }
     # In a PowerShell of its own, so nothing it does can end this one.
     $shell = (Get-Process -Id $PID).Path
     # Shown as it goes, and kept out of this function's answer.
