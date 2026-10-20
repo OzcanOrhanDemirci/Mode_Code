@@ -81,6 +81,8 @@ const SAMPLES: ActivityEvent[] = [
   { at: 1, kind: 'bypass', action: 'off', count: 4 },
   { at: 1, kind: 'bypass', action: 'call', tool: 'Bash' },
   { at: 1, kind: 'permission', tool: 'Bash', answer: 'parts' },
+  { at: 1, kind: 'flagged', category: 'cyber', model: 'Opus 5.5', via: 'refusal' },
+  { at: 1, kind: 'flagged', category: null, model: null, via: 'error' },
 ];
 
 test('each kind reads as a sentence in both languages: no key left, no blank, no unfilled place', () => {
@@ -110,6 +112,12 @@ test('the class follows what happened: blocked, waits for you, done, a routine n
   assert.equal(activityOf({ at: 1, kind: 'packs', on: ['x'], by: 'auto' }, 'en').why, '"Automatic use" is on');
   assert.equal(activityOf({ at: 1, kind: 'brand-new' }, 'en').cls, 'note');
   assert.equal(activityOf({ at: 1, kind: 'brand-new' }, 'en').quiet, true);
+  // A stopped answer: blocked, by whom, and what the classifier named when it named something.
+  const flagged = activityOf({ at: 1, kind: 'flagged', category: 'cyber' }, 'tr');
+  assert.equal(flagged.cls, 'blocked');
+  assert.equal(flagged.text, "Anthropic'in güvenlik denetimi bir cevabı durdurdu (cyber)");
+  assert.match(flagged.why!, /Mode_Code değil/);
+  assert.equal(activityOf({ at: 1, kind: 'flagged', category: null }, 'en').text, "Anthropic's safeguards stopped an answer");
 });
 
 test('what waits for you comes first, then the newest; the routine work only when asked for', () => {
@@ -193,6 +201,8 @@ test('every sample: its class, whether it is routine, where it is changed, and w
     ['done', false, 'work/bypassed', true],
     ['note', false, 'work/bypassed', true],
     ['done', true, 'claude-code/permissions', true],
+    ['blocked', false, null, true],
+    ['blocked', false, null, true],
   ];
   assert.equal(want.length, SAMPLES.length);
   SAMPLES.forEach((e, i) => {

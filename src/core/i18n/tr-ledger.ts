@@ -81,6 +81,8 @@ export const trLedger: Record<keyof typeof enLedger, string> = {
   'act.bypass.call': '{tool} sormadan geçti (bypass)',
   'act.permission': "Claude Code'un {tool} sorusunu senin kuralların cevapladı",
   'act.unknown': 'Bu sürümün adını bilmediği türde bir iş: {kind}',
+  'act.flagged': "Anthropic'in güvenlik denetimi bir cevabı durdurdu",
+  'act.flagged.named': "Anthropic'in güvenlik denetimi bir cevabı durdurdu ({category})",
   'act.why.rule': 'emniyet kemeri kuralı: {rule}',
   'act.why.freeze': '/freeze ile dondurduğun klasör',
   'act.why.mode': 'şeritte seçtiğin mod',
@@ -90,6 +92,7 @@ export const trLedger: Record<keyof typeof enLedger, string> = {
   'act.why.autonomy': 'tam otonomun başlangıç denetimleri',
   'act.why.bypass': '"{name}" açık ve oturumda sen açtın',
   'act.why.permission': "Claude Code'daki izin kuralların",
+  'act.why.flagged': "Anthropic'in sunucusundaki denetim, Mode_Code değil: mesajı düzenle, başka model (/model) ya da /feedback",
   // ── neden (src/core/ux/why.ts) ──
   'why.setting': '"{name}" {value} ({place})',
   'why.title.belt': 'Emniyet kemeri',

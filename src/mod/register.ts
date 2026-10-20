@@ -60,6 +60,7 @@ import { action, choices, notice, row as kitRow, windowFrame } from '../core/ux/
 import { cardLine, controlOfItem, moLine, stripNow } from '../core/ux/say.js';
 import { COLORS, labelColumn, mark, TOAST_MS } from '../core/ux/tokens.js';
 import { moState } from '../core/mo/state.js';
+import { flagInText, flagLines, flagOfTurn, type Flag } from '../core/flagged.js';
 import { why, whyAll, whyRule, whySubjectNamed, whyText, WHY_SUBJECTS, type WhyFacts } from '../core/ux/why.js';
 import { activityOf, activityText, type ActivityEvent } from '../core/ux/activity.js';
 import { RULE_IDS } from '../core/belt/rules.js';
@@ -409,6 +410,8 @@ interface Ctx {
   selfSent: string | null;
   /** The main loop's model turn while it runs (its `turn.start` id): Claude is working, `/00` asks first. */
   turnId: string | null;
+  /** When a stopped answer was last explained (explainFlag): the other way the same stop comes is not said twice. */
+  flagSaidAt: number;
   /** `/00` is closing the session; `closed` once its end steps ran, so the end itself does not run them again. */
   closing: boolean;
   closed: boolean;
@@ -661,6 +664,7 @@ async function load($: $): Promise<Ctx> {
     pendingContinue: null,
     selfSent: null,
     turnId: null,
+    flagSaidAt: 0,
     closing: false,
     closed: false,
     local,
@@ -1757,7 +1761,13 @@ async function writeReport($: $, c: Ctx, r: Run): Promise<string> {
   return path;
 }
 
-async function autoNotify($: $, c: Ctx, key: 'auto.notify.done' | 'auto.notify.stuck' | 'auto.notify.paused', r: Run, reason = ''): Promise<void> {
+async function autoNotify(
+  $: $,
+  c: Ctx,
+  key: 'auto.notify.done' | 'auto.notify.stuck' | 'auto.notify.paused' | 'auto.notify.flagged',
+  r: Run,
+  reason = '',
+): Promise<void> {
   if (!c.config.modules.notifications) return;
   const text = tIn(c.lang, key, { task: maskSecrets((r.task || r.id).split('\n')[0]!.slice(0, 120)), reason });
   try {
@@ -3514,6 +3524,8 @@ async function onTurnComplete($: $, e: In<'turn.complete'>, next: Nx<'turn.compl
   // The turn is over, so none of its calls runs any more; Mo shows how it ended for a few seconds.
   c.mo = { ...c.mo, tools: 0, agents: 0, asking: 0 };
   await moMark($, c, e.reason === 'answer' ? 'doneAt' : e.reason === 'error' ? 'errorAt' : 'stoppedAt');
+  const flag = flagOfTurn(e);
+  if (flag) await explainFlag($, c, flag, e.reason === 'refusal' ? 'refusal' : 'error');
   if (e.reason !== 'answer') return result;
   try {
     const cwdNow = await $.session.cwd();
@@ -3558,6 +3570,40 @@ async function onTurnComplete($: $, e: In<'turn.complete'>, next: Nx<'turn.compl
     for (const k of keys.slice(0, Math.max(0, keys.length - 200))) delete next[k];
     return next;
   });
+  return result;
+}
+
+// ── when Anthropic's safeguards stop an answer (src/core/flagged.ts) ──
+
+/**
+ * Says what stopped the answer and the three ways on, under it, as a notice the model never reads (so it neither
+ * costs context nor goes to the classifier again); the activity keeps it, and a full-autonomy run's person, away,
+ * is told the run waits. Nothing else is done: the model stays the person's to pick. The two ways the same stop
+ * comes (the turn's end, Claude Code's StopFailure) lead here, and the second, seconds later, is not said again.
+ */
+async function explainFlag($: $, c: Ctx, flag: Flag, via: 'refusal' | 'error' | 'stopFailure'): Promise<void> {
+  const now = await $.clock.now();
+  if (now - c.flagSaidAt < 15_000) return;
+  c.flagSaidAt = now;
+  try {
+    await $.session.append({ message: { type: 'system', content: [{ type: 'text', text: flagLines(flag, c.lang).join('\n') }] } });
+  } catch {
+    /* the activity has it */
+  }
+  await logEvent($, c, { kind: 'flagged', category: flag.category, model: flag.model, via });
+  const r = autoRunning(c);
+  if (r) await autoNotify($, c, 'auto.notify.flagged', r);
+}
+
+/** Claude Code's StopFailure: an API error ended the turn. Its text is the flag's when the safeguards stopped it. */
+async function onStopFailure($: $, e: In<'classic.StopFailure'>, next: Nx<'classic.StopFailure'>): Out<'classic.StopFailure'> {
+  const result = await next(e);
+  try {
+    const flag = flagInText(e.last_assistant_message) ?? flagInText(e.error_details);
+    if (flag) await explainFlag($, await ctxOf($), flag, 'stopFailure');
+  } catch {
+    /* the turn's end says it, or nothing is lost but the words */
+  }
   return result;
 }
 
@@ -6517,6 +6563,7 @@ export function register(on: On): void {
   on('prompt.submit', onPromptSubmit);
   on('session.measure', onMeasure);
   on('turn.complete', onTurnComplete);
+  on('classic.StopFailure', onStopFailure);
   // Parallel agents (docs/agents.md): each agent's start is decided here; a hook that fails lets it start, as before.
   on('agent.spawn', onAgentSpawn).catch(($, e, next) => next(e));
   // /effort ultracode and back: Claude Code's workflows run the agents, and the mode stands aside meanwhile.

@@ -425,4 +425,13 @@ export const enUi = {
   'update.doctorProblems': 'Doctor: {fail} problems, {warn} warnings; {cmd} shows them and offers repairs.',
   'update.doctorUnread': "The new installation's doctor could not be read; run {cmd}.",
   'update.next': 'Start a new Claude Code session to load it.',
+  // ── when Anthropic's safeguards stop an answer (src/core/flagged.ts) ──
+  'flag.title': "Anthropic's safeguards stopped this answer.",
+  'flag.title.named': "Anthropic's safeguards stopped this answer ({category}).",
+  'flag.who':
+    "Not the model's choice, not Claude Code's, not Mode_Code's: an automatic check on Anthropic's server flagged the session, as it sometimes does with harmless work too. Your session and your files are as they were; only this answer was not written.",
+  'flag.ways': 'Three ways on:',
+  'flag.way.edit': 'Press Esc twice to edit your last message.',
+  'flag.way.model': "Type /model to go on with another model (Anthropic's own advice).",
+  'flag.way.feedback': 'Type /feedback to report a false alarm.',
 } as const;

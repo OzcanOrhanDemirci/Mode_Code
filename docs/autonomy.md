@@ -122,6 +122,8 @@ A run asks nothing, so it needs no one at the computer. To follow it from elsewh
 | budget                 | the quota guard's wrap-up level for the run's budget, or the 5-hour window                                                                                                             | the run pauses and resumes by itself after the reset |
 | you                    | `stop` / `dur`, `wrap up` / `toparla`, Esc, `full auto cancel` / `tam otonom iptal`                                                                                                    | paused (cancel: ended)                               |
 
+An answer Anthropic's safeguards stop ([design.md](design.md#when-an-answer-is-stopped)) is none of these: the run stays as it is and waits for you, and the notification says so. Another model is never picked for you.
+
 A paused run continues with `<project> continue` / `<proje> devam` (in a new session too, after `/clear`, after a crash); the checks of the start run again first, and the run picks up at its phase with its budget. After a compaction the run's state is restated to Claude, your request word for word included.
 
 ## The report

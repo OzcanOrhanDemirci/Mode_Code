@@ -216,6 +216,11 @@
       "branches": 91,
       "functions": 94
     },
+    "src/core/flagged.ts": {
+      "lines": 100,
+      "branches": 90,
+      "functions": 100
+    },
     "src/core/flow-checks.ts": {
       "lines": 92,
       "branches": 84,

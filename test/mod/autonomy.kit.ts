@@ -6,7 +6,7 @@
  * report), what waits for the person, what a run never does, Claude Code's own permission questions,
  * pause and resume, a stop the safety-net hook let through. The world beneath is in memory (see world.ts).
  */
-import { test, expect } from 'claude-code/testing';
+import { test, expect, mock } from 'claude-code/testing';
 import { DATA, PROJECT, SESSION, world } from './world.ts';
 
 const typed = (text: string) => ({ text, wait: false, origin: { kind: 'composer' } }) as any;
@@ -409,6 +409,25 @@ test('the window keeps a task while it is closed, starts on Enter, and keeps the
   const kept = w.json(`${DATA}/state/auto-prompts.json`).prompts.map((p: any) => p.text);
   expect(kept).toEqual(['Fourth task.', 'Third task.', 'Second task.']);
   await pane.unmount();
+});
+
+test("an answer Anthropic's safeguards stopped leaves the run as it is, and the person away is told it waits", async ($, on) => {
+  const { w, run } = ready(on);
+  on('turn.complete', (_$: any, e: any) => ({ text: e.answer }));
+  mock.session(on);
+  await begin($, 'Add rate limiting. app full auto quota +10');
+  const before = run().status;
+  await $.turn.complete({
+    answer: '',
+    durationMs: 5,
+    isAborted: false,
+    turnId: 't1',
+    reason: 'refusal',
+    refusal: { category: 'cyber', explanation: null },
+  } as any);
+  // No other model is picked for the person, and the run is neither paused nor ended by it.
+  expect(run().status).toBe(before);
+  expect(w.notes.some((n) => /^The full-autonomy run waits for you: Anthropic's safeguards stopped an answer: Add rate limiting\./.test(n))).toBe(true);
 });
 
 test('a stop the safety-net hook let through for no progress pauses the run and says so', async ($, on) => {

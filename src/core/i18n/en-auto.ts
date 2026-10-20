@@ -259,6 +259,7 @@ export const enAuto = {
   'auto.toast.noTask': '🤖 Full autonomy needs a task: write it before the keyword.',
   'auto.notify.done': 'The full-autonomy run is done: {task}',
   'auto.notify.stuck': 'The full-autonomy run is stuck: {task}',
+  'auto.notify.flagged': "The full-autonomy run waits for you: Anthropic's safeguards stopped an answer: {task}",
   'auto.notify.paused': 'The full-autonomy run paused ({reason}): {task}',
   'auto.phase.plan': 'plan',
   'auto.phase.work': 'work',
