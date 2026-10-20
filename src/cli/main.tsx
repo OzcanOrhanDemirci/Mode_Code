@@ -6,6 +6,7 @@
 import { APP_NAME, APP_VERSION } from '../core/app.js';
 import { tIn } from '../core/i18n/index.js';
 import { appContext } from '../app/context.js';
+import { noProgramsFromWorkingFolder } from '../node/env.js';
 import { parseArgs, flag } from './args.js';
 import { setColor } from './style.js';
 import {
@@ -38,6 +39,7 @@ import { cmdMeasure } from './measure.js';
 const MIN_NODE = [22, 13];
 
 async function main(argv: string[]): Promise<number> {
+  noProgramsFromWorkingFolder();
   const [major = 0, minor = 0] = process.versions.node.split('.').map((x) => parseInt(x, 10));
   if (major < MIN_NODE[0]! || (major === MIN_NODE[0] && minor < MIN_NODE[1]!)) {
     process.stderr.write(`${APP_NAME} needs Node.js ${MIN_NODE.join('.')} or newer; this is ${process.versions.node}.\n`);

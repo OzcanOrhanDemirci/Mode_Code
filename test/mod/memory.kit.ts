@@ -322,7 +322,7 @@ test('after a turn the store is synced: a quick look first, then commit and send
     if (dir !== STORE) return undefined;
     const a = args.join(' ');
     calls.push(a);
-    if (a === 'status --porcelain=v1 --branch -- .')
+    if (a === 'status --ignore-submodules=dirty --porcelain=v1 --branch -- .')
       return { exitCode: 0, stdout: `## main...origin/main${ahead ? ` [ahead ${ahead}]` : ''}\n${dirty ? '?? notes.md\n' : ''}` };
     if (a === 'rev-parse --show-toplevel') return { exitCode: 0, stdout: `${STORE}\n` };
     if (args[0] === 'status') return { exitCode: 0, stdout: dirty ? '?? notes.md\0' : '' };
@@ -357,7 +357,7 @@ test('after a turn the store is synced: a quick look first, then commit and send
   // Nothing changed since: one look, nothing more.
   calls.length = 0;
   await $.turn.complete({ answer: 'Ok.', durationMs: 5, isAborted: false, turnId: 't2', reason: 'answer' } as any);
-  expect(calls).toEqual(['status --porcelain=v1 --branch -- .', 'rev-parse --verify --quiet HEAD']);
+  expect(calls).toEqual(['status --ignore-submodules=dirty --porcelain=v1 --branch -- .', 'rev-parse --verify --quiet HEAD']);
   // A secret in a note: held back, said once.
   dirty = true;
   w.write(`${STORE}/notes.md`, `token ghp_${'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8'}\n`);

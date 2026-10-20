@@ -28,7 +28,7 @@ import { buildFooter, checkFooter, classifyTurn } from '../core/footer.js';
 import { currentTurn } from '../core/transcript.js';
 import { keywordTables, projectRefs, budgetOf } from '../core/settings-view.js';
 import { APP_VERSION, SELF_TEST_SESSION } from '../core/app.js';
-import { dataLayout, processLanguage } from '../node/env.js';
+import { dataLayout, noProgramsFromWorkingFolder, processLanguage } from '../node/env.js';
 import { loadConfig, beltContext, classifyEnv, memoryDirs } from '../node/context.js';
 import { readText, readJson, writeJsonAtomic, appendLine } from '../node/fsx.js';
 import { git, memoryStatus } from '../node/git.js';
@@ -413,6 +413,7 @@ function sessionStart(input: Input, lang: Lang): void {
 }
 
 async function main(): Promise<void> {
+  noProgramsFromWorkingFolder();
   const event = process.argv[2] ?? '';
   let input: Input = {};
   let unreadable = false;

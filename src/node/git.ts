@@ -1,25 +1,63 @@
 // SPDX-License-Identifier: Apache-2.0
-/** Running git for facts: short, bounded calls that never prompt and never throw. */
+/**
+ * Running git for facts: short, bounded calls that never prompt and never throw, by git's own file on PATH
+ * and with nothing the repository's settings name (src/core/git-safe.ts).
+ */
 import { spawnSync } from 'node:child_process';
+import { statSync } from 'node:fs';
 import type { GitFacts } from '../core/belt/types.js';
 import type { MemoryStatus } from '../core/footer.js';
+import { filterDriversQuery, gitCandidates, needsFilterDrivers, repoFilterDrivers, safeGitArgs } from '../core/git-safe.js';
+import type { Platform } from '../core/paths.js';
 
 export interface GitRun {
   ok: boolean;
   out: string;
 }
 
+const found = new Map<string, string | null>();
+
+/** git's own file: the first on PATH's absolute folders, looked up once per PATH; null when git is not installed. */
+export function gitProgram(pathValue = process.env.PATH ?? '', platform: Platform = process.platform): string | null {
+  const key = `${platform}\0${pathValue}`;
+  if (!found.has(key)) {
+    const isFile = (p: string) => {
+      try {
+        return statSync(p).isFile();
+      } catch {
+        return false;
+      }
+    };
+    found.set(key, gitCandidates(pathValue, platform).find(isFile) ?? null);
+  }
+  return found.get(key) ?? null;
+}
+
+function runGit(program: string, argv: readonly string[], timeoutMs: number): { status: number | null; out: string } {
+  const r = spawnSync(program, argv, {
+    encoding: 'utf8',
+    timeout: timeoutMs,
+    windowsHide: true,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0', LC_ALL: 'C' },
+    stdio: ['ignore', 'pipe', 'ignore'],
+  });
+  return { status: r.status, out: r.stdout ?? '' };
+}
+
 /** Runs git with a time limit, no pager, no prompts, no window. */
 export function git(dir: string, args: readonly string[], timeoutMs = 3000): GitRun {
   try {
-    const r = spawnSync('git', ['-C', dir, '--no-pager', ...args], {
-      encoding: 'utf8',
-      timeout: timeoutMs,
-      windowsHide: true,
-      env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0', LC_ALL: 'C' },
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    return { ok: r.status === 0, out: (r.stdout ?? '').trim() };
+    const program = gitProgram();
+    if (!program) return { ok: false, out: '' };
+    let drivers: string[] = [];
+    if (needsFilterDrivers(args)) {
+      const q = runGit(program, filterDriversQuery(dir), timeoutMs);
+      const names = q.status === 0 ? repoFilterDrivers(q.out) : q.status === 1 ? [] : null;
+      if (!names) return { ok: false, out: '' };
+      drivers = names;
+    }
+    const r = runGit(program, safeGitArgs(dir, args, drivers), timeoutMs);
+    return { ok: r.status === 0, out: r.out.trim() };
   } catch {
     return { ok: false, out: '' };
   }
