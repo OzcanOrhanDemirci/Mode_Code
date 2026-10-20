@@ -128,6 +128,10 @@ test('the record keeps its newest within its limits; a line has one key however 
   assert.equal(p.said.at(-1), `prompt ${PROV_SAID_MAX + 4}`);
   assert.equal(withSaid(p, '   '), p);
   assert.equal(withSaid(emptyProvenance(), 'x'.repeat(9000)).said[0]!.length, 8000);
+  // A key typed into a prompt is kept masked, the rest as typed (assembled here: no token-shaped literal in the file).
+  const key = 'ghp' + '_' + 'aB3dE5fG7hJ9kL2mN4pQ6rS8tU0vW1xYaB3d';
+  const kept = withSaid(emptyProvenance(), `push with ${key} to example.com`).said[0]!;
+  assert.ok(!kept.includes(key) && kept.startsWith('push with [github-token: ') && kept.endsWith(' to example.com'), kept);
   let q = emptyProvenance();
   for (let i = 0; i < PROV_SEEN_MAX + 3; i++) q = withSeen(q, `host${i}.example.com and a line long enough ${i}`);
   assert.deepEqual([q.seen.length, q.seenLines.length], [PROV_SEEN_MAX, PROV_SEEN_MAX]);

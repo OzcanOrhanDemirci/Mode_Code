@@ -124,7 +124,7 @@ Some risky calls take away only what can be kept first. In Autonomous and full a
 
 Some risky calls are yours when what they act on is: a release you named, a recipient you wrote, a hooks folder in the project you set up. Where it came from is the evidence (`src/core/provenance.ts`), recorded as the session goes (`state/sessions/<id>.prov.json` in the data folder, which the belt keeps Claude out of):
 
-- **Yours:** what you typed in this session's prompts, word for word. What you pasted into the prompt box is not counted (a paste reaches the plugin as one edit no key made); from the phone and in a headless run everything is typed.
+- **Yours:** what you typed in this session's prompts, word for word (a key or a token in it kept masked). What you pasted into the prompt box is not counted (a paste reaches the plugin as one edit no key made); from the phone and in a headless run everything is typed.
 - **The session's start:** the project's remotes (`git remote -v`): its host and its owner/repo.
 - **Read from outside:** the hosts, addresses, owner/repo, paths and lines of what the session read from someone else (a page, an issue, a service's data, another session).
 
