@@ -7,6 +7,7 @@
  * live outside this repository (attack sets in a private one); this file holds field mappings, never data.
  */
 import { sha256Hex } from '../../src/core/sha256.js';
+import { taintSource } from '../../src/core/taint.js';
 
 export type Label = 'attack' | 'benign';
 export type ReplayPlatform = 'linux' | 'darwin' | 'win32';
@@ -26,7 +27,14 @@ export interface ReplayCase {
   /** The system the call was made on, when it is not this computer's (a Linux container in a public set). */
   platform?: ReplayPlatform;
   payload_sha256: string;
+  /** What the person wrote since the call before, as the transcript keeps it: their evidence (src/core/provenance.ts). */
+  said?: string[];
+  /** What the call read, when that came from outside the session (a page, an issue), up to SEEN_CHARS. */
+  seen?: string;
 }
+
+/** The most of a call's outside content a case keeps: enough for its lines and hosts, small enough for a set. */
+export const SEEN_CHARS = 50_000;
 
 /** What every case of one conversion shares. */
 export interface CaseMeta {
@@ -67,20 +75,49 @@ export function makeCase(meta: CaseMeta, trajectory: string, step: number, call:
   };
 }
 
-/** Claude Code's own records (`~/.claude/projects`, CC-Bench): every tool_use block of an assistant record, in order, each once. */
+/** A message's text: the string itself, or its text blocks. */
+function textOf(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content.flatMap((b) => (isRecord(b) && b.type === 'text' && typeof b.text === 'string' ? [b.text] : [])).join('\n');
+}
+
+/**
+ * Claude Code's own records (`~/.claude/projects`, CC-Bench): every tool_use block of an assistant record, in order,
+ * each once; with each, what the person wrote before it, and with a call that read outside content, what it read.
+ * Claude Code's own notes (`isMeta`) and a compaction's summary are not the person's words.
+ */
 export function fromClaudeCode(records: readonly unknown[], trajectory: string, meta: CaseMeta): ReplayCase[] {
   const out: ReplayCase[] = [];
   const seen = new Set<string>();
+  const byId = new Map<string, ReplayCase>();
+  let said: string[] = [];
   for (const r of records) {
-    if (!isRecord(r) || r.type !== 'assistant' || !isRecord(r.message) || !Array.isArray(r.message.content)) continue;
-    for (const b of r.message.content as unknown[]) {
+    if (!isRecord(r) || !isRecord(r.message)) continue;
+    const content = r.message.content;
+    if (r.type === 'user') {
+      const blocks = Array.isArray(content) ? (content as unknown[]).filter(isRecord) : [];
+      const results = blocks.filter((b) => b.type === 'tool_result');
+      if (!results.length && r.isMeta !== true && r.isCompactSummary !== true && textOf(content).trim()) said.push(textOf(content));
+      for (const b of results) {
+        const c = byId.get(str(b.tool_use_id) ?? '');
+        if (c && b.is_error !== true && taintSource(c.tool_name, c.tool_input)) c.seen = textOf(b.content).slice(0, SEEN_CHARS);
+      }
+      continue;
+    }
+    if (r.type !== 'assistant' || !Array.isArray(content)) continue;
+    for (const b of content as unknown[]) {
       if (!isRecord(b) || b.type !== 'tool_use' || typeof b.name !== 'string' || !isRecord(b.input)) continue;
       const id = str(b.id);
       if (id !== null) {
         if (seen.has(id)) continue;
         seen.add(id);
       }
-      out.push(makeCase(meta, trajectory, out.length, { tool: b.name, input: b.input }, str(r.cwd) ?? undefined));
+      const c = makeCase(meta, trajectory, out.length, { tool: b.name, input: b.input }, str(r.cwd) ?? undefined);
+      if (said.length) c.said = said;
+      said = [];
+      if (id !== null) byId.set(id, c);
+      out.push(c);
     }
   }
   return out;

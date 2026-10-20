@@ -12,12 +12,14 @@
  *        [--level manual|autonomous|full] [--no-net]
  *
  * `run` judges each call as the safety-net hook would, in the way of working given (Manual by default; a safety net
- * counted as laid unless --no-net), follows the plugin's outside-content rule along each trajectory (what is still
- * asked there: the memory written after outside content), and prints per source: calls, judged, verdicts by label, by rule and by category, the digests
+ * counted as laid unless --no-net), keeps the plugin's provenance record along each trajectory (what the person
+ * wrote, what was read from outside, the files the session made, and for your own sessions the project's remotes)
+ * and its outside-content rule (what is still asked there: the memory written with what was read), and prints per source: calls, judged, verdicts by label, by rule and by category, the digests
  * of attack cases let through, and how many everyday cases were asked about or stopped. With --out, those
  * everyday cases are written there for a reviewer (everyday-stopped.jsonl), and of the attack cases let
  * through only ids, verdicts and rules (attack-missed.jsonl). Files ending in .gz are read compressed.
  */
+import { execFileSync } from 'node:child_process';
 import { createReadStream, createWriteStream, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
@@ -30,7 +32,8 @@ import type { BeltContext, BeltDecision, GitFacts } from '../src/core/belt/types
 import { DEFAULT_CONFIG, type Config } from '../src/core/config.js';
 import { beltConfigOf } from '../src/core/settings-view.js';
 import { levelNamed } from '../src/core/belt/rules.js';
-import { taintedAct, taintSource } from '../src/core/taint.js';
+import { taintedAct, taintMatters, taintSource } from '../src/core/taint.js';
+import { emptyProvenance, madePaths, withMade, withSaid, withSeen, withStart, type Provenance } from '../src/core/provenance.js';
 import { beltContext } from '../src/node/context.js';
 import { managedSettingsFiles } from '../src/node/env.js';
 import {
@@ -138,6 +141,33 @@ function foreignContext(c: ReplayCase, start: string | undefined, config: Config
   };
 }
 
+/** What a call writes, as the plugin weighs it: a file's content, an edit's new text. */
+function writtenBy(input: Readonly<Record<string, unknown>>): string {
+  const edits = Array.isArray(input.edits) ? input.edits.map((x) => (x as { new_string?: unknown })?.new_string) : [];
+  return [input.content, input.new_string, ...edits].filter((x): x is string => typeof x === 'string').join('\n');
+}
+
+const remotes = new Map<string, string>();
+
+/**
+ * A trajectory's start record: for a session of this computer, the remotes of the folder it started in, read now
+ * (the plugin reads them at the first prompt); none for another system's.
+ */
+function startOf(first: ReplayCase | undefined, start: string | undefined): Provenance {
+  if (!first || !start || (first.platform && first.platform !== process.platform)) return emptyProvenance();
+  if (!remotes.has(start)) {
+    let out = '';
+    try {
+      out = execFileSync('git', ['-C', start, 'remote', '-v'], { encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] });
+    } catch {
+      /* not a repository, or gone */
+    }
+    remotes.set(start, out);
+  }
+  const listed = remotes.get(start)!;
+  return listed ? withStart(emptyProvenance(), listed) : emptyProvenance();
+}
+
 async function* ownSessions(): AsyncGenerator<ReplayCase[]> {
   const root = join(process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'), 'projects');
   const meta: CaseMeta = { source: 'sessions', version: 'local', license: 'own', label: 'benign', category: 'own' };
@@ -147,7 +177,8 @@ async function* ownSessions(): AsyncGenerator<ReplayCase[]> {
     for (const f of readdirSync(dir).filter((x) => x.endsWith('.jsonl'))) {
       const records: unknown[] = [];
       for await (const line of lines(join(dir, f))) {
-        if (!line.includes('"tool_use"')) continue;
+        // The calls, and the person's prompts and the calls' results for the provenance record.
+        if (!line.includes('"tool_use"') && !line.includes('"type":"user"')) continue;
         try {
           records.push(JSON.parse(line));
         } catch {
@@ -204,26 +235,37 @@ async function run(): Promise<void> {
     for await (const trajectory of source) {
       let tainted = false;
       const start = trajectory[0]?.cwd;
+      let prov = startOf(trajectory[0], start);
+      // Whether the trajectory kept what was said and read (a set converted before that has neither).
+      const recorded = trajectory.some((c) => c.said !== undefined || c.seen !== undefined);
+      // Claude Code's Write refuses a file it has not read: one written before any read or write of it is new.
+      const touched = new Set<string>();
       for (const c of trajectory) {
-        const ctx = contextOf(c, start);
+        for (const text of c.said ?? []) prov = withSaid(prov, text);
+        const ctx = { ...contextOf(c, start), prov };
         let d: BeltDecision | null = isBeltTool(c.tool_name) || isOutwardTool(c.tool_name) ? await evaluateToolCall(c.tool_name, c.tool_input, ctx) : null;
-        // What a session that read outside content still asks: the memory written after it (what was read is not
-        // in a replay, so every such write counts).
-        if (
-          tainted &&
-          taintedAct(c.tool_name, c.tool_input, { platform: ctx.platform, home: ctx.home, cwd: ctx.cwd, memoryDirs: ctx.memoryDirs })?.act === 'memory'
-        ) {
+        // What a session that read outside content still asks: the memory written with what it read. Without what
+        // was read (a set converted before it was kept), every such write counts.
+        const found = tainted
+          ? taintedAct(c.tool_name, c.tool_input, { platform: ctx.platform, home: ctx.home, cwd: ctx.cwd, memoryDirs: ctx.memoryDirs })
+          : null;
+        if (found && (recorded ? taintMatters(found, writtenBy(c.tool_input), prov) : found.act === 'memory')) {
           const t = decide([{ rule: 'inject.tainted-act', verdict: 'ask', reason: '' }], [], ctx);
           d = d ? mergeDecisions(d, t) : t;
         }
         if (taintSource(c.tool_name, c.tool_input)) tainted = true;
+        if (c.seen) prov = withSeen(prov, c.seen);
+        const file = typeof c.tool_input.file_path === 'string' ? c.tool_input.file_path : null;
+        const made = madePaths(c.tool_name, c.tool_input, { platform: ctx.platform, home: ctx.home, cwd: ctx.cwd }, file !== null && !touched.has(file));
+        if (made.length) prov = withMade(prov, made);
+        if (file !== null) touched.add(file);
         const rules = d ? d.findings.map((f) => f.rule) : [];
         // What the summary needs, not the call: a set's calls can be large.
-        const slim = { ...c, tool_input: {} };
+        const slim = { ...c, tool_input: {}, said: undefined, seen: undefined };
         judged.push({ c: slim, verdict: d?.verdict ?? null, rules });
         const stopped = d !== null && (d.verdict === 'ask' || d.verdict === 'deny');
         if (outDir && c.label === 'benign' && stopped)
-          kept.push(JSON.stringify({ ...c, verdict: d?.verdict, rules, reasons: d?.findings.map((f) => f.reason) }));
+          kept.push(JSON.stringify({ ...c, said: undefined, seen: undefined, verdict: d?.verdict, rules, reasons: d?.findings.map((f) => f.reason) }));
         if (outDir && c.label === 'attack' && d !== null && !stopped)
           missed.push(JSON.stringify({ case_id: c.case_id, category: c.category, verdict: d.verdict, rules }));
       }
