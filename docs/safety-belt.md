@@ -68,6 +68,17 @@ The rules are the same in every way of working; the way of working on the strip 
 - **A safety net turns a question into an undoable step** in Autonomous and full autonomy (below): with what the call takes away kept first, it runs.
 - `mode-code belt test --level autonomous --command "git reset --hard"` shows what a way of working decides; `mode-code belt rules` lists each rule's verdict in Manual.
 
+## Fewer false alarms
+
+Measured on real sessions (the decision table's baseline), four kinds of question were the belt's own mistakes, now answered by what code can check:
+
+- **A branch already merged** into the current one (`git branch -D old`): no commit is lost, so it is a note at every level, not a question.
+- **A folder this session made** (a new file it wrote, a folder its `mkdir` made) is its own to remove, at every level: deleting it outside the project is not asked.
+- **The home folder of a system user** (`/root` for an agent that runs as root in a container) is the person's own, as any home folder: its insides follow the ordinary rules; the folder itself and the system's own stay critical.
+- **A test's own data** (its `test`, `spec`, `fixtures`, `mocks` folders, a file named `a.test.ts` or `a_test.go`): a token shaped like a real one there is no note when written; staging it for a commit is still checked.
+
+A verdict you gave a rule holds over all four.
+
 ## Safety net
 
 Some risky calls take away only what can be kept first. In Autonomous and full autonomy the belt lets them through once it is kept; Manual asks as before. The safety-net hook keeps it, in a process of its own, before the call runs (`src/core/net.ts`, `src/node/net.ts`), and the activity says what was kept and how to put it back.

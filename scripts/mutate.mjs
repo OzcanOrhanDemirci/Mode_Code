@@ -33,6 +33,7 @@ const TARGETS = {
     'test/corpus/unix-home.test.ts',
   ],
   'src/core/belt/protect.ts': [
+    'test/core/belt-refine.test.ts',
     'test/protection/spellings.test.ts',
     'test/corpus/unix-home.test.ts',
     'test/corpus/everyday.test.ts',
@@ -48,6 +49,7 @@ const TARGETS = {
     'test/core/belt-net.test.ts',
     'test/core/belt-evidence.test.ts',
     'test/core/belt-request.test.ts',
+    'test/core/belt-refine.test.ts',
     'test/corpus/automation-parity.test.ts',
     'test/protection/spellings.test.ts',
   ],
@@ -59,6 +61,7 @@ const TARGETS = {
     'test/core/belt-net.test.ts',
     'test/core/belt-evidence.test.ts',
     'test/core/belt-request.test.ts',
+    'test/core/belt-refine.test.ts',
     'test/core/config.test.ts',
   ],
   'src/core/keywords.ts': [
@@ -116,7 +119,12 @@ const TARGETS = {
   // The safety net: what is kept before a call, read back, and the steps back.
   'src/core/net.ts': ['test/core/net.test.ts'],
   // Where what a call acts on came from: the person's words, the start record, what was read from outside.
-  'src/core/provenance.ts': ['test/core/provenance.test.ts', 'test/core/belt-evidence.test.ts', 'test/core/belt-request.test.ts'],
+  'src/core/provenance.ts': [
+    'test/core/provenance.test.ts',
+    'test/core/belt-evidence.test.ts',
+    'test/core/belt-request.test.ts',
+    'test/core/belt-refine.test.ts',
+  ],
   'src/core/config-words.ts': ['test/core/config-words.test.ts', 'test/doctor/render.test.ts'],
   'src/core/packs.ts': ['test/core/packs.test.ts'],
   'src/core/skills.ts': ['test/core/skills.test.ts'],

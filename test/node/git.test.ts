@@ -264,3 +264,20 @@ test('Windows: no program is taken from the working folder, git or any other', {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('which branches are merged into the current one: deleting them loses no commit', { skip: !hasGit && 'git is not installed' }, async () => {
+  const repo = mkdtempSync(join(tmpdir(), 'tc-merged-'));
+  try {
+    run(repo, 'init', '-q', '-b', 'main');
+    run(repo, '-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-q', '--allow-empty', '-m', 'one');
+    run(repo, 'branch', 'old');
+    run(repo, 'switch', '-q', '-c', 'ahead');
+    run(repo, '-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-q', '--allow-empty', '-m', 'two');
+    run(repo, 'switch', '-q', 'main');
+    const f = gitFacts();
+    assert.deepEqual([await f.merged!(repo, 'old'), await f.merged!(repo, 'ahead'), await f.merged!(repo, 'nope')], [true, false, false]);
+    assert.equal(await gitFacts().merged!(join(repo, 'not-a-repo'), 'old'), null);
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});

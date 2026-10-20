@@ -456,6 +456,14 @@
       "line": "paths: readonly string[]; copy?: true }",
       "kind": "equivalent",
       "why": "a type's literal, erased before anything runs"
+    },
+    {
+      "file": "src/core/belt/evaluate.ts",
+      "from": ">",
+      "to": ">=",
+      "line": "ACT_ORDER[decided] > ACT_ORDER[f.atMost]",
+      "kind": "equivalent",
+      "why": "equal, the act it would take is the act it has"
     }
   ]
 }

@@ -11,6 +11,8 @@ export interface FakeGit {
   branch?: string | null;
   remote?: string | null;
   aliases?: Record<string, string>;
+  /** The branches merged into the current one. */
+  merged?: string[];
 }
 
 export function fakeGit(o: FakeGit = {}): GitFacts {
@@ -18,6 +20,7 @@ export function fakeGit(o: FakeGit = {}): GitFacts {
     currentBranch: async () => (o.branch === undefined ? 'feature' : o.branch),
     remoteUrl: async () => (o.remote === undefined ? 'https://github.com/ada/app.git' : o.remote),
     alias: async (_d, name) => o.aliases?.[name] ?? null,
+    merged: async (_d, branch) => (o.merged ? o.merged.includes(branch) : null),
   };
 }
 

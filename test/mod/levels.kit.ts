@@ -5,7 +5,7 @@
  * is in memory (see world.ts).
  */
 import { test, expect } from 'claude-code/testing';
-import { DATA, PROJECT, SESSION, world } from './world.ts';
+import { DATA, HOME, PROJECT, SESSION, world } from './world.ts';
 
 const check = ($: any, input: object, id = 'toolu_c') => ($.tool as any).check({ tool: 'Edit', input, tool_use_id: id }) as Promise<any>;
 const style = ($: any, n: '7' | '8') => $.command.run({ command: n, args: '' } as any);
@@ -131,4 +131,16 @@ test('full autonomy: a step the person clearly asked for goes on once Claude quo
   // Their next message: the request is done with.
   await $.prompt.submit({ text: 'Thanks, now the docs.', wait: false, origin: { kind: 'composer' } } as any);
   expect(String((await call('toolu_r6')).deny)).toMatch(/Left to the user|leave this step for the user/i);
+});
+
+test('a folder this session made is its own to remove; one it did not make is asked', async ($, on) => {
+  const w = world(on, { answer: 'block' });
+  w.write(`${HOME}/elsewhere/old.txt`, 'kept');
+  await $.tool.call({ tool: 'Write', file_path: `${HOME}/scratch/a.txt`, content: 'tmp', tool_use_id: 'toolu_m1' } as any);
+  expect(w.json(`${DATA}/state/sessions/${SESSION}.prov.json`).made).toEqual([`${HOME}/scratch/a.txt`.toLowerCase()]);
+  const before = w.asked.length;
+  expect(((await $.tool.call({ tool: 'Bash', command: `rm -rf ${HOME}/scratch/a.txt`, tool_use_id: 'toolu_m2' } as any)) as any).deny).toBeUndefined();
+  expect(w.asked.length).toBe(before);
+  await $.tool.call({ tool: 'Bash', command: `rm -rf ${HOME}/elsewhere`, tool_use_id: 'toolu_m3' } as any);
+  expect(w.asked.length).toBe(before + 1);
 });

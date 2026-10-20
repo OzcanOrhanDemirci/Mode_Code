@@ -7,7 +7,7 @@ import { tIn } from '../i18n/index.js';
 import { visibleText } from '../text.js';
 import { checkCommand, checkFileTool, checkOutward } from './check.js';
 import { ACT_ORDER, effectiveAct, evidenceAct, netAct, requestAct, RULES, VERDICT_OF } from './rules.js';
-import { carriesOutside, grantedUnit, unitOrigin } from '../provenance.js';
+import { carriesOutside, grantedUnit, madeHere, unitOrigin } from '../provenance.js';
 import { isFileTool, isOutwardTool, shellOf } from './tools.js';
 import type { BeltContext, BeltDecision, Finding, Verdict } from './types.js';
 
@@ -65,8 +65,13 @@ export function decide(raw: readonly Finding[], issues: readonly string[], ctx: 
     // A call a safety net can make undoable is decided as with the net; the net is then the caller's to lay.
     const withNet = byEvidence === null && byRequest === null && netReady ? netAct(f.rule, level, ctx.config) : null;
     const stopped = origin === 'content' && effectiveAct(f.rule, level, ctx.config) !== null;
-    const act = stopped ? 'stop' : (byEvidence ?? byRequest ?? withNet ?? effectiveAct(f.rule, level, ctx.config));
-    if (!stopped && f.net && ((byEvidence !== null && RULES[f.rule].evidence?.withNet) || withNet !== null)) nets.push({ rule: f.rule, plan: f.net });
+    // What this session made is its own to remove, at every level (unless the person gave the rule a verdict).
+    const own =
+      !!RULES[f.rule].own && f.unit?.kind === 'path' && !!ctx.prov && !ctx.config.verdicts?.[f.rule] && f.unit.values.every((v) => madeHere(v, ctx.prov!));
+    const decided = own ? 'pass' : stopped ? 'stop' : (byEvidence ?? byRequest ?? withNet ?? effectiveAct(f.rule, level, ctx.config));
+    // An instance the check found harmless asks no more than it says, unless the person gave the rule a verdict.
+    const act = decided && f.atMost && !stopped && !ctx.config.verdicts?.[f.rule] && ACT_ORDER[decided] > ACT_ORDER[f.atMost] ? f.atMost : decided;
+    if (!own && !stopped && f.net && ((byEvidence !== null && RULES[f.rule].evidence?.withNet) || withNet !== null)) nets.push({ rule: f.rule, plan: f.net });
     if (!act || act === 'pass') continue;
     const key = f.rule + '\u0000' + f.reason;
     if (seen.has(key)) continue;

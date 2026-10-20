@@ -9,6 +9,10 @@
  * plugin and the hook decide from it alike.
  */
 
+import { analyzeCommand } from './shell/analyze.js';
+import { shellOf } from './belt/tools.js';
+import { resolvePath, type PathEnv } from './paths.js';
+
 /** What a call acts on, by kind; every value must be the person's for the call to stand on evidence. */
 export interface Unit {
   kind: 'host' | 'repo' | 'recipient' | 'path' | 'object' | 'text';
@@ -37,6 +41,8 @@ export interface Provenance {
   /** What the session read from outside: the units found in it, and a key per line, for text. */
   seen: string[];
   seenLines: string[];
+  /** The files and folders this session made (a Write of a new file, a mkdir): its own to remove. */
+  made: string[];
 }
 
 /** Where a unit came from: the person, the start record, what was read from outside, or nowhere known. */
@@ -47,7 +53,7 @@ export const PROV_SAID_CHARS = 8000;
 export const PROV_SEEN_MAX = 4000;
 
 export function emptyProvenance(): Provenance {
-  return { v: 1, granted: [], said: [], start: [], seen: [], seenLines: [] };
+  return { v: 1, granted: [], said: [], start: [], seen: [], seenLines: [], made: [] };
 }
 
 /** Whitespace as one space: a quote is the person's words, however Claude broke its lines. */
@@ -185,6 +191,42 @@ export function withSeen(p: Provenance, text: string): Provenance {
   return { ...p, seen, seenLines };
 }
 
+/** At most this many paths the session made are kept: the newest. */
+export const PROV_MADE_MAX = 2000;
+
+/** The record with paths the session made. */
+export function withMade(p: Provenance, paths: readonly string[]): Provenance {
+  const add = [...new Set(paths.map((x) => norm(x).replace(/\/+$/, '')))].filter((x) => x && !p.made.includes(x));
+  return add.length ? { ...p, made: [...p.made, ...add].slice(-PROV_MADE_MAX) } : p;
+}
+
+/**
+ * The files and folders a call that ran made: a Write of a file that was not there (`newFile`), the folders a
+ * `mkdir` (`md`, `New-Item -ItemType Directory`) names. Resolved against where the call ran.
+ */
+export function madePaths(tool: string, input: Readonly<Record<string, unknown>>, env: PathEnv, newFile: boolean): string[] {
+  if (tool === 'Write') return newFile && typeof input.file_path === 'string' ? [resolvePath(input.file_path, env)] : [];
+  const dialect = shellOf(tool);
+  if (!dialect) return [];
+  const out: string[] = [];
+  for (const inv of analyzeCommand(String(input.command ?? ''), dialect).invocations) {
+    const dirItem = inv.program === 'new-item' && inv.args.some((a, i) => /^-itemtype$/i.test(inv.args[i - 1] ?? '') && /^directory$/i.test(a));
+    if (inv.program !== 'mkdir' && inv.program !== 'md' && !dirItem) continue;
+    inv.args.forEach((a, i) => {
+      if (a.startsWith('-') || inv.dynamic[i]) return;
+      if (dirItem && !/^-(?:path|name)$/i.test(inv.args[i - 1] ?? '')) return;
+      out.push(resolvePath(a, env));
+    });
+  }
+  return out;
+}
+
+/** Whether a path is one the session made, or inside one. */
+export function madeHere(path: string, p: Provenance): boolean {
+  const v = norm(path).replace(/\/+$/, '');
+  return p.made.some((m) => v === m || v.startsWith(`${m}/`));
+}
+
 /** The record with the session's start: the project's remotes as `git remote -v` lists them. */
 export function withStart(p: Provenance, remotes: string): Provenance {
   return { ...p, start: [...new Set([...p.start, ...unitsIn(remotes)])] };
@@ -209,6 +251,7 @@ export function parseProvenance(text: string | null): Provenance {
       start: strings(o.start, PROV_SEEN_MAX),
       seen: strings(o.seen, PROV_SEEN_MAX),
       seenLines: strings(o.seenLines, PROV_SEEN_MAX),
+      made: strings(o.made, PROV_MADE_MAX),
     };
   } catch {
     return emptyProvenance();

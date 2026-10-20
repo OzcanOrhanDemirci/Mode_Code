@@ -221,9 +221,10 @@ export function protectedPaths(ctx: BeltContext): ProtectedPaths {
     critical: same(critical),
     systemDirs: system,
     // A place counts as the person's own only when it is not itself an operating system folder (a session
-    // started in /usr does not make /usr a project whose insides may be deleted).
+    // started in /usr does not make /usr a project whose insides may be deleted). The home folder is theirs even
+    // where it is one (`/root` for an agent that runs as root in a container): its insides are their work.
     ownRoots: same([home, project, ...tempDirs, ...(ctx.knownProjects ?? []).map((p) => resolvePath(p, env))]).filter(
-      (r) => !isRoot(r) && !system.some((d) => isUnder(d, r, ctx.platform)),
+      (r) => !isRoot(r) && (pathKey(r, ctx.platform) === pathKey(home, ctx.platform) || !system.some((d) => isUnder(d, r, ctx.platform))),
     ),
     claudeConfig: same(claudeConfig),
     // The person's global instructions (CLAUDE.md in Claude Code's folder) count as configuration a project changes now and then.

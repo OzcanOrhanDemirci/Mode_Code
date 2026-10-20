@@ -130,5 +130,6 @@ test('a record read back; anything else is an empty one', () => {
     start: [],
     seen: [],
     seenLines: [],
+    made: [],
   });
 });

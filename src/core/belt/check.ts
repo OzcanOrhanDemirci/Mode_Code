@@ -224,6 +224,8 @@ function checkDelete(t: Target, recursive: boolean, s: Scope): void {
   if (!recursive || insideAProject(t.path, project, ctx, paths)) return;
   if (homeIsProject(project, ctx, paths)) add(s, 'fs.delete-outside-project', 'belt.reason.deleteOutsideProjects', { target: show(t.path) }, pathsNet(t));
   else add(s, 'fs.delete-outside-project', 'belt.reason.deleteOutside', { target: show(t.path), project: show(project) }, pathsNet(t));
+  // The path, for whether this session made it (src/core/provenance.ts).
+  if (!(t.glob && /[*?[]/.test(t.path))) actsOn(s, { kind: 'path', values: [t.path] });
 }
 
 /** A session started in the home folder (or above it) has no project of its own: the home folder is not one. */
@@ -281,6 +283,10 @@ function checkWrite(t: Target, kind: WriteKind, s: Scope): void {
   }
   if (CHECK_CONFIG.test(p.split('/').pop() ?? '')) add(s, 'quality.check-config', 'belt.reason.checkConfig', { target: show(p) });
 }
+
+/** A test's own files: its folders (test, spec, fixtures, mocks) and files named for it (`a.test.ts`, `a_test.go`). */
+const TEST_DATA =
+  /(?:^|\/)(?:tests?|__tests__|specs?|fixtures?|__fixtures__|testdata|test-data|mocks?|__mocks__)\/|[._-](?:test|spec)\.[A-Za-z0-9]+$|_test\.go$/i;
 
 /** The settings of a project's linters and formatters, by file name (ESLint, Prettier, Biome, Dart, Stylelint, Ruff, …). */
 const CHECK_CONFIG =
@@ -722,6 +728,13 @@ async function checkGit(inv: Invocation, ws: Word[], cwd: string | null, s: Scop
           { command: show(inv.raw) },
           refsNet,
         );
+        // Branches already merged into the current one lose no commit: cleaning them up is a note, not a question.
+        const names = a.filter((x) => !x.startsWith('-'));
+        if (!inMemory && dir !== null && names.length && ctx.git?.merged) {
+          const merged = await Promise.all(names.map((n) => ctx.git!.merged!(dir, n)));
+          const f = s.findings.at(-1);
+          if (f && merged.every((m) => m === true)) f.atMost = 'note';
+        }
         break;
       }
       const creating = a.length > 0 && !a[0]!.startsWith('-');
@@ -1577,8 +1590,9 @@ export async function checkFileTool(tool: string, filePath: string, input: FileT
   const texts = [input.content ?? '', ...(input.edits ?? []).map((e) => e.newText)].join('\n');
   if (/"?(?:disableAllHooks|allowManagedHooksOnly)"?\s*:\s*true/i.test(texts))
     add(s, 'self.disable-hooks', 'belt.reason.disableHooks', { command: show(filePath) });
-  // A secret belongs in a secret store (.env, a key file), not in source, notes or memory.
-  if (t.path && !SECRET_FILE.test(t.path.split('/').pop() ?? '')) {
+  // A secret belongs in a secret store (.env, a key file), not in source, notes or memory. A test's own data is made up
+  // (a token shaped like one, to test the code that reads it): no note there; staging it is still checked.
+  if (t.path && !SECRET_FILE.test(t.path.split('/').pop() ?? '') && !TEST_DATA.test(t.path)) {
     const kinds = [
       ...new Set(
         scanSecrets(texts)
