@@ -74,3 +74,75 @@ test('a folder not made yet is no failure, and a refresh still waiting when it s
     done();
   }
 });
+
+test('the store keeps what it read for a moment, reads again on a refresh, and saves a change with its record', async () => {
+  const { data, done } = fresh((l) => [l.stateDir, l.eventsDir]);
+  try {
+    const first = data.events(1);
+    assert.equal(data.events(1), first, 'kept for a moment');
+    data.refresh();
+    assert.notEqual(data.events(1), first, 'read again after a refresh');
+    assert.deepEqual(data.setConfig('view', 'detailed'), []);
+    assert.equal(data.config().view, 'detailed');
+    assert.deepEqual(
+      data.changes().map((c) => [c.path, c.from, c.to, c.who]),
+      [['view', 'recommended', 'detailed', 'center']],
+    );
+    assert.ok(data.setConfig('view', 'everything').length > 0, 'a value the setting does not take is refused');
+    assert.equal(data.config().view, 'detailed');
+    assert.equal(data.lastSeen(), null);
+    data.markSeen(1234);
+    assert.equal(data.lastSeen(), 1234);
+  } finally {
+    data.close();
+    done();
+  }
+});
+
+test('the session index opens on first need and catches up on a refresh; one that cannot open is asked no more', async () => {
+  const claude = mkdtempSync(join(tmpdir(), 'mc-claude-'));
+  mkdirSync(join(claude, 'projects'), { recursive: true });
+  const was = process.env.CLAUDE_CONFIG_DIR;
+  process.env.CLAUDE_CONFIG_DIR = claude;
+  const { l, data, done } = fresh((l) => [l.stateDir]);
+  // Where the index would be is a folder: it cannot open there.
+  const { l: l2, data: broken, done: done2 } = fresh((l) => [l.stateDir]);
+  mkdirSync(l2.index, { recursive: true });
+  try {
+    assert.deepEqual(data.sessions({}), []);
+    assert.equal(data.session('none'), null);
+    assert.equal(data.totals(1)?.messages ?? 0, 0);
+    data.refresh();
+    assert.deepEqual(data.sessions({}), [], 'read again, the index brought up to date');
+    // A setting of the memory puts the plugin's kept skills in line (docs/skills.md).
+    assert.deepEqual(data.setConfig('memory.dirs', [l.root]), []);
+    assert.deepEqual(data.config().memory.dirs, [l.root]);
+    assert.deepEqual(broken.sessions({}), []);
+    assert.equal(broken.totals(1), null);
+    broken.refresh();
+    assert.equal(broken.session('none'), null, 'no index, asked once');
+  } finally {
+    if (was === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+    else process.env.CLAUDE_CONFIG_DIR = was;
+    data.close();
+    broken.close();
+    done();
+    done2();
+    rmSync(claude, { recursive: true, force: true });
+  }
+});
+
+test('what cannot be written is no failure: the last look stays unsaved, the kept skills wait for the next session', () => {
+  const { l, data, done } = fresh((l) => [l.stateDir, join(l.stateDir, 'ui.json'), l.pluginDir]);
+  // Where the skills go is a file, and where the last look goes a folder.
+  writeFileSync(join(l.pluginDir, 'skills'), '');
+  try {
+    data.markSeen(1234);
+    assert.equal(data.lastSeen(), null);
+    assert.deepEqual(data.setConfig('memory.dirs', [l.root]), [], 'the setting is saved all the same');
+    assert.deepEqual(data.config().memory.dirs, [l.root]);
+  } finally {
+    data.close();
+    done();
+  }
+});
