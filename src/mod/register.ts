@@ -44,7 +44,7 @@ import {
 } from '../core/agents.js';
 import { APP_ID, APP_NAME, APP_VERSION, CLI_NAME, DATA_DIR_NAME, PLUGIN_NAME } from '../core/app.js';
 import { parseConfig, serializeConfig, setConfigValue, type Config } from '../core/config.js';
-import { layout, sessionFile, eventsFile, flowDir, memorySeenFile, memorySyncFile, syncRecordFile, type Layout } from '../core/layout.js';
+import { layout, sessionFile, eventsFile, flowDir, memorySeenFile, memorySyncFile, provFile, syncRecordFile, type Layout } from '../core/layout.js';
 import { SYNC_MAX_BYTES, syncCommitMessage, type Pending } from '../core/sync.js';
 import { exportMachine, parseSharedRecord, settingsInEffect, syncDue, type SharedRecord, type SyncFs } from '../core/sync-export.js';
 import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform } from '../core/paths.js';
@@ -67,7 +67,8 @@ import type { RuleId } from '../core/belt/types.js';
 import { claudeHost } from './kit-host.js';
 import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
 import { beltOffForDevelopment } from '../core/dev-switch.js';
-import { taintedAct, taintSource, withoutInvisible } from '../core/taint.js';
+import { taintedAct, taintMatters, taintSource, withoutInvisible } from '../core/taint.js';
+import { parseProvenance, typedText, withSaid, withSeen, withStart, type Provenance } from '../core/provenance.js';
 import { shellReadTool, shellTrap, wholeRead } from '../core/hygiene.js';
 import { gitSubcommands } from '../core/measure.js';
 import {
@@ -288,6 +289,10 @@ interface Ctx {
   leftThisTurn: number;
   /** The safety-net hook has run in this session: it lays the safety nets (src/core/net.ts), so the belt may count on them. */
   hookSeen: boolean;
+  /** Where things came from in this session (src/core/provenance.ts); null until read from its file. */
+  prov: Provenance | null;
+  /** What the person pasted into the prompt box since their last prompt: not their own words. */
+  pastes: string[];
   // ── memory (docs/memory.md) ──
   /** When this session's context was loaded: the commits of the session are counted from here. */
   startedAt: number;
@@ -558,6 +563,8 @@ async function load($: $): Promise<Ctx> {
     flow: flow && isOpen(flow) ? flow : null,
     leftThisTurn: 0,
     hookSeen: false,
+    prov: null,
+    pastes: [],
     startedAt: now,
     prompts: 0,
     lastPrompt: null,
@@ -866,6 +873,29 @@ async function aliasesFor($: $, c: Ctx, cwd: string): Promise<PathAlias[]> {
   return list;
 }
 
+/** The session's record of where things came from, read once from its file. */
+async function provOf($: $, c: Ctx): Promise<Provenance> {
+  if (!c.prov) {
+    const path = provFile(c.layout, c.sessionId);
+    c.prov = parseProvenance(path ? await readFile($, path) : null);
+  }
+  return c.prov;
+}
+
+/** Changes the record and writes it, for the hook to read before the next call. */
+async function saveProv($: $, c: Ctx, change: (p: Provenance) => Provenance): Promise<void> {
+  const before = await provOf($, c);
+  const after = change(before);
+  if (after === before) return;
+  c.prov = after;
+  const path = provFile(c.layout, c.sessionId);
+  try {
+    if (path) await $.fs.write(path, JSON.stringify(after) + '\n');
+  } catch {
+    /* without the file the hook decides without evidence: it asks */
+  }
+}
+
 /**
  * Whether the safety-net hook runs in this session (it records the session the first time it sees it): only then is
  * a call let through on the strength of a safety net, which the hook lays before the call runs.
@@ -898,6 +928,7 @@ async function beltContextFor($: $, c: Ctx): Promise<BeltContext> {
     config: beltConfigOf(c.config),
     level: levelOf(c.state.interaction),
     net: await hookSeen($, c),
+    prov: await provOf($, c),
     git: await gitFactsFor($),
     fileSize: (p) => statSize($, p),
     aliases: await aliasesFor($, c, cwd),
@@ -1793,7 +1824,12 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   const ctx = await beltContextFor($, c);
   let d = await evaluateToolCall(tool, input, ctx);
   // Outside content was read in this session: what an instruction hidden in it would ask for is asked (src/core/taint.ts).
-  const tainted = c.state.tainted ? taintedAct(tool, input, { ...pathEnv(c, cwd), memoryDirs: ctx.memoryDirs }) : null;
+  const found = c.state.tainted ? taintedAct(tool, input, { ...pathEnv(c, cwd), memoryDirs: ctx.memoryDirs }) : null;
+  // What a call writes or sends, by where it came from: only what the session read from outside, or a host nobody named, asks.
+  const written = [input.content, input.new_string, ...(Array.isArray(input.edits) ? input.edits.map((x) => (x as { new_string?: unknown })?.new_string) : [])]
+    .filter((x): x is string => typeof x === 'string')
+    .join('\n');
+  const tainted = found && taintMatters(found, written, await provOf($, c)) ? found : null;
   if (tainted && c.state.tainted) {
     const act = tIn(c.lang, `belt.tainted.${tainted.act}` as MessageKey);
     const reason = tIn(c.lang, 'belt.reason.tainted', { source: c.state.tainted.source, act, what: truncate(maskSecrets(tainted.what), 160) });
@@ -1928,6 +1964,7 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   // Outside content that hides text in characters nobody sees (instructions spelled in Unicode tags, reversed text):
   // the model reads it without them, and is told how many were taken out.
   if (result.deny === undefined && typeof result.text === 'string' && taintSource(tool, input)) {
+    await saveProv($, c, (p) => withSeen(p, String(result.text)));
     const clean = withoutInvisible(result.text);
     if (clean.removed) {
       await logEvent($, c, { kind: 'invisible', tool, removed: clean.removed });
@@ -1997,6 +2034,14 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
     c.boundary = null;
     c.prompts++;
     if (kind !== 'plugin') c.lastPrompt = maskSecrets(String(e.text ?? '')).slice(0, 2000);
+    // What the person wrote is their evidence for what a call acts on; what they pasted is not (src/core/provenance.ts).
+    if (kind !== 'plugin') {
+      const pastes = c.pastes.splice(0);
+      const first = (await provOf($, c)).start.length === 0 && (await provOf($, c)).said.length === 0;
+      const listed = first ? await gitIn($, await $.session.cwd(), ['remote', '-v'], 5000) : null;
+      const remotes = listed?.ok ? listed.out : null;
+      await saveProv($, c, (p) => withSaid(remotes ? withStart(p, remotes) : p, typedText(String(e.text ?? ''), pastes)));
+    }
     await refreshConfig($, c);
     await syncPermissionMode($, c);
     // A mode given for one turn ends with it.
@@ -5185,6 +5230,12 @@ export function register(on: On): void {
   on('session.start', onSessionStart);
   on('tool.call', onToolCallWithMo).catch(refuseToolCall);
   on('prompt.submit', onPromptSubmit);
+  // A paste into the prompt box (an edit no key made, long or across lines): not the person's own words.
+  on('prompt.edit', async ($, e, next) => {
+    const text = e.inputText;
+    if (!e.key && text && (text.length >= 20 || text.includes('\n'))) (await ctxOf($)).pastes.push(text);
+    return next(e);
+  }).catch(($, e, next) => next(e));
   on('session.measure', onMeasure);
   on('turn.complete', onTurnComplete);
   on('classic.StopFailure', onStopFailure);

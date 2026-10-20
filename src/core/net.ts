@@ -20,8 +20,8 @@ export type NetPlan =
   | { kind: 'remote'; repo: string; remote: string; branch: string }
   /** The untracked files `git clean`, with these arguments, would remove. */
   | { kind: 'untracked'; repo: string; args: readonly string[] }
-  /** Files and folders a delete would remove. */
-  | { kind: 'paths'; paths: readonly string[] };
+  /** Files and folders a delete would remove; `copy` for a file the call writes over, which a hard link would follow. */
+  | { kind: 'paths'; paths: readonly string[]; copy?: true };
 
 /** A file or folder kept: where it was, and its copy in the net's own folder. */
 export interface KeptFile {

@@ -18,6 +18,7 @@ import { hitsCritical, protectedPaths, under, claudeDir, type ProtectedPaths } f
 import { isProtectedBranch, looksLikeUrl, parseGit, planPush, remoteMatches } from './git.js';
 import type { BeltContext, Finding, RuleId } from './types.js';
 import type { NetPlan } from '../net.js';
+import type { Unit } from '../provenance.js';
 
 /** Issues that hide what runs: always worth asking about. */
 const STRONG_UNCERTAIN = new Set(['eval-dynamic', 'encoded-command-undecodable', 'dynamic-shell-code', 'too-deep', 'stdin-code']);
@@ -98,6 +99,13 @@ function say(s: Scope, key: MessageKey, params?: Record<string, string | number>
 /** A finding; `net` names what a safety net would keep before the call, where the check knows it. */
 function add(s: Scope, rule: RuleId, key: MessageKey, params?: Record<string, string | number>, net?: NetPlan): void {
   s.findings.push({ rule, verdict: 'deny', reason: say(s, key, params), ...(net ? { net } : {}) }); // verdict is set from the catalog later
+}
+
+/** Names what the last finding added acts on, for the evidence that it is the person's (src/core/provenance.ts). */
+function actsOn(s: Scope, unit: Unit | undefined, net?: NetPlan): void {
+  const f = s.findings.at(-1);
+  if (f && unit && unit.values.every((v) => v.trim())) f.unit = unit;
+  if (f && net) f.net = net;
 }
 
 /** What a delete would remove, kept whole: a named path, never a pattern still to be matched. */
@@ -190,6 +198,8 @@ function checkDelete(t: Target, recursive: boolean, s: Scope): void {
   const mem = under(t.path, paths.memoryDirs, ctx.platform);
   if (mem) {
     add(s, 'self.memory-delete', 'belt.reason.deleteMemory', { target: show(t.path) });
+    // The file by its name, as the person would say it; kept first (the memory's own git history aside).
+    actsOn(s, { kind: 'object', values: [t.path.split('/').pop() ?? ''] }, pathsNet(t));
     return;
   }
   if (under(t.path, paths.toolDirs, ctx.platform)) {
@@ -265,8 +275,10 @@ function checkWrite(t: Target, kind: WriteKind, s: Scope): void {
   if (under(p, [paths.sshDir], ctx.platform)) return add(s, 'persist.ssh', 'belt.reason.ssh', { target: show(p) });
   if (under(p, paths.startupDirs, ctx.platform)) return add(s, 'persist.startup', 'belt.reason.startup', { target: show(p) });
   if (paths.shellProfiles(p)) return add(s, 'persist.shell-profile', 'belt.reason.shellProfile', { target: show(p) });
-  if (under(p, paths.memoryDirs, ctx.platform) && (kind === 'truncate' || kind === 'replace'))
+  if (under(p, paths.memoryDirs, ctx.platform) && (kind === 'truncate' || kind === 'replace')) {
     add(s, 'self.memory-shrink', 'belt.reason.memoryOverwrite', { target: show(p) });
+    actsOn(s, { kind: 'object', values: [p.split('/').pop() ?? ''] }, { kind: 'paths', paths: [p], copy: true });
+  }
   if (CHECK_CONFIG.test(p.split('/').pop() ?? '')) add(s, 'quality.check-config', 'belt.reason.checkConfig', { target: show(p) });
 }
 
@@ -651,7 +663,18 @@ async function checkGit(inv: Invocation, ws: Word[], cwd: string | null, s: Scop
   }
   const dir = call.dir === null ? null : paths.canonical(call.dir);
   const inMemory = dir !== null && under(dir, paths.memoryDirs, ctx.platform) !== null;
-  for (const kv of call.config) if (/^core\.hookspath=/i.test(kv)) add(s, 'git.hooks-path', 'belt.reason.hooksPath', { command: show(inv.raw) });
+  // A hooks path inside the project, named by the person (a husky setup), stands on that evidence.
+  const hooksUnit = (value: string | undefined): Unit | undefined => {
+    if (!value || dir === null) return undefined;
+    const project = paths.canonical(resolvePath(ctx.projectDir, { platform: ctx.platform, home: ctx.home, cwd: ctx.cwd }));
+    const at = paths.canonical(resolvePath(value, { platform: ctx.platform, home: ctx.home, cwd: dir }));
+    return isUnder(at, project, ctx.platform) || pathKey(at, ctx.platform) === pathKey(project, ctx.platform) ? { kind: 'path', values: [value] } : undefined;
+  };
+  for (const kv of call.config)
+    if (/^core\.hookspath=/i.test(kv)) {
+      add(s, 'git.hooks-path', 'belt.reason.hooksPath', { command: show(inv.raw) });
+      actsOn(s, hooksUnit(kv.slice(kv.indexOf('=') + 1)));
+    }
   const a = call.args;
   const has = (...flags: string[]) => a.some((x) => flags.includes(x));
   const protectedBranches = cfg.protectedBranches?.length ? cfg.protectedBranches : ['main', 'master'];
@@ -784,8 +807,10 @@ async function checkGit(inv: Invocation, ws: Word[], cwd: string | null, s: Scop
       break;
     case 'config': {
       const i = a.findIndex((x) => /^core\.hookspath$/i.test(x));
-      if (i !== -1 && !has('--get', '--get-all', '-l', '--list', '--show-origin'))
+      if (i !== -1 && !has('--get', '--get-all', '-l', '--list', '--show-origin')) {
         add(s, 'git.hooks-path', 'belt.reason.hooksPath', { command: show(inv.raw) });
+        actsOn(s, hooksUnit(a[i + 1]));
+      }
       break;
     }
     case 'commit':
@@ -1336,7 +1361,12 @@ function checkGitHub(inv: Invocation, s: Scope): void {
     (w[0] === 'repo' && w[1] === 'archive') ||
     (['release', 'secret', 'variable', 'label', 'gist'].includes(w[0] ?? '') && /^(?:delete|delete-asset|remove)$/.test(w[1] ?? '')) ||
     (w[0] === 'api' && optionValues(inv.args, ['-X'], ['--method']).some((m) => m.toUpperCase() === 'DELETE'));
-  if (deletes) add(s, 'github.delete', 'belt.reason.githubDelete', { command: raw });
+  if (deletes) {
+    add(s, 'github.delete', 'belt.reason.githubDelete', { command: raw });
+    // The thing deleted, as named in the call: a release's tag, a secret's name, a repository, an API path.
+    const named = w[0] === 'api' ? inv.args.slice(1).find((x) => !x.startsWith('-') && x.includes('/')) : inv.args.filter((x) => !x.startsWith('-'))[2];
+    actsOn(s, named ? { kind: w[0] === 'repo' ? 'repo' : 'object', values: [named] } : undefined);
+  }
 }
 
 /** What a payment is made of, in a payment service's words (Stripe's resources, its MCP tools' names). */
@@ -1344,6 +1374,27 @@ const PAY_RESOURCE = /^(?:charges?|payment_intents?|refunds?|payouts?|transfers?
 const PAY_TOOL =
   /(?:^|_)(?:charges?|payments?|payment_intents?|refunds?|payouts?|transfers?|invoices?|subscriptions?|checkout|payment_links?|purchases?)(?:_|$)/;
 const PAY_ACT = /(?:^|_)(?:create|update|confirm|capture|cancel|pay|finalize|void|send|refund|purchase|buy)(?:_|$)/;
+
+/** A connected service's fields that name who receives: addresses, channels, people. */
+const RECIPIENT = /^(?:to|cc|bcc|recipients?|emails?|attendees|invitees|users?|channels?|channel_(?:id|name)|chat_id|phone(?:_number)?|address(?:es)?)$/i;
+/** Fields that name the thing a call acts on, readably; failing those, by its id. */
+const NAMED = /^(?:name|title|subject|path|file(?:name)?|summary)$/i;
+const IDENTIFIED = /^(?:id|\w+_id|\w+Id)$/;
+
+/** The string values of a call's fields whose key matches (and not `except`), nested ones and lists too. */
+function fieldValues(input: unknown, key: RegExp, except?: RegExp, depth = 0): string[] {
+  if (depth > 4 || !input || typeof input !== 'object') return [];
+  const out: string[] = [];
+  for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
+    if (except?.test(k)) continue;
+    const vals = Array.isArray(v) ? v : [v];
+    for (const x of vals) {
+      if (typeof x === 'string' && key.test(k)) out.push(x);
+      else if (x && typeof x === 'object') out.push(...fieldValues(x, key.test(k) ? /^(?:email|address|id|name|value)$/i : key, except, depth + 1));
+    }
+  }
+  return out;
+}
 
 /** Verbs of a connected service's tool that reach other people. */
 const OUT_SEND = new Set(['send', 'reply', 'forward', 'share', 'invite', 'respond', 'post', 'publish']);
@@ -1364,8 +1415,19 @@ export function checkOutward(tool: string, input: Readonly<Record<string, unknow
   const event = verbs.includes('event') && verbs.some((v) => v === 'create' || v === 'update' || v === 'delete');
   // A payment through a connected service (a charge, a refund, a subscription): always the person's.
   if (PAY_TOOL.test(action) && PAY_ACT.test(action)) add(s, 'outbound.payment', 'belt.reason.payment', { what: tool });
-  if (event || verbs.some((v) => OUT_SEND.has(v))) add(s, 'outbound.send', 'belt.reason.outboundSend', { tool });
-  else if (verbs.some((v) => OUT_DELETE.has(v))) add(s, 'outbound.delete', 'belt.reason.outboundDelete', { tool });
+  if (event || verbs.some((v) => OUT_SEND.has(v))) {
+    add(s, 'outbound.send', 'belt.reason.outboundSend', { tool });
+    const to = fieldValues(input, RECIPIENT);
+    actsOn(s, to.length ? { kind: 'recipient', values: to } : undefined);
+    // What it carries: read from outside, it is not the person's message, whoever receives it.
+    const f = s.findings.at(-1);
+    if (f) f.carries = fieldValues(input, /./, RECIPIENT).join('\n');
+  } else if (verbs.some((v) => OUT_DELETE.has(v))) {
+    add(s, 'outbound.delete', 'belt.reason.outboundDelete', { tool });
+    const named = fieldValues(input, NAMED);
+    const what = named.length ? named : fieldValues(input, IDENTIFIED);
+    actsOn(s, what.length ? { kind: 'object', values: what } : undefined);
+  }
   if (OUT_WRITE.test(action)) {
     let text = '';
     try {
@@ -1488,6 +1550,10 @@ async function evaluateScript(command: string, dialect: Dialect, s: Scope, start
 export async function checkCommand(command: string, dialect: Dialect, ctx: BeltContext): Promise<{ findings: Finding[]; issues: string[] }> {
   const s: Scope = { ctx, paths: protectedPaths(ctx), findings: [], inline: false };
   await evaluateScript(command, dialect, s, ctx.cwd);
+  // What starts by itself is decided by the command that sets it up, word for word the person's or not.
+  for (const f of s.findings)
+    if (!f.unit && (f.rule === 'persist.scheduled-task' || f.rule === 'persist.startup' || f.rule === 'persist.shell-profile'))
+      f.unit = { kind: 'text', values: [command.trim()] };
   return { findings: s.findings, issues: analyzeCommand(command, dialect).issues };
 }
 
@@ -1534,6 +1600,13 @@ export async function checkFileTool(tool: string, filePath: string, input: FileT
       const added = input.edits.reduce((n, e) => n + bytes(e.newText), 0);
       if (removed >= 1024 && added < removed * 0.5)
         add(s, 'self.memory-shrink', 'belt.reason.memoryShrink', { target: show(t.path), before: removed, after: added });
+    }
+  }
+  for (const f of s.findings) {
+    if ((f.rule === 'persist.startup' || f.rule === 'persist.shell-profile') && texts.trim()) f.unit = { kind: 'text', values: [texts.trim()] };
+    if (f.rule === 'self.memory-shrink' && t.path) {
+      f.unit = { kind: 'object', values: [t.path.split('/').pop() ?? ''] };
+      f.net = { kind: 'paths', paths: [t.path], copy: true };
     }
   }
   return s.findings;
