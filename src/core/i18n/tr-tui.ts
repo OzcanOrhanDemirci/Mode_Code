@@ -511,6 +511,8 @@ export const trTui: Record<keyof typeof enTui, string> = {
   'rulename.github.admin-merge': 'Zorunlu denetimleri atlayıp birleştirmek',
   'rulename.github.delete': "GitHub'da silmek",
   'rulename.outbound.send': 'Bir servisle göndermek ya da paylaşmak',
+  'rulename.outbound.network': 'Bilgisayardan dışarı gönderilen veri',
+  'rulename.persist.autorun': 'Daha yetkili bir şeyin sonra çalıştırdığı dosya',
   'rulename.outbound.delete': 'Bir serviste silmek',
   'rulename.secrets.exfil': 'Bir sırrı dışarı göndermek',
 

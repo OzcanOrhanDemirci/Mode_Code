@@ -522,6 +522,8 @@ export const enTui = {
   'rulename.github.admin-merge': 'Merge past required checks',
   'rulename.github.delete': 'Delete on GitHub',
   'rulename.outbound.send': 'Send or share through a service',
+  'rulename.outbound.network': 'Data sent off the computer',
+  'rulename.persist.autorun': 'A file something more trusted runs later',
   'rulename.outbound.delete': 'Delete in a service',
   'rulename.secrets.exfil': 'Send a secret out',
 

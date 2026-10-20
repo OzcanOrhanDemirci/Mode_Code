@@ -19,6 +19,7 @@ import { isProtectedBranch, looksLikeUrl, parseGit, planPush, remoteMatches } fr
 import type { BeltContext, Finding, RuleId } from './types.js';
 import type { NetPlan } from '../net.js';
 import type { Unit } from '../provenance.js';
+import { isLocalHost, sendHosts, sends } from '../taint.js';
 
 /** Issues that hide what runs: always worth asking about. */
 const STRONG_UNCERTAIN = new Set(['eval-dynamic', 'encoded-command-undecodable', 'dynamic-shell-code', 'too-deep', 'stdin-code']);
@@ -277,12 +278,26 @@ function checkWrite(t: Target, kind: WriteKind, s: Scope): void {
   if (under(p, [paths.sshDir], ctx.platform)) return add(s, 'persist.ssh', 'belt.reason.ssh', { target: show(p) });
   if (under(p, paths.startupDirs, ctx.platform)) return add(s, 'persist.startup', 'belt.reason.startup', { target: show(p) });
   if (paths.shellProfiles(p)) return add(s, 'persist.shell-profile', 'belt.reason.shellProfile', { target: show(p) });
+  if (AUTORUN.test(p)) return add(s, 'persist.autorun', 'belt.reason.autorun', { target: show(p) });
+  if (AUTORUN_WIDE.test(p)) {
+    add(s, 'persist.autorun', 'belt.reason.autorun', { target: show(p) });
+    const f = s.findings.at(-1);
+    if (f) f.atMost = 'note';
+    return;
+  }
   if (under(p, paths.memoryDirs, ctx.platform) && (kind === 'truncate' || kind === 'replace')) {
     add(s, 'self.memory-shrink', 'belt.reason.memoryOverwrite', { target: show(p) });
     actsOn(s, { kind: 'object', values: [p.split('/').pop() ?? ''] }, { kind: 'paths', paths: [p], copy: true });
   }
   if (CHECK_CONFIG.test(p.split('/').pop() ?? '')) add(s, 'quality.check-config', 'belt.reason.checkConfig', { target: show(p) });
 }
+
+/** What something more trusted runs later: git's hooks, husky's, direnv's `.envrc` (a launch agent is a startup entry). */
+const AUTORUN = /(?:^|\/)(?:\.git\/hooks\/[^/]+|\.husky\/[^/]+|\.envrc)$/i;
+/** The broad ring: an editor's tasks, a dev container, CI workflows: run later, by the person's own tools. A note. */
+const AUTORUN_WIDE = /(?:^|\/)(?:\.vscode\/tasks\.json|\.devcontainer\/[^/]+|\.github\/workflows\/[^/]+\.ya?ml)$/i;
+/** An npm script that runs on install: a package.json carrying one hands its trust to whoever installs. */
+const INSTALL_SCRIPT = /"(?:preinstall|install|postinstall|prepare|prepublish)"\s*:/;
 
 /** A test's own files: its folders (test, spec, fixtures, mocks) and files named for it (`a.test.ts`, `a_test.go`). */
 const TEST_DATA =
@@ -638,6 +653,8 @@ async function checkInvocation(inv: Invocation, cwd: string | null, s0: Scope, d
   checkData(inv, s);
   checkSecurityOff(inv, dialect, s);
   checkExfil(inv, ws, s);
+  checkNetwork(inv, s);
+  checkAgents(inv, s);
   if (p === 'gh') checkGitHub(inv, s);
 
   if (inv.inlineCode) await checkInlineCode(inv, cwd, s);
@@ -1363,6 +1380,34 @@ function checkPipedSecret(invs: readonly Invocation[], s: Scope): void {
   }
 }
 
+/**
+ * Data sent off the computer by a command: where it goes is the target, the person's own or not (src/core/provenance.ts).
+ * To this computer it does not leave; a host only known when it runs is asked as unknown.
+ */
+function checkNetwork(inv: Invocation, s: Scope): void {
+  if (!sends(inv.program, inv.args)) return;
+  // Deleting on GitHub through its API is its own rule (github.delete), not data sent.
+  if (inv.program === 'gh' && optionValues(inv.args, ['-X'], ['--method']).some((m) => m.toUpperCase() === 'DELETE')) return;
+  const all = sendHosts(inv.program, inv.args, inv.dynamic);
+  const hosts = all.filter((h) => !isLocalHost(h));
+  if (all.length && !hosts.length) return;
+  add(s, 'outbound.network', 'belt.reason.network', { command: show(inv.raw) });
+  actsOn(s, hosts.length ? { kind: 'host', values: hosts } : undefined);
+}
+
+/** Other agent programs started without their own approvals: a session the belt does not watch. */
+const AGENT_BYPASS: Readonly<Record<string, RegExp>> = {
+  codex: /^--(?:dangerously-bypass-approvals-and-sandbox|yolo)$/,
+  gemini: /^(?:--yolo|-y|--approval-mode=yolo)$/,
+  aider: /^--yes-always$/,
+  amp: /^--dangerously-allow-all$/,
+};
+
+function checkAgents(inv: Invocation, s: Scope): void {
+  const flag = Object.hasOwn(AGENT_BYPASS, inv.program) ? AGENT_BYPASS[inv.program] : undefined;
+  if (flag && inv.args.some((a) => flag.test(a))) add(s, 'self.nested-session', 'belt.reason.nestedAgent', { program: inv.program, command: show(inv.raw) });
+}
+
 /** GitHub through its command line: merging past the required checks, deleting what lives there. */
 function checkGitHub(inv: Invocation, s: Scope): void {
   const w = plainWords(inv);
@@ -1565,7 +1610,7 @@ export async function checkCommand(command: string, dialect: Dialect, ctx: BeltC
   await evaluateScript(command, dialect, s, ctx.cwd);
   // What starts by itself is decided by the command that sets it up, word for word the person's or not.
   for (const f of s.findings)
-    if (!f.unit && (f.rule === 'persist.scheduled-task' || f.rule === 'persist.startup' || f.rule === 'persist.shell-profile'))
+    if (!f.unit && (f.rule === 'persist.scheduled-task' || f.rule === 'persist.startup' || f.rule === 'persist.shell-profile' || f.rule === 'persist.autorun'))
       f.unit = { kind: 'text', values: [command.trim()] };
   return { findings: s.findings, issues: analyzeCommand(command, dialect).issues };
 }
@@ -1616,8 +1661,12 @@ export async function checkFileTool(tool: string, filePath: string, input: FileT
         add(s, 'self.memory-shrink', 'belt.reason.memoryShrink', { target: show(t.path), before: removed, after: added });
     }
   }
+  // A package.json given a script that runs on install.
+  if (t.path && /(?:^|\/)package\.json$/i.test(t.path) && INSTALL_SCRIPT.test(texts))
+    add(s, 'persist.autorun', 'belt.reason.autorun', { target: show(t.path) });
   for (const f of s.findings) {
-    if ((f.rule === 'persist.startup' || f.rule === 'persist.shell-profile') && texts.trim()) f.unit = { kind: 'text', values: [texts.trim()] };
+    if ((f.rule === 'persist.startup' || f.rule === 'persist.shell-profile' || f.rule === 'persist.autorun') && texts.trim())
+      f.unit = { kind: 'text', values: [texts.trim()] };
     if (f.rule === 'self.memory-shrink' && t.path) {
       f.unit = { kind: 'object', values: [t.path.split('/').pop() ?? ''] };
       f.net = { kind: 'paths', paths: [t.path], copy: true };

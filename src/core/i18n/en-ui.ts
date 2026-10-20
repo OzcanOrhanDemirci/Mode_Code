@@ -280,6 +280,9 @@ export const enUi = {
   'rule.system.security-off': 'Turning off or weakening security software: Defender and its exclusions, the firewall, account control, Gatekeeper, SELinux.',
   'rule.github.admin-merge': "Merging a pull request with admin rights, past the repository's required checks.",
   'rule.github.delete': 'Deleting or archiving on GitHub: releases, secrets, variables, labels, gists, API DELETE calls.',
+  'rule.outbound.network':
+    "Data sent off the computer by a command (a request body, an upload, a socket, a copy to another host, a comment through gh): asked unless the host is one you named or the project's remote; reading is free",
+  'rule.persist.autorun': 'Writing a file something more trusted runs later: a git or husky hook, .envrc, a package.json install script',
   'rule.outbound.send': 'Sending, sharing, inviting or answering through a connected service (mail, calendar events, drives …).',
   'rule.outbound.delete': 'Deleting or trashing in a connected service.',
   'rule.secrets.exfil': 'Sending a secret off the computer: uploading a key or credential file, a secret in a request body, a message or a document.',
