@@ -51,8 +51,9 @@ test("yes/no questions: the language's own letters in one case, and the words fo
   for (const [dict, letters, yes, no] of forms) {
     assert.equal(dict['mcli.yes'], `[${letters}, Enter = ${yes}]`);
     assert.equal(dict['mcli.no'], `[${letters}, Enter = ${no}]`);
+    // The asker adds the hint once (src/cli/ask.ts): a question that carried its own would show two.
     for (const k of ['install.confirm', 'uninstall.confirm', 'template.confirm', 'doc.repairs.ask', 'auto.cli.confirm'] as const)
-      assert.ok(dict[k].endsWith(` ${dict['mcli.no']}`), k);
+      assert.ok(!dict[k].includes('Enter ='), k);
     for (const k of keys) assert.doesNotMatch(dict[k], /\[(?:Y\/n|y\/N|E\/h|e\/H|E\/H)\]/, k);
   }
 });

@@ -41,6 +41,16 @@ test('this computer only: a folder with its history, the setting written with a 
     assert.deepEqual([m.settings().theme, slash(m.settings().autoMemoryDirectory)], ['dark', dir]);
     assert.ok(r.config?.memory.dirs.includes(dir));
     assert.equal(m.ghCalls.length, 0, 'GitHub is not asked about a local memory');
+    // Seven steps, said as they come; the repository is not needed for this computer only, and says so.
+    assert.deepEqual(s.steps, [
+      '1/7 Where the memory lives',
+      '2/7 The tools it needs',
+      '3/7 The folder',
+      '4/7 The repository on GitHub · skipped',
+      '5/7 What comes along',
+      '6/7 Protection',
+      '7/7 The list of changes',
+    ]);
     assert.ok(s.said.some((l) => /set Claude Code's autoMemoryDirectory to .*\(backup: .*settings\.json\.memory\.1791878400000\)/.test(l)));
     assert.equal(s.left(), 0);
   } finally {
@@ -180,7 +190,8 @@ test('not signed in: the setup signs in through gh auth login, in the terminal',
     const s = scripted(
       [
         [/Where should your memory live/, ''],
-        [/Sign in now\?/, ''],
+        // A browser opens: only on a yes the person gives (Enter is no).
+        [/Sign in now\?/, true],
         [/Folder for the memory/, ''],
         [/Repository name/, ''],
         [/Protect the memory folder/, ''],
@@ -205,7 +216,8 @@ test('the GitHub CLI missing: winget installs it when the person says so; declin
     const s = scripted(
       [
         [/Where should your memory live/, ''],
-        [/It can be installed with: winget install --id GitHub\.cli --exact --source winget/, ''],
+        // Another maker's installer: only on a yes the person gives (Enter is no).
+        [/It can be installed with: winget install --id GitHub\.cli --exact --source winget/, true],
         [/Folder for the memory/, ''],
         [/Repository name/, ''],
         [/Protect the memory folder/, ''],

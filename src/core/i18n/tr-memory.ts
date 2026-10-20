@@ -12,7 +12,7 @@ export const trMemory: Record<keyof typeof enMemory, string> = {
 
   'msetup.title': 'Hafıza kurulumu',
   'msetup.intro':
-    'Claude Code hafızasını, yani kendisi için yazdığı notları, bu bilgisayarda bir klasörde tutar. Bu hafızanın nerede duracağını seç. Bütün değişikliklerin listesini görüp evet demeden hiçbir şey değişmez.',
+    "Claude Code hafızasını, yani kendisi için yazdığı notları, bu bilgisayarda bir klasörde tutar. Bu hafızanın nerede duracağını seç. Bütün değişikliklerin listesini görüp evet demeden hiçbir şey değişmez; listeden önce yalnız gereken bir araç (git, GitHub'ın gh'si) kurulur ya da GitHub girişi açılır, her biri ona evet dersen.",
   'msetup.now.store': 'Şu anki kurulum: {place} · {dir}',
   'msetup.place.local': 'yalnız bu bilgisayar',
   'msetup.place.github': "yalnız GitHub'ın",
@@ -197,7 +197,7 @@ export const trMemory: Record<keyof typeof enMemory, string> = {
   'doc.memory.held': 'Sır içeriyor gibi göründükleri için son eşitlemede ({when}) bekletildi: {files}.',
   'doc.memory.ok': 'Hafızanın yeri: {place} · {dir}. Claude Code onu kullanıyor.',
 
-  'tui.backSoon': 'Kontrol merkezine dönülüyor…',
+  'tui.backSoon': "Kontrol merkezine dönmek için Enter'a bas.",
   'page.memoryStore': 'Hafıza',
   'desc.memoryStore': 'Bu bilgisayar, GitHub ya da ikisi; Claude Code kullanıyor mu; eşitlemesi. "s" kurulumu açar.',
   'page.memoryHandoffs': 'Devir notları ve sabah raporu',
@@ -267,4 +267,24 @@ export const trMemory: Record<keyof typeof enMemory, string> = {
   'morning.sum.memory': 'hafıza eşitlemesi seni bekliyor',
   'morning.sum.ahead': '{n} hafıza değişikliği gönderilmeyi bekliyor',
   'morning.sum.handoffs': '{n} devir notu',
+
+  // ── bir kurulumun adımları ve kontrol merkezine dönüş (src/cli/ask.ts, src/tui/run.tsx) ──
+  'mcli.step': 'Adım {n}/{of}',
+  'msetup.step.where': 'Hafıza nerede duracak',
+  'msetup.step.tools': 'Gereken araçlar',
+  'msetup.step.folder': 'Klasör',
+  'msetup.step.repo': "GitHub'daki depo",
+  'msetup.step.bring': 'Neler taşınacak',
+  'msetup.step.protect': 'Koruma',
+  'msetup.step.plan': 'Değişiklik listesi',
+  'msetup.step.notNeeded': 'bu seçimde gerekmiyor',
+  'ssetup.step.where': 'Paylaşılan kopya nerede duracak',
+  'ssetup.step.copy': 'Paylaşılan kopya',
+  'ssetup.step.computer': 'Bu bilgisayar',
+  'ssetup.step.handoffs': 'Devir notları',
+  'tui.back.done': 'Bitti: {what}.',
+  'tui.back.notDone': '{what}: başka bir şey değişmedi.',
+  'tui.back.memory': 'hafıza kurulumu',
+  'tui.back.sync': 'eşitleme kurulumu',
+  'tui.back.update': 'güncelleme',
 };

@@ -24,6 +24,8 @@ export function scripted(answers: Answer[], onInteractive: (argv: string[]) => v
   const said: string[] = [];
   const asked: string[] = [];
   const interactive: string[][] = [];
+  /** The steps the setup said, as "n/of title" and " · skipped" when it was not needed. */
+  const steps: string[] = [];
   let i = 0;
   const next = (q: string): string | number | boolean => {
     asked.push(q);
@@ -51,8 +53,9 @@ export function scripted(answers: Answer[], onInteractive: (argv: string[]) => v
       onInteractive(argv);
       return 0;
     },
+    step: (n, of, title, skipped) => void steps.push(`${n}/${of} ${title}${skipped ? ' · skipped' : ''}`),
   };
-  return { io, said, asked, interactive, left: () => answers.length - i };
+  return { io, said, asked, interactive, steps, left: () => answers.length - i };
 }
 
 export const git = (cwd: string, ...args: string[]) => {

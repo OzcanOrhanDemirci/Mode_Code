@@ -15,7 +15,7 @@ export const enSync = {
   // ── the setup ──
   'ssetup.title': 'Mode_Code · sync across computers',
   'ssetup.intro':
-    "Your computers share Mode_Code's settings, history and handoff notes through one place you choose. Each computer writes only its own folder there. Nothing changes until you have seen the whole list and said yes.",
+    "Your computers share Mode_Code's settings, history and handoff notes through one place you choose. Each computer writes only its own folder there. Nothing changes until you have seen the whole list and said yes; only a tool it needs (git, GitHub's gh) is installed, or a GitHub sign-in opened, before the list, each when you say yes to it.",
   'ssetup.now': 'Set up now: {place} · {dir} · this computer is {name}',
   'ssetup.ask.place': 'Where should the shared copy live?',
   'ssetup.option.github': 'A private repository on your GitHub, named by you (new, or one you have)',
@@ -58,7 +58,7 @@ export const enSync = {
   'ssetup.diff.more': 'and {n} more',
   'ssetup.diff.none': '(none)',
   'ssetup.ask.diff': 'Which should be kept?',
-  'ssetup.diff.theirs': "Take the other computers' (the usual choice for a new computer)",
+  'ssetup.diff.theirs': "Take the other computers' (the usual choice for a new computer; a protection lowered there comes here too)",
   'ssetup.diff.mine': "Send this computer's to them",
   'ssetup.diff.took': '{n} setting(s) taken from the other computers',
   'ssetup.diff.kept': "{n} setting(s) of this computer's go to the others",

@@ -246,7 +246,7 @@ export const enDoctor = {
   'doc.setup.indexHint': 'Keep one short line per memory in the index and the details in the files it points to.',
   'doc.setup.skillsOk': 'The skills your settings keep are in place.',
   'doc.setup.skillsMissing': 'Skills your settings keep are missing from the plugin: {skills}.',
-  'doc.repairs.ask': 'Repair them now? Every changed file is backed up first. [y/n, Enter = no]',
+  'doc.repairs.ask': 'Repair them now? Every changed file is backed up first.',
   'doc.repairs.hint': 'Run "mode-code doctor --fix" to repair them.',
   'doc.repairs.refused': 'Not repaired, because an agent runs this command: {what}. Run "mode-code doctor --fix" yourself.',
   'doc.repairs.verified': 'repaired and checked again',

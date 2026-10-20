@@ -28,6 +28,8 @@ export interface SetupIO {
   confirm(question: string, def: boolean): Promise<boolean>;
   /** Runs a program in the person's terminal (an installer, signing in); its exit code. */
   interactive(argv: string[]): Promise<number>;
+  /** Where the setup is: step `n` of `of`, its title, and why it is skipped when this choice needs none of it. */
+  step?(n: number, of: number, title: string, skipped?: string): void;
 }
 
 export interface SetupEnv {
@@ -88,6 +90,8 @@ export async function memorySetup(io: SetupIO, env: SetupEnv): Promise<SetupOutc
   const T = (k: MessageKey, p?: Record<string, string | number>) => tIn(env.lang, k, p);
   const res = (p: string) => resolvePath(expandHome(p.trim(), env.home), { platform: env.platform, home: env.home, cwd: env.cwd });
   const same = (a: string, b: string) => pathKey(a, env.platform) === pathKey(b, env.platform);
+  // Where the setup is, seven steps in all; a step this choice does not need says so instead of disappearing.
+  const step = (n: number, key: MessageKey, skip = false) => io.step?.(n, 7, T(key), skip ? T('msetup.step.notNeeded') : undefined);
 
   io.say(T('msetup.title'));
   io.say(T('msetup.intro'));
@@ -107,11 +111,13 @@ export async function memorySetup(io: SetupIO, env: SetupEnv): Promise<SetupOutc
   io.say();
 
   // ── 2 · where ──
+  step(1, 'msetup.step.where');
   const places: MemoryPlace[] = ['local', 'github', 'both'];
   const pick = await io.choose(T('msetup.ask.place'), [T('msetup.option.local'), T('msetup.option.github'), T('msetup.option.both')], 2);
   let place = places[pick]!;
 
-  // ── 3 · tools ──
+  // ── 3 · tools: installing one, or signing in, happens before the list, each on its own yes (Enter is no) ──
+  step(2, 'msetup.step.tools');
   let gitTool = await findTool(env.runner, 'git', env.platform, env.exists);
   if (!gitTool) {
     io.say(T('msetup.tool.missing', { tool: 'git' }));
@@ -132,7 +138,7 @@ export async function memorySetup(io: SetupIO, env: SetupEnv): Promise<SetupOutc
       login = await ghUser(env.runner, ghTool.command);
       if (!login) {
         io.say(T('msetup.gh.notSignedIn'));
-        if (await io.confirm(T('msetup.gh.signIn'), true)) {
+        if (await io.confirm(T('msetup.gh.signIn'), false)) {
           await io.interactive([ghTool.command, 'auth', 'login', '--hostname', 'github.com', '--git-protocol', 'https', '--web']);
           login = await ghUser(env.runner, ghTool.command);
         }
@@ -149,6 +155,7 @@ export async function memorySetup(io: SetupIO, env: SetupEnv): Promise<SetupOutc
   }
 
   // ── 4 · the folder ──
+  step(3, 'msetup.step.folder', place === 'github');
   let dir: string;
   if (place === 'github') {
     dir = '';
@@ -168,6 +175,7 @@ export async function memorySetup(io: SetupIO, env: SetupEnv): Promise<SetupOutc
   }
 
   // ── 5 · the repository ──
+  step(4, 'msetup.step.repo', place === 'local');
   let repo: string | null = null;
   let remote: string | null = null;
   let createRepo = false;
@@ -270,6 +278,7 @@ export async function memorySetup(io: SetupIO, env: SetupEnv): Promise<SetupOutc
   }
 
   // ── 6 · what to bring along ──
+  step(5, 'msetup.step.bring');
   let bringFrom: string | null = null;
   if (current && !same(current, dir) && (currentFacts?.files ?? 0) > 0) {
     if (await io.confirm(T('msetup.bring.current', { from: current, n: currentFacts!.files }), true)) bringFrom = current;
@@ -279,6 +288,7 @@ export async function memorySetup(io: SetupIO, env: SetupEnv): Promise<SetupOutc
     chosenProjects = projects;
 
   // ── 7 · protection ──
+  step(6, 'msetup.step.protect');
   const protect = env.config.memory.dirs.some((d) => same(res(d), dir)) || (await io.confirm(T('msetup.ask.protect'), true));
 
   // ── 8 · identity: a commit needs a name and an address; GitHub's private one when signed in ──
@@ -312,6 +322,7 @@ export async function memorySetup(io: SetupIO, env: SetupEnv): Promise<SetupOutc
   };
 
   // ── 9 · the whole list, one yes ──
+  step(7, 'msetup.step.plan');
   io.say();
   io.say(T('msetup.plan.title'));
   for (const line of describePlan(plan, env.lang)) io.say(`  • ${line}`);
@@ -508,7 +519,8 @@ export async function offerInstall(
     io.say(T('msetup.tool.page', { page: plan.page, cmd }));
     return null;
   }
-  if (!(await io.confirm(T('msetup.tool.install', { cmd: plan.argv.join(' ') }), true))) {
+  // Another maker's installer, run on this computer: only on a yes the person types (Enter is no).
+  if (!(await io.confirm(T('msetup.tool.install', { cmd: plan.argv.join(' ') }), false))) {
     io.say(T('msetup.tool.page', { page: plan.page, cmd }));
     return null;
   }

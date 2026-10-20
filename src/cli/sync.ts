@@ -77,7 +77,7 @@ export async function runSyncSetup(ctx: AppContext): Promise<number> {
     say(red(T(ctx, 'scli.needsTerminal')));
     return 2;
   }
-  const out = await syncSetup(terminalIO(ctx), {
+  const out = await syncSetup(terminalIO(ctx.lang), {
     lang: ctx.lang,
     platform,
     home: home(),
@@ -144,7 +144,7 @@ export async function linkProjects(ctx: AppContext, yes: boolean, asJson: boolea
   const rest = homeless.filter((p) => !usable.some((m) => m.id === p.id)).map((p) => p.id);
   if (rest.length) say(dim(T(ctx, 'scli.projects.rest', { ids: rest.join(', '), cmd: `${CLI_NAME} sync project` })));
   if (!usable.length) return 0;
-  if (!yes && !(process.stdin.isTTY && (await terminalIO(ctx).confirm(T(ctx, 'scli.projects.confirm', { n: usable.length }), true)))) {
+  if (!yes && !(process.stdin.isTTY && (await terminalIO(ctx.lang).confirm(T(ctx, 'scli.projects.confirm', { n: usable.length }), true)))) {
     say(T(ctx, 'cli.cancelled'));
     return 1;
   }

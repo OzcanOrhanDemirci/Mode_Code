@@ -64,6 +64,8 @@ export interface AppProps {
   onRegistry?: (registry: PointerRegistry) => void;
   /** Told the address of the screen drawn, each time it changes (tests wait for a screen to open). */
   onAddress?: (address: string) => void;
+  /** Said in the bar as the control center opens: what the setup it left for came to. */
+  notice?: { text: string; kind: 'ok' | 'warn' };
   /** What the terminal can do beyond drawing (src/tui/terminal.ts), and where to send it. Absent: nothing is sent. */
   terminal?: { caps: TerminalCaps; write: (sequence: string) => void };
 }
@@ -244,6 +246,7 @@ export function App(props: AppProps) {
 
   useEffect(() => {
     if (props.address) go(props.address);
+    if (props.notice) showFlash(props.notice.text, props.notice.kind);
   }, []);
 
   useEffect(() => setScroll(0), [open, listKey, index]);

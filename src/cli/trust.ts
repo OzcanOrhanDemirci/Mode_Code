@@ -51,7 +51,10 @@ export async function cmdTrust(a: Args): Promise<number> {
     say(bold(T(`trust.kind.${kind}` as MessageKey, { n: list.length })));
     if (!list.length) say(dim(`  ${T('trust.none')}`));
     for (const i of list) {
-      const line = `  ${i.name} ${dim(`· ${i.scope}${i.detail ? ` · ${i.detail}` : ''}`)}`;
+      // Said in the person's words (its scope, on or off); the record keeps Claude Code's own (trustKey).
+      const scope = ['managed', 'user', 'project', 'local'].includes(i.scope) ? T(`scope.${i.scope}` as MessageKey) : i.scope;
+      const detail = i.kind === 'plugin' ? T(i.detail === 'off' ? 'set.off' : 'set.on') : i.detail;
+      const line = `  ${i.name} ${dim(`· ${scope}${detail ? ` · ${detail}` : ''}`)}`;
       say(isNew.has(trustKey(i)) ? `${line} ${yellow(T('trust.new'))}` : line);
     }
   }

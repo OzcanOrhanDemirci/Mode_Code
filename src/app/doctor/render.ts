@@ -21,7 +21,8 @@ export interface Style {
 
 export const PLAIN: Style = { ok: (s) => s, warn: (s) => s, fail: (s) => s, dim: (s) => s, bold: (s) => s };
 
-const MARK: Record<CheckStatus, string> = { ok: '✓', info: '·', warn: '!', fail: '✗', skip: '-' };
+// One mark, one meaning (docs/design.md): the middle dot only joins facts on a line; information is an i.
+const MARK: Record<CheckStatus, string> = { ok: '✓', info: 'i', warn: '!', fail: '✗', skip: '-' };
 
 /** Paths in the parameters with the home folder written as ~ (and, for reports, the user name hidden). */
 export function maskParams(params: Message['params'], home: string, user?: string): Message['params'] {

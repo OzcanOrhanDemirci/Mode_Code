@@ -21,7 +21,7 @@ Kurulum
   ✓ Kontrol merkezi kokpitten C:/dev/mode-code/dist/cli.mjs ile açılır.
   ✓ Eklenti en son 2026-10-12 11:50 (UTC) zamanında bir oturumdan haber verdi.
   ✓ Mode_Code 1.2.0 en yeni sürüm.
-  · Tam otonom kapalı (mode-code autonomy enable ile açılır).
+  i Tam otonom kapalı (mode-code autonomy enable ile açılır).
   ✓ Ayarlarının tuttuğu beceriler yerinde.
 Koruma
   ✗ Kurulu hook, 30 örnekten 1 tanesine bu sürümden farklı cevap verdi.
@@ -31,15 +31,15 @@ Koruma
   ✓ Kemer, Windows'un korunan yerlere verdiği 1 kısa adı da koruyor.
       ~/MODECO~1 = ~/.mode-code.
   ✓ 1 hafıza klasörü korunuyor ve git deposu.
-  · Bypass kapalı: hiçbir oturum emniyet kemerini kaldıramaz.
+  i Bypass kapalı: hiçbir oturum emniyet kemerini kaldıramaz.
   ✓ Projenin paylaşılan ayarları hiçbir şeyi genişletmiyor.
   ✓ En yeni sürüm hangisiyse onunla başlayan MCP sunucusu yok.
   ✓ Claude Code ayar dosyalarında yazılı sır yok.
 Kabuklar ve terminal
   ✓ Git Bash (C:/Program Files/Git/bin/bash.exe), kemerin varsaydığı gibi /tmp'yi Temp klasörüne bağlıyor.
   ✓ PowerShell 7.6.6.
-  · Terminal: Windows Terminal, 120 sütun, kod sayfası 65001.
-  · Sistem yerel ayarı en-US, LANG -; arayüz dili en.
+  i Terminal: Windows Terminal, 120 sütun, kod sayfası 65001.
+  i Sistem yerel ayarı en-US, LANG -; arayüz dili en.
 Dosyalar
   ✓ Veri klasörü yazılabilir ve bölünmez yazma çalışıyor.
   ✓ Veri klasörü için 100.0 GB boş yer var.
@@ -59,7 +59,7 @@ Veri
   ✓ Yakın zamanda alınmış bir kota ölçümü kayıtlı.
   ✓ Hafızanın yeri: bu bilgisayar ve GitHub'ın · C:/dev/notes/memory. Claude Code onu kullanıyor.
   ✓ Hafıza indeksi 40 satır, 4 KB: Claude Code'un yüklediği sınırın içinde (200 satır, 25 KB).
-  · Bilgisayarlar arası eşitleme kurulmamış.
+  i Bilgisayarlar arası eşitleme kurulmamış.
   ✓ Son 3 oturum kaydı okundu: 100 satır beklenen biçimde.
   ✓ Son oturumlarda komut çalıştıran ya da dosya yazan her aracı kemer denetliyor (Bash, Edit).
   ✓ Oturum kimlikleri beklenen biçimde.

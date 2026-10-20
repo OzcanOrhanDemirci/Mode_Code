@@ -71,7 +71,7 @@ export interface InstallerRun {
  * release's SHA256SUMS and run only when its SHA-256 matches; with --yes and --version, so it installs exactly that
  * release and asks nothing more. Its output goes to this terminal.
  */
-export async function runInstaller(version: string, opts: { base?: string | null; platform?: NodeJS.Platform } = {}): Promise<InstallerRun> {
+export async function runInstaller(version: string, opts: { base?: string | null; platform?: NodeJS.Platform; noColor?: boolean } = {}): Promise<InstallerRun> {
   const platform = opts.platform ?? process.platform;
   const base = releaseBase(version, opts.base);
   const name = platform === 'win32' ? 'install.ps1' : 'install.sh';
@@ -95,7 +95,8 @@ export async function runInstaller(version: string, opts: { base?: string | null
     const file = join(dir, name);
     writeFileSync(file, script);
     // The installer takes the package from the same place it came from: a mirror or a folder named for this run.
-    const env = { ...process.env, ...(opts.base ? { MODE_CODE_RELEASE_URL: opts.base } : {}) };
+    // Colour off here (--no-color) is off in the installer too, which reads NO_COLOR.
+    const env = { ...process.env, ...(opts.base ? { MODE_CODE_RELEASE_URL: opts.base } : {}), ...(opts.noColor ? { NO_COLOR: '1' } : {}) };
     const r =
       platform === 'win32'
         ? spawnSync(

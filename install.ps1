@@ -20,6 +20,7 @@
 #
 # Options:
 #   -Yes            answer yes to every question (for scripts: nothing is asked)
+#   -InstallClaude  install Claude Code too when it is missing (Anthropic's installer; -Yes alone does not)
 #   -Version <v>    install that version instead of the newest
 #   -NoModifyPath   leave your user PATH alone
 #   -NoSetup        install the program only; run `mode-code install` yourself later
@@ -39,6 +40,7 @@
 
 param(
   [switch]$Yes,
+  [switch]$InstallClaude,
   [string]$Version = '',
   [switch]$NoModifyPath,
   [switch]$NoSetup,
@@ -46,7 +48,7 @@ param(
 )
 
 & {
-  param($Yes, $Version, $NoModifyPath, $NoSetup, $Help)
+  param($Yes, $InstallClaude, $Version, $NoModifyPath, $NoSetup, $Help)
   # Version 1: an unset variable is an error; a key the table does not hold yet reads as nothing.
   Set-StrictMode -Version 1
   $ErrorActionPreference = 'Stop'
@@ -93,6 +95,14 @@ param(
     if (-not $S.Interactive) { return $false }
     $answer = Read-Host ($question + ' ' + (T '[Y/n]' '[E/h]'))
     return ($answer -eq '' -or $answer -match '^(y|yes|e|evet)$')
+  }
+
+  # For a program of another maker: Enter means no, and -Yes does not answer it; only -InstallClaude does.
+  function Ask-No([string]$question) {
+    if ($InstallClaude) { return $true }
+    if (-not $S.Interactive) { return $false }
+    $answer = Read-Host ($question + ' ' + (T '[y/N]' '[e/H]'))
+    return ($answer -match '^(y|yes|e|evet)$')
   }
 
   # Downloads an address, or copies a local file (a mirror or a package you named). Three tries.
@@ -388,7 +398,7 @@ param(
   function Install-Claude {
     Say ''
     Say (T "$Name works inside Claude Code, which was not found on this computer." "$Name, Claude Code'un i\u00e7inde \u00e7al\u0131\u015f\u0131r ve Claude Code bu bilgisayarda bulunamad\u0131.")
-    if (-not (Ask (T "Install Claude Code now with Anthropic's official installer (claude.ai/install.ps1)?" "Claude Code \u015fimdi Anthropic'in resm\u00ee kurulum beti\u011fiyle (claude.ai/install.ps1) kurulsun mu?"))) { return $false }
+    if (-not (Ask-No (T "Install Claude Code now with Anthropic's official installer (claude.ai/install.ps1)?" "Claude Code \u015fimdi Anthropic'in resm\u00ee kurulum beti\u011fiyle (claude.ai/install.ps1) kurulsun mu?"))) { return $false }
     # In a PowerShell of its own, so nothing it does can end this one.
     $shell = (Get-Process -Id $PID).Path
     # Shown as it goes, and kept out of this function's answer.
@@ -430,6 +440,7 @@ param(
       Say "  & ([scriptblock]::Create((irm https://raw.githubusercontent.com/$Repo/main/install.ps1))) [options]"
       Say ''
       Say '  -Yes            answer yes to every question (for scripts: nothing is asked)'
+      Say "  -InstallClaude  install Claude Code too when it is missing (Anthropic's installer; -Yes alone does not)"
       Say '  -Version <v>    install that version instead of the newest'
       Say '  -NoModifyPath   leave your user PATH alone'
       Say "  -NoSetup        install the program only; run ``$App install`` yourself later"

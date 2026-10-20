@@ -114,7 +114,8 @@ test(
         [/Name of this computer/, 'Mac'],
         [/Keep handoff notes/, ''],
         [/Go ahead/, true],
-        [/Which should be kept/, ''],
+        // A difference lowers a protection here, so Enter would keep this computer's: the person picks theirs.
+        [/Which should be kept/, 0],
       ]);
       const r = await syncSetup(s.io, mac);
       assert.equal(r.ok, true, s.said.join('\n'));
@@ -122,6 +123,19 @@ test(
       assert.match(said, /is used for sync already: this computer joins it/);
       assert.match(said, /differ from the other computers' in 2 place\(s\)/);
       assert.match(said, /belt\.verdicts: \{\} → \{"git\.clean":"warn"\} \(Windows\) · lowers a protection here/);
+      // A setting the catalog names is said in words: its name and its values.
+      assert.match(said, /Who writes the lines: Mode_Code draws them → Off \(Windows\)/);
+      assert.deepEqual(
+        s.steps.map((x) => x.replace(/ ·.*/, '')),
+        [
+          '1/6 Where the shared copy lives',
+          '2/6 The tools it needs',
+          '3/6 The shared copy',
+          '4/6 This computer',
+          '5/6 Handoff notes',
+          '6/6 The list of changes',
+        ],
+      );
       assert.match(said, /bring the 1 kept in Mode_Code's folder there/);
       assert.deepEqual([r.config?.footer.mode, r.config?.belt.verdicts?.['git.clean']], ['off', 'warn']);
       assert.equal(r.config?.sync?.machine.id, 'mac-0002');
