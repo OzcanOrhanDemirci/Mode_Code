@@ -417,4 +417,13 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'update.doctorProblems': 'Doktor: {fail} sorun, {warn} uyarı; {cmd} bunları gösterir ve onarım önerir.',
   'update.doctorUnread': 'Yeni kurulumun doktoru okunamadı; {cmd} çalıştır.',
   'update.next': 'Yüklenmesi için yeni bir Claude Code oturumu aç.',
+  // ── Anthropic'in güvenlik denetimi bir cevabı durdurunca (src/core/flagged.ts) ──
+  'flag.title': "Bu cevabı Anthropic'in güvenlik denetimi durdurdu.",
+  'flag.title.named': "Bu cevabı Anthropic'in güvenlik denetimi durdurdu ({category}).",
+  'flag.who':
+    "Bunu diyen ne model ne Claude Code ne Mode_Code: Anthropic'in sunucusundaki otomatik bir denetim oturumu işaretledi; zararsız işi de bazen böyle işaretler. Oturumun ve dosyaların olduğu gibi duruyor, yalnız bu cevap yazılmadı.",
+  'flag.ways': 'Üç yol var:',
+  'flag.way.edit': "Son mesajını düzenlemek için Esc'ye iki kez bas.",
+  'flag.way.model': "/model yazıp başka bir modelle sürdür (Anthropic'in kendi önerisi).",
+  'flag.way.feedback': '/feedback yazıp yanlış alarmı bildir.',
 };

@@ -154,6 +154,14 @@ The panel you open beside Claude Code's conversation (`/0`, or `0 ≡ cockpit` o
 
 Only your press changes anything in the cockpit: Claude has no way to press.
 
+## When an answer is stopped
+
+A classifier on Anthropic's server can flag a session and stop the answer being written. It is not the model's choice, not Claude Code's and not Mode_Code's, and it sometimes flags harmless work: in October 2026 it did so nine times in three sessions, each in Mode_Code's own work. Claude Code says so in English, as an error, and it was taken for a broken tool.
+
+Mode_Code tells it from a turn's end, both ways it comes: a turn the API ended as a refusal, with what the classifier named, and an API error carrying Claude Code's text for it, at the turn's end or in its StopFailure (`src/core/flagged.ts`). Under the answer it says, once and in your language, what stopped it and who did, that your session and files are as they were, and the three ways on that Claude Code itself names: press Esc twice to edit your last message, `/model` to go on with another model (Anthropic's own advice), `/feedback` to report a false alarm. It is a notice the model never reads, so nothing of it goes back to the classifier. The activity and the cockpit keep it as a blocked line; a full-autonomy run's person is told the run waits.
+
+Nothing else is done for you: the model stays yours to pick, and nothing is hidden from the classifier.
+
 ## The control center
 
 The map follows what a person comes for, not the parts of the system (`src/tui/nav.ts`, `src/tui/tree.tsx`): **Now** · **Activity** (what happened: in the background, while you were away, in a day or a week, to the settings) · **Working** (how Claude works: modes, keywords, flows, and the ways of working you turn on) · **Protection** · **Memory and projects** · **Quota** · **Claude Code** (its own setup) · **Settings** (this tool's own). Digits 1 to 8 jump to them. Every page has an address; an address of the map before 1.2 still leads to its page, and the palette (Ctrl+K) finds a page by its name in either language and by its old place.
@@ -187,5 +195,6 @@ A row whose test is still to come names the stage that brings it; `test/core/des
 | "Why is it so" is worked out by code, from the settings and the session          | `test/core/ux-why.test.ts` (30 situations), the engine kit (`/why`, the `why` tool)                   |
 | What Claude may do now is worked out by code, in every situation that changes it | `test/core/ux-cockpit.test.ts` (31 situations)                                                        |
 | Every line of the cockpit says itself to the pointer and to the keyboard         | `test/core/ux-cockpit.test.ts`, the engine kit (`test/mod/cockpit.kit.ts`)                            |
+| A stopped answer: told both ways, said once, nothing done for the person         | `test/core/flagged.test.ts`, the engine kit (`test/mod/flagged.kit.ts`)                               |
 | A permission allowed in the cockpit is recorded, and taken back                  | the engine kit (`test/mod/cockpit.kit.ts`)                                                            |
 | From 60 to 200 columns                                                           | `test/tui/widths.test.tsx`, `test/core/controls.test.ts`                                              |

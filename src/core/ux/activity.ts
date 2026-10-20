@@ -66,6 +66,7 @@ export const ACTIVITY_KINDS = [
   'run',
   'bypass',
   'permission',
+  'flagged',
 ] as const;
 
 const str = (v: unknown, max = 120): string => (typeof v === 'string' ? v : v === null || v === undefined ? '' : String(v)).replace(/\s+/g, ' ').slice(0, max);
@@ -196,6 +197,10 @@ export function activityOf(e: ActivityEvent, lang: Lang): ActivityLine {
       return line('note', t('act.bypass.call', { tool }), t('act.why.bypass', { name: nameOf('bypass.enabled', lang) }), 'work/bypassed');
     case 'permission':
       return line('done', t('act.permission', { tool }), t('act.why.permission'), 'claude-code/permissions', true);
+    case 'flagged': {
+      const category = str(e.category, 40);
+      return line('blocked', category ? t('act.flagged.named', { category }) : t('act.flagged'), t('act.why.flagged'));
+    }
     default:
       return line('note', t('act.unknown', { kind: str(e.kind, 30) }), null, null, true);
   }

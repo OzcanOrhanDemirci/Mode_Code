@@ -260,6 +260,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'auto.toast.noTask': '🤖 Tam otonomun bir göreve ihtiyacı var: görevi anahtar kelimeden önce yaz.',
   'auto.notify.done': 'Tam otonom iş bitti: {task}',
   'auto.notify.stuck': 'Tam otonom iş tıkandı: {task}',
+  'auto.notify.flagged': "Tam otonom iş seni bekliyor: Anthropic'in güvenlik denetimi bir cevabı durdurdu: {task}",
   'auto.notify.paused': 'Tam otonom iş duraklatıldı ({reason}): {task}',
   'auto.phase.plan': 'plan',
   'auto.phase.work': 'çalışma',

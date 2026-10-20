@@ -82,6 +82,8 @@ export const enLedger = {
   'act.bypass.call': '{tool} went through without asking (bypass)',
   'act.permission': "Claude Code's question about {tool} was answered by your own rules",
   'act.unknown': 'Work of a kind this version does not name: {kind}',
+  'act.flagged': "Anthropic's safeguards stopped an answer",
+  'act.flagged.named': "Anthropic's safeguards stopped an answer ({category})",
   'act.why.rule': 'safety belt rule: {rule}',
   'act.why.freeze': 'the folder you froze with /freeze',
   'act.why.mode': 'the mode you chose on the strip',
@@ -91,6 +93,7 @@ export const enLedger = {
   'act.why.autonomy': 'the start checks of full autonomy',
   'act.why.bypass': '"{name}" is on, and you switched it on in the session',
   'act.why.permission': 'your allow rules in Claude Code',
+  'act.why.flagged': "a check on Anthropic's server, not Mode_Code: edit the message, another model (/model), or /feedback",
   // ── why (src/core/ux/why.ts) ──
   'why.setting': '"{name}" is {value} ({place})',
   'why.title.belt': 'Safety belt',

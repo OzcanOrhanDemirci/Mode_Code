@@ -105,6 +105,7 @@ const TARGETS = {
   'src/core/permissions.ts': ['test/core/permissions.test.ts'],
   'src/core/mcp-pins.ts': ['test/core/mcp-pins.test.ts'],
   'src/core/trust.ts': ['test/core/trust.test.ts'],
+  'src/core/flagged.ts': ['test/core/flagged.test.ts'],
   'src/core/packs.ts': ['test/core/packs.test.ts'],
   'src/core/skills.ts': ['test/core/skills.test.ts'],
   'src/core/agents.ts': ['test/core/agents.test.ts'],
