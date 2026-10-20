@@ -84,6 +84,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Fixed
 
+- A refused setting said why in English in a Turkish control center, doctor and command line (`expected 1 to 72`): every reason the settings check gives is said in the person's language now, wherever it is shown; `--json` keeps the check's own words.
 - The POSIX installer said to run `mode-code` here and to open a new terminal at once: where the installer has just added the command to PATH, it now says a new terminal opens the control center too.
 - A long line in the control center that wrapped could start its next line with a space (Ink keeps the space a break falls on); the control center now wraps its own prose at word boundaries.
 - Two messages sent you to places that do not exist: the daily update check is under Settings › Language and view, and the protected memory folders under Memory and projects › Protected folders. A test now walks every place a message names.

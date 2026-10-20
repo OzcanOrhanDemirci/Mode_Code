@@ -8,6 +8,7 @@ import { createInterface } from 'node:readline/promises';
 import { homedir } from 'node:os';
 import { APP_NAME, APP_VERSION, CLI_NAME, MIN_CLAUDE_CODE_FOR_HOOKS, REPO_URL } from '../core/app.js';
 import { cloneDefaults, serializeConfig, setConfigValue, type Config } from '../core/config.js';
+import { problemWords } from '../core/config-words.js';
 import { readChanges, saveConfig } from '../node/changes.js';
 import { changeText, lastUndoable, undoOf } from '../core/ux/changes.js';
 import {
@@ -1159,7 +1160,7 @@ export async function cmdConfig(a: Args): Promise<number> {
     const r = setConfigValue(ctx.config, key, parsed);
     const mine = r.problems.filter((p) => p.path === key || p.path.startsWith(key + '.') || key.startsWith(p.path + '.'));
     if (mine.length) {
-      for (const p of mine) say(red(T(ctx, 'cli.doctor.configProblem', { path: p.path, detail: p.detail })));
+      for (const p of mine) say(red(T(ctx, 'cli.doctor.configProblem', { path: p.path, detail: problemWords(p.detail, ctx.lang) })));
       return 1;
     }
     saveConfig(ctx.layout, ctx.config, r.config, 'command');

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Box, Text } from 'ink';
 import type { MessageKey } from '../core/i18n/index.js';
 import type { Config } from '../core/config.js';
+import { problemWords } from '../core/config-words.js';
 import {
   amount,
   asksFirst,
@@ -168,12 +169,12 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
     setPending(null);
     setTyping(null);
     if (problems.length) {
-      env.flash(t('set.rejected', { detail: problems.map((p) => p.detail).join('; ') }), 'bad');
+      env.flash(t('set.rejected', { detail: problems.map((p) => problemWords(p.detail, lang)).join('; ') }), 'bad');
       return;
     }
     env.flash(t('set.changed', { name: nameOf(f.path, lang), value: valueText(f.path, value, lang) }), 'ok', () => {
       const again = env.data.setConfig(f.path, before, 'undo');
-      if (again.length) env.flash(t('set.rejected', { detail: again.map((p) => p.detail).join('; ') }), 'bad');
+      if (again.length) env.flash(t('set.rejected', { detail: again.map((p) => problemWords(p.detail, lang)).join('; ') }), 'bad');
       else env.flash(t('set.undone', { name: nameOf(f.path, lang), value: valueText(f.path, before, lang) }), 'ok');
     });
   };
@@ -222,7 +223,7 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
       'default',
     );
     if (problems.length) {
-      env.flash(t('set.rejected', { detail: problems.map((p) => p.detail).join('; ') }), 'bad');
+      env.flash(t('set.rejected', { detail: problems.map((p) => problemWords(p.detail, lang)).join('; ') }), 'bad');
       return;
     }
     env.flash(t('set.defaulted', { changes: back.map((c) => changeText(c, lang)).join('; ') }), 'ok', () => {

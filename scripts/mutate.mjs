@@ -106,6 +106,7 @@ const TARGETS = {
   'src/core/mcp-pins.ts': ['test/core/mcp-pins.test.ts'],
   'src/core/trust.ts': ['test/core/trust.test.ts'],
   'src/core/flagged.ts': ['test/core/flagged.test.ts'],
+  'src/core/config-words.ts': ['test/core/config-words.test.ts', 'test/doctor/render.test.ts'],
   'src/core/packs.ts': ['test/core/packs.test.ts'],
   'src/core/skills.ts': ['test/core/skills.test.ts'],
   'src/core/agents.ts': ['test/core/agents.test.ts'],

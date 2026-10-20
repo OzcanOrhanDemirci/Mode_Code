@@ -5,6 +5,8 @@ import type { enDoctor } from './en-doctor.js';
 export const trDoctor: Record<keyof typeof enDoctor, string> = {
   // ── ortak ──
   'doc.line': '{text}',
+  'doc.config.line': '{path}: {detail}',
+  'doc.config.file': '(dosyanın tamamı)',
   'doc.notInstalled': 'Kurulu değil.',
   'doc.notMeasured': 'Burada ölçülmedi.',
   'doc.windowsOnly': 'Yalnız Windows için.',

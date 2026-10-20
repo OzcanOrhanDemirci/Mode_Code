@@ -6,6 +6,7 @@ import { homedir } from 'node:os';
 import { APP_NAME, APP_VERSION, CLI_NAME, NAME_IS_FINAL, REPO_URL } from '../../core/app.js';
 import type { MessageKey } from '../../core/i18n/index.js';
 import { keywordTables } from '../../core/settings-view.js';
+import { problemWords } from '../../core/config-words.js';
 import { ago, shortPath } from '../../core/format.js';
 import { KEYWORD_LISTS } from '../../core/keywords.js';
 import { nextOf } from '../../core/handoff.js';
@@ -335,12 +336,12 @@ export function MemoryHandoffs({ width, open }: ScreenProps) {
 
 /** The folders the safety belt protects as memory (deletes refused, shrinking asked about). */
 export function Memory({ width, open }: ScreenProps) {
-  const { data, flash } = useEnv();
+  const { data, flash, lang } = useEnv();
   const t = useT();
   const dirs = data.config().memory.dirs;
   const save = (next: string[]) => {
     const problems = data.setConfig('memory.dirs', next);
-    flash(problems.length ? t('set.rejected', { detail: problems[0]!.detail }) : t('set.saved'), problems.length ? 'bad' : 'ok');
+    flash(problems.length ? t('set.rejected', { detail: problemWords(problems[0]!.detail, lang) }) : t('set.saved'), problems.length ? 'bad' : 'ok');
   };
   return (
     <Box flexDirection="column" width={width}>
@@ -391,12 +392,12 @@ export function Autonomy({ width, open }: ScreenProps) {
 }
 
 export function Projects({ width, open }: ScreenProps) {
-  const { data, flash } = useEnv();
+  const { data, flash, lang } = useEnv();
   const t = useT();
   const list = data.config().projects;
   const save = (next: unknown[]) => {
     const problems = data.setConfig('projects', next);
-    flash(problems.length ? t('set.rejected', { detail: problems[0]!.detail }) : t('set.saved'), problems.length ? 'bad' : 'ok');
+    flash(problems.length ? t('set.rejected', { detail: problemWords(problems[0]!.detail, lang) }) : t('set.saved'), problems.length ? 'bad' : 'ok');
   };
   return (
     <Box flexDirection="column" width={width}>
@@ -544,7 +545,7 @@ export function Maintenance({ width, open }: ScreenProps) {
         <Section title={t('maint.configProblems')}>
           {data.configProblems().map((p, i) => (
             <Note key={i} kind="warn">
-              {p.path || '(file)'}: {p.detail}
+              {p.path || t('set.file')}: {problemWords(p.detail, lang)}
             </Note>
           ))}
         </Section>

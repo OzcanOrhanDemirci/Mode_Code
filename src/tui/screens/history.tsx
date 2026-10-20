@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { Box } from 'ink';
 import { ago } from '../../core/format.js';
+import { problemWords } from '../../core/config-words.js';
 import { asksFirst, confirmText, valueIn, valueText } from '../../core/ux/catalog.js';
 import { changeText, undoOf, type ChangeRow } from '../../core/ux/changes.js';
 import { confirm } from '../../core/ux/kit.js';
@@ -39,7 +40,7 @@ export function History({ width, height, open }: ScreenProps) {
     setAsking(null);
     const problems = data.setConfig(back.path, back.to, 'undo');
     if (problems.length) {
-      flash(t('set.rejected', { detail: problems.map((p) => p.detail).join('; ') }), 'bad');
+      flash(t('set.rejected', { detail: problems.map((p) => problemWords(p.detail, lang)).join('; ') }), 'bad');
       return;
     }
     flash(t('changes.undone', { change: changeText({ path: r.path, from: r.to, to: r.from }, lang) }), 'ok', () => data.setConfig(r.path, r.to, 'undo'));

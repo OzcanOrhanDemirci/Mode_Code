@@ -147,7 +147,7 @@ Every question on the command line asks the same way (`src/cli/ask.ts`). A yes o
 
 The setups say where they are: _Step 2 of 7 · The tools it needs_, each step in order, a step this choice does not need saying so instead of disappearing. Nothing changes before the list of changes and its yes, but for a tool a setup needs, installed (or a GitHub sign-in opened) on its own yes. Where the other computers' settings differ, each is said by its name and in words, and a difference that lowers a protection here makes keeping this computer's the answer to Enter.
 
-Prose is wrapped to the terminal's width at word boundaries, a list item running on under itself; `--json` goes out whole. The middle dot only joins facts on a line: something off or not reached yet is `○`, a note of the doctor is `i`. `--no-color` and `NO_COLOR` reach the installer an update runs. A setup started from the control center leaves its last lines to be read: Enter goes back, and the bar says how it went.
+Prose is wrapped to the terminal's width at word boundaries, a list item running on under itself; `--json` goes out whole. The middle dot only joins facts on a line: something off or not reached yet is `○`, a note of the doctor is `i`. `--no-color` and `NO_COLOR` reach the installer an update runs. A setup started from the control center leaves its last lines to be read: Enter goes back, and the bar says how it went. Why a setting is refused is said in the person's language wherever it shows (the control center, the doctor, `mode-code config`): no English is left in a Turkish line, and `--json` keeps the settings check's own words (`src/core/config-words.ts`).
 
 ## The cockpit
 
@@ -217,4 +217,5 @@ A row whose test is still to come names the stage that brings it; `test/core/des
 | A stopped answer: told both ways, said once, nothing done for the person         | `test/core/flagged.test.ts`, the engine kit (`test/mod/flagged.kit.ts`)                               |
 | A permission allowed in the cockpit is recorded, and taken back                  | the engine kit (`test/mod/cockpit.kit.ts`)                                                            |
 | One way to ask; another maker's program never on Enter; a setup's steps          | `test/cli/ask.test.ts`, `test/app/memory-setup.test.ts`, `test/app/sync-setup.test.ts`                |
+| Every reason a setting is refused, in the person's language                      | `test/core/config-words.test.ts`, `test/doctor/render.test.ts`                                        |
 | From 60 to 200 columns                                                           | `test/tui/widths.test.tsx`, `test/core/controls.test.ts`                                              |

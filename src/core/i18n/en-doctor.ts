@@ -3,6 +3,8 @@
 export const enDoctor = {
   // ── shared ──
   'doc.line': '{text}',
+  'doc.config.line': '{path}: {detail}',
+  'doc.config.file': '(the file)',
   'doc.notInstalled': 'Not installed.',
   'doc.notMeasured': 'Not measured here.',
   'doc.windowsOnly': 'Applies to Windows only.',
