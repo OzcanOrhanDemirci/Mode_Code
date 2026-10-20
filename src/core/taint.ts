@@ -12,6 +12,7 @@ import { APP_ID, PLUGIN_NAME } from './app.js';
 import { packOfTool } from './packs.js';
 import { isFileTool, shellOf } from './belt/tools.js';
 import { isUnder, pathKey, resolvePath, type PathEnv } from './paths.js';
+import { carriesOutside, originOf, unitsIn, type Provenance } from './provenance.js';
 
 /** Programs whose output is what a remote server sent. */
 const FETCHERS = new Set(['curl', 'wget', 'invoke-webrequest', 'invoke-restmethod', 'http', 'https', 'xh']);
@@ -135,4 +136,18 @@ export function taintedAct(
     }
   }
   return null;
+}
+
+/**
+ * Whether what a tainted session's call does still needs the person, by where its parts came from
+ * (src/core/provenance.ts): the memory written only with what the session did not read from outside, or data sent
+ * only to hosts the person named or the project's remotes, goes on; what starts by itself is asked still.
+ */
+export function taintMatters(t: { act: TaintedAct; what: string }, written: string, prov: Provenance): boolean {
+  if (t.act === 'memory') return carriesOutside(written || t.what, prov);
+  if (t.act === 'send') {
+    const hosts = unitsIn(t.what).filter((u) => !u.includes('/') && !u.includes('@'));
+    return !hosts.length || hosts.some((h) => originOf(h, 'host', prov) !== 'person' && originOf(h, 'host', prov) !== 'record');
+  }
+  return true;
 }

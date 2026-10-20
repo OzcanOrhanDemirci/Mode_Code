@@ -448,6 +448,14 @@
       "line": "call.output > had.output",
       "kind": "equivalent",
       "why": "the lines of one call carry the same usage, folder and session: an equal one in place of another keeps the first line's time and changes nothing else"
+    },
+    {
+      "file": "src/core/net.ts",
+      "from": "true",
+      "to": "false",
+      "line": "paths: readonly string[]; copy?: true }",
+      "kind": "equivalent",
+      "why": "a type's literal, erased before anything runs"
     }
   ]
 }

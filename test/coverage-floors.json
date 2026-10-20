@@ -451,6 +451,11 @@
       "branches": 92,
       "functions": 94
     },
+    "src/core/provenance.ts": {
+      "lines": 100,
+      "branches": 100,
+      "functions": 100
+    },
     "src/core/quota.ts": {
       "lines": 94,
       "branches": 89,

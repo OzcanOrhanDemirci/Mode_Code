@@ -46,6 +46,7 @@ const TARGETS = {
     'test/core/belt-tiers.test.ts',
     'test/core/belt-levels.test.ts',
     'test/core/belt-net.test.ts',
+    'test/core/belt-evidence.test.ts',
     'test/corpus/automation-parity.test.ts',
     'test/protection/spellings.test.ts',
   ],
@@ -55,6 +56,7 @@ const TARGETS = {
     'test/core/belt-tiers.test.ts',
     'test/core/belt-levels.test.ts',
     'test/core/belt-net.test.ts',
+    'test/core/belt-evidence.test.ts',
     'test/core/config.test.ts',
   ],
   'src/core/keywords.ts': [
@@ -100,7 +102,7 @@ const TARGETS = {
   // `/0` (docs/modes.md, "Session controls"): which terminal opens the control center, with which arguments.
   'src/core/launch.ts': ['test/core/launch.test.ts'],
   'src/core/update.ts': ['test/core/update.test.ts'],
-  'src/core/taint.ts': ['test/core/taint.test.ts'],
+  'src/core/taint.ts': ['test/core/taint.test.ts', 'test/core/belt-evidence.test.ts'],
   'src/core/hygiene.ts': ['test/core/hygiene.test.ts'],
   'src/core/measure.ts': ['test/core/measure.test.ts'],
   'src/core/permissions.ts': ['test/core/permissions.test.ts'],
@@ -111,6 +113,8 @@ const TARGETS = {
   'src/core/manual.ts': ['test/core/belt-levels.test.ts'],
   // The safety net: what is kept before a call, read back, and the steps back.
   'src/core/net.ts': ['test/core/net.test.ts'],
+  // Where what a call acts on came from: the person's words, the start record, what was read from outside.
+  'src/core/provenance.ts': ['test/core/provenance.test.ts', 'test/core/belt-evidence.test.ts'],
   'src/core/config-words.ts': ['test/core/config-words.test.ts', 'test/doctor/render.test.ts'],
   'src/core/packs.ts': ['test/core/packs.test.ts'],
   'src/core/skills.ts': ['test/core/skills.test.ts'],

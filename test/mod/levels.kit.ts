@@ -87,3 +87,17 @@ test('a call a safety net makes undoable passes in Autonomous where the safety-n
   await $.tool.call({ tool: 'Bash', command: 'git clean -fd', tool_use_id: 'toolu_n3' } as any);
   expect(w.asked.length).toBe(before + 2);
 });
+
+test('what the person wrote is evidence: a release they named is deleted in Autonomous with a note; one they did not is asked', async ($, on) => {
+  const w = world(on, { answer: 'block' });
+  await style($, '8');
+  await $.prompt.submit({ text: 'Delete the release v1.2.3, it was a mistake.', wait: false, origin: { kind: 'composer' } } as any);
+  const before = w.asked.length;
+  const named: any = await $.tool.call({ tool: 'Bash', command: 'gh release delete v1.2.3 --yes', tool_use_id: 'toolu_e1' } as any);
+  expect(named.deny).toBeUndefined();
+  expect(w.asked.length).toBe(before);
+  await $.tool.call({ tool: 'Bash', command: 'gh release delete v9.9.9 --yes', tool_use_id: 'toolu_e2' } as any);
+  expect(w.asked.length).toBe(before + 1);
+  // The record the safety-net hook decides by too.
+  expect(w.json(`${DATA}/state/sessions/${SESSION}.prov.json`).said.at(-1)).toMatch(/v1\.2\.3/);
+});

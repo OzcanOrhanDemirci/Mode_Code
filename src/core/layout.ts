@@ -9,6 +9,7 @@
  *   state/quota.json                 the mod (the latest rate-limit reading)
  *   state/sessions/<id>.mod.json     the mod (mode, budget, approvals for this session)
  *   state/sessions/<id>.hook.json    the safety-net hook
+ *   state/sessions/<id>.prov.json    the mod (where what the person wrote and what was read came from: core/provenance.ts)
  *   events/<yyyy-mm>/<id>.<who>.jsonl  one writer per file: belt and keyword events, append-only
  *   index.db                         the control center (session index)
  *   install/manifest.json            the installer (every change it made, so removal undoes exactly that)
@@ -120,6 +121,12 @@ export function safeId(id: string | undefined | null): string | null {
 export function sessionFile(l: Layout, sessionId: string, writer: 'mod' | 'hook'): string | null {
   const id = safeId(sessionId);
   return id ? joinPath(l.sessionsDir, `${id}.${writer}.json`) : null;
+}
+
+/** A session's record of where things came from (src/core/provenance.ts): the plugin writes it, the hook reads it. */
+export function provFile(l: Layout, sessionId: string): string | null {
+  const id = safeId(sessionId);
+  return id ? joinPath(l.sessionsDir, `${id}.prov.json`) : null;
 }
 
 /** A flow's folder in the data folder (its record and the checked copies), or null for an id of another shape. */

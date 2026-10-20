@@ -14,7 +14,8 @@ import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
 import { isBeltTool, shellOf } from '../core/belt/tools.js';
 import { levelOf } from '../core/belt/rules.js';
 import { parseModState, parseHookState, isApproved, applyKeyword } from '../core/session.js';
-import { sessionFile, eventsFile } from '../core/layout.js';
+import { sessionFile, eventsFile, provFile } from '../core/layout.js';
+import { parseProvenance } from '../core/provenance.js';
 import { maskSecrets } from '../core/secrets/scan.js';
 import { tIn, setLanguage, type Lang } from '../core/i18n/index.js';
 import { detectKeyword, isModeKeyword } from '../core/keywords.js';
@@ -75,7 +76,15 @@ async function preToolUse(input: Input, lang: Lang): Promise<void> {
 
   // The way of working the plugin recorded for the session says how much is asked (Manual without one). The safety
   // net is laid here, in a process of its own, before the call runs (src/core/net.ts); the doctor's samples lay none.
-  const ctx = { ...beltContext({ cwd, config, layout: l, lang }), level: levelOf(mod?.interaction), net: sessionId !== SELF_TEST_SESSION };
+  // Where things came from, as the plugin recorded it: rules with evidence decide by it (src/core/provenance.ts).
+  const provPath = provFile(l, sessionId);
+  const prov = provPath && sessionId !== SELF_TEST_SESSION ? parseProvenance(readText(provPath)) : undefined;
+  const ctx = {
+    ...beltContext({ cwd, config, layout: l, lang }),
+    level: levelOf(mod?.interaction),
+    net: sessionId !== SELF_TEST_SESSION,
+    ...(prov ? { prov } : {}),
+  };
   let d = await evaluateToolCall(tool, toolInput, ctx);
   const netsLaid = layNets(l, d, { tool, toolInput, sessionId, now });
   if (isApproved(mod, str(input.tool_use_id), now)) return; // the person approved this exact call when the mod asked

@@ -70,7 +70,7 @@ function netGit(dir: string, args: readonly string[], noHooks: string, opts: { t
 }
 
 /** Keeps a file or folder at `to`: a hard link per file where the drive allows, else a copy, within the limits. */
-function keepTree(from: string, to: string, count: { files: number; bytes: number; until: number }): void {
+function keepTree(from: string, to: string, count: { files: number; bytes: number; until: number; copy: boolean }): void {
   if (Date.now() > count.until) throw new NoNet('time');
   const s = lstatSync(from);
   if (s.isSymbolicLink()) {
@@ -87,6 +87,7 @@ function keepTree(from: string, to: string, count: { files: number; bytes: numbe
   if (++count.files > NET_FILE_LIMIT) throw new NoNet('files');
   mkdirSync(dirname(to), { recursive: true });
   try {
+    if (count.copy) throw new Error('a copy is asked for');
     linkSync(from, to);
   } catch {
     count.bytes += s.size;
@@ -118,7 +119,7 @@ export function layNet(input: LayInput): NetRecord | null {
   );
   const dir = join(input.layout.netDir, id);
   const noHooks = join(input.layout.netDir, '.no-hooks');
-  const count = { files: 0, bytes: 0, until: Date.now() + BUDGET_MS };
+  const count = { files: 0, bytes: 0, until: Date.now() + BUDGET_MS, copy: input.plan.kind === 'paths' && input.plan.copy === true };
   // Each git call gets what is left of the time: one that runs out lays no net.
   const left = () => {
     const ms = count.until - Date.now();

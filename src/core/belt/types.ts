@@ -3,6 +3,7 @@
 import type { PathAlias, Platform } from '../paths.js';
 import type { Lang } from '../i18n/index.js';
 import type { NetPlan } from '../net.js';
+import type { Provenance, Unit } from '../provenance.js';
 
 /** allow: nothing to say · warn: allowed, Claude gets a note · ask: the person must confirm · deny: blocked. */
 export type Verdict = 'allow' | 'warn' | 'ask' | 'deny';
@@ -28,6 +29,12 @@ export interface Finding {
   act?: Act;
   /** What a safety net would keep before the call (src/core/net.ts), where the check could name it. */
   net?: NetPlan;
+  /** What the call acts on, for the evidence that it is the person's (src/core/provenance.ts). */
+  unit?: Unit;
+  /** What the call carries to others (a message's text): read from outside, it is no evidence for the call. */
+  carries?: string;
+  /** Stopped because what it acts on came only from what was read from outside (set by decide). */
+  outside?: true;
 }
 
 export interface BeltDecision {
@@ -143,6 +150,8 @@ export interface BeltContext {
   level?: Level;
   /** Whether a safety net can be laid before the call (the safety-net hook lays it): rules that have one may then let it through. */
   net?: boolean;
+  /** Where things came from in the session (src/core/provenance.ts): rules with evidence decide by it. */
+  prov?: Provenance;
   git?: GitFacts;
   /** Size in bytes of an existing file, or null. Used for the memory shrink rule. */
   fileSize?(path: string): Promise<number | null>;

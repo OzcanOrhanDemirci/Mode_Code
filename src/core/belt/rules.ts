@@ -29,6 +29,12 @@ export interface RuleInfo {
   acts: LevelActs;
   /** What it does once a safety net has kept what the call takes away; `acts` hold when no net can be laid. */
   net?: LevelActs;
+  /**
+   * What it does when what the call acts on is the person's own (they wrote it, or the session's start record
+   * holds it: src/core/provenance.ts); with `withNet`, only once a safety net is laid as well. Found only in what
+   * was read from outside, the call is stopped in every way of working.
+   */
+  evidence?: { acts: LevelActs; withNet?: true };
   /** The verdict in Manual: what the rule is called by, in the lists and the settings. */
   verdict: Verdict;
   locked: boolean;
@@ -54,7 +60,20 @@ const NET_NOTE: LevelActs = ['ask', 'note', 'note'];
 /** With a safety net: Manual still asks; Autonomous and full autonomy let it through without a word. */
 const NET_PASS: LevelActs = ['ask', 'pass', 'pass'];
 
-const r = (id: RuleId, category: RuleCategory, acts: LevelActs, locked = false, pack?: RuleInfo['pack'], net?: LevelActs): RuleInfo => ({
+/** With evidence: Manual still asks; Autonomous and full autonomy let it through and say so. */
+const EVIDENCE_NOTE: RuleInfo['evidence'] = { acts: ['ask', 'note', 'note'] };
+/** With evidence: Autonomous lets it through and says so; full autonomy waits for the person's clear request. */
+const EVIDENCE_AUTO: RuleInfo['evidence'] = { acts: ['ask', 'note', 'self'] };
+
+const r = (
+  id: RuleId,
+  category: RuleCategory,
+  acts: LevelActs,
+  locked = false,
+  pack?: RuleInfo['pack'],
+  net?: LevelActs,
+  evidence?: RuleInfo['evidence'],
+): RuleInfo => ({
   id,
   category,
   acts,
@@ -62,6 +81,7 @@ const r = (id: RuleId, category: RuleCategory, acts: LevelActs, locked = false, 
   locked,
   ...(pack ? { pack } : {}),
   ...(net ? { net } : {}),
+  ...(evidence ? { evidence } : {}),
 });
 
 export const RULES: Readonly<Record<RuleId, RuleInfo>> = Object.freeze({
@@ -73,7 +93,7 @@ export const RULES: Readonly<Record<RuleId, RuleInfo>> = Object.freeze({
   'git.push-pr-only': r('git.push-pr-only', 'git', SELF),
   'git.single-branch': r('git.single-branch', 'git', SELF),
   'git.history-rewrite': r('git.history-rewrite', 'git', ASK, false, undefined, NET_NOTE),
-  'git.hooks-path': r('git.hooks-path', 'git', ASK),
+  'git.hooks-path': r('git.hooks-path', 'git', ASK, false, undefined, undefined, EVIDENCE_NOTE),
   // Skipping the repository's own hooks (lint, tests, secret checks) is the project's gate, not one of the four
   // kinds the core decides on: asked in Manual, a line for the person otherwise (the decision table, answer 4).
   'git.no-verify': r('git.no-verify', 'git', ['ask', 'note', 'note']),
@@ -82,7 +102,7 @@ export const RULES: Readonly<Record<RuleId, RuleInfo>> = Object.freeze({
   'git.discard-work': r('git.discard-work', 'git', ['ask', 'note', 'note'], false, undefined, NET_PASS),
   'git.branch-force-delete': r('git.branch-force-delete', 'git', ASK, false, undefined, NET_NOTE),
   'github.admin-merge': r('github.admin-merge', 'git', ASK),
-  'github.delete': r('github.delete', 'git', ASK),
+  'github.delete': r('github.delete', 'git', ASK, false, undefined, undefined, EVIDENCE_NOTE),
   'fs.delete-critical': r('fs.delete-critical', 'fs', SELF, true),
   'fs.delete-outside-project': r('fs.delete-outside-project', 'fs', ASK, false, undefined, NET_NOTE),
   'fs.delete-git-dir': r('fs.delete-git-dir', 'fs', ASK, false, undefined, NET_NOTE),
@@ -96,12 +116,12 @@ export const RULES: Readonly<Record<RuleId, RuleInfo>> = Object.freeze({
   'self.nested-session': r('self.nested-session', 'self', SELF, true),
   'claude.config-change': r('claude.config-change', 'claude', ASK),
   // The memory is a git repository: deleting or shrinking it is asked, never left unseen (the decision table, answer 2).
-  'self.memory-delete': r('self.memory-delete', 'self', ASK, true),
-  'self.memory-shrink': r('self.memory-shrink', 'self', ASK, true),
+  'self.memory-delete': r('self.memory-delete', 'self', ASK, true, undefined, undefined, { acts: ['ask', 'note', 'self'], withNet: true }),
+  'self.memory-shrink': r('self.memory-shrink', 'self', ASK, true, undefined, undefined, { acts: ['ask', 'note', 'self'], withNet: true }),
   'self.memory-history': r('self.memory-history', 'self', SELF, true),
-  'persist.scheduled-task': r('persist.scheduled-task', 'persist', ASK),
-  'persist.startup': r('persist.startup', 'persist', ASK),
-  'persist.shell-profile': r('persist.shell-profile', 'persist', ASK),
+  'persist.scheduled-task': r('persist.scheduled-task', 'persist', ASK, false, undefined, undefined, EVIDENCE_AUTO),
+  'persist.startup': r('persist.startup', 'persist', ASK, false, undefined, undefined, EVIDENCE_AUTO),
+  'persist.shell-profile': r('persist.shell-profile', 'persist', ASK, false, undefined, undefined, EVIDENCE_AUTO),
   'persist.ssh': r('persist.ssh', 'persist', SELF),
   'publish.package': r('publish.package', 'publish', ASK),
   'publish.visibility': r('publish.visibility', 'publish', ASK),
@@ -113,8 +133,8 @@ export const RULES: Readonly<Record<RuleId, RuleInfo>> = Object.freeze({
   'data.write-cloud': r('data.write-cloud', 'data', ASK),
   'data.reset-database': r('data.reset-database', 'data', ASK),
   'system.security-off': r('system.security-off', 'system', SELF),
-  'outbound.send': r('outbound.send', 'outbound', ASK),
-  'outbound.delete': r('outbound.delete', 'outbound', ASK),
+  'outbound.send': r('outbound.send', 'outbound', ASK, false, undefined, undefined, EVIDENCE_NOTE),
+  'outbound.delete': r('outbound.delete', 'outbound', ASK, false, undefined, undefined, EVIDENCE_AUTO),
   'outbound.payment': r('outbound.payment', 'outbound', ASK),
   // A key pushed to a public repository is leaked the moment it lands: asked about.
   'secrets.stage': r('secrets.stage', 'secrets', ASK),
@@ -175,6 +195,19 @@ export function netAct(id: RuleId, level: Level, config: RuleConfig): Act | null
   if (!info.net || config.verdicts?.[id] || effectiveAct(id, level, config) === null) return null;
   const withNet = info.net[LEVEL_INDEX[level]];
   return withNet === info.acts[LEVEL_INDEX[level]] ? null : withNet;
+}
+
+/**
+ * What a rule does at a level when what the call acts on is the person's own; null where evidence changes nothing:
+ * the rule has none, the person gave it a verdict of their own, it is off, it needs a safety net that is not laid,
+ * or at this level it is the same. A locked rule loosens only where the approved table says (the memory's two).
+ */
+export function evidenceAct(id: RuleId, level: Level, config: RuleConfig, netLaid: boolean): Act | null {
+  const info = RULES[id];
+  if (!info.evidence || config.verdicts?.[id] || effectiveAct(id, level, config) === null) return null;
+  if (info.evidence.withNet && !netLaid) return null;
+  const withEvidence = info.evidence.acts[LEVEL_INDEX[level]];
+  return withEvidence === info.acts[LEVEL_INDEX[level]] ? null : withEvidence;
 }
 
 export function effectiveAct(id: RuleId, level: Level, config: RuleConfig): Act | null {

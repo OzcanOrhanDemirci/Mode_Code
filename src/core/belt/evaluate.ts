@@ -6,7 +6,8 @@
 import { tIn } from '../i18n/index.js';
 import { visibleText } from '../text.js';
 import { checkCommand, checkFileTool, checkOutward } from './check.js';
-import { ACT_ORDER, effectiveAct, netAct, VERDICT_OF } from './rules.js';
+import { ACT_ORDER, effectiveAct, evidenceAct, netAct, RULES, VERDICT_OF } from './rules.js';
+import { carriesOutside, unitOrigin } from '../provenance.js';
 import { isFileTool, isOutwardTool, shellOf } from './tools.js';
 import type { BeltContext, BeltDecision, Finding, Verdict } from './types.js';
 
@@ -47,20 +48,28 @@ const byAct = (a: Finding, b: Finding) => ACT_ORDER[b.act ?? 'pass'] - ACT_ORDER
  * Applies the catalog at the session's level (Manual when none is given) and the person's configuration to raw
  * findings, dedupes, and picks the verdict.
  */
-export function decide(raw: readonly Finding[], issues: readonly string[], ctx: Pick<BeltContext, 'config' | 'level' | 'net'>): BeltDecision {
+export function decide(raw: readonly Finding[], issues: readonly string[], ctx: Pick<BeltContext, 'config' | 'level' | 'net' | 'prov'>): BeltDecision {
   const seen = new Set<string>();
   const findings: Finding[] = [];
   const nets: NonNullable<BeltDecision['nets']> = [];
+  const level = ctx.level ?? 'manual';
   for (const f of raw) {
+    // What the call acts on, by where it came from: read only from outside, the call is stopped whatever the level;
+    // the person's own, it stands on that evidence (src/core/provenance.ts).
+    const origin = f.unit && ctx.prov && RULES[f.rule].evidence ? unitOrigin(f.unit, ctx.prov) : 'none';
+    const netReady = !!(ctx.net && f.net);
+    const carried = !!(f.carries && ctx.prov && carriesOutside(f.carries, ctx.prov));
+    const byEvidence = (origin === 'person' || origin === 'record') && !carried ? evidenceAct(f.rule, level, ctx.config, netReady) : null;
     // A call a safety net can make undoable is decided as with the net; the net is then the caller's to lay.
-    const withNet = ctx.net && f.net ? netAct(f.rule, ctx.level ?? 'manual', ctx.config) : null;
-    const act = withNet ?? effectiveAct(f.rule, ctx.level ?? 'manual', ctx.config);
-    if (withNet && f.net) nets.push({ rule: f.rule, plan: f.net });
+    const withNet = byEvidence === null && netReady ? netAct(f.rule, level, ctx.config) : null;
+    const stopped = origin === 'content' && effectiveAct(f.rule, level, ctx.config) !== null;
+    const act = stopped ? 'stop' : (byEvidence ?? withNet ?? effectiveAct(f.rule, level, ctx.config));
+    if (!stopped && f.net && ((byEvidence !== null && RULES[f.rule].evidence?.withNet) || withNet !== null)) nets.push({ rule: f.rule, plan: f.net });
     if (!act || act === 'pass') continue;
     const key = f.rule + '\u0000' + f.reason;
     if (seen.has(key)) continue;
     seen.add(key);
-    findings.push({ ...f, verdict: VERDICT_OF[act], act });
+    findings.push({ ...f, verdict: VERDICT_OF[act], act, ...(stopped ? { outside: true as const } : {}) });
   }
   findings.sort(byAct);
   const verdict: Verdict = findings[0]?.verdict ?? 'allow';
@@ -94,7 +103,7 @@ export function decisionText(d: BeltDecision, ctx: Pick<BeltContext, 'lang' | 'l
           ? [tIn(ctx.lang, 'belt.tail.net')]
           : []
         : stopped
-          ? [tIn(ctx.lang, 'belt.tail.stop')]
+          ? [shown.some((f) => f.outside) ? tIn(ctx.lang, 'belt.tail.outside') : '', tIn(ctx.lang, 'belt.tail.stop')]
           : [
               tIn(ctx.lang, 'belt.tail.deny'),
               opts.command ? tIn(ctx.lang, 'belt.tail.command', { command: visibleText(opts.command) }) : '',

@@ -33,26 +33,27 @@ Claude Code does not read a hooks module over 1 MiB, and then the plugin does no
 
 ## Data folder
 
-| Path                                             | Writer                  | Contents                                                                                                        |
-| ------------------------------------------------ | ----------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `config.json`                                    | you, the control center | settings                                                                                                        |
-| `state/quota.json`                               | the mod                 | the latest rate-limit reading                                                                                   |
-| `state/sessions/<id>.mod.json`                   | the mod                 | mode, budget, approvals, block counts, flow of one session                                                      |
-| `state/sessions/<id>.hook.json`                  | the hook                | the hook's own counters, Claude Code's permission mode as hooks receive it, and the process the session runs in |
-| `flows/<id>/flow.json`, `research.md`, `plan.md` | the mod                 | a flow's record, the checked report and the approved plan                                                       |
-| `net/<id>/net.json`, `files/`                    | the hook                | a safety net: what a call took away, kept before it ran ([safety-belt.md](safety-belt.md#safety-net))           |
-| `memory/<repository>/`                           | the memory setup        | the working copy of a memory kept on GitHub only ([memory.md](memory.md))                                       |
-| `handoffs/<project>/`                            | the mod                 | handoff notes, when no memory store is set up (else inside the store)                                           |
-| `state/memory-sync.<mod\|hook\|cli>.json`        | one writer each         | the last sync of the memory store                                                                               |
-| `state/memory-seen.<mod\|hook\|cli>.json`        | one writer each         | the commit the memory store was last seen at (what arrived since is told)                                       |
-| `state/sync.<mod\|hook\|cli>.json`               | one writer each         | the last sync across computers ([sync.md](sync.md))                                                             |
-| `state/sync-ignored.json`                        | the CLI                 | settings from other computers the person kept their own value for                                               |
-| `state/activity.json`                            | the mod                 | when you last typed, and the last long gap (the morning report)                                                 |
-| `state/notes.json`, `state/notes-delivered.json` | the CLI, the mod        | your decisions on notes from runs, and which were handed to a session                                           |
-| `events/<yyyy-mm>/<id>.<writer>.jsonl`           | mod, hook               | belt, keyword and quota events, append-only                                                                     |
-| `index.db`                                       | the CLI                 | the session index                                                                                               |
-| `bin/hook.mjs`, `marketplace/`                   | the installer           | the installed programs                                                                                          |
-| `install/manifest.json`, `install/backups/`      | the installer           | what was installed; settings backups                                                                            |
+| Path                                             | Writer                  | Contents                                                                                                                |
+| ------------------------------------------------ | ----------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `config.json`                                    | you, the control center | settings                                                                                                                |
+| `state/quota.json`                               | the mod                 | the latest rate-limit reading                                                                                           |
+| `state/sessions/<id>.mod.json`                   | the mod                 | mode, budget, approvals, block counts, flow of one session                                                              |
+| `state/sessions/<id>.hook.json`                  | the hook                | the hook's own counters, Claude Code's permission mode as hooks receive it, and the process the session runs in         |
+| `flows/<id>/flow.json`, `research.md`, `plan.md` | the mod                 | a flow's record, the checked report and the approved plan                                                               |
+| `net/<id>/net.json`, `files/`                    | the hook                | a safety net: what a call took away, kept before it ran ([safety-belt.md](safety-belt.md#safety-net))                   |
+| `state/sessions/<id>.prov.json`                  | the mod                 | where things came from: the person's words, the start record, what was read ([safety-belt.md](safety-belt.md#evidence)) |
+| `memory/<repository>/`                           | the memory setup        | the working copy of a memory kept on GitHub only ([memory.md](memory.md))                                               |
+| `handoffs/<project>/`                            | the mod                 | handoff notes, when no memory store is set up (else inside the store)                                                   |
+| `state/memory-sync.<mod\|hook\|cli>.json`        | one writer each         | the last sync of the memory store                                                                                       |
+| `state/memory-seen.<mod\|hook\|cli>.json`        | one writer each         | the commit the memory store was last seen at (what arrived since is told)                                               |
+| `state/sync.<mod\|hook\|cli>.json`               | one writer each         | the last sync across computers ([sync.md](sync.md))                                                                     |
+| `state/sync-ignored.json`                        | the CLI                 | settings from other computers the person kept their own value for                                                       |
+| `state/activity.json`                            | the mod                 | when you last typed, and the last long gap (the morning report)                                                         |
+| `state/notes.json`, `state/notes-delivered.json` | the CLI, the mod        | your decisions on notes from runs, and which were handed to a session                                                   |
+| `events/<yyyy-mm>/<id>.<writer>.jsonl`           | mod, hook               | belt, keyword and quota events, append-only                                                                             |
+| `index.db`                                       | the CLI                 | the session index                                                                                                       |
+| `bin/hook.mjs`, `marketplace/`                   | the installer           | the installed programs                                                                                                  |
+| `install/manifest.json`, `install/backups/`      | the installer           | what was installed; settings backups                                                                                    |
 
 Every runtime file has exactly one writer, so no two processes race on a file; writes are atomic (a temporary file and a rename).
 
