@@ -35,6 +35,8 @@ export interface Finding {
   carries?: string;
   /** Stopped because what it acts on came only from what was read from outside (set by decide). */
   outside?: true;
+  /** The most this instance asks, found harmless by the check itself (a branch already merged): at most a note. */
+  atMost?: Act;
 }
 
 export interface BeltDecision {
@@ -123,6 +125,8 @@ export interface GitFacts {
   remoteUrl(dir: string, remote?: string): Promise<string | null>;
   /** The expansion of `git <name>` when it is an alias, or null. */
   alias(dir: string, name: string): Promise<string | null>;
+  /** Whether a branch's tip is in the current branch's history (merged: deleting it loses no commit); null when unknown. */
+  merged?(dir: string, branch: string): Promise<boolean | null>;
 }
 
 export interface BeltContext {

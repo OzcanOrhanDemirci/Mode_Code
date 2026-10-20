@@ -87,6 +87,14 @@ export function gitFacts(): GitFacts {
         const r = git(dir, ['config', '--get', `alias.${name}`]);
         return r.ok && r.out ? r.out : null;
       }),
+    // The local branches whose tips are in HEAD's history: deleting one loses no commit.
+    merged: async (dir, branch) => {
+      const list = memo(`m\0${dir}`, () => {
+        const r = git(dir, ['for-each-ref', '--merged', 'HEAD', '--format=%(refname:short)', 'refs/heads']);
+        return r.ok ? r.out : null;
+      });
+      return list === null ? null : list.split('\n').includes(branch);
+    },
   };
 }
 

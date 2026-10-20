@@ -35,6 +35,8 @@ export interface RuleInfo {
    * was read from outside, the call is stopped in every way of working.
    */
   evidence?: { acts: LevelActs; withNet?: true };
+  /** A path this session made is its own to remove: the call passes (src/core/provenance.ts `made`). */
+  own?: true;
   /** The verdict in Manual: what the rule is called by, in the lists and the settings. */
   verdict: Verdict;
   locked: boolean;
@@ -104,7 +106,7 @@ export const RULES: Readonly<Record<RuleId, RuleInfo>> = Object.freeze({
   'github.admin-merge': r('github.admin-merge', 'git', ASK),
   'github.delete': r('github.delete', 'git', ASK, false, undefined, undefined, EVIDENCE_NOTE),
   'fs.delete-critical': r('fs.delete-critical', 'fs', SELF, true),
-  'fs.delete-outside-project': r('fs.delete-outside-project', 'fs', ASK, false, undefined, NET_NOTE),
+  'fs.delete-outside-project': { ...r('fs.delete-outside-project', 'fs', ASK, false, undefined, NET_NOTE), own: true },
   'fs.delete-git-dir': r('fs.delete-git-dir', 'fs', ASK, false, undefined, NET_NOTE),
   'fs.move-critical': r('fs.move-critical', 'fs', SELF, true),
   'fs.disk': r('fs.disk', 'fs', SELF, true),

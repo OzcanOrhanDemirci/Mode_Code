@@ -68,7 +68,18 @@ import { claudeHost } from './kit-host.js';
 import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
 import { beltOffForDevelopment } from '../core/dev-switch.js';
 import { taintedAct, taintMatters, taintSource, withoutInvisible } from '../core/taint.js';
-import { parseProvenance, requestCheck, typedText, withGrant, withSaid, withSeen, withStart, type Provenance } from '../core/provenance.js';
+import {
+  madePaths,
+  parseProvenance,
+  requestCheck,
+  typedText,
+  withGrant,
+  withMade,
+  withSaid,
+  withSeen,
+  withStart,
+  type Provenance,
+} from '../core/provenance.js';
 import { shellReadTool, shellTrap, wholeRead } from '../core/hygiene.js';
 import { gitSubcommands } from '../core/measure.js';
 import {
@@ -825,6 +836,11 @@ async function gitFactsFor($: $): Promise<GitFacts> {
     currentBranch: (dir) => memo(`b\0${dir}`, dir, ['symbolic-ref', '--quiet', '--short', 'HEAD']),
     remoteUrl: (dir, remote = 'origin') => memo(`r\0${dir}\0${remote}`, dir, ['remote', 'get-url', '--', remote]),
     alias: (dir, name) => (/^[A-Za-z0-9._-]{1,64}$/.test(name) ? memo(`a\0${dir}\0${name}`, dir, ['config', '--get', `alias.${name}`]) : Promise.resolve(null)),
+    // The local branches whose tips are in HEAD's history: deleting one loses no commit.
+    merged: async (dir, branch) => {
+      const list = await memo(`m\0${dir}`, dir, ['for-each-ref', '--merged', 'HEAD', '--format=%(refname:short)', 'refs/heads']);
+      return list === null ? null : list.split('\n').includes(branch);
+    },
   };
 }
 
@@ -1897,6 +1913,8 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   }
 
   if (tool === 'ExitPlanMode' && c.config.modules.modes) return onExitPlanMode($, c, e, next);
+  // A file Write makes anew is the session's own to remove later (src/core/provenance.ts `made`).
+  const newFile = tool === 'Write' && typeof input.file_path === 'string' && (await statSize($, resolvePath(input.file_path, pathEnv(c, cwd)))) === null;
   const result = await next(e);
   // The footer counts what ran: a refused call changed nothing, and neither did a file tool that failed.
   const ran = result.deny === undefined && !(result.isError === true && isFileTool(tool));
@@ -1905,6 +1923,10 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   if (source) {
     c.state = { ...c.state, tainted: { source, at: await $.clock.now() } };
     await saveState($, c);
+  }
+  if (ran && result.isError !== true) {
+    const made = madePaths(tool, input, pathEnv(c, cwd), newFile);
+    if (made.length) await saveProv($, c, (p) => withMade(p, made));
   }
   if (ran && e.agentId === undefined) {
     c.turn.uses.push({ name: tool, input });
