@@ -26,7 +26,7 @@ export interface ProtectedPaths {
   startupDirs: string[];
   shellProfiles: (resolved: string) => boolean;
   sshDir: string;
-  /** Places where deleting freely is normal. */
+  /** Places where deleting freely is normal: temporary folders and caches. */
   tempDirs: string[];
   /**
    * The one spelling the checks compare: a resolved path with the 8.3 short names of known folders written
@@ -137,7 +137,10 @@ export function protectedPaths(ctx: BeltContext): ProtectedPaths {
     // Resolved like the targets they are compared with: on Windows `/tmp` is Git Bash's mount of the user's Temp.
     ...['/tmp', '/var/tmp', '/private/tmp', '/private/var/folders'].map((p) => resolvePath(p, env)),
     joinPath(home, 'AppData/Local/Temp'),
-    ...['TMPDIR', 'TEMP', 'TMP']
+    // Caches: what is kept there may be deleted any time and is made again (`~/.cache`, macOS's `~/Library/Caches`).
+    joinPath(home, '.cache'),
+    joinPath(home, 'Library/Caches'),
+    ...['TMPDIR', 'TEMP', 'TMP', 'XDG_CACHE_HOME']
       .map((k) => ctx.env[k])
       .filter((v): v is string => !!v)
       .map((v) => resolvePath(v, env)),
@@ -253,16 +256,19 @@ function dedupe(paths: string[], platform: Platform): string[] {
   });
 }
 
+const PACKAGES = /\/(?:site-packages|dist-packages|node_modules)\/[^/]/i;
+
 /**
  * The critical path that `target` is, contains, or null. A target inside a critical path is not itself
  * critical; a target inside an operating system folder is, unless it lies strictly inside one of the
- * person's own places (home, temporary folders, projects), where the ordinary rules decide.
+ * person's own places (home, temporary folders, projects) or inside a language's package folder (what a
+ * package manager installs again: `site-packages`, `dist-packages`, `node_modules`), where the ordinary rules decide.
  */
 export function hitsCritical(target: string, paths: ProtectedPaths, platform: Platform): string | null {
   if (isRoot(target)) return target;
   for (const c of paths.critical) if (isUnder(c, target, platform)) return c;
   const own = paths.ownRoots.some((r) => isUnder(target, r, platform) && pathKey(target, platform) !== pathKey(r, platform));
-  if (own) return null;
+  if (own || PACKAGES.test(target)) return null;
   for (const d of paths.systemDirs) if (isUnder(target, d, platform)) return d;
   return null;
 }

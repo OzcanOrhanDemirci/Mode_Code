@@ -186,6 +186,11 @@
       "branches": 65,
       "functions": 94
     },
+    "src/core/belt/inline.ts": {
+      "lines": 100,
+      "branches": 97,
+      "functions": 100
+    },
     "src/core/belt/protect.ts": {
       "lines": 94,
       "branches": 88,

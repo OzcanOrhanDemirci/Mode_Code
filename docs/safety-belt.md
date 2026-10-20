@@ -85,7 +85,15 @@ Measured on real sessions (the decision table's baseline), four kinds of questio
 - **The home folder of a system user** (`/root` for an agent that runs as root in a container) is the person's own, as any home folder: its insides follow the ordinary rules; the folder itself and the system's own stay critical.
 - **A test's own data** (its `test`, `spec`, `fixtures`, `mocks` folders, a file named `a.test.ts` or `a_test.go`): a token shaped like a real one there is no note when written; staging it for a commit is still checked.
 
-A verdict you gave a rule holds over all four.
+Measured again on other agents' everyday work (`docs/testing.md`, Evaluation sets), five more:
+
+- **Data piped to a script or a module** (`… | python -m sqlfluff lint -`, `… | python check.py -`): an interpreter's own options come first, and the first other word is a script (or Python's module), whose arguments are its own. Code piped into an interpreter or a shell is still asked.
+- **A setting read** (`git config core.hooksPath`, `git config get core.hooksPath`): reading git's hooks path changes nothing; setting or unsetting it is still asked.
+- **A cache** (`~/.cache`, macOS's `~/Library/Caches`, `$XDG_CACHE_HOME`) is deleted freely, as a temporary folder is: what is kept there is made again.
+- **A language's package folder** inside a system folder (`site-packages`, `dist-packages`, `node_modules` under `/opt` or `/usr`): what a package manager installs again is no system file, so deleting or moving inside it follows the ordinary rules; the folder itself stays critical.
+- **Code that deletes** (`python -c`, `node -e`): the paths a delete call is given, directly or through a name the code assigns, are checked as deleted, not every path the code names (an XPath beside `os.unlink(tmp)`, a test of an in-memory filesystem). A name the code never assigns (a parameter) still makes every path it names count.
+
+A verdict you gave a rule holds over all of them.
 
 ## Safety net
 

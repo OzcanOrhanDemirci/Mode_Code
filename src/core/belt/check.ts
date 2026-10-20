@@ -15,6 +15,7 @@ import { MARKETPLACE_NAME, PLUGIN_NAME } from '../app.js';
 import { scanSecrets } from '../secrets/scan.js';
 import { expandVars as expandVarsIn } from '../shell/vars.js';
 import { hitsCritical, protectedPaths, under, claudeDir, type ProtectedPaths } from './protect.js';
+import { codeLiterals, deletedLiterals } from './inline.js';
 import { isProtectedBranch, looksLikeUrl, parseGit, planPush, remoteMatches } from './git.js';
 import type { BeltContext, Finding, RuleId } from './types.js';
 import type { NetPlan } from '../net.js';
@@ -837,7 +838,12 @@ async function checkGit(inv: Invocation, ws: Word[], cwd: string | null, s: Scop
       break;
     case 'config': {
       const i = a.findIndex((x) => /^core\.hookspath$/i.test(x));
-      if (i !== -1 && !has('--get', '--get-all', '-l', '--list', '--show-origin')) {
+      // The key alone reads it (`git config core.hooksPath`, `git config get …`); a value or an unset changes it.
+      const reads =
+        has('--get', '--get-all', '-l', '--list', '--show-origin') ||
+        a[0] === 'get' ||
+        (a[i + 1] === undefined && a[0] !== 'unset' && !has('--unset', '--unset-all'));
+      if (i !== -1 && !reads) {
         add(s, 'git.hooks-path', 'belt.reason.hooksPath', { command: show(inv.raw) });
         actsOn(s, hooksUnit(a[i + 1]));
       }
@@ -1502,24 +1508,23 @@ export function checkOutward(tool: string, input: Readonly<Record<string, unknow
 /** Best effort for code passed to interpreters (node -e, python -c): string literals that are commands or protected paths. */
 async function checkInlineCode(inv: Invocation, cwd: string | null, s: Scope): Promise<void> {
   const code = inv.inlineCode ?? '';
-  const literals = [...code.matchAll(/'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"|`((?:[^`\\$]|\\.)*)`/g)].map((m) =>
-    (m[1] ?? m[2] ?? m[3] ?? '').replace(/\\(.)/g, '$1'),
-  );
+  const literals = codeLiterals(code);
   const inner: Scope = { ...s, inline: true };
   for (const lit of literals) {
     if (/^\s*(?:git|rm|del|rd|rmdir|remove-item|docker|claude|schtasks|crontab|sudo|bash|sh|pwsh|powershell|cmd|npm|gh)\s/i.test(lit))
       await evaluateScript(lit, 'bash', inner, cwd);
   }
-  const deletes = /\b(?:rmSync|rmdirSync|unlinkSync|rm|rmdir|unlink|rimraf|rmtree|remove|removedirs|rm_rf|rm_r|deleteSync|delete)\s*\(/.test(code);
+  // What a delete call is given (src/core/belt/inline.ts), not every path the code names.
+  const deleted = new Set(deletedLiterals(code, inv.program));
   const writes =
     /\b(?:writeFileSync|appendFileSync|writeFile|appendFile|write_text|write_bytes|copyFileSync|copyFile|renameSync|rename|move|copy|copyfile|copy2|copytree|open)\s*\(/.test(
       code,
     );
-  if (!deletes && !writes) return;
+  if (!deleted.size && !writes) return;
   for (const lit of literals) {
     if (!/^(?:[A-Za-z]:[\\/]|[\\/]|~|\.{1,2}[\\/])/.test(lit) || lit.length < 2) continue;
     const t = target({ text: lit, dynamic: false, glob: /[*?]/.test(lit) }, cwd, inner);
-    if (deletes) checkDelete(t, true, inner);
+    if (deleted.has(lit)) checkDelete(t, true, inner);
     if (writes) checkWrite(t, 'replace', inner);
   }
 }

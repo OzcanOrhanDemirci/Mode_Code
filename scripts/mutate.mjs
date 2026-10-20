@@ -40,6 +40,7 @@ const TARGETS = {
     'test/core/belt.test.ts',
     'test/core/belt-edges.test.ts',
     'test/core/belt-projects.test.ts',
+    'test/core/belt-measured.test.ts',
   ],
   'src/core/belt/evaluate.ts': [
     'test/core/belt.test.ts',
@@ -126,6 +127,8 @@ const TARGETS = {
     'test/core/belt-request.test.ts',
     'test/core/belt-refine.test.ts',
   ],
+  // What code handed to an interpreter deletes.
+  'src/core/belt/inline.ts': ['test/core/belt-inline.test.ts', 'test/core/belt-measured.test.ts'],
   'src/core/config-words.ts': ['test/core/config-words.test.ts', 'test/doctor/render.test.ts'],
   'src/core/packs.ts': ['test/core/packs.test.ts'],
   'src/core/skills.ts': ['test/core/skills.test.ts'],
