@@ -132,18 +132,57 @@ const STDIN_CODE = new Set([
   'tclsh',
 ]);
 
+/** Options that take the next word as their value (`bash -o pipefail`, `python -W ignore`), by kind of program. */
+const VALUE_FLAGS: Record<string, readonly string[]> = {
+  shell: ['-o', '+o', '-O', '+O', '--rcfile', '--init-file'],
+  python: ['-W', '-X', '--check-hash-based-pycs'],
+  node: ['-r', '--require', '--import', '--loader', '--experimental-loader', '-C', '--conditions'],
+  // PowerShell's are matched in lower case.
+  powershell: [
+    '-executionpolicy',
+    '-ep',
+    '-ex',
+    '-workingdirectory',
+    '-wd',
+    '-inputformat',
+    '-if',
+    '-outputformat',
+    '-of',
+    '-windowstyle',
+    '-configurationname',
+    '-settingsfile',
+  ],
+};
+
+function stdinFamily(name: string): string {
+  if (SHELLS.has(name) || name === 'fish') return 'shell';
+  if (POWERSHELLS.has(name)) return 'powershell';
+  if (name === 'python' || name === 'py' || name === 'pypy') return 'python';
+  return name === 'node' || name === 'nodejs' ? 'node' : 'other';
+}
+
 /**
- * Whether a program runs the code its standard input brings: a shell or an interpreter told to read it (`-s`, `-`,
- * /dev/stdin, `-Command -`), or given neither inline code nor a script to run.
+ * Whether a program runs the code its standard input brings: a shell or an interpreter told to read it (`-`,
+ * /dev/stdin, a shell's `-s`, `-Command -`), or given neither inline code nor a script to run. The interpreter's
+ * own options come first; the first other word is a script (or Python's `-m` a module), and what follows is its
+ * own: `… | python -m sqlfluff lint -` and `… | python check.py -` hand the script data, not code.
  */
 function readsCodeFromStdin(program: string, rest: readonly Word[]): boolean {
   const name = program.replace(/[0-9.]+$/, '');
   if (!STDIN_CODE.has(program) && !STDIN_CODE.has(name)) return false;
   const args = texts(rest);
-  if (args.includes('-s') || args.includes('-') || args.includes('/dev/stdin')) return true;
   const inline = Object.hasOwn(CODE_FLAGS, name) ? CODE_FLAGS[name]! : Object.hasOwn(CODE_FLAGS, program) ? CODE_FLAGS[program]! : [];
-  if (args.some((a) => inline.includes(a) || /^-(?:c|command|encodedcommand|e|f|file)$/i.test(a))) return false;
-  return !args.some((a) => !a.startsWith('-'));
+  const family = stdinFamily(name);
+  const values = VALUE_FLAGS[family] ?? [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i]!;
+    if (a === '-' || a === '/dev/stdin' || (a === '-s' && family === 'shell')) return true;
+    if (inline.includes(a) || /^-(?:c|command|encodedcommand|e|f|file)$/i.test(a)) return args[i + 1] === '-';
+    if (family === 'python' && a.startsWith('-m')) return false;
+    if (!a.startsWith('-') && !a.startsWith('+')) return false;
+    if (values.includes(family === 'powershell' ? a.toLowerCase() : a)) i++;
+  }
+  return true;
 }
 
 /** `C:\Tools\Git.EXE` → `git`; `./build.sh` → `build.sh`. */
