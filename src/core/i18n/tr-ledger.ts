@@ -88,6 +88,12 @@ export const trLedger: Record<keyof typeof enLedger, string> = {
   'act.why.agents': 'belirlediğin ajan sayısı',
   'act.why.autonomy': 'tam otonomun başlangıç denetimleri',
   'act.why.permission': "Claude Code'daki izin kuralların",
+  'act.permission.auto': "Claude Code'un {tool} sorusu evet diye cevaplandı: otonom çalışılıyor ve emniyet kemeri geçirdi",
+  'act.permission.full': "Claude Code'un {tool} sorusu evet diye cevaplandı: tam otonom ve emniyet kemeri geçirdi",
+  'act.permission.left': '{tool} sana bırakıldı: kendi kuralın bunu soruyor ve tam otonom kimseye sormaz',
+  'act.why.level': 'şeritteki çalışma biçimi',
+  'act.manual.allowed': '{what} işlemini sen onayladın (Manuel bundan önce seni bekler)',
+  'act.manual.declined': '{what} seni bekledi ve çalışmadı',
   'act.why.flagged': "Anthropic'in sunucusundaki denetim, Mode_Code değil: mesajı düzenle, başka model (/model) ya da /feedback",
   // ── neden (src/core/ux/why.ts) ──
   'why.setting': '"{name}" {value} ({place})',

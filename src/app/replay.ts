@@ -12,7 +12,7 @@ import type { Lang } from '../core/i18n/index.js';
 import type { Layout } from '../core/layout.js';
 import { evaluateToolCall } from '../core/belt/evaluate.js';
 import { isBeltTool } from '../core/belt/tools.js';
-import type { BeltContext, Verdict } from '../core/belt/types.js';
+import type { BeltContext, Level, Verdict } from '../core/belt/types.js';
 import { beltContext } from '../node/context.js';
 import { commandEffects, hidingIssues, strongest, type EffectKind } from '../core/shell/effects.js';
 import { shellOf } from '../core/belt/tools.js';
@@ -72,6 +72,8 @@ export async function replay(opts: {
   lang: Lang;
   days: number;
   now?: number;
+  /** The way of working the calls are judged at (Manual when not given). */
+  level?: Level;
   onProgress?: (done: number, total: number) => void;
 }): Promise<ReplayResult> {
   const started = Date.now();
@@ -83,7 +85,7 @@ export async function replay(opts: {
   const ctxFor = (cwd: string) => {
     let c = contexts.get(cwd);
     if (!c) {
-      c = beltContext({ cwd, config: opts.config, layout: opts.layout, lang: opts.lang });
+      c = { ...beltContext({ cwd, config: opts.config, layout: opts.layout, lang: opts.lang }), level: opts.level ?? 'manual' };
       contexts.set(cwd, c);
     }
     return c;

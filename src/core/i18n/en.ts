@@ -104,6 +104,10 @@ export const en = {
     'Do not work around this (no other spelling, tool or script). Tell the user what you wanted to do and why. If it is really needed, they can run it themselves by typing ! followed by the command.',
   'belt.tail.ask': 'Approve only if this is what you meant.',
   'belt.tail.repeat': 'This rule has blocked {n} attempts in this session. Do not try again: stop and report to the user.',
+  'belt.tail.command': 'For the user, exactly as it would run: ! {command}',
+  'belt.tail.full': 'Full autonomy asks nobody: leave this step for the user, go on with the rest of the task, and list it with its command in your report.',
+  'belt.tail.stop':
+    'This stays blocked in every way of working, and it is not something to hand to the user to run. Do not work around it (no other spelling, tool or script): tell the user what you were doing.',
 
   // ── footer lines under each answer ──
   'footer.yes': 'Yes',
@@ -150,6 +154,17 @@ export const en = {
   'belt.ask.allow': 'Allow once',
   'belt.ask.block': 'Block',
   'belt.ask.header': 'Safety belt',
+  'belt.claude.left':
+    '🛡 Left to the user: Claude Code would ask about this ({reason}), and full autonomy asks nobody. Leave this step for the user, go on with the rest of the task, and list it in your report: {what}',
+  // Manual's promise: a commit and a push wait for the person (src/core/manual.ts).
+  'manual.question': 'Manual: the {what} waits for you. {command} Run it?',
+  'manual.header': 'Manual',
+  'manual.what.commit': 'commit',
+  'manual.what.push': 'push',
+  'manual.and': ' and ',
+  'manual.declined': '🛡 The user declined the {what}: in Manual it waits for them. Tell the user what it would have done, and go on only as they say.',
+  'manual.noOne':
+    '🛡 Blocked: in Manual a {what} waits for the user, and no one could be asked here (a headless run). Tell the user: they can work Autonomous, or run it themselves.',
   'belt.failed':
     'The safety belt could not check this call ({error}), so it was blocked to be safe. Tell the person; the control center shows the error under Protection.',
 

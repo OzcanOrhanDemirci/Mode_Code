@@ -15,7 +15,8 @@ import { fingerprintOf, pauseFor, STALL_STOPS, stopDecision } from '../core/run-
 import { reminderDue, reminderNote } from '../core/agents.js';
 import { runDir } from '../core/layout.js';
 import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
-import { isBeltTool } from '../core/belt/tools.js';
+import { isBeltTool, shellOf } from '../core/belt/tools.js';
+import { levelOf } from '../core/belt/rules.js';
 import { parseModState, parseHookState, isApproved, applyKeyword } from '../core/session.js';
 import { sessionFile, eventsFile } from '../core/layout.js';
 import { maskSecrets } from '../core/secrets/scan.js';
@@ -75,7 +76,8 @@ async function preToolUse(input: Input, lang: Lang): Promise<void> {
   if (isApproved(mod, str(input.tool_use_id), now)) return; // the person approved this exact call when the mod asked
   if (beltOffForDevelopment(process.env)) return; // TEMPORARY (src/core/dev-switch.ts): the person turned the belt off to develop Mode_Code
 
-  const ctx = beltContext({ cwd, config, layout: l, lang });
+  // The way of working the plugin recorded for the session says how much is asked (Manual without one).
+  const ctx = { ...beltContext({ cwd, config, layout: l, lang }), level: levelOf(mod?.interaction) };
   const d = await evaluateToolCall(tool, toolInput, ctx);
   if (d.verdict === 'allow') return;
 
@@ -112,7 +114,7 @@ async function preToolUse(input: Input, lang: Lang): Promise<void> {
     /* logging must never change a decision */
   }
 
-  const text = decisionText(d, ctx, { repeatCount: repeat });
+  const text = decisionText(d, ctx, { repeatCount: repeat, command: shellOf(tool) ? str(toolInput.command) : null });
   if (d.verdict === 'deny') preToolDeny(text);
   else if (d.verdict === 'ask') out({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'ask', permissionDecisionReason: text } });
   else if (!mod) out({ hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: text } });

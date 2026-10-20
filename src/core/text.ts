@@ -55,6 +55,18 @@ export function truncate(text: string, max: number): string {
   return chars.slice(0, max - 1).join('') + '…';
 }
 
+/**
+ * Text with every character a reader would not see written out: control characters (a newline and a tab aside),
+ * zero-width and direction marks, Unicode tags. A command left to the person is shown so: what they read is what
+ * would run.
+ */
+export function visibleText(text: string): string {
+  return text.replace(
+    /[\u0000-\u0008\u000B-\u001F\u007F-\u009F­᠎​-‏‪-‮⁠-⁤⁦-⁩﻿]|[\u{E0000}-\u{E007F}]/gu,
+    (ch) => `<U+${ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}>`,
+  );
+}
+
 /** Formats `{name}` placeholders. A placeholder with no value stays visible, so a missing argument is noticed. */
 export function format(template: string, params?: Readonly<Record<string, string | number>>): string {
   if (!params) return template;

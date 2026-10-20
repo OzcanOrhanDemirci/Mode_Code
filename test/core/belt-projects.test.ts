@@ -35,7 +35,10 @@ test('a session started in the home folder does not make the whole home folder a
 test("a memory folder in Temp is protected however Git Bash spells the path (/tmp is the user's Temp)", async () => {
   const c = { ...ctx('C:/Users/ada'), memoryDirs: ['C:/Users/ada/AppData/Local/Temp/claude/e2e/mem'] };
   const d = await evaluateToolCall('Bash', { command: 'cd /tmp/claude/e2e && rm -rf mem' }, c);
-  assert.equal(d.verdict, 'deny');
+  // Not a temporary folder to delete freely: the memory, asked in Manual, left to the person in full autonomy.
+  assert.equal(d.verdict, 'ask');
+  assert.ok(d.findings.some((f) => f.rule === 'self.memory-delete'));
+  assert.equal((await evaluateToolCall('Bash', { command: 'cd /tmp/claude/e2e && rm -rf mem' }, { ...c, level: 'full' })).verdict, 'deny');
 });
 
 test('a registered project folder itself is not inside a project', async () => {

@@ -104,6 +104,10 @@ export const tr: Record<MessageKey, string> = {
     'Bunu dolanmaya çalışma (başka yazımla, başka araçla ya da betikle). Kullanıcıya ne yapmak istediğini ve nedenini söyle. Gerçekten gerekiyorsa komutu ! önekiyle kendisi çalıştırabilir.',
   'belt.tail.ask': 'Yalnız gerçekten bunu istiyorsan onayla.',
   'belt.tail.repeat': 'Bu kural bu oturumda {n} denemeyi engelledi. Yeniden deneme: dur ve kullanıcıya bildir.',
+  'belt.tail.command': 'Kullanıcı için, çalışacağı hâliyle: ! {command}',
+  'belt.tail.full': 'Tam otonom kimseye sormaz: bu adımı kullanıcıya bırak, işin geri kalanına devam et ve raporunda komutuyla birlikte yaz.',
+  'belt.tail.stop':
+    'Bu her çalışma biçiminde engelli kalır ve kullanıcıya çalıştırması için verilecek bir şey değil. Dolanmaya çalışma (başka yazımla, başka araçla ya da betikle): kullanıcıya ne yaptığını söyle.',
 
   'footer.yes': 'Evet',
   'footer.no': 'Hayır',
@@ -146,6 +150,16 @@ export const tr: Record<MessageKey, string> = {
   'belt.ask.allow': 'Bu seferlik izin ver',
   'belt.ask.block': 'Engelle',
   'belt.ask.header': 'Kemer',
+  'belt.claude.left':
+    '🛡 Kullanıcıya bırakıldı: Claude Code bunu sorardı ({reason}) ve tam otonom kimseye sormaz. Bu adımı kullanıcıya bırak, işin geri kalanına devam et ve raporunda yaz: {what}',
+  'manual.question': 'Manuel: {what} senin onayını bekliyor. {command} Çalıştırılsın mı?',
+  'manual.header': 'Manuel',
+  'manual.what.commit': 'commit',
+  'manual.what.push': 'push',
+  'manual.and': ' ve ',
+  'manual.declined': "🛡 Kullanıcı {what} işlemini reddetti: Manuel'de bu onu bekler. Kullanıcıya ne yapacağını söyle ve yalnız onun dediğiyle devam et.",
+  'manual.noOne':
+    "🛡 Engellendi: Manuel'de {what} kullanıcıyı bekler ve burada sorulacak kimse yok (arayüzsüz çalışma). Kullanıcıya söyle: Otonom çalışabilir ya da kendisi çalıştırabilir.",
   'belt.failed':
     'Emniyet kemeri bu çağrıyı denetleyemedi ({error}); güvenli olsun diye engellendi. Kullanıcıya söyle; hata, kontrol merkezinde Koruma altında görünür.',
 

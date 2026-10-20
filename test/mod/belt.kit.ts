@@ -94,6 +94,8 @@ test('a broken guard fails closed for tools that change things and open for read
 
 test('a note ("warn") lets the call run and tells the model', async ($, on) => {
   world(on);
+  // Autonomous: discarding uncommitted work is a note there (Manual asks).
+  await $.command.run({ command: '8', args: '' } as any);
   const r: any = await $.tool.call({ tool: 'Bash', command: 'git reset --hard' } as any);
   expect(r.deny).toBeUndefined();
   expect((r.context ?? []).join('\n')).toMatch(/git\.discard-work/);

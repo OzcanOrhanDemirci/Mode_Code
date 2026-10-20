@@ -26,7 +26,7 @@ import {
 } from '../core/ux/catalog.js';
 import { wrapText } from '../core/ux/text.js';
 import { evaluateToolCall } from '../core/belt/evaluate.js';
-import { RULES, RULE_IDS } from '../core/belt/rules.js';
+import { levelNamed, RULES, RULE_IDS } from '../core/belt/rules.js';
 import { compact, percent, ago, until, dateTime, bar, shortPath, integer } from '../core/format.js';
 import { tIn, type Lang, type MessageKey } from '../core/i18n/index.js';
 import { maskSecrets } from '../core/secrets/scan.js';
@@ -754,9 +754,14 @@ export async function cmdBelt(a: Args): Promise<number> {
     }
     if (value(a, 'content') !== undefined) input.content = value(a, 'content');
     if (tool === 'Write' && input.content === undefined) input.content = '';
-    const d = await evaluateToolCall(tool, input, beltContext({ cwd: process.cwd(), config: ctx.config, layout: ctx.layout, lang: ctx.lang }));
+    const level = levelNamed(value(a, 'level'));
+    if (!level) {
+      process.stderr.write(T(ctx, 'belt.levelUnknown', { value: value(a, 'level') ?? '' }) + '\n');
+      return 2;
+    }
+    const d = await evaluateToolCall(tool, input, { ...beltContext({ cwd: process.cwd(), config: ctx.config, layout: ctx.layout, lang: ctx.lang }), level });
     if (flag(a, 'json')) {
-      json('belt-test', { tool, input, decision: d });
+      json('belt-test', { tool, input, level, decision: d });
       return 0;
     }
     say(`${bold(T(ctx, `verdict.${d.verdict}` as MessageKey))}  ${dim(T(ctx, 'belt.testNote'))}`);
@@ -767,6 +772,11 @@ export async function cmdBelt(a: Args): Promise<number> {
   }
   if (sub === 'replay') {
     const days = intValue(a, 'days', 30, 1, 365);
+    const level = levelNamed(value(a, 'level'));
+    if (!level) {
+      process.stderr.write(T(ctx, 'belt.levelUnknown', { value: value(a, 'level') ?? '' }) + '\n');
+      return 2;
+    }
     const tty = process.stderr.isTTY && !flag(a, 'json');
     const r = await replay({
       claudeDir: claudeDirOf(),
@@ -774,6 +784,7 @@ export async function cmdBelt(a: Args): Promise<number> {
       layout: ctx.layout,
       lang: ctx.lang,
       days,
+      level,
       ...(tty ? { onProgress: (done: number, total: number) => process.stderr.write(`\r${T(ctx, 'belt.replay.progress', { done, total })}   `) } : {}),
     });
     if (tty) process.stderr.write(`\r${' '.repeat(60)}\r`);

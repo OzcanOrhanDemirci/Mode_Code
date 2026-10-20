@@ -90,6 +90,14 @@
       "why": "an override equal to the rule's verdict returns that same verdict either way"
     },
     {
+      "file": "src/core/belt/rules.ts",
+      "from": "<",
+      "to": "<=",
+      "line": "ACT_ORDER[theirs] < ACT_ORDER[own] ? own : theirs",
+      "kind": "equivalent",
+      "why": "a person's act equal to the rule's own is the same act whichever is returned"
+    },
+    {
       "file": "src/core/belt/evaluate.ts",
       "from": "&&",
       "to": "||",

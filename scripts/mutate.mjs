@@ -44,10 +44,17 @@ const TARGETS = {
     'test/core/belt.test.ts',
     'test/core/belt-edges.test.ts',
     'test/core/belt-tiers.test.ts',
+    'test/core/belt-levels.test.ts',
     'test/corpus/automation-parity.test.ts',
     'test/protection/spellings.test.ts',
   ],
-  'src/core/belt/rules.ts': ['test/core/belt.test.ts', 'test/core/belt-edges.test.ts', 'test/core/belt-tiers.test.ts', 'test/core/config.test.ts'],
+  'src/core/belt/rules.ts': [
+    'test/core/belt.test.ts',
+    'test/core/belt-edges.test.ts',
+    'test/core/belt-tiers.test.ts',
+    'test/core/belt-levels.test.ts',
+    'test/core/config.test.ts',
+  ],
   'src/core/keywords.ts': [
     'test/core/keywords.test.ts',
     'test/core/edges.test.ts',
@@ -105,6 +112,8 @@ const TARGETS = {
   'src/core/mcp-pins.ts': ['test/core/mcp-pins.test.ts'],
   'src/core/trust.ts': ['test/core/trust.test.ts'],
   'src/core/flagged.ts': ['test/core/flagged.test.ts'],
+  // What Manual promises before a commit or a push.
+  'src/core/manual.ts': ['test/core/belt-levels.test.ts'],
   'src/core/config-words.ts': ['test/core/config-words.test.ts', 'test/doctor/render.test.ts'],
   'src/core/packs.ts': ['test/core/packs.test.ts'],
   'src/core/skills.ts': ['test/core/skills.test.ts'],

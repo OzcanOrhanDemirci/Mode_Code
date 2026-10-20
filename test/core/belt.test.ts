@@ -116,12 +116,12 @@ describe('git', () => {
     await cases(win(), [
       ['git branch -D feature', 'ask'],
       ['git branch -d feature', 'allow'],
-      ['git reset --hard HEAD~1', 'warn'],
+      ['git reset --hard HEAD~1', 'ask'], // Manual asks; Autonomous notes it (belt-levels.test.ts)
       ['git clean -fdx', 'ask'],
       ['git clean -n', 'allow'],
-      ['git config core.hooksPath /tmp/hooks', 'deny'],
+      ['git config core.hooksPath /tmp/hooks', 'ask'],
       ['git config --get core.hooksPath', 'allow'],
-      ['git -c core.hooksPath=/tmp/x commit -m x', 'deny'],
+      ['git -c core.hooksPath=/tmp/x commit -m x', 'ask'],
       ['git commit --no-verify -m wip', 'ask'],
       ['git commit -n -m wip', 'ask'],
       ['git push --no-verify', 'ask'],
@@ -144,7 +144,7 @@ describe('git', () => {
       ['git reset --hard HEAD~3', 'deny'],
       ['git push --force', 'deny'],
       ['git rebase -i HEAD~2', 'deny'],
-      ['git rm old.md', 'deny'],
+      ['git rm old.md', 'ask'], // deleting from the memory is asked (the decision table, answer 2)
       ['git commit -m note', 'allow'],
       ['git push', 'allow'],
     ]);
@@ -165,7 +165,7 @@ describe('filesystem', () => {
       ['rm -rf /c/Users', 'deny'],
       ['rm -rf ~/.claude', 'deny'],
       ['rm ~/.claude/settings.json', 'deny'],
-      ['rm -rf C:/dev/mem', 'deny'], // contains the memory folder
+      ['rm -rf C:/dev/mem', 'ask'], // contains the memory folder: asked
       ['rm -rf .', 'deny'], // the project itself
       ['rm -rf *', 'deny'],
       ['cd ~ && rm -rf *', 'deny'],
@@ -220,8 +220,8 @@ describe('filesystem', () => {
     await cases(win(), [
       ['mv ~/.claude ~/claude-old', 'deny'],
       ['mv C:/dev/mem/hafiza/a.md C:/dev/mem/hafiza/arsiv/a.md', 'allow'],
-      ['mv C:/dev/mem/hafiza/a.md C:/Users/ada/a.md', 'deny'],
-      ['rm C:/dev/mem/hafiza/x.md', 'deny'],
+      ['mv C:/dev/mem/hafiza/a.md C:/Users/ada/a.md', 'ask'],
+      ['rm C:/dev/mem/hafiza/x.md', 'ask'],
     ]);
   });
 

@@ -97,10 +97,10 @@ Until it is done, the run does not end: when Claude tries to stop, the safety-ne
 
 These are never done during a run. Each is refused with the word **deferred**, recorded with its exact command or input, and listed in the report; Claude goes on with the rest of the work:
 
-- what the safety belt would ask you about ([safety-belt.md](safety-belt.md)): force pushes, history rewrites, deletions outside the project, publishing a package, changing a repository's visibility, deploying, staging a secret, scheduled tasks, startup entries and shell profiles;
+- what the safety belt would ask you about ([safety-belt.md](safety-belt.md#ways-of-working)): force pushes, history rewrites, deletions outside the project, publishing a package, changing a repository's visibility, deploying, staging a secret, scheduled tasks, startup entries and shell profiles; the refusal carries the command exactly as it would run;
 - pushing to a protected branch (`main`, `master`, `release/*` by default) and merging into one (`gh pr merge`); releases (`gh release create`); renaming, archiving or deleting a repository;
 - tools that act outside the machine or the run: messages, notifications, publications, schedules, worktrees, and MCP tools whose names say they send, create, update, delete, publish or post (an MCP tool whose name does not say it only reads is deferred too);
-- Claude Code's own permission questions;
+- a permission question a rule of yours asks in Claude Code (one Claude Code's mode asks by itself is answered once the belt let the call through);
 - questions to you (`AskUserQuestion`) and Claude Code's plan mode: there is no one to answer. Claude decides where there is a sensible default and records the decision; otherwise it records a blocker.
 
 A tool the plugin does not know is refused during a run: it is checked by name, and a new one has to be reviewed into a class before a run will call it.

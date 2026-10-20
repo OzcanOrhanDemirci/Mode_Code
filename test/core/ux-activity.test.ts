@@ -78,9 +78,20 @@ const SAMPLES: ActivityEvent[] = [
   { at: 1, kind: 'run', action: 'pause', run: 'r1', phase: 'code', status: 'paused' },
   { at: 1, kind: 'run', action: 'milestone', run: 'r1', phase: 'code', status: 'active' },
   { at: 1, kind: 'permission', tool: 'Bash', answer: 'parts' },
+  { at: 1, kind: 'permission', tool: 'Edit', answer: 'auto' },
+  { at: 1, kind: 'permission', tool: 'Edit', answer: 'left' },
+  { at: 1, kind: 'manual', tool: 'Bash', what: ['commit', 'push'], answer: 'allow' },
+  { at: 1, kind: 'manual', tool: 'Bash', what: ['push'], answer: 'block' },
   { at: 1, kind: 'flagged', category: 'cyber', model: 'Opus 5.5', via: 'refusal' },
   { at: 1, kind: 'flagged', category: null, model: null, via: 'error' },
 ];
+
+test("Manual's question before a commit or a push reads as what you decided", () => {
+  const said = (answer: string, lang: 'en' | 'tr') => activityOf({ at: 1, kind: 'manual', tool: 'Bash', what: ['commit', 'push'], answer }, lang).text;
+  assert.equal(said('allow', 'en'), 'You approved the commit and push (Manual waits for you before one)');
+  assert.equal(said('block', 'en'), 'The commit and push waited for you, and did not run');
+  assert.equal(said('none', 'tr'), 'commit ve push seni bekledi ve çalışmadı');
+});
 
 test('each kind reads as a sentence in both languages: no key left, no blank, no unfilled place', () => {
   for (const kind of ACTIVITY_KINDS)
@@ -195,6 +206,10 @@ test('every sample: its class, whether it is routine, where it is changed, and w
     ['waiting', false, 'work/runs/r1', false],
     ['done', false, 'work/runs/r1', false],
     ['done', true, 'claude-code/permissions', true],
+    ['done', true, 'work/modes', true],
+    ['waiting', false, 'work/modes', true],
+    ['done', false, 'work/modes', true],
+    ['blocked', false, 'work/modes', true],
     ['blocked', false, null, true],
     ['blocked', false, null, true],
   ];

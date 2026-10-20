@@ -6,6 +6,16 @@ import type { Lang } from '../i18n/index.js';
 /** allow: nothing to say · warn: allowed, Claude gets a note · ask: the person must confirm · deny: blocked. */
 export type Verdict = 'allow' | 'warn' | 'ask' | 'deny';
 
+/** How much a way of working asks (rules.ts): Manual, Autonomous, full autonomy. */
+export type Level = 'manual' | 'auto' | 'full';
+
+/**
+ * What a rule does at a level. pass: nothing to say · note: it runs, the person sees a line and Claude a note ·
+ * ask: the person decides · self: refused and left to the person, with the command they would run · stop: refused,
+ * and nobody is told to run it (a secret leaving the computer).
+ */
+export type Act = 'pass' | 'note' | 'ask' | 'self' | 'stop';
+
 export const VERDICT_ORDER: Record<Verdict, number> = { allow: 0, warn: 1, ask: 2, deny: 3 };
 
 export interface Finding {
@@ -13,6 +23,8 @@ export interface Finding {
   verdict: Verdict;
   /** One sentence in the person's language: what was found, with the concrete target. */
   reason: string;
+  /** What the rule does at the session's level (set by decide). */
+  act?: Act;
 }
 
 export interface BeltDecision {
@@ -122,6 +134,8 @@ export interface BeltContext {
   managedSettingsFiles: string[];
   lang: Lang;
   config: RuleConfig;
+  /** How much the session's way of working asks; Manual when not given. */
+  level?: Level;
   git?: GitFacts;
   /** Size in bytes of an existing file, or null. Used for the memory shrink rule. */
   fileSize?(path: string): Promise<number | null>;

@@ -231,6 +231,11 @@
       "branches": 90,
       "functions": 100
     },
+    "src/core/manual.ts": {
+      "lines": 100,
+      "branches": 100,
+      "functions": 100
+    },
     "src/core/flow-checks.ts": {
       "lines": 92,
       "branches": 84,

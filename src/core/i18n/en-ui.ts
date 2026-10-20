@@ -219,6 +219,7 @@ export const enUi = {
   'belt.lockedNote': '🔒 Locked rules protect the protection itself: they cannot be switched off, only made stricter.',
   'belt.testNote': '(evaluated only; nothing was run)',
   'belt.testNothing': 'Name what to test: mode-code belt test --command "git clean -f", or --path <file>.',
+  'belt.levelUnknown': '--level {value}: name a way of working: manual, autonomous or full.',
   'belt.noEvents': 'Nothing was blocked or asked in the last {n} days.',
   'belt.replay.title': 'The belt over your last {n} days',
   'belt.replay.summary': '{files} sessions, {calls} checked calls: {asked} questions ({perDay} a day), {blocked} blocked, {noted} notes.',
