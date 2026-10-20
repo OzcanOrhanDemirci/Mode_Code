@@ -39,6 +39,15 @@ export function managedSettingsFiles(p: Platform = platform): string[] {
   return ['/etc/claude-code/managed-settings.json'];
 }
 
+/**
+ * Windows looks a program named without a folder up in the working folder before PATH, so a git.exe in a
+ * project would run in git's place. Turned off for this process and everything it starts, as Claude Code
+ * does for its own: every entry point calls this first.
+ */
+export function noProgramsFromWorkingFolder(p: Platform = platform, env: NodeJS.ProcessEnv = process.env): void {
+  if (p === 'win32') env.NoDefaultCurrentDirectoryInExePath = '1';
+}
+
 /** The interface language for this process. */
 export function processLanguage(configured: string | null | undefined): Lang {
   let intlLocale: string | null = null;

@@ -194,6 +194,7 @@ import {
   type ModSessionState,
 } from '../core/session.js';
 import { hostGone, hostQuery, readHost } from '../core/host.js';
+import { filterDriversQuery, needsFilterDrivers, repoFilterDrivers, safeGitArgs } from '../core/git-safe.js';
 import { effectiveMode, isRestricted, MODE_ICON, tempZones, type ModeZones, type WorkMode } from '../core/modes.js';
 import {
   approvePlan,
@@ -868,10 +869,26 @@ function activityCounts(lines: readonly string[], lang: Lang): { activity: numbe
   return { activity, waiting };
 }
 
+/**
+ * git as Mode_Code runs it (src/core/git-safe.ts): nothing the repository's settings name runs. null when a
+ * filter driver of the repository cannot be switched off, so the call is not made. By name: Claude Code
+ * looks programs up with the working folder left out, and runs git with the repository's hooks off.
+ */
+async function safeGit($: $, dir: string, args: string[], timeoutMs: number): Promise<{ exitCode: number; stdout: string; stderr: string } | null> {
+  let drivers: string[] = [];
+  if (needsFilterDrivers(args)) {
+    const q = await $.process.run(['git', ...filterDriversQuery(dir)], { timeoutMs });
+    const names = q.exitCode === 0 ? repoFilterDrivers(q.stdout) : q.exitCode === 1 ? [] : null;
+    if (!names) return null;
+    drivers = names;
+  }
+  return $.process.run(['git', ...safeGitArgs(dir, args, drivers)], { timeoutMs });
+}
+
 async function runGit($: $, dir: string, args: string[]): Promise<{ ok: boolean; out: string }> {
   try {
-    const r = await $.process.run(['git', '-C', dir, '--no-pager', ...args], { timeoutMs: 5000 });
-    return { ok: r.exitCode === 0, out: r.stdout.trim() };
+    const r = await safeGit($, dir, args, 5000);
+    return r ? { ok: r.exitCode === 0, out: r.stdout.trim() } : { ok: false, out: '' };
   } catch {
     return { ok: false, out: '' };
   }
@@ -1523,7 +1540,8 @@ async function runToResume($: $, c: Ctx, project: string | null, cwd: string): P
 /** git in a folder with its output; diffs get a longer time. */
 async function gitIn($: $, dir: string, args: string[], timeoutMs = 15_000): Promise<{ ok: boolean; out: string; err: string }> {
   try {
-    const r = await $.process.run(['git', '-C', dir, '--no-pager', ...args], { timeoutMs });
+    const r = await safeGit($, dir, args, timeoutMs);
+    if (!r) return { ok: false, out: '', err: 'a filter of the repository cannot be switched off' };
     return { ok: r.exitCode === 0, out: r.stdout.trim(), err: r.stderr.trim() };
   } catch (err) {
     return { ok: false, out: '', err: String((err as Error)?.message ?? err) };
@@ -1972,7 +1990,7 @@ async function reviewRun(
   const range = `${from}..${to}`;
   const commits = await gitIn($, r.cwd, ['log', '--oneline', '--no-decorate', range]);
   const stat = await gitIn($, r.cwd, ['diff', '--stat', range]);
-  const diff = await gitIn($, r.cwd, ['diff', '--no-color', '--no-ext-diff', range], 60_000);
+  const diff = await gitIn($, r.cwd, ['diff', '--no-color', range], 60_000);
   // The project beyond the diff, as it is at the reviewed commit: what exists, and how it builds and runs.
   const tree = await gitIn($, r.cwd, ['ls-tree', '-r', '--name-only', to]);
   const files = tree.ok ? tree.out.split('\n').filter(Boolean) : [];

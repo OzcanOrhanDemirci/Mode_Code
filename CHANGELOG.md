@@ -84,6 +84,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Fixed
 
+- Mode_Code's own git calls (the belt's facts, the status line, the control center, handoff notes, runs) could run a program a repository's own settings name: a file system monitor or a content filter on `git status`, a diff converter or an outside diff program on `git diff`. They run none now, and status stays out of submodules; your own Git LFS keeps working. On Windows the command line no longer takes a program from the folder it runs in (a `git.exe` there ran in git's place); the hook, started by Claude Code, was already kept from it by Claude Code and no longer depends on that (`docs/architecture.md`).
 - A refused setting said why in English in a Turkish control center, doctor and command line (`expected 1 to 72`): every reason the settings check gives is said in the person's language now, wherever it is shown; `--json` keeps the check's own words.
 - The POSIX installer said to run `mode-code` here and to open a new terminal at once: where the installer has just added the command to PATH, it now says a new terminal opens the control center too.
 - A long line in the control center that wrapped could start its next line with a space (Ink keeps the space a break falls on); the control center now wraps its own prose at word boundaries.

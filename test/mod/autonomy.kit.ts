@@ -60,10 +60,10 @@ function repo() {
     }
     if (args[0] === 'rev-list') return { exitCode: 0, stdout: '1\n' };
     if (args[0] === 'log') return { exitCode: 0, stdout: `${st.head.slice(0, 7)} feat: a step\n` };
-    if (args[0] === 'diff' && args[1] === '--stat') return { exitCode: 0, stdout: ' src/limiter.ts | 3 +++\n' };
+    if (args[0] === 'diff' && args.includes('--stat')) return { exitCode: 0, stdout: ' src/limiter.ts | 3 +++\n' };
     if (args[0] === 'diff') return { exitCode: 0, stdout: 'diff --git a/src/limiter.ts b/src/limiter.ts\n+export const limit = 100;\n' };
     if (args[0] === 'ls-tree') return { exitCode: 0, stdout: 'package.json\nsrc/limiter.ts\n' };
-    if (args[0] === 'show' && String(args[1]).endsWith(':package.json')) return { exitCode: 0, stdout: '{ "name": "app", "type": "module" }\n' };
+    if (args[0] === 'show' && String(args.at(-1)).endsWith(':package.json')) return { exitCode: 0, stdout: '{ "name": "app", "type": "module" }\n' };
     return undefined;
   };
   return {

@@ -23,7 +23,12 @@ export interface WorldOptions {
   toolList?: { name: string; description?: string; mcp?: boolean }[];
   /** More environment variables (WSL_DISTRO_NAME, …). */
   env?: Record<string, string>;
-  /** Answers a git call before the defaults do (its arguments after -C <dir> and --no-pager, and that dir); undefined falls through. */
+  /**
+   * What the repository's settings files say of filter drivers (`git config --show-scope --name-only --get-regexp`):
+   * lines of "scope<TAB>filter.<name>.<key>"; none when absent.
+   */
+  filterDrivers?: string;
+  /** Answers a git call before the defaults do (its arguments after -C <dir>, --no-pager and each -c <setting>, and that dir); undefined falls through. */
   git?: (
     args: string[],
     dir?: string,
@@ -72,6 +77,8 @@ export function world(on: any, opts: WorldOptions = {}) {
   const clock = mock.clock(on, { now: opts.now ?? Date.parse('2026-10-12T10:00:00Z') });
   /** Every program other than uname and git the plugin ran, as it asked. */
   const ran: string[][] = [];
+  /** Every git call, its arguments as the plugin gave them (after the program). */
+  const gitRan: string[][] = [];
   const at = opts.windows ? WIN : { HOME, DATA, PROJECT };
   mock.env(on, {
     ...(opts.windows ? { USERPROFILE: at.HOME, OS: 'Windows_NT', TEMP: `${at.HOME}/AppData/Local/Temp` } : { HOME: at.HOME }),
@@ -130,9 +137,16 @@ export function world(on: any, opts: WorldOptions = {}) {
     const [cmd, ...rest] = e.argv as string[];
     if (cmd === 'uname') return { value: { exitCode: 0, stdout: 'Linux\n', stderr: '' } };
     if (cmd === 'git') {
-      // Past `-C <dir>` and `--no-pager`, whichever of them the caller put first.
+      // Past `-C <dir>`, `--no-pager` and each `-c <setting>`, whichever of them the caller put first.
       let args = rest[0] === '-C' ? rest.slice(2) : rest;
       if (args[0] === '--no-pager') args = args.slice(1);
+      while (args[0] === '-c') args = args.slice(2);
+      if (args[0] === 'config' && args[1] === '--show-scope') {
+        gitRan.push(rest);
+        const out = opts.filterDrivers ?? '';
+        return { value: { exitCode: out ? 0 : 1, stdout: out, stderr: '' } };
+      }
+      gitRan.push(rest);
       // An answer may take its time (a pull still running when the prompt comes in).
       const own = await opts.git?.(args, rest[0] === '-C' ? rest[1] : undefined);
       if (own) return { value: { stderr: '', ...own } };
@@ -228,6 +242,7 @@ export function world(on: any, opts: WorldOptions = {}) {
     hook,
     files,
     ran,
+    gitRan,
     reached,
     calls,
     registered,

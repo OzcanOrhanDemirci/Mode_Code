@@ -256,6 +256,11 @@
       "branches": 72,
       "functions": 86
     },
+    "src/core/git-safe.ts": {
+      "lines": 100,
+      "branches": 100,
+      "functions": 100
+    },
     "src/core/guard.ts": {
       "lines": 94,
       "branches": 84,
@@ -677,9 +682,9 @@
       "functions": 71
     },
     "src/node/git.ts": {
-      "lines": 91,
-      "branches": 77,
-      "functions": 94
+      "lines": 98,
+      "branches": 87,
+      "functions": 100
     },
     "src/node/handoffs.ts": {
       "lines": 92,
