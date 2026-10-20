@@ -10,7 +10,7 @@ import { ago, shortPath } from '../../core/format.js';
 import type { MessageKey } from '../../core/i18n/index.js';
 import { beltContext } from '../../node/context.js';
 import type { ScreenProps } from '../nav.js';
-import { Empty, Muted, Note, Row, Section, StateMark, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
+import { Empty, EmptyState, Muted, Note, Row, Section, StateMark, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
 import { Pressable } from '../press.js';
 import { TextField } from '../widgets.js';
 import { eventTitle } from './home.js';
@@ -88,11 +88,11 @@ export function RuleDetail({ id, width }: ScreenProps & { id: RuleId }) {
   );
 }
 
-export function Events({ width, height }: ScreenProps) {
+export function Events({ width, height, open }: ScreenProps) {
   const { data, lang, now, theme } = useEnv();
   const t = useT();
   const list = data.events(30).filter((e) => e.kind === 'belt' || e.kind === 'chat' || e.kind === 'quota' || e.kind === 'resume');
-  if (!list.length) return <Empty>{t('belt.noEvents', { n: 30 })}</Empty>;
+  if (!list.length) return <EmptyState text={t('belt.noEvents', { n: 30 })} to="protection/test" open={open} />;
   return (
     <Box flexDirection="column" width={width}>
       {list.slice(0, Math.max(4, Math.floor((height - 2) / 2))).map((e, i) => (
@@ -204,7 +204,7 @@ export function Secrets({ width, open }: ScreenProps) {
   }, open);
   useHints([{ key: 's', label: t('keys.scan'), run: () => setRun((n) => n + 1) }], open);
   const dirs = data.config().memory.dirs;
-  if (!dirs.length) return <Empty>{t('secrets.noMemory')}</Empty>;
+  if (!dirs.length) return <EmptyState text={t('secrets.noMemory')} to="memory/protected" open={open} />;
   if (!open && run === 0) return <Muted>{t('secrets.openToScan', { n: dirs.length })}</Muted>;
   const r = data.scanMemory();
   return (

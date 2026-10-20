@@ -5,7 +5,7 @@ import { Box, Text } from 'ink';
 import type { Key } from 'ink';
 import type { Lang, MessageKey } from '../core/i18n/index.js';
 import { tIn } from '../core/i18n/index.js';
-import { meter, type KitHost, type MeterLevel } from '../core/ux/kit.js';
+import { meter, opener, type KitHost, type MeterLevel } from '../core/ux/kit.js';
 import { wrapText } from '../core/ux/text.js';
 import { fitWidth, textWidth } from '../node/width.js';
 import type { HealthState } from '../app/health.js';
@@ -218,6 +218,33 @@ export function Empty({ children }: { children: ReactNode }) {
       <Text color={theme.muted} wrap="wrap">
         {prose(children, width)}
       </Text>
+    </Box>
+  );
+}
+
+/**
+ * An empty page that leads on (docs/design.md, Voice: every empty page says what will appear there, and the one thing
+ * that makes it appear): its words, and the page where that is done, a press away (Enter, or a click on it).
+ */
+export function EmptyState({ text, to, open }: { text: string; to: string; open: boolean }) {
+  const env = useEnv();
+  const kit = useKit();
+  const t = useT();
+  const width = useContext(ProseWidth) ?? 60;
+  const place = env.place(to);
+  const follow = () => env.go(to);
+  useScreenKeys((_input, key) => {
+    if (!key.return) return false;
+    follow();
+    return true;
+  }, open);
+  useHints([{ key: 'Enter', label: t('keys.open'), run: follow }], open);
+  return (
+    <Box marginTop={1} flexDirection="column" width={width}>
+      <Text color={env.theme.muted}>{prose(text, width)}</Text>
+      <Box marginTop={1}>
+        {opener(kit, { id: `empty-${to}`, label: place.split(' › ').at(-1) ?? place, describe: t('now.goCard', { place }), onPress: follow })}
+      </Box>
     </Box>
   );
 }

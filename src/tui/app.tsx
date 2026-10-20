@@ -14,7 +14,7 @@ import { fold } from '../core/text.js';
 import { percent } from '../core/format.js';
 import { keyBar, notice, type Hint } from '../core/ux/kit.js';
 import { TOAST_MS } from '../core/ux/tokens.js';
-import { allEntries, CATEGORY_IDS, resolve, resolveAddress, searchEntries, visible, type NavNode } from './nav.js';
+import { allEntries, CATEGORY_IDS, fitCrumbs, resolve, resolveAddress, searchEntries, visible, type NavNode } from './nav.js';
 import type { DataSource } from './store.js';
 import { buildTree } from './tree.js';
 import { makeTheme, noColorAsked, stateColor, type Theme } from './theme.js';
@@ -224,11 +224,16 @@ export function App(props: AppProps) {
 
   useEffect(() => setScroll(0), [open, listKey, index]);
 
-  // Live numbers (quota, events) refresh by themselves; the session index on "r".
+  // Live: what changes on disk shows at once (data.watch), and every 15 seconds besides (a clock, an age); the session
+  // index on "r".
   useEffect(() => {
     const h = setInterval(() => setTick((x) => x + 1), 15_000);
-    return () => clearInterval(h);
-  }, []);
+    const stop = data.watch?.(() => setTick((x) => x + 1));
+    return () => {
+      clearInterval(h);
+      stop?.();
+    };
+  }, [data]);
 
   const env: Env = {
     data,
@@ -419,24 +424,32 @@ export function App(props: AppProps) {
   const belt = health.features.find((f) => f.id === 'belt');
   const q = data.quota();
 
-  // Each crumb of the location bar leads back to its level with a click; the screen open now is where you are.
+  // Each crumb of the location bar leads back to its level with a click; the screen open now is where you are. The
+  // crumbs are fitted to the room the protection and the quota leave them, so neither is ever cut into the other.
+  const status = [
+    belt ? `${theme.sym.shield} ${t(`health.state.${belt.state}` as MessageKey)}` : '',
+    q.assessment.week ? `  ${t('nav.week')} ${percent(q.assessment.week.used, lang)}` : '',
+    q.assessment.five ? `  ${t('nav.five')} ${percent(q.assessment.five.used, lang)}` : '',
+  ];
+  const fitted = fitCrumbs(crumbs, Math.max(12, columns - textWidth(status.join('')) - 2), textWidth(theme.sym.sep), textWidth);
   const header = (
     <Box width={columns} justifyContent="space-between">
-      <Box flexShrink={1} overflow="hidden">
-        {crumbs.map((c, k) => {
-          const here = k === crumbs.length - 1;
+      <Box flexShrink={0}>
+        {fitted.map((c, k) => {
+          const here = k === fitted.length - 1;
+          const level = c.level;
           const label = (
-            <Text bold {...(k === 0 ? { color: theme.accent } : {})} wrap="truncate-end">
-              {c}
+            <Text bold {...(k === 0 ? { color: theme.accent } : {})}>
+              {c.label}
             </Text>
           );
           return (
-            <Box key={k} flexShrink={k === 0 ? 0 : 1}>
+            <Box key={k} flexShrink={0}>
               {k ? <Text color={theme.muted}>{theme.sym.sep}</Text> : null}
-              {here ? (
+              {here || level === null ? (
                 label
               ) : (
-                <Pressable onPress={() => toLevel(k)} describe={t('nav.toLevel', { place: c })}>
+                <Pressable onPress={() => toLevel(level)} describe={t('nav.toLevel', { place: crumbs[level]! })}>
                   {label}
                 </Pressable>
               )}
@@ -444,15 +457,13 @@ export function App(props: AppProps) {
           );
         })}
       </Box>
-      <Text color={theme.muted} wrap="truncate-start">
-        {belt ? (
-          <Text color={stateColor(theme, belt.state)}>
-            {theme.sym.shield} {t(`health.state.${belt.state}` as MessageKey)}
-          </Text>
-        ) : null}
-        {q.assessment.week ? `  ${t('nav.week')} ${percent(q.assessment.week.used, lang)}` : ''}
-        {q.assessment.five ? `  ${t('nav.five')} ${percent(q.assessment.five.used, lang)}` : ''}
-      </Text>
+      <Box flexShrink={0}>
+        <Text color={theme.muted}>
+          {belt ? <Text color={stateColor(theme, belt.state)}>{status[0]}</Text> : null}
+          {status[1]}
+          {status[2]}
+        </Text>
+      </Box>
     </Box>
   );
 

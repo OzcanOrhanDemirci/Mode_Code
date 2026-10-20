@@ -177,3 +177,32 @@ export function resolveAddress(roots: NavNode[], address: string): { chain: NavN
   }
   return { chain: here, address: addressOf(here) };
 }
+
+/**
+ * The location bar's crumbs fitted to `room` columns, never squeezed into one another: the first and the last stay,
+ * the ones between give way to one `…` from the outermost in, and a last crumb still too long is cut. `level` is the
+ * crumb's place in the chain (what a click on it leads back to); null for the `…`.
+ */
+export function fitCrumbs(labels: readonly string[], room: number, sepW: number, measure: (s: string) => number): { label: string; level: number | null }[] {
+  const all = labels.map((label, level) => ({ label, level: level as number | null }));
+  const width = (ps: { label: string }[]) => ps.reduce((n, p, i) => n + measure(p.label) + (i ? sepW : 0), 0);
+  if (width(all) <= room || all.length < 3) return fitLast(all, room, sepW, measure);
+  for (let drop = 1; drop < all.length - 1; drop++) {
+    const ps = [all[0]!, { label: '…', level: null }, ...all.slice(1 + drop)];
+    if (width(ps) <= room) return ps;
+  }
+  return fitLast([all[0]!, { label: '…', level: null }, all.at(-1)!], room, sepW, measure);
+}
+
+function fitLast(ps: { label: string; level: number | null }[], room: number, sepW: number, measure: (s: string) => number) {
+  const before = ps.slice(0, -1).reduce((n, p, i) => n + measure(p.label) + (i ? sepW : 0), 0) + (ps.length > 1 ? sepW : 0);
+  const last = ps.at(-1)!;
+  const max = Math.max(1, room - before);
+  if (measure(last.label) <= max) return ps;
+  let out = '';
+  for (const ch of last.label) {
+    if (measure(out + ch) > max - 1) break;
+    out += ch;
+  }
+  return [...ps.slice(0, -1), { ...last, label: `${out.trimEnd()}…` }];
+}

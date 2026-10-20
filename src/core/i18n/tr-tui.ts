@@ -559,4 +559,14 @@ export const trTui: Record<keyof typeof enTui, string> = {
   'modes.page.pick': "Bir oturumun içinde seçilir: şeridinde ya da sağdaki tuş Claude Code'un istemine yazılarak.",
   'nav.hidden': 'Ayrıntılı görünümde {n} sayfa daha',
   'nav.hiddenCard': 'Görünüm bu sayfaları bu listeden çıkarır; palet (Ctrl+K) onları yine bulur. Tıklama, görünümün değiştiği {place} sayfasını açar.',
+
+  // ── bir ayar sayfası: şu an ne tuttuğu, her satırın varsayılanına göre yeri (src/tui/widgets.tsx) ──
+  'set.row.default': 'varsayılan',
+  'set.row.changed': '• değişti',
+  'set.row.idle': 'şu an etkisiz',
+  'set.now.defaults': 'Bu sayfadaki her ayar varsayılanında.',
+  'set.now.more': '{n} ayar daha değişti',
+  'set.now.rest': 'gerisi varsayılanında',
+  'set.now.back': 'Hepsini varsayılana döndür',
+  'set.now.backCard': 'Bu sayfada neyin varsayılana döneceğini gösterir, sonra sorar: sen uygulamadan hiçbir şey değişmez. D de aynısını yapar.',
 };

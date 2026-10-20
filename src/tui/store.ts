@@ -8,6 +8,7 @@ import { setConfigValue, serializeConfig, type Config, type ConfigProblem } from
 import type { Lang } from '../core/i18n/index.js';
 import type { Layout } from '../core/layout.js';
 import { join } from 'node:path';
+import { watch, type FSWatcher } from 'node:fs';
 import { readJson, readText, writeAtomic, writeJsonAtomic } from '../node/fsx.js';
 import { readChanges, saveConfig } from '../node/changes.js';
 import type { ChangeRow, ChangeWho } from '../core/ux/changes.js';
@@ -115,6 +116,11 @@ export interface DataSource {
   /** Sync across computers: where, the computers, what waits for the person (docs/sync.md). */
   sync(): SyncView;
   refresh(): void;
+  /**
+   * Calls `onChange` soon after what the control center shows changes on disk (a session's state, an event, the quota,
+   * the settings, a flow or a run); returns what stops it. Absent: the screen refreshes on its clock and on r.
+   */
+  watch?(onChange: () => void): () => void;
   close(): void;
 }
 
@@ -333,6 +339,39 @@ export class LiveData implements DataSource {
         /* keep the last good index */
       }
     }
+  }
+  watch(onChange: () => void): () => void {
+    const l = this.ctx.layout;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    // Writes come in bursts (a session writes its state, its event and the quota at once): one refresh for each burst.
+    const changed = () => {
+      if (timer) return;
+      timer = setTimeout(() => {
+        timer = null;
+        this.cache.clear();
+        onChange();
+      }, 300);
+    };
+    const watchers: FSWatcher[] = [];
+    for (const [path, recursive] of [
+      [l.stateDir, true],
+      [l.eventsDir, true],
+      [l.flowsDir, true],
+      [l.runsDir, true],
+      [l.root, false],
+    ] as const) {
+      try {
+        watchers.push(
+          watch(path, { recursive, persistent: false }, (_e, name) => (name && /\.(?:db|db-journal|db-wal|lock)$/.test(String(name)) ? undefined : changed())),
+        );
+      } catch {
+        /* not there yet, or no watching here: the clock and r still refresh */
+      }
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+      for (const w of watchers) w.close();
+    };
   }
   close(): void {
     this.idx?.close();

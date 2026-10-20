@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import { Box, Text } from 'ink';
 import type { MessageKey } from '../core/i18n/index.js';
-import { truncate } from '../core/text.js';
 import type { Config } from '../core/config.js';
 import {
   amount,
   asksFirst,
+  blockedBy,
   confirmText,
   defaultOf,
   effectOf,
@@ -20,7 +20,9 @@ import {
   type SettingPath,
 } from '../core/ux/catalog.js';
 import { changeText } from '../core/ux/changes.js';
-import { choiceValue, confirm, switchValue } from '../core/ux/kit.js';
+import { action, card, choiceValue, confirm, switchValue } from '../core/ux/kit.js';
+import { mark } from '../core/ux/tokens.js';
+import { fitWidth, textWidth } from '../node/width.js';
 import { Pressable } from './press.js';
 import { useEnv, useHints, useKit, useScreenKeys, useT, ListView, Muted, Row, type ListItem } from './ui.js';
 
@@ -313,44 +315,83 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
     open && !!cur,
   );
 
-  // The values stand in one column two cells past the longest label, as far as the longest value leaves room. A
-  // label too long for the column is cut: run into its value, "serbest" and "açık" read as one word. A switch reads
-  // `● on`, a choice `‹ value ›` (docs/design.md, the look tells the kind).
+  // The values stand in one column two cells past the longest label, as far as the longest value and the trailing
+  // column leave room. A label too long for the column is cut: run into its value, "serbest" and "açık" read as one
+  // word. A switch reads `● on`, a choice `‹ value ›` (docs/design.md, the look tells the kind); the trailing column
+  // says whether a value is the default, changed, or of no effect now (another setting keeps it from mattering).
   const valueW =
     Math.max(
       ...fields.map((f) => {
         const k = kindOf(f);
         const values = k.kind === 'switch' ? [true, false] : k.kind === 'choice' ? [...k.options] : [k.max];
-        return Math.max(...values.map((v) => valueText(f.path, v, lang).length));
+        return Math.max(...values.map((v) => textWidth(valueText(f.path, v, lang))));
       }),
     ) + 4;
-  const labelW = Math.max(12, Math.min(40, width - 2 - valueW, Math.max(...fields.map((f) => nameOf(f.path, lang).length)) + 2));
-  const valueOf = (f: Field, i: number) => {
+  const trail = { default: t('set.row.default'), changed: t('set.row.changed'), idle: t('set.row.idle') };
+  const trailW = Math.max(...Object.values(trail).map(textWidth));
+  // A setting that matters only while another on this page holds a value stands under it, indented.
+  const paths = new Set(fields.map((f) => f.path as string));
+  const under = (f: Field) => {
+    const g = settingOf(f.path)!.def.gate;
+    return g && paths.has(g.id) ? 2 : 0;
+  };
+  const labelW = Math.max(12, Math.min(40, width - 2 - valueW - trailW - 1, Math.max(...fields.map((f) => textWidth(nameOf(f.path, lang)) + under(f))) + 2));
+  const config = env.data.config();
+  const changed = fields.filter((f) => JSON.stringify(f.value) !== JSON.stringify(defaultOf(f.path)));
+  const muted = env.theme.muted ? { color: env.theme.muted } : {};
+  const valueOf = (f: Field, i: number, idle: boolean) => {
     if (typing !== null && i === sel) return <Text bold>{typing + '▏'}</Text>;
     const k = kindOf(f).kind;
     const word = valueText(f.path, f.value, lang);
+    // Of no effect now, it is drawn dimmed: still a control, its mark and word still there.
+    if (idle) return <Text {...muted}>{k === 'switch' ? `${mark(f.value === true ? 'on' : 'off', env.theme.plain)} ${word}` : word}</Text>;
     return k === 'switch' ? switchValue(kit, f.value === true, word) : k === 'choice' ? choiceValue(kit, word) : kit.text({ bold: true }, word);
   };
+  // What the page holds now, in words: what differs from the defaults (a press puts them back), or that nothing does.
+  const shown = changed
+    .slice(0, 3)
+    .map((f) => `${nameOf(f.path, lang)}: ${valueText(f.path, f.value, lang)} (${t('ux.defaultIs', { value: valueText(f.path, defaultOf(f.path), lang) })})`);
+  const nowText = !changed.length
+    ? t('set.now.defaults')
+    : `${shown.join('; ')}${changed.length > 3 ? `; ${t('set.now.more', { n: changed.length - 3 })}` : ''}${changed.length < fields.length ? `; ${t('set.now.rest')}` : ''}.`;
   return (
     <Box flexDirection="column" width={width}>
+      {fields.length > 1 ? (
+        <Box flexDirection="column" marginBottom={1} width={width}>
+          {card(kit, { lines: [{ label: t('ux.q.now'), text: nowText }], width, labelWidth: cardLabelW(t) })}
+          {changed.length ? (
+            <Box marginLeft={cardLabelW(t)}>
+              {action(kit, { id: 'page-defaults', label: t('set.now.back'), keyName: 'D', describe: t('set.now.backCard'), onPress: () => askReset(fields) })}
+            </Box>
+          ) : null}
+        </Box>
+      ) : null}
       {fields.map((f, i) => {
         const selected = i === sel && open;
+        const indent = ' '.repeat(under(f));
+        const idle = blockedBy(config, f.path) !== null;
+        const at = idle ? 'idle' : changed.includes(f) ? 'changed' : 'default';
         // A click selects the setting and changes it, as Enter does; pointing at it says what it is.
         return (
           <Pressable
             key={f.path}
+            width={width}
             onPress={() => {
               setSel(i);
               if (open) change(f);
             }}
-            describe={`${nameOf(f.path, lang)}: ${explain(env.data.config(), f.path, lang, env.place).what}`}
+            describe={`${nameOf(f.path, lang)}: ${explain(config, f.path, lang, env.place).what}`}
           >
             {(hovered) => (
               <>
-                <Text inverse={selected} underline={hovered}>
-                  {(selected ? env.theme.sym.cursor : ' ') + ' ' + truncate(nameOf(f.path, lang), labelW - 2).padEnd(labelW)}
+                <Text inverse={selected} underline={hovered} {...(idle ? muted : {})}>
+                  {(selected ? env.theme.sym.cursor : ' ') +
+                    ' ' +
+                    indent +
+                    fitWidth(nameOf(f.path, lang), labelW - 2 - indent.length).padEnd(labelW - indent.length)}
                 </Text>
-                {valueOf(f, i)}
+                <Box flexGrow={1}>{valueOf(f, i, idle)}</Box>
+                <Text {...(at === 'changed' ? {} : muted)}>{trail[at].padStart(trailW)}</Text>
               </>
             )}
           </Pressable>
@@ -382,6 +423,11 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
       ) : null}
     </Box>
   );
+}
+
+/** The label column of a setting's card, and of the line above the settings that says what the page holds now. */
+function cardLabelW(t: (k: MessageKey) => string): number {
+  return Math.max(...(['ux.q.what', 'ux.q.now', 'ux.q.change', 'ux.q.back', 'ux.q.who'] as const).map((q) => textWidth(t(q)))) + 2;
 }
 
 /** A typed number when it is one the setting takes, else null. */
@@ -418,7 +464,7 @@ function SettingCard({
   const lang = env.lang;
   const e = explain(env.data.config(), field.path, lang, env.place);
   const k = settingOf(field.path)!.def.kind;
-  const w = Math.max(...(['ux.q.what', 'ux.q.now', 'ux.q.change', 'ux.q.back', 'ux.q.who'] as const).map((q) => t(q).length)) + 2;
+  const w = cardLabelW(t);
   const now = `${e.now} (${e.isDefault ? t('ux.default') : t('ux.defaultIs', { value: e.defaultText })})`;
   const warning = pending
     ? (confirmText(field.path, pending.value, lang) ?? t('set.confirmLower', { value: valueText(field.path, pending.value, lang) }))

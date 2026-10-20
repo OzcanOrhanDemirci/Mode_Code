@@ -837,9 +837,9 @@
       "functions": 76
     },
     "src/tui/store.ts": {
-      "lines": 4,
+      "lines": 55,
       "branches": 92,
-      "functions": 0
+      "functions": 48
     },
     "src/tui/theme.ts": {
       "lines": 94,

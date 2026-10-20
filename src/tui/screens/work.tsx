@@ -11,7 +11,7 @@ import { repoStatus, git } from '../../node/git.js';
 import { readTail } from '../../node/tail.js';
 import { readText, writeAtomic } from '../../node/fsx.js';
 import type { ScreenProps } from '../nav.js';
-import { Empty, Muted, Note, Row, Section, Table, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
+import { Empty, EmptyState, Muted, Note, Row, Section, Table, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
 import { LinkList, type Link } from '../widgets.js';
 import type { MessageKey } from '../../core/i18n/index.js';
 import { evidenceText, flowTitle, statusText } from '../../core/flow-view.js';
@@ -340,27 +340,23 @@ export function RunCard({ id, width }: ScreenProps & { id: string }) {
 }
 
 /** Working › Full-autonomy runs before there is one: what full autonomy is, and how a run starts. */
-export function RunsEmpty({ width }: ScreenProps) {
+export function RunsEmpty({ width, open }: ScreenProps) {
   const t = useT();
   return (
     <Box flexDirection="column" width={width}>
       <Muted wrap="wrap">{t('runs.empty')}</Muted>
-      <Box marginTop={1}>
-        <Note>{t('runs.howTo')}</Note>
-      </Box>
+      <EmptyState text={t('runs.howTo')} to="work/full-auto" open={open} />
     </Box>
   );
 }
 
 /** Working › Flows before there is one: what a flow is and how to start one. */
-export function FlowsEmpty({ width }: ScreenProps) {
+export function FlowsEmpty({ width, open }: ScreenProps) {
   const t = useT();
   return (
     <Box flexDirection="column" width={width}>
       <Muted wrap="wrap">{t('flows.empty')}</Muted>
-      <Box marginTop={1}>
-        <Note>{t('flows.howTo')}</Note>
-      </Box>
+      <EmptyState text={t('flows.howTo')} to="work/modes" open={open} />
     </Box>
   );
 }
@@ -388,14 +384,14 @@ export function HandoffCard({ path, width }: ScreenProps & { path: string }) {
 }
 
 /** Memory and projects › Handoffs before there is one: what a handoff note is and how one is written. */
-export function HandoffsEmpty({ width }: ScreenProps) {
+export function HandoffsEmpty({ width, open }: ScreenProps) {
+  const { data } = useEnv();
   const t = useT();
+  // Notes are written into the memory: with none set up, setting it up comes first.
   return (
     <Box flexDirection="column" width={width}>
       <Muted wrap="wrap">{t('handoff.empty')}</Muted>
-      <Box marginTop={1}>
-        <Note>{t('handoff.howTo')}</Note>
-      </Box>
+      <EmptyState text={t('handoff.howTo')} to={data.memory().store ? 'memory/notes' : 'memory/store'} open={open} />
     </Box>
   );
 }

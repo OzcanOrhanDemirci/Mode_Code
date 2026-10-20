@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { draw, FakeData, NOW } from './harness.js';
 
-test('Settings › Sync: not set up, "s" leaves for the setup and comes back here', async () => {
+test('Memory and projects › Sync: not set up, "s" leaves for the setup and comes back here', async () => {
   const data = new FakeData();
   const left: [string, string][] = [];
   const s = await draw(data, { address: 'memory/sync', onLeave: (action, back) => left.push([action, back]) });
@@ -25,7 +25,7 @@ test('Settings › Sync: not set up, "s" leaves for the setup and comes back her
   }
 });
 
-test('Settings › Sync: where, this computer and the others, what waits, projects without a folder here', async () => {
+test('Memory and projects › Sync: where, this computer and the others, what waits, projects without a folder here', async () => {
   const data = new FakeData();
   data.syncState = {
     setting: {
