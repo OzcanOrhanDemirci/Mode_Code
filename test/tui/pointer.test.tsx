@@ -171,7 +171,8 @@ test('a change that asks first shows what it will do, with apply and cancel as k
 test('the keys in the bar are clicks too: help opens, Esc closes it; a screen adds its own', async () => {
   const s = await draw(new FakeData(), { address: 'protection/secrets' });
   try {
-    await barShows(s, /^s scan again {2}←\/Esc back/);
+    // With no memory folder the page leads to where one is added (Enter), then its own key, then the usual ones.
+    await barShows(s, /^Enter open {2}s scan again {2}←\/Esc back/);
     await s.clickText('? help');
     assert.match(s.text(), /Keys work the same on every screen/);
     assert.match(s.text(), /A click does what Enter does/);
