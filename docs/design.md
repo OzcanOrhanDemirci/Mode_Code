@@ -160,6 +160,10 @@ The map follows what a person comes for, not the parts of the system (`src/tui/n
 
 **Now** is the first screen, beside the list before anything is opened (`src/tui/screens/now.tsx`). Mo says the one thing that matters most and leads there with a press: protection that does not work, a flow or a run waiting for you, what happened while you were away, a run at work, a quota near its limit, a session at work, or calm (`src/core/ux/now.ts`). Under it, the goals people come for, each one a press: leave Claude on a task, work in parallel, guard the quota, what happened, and why is it so (every line below then shows its reasons). Then, after a long gap, the morning report; **Claude right now** for the session at work on this computer (the cockpit's own lines, worked out from what the session keeps on disk; with several, `s` shows the next; with none, as a new session starts); what is at work (sessions, flows, runs); what waits for you and today's numbers; and the quota. The keys walk every press in order; the line under Mo shows the card of the one they rest on.
 
+**A page of settings** opens with what it holds now, in words: that every setting is at its default, or which ones differ and from what, with **All back to defaults** (`D`), which shows what goes back before it does. Each row ends with where it stands: `default`, `• changed`, or `no effect now` when another setting keeps it from mattering; such a setting stands indented under the one it depends on, dimmed while that one is off, and its card says which and where.
+
+**Every empty page leads on:** it says what will appear there, and a press (Enter, or a click) opens the page where that is done. **It is live:** what a session writes into the data folder (its state, an event, the quota, a flow, the settings) shows at once, without `r`. The location bar keeps its crumbs whole beside the protection and the quota: on a narrow terminal the middle ones give way to `…`.
+
 **The view level** decides how many pages the lists show, never what can be reached: Simple lists the everyday pages, Recommended all but four for experts, Detailed every one. A list that leaves pages out says how many, and a click there opens the setting; the palette and an address reach every page, and a page opened so shows in its list.
 
 ## Where it is enforced
@@ -176,6 +180,8 @@ A row whose test is still to come names the stage that brings it; `test/core/des
 | Mouse and keyboard reach the same result                                         | `test/tui/pointer.test.tsx`                                                                           |
 | Everything a click presses shows the pointer resting on it                       | `test/tui/places.test.tsx`                                                                            |
 | Every old address leads to its page; the view hides nothing from reach           | `test/tui/places.test.tsx`                                                                            |
+| A page of settings says what it holds; empty pages lead on; crumbs fit           | `test/tui/pages.test.tsx`                                                                             |
+| The control center shows what changes on disk                                    | `test/tui/live.test.ts`                                                                               |
 | No state told by colour alone                                                    | `test/core/ux-kit.test.ts`, `test/tui/grid.test.tsx` (`NO_COLOR`), `test/tui/widths.test.tsx` (plain) |
 | Right edges of a block line up                                                   | `test/tui/grid.test.tsx`                                                                              |
 | The kit sets only what Claude Code's elements take                               | `test/core/ux-kit.test.ts`; the installed version's declarations: `src/mod/kit-host.ts`               |

@@ -46,7 +46,7 @@ test('d puts a setting back to its default after showing it; D the whole page; e
   }
 });
 
-test('Settings › History of changes: every change newest first; Enter or a click takes one back, an old one changed since is not', async () => {
+test('Activity › History of changes: every change newest first; Enter or a click takes one back, an old one changed since is not', async () => {
   const data = new FakeData();
   data.setConfig('view', 'simple');
   data.setConfig('view', 'detailed');

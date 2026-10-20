@@ -11,7 +11,7 @@ import { ago } from '../../core/format.js';
 import type { MessageKey } from '../../core/i18n/index.js';
 import type { ToolEvent } from '../../app/data.js';
 import type { ScreenProps } from '../nav.js';
-import { Empty, Muted, Section, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
+import { EmptyState, Muted, Section, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
 import { Pressable } from '../press.js';
 import { fieldsOf, SettingsEditor } from '../widgets.js';
 
@@ -48,7 +48,7 @@ export function RecentTasks({ width, open }: ScreenProps) {
     return false;
   }, open);
   useHints([{ key: 'Enter/c', label: t('prompts.copy'), run: () => copy() }], open && list.length > 0);
-  if (!list.length) return <Empty>{t('prompts.empty')}</Empty>;
+  if (!list.length) return <EmptyState text={t('prompts.empty')} to="work/full-auto" open={open} />;
   // A click on a task picks it and copies it, as Enter does.
   return (
     <Box flexDirection="column" width={width}>
@@ -160,11 +160,11 @@ function line(e: ToolEvent, t: ReturnType<typeof useT>): { head: string; detail:
   return { head: `${e.tool ?? '?'}: ${e.what ?? ''}`, detail: `${rules}${who}${outcome}`, tone: 'call' };
 }
 
-export function Bypassed({ width, height }: ScreenProps) {
+export function Bypassed({ width, height, open }: ScreenProps) {
   const { data, lang, now, theme } = useEnv();
   const t = useT();
   const list = data.events(30).filter((e) => e.kind === 'bypass');
-  if (!list.length) return <Empty>{t('bypassed.empty')}</Empty>;
+  if (!list.length) return <EmptyState text={t('bypassed.empty')} to="work/bypass" open={open} />;
   return (
     <Box flexDirection="column" width={width}>
       {list.slice(0, Math.max(4, Math.floor((height - 2) / 2))).map((e, i) => {

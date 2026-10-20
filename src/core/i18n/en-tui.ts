@@ -570,4 +570,14 @@ export const enTui = {
   'modes.page.pick': "Picked inside a session: on its strip, or with the key on the right typed at Claude Code's prompt.",
   'nav.hidden': '+{n} more in the detailed view',
   'nav.hiddenCard': 'The view leaves these pages out of this list; the palette (Ctrl+K) still finds them. A click opens {place}, where the view is changed.',
+
+  // ── a page of settings: what it holds now, and each row's place against its default (src/tui/widgets.tsx) ──
+  'set.row.default': 'default',
+  'set.row.changed': '• changed',
+  'set.row.idle': 'no effect now',
+  'set.now.defaults': 'Every setting on this page is at its default.',
+  'set.now.more': '{n} more changed',
+  'set.now.rest': 'the rest at their defaults',
+  'set.now.back': 'All back to defaults',
+  'set.now.backCard': 'Shows what goes back to its default on this page, then asks: nothing changes before you apply. D does the same.',
 } as const;

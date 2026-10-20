@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { draw, FakeData, KEY, NOW } from './harness.js';
 
-test('Settings › Memory › Where it lives: not set up, "s" leaves for the setup and comes back here', async () => {
+test('Memory and projects › Memory: not set up, "s" leaves for the setup and comes back here', async () => {
   const data = new FakeData();
   const left: [string, string][] = [];
   const s = await draw(data, { address: 'memory/store', onLeave: (action, back) => left.push([action, back]) });
@@ -26,7 +26,7 @@ test('Settings › Memory › Where it lives: not set up, "s" leaves for the set
   }
 });
 
-test('Settings › Memory › Where it lives: the place, the folder, the repository, whether Claude Code uses it, the sync', async () => {
+test('Memory and projects › Memory: the place, the folder, the repository, whether Claude Code uses it, the sync', async () => {
   const data = new FakeData();
   data.memoryState = {
     store: {
@@ -92,7 +92,7 @@ test('Settings › Memory › Where it lives: the place, the folder, the reposit
   }
 });
 
-test('Settings › Memory › Handoffs and morning report: each setting is edited in place', async () => {
+test('Memory and projects › Handoffs and morning report: each setting is edited in place', async () => {
   const data = new FakeData();
   const s = await draw(data, { address: 'memory/notes' });
   try {
@@ -135,7 +135,7 @@ test('Memory and projects › Handoffs: each note as it is kept; none yet says h
   }
 });
 
-test('Home: after a long gap, what happened while the person was away comes first', async () => {
+test('Now: after a long gap, what happened while the person was away comes first', async () => {
   const data = new FakeData();
   data.morningReport = { since: NOW - 10 * 3_600_000, lines: [{ label: 'Full autonomy', text: 'Add rate limiting · done' }] };
   const s = await draw(data, { address: 'now' });

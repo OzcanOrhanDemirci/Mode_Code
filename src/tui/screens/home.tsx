@@ -7,7 +7,7 @@ import type { MessageKey } from '../../core/i18n/index.js';
 import type { ToolEvent } from '../../app/data.js';
 import { workingNow, type ModSessionState } from '../../core/session.js';
 import type { ScreenProps } from '../nav.js';
-import { Empty, Muted, useEnv, useT } from '../ui.js';
+import { EmptyState, Muted, useEnv, useT } from '../ui.js';
 
 /** Folders where more than one session is working right now. */
 export function sameFolderGroups(states: readonly ModSessionState[], now: number): { folder: string; count: number }[] {
@@ -45,7 +45,8 @@ export function Inbox({ width, open }: ScreenProps) {
   useEffect(() => {
     if (open) data.markSeen(now);
   }, [open]);
-  if (!list.length) return <Empty>{lastSeen ? t('inbox.emptySince', { when: ago(lastSeen, now, lang) }) : t('inbox.empty')}</Empty>;
+  if (!list.length)
+    return <EmptyState text={lastSeen ? t('inbox.emptySince', { when: ago(lastSeen, now, lang) }) : t('inbox.empty')} to="activity/feed" open={open} />;
   return (
     <Box flexDirection="column" width={width}>
       {lastSeen ? <Muted>{t('inbox.since', { when: ago(lastSeen, now, lang) })}</Muted> : null}
