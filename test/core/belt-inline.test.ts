@@ -47,6 +47,8 @@ test('a name the code assigns is followed to its value, a few assignments deep',
   assert.deepEqual(py("import shutil\nfor d in ['/srv/m', '/srv/n']: shutil.rmtree(d)\nprint('/srv/z')"), ['/srv/m', '/srv/n']);
   assert.deepEqual(py("import shutil, tempfile\nwith tempfile.TemporaryDirectory() as d:\n  shutil.rmtree(d)\nprint('/srv/o')"), []);
   assert.deepEqual(py("import shutil\np: str = '/srv/p'\nshutil.rmtree(p)"), ['/srv/p'], 'a typed assignment');
+  // A JavaScript name may hold `$`, which a pattern reads as the end.
+  assert.deepEqual(node("const $d = '/srv/r'; fs.rmSync($d); console.log('/srv/s')"), ['/srv/r']);
   // A comparison or an arrow is no assignment.
   assert.deepEqual(node("const d = '/srv/q'; if (d == '/x') {}; fs.rmSync(d)"), ['/srv/q']);
   // The measured case: a temporary file deleted beside an XPath.

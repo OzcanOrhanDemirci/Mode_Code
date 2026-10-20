@@ -63,7 +63,8 @@ function namesIn(text: string): string[] {
   return out;
 }
 
-const escape = (name: string) => name.replace(/\$/g, '\\$');
+/** A name as a pattern: every character a pattern reads specially escaped (a JavaScript name can hold `$`). */
+const escape = (name: string) => name.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
 
 /**
  * The texts that give a name its value in the code: an assignment's right side, what a `for` walks over, what
