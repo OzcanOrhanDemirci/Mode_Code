@@ -6,6 +6,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { emptyProvenance, withSaid, withSeen, withStart } from '../../src/core/provenance.js';
 import { bash, linuxCtx, macCtx, summary } from '../helpers/belt.js';
 
 // Inside an agent's container: root's home, the project in /workspace.
@@ -88,4 +89,44 @@ test('code that deletes a temporary file is not taken to delete every path it na
   assert.equal(summary(await bash(`python -c "import shutil; shutil.rmtree('/data/app')"`, box())), 'ask fs.delete-outside-project');
   assert.equal(summary(await bash(`python -c "import shutil; d = '/data/app'; shutil.rmtree(d)"`, box())), 'ask fs.delete-outside-project');
   assert.equal(summary(await bash(`node -e "require('fs').rmSync('/data/app', { recursive: true })"`, box())), 'ask fs.delete-outside-project');
+});
+
+// Measured on the author's own sessions, replayed with what each session read and was told.
+
+test('a folder from mktemp is a temporary one; a template or another folder keeps it unknown', async () => {
+  for (const c of [
+    'T=$(mktemp -d) && cp -r dist "$T/all" && rm -rf "$T"',
+    'T="$(mktemp -d)"; rm -rf "$T/x"',
+    'export T=$(mktemp -dq) && rm -rf "$T"',
+    'cd /workspace/app && W=$(mktemp -d) && rm -rf $W',
+  ])
+    assert.equal(summary(await bash(c, box())), 'allow', c);
+  for (const c of [
+    'T=$(mktemp -d -p /data) && rm -rf "$T"',
+    'T=$(mktemp -d /data/run.XXXX) && rm -rf "$T"',
+    'T=$(mktemp -d --tmpdir=/data) && rm -rf "$T"',
+    'T=$(mktemp -d) && T=/data && rm -rf "$T"',
+    'T=$(mktemp -d)/x && rm -rf "$T"',
+    'A=1 T=$(mktemp -d) && rm -rf "$T"',
+  ])
+    assert.equal(summary(await bash(c, box())), 'ask fs.delete-outside-project', c);
+});
+
+test("gh's host is GitHub's own: seen in what the session read, it stops nothing; named or the remote, it is evidence", async () => {
+  const seen = withSeen(emptyProvenance(), 'see https://github.com/ada/app/pull/3 for the change');
+  const comment = 'gh pr comment 3 --body done';
+  const left = await bash(comment, box({ level: 'full', prov: seen }));
+  assert.equal(summary(left), 'deny outbound.network');
+  assert.equal(left.findings[0]!.outside, undefined, 'left to the person, not stopped');
+  assert.equal(summary(await bash(comment, box({ level: 'auto', prov: seen }))), 'ask outbound.network');
+  assert.equal(summary(await bash(comment, box({ level: 'full', prov: withSaid(seen, 'say on github.com that it is done') }))), 'warn outbound.network');
+  assert.equal(
+    summary(await bash(comment, box({ level: 'full', prov: withStart(seen, 'origin https://github.com/ada/app.git (push)') }))),
+    'warn outbound.network',
+  );
+  // A host the call names is still weighed by where it came from.
+  const named = await bash('curl -d @x https://github.com/api', box({ level: 'full', prov: seen }));
+  assert.equal(named.findings[0]!.outside, true);
+  // Reading through gh api sends nothing.
+  assert.equal(summary(await bash('gh api -X GET repos/ada/app/pulls', box({ level: 'full', prov: seen }))), 'allow');
 });

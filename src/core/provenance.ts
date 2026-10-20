@@ -17,6 +17,8 @@ import { resolvePath, type PathEnv } from './paths.js';
 export interface Unit {
   kind: 'host' | 'repo' | 'recipient' | 'path' | 'object' | 'text';
   values: string[];
+  /** The tool's own, never written in the call (gh's GitHub): evidence when the person named it, never taken from outside. */
+  implicit?: true;
 }
 
 /**
@@ -109,6 +111,21 @@ const HOST = /\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}\b/gi;
 /** A file's name looks like a host (`README.md`): these endings are files, not places on the network. */
 const FILE_END =
   /\.(?:md|js|mjs|cjs|ts|tsx|jsx|json|txt|py|sh|ps1|bat|cmd|yml|yaml|toml|lock|log|csv|html?|css|png|jpe?g|gif|svg|pdf|zip|gz|tgz|exe|dll|so|dylib|rs|go|java|kt|swift|dart|rb|php|c|h|cpp|hpp|cs|xml|ini|cfg|conf|env|sql|db|bak|tmp|map|wasm|git)$/i;
+/**
+ * The endings a bare name must have to be taken for a host (`example.com`, not `tool.check` or `prov.seen`): any two
+ * letters (the countries'), the common generic ones, and those kept for examples, tests and local networks. Measured on
+ * the author's sessions: a rule's or a field's name in a note was taken for a host read from outside. A URL's host
+ * needs none.
+ */
+const TLDS = new Set(
+  (
+    'com net org edu gov mil int info biz name pro mobi asia app dev io cloud tech site online store shop blog page link ' +
+    'live xyz top club icu buzz fun work space website world today life news media digital email network systems services ' +
+    'agency studio design zip mov click download stream social chat team company finance money bank wiki one ' +
+    'example test invalid localhost local internal lan home arpa onion'
+  ).split(' '),
+);
+const URL_HOST = /\b[a-z][a-z0-9+.-]*:\/\/(?:[^@/\s]*@)?([a-z][a-z0-9-]*(?:\.[a-z0-9-]+)+)/gi;
 const EMAIL = /\b[\w.+-]{1,64}@(?:[a-z0-9-]{1,63}\.)+[a-z]{2,24}\b/gi;
 const REPO = /\b(?:github\.com|gitlab\.com|bitbucket\.org)[/:]([\w.-]{1,100}\/[\w.-]{1,100}?)(?:\.git)?(?=[\s/#?"')\]]|$)/gi;
 const PATH = /(?:(?<![\w/])[A-Za-z]:[\\/]|(?<![\w/])~\/|(?<![\w/.:])\/(?:home|Users|tmp|var|etc|opt|srv|mnt)\/)[^\s"'`<>|]{1,240}/g;
@@ -117,7 +134,11 @@ const PATH = /(?:(?<![\w/])[A-Za-z]:[\\/]|(?<![\w/])~\/|(?<![\w/.:])\/(?:home|Us
 export function unitsIn(text: string): string[] {
   const out = new Set<string>();
   for (const m of text.matchAll(EMAIL)) out.add(norm(m[0]));
-  for (const m of text.matchAll(HOST)) if (!/^\d/.test(m[0]) && !FILE_END.test(m[0])) out.add(norm(m[0]));
+  for (const m of text.matchAll(HOST)) {
+    const tld = m[0].slice(m[0].lastIndexOf('.') + 1).toLowerCase();
+    if (!/^\d/.test(m[0]) && !FILE_END.test(m[0]) && (tld.length === 2 || TLDS.has(tld))) out.add(norm(m[0]));
+  }
+  for (const m of text.matchAll(URL_HOST)) out.add(norm(m[1]!));
   for (const m of text.matchAll(REPO)) out.add(norm(m[1]!));
   for (const m of text.matchAll(PATH)) out.add(norm(m[0]).replace(/[.,;:)\]]+$/, ''));
   return [...out];
@@ -155,7 +176,7 @@ export function originOf(value: string, kind: Unit['kind'], p: Provenance): Orig
 export function unitOrigin(u: Unit, p: Provenance): Origin {
   if (!u.values.length) return 'none';
   const origins = u.values.map((v) => originOf(v, u.kind, p));
-  if (origins.includes('content')) return 'content';
+  if (origins.includes('content') && !u.implicit) return 'content';
   if (origins.every((o) => o === 'person' || o === 'record')) return origins.includes('person') ? 'person' : 'record';
   return 'none';
 }

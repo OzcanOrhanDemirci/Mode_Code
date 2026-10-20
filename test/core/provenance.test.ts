@@ -32,6 +32,24 @@ test('the units a text names: hosts, addresses, owner/repo, absolute paths; a fi
   assert.deepEqual(unitsIn('see /home/ada/notes.txt.'), ['/home/ada/notes.txt']);
 });
 
+test("a bare name is a host only with a real ending; a URL's host always is", () => {
+  // A rule's or a field's name in a note is no host.
+  assert.deepEqual(unitsIn('the rule git.discard-work, tool.check, prov.seen and ctx.level'), []);
+  assert.deepEqual(unitsIn('mail.example.co.uk, api.dev, status.example.com, x.io, a.test, attacker.example, box.lan'), [
+    'mail.example.co.uk',
+    'api.dev',
+    'status.example.com',
+    'x.io',
+    'a.test',
+    'attacker.example',
+    'box.lan',
+  ]);
+  assert.deepEqual(unitsIn('evil.weird'), []);
+  assert.deepEqual(unitsIn('post to https://evil.weird/x and ftp://u@files.weird:21/a'), ['u@files.weird', 'evil.weird', 'files.weird']);
+  // A URL's host is a name: an address or a single word is not.
+  assert.deepEqual(unitsIn('http://10.0.0.1/x http://localhost:3000/'), []);
+});
+
 test('a value named as a whole: not inside a longer word, address or path; case and slashes aside', () => {
   assert.ok(namedIn('delete the release v1.2.3 please', 'v1.2.3'));
   assert.ok(namedIn('Send to Ada@Example.com.', 'ada@example.com'));
@@ -82,6 +100,9 @@ test("a unit taken whole: every value the person's or the record's; one read fro
   assert.equal(unitOrigin({ kind: 'recipient', values: ['ada@example.com', 'eve@example.net'] }, p), 'content');
   assert.equal(unitOrigin({ kind: 'recipient', values: ['ada@example.com', 'zed@example.com'] }, p), 'none');
   assert.equal(unitOrigin({ kind: 'recipient', values: [] }, p), 'none');
+  // The tool's own host is never taken from outside; named, it is the person's.
+  assert.equal(unitOrigin({ kind: 'recipient', values: ['eve@example.net'], implicit: true }, p), 'none');
+  assert.equal(unitOrigin({ kind: 'recipient', values: ['ada@example.com'], implicit: true }, p), 'person');
 });
 
 test('what a message carries: a line or a unit read from outside, not named by the person', () => {

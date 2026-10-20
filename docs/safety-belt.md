@@ -70,7 +70,7 @@ The rules are the same in every way of working; the way of working on the strip 
 
 ## Three more families
 
-- **Data sent off the computer** (`outbound.network`): a request body or method, an upload, a raw socket, a copy to another host, a comment through `gh`. Reading is free; this computer (`localhost`, `127.0.0.1`, `::1`) is no outside. To a host you named in this session, or one of the project's remotes, it goes on with a note in Autonomous and full autonomy; to any other host it is asked in Autonomous and left to you in full autonomy; to a host found only in what the session read from outside, it is refused everywhere ([Evidence](#evidence)).
+- **Data sent off the computer** (`outbound.network`): a request body or method, an upload, a raw socket, a copy to another host, a comment through `gh`. Reading is free (`gh api` with `-X GET` or a GraphQL query too); this computer (`localhost`, `127.0.0.1`, `::1`) is no outside. `gh`'s GitHub is the tool's own host, written nowhere in the call: it is never taken for one read from outside. To a host you named in this session, or one of the project's remotes, it goes on with a note in Autonomous and full autonomy; to any other host it is asked in Autonomous and left to you in full autonomy; to a host found only in what the session read from outside, it is refused everywhere ([Evidence](#evidence)).
 - **A file something more trusted runs later** (`persist.autorun`): a git hook (`.git/hooks/`), husky's (`.husky/`), direnv's `.envrc`, a macOS launch agent, a `package.json` given a script that runs on install. Asked, and in Autonomous a note when the text written is word for word yours; left to you in full autonomy unless you clearly asked for it ([A clear request](#a-clear-request-in-full-autonomy)). The broad ring (an editor's tasks, a dev container, CI workflows), run later by your own tools, is a note.
 - **Another agent program started without its own approvals** (`codex --yolo`, `gemini --yolo`, `aider --yes-always`, `amp --dangerously-allow-all`): a session the belt does not watch, left to you in every way of working (`self.nested-session`).
 
@@ -92,6 +92,13 @@ Measured again on other agents' everyday work (`docs/testing.md`, Evaluation set
 - **A cache** (`~/.cache`, macOS's `~/Library/Caches`, `$XDG_CACHE_HOME`) is deleted freely, as a temporary folder is: what is kept there is made again.
 - **A language's package folder** inside a system folder (`site-packages`, `dist-packages`, `node_modules` under `/opt` or `/usr`): what a package manager installs again is no system file, so deleting or moving inside it follows the ordinary rules; the folder itself stays critical.
 - **Code that deletes** (`python -c`, `node -e`): the paths a delete call is given, directly or through a name the code assigns, are checked as deleted, not every path the code names (an XPath beside `os.unlink(tmp)`, a test of an in-memory filesystem). A name the code never assigns (a parameter) still makes every path it names count.
+
+Measured on the author's own sessions, replayed with what each was told and read, four more:
+
+- **A folder from `mktemp`** (`T=$(mktemp -d)`, flags only): a new name in the temporary folder, so deleting it is free. A template, `-p` or `--tmpdir` keeps it unknown.
+- **A read through `gh api`** (`-X GET`, `--method GET`, a GraphQL query) sends nothing; a write method, a field without one, a GraphQL mutation or a query from a file still does.
+- **gh's own host:** GitHub, named nowhere in a `gh` call, is never taken for a host read from outside; named by you or the project's remote, it is still evidence.
+- **A name with a dot is a host only with a real ending** (`example.com`, `api.dev`, any two letters; `tool.check` or `prov.seen` are not), a URL's host always: a rule's or a field's name in a note was taken for a host read from outside.
 
 A verdict you gave a rule holds over all of them.
 

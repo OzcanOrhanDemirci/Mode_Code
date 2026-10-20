@@ -88,7 +88,15 @@ export function sends(program: string, args: readonly string[]): boolean {
   }
   if (program === 'gh') {
     const [sub, verb] = args;
-    if (sub === 'api') return args.some((a) => /^(?:-f|-F|--field|--raw-field|--input)$/.test(a) || /^(?:-X|--method)$/.test(a));
+    if (sub === 'api') {
+      // The method said decides (`-X GET` reads); without one, fields make it a POST, a GraphQL query still a read.
+      const i = args.findIndex((a) => /^(?:-X|--method)$/.test(a));
+      const method = i === -1 ? /^(?:-X|--method=)(\w+)$/.exec(args.find((a) => /^(?:-X|--method=)\w/.test(a)) ?? '')?.[1] : args[i + 1];
+      // A method only known when it runs (`-X "$M"`) may be any.
+      if (method !== undefined) return SEND_METHOD.test(method) || !/^\w+$/.test(method);
+      if (!args.some((a) => /^(?:-f|-F|--field|--raw-field|--input)$/.test(a))) return false;
+      return !args.includes('graphql') || args.some((a) => /^query=(?:@|\s*mutation\b)/.test(a) || a === '--input');
+    }
     return /^(?:issue|pr|discussion|gist|release)$/.test(sub ?? '') && /^(?:create|comment|edit|review|upload)$/.test(verb ?? '');
   }
   return false;
