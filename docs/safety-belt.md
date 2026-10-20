@@ -108,6 +108,14 @@ Some risky calls are yours when what they act on is: a release you named, a reci
 - **Your own verdict holds**, and a rule you turned off stays off. Manual asks as before.
 - **Words, not meaning.** "Delete v1.2.3" in your message is the evidence for deleting v1.2.3; the record cannot tell what you meant beyond the words.
 
+## A clear request, in full autonomy
+
+Full autonomy leaves to you what Autonomous would ask about. When you clearly asked for that very step in your own message, Claude shows it: it calls Mode_Code's `request` tool with your sentence word for word and the target it names (a release, a branch, a recipient, a path). Code checks that the sentence is in what you typed in this session (spacing aside, case kept; a paste, a page or a file is not your request) and that it names the target as a whole. Checked, the step on that target goes on with a note, and the activity shows your quoted words; until your next message, when the requests are done with.
+
+- **Never for the short list**, even when asked for: the protection itself (Mode_Code's and Claude Code's settings, hooks, the memory), a payment, a disk, the home or a system folder. Your project's locks (pull requests only, one branch) and a verdict you gave a rule hold as they are.
+- **A target read from outside** is refused all the same ([Evidence](#evidence)).
+- Claude is told how in full autonomy's note; a request that does not check is answered with why, and the step stays yours.
+
 ## What else runs
 
 The belt judges what the model asks for. Plugins and their mods run unsandboxed in Claude Code's own process and can answer its tool calls; hooks run a command on every event they name; an MCP server reads what Claude sends it, and its tools describe themselves to the model in their own words. `mode-code trust` lists all of them with where each is set and marks what is new since you last looked (run in your own terminal: inside a session it only shows). The plugin keeps each MCP tool's description as first seen and tells you when one changes.

@@ -68,6 +68,7 @@ export const ACTIVITY_KINDS = [
   'manual',
   'flagged',
   'net',
+  'request',
 ] as const;
 
 const str = (v: unknown, max = 120): string => (typeof v === 'string' ? v : v === null || v === undefined ? '' : String(v)).replace(/\s+/g, ' ').slice(0, max);
@@ -190,6 +191,9 @@ export function activityOf(e: ActivityEvent, lang: Lang): ActivityLine {
         rule ? `protection/rules/${rule}` : 'protection/events',
       );
     }
+    case 'request':
+      // Full autonomy's clear request: the person's sentence, quoted and found in their own words.
+      return line('note', t('act.request', { target: str(e.target, 80), quote: str(e.quote, 160) }), t('act.why.level'), 'work/modes');
     case 'full':
       // A question to the person, or plan mode, answered by full autonomy: nobody is asked.
       return line('note', t('act.full', { tool }), t('act.why.level'), 'work/modes', true);

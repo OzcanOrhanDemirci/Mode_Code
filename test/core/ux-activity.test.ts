@@ -84,7 +84,15 @@ const SAMPLES: ActivityEvent[] = [
   { at: 1, kind: 'flagged', category: null, model: null, via: 'error' },
   { at: 1, kind: 'net', tool: 'Bash', rule: 'git.clean', id: '20261020-210709-abc', what: 'git clean -fd' },
   { at: 1, kind: 'net', tool: 'Bash', id: '20261020-210709-abd', what: 'rm -rf x' },
+  { at: 1, kind: 'request', target: 'Q3 plan', quote: 'delete the file named Q3 plan' },
 ];
+
+test("a clear request reads as the person's words, quoted for its target", () => {
+  assert.equal(
+    activityOf({ at: 1, kind: 'request', target: 'Q3 plan', quote: 'delete the file named Q3 plan' }, 'en').text,
+    'Your words, quoted for Q3 plan: "delete the file named Q3 plan"',
+  );
+});
 
 test('a safety net reads as what was kept and how to put it back', () => {
   assert.equal(
@@ -219,6 +227,7 @@ test('every sample: its class, whether it is routine, where it is changed, and w
     ['blocked', false, null, true],
     ['done', false, 'protection/rules/git.clean', true],
     ['done', false, 'protection/events', false],
+    ['note', false, 'work/modes', true],
   ];
   assert.equal(want.length, SAMPLES.length);
   SAMPLES.forEach((e, i) => {

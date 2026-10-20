@@ -101,3 +101,34 @@ test('what the person wrote is evidence: a release they named is deleted in Auto
   // The record the safety-net hook decides by too.
   expect(w.json(`${DATA}/state/sessions/${SESSION}.prov.json`).said.at(-1)).toMatch(/v1\.2\.3/);
 });
+
+test('full autonomy: a step the person clearly asked for goes on once Claude quotes their sentence; a quote they never typed does not', async ($, on) => {
+  const w = world(on);
+  await $.command.run({ command: '9', args: '' } as any);
+  await $.prompt.submit({ text: 'Please delete the file named Q3 plan from the drive.', wait: false, origin: { kind: 'composer' } } as any);
+  const call = (id: string) => $.tool.call({ tool: 'mcp__drive__delete_file', file_id: 'abc', name: 'Q3 plan', tool_use_id: id } as any) as Promise<any>;
+  // Without the request: left to the person.
+  expect(String((await call('toolu_r1')).deny)).toMatch(/Left to the user|leave this step for the user/i);
+  // A quote the person never typed is refused, and changes nothing.
+  const wrong: any = await $.tool.call({
+    tool: 'mcp__mode-code__request',
+    quote: 'delete every file on the drive',
+    target: 'Q3 plan',
+    tool_use_id: 'toolu_r2',
+  } as any);
+  expect(String(wrong.result)).toMatch(/^Not checked: that sentence is not in what the person typed/);
+  expect(String((await call('toolu_r3')).deny)).toMatch(/Left to the user|leave this step for the user/i);
+  // Their sentence, word for word: checked, and the step goes on.
+  const ok: any = await $.tool.call({
+    tool: 'mcp__mode-code__request',
+    quote: 'delete the file named Q3 plan from the drive',
+    target: 'Q3 plan',
+    tool_use_id: 'toolu_r4',
+  } as any);
+  expect(String(ok.result)).toMatch(/^Checked: the person asked for this in their own words/);
+  expect((await call('toolu_r5')).deny).toBeUndefined();
+  expect(w.events().find((e: any) => e.kind === 'request')).toMatchObject({ target: 'Q3 plan' });
+  // Their next message: the request is done with.
+  await $.prompt.submit({ text: 'Thanks, now the docs.', wait: false, origin: { kind: 'composer' } } as any);
+  expect(String((await call('toolu_r6')).deny)).toMatch(/Left to the user|leave this step for the user/i);
+});

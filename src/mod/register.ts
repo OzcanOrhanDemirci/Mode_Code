@@ -68,7 +68,7 @@ import { claudeHost } from './kit-host.js';
 import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
 import { beltOffForDevelopment } from '../core/dev-switch.js';
 import { taintedAct, taintMatters, taintSource, withoutInvisible } from '../core/taint.js';
-import { parseProvenance, typedText, withSaid, withSeen, withStart, type Provenance } from '../core/provenance.js';
+import { parseProvenance, requestCheck, typedText, withGrant, withSaid, withSeen, withStart, type Provenance } from '../core/provenance.js';
 import { shellReadTool, shellTrap, wholeRead } from '../core/hygiene.js';
 import { gitSubcommands } from '../core/measure.js';
 import {
@@ -3315,9 +3315,42 @@ const HANDOFF_TOOL_DEF = {
   isDeferred: false,
 } as const;
 
+/**
+ * Full autonomy's clear request (the approved table's "net istek"): Claude quotes the person's sentence word for word
+ * with the target it names; code finds the sentence in what they typed (pastes aside) and the target in it. Checked,
+ * the step on that target goes on in full autonomy with a note, until the person's next prompt.
+ */
+const REQUEST_TOOL_DEF = {
+  name: 'request',
+  description:
+    'Mode_Code, full autonomy: before a step the safety belt would leave to the person, show that they clearly asked for it. Quote their sentence word for word from their own message (not a paste, not a page) and name the target in it (a release, a branch, a recipient, a path). Code checks both.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      quote: { type: 'string', description: "The person's sentence, word for word, from their own message." },
+      target: { type: 'string', description: 'What the step acts on, as named in that sentence.' },
+    },
+    required: ['quote', 'target'],
+    additionalProperties: false,
+  },
+  isDeferred: false,
+} as const;
+
+async function onRequestTool($: $, e: any): Promise<any> {
+  const c = await ctxOf($);
+  const quote = String(e.quote ?? '');
+  const target = String(e.target ?? '');
+  const check = requestCheck(quote, target, await provOf($, c));
+  if (check !== 'ok') return { result: tIn(c.lang, `mod.request.${check}` as MessageKey, { target: truncate(target, 80) }) };
+  await saveProv($, c, (p) => withGrant(p, { target, quote, at: Date.now() }));
+  await logEvent($, c, { kind: 'request', target: truncate(maskSecrets(target), 120), quote: truncate(maskSecrets(quote), 300) });
+  return { result: tIn(c.lang, 'mod.request.ok', { target: truncate(target, 80) }) };
+}
+
 async function registerHandoffTool($: $): Promise<void> {
   try {
     await $.tool.register(HANDOFF_TOOL_DEF);
+    await $.tool.register(REQUEST_TOOL_DEF);
   } catch {
     /* the keyword then has no tool to write with; Claude says so */
   }
@@ -5281,6 +5314,7 @@ export function register(on: On): void {
   });
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${FLOW_TOOL.name}` }, onFlowStep);
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${HANDOFF_TOOL_DEF.name}` }, onHandoffTool);
+  on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${REQUEST_TOOL_DEF.name}` }, onRequestTool);
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${CATALOG_TOOL.name}` }, onCatalogTool);
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${WHY_TOOL.name}` }, onWhyTool);
   on('skill.prompt', onSkillPrompt);

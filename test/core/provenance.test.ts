@@ -123,5 +123,12 @@ test('a record read back; anything else is an empty one', () => {
   assert.deepEqual(parseProvenance(JSON.stringify(p)), p);
   for (const bad of [null, '', '{', '[]', JSON.stringify({ v: 2, said: ['x'] }), 'null'])
     assert.deepEqual(parseProvenance(bad), emptyProvenance(), String(bad));
-  assert.deepEqual(parseProvenance(JSON.stringify({ v: 1, said: ['a', 5], start: 'x' })), { v: 1, said: ['a'], start: [], seen: [], seenLines: [] });
+  assert.deepEqual(parseProvenance(JSON.stringify({ v: 1, said: ['a', 5], start: 'x' })), {
+    v: 1,
+    granted: [],
+    said: ['a'],
+    start: [],
+    seen: [],
+    seenLines: [],
+  });
 });

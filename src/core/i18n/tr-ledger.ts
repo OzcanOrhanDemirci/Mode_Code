@@ -78,6 +78,7 @@ export const trLedger: Record<keyof typeof enLedger, string> = {
   'act.unknown': 'Bu sürümün adını bilmediği türde bir iş: {kind}',
   'act.flagged': "Anthropic'in güvenlik denetimi bir cevabı durdurdu",
   'act.full': 'Tam otonom {tool} çağrısını senin yerine cevapladı: kimseye sorulmaz',
+  'act.request': '{target} için sözlerin alıntılandı: "{quote}"',
   'act.net': 'Geri alınabilsin diye önce saklandı: {what} · mode-code net restore {id}',
   'act.flagged.named': "Anthropic'in güvenlik denetimi bir cevabı durdurdu ({category})",
   'act.why.rule': 'emniyet kemeri kuralı: {rule}',

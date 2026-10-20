@@ -15,9 +15,21 @@ export interface Unit {
   values: string[];
 }
 
+/**
+ * A clear request (full autonomy's "net istek"): the person's sentence, quoted word for word by Claude with the
+ * target it names, and found by code in what the person typed. It holds until the person's next prompt.
+ */
+export interface Grant {
+  target: string;
+  quote: string;
+  at: number;
+}
+
 /** A session's record of where things came from. */
 export interface Provenance {
   v: 1;
+  /** The clear requests Claude quoted since the person's last prompt, each checked against their words. */
+  granted: Grant[];
   /** What the person wrote, prompt by prompt, pastes left out; the newest last. */
   said: string[];
   /** What the session found at its start: the project's remotes (hosts and owner/repo). */
@@ -35,7 +47,34 @@ export const PROV_SAID_CHARS = 8000;
 export const PROV_SEEN_MAX = 4000;
 
 export function emptyProvenance(): Provenance {
-  return { v: 1, said: [], start: [], seen: [], seenLines: [] };
+  return { v: 1, granted: [], said: [], start: [], seen: [], seenLines: [] };
+}
+
+/** Whitespace as one space: a quote is the person's words, however Claude broke its lines. */
+const words = (s: string) => s.replace(/\s+/g, ' ').trim();
+
+/** At most this many clear requests a turn: one per step the person asked for. */
+export const GRANTS_MAX = 20;
+
+/**
+ * Whether Claude's quote is a clear request of the person's: long enough to be a sentence, found word for word
+ * (case kept, spacing aside) in what they typed in this session, and naming the target as a whole.
+ */
+export function requestCheck(quote: string, target: string, p: Provenance): 'ok' | 'short' | 'not-said' | 'not-in-quote' {
+  const q = words(quote);
+  if (q.length < 8) return 'short';
+  if (!p.said.some((s) => words(s).includes(q))) return 'not-said';
+  return target.trim() && namedIn(q, target) ? 'ok' : 'not-in-quote';
+}
+
+/** The record with a clear request the code checked, the newest kept. */
+export function withGrant(p: Provenance, g: Grant): Provenance {
+  return { ...p, granted: [...p.granted, { target: g.target.trim(), quote: words(g.quote), at: g.at }].slice(-GRANTS_MAX) };
+}
+
+/** Whether every value of a unit is named in a clear request the person made. */
+export function grantedUnit(u: Unit, p: Provenance): boolean {
+  return u.values.length > 0 && u.values.every((v) => p.granted.some((g) => namedIn(g.quote, v)));
 }
 
 const norm = (s: string) => s.trim().replace(/\\/g, '/').toLowerCase();
@@ -131,8 +170,9 @@ export function typedText(prompt: string, pastes: readonly string[]): string {
 /** The record with a prompt the person wrote: the newest kept, each cut to its limit. */
 export function withSaid(p: Provenance, text: string): Provenance {
   const t = text.trim();
-  if (!t) return p;
-  return { ...p, said: [...p.said, t.slice(0, PROV_SAID_CHARS)].slice(-PROV_SAID_MAX) };
+  // A new prompt of the person's: the clear requests quoted for the last one are done with.
+  if (!t) return p.granted.length ? { ...p, granted: [] } : p;
+  return { ...p, granted: [], said: [...p.said, t.slice(0, PROV_SAID_CHARS)].slice(-PROV_SAID_MAX) };
 }
 
 /** The record with what was read from outside: its units and its lines' keys, the newest kept. */
@@ -157,8 +197,14 @@ export function parseProvenance(text: string | null): Provenance {
     const o = JSON.parse(text) as Partial<Provenance>;
     if (!o || o.v !== 1) return emptyProvenance();
     const strings = (x: unknown, max: number) => (Array.isArray(x) ? x.filter((y): y is string => typeof y === 'string').slice(-max) : []);
+    const granted = Array.isArray(o.granted)
+      ? o.granted
+          .filter((g): g is Grant => !!g && typeof g === 'object' && typeof g.target === 'string' && typeof g.quote === 'string' && typeof g.at === 'number')
+          .slice(-GRANTS_MAX)
+      : [];
     return {
       v: 1,
+      granted,
       said: strings(o.said, PROV_SAID_MAX),
       start: strings(o.start, PROV_SEEN_MAX),
       seen: strings(o.seen, PROV_SEEN_MAX),
