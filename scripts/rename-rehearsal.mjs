@@ -62,7 +62,17 @@ const withoutClaude = (path) =>
 function env(extra) {
   const e = {};
   for (const [k, v] of Object.entries(process.env))
-    if (!k.startsWith('CLAUDE_CODE_') && k !== 'CLAUDECODE' && k !== 'NODE_OPTIONS' && k !== 'FORCE_COLOR') e[k] = v;
+    // The tool's own variables are set here or not at all: one inherited from the session this runs in (the belt's
+    // development switch, a data folder of its own) would install and test something else than what a person gets.
+    if (
+      !k.startsWith('CLAUDE_CODE_') &&
+      !k.startsWith(`${UPPER(OLD)}_`) &&
+      !k.startsWith(`${UPPER(NEW)}_`) &&
+      k !== 'CLAUDECODE' &&
+      k !== 'NODE_OPTIONS' &&
+      k !== 'FORCE_COLOR'
+    )
+      e[k] = v;
   const pk = Object.keys(e).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH';
   e[pk] = join(tmp, 'bin') + delimiter + withoutClaude(e[pk] ?? '');
   return { ...e, NO_COLOR: '1', CLAUDE_CONFIG_DIR: join(tmp, 'home', '.claude'), FAKE_CLAUDE_STATE: join(tmp, 'claude.json'), ...extra };
