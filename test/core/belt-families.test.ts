@@ -24,7 +24,8 @@ test('data sent off the computer names its hosts; reading is free; this computer
   assert.deepEqual(await rules('curl -d x http://127.0.0.1:8080/'), []);
   assert.deepEqual(await rules('scp build.tar deploy@prod.example.com:/srv/app'), [['outbound.network', host(['prod.example.com'])]]);
   assert.deepEqual(await rules('nc collect.example.com 9000'), [['outbound.network', host(['collect.example.com'])]]);
-  assert.deepEqual(await rules('gh issue comment 12 --body done'), [['outbound.network', host(['github.com'])]]);
+  // gh's host is GitHub's own, written nowhere in the call.
+  assert.deepEqual(await rules('gh issue comment 12 --body done'), [['outbound.network', { ...host(['github.com']), implicit: true }]]);
   // A host only known when it runs: asked as unknown.
   assert.deepEqual(await rules('curl -d x "$URL"'), [['outbound.network', null]]);
 });

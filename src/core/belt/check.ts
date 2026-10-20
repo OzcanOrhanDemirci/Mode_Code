@@ -1398,7 +1398,8 @@ function checkNetwork(inv: Invocation, s: Scope): void {
   const hosts = all.filter((h) => !isLocalHost(h));
   if (all.length && !hosts.length) return;
   add(s, 'outbound.network', 'belt.reason.network', { command: show(inv.raw) });
-  actsOn(s, hosts.length ? { kind: 'host', values: hosts } : undefined);
+  // gh's host is GitHub whatever the call says: it is taken from nothing the session read.
+  actsOn(s, hosts.length ? { kind: 'host', values: hosts, ...(inv.program === 'gh' ? { implicit: true as const } : {}) } : undefined);
 }
 
 /** Other agent programs started without their own approvals: a session the belt does not watch. */

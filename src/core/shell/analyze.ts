@@ -217,6 +217,14 @@ const NOT_STRAIGHT =
   /\b(?:if|case|while|until|for|select|function|read|mapfile|readarray|source|eval|trap|exec|unset)\b|\(\)\s*\{|(?:^|[;&|\n])\s*(?:\.\s|[({])/;
 const DECLARERS = new Set(['export', 'declare', 'typeset', 'local', 'readonly']);
 
+/**
+ * `T=$(mktemp -d)` alone: a new name in the system's temporary folder. Flags only; a template or `-p` puts it
+ * elsewhere, and is a value nobody knows.
+ */
+const MKTEMP = /^(?:(?:export|local|declare|typeset|readonly)\s+)?[A-Za-z_]\w*=("?)\$\(\s*mktemp(?:\s+-[dqtu]+)*\s*\)\1$/;
+/** The name such a variable stands for: inside the temporary folder (`/tmp` on every system, Git Bash's too). */
+const MKTEMP_PATH = '/tmp/tmp.mktemp';
+
 /** The words that assign in a command: `NAME=value` alone, or after export/declare/…; empty for anything else. */
 function assignmentsOf(cmd: SimpleCommand): string[] {
   if (cmd.argv.length === 0) return cmd.assigns;
@@ -285,7 +293,10 @@ export function straightLineConstants(command: string, script: ParsedScript): Ma
       for (const a of assignmentsOf(script.commands[i]!)) {
         const m = /^([A-Za-z_]\w*)=(.*)$/s.exec(a);
         if (!m || count.get(m[1]!) !== 1) continue;
-        const value = m[2]!.replace(/\$\{(\w+)\}|\$(\w+)/g, (whole, x: string | undefined, y: string | undefined) => known.get((x ?? y)!) ?? whole);
+        const made = m[2] === '$(…)' && MKTEMP.test(script.commands[i]!.raw.trim());
+        const value = made
+          ? MKTEMP_PATH
+          : m[2]!.replace(/\$\{(\w+)\}|\$(\w+)/g, (whole, x: string | undefined, y: string | undefined) => known.get((x ?? y)!) ?? whole);
         // A value with spaces or wildcards is split and globbed where it is used unquoted: not one known word.
         if (/[$`\s*?[\]]/.test(value)) continue;
         (first ? settled : chain).set(m[1]!, value);

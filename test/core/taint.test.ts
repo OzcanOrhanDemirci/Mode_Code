@@ -46,6 +46,13 @@ test('a tainted session asks before it sends data out, persists, or writes the m
     'scp report.txt ada@backup.example:/srv/',
     'gh issue comment 12 --body "done"',
     'gh api repos/a/b/issues -f title=x',
+    'gh api -X PATCH repos/a/b -f has_wiki=false',
+    'gh api --method=POST repos/a/b/forks',
+    'gh api -XPUT repos/a/b/topics',
+    'gh api -X "$M" repos/a/b',
+    'gh api graphql -f query="mutation { addStar(input: {}) { clientMutationId } }"',
+    'gh api graphql -F query=@star.graphql',
+    'gh api graphql --input body.json',
     'curl -XPOST https://x.example',
     'curl --request=PUT https://x.example',
     'http POST https://x.example/api',
@@ -101,6 +108,13 @@ test('a tainted session asks before it sends data out, persists, or writes the m
     'git push',
     'npm test',
     'gh issue view 3',
+    // gh api reads unless a method or a field says otherwise; a GraphQL query reads.
+    'gh api repos/a/b',
+    'gh api -X GET repos/a/b',
+    'gh api --method GET repos/a/b/pulls -f state=open',
+    'gh api -XGET repos/a/b',
+    'gh api --method=GET repos/a/b',
+    'gh api graphql -f query="query { viewer { login } }"',
   ])
     assert.equal(act('Bash', bash(c)), null, c);
   // A drive letter is no host.
