@@ -439,6 +439,7 @@ export async function draw(
   const stdin = new FakeStdin();
   const hub = new PointerHub();
   let registry: PointerRegistry | null = null;
+  let shown = '';
   const inst = render(
     <App
       data={data}
@@ -451,6 +452,7 @@ export async function draw(
       {...(opts.onLeave ? { onLeave: opts.onLeave } : {})}
       {...(opts.onQuit ? { onQuit: opts.onQuit } : {})}
       onRegistry={(r) => (registry = r)}
+      onAddress={(a) => (shown = a)}
     />,
     {
       stdout: stdout as unknown as NodeJS.WriteStream,
@@ -464,10 +466,13 @@ export async function draw(
   // The start address is applied after the first frame, so the screen asked for comes a frame later. On a
   // loaded CI runner that frame once came after the pause below, and a test read the home screen instead
   // and passed: the screen it meant to check never drew (seen as coverage falling on one run in two). The
-  // footer names the address once it is open.
+  // app says the address of the screen it drew once it is open (the bar may be too narrow to show it whole).
   const opens = opts.opens ?? opts.address;
-  if (opens && !(await until(() => stdout.last.includes(`: ${opens}`), START_CAP_MS)))
-    throw new Error(`the screen at ${opts.address} did not open within ${START_CAP_MS} ms`);
+  if (opens && !(await until(() => shown === opens || shown.startsWith(`${opens}/`), START_CAP_MS))) {
+    // Unmounted, a screen that did not open ends its test instead of keeping the process alive.
+    inst.unmount();
+    throw new Error(`the screen at ${opts.address} did not open within ${START_CAP_MS} ms (at ${shown || 'nothing'})`);
+  }
   await wait(80);
   // eslint-disable-next-line no-control-regex
   const text = () => stdout.last.replace(/\u001B\[[0-9;?]*[A-Za-z]/g, '');

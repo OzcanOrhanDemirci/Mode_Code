@@ -107,12 +107,7 @@ export function Now({ width, open }: ScreenProps) {
    * A line the keys and the pointer reach: focused, it is drawn inverse and its card says itself under Mo; pointed
    * at, it is underlined and the bar says it.
    */
-  const line = (
-    id: string,
-    card: string,
-    press: () => void,
-    o: { lead: ReactNode; text: string; trailing?: string; w: number },
-  ) => {
+  const line = (id: string, card: string, press: () => void, o: { lead: ReactNode; text: string; trailing?: string; w: number }) => {
     items.push({ id, card, press });
     const focused = open && focus === id;
     const tail = o.trailing ?? '';

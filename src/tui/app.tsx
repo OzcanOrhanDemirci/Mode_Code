@@ -60,6 +60,8 @@ export interface AppProps {
   onQuit?: () => void;
   /** Hands over what the pointer can reach (tests point at every target of a screen). */
   onRegistry?: (registry: PointerRegistry) => void;
+  /** Told the address of the screen drawn, each time it changes (tests wait for a screen to open). */
+  onAddress?: (address: string) => void;
 }
 
 interface Flash {
@@ -410,6 +412,9 @@ export function App(props: AppProps) {
   const bodyH = Math.max(6, rows - 4);
   const crumbs = [APP_NAME, ...chainNodes.map((n) => n.label), ...(open && selected ? [selected.label] : [])];
   const address = [...chain, ...(selected ? [selected.id] : [])].join('/');
+  useEffect(() => {
+    props.onAddress?.(address);
+  }, [address]);
   const health = data.health();
   const belt = health.features.find((f) => f.id === 'belt');
   const q = data.quota();
