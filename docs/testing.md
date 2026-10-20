@@ -37,10 +37,11 @@ Mode_Code sits between an AI agent and your machine. A tool in that place has to
 
 ## False alarms
 
-The belt's job is to ask about the rare dangerous call and to stay out of the way for everything else. Two instruments keep it honest:
+The belt's job is to ask about the rare dangerous call and to stay out of the way for everything else. Three instruments keep it honest:
 
 - **The everyday corpus** (`test/corpus/`): commands people and agents actually run, written by hand, grouped by ecosystem. Each must come back `allow` with no findings. A new rule that makes any of them ask fails the build.
 - **Replay** (`mode-code belt replay [--days N]`): runs the belt over the shell and file tool calls in your own recent Claude Code sessions and prints counts only: how many calls, how many would have been asked about or blocked, by rule. Nothing is executed and no command text is printed. On the author's machine, 30 days and about 36,000 calls produce roughly four questions a day; the number is re-measured before each release.
+- **Evaluation sets** (`node --import tsx scripts/belt-replay.ts`, for development): other agents' recorded work and attack sets, converted to Claude Code's own calls (`convert`), replayed through today's belt with the plugin's outside-content rule followed along each trajectory (`run`). It prints totals per set (verdicts by label, rule and category, digests of attacks let through), never a call; the sets stay outside this repository, attack sets in a private one. `run --sessions` adds your own sessions, with your settings. First run, 2026-10-20, default settings, calls judged as on Linux: of 8,544 calls in CC-Bench (Claude Code sessions, MIT), 137 asked or blocked, 133 by the outside-content rule after a web search, 109 of those requests to the agent's own server on localhost; of 71,170 in a shard of SWE-smith (MIT), 15; of 144,798 in every 20th trajectory of SWE-rebench-OpenHands (CC BY 4.0), 47. In those containers the agent runs as root, whose home `/root` is a system folder on Linux, so deleting a cache file there is blocked as critical (17 of the 62).
 
 ## Self-protection
 
