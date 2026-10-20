@@ -34,13 +34,13 @@ export const enControls = {
   'ctl.runAttached': 'A full-autonomy run is attached to this session: "{cancel}" lets it go first.',
   'ctl.personOnly': 'Only you can run {cmd}: from the strip, or typed by you, here or on the phone.',
   // ── bypass ──
-  'ctl.bypass.notEnabled': 'Bypass is not allowed yet: allow it in the cockpit (/0) or under Automation › Bypass.',
-  // Short: what it lifts and what it never does are told in full under Automation › Bypass.
+  'ctl.bypass.notEnabled': 'Bypass is not allowed yet: allow it in the cockpit (/0) or under Working › Bypass.',
+  // Short: what it lifts and what it never does are told in full under Working › Bypass.
   'ctl.bypass.confirm': 'Turn bypass on for {hours} h? Claude works without asking in this session; every call is recorded.',
   'ctl.bypass.yes': 'Turn on',
   'ctl.bypass.no': 'Cancel',
   'ctl.bypass.started': 'Bypass on until {until} ({hours} h). /bypass, or ⚡ on the strip, turns it off.',
-  'bypass.summary': 'Bypass ended: {count} calls without asking in {minutes} min. Each one: Automation › Done without asking.',
+  'bypass.summary': 'Bypass ended: {count} calls without asking in {minutes} min. Each one: Working › Done without asking.',
   'bypass.toast.soon': 'Bypass ends in {minutes} min.',
   // ── the slash-command menu: what each command takes (its line is the catalog's, ux.ctl.*) ──
   'ctl.hint.text': '[text]',
@@ -98,7 +98,7 @@ export const enControls = {
   'ctl.flow.noCode': '{steps}, no code',
   'ctl.flow.ask': 'Which flow? Its steps run in this order and each is checked by code.',
   'ctl.flow.armed': 'Flow ready: {steps}. Your next message is its task.',
-  'ctl.flow.closed': 'Flow closed. Its record stays under Projects › Flows; 6 starts a new one.',
+  'ctl.flow.closed': 'Flow closed. Its record stays under Working › Flows; 6 starts a new one.',
   'ctl.flow.notResumed': 'Another session holds the paused flow. Now: {controls}',
   'ctl.flow.disarmed': 'Flow put away: your next message is an ordinary one.',
   // ── full autonomy ──
@@ -118,7 +118,7 @@ export const enControls = {
   'ctl.autoPane.placeholder': 'What should it do? Write it as one message.',
   'ctl.autoPane.submit': 'start',
   'ctl.autoPane.noTask': 'Write the task first.',
-  'ctl.autoPane.kept': 'Kept in the control center: Automation › Recent tasks (the last 3).',
+  'ctl.autoPane.kept': 'Kept in the control center: Working › Recent tasks (the last 3).',
   // ── quota ──
   'ctl.quota.ask': 'Weekly budget? The week is at {week} now.',
   'ctl.quota.set': 'Weekly budget: {target}%.',
@@ -145,7 +145,7 @@ export const enControls = {
   'ctl.strip.agents': 'agents',
   'ctl.line.agentsOff': 'agents off',
   'ctl.hint.agents': '[N | exact N | off | stop]',
-  'agents.notEnabled': 'Parallel agents are not on: turn them on in the cockpit (/0) or under Automation › Parallel agents.',
+  'agents.notEnabled': 'Parallel agents are not on: turn them on in the cockpit (/0) or under Working › Parallel agents.',
   'agents.set.off': 'Parallel agents: off for this session.',
   'agents.set.free': 'Parallel agents: free, at most {n} at once.',
   'agents.set.assigned': 'Parallel agents: exactly {n} for your next request; the mode closes once they are done.',
@@ -220,7 +220,7 @@ export const enControls = {
   'ctl.flowPane.preview': 'With a task written here the flow starts now; without one, your next message is its task. Its steps: {steps}.',
   'ctl.flowPane.apply': 'Choose',
   'ctl.bypassPane.title': 'Bypass',
-  'ctl.bypassPane.now': 'Off. Allowed for up to {hours} h (Automation › Bypass).',
+  'ctl.bypassPane.now': 'Off. Allowed for up to {hours} h (Working › Bypass).',
   'ctl.bypassPane.preview':
     'For {hours} h, until {until}, the safety belt asks almost nothing in this session: deleting outside the project and a few protected steps still ask, and self-protection never lifts. Every call it lets through is recorded. Press ⚡ again, or let the time run out, to end it.',
 } as const;

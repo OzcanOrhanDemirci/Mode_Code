@@ -34,7 +34,7 @@ Permission rules in Claude Code match the command text; the belt reads the comma
 
 ## Rules
 
-Run `mode-code belt rules` (or open Security › Safety belt rules) for the current list with your changes applied. Groups:
+Run `mode-code belt rules` (or open Protection › Safety belt rules) for the current list with your changes applied. Groups:
 
 - **git and GitHub:** force-push (protected branches blocked, others asked), deleting remote branches, mirror pushes and pruning, pushing past pull requests, new branches in one-branch repositories, history rewrites, the hooks path, `--no-verify`, `git clean`, discarding uncommitted work, force-deleting branches; merging a pull request with admin rights past the required checks; deleting or archiving on GitHub (releases, secrets, variables, `gh api -X DELETE`).
 - **files and disks:** deleting or moving the home folder, a system folder, a drive root or anything that contains one; recursive deletes outside the project (inside the folders you registered as projects counts as inside; a session started in the home folder does not make the whole home folder a project; temporary folders are free); deleting a `.git` folder; formatting or overwriting disks.
@@ -104,7 +104,7 @@ Locked rules accept only stricter actions; the settings file cannot switch them 
 
 ## Testing
 
-`mode-code belt test --command "git clean -f"` or Security › Test a command shows the decision without running anything.
+`mode-code belt test --command "git clean -f"` or Protection › Test a command shows the decision without running anything.
 
 ## Limits
 

@@ -87,7 +87,7 @@ export function whySubjectNamed(word: string): WhySubject | null {
 /** One subject's answer. */
 export function why(subject: WhySubject, f: WhyFacts, lang: Lang): WhyAnswer {
   const t = (k: string, p?: Record<string, string | number>) => tIn(lang, k as MessageKey, p);
-  /** A setting as a reason: "Allow bypass" is off (Automation › Bypass). */
+  /** A setting as a reason: "Allow bypass" is off (Working › Bypass). */
   const setting = (path: SettingPath): Reason => {
     const page = SETTINGS[path as SettingId]?.page ?? null;
     return {
@@ -202,9 +202,10 @@ export function whyRule(id: RuleId, f: WhyFacts, lang: Lang): WhyAnswer {
   const off = !rule.locked && (f.config.belt.disabled ?? []).includes(id);
   const because: Reason[] = [];
   if (rule.locked) because.push({ text: t('why.r.ruleLocked') });
-  if (off) because.push({ text: t('why.r.ruleDisabled'), address: `security/rules/${id}` });
-  else if (f.config.belt.verdicts?.[id]) because.push({ text: t('why.r.ruleVerdict', { verdict: t(`verdict.${verdict}`) }), address: `security/rules/${id}` });
-  else because.push({ text: t('why.r.ruleDefault', { verdict: t(`verdict.${verdict}`) }), address: `security/rules/${id}` });
+  if (off) because.push({ text: t('why.r.ruleDisabled'), address: `protection/rules/${id}` });
+  else if (f.config.belt.verdicts?.[id])
+    because.push({ text: t('why.r.ruleVerdict', { verdict: t(`verdict.${verdict}`) }), address: `protection/rules/${id}` });
+  else because.push({ text: t('why.r.ruleDefault', { verdict: t(`verdict.${verdict}`) }), address: `protection/rules/${id}` });
   if (bypassOn(f.session, f.now) && !rule.locked) because.push({ text: t('why.r.ruleBypass') });
   return { subject: 'belt', title: name, now: off ? t('verdict.off') : t(`verdict.${verdict}`), because };
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Home › Activity (docs/design.md, No invisible work): what Mode_Code did in the background, as lines from
+ * Activity › Activity feed (docs/design.md, No invisible work): what Mode_Code did in the background, as lines from
  * src/core/ux/activity.ts: what waits for you first, then the newest; each with why, and Enter or a click goes where
  * that is changed. The routine work (a quota reading, the notes sent with a prompt) shows on a key.
  */

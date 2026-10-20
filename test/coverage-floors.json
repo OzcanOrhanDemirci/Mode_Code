@@ -606,6 +606,11 @@
       "branches": 70,
       "functions": 94
     },
+    "src/core/ux/now.ts": {
+      "lines": 100,
+      "branches": 90,
+      "functions": 100
+    },
     "src/core/ux/say.ts": {
       "lines": 94,
       "branches": 92,
@@ -795,6 +800,16 @@
       "lines": 90,
       "branches": 14,
       "functions": 89
+    },
+    "src/tui/screens/modes.tsx": {
+      "lines": 100,
+      "branches": 100,
+      "functions": 100
+    },
+    "src/tui/screens/now.tsx": {
+      "lines": 95,
+      "branches": 77,
+      "functions": 77
     },
     "src/tui/screens/security.tsx": {
       "lines": 75,

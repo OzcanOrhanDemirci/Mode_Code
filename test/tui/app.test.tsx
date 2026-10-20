@@ -6,14 +6,17 @@ import { newModState } from '../../src/core/session.js';
 import { completeStep, startFlow } from '../../src/core/flow.js';
 import { acceptMilestone, acceptPlan, addDeferred, pauseRun, startRun } from '../../src/core/run.js';
 
-test('the first screen lists the eight categories and shows protection and quota at the top', async () => {
+test('the first screen lists the eight categories by purpose, Now beside them, protection and quota at the top', async () => {
   const s = await draw(new FakeData());
   try {
     const t = s.text();
-    for (const c of ['Home', 'Projects', 'Sessions', 'Measure', 'Security', 'Claude Code', 'Automation', 'Settings']) assert.ok(t.includes(c), c);
+    for (const c of ['Now', 'Activity', 'Working', 'Protection', 'Memory and projects', 'Quota', 'Claude Code', 'Settings']) assert.ok(t.includes(c), c);
     assert.match(t, /🛡 working/);
     assert.match(t, /week 27%/);
-    assert.match(t, /Address: home/);
+    assert.match(t, /Address: now/);
+    // Now, beside the list before anything is opened: what Claude may do, and the goals.
+    assert.match(t, /Claude right now/);
+    assert.match(t, /› Leave Claude on a task…/);
   } finally {
     s.close();
   }
@@ -22,27 +25,31 @@ test('the first screen lists the eight categories and shows protection and quota
 test('→ goes in, ← comes back, digits jump to a category', async () => {
   const s = await draw(new FakeData());
   try {
-    await s.press(KEY.right);
-    assert.match(s.text(), /Mode_Code › Home/);
-    assert.match(s.text(), /Overview/);
+    await s.press(KEY.down, KEY.right);
+    assert.match(s.text(), /Mode_Code › Activity/);
+    assert.match(s.text(), /Activity feed/);
     await s.press(KEY.left);
-    assert.doesNotMatch(s.text(), /Mode_Code › Home/);
-    await s.press('5');
-    assert.match(s.text(), /Mode_Code › Security/);
+    assert.doesNotMatch(s.text(), /Mode_Code › Activity/);
+    await s.press('4');
+    assert.match(s.text(), /Mode_Code › Protection/);
     assert.match(s.text(), /Safety belt rules/);
+    // 1 is Now, a category that is one screen: it opens.
+    await s.press('1');
+    assert.match(s.text(), /Mode_Code › Now/);
+    assert.match(s.text(), /Address: now/);
   } finally {
     s.close();
   }
 });
 
 test('an address opens its screen directly, the same address the command line uses', async () => {
-  const s = await draw(new FakeData(), { address: 'measure/quota' });
+  const s = await draw(new FakeData(), { address: 'quota/usage' });
   try {
     const t = s.text();
-    assert.match(t, /Measure › Quota/);
+    assert.match(t, /Quota › Usage now/);
     assert.match(t, /5-hour/);
     assert.match(t, /21%/);
-    assert.match(t, /Address: measure\/quota/);
+    assert.match(t, /Address: quota\/usage/);
     assert.match(t, /Weekly, 7 days\s+\S/);
   } finally {
     s.close();
@@ -53,10 +60,10 @@ test('the palette finds a screen by its name in the other language too', async (
   const s = await draw(new FakeData('en'));
   try {
     await s.press(KEY.ctrlK);
-    await s.type('kural');
-    assert.match(s.text(), /▸ Security › Safety belt rules/);
+    await s.type('kemeri kural');
+    assert.match(s.text(), /▸ Protection › Safety belt rules/);
     await s.press(KEY.enter);
-    assert.match(s.text(), /Security › Safety belt rules/);
+    assert.match(s.text(), /Protection › Safety belt rules/);
     assert.match(s.text(), /Force-push/);
   } finally {
     s.close();
@@ -64,7 +71,7 @@ test('the palette finds a screen by its name in the other language too', async (
 });
 
 test('a session card shows its numbers; the list filter narrows by typing', async () => {
-  const s = await draw(new FakeData(), { address: `sessions/${SESSION.id}` });
+  const s = await draw(new FakeData(), { address: `memory/sessions/${SESSION.id}` });
   try {
     const t = s.text();
     assert.match(t, /Fix the login bug/);
@@ -95,7 +102,7 @@ test('turning a protective feature off needs a second confirmation; a plain one 
 });
 
 test('the belt can be tried on a command without running it', async () => {
-  const s = await draw(new FakeData(), { address: 'security/test' });
+  const s = await draw(new FakeData(), { address: 'protection/test' });
   try {
     await s.type('git status');
     await s.press(KEY.enter);
@@ -110,8 +117,8 @@ test('Turkish everywhere when the language is Turkish; a broken protection shows
   const s = await draw(new FakeData('tr', {}, 'red'));
   try {
     const t = s.text();
-    assert.match(t, /Ana ekran/);
-    assert.match(t, /Güvenlik/);
+    assert.match(t, /Şimdi/);
+    assert.match(t, /Koruma/);
     assert.match(t, /🛡 bozuk/);
     assert.match(t, /hafta %27/);
   } finally {
@@ -131,7 +138,7 @@ test('plain mode uses no box drawing and no emoji-only signals', async () => {
 });
 
 test('the report screen sums up the day and switches to the week with p', async () => {
-  const s = await draw(new FakeData(), { address: 'measure/report' });
+  const s = await draw(new FakeData(), { address: 'activity/report' });
   try {
     assert.match(s.text(), /What happened in the last day/);
     assert.match(s.text(), /1 blocked/);
@@ -159,14 +166,14 @@ test('a rule template is applied only after a second press', async () => {
   }
 });
 
-test('home warns when two sessions work in the same folder', async () => {
+test('Now warns when two sessions work in the same folder', async () => {
   class TwoSessions extends FakeData {
     override modStates() {
       const s = (id: string) => ({ ...newModState(id, 'dev', NOW - 60_000), cwd: 'C:/work/app' });
       return [s('one'), s('two')];
     }
   }
-  const s = await draw(new TwoSessions(), { address: 'home/overview' });
+  const s = await draw(new TwoSessions(), { address: 'now' });
   try {
     assert.match(s.text(), /2 sessions are working in the same folder: C:\/work\/app/);
   } finally {
@@ -174,7 +181,7 @@ test('home warns when two sessions work in the same folder', async () => {
   }
 });
 
-test('home does not count a session that ended, or one closed without ending, as working', async () => {
+test('Now does not count a session that ended, or one closed without ending, as working', async () => {
   class Closed extends FakeData {
     override modStates() {
       const s = (id: string) => ({ ...newModState(id, 'dev', NOW - 60_000), cwd: 'C:/work/app' });
@@ -184,7 +191,7 @@ test('home does not count a session that ended, or one closed without ending, as
       return new Set(['shut']);
     }
   }
-  const s = await draw(new Closed(), { address: 'home/overview' });
+  const s = await draw(new Closed(), { address: 'now' });
   try {
     assert.doesNotMatch(s.text(), /sessions are working in the same folder/);
   } finally {
@@ -205,7 +212,7 @@ test('the help explains keys and terms and closes with Esc', async () => {
   }
 });
 
-test('flows: home lists a plan waiting for approval, Projects › Flows shows each one, its card the steps and evidence', async () => {
+test('flows: Now lists a plan waiting for approval, Working › Flows shows each one, its card the steps and evidence', async () => {
   const data = new FakeData('en');
   const f = startFlow({
     id: '20261012-0900-add-sign-in',
@@ -221,18 +228,17 @@ test('flows: home lists a plan waiting for approval, Projects › Flows shows ea
   const r2 = r1.ok ? completeStep(r1.flow, 'plan', { kind: 'plan', steps: 3, commands: 1 }, NOW - 60_000) : r1;
   assert.ok(r2.ok);
   data.flowList = [r2.flow];
-  const home = await draw(data, { address: 'home/overview' });
+  const home = await draw(data, { address: 'now' });
   try {
-    assert.match(home.text(), /Flows/);
-    assert.match(home.text(), /⏸ Add a second sign-in factor/);
-    assert.match(home.text(), /waiting for approval/);
+    assert.match(home.text(), /Flows: Add a second sign-in factor/);
+    assert.match(home.text(), /A flow waits for your approval: Add a second sign-in/);
   } finally {
     home.close();
   }
-  const card = await draw(data, { address: 'projects/flows/20261012-0900-add-sign-in' });
+  const card = await draw(data, { address: 'work/flows/20261012-0900-add-sign-in' });
   try {
     const t = card.text();
-    assert.match(t, /Projects › Flows › ⏸ Add a second sign-in factor/);
+    assert.match(t, /Working › Flows › ⏸ Add a second sign-in factor/);
     assert.match(t, /✓\s+🔍 research\s+4 findings, 3 sources/);
     assert.match(t, /✓\s+📐 plan\s+3 steps, 1 verification command\b/);
     assert.match(t, /▶\s+⏸ approval\s+in progress/);
@@ -242,8 +248,8 @@ test('flows: home lists a plan waiting for approval, Projects › Flows shows ea
   }
 });
 
-test('Projects › Flows says how to start one when there is none', async () => {
-  const s = await draw(new FakeData('tr'), { address: 'projects/flows' });
+test('Working › Flows says how to start one when there is none', async () => {
+  const s = await draw(new FakeData('tr'), { address: 'work/flows' });
   try {
     assert.match(s.text(), /Henüz akış yok/);
     assert.match(s.text(), /"akış plan"/);
@@ -254,7 +260,7 @@ test('Projects › Flows says how to start one when there is none', async () => 
 
 test('full autonomy: turning it on shows what it means and needs a second Enter; the checks from here are listed', async () => {
   const data = new FakeData();
-  const s = await draw(data, { address: 'automation/full-auto' });
+  const s = await draw(data, { address: 'work/full-auto' });
   try {
     assert.match(s.text(), /Start checks, measured from here/);
     // A check's line wraps, never cut short: the pane says it in full.
@@ -282,7 +288,7 @@ test('full autonomy: turning it on shows what it means and needs a second Enter;
   }
 });
 
-test('full autonomy: Automation › Runs lists each run, its card the milestones, what waits for the person and the way back', async () => {
+test('full autonomy: Working › Full-autonomy runs lists each run, its card the milestones, what waits for the person and the way back', async () => {
   const data = new FakeData('en');
   let r = startRun({
     id: '20261013-1210-rate-limit',
@@ -321,17 +327,17 @@ test('full autonomy: Automation › Runs lists each run, its card the milestones
   const stuck = { ...other('20261013-1000-stuck', 'Stuck task'), status: 'stuck' as const, runningSince: null };
   const done = { ...other('20261013-0900-done', 'Done task'), status: 'done' as const, runningSince: null };
   data.runList = [r, running, stuck, done];
-  const home = await draw(data, { address: 'home/overview' });
+  const home = await draw(data, { address: 'now' });
   try {
-    assert.match(home.text(), /Full-autonomy runs/);
-    assert.match(home.text(), /⏸ Add rate limiting to the API/);
+    assert.match(home.text(), /paused: Add rate limiting to the API/);
+    assert.match(home.text(), /A full-autonomy run stopped and waits for you\./);
   } finally {
     home.close();
   }
-  const card = await draw(data, { address: 'automation/runs/20261013-1210-rate-limit' });
+  const card = await draw(data, { address: 'work/runs/20261013-1210-rate-limit' });
   try {
     const t = card.text();
-    assert.match(t, /Automation › Runs › ⏸ Add rate limiting to the API/);
+    assert.match(t, /Working › Full-autonomy runs › ⏸ Add rate limiting to the API/);
     assert.match(t, /paused \(quota budget\) · 1\/2/);
     assert.match(t, /✓\s+1\. Limiter\s+bbbbbbbbbbbb · CONCERNS/);
     assert.match(t, /▶\s+2\. Wire it in/);
@@ -340,7 +346,7 @@ test('full autonomy: Automation › Runs lists each run, its card the milestones
   } finally {
     card.close();
   }
-  const empty = await draw(new FakeData('tr'), { address: 'automation/runs' });
+  const empty = await draw(new FakeData('tr'), { address: 'work/runs' });
   try {
     assert.match(empty.text(), /Henüz tam otonom iş yok/);
   } finally {
@@ -365,7 +371,7 @@ test('full autonomy: the runs list shows how many run, and each run its state', 
     status,
   });
   data.runList = [mk('20261013-1300-a', 'Running one', 'active'), mk('20261013-1200-b', 'Stuck one', 'stuck'), mk('20261013-1100-c', 'Paused one', 'paused')];
-  const s = await draw(data, { address: 'automation/runs' });
+  const s = await draw(data, { address: 'work/runs' });
   try {
     const t = s.text();
     assert.match(t, /Running one/);
@@ -375,17 +381,17 @@ test('full autonomy: the runs list shows how many run, and each run its state', 
   } finally {
     s.close();
   }
-  const automation = await draw(data, { address: 'automation' });
+  const automation = await draw(data, { address: 'work' });
   try {
-    assert.match(automation.text(), /Runs\s+1 running/);
+    assert.match(automation.text(), /Full-autonomy runs\s+1 running/);
   } finally {
     automation.close();
   }
 });
 
-test('Automation › Bypass: turning it on says what it means and needs a second Enter; its tiers are listed', async () => {
+test('Working › Bypass: turning it on says what it means and needs a second Enter; its tiers are listed', async () => {
   const data = new FakeData();
-  const s = await draw(data, { address: 'automation/bypass' });
+  const s = await draw(data, { address: 'work/bypass' });
   try {
     const flat = () =>
       s
@@ -404,9 +410,10 @@ test('Automation › Bypass: turning it on says what it means and needs a second
   }
 });
 
-test('Automation › Parallel agents: turning it on says sessions start with agents off and needs a second Enter; the helpers take one', async () => {
+test('Working › Parallel agents: turning it on says sessions start with agents off and needs a second Enter; the helpers take one', async () => {
   const data = new FakeData();
-  const s = await draw(data, { address: 'automation/agents', rows: 48 });
+  // Narrower than 110 columns, the list of Working stays out of the way of the flattened text.
+  const s = await draw(data, { address: 'work/agents', rows: 48, columns: 100 });
   try {
     const flat = () =>
       s
@@ -432,7 +439,7 @@ test('Automation › Parallel agents: turning it on says sessions start with age
     { name: 'api-fc', kind: 'interactive', status: 'busy', cwd: '/home/ada/api', startedAt: NOW - 3 * 60_000, sessionId: 'a1' },
     { name: 'tidy-up', kind: 'background', status: 'idle', cwd: null, startedAt: null, sessionId: 'b2' },
   ];
-  const listed = await draw(busy, { address: 'automation/agents', rows: 48 });
+  const listed = await draw(busy, { address: 'work/agents', rows: 48, columns: 100 });
   try {
     assert.match(listed.text(), /● api-fc · interactive · busy · 3 min ago · \/home\/ada\/api/);
     assert.match(listed.text(), /○ tidy-up · background · idle/);
@@ -441,13 +448,13 @@ test('Automation › Parallel agents: turning it on says sessions start with age
   }
   const unread = new FakeData();
   unread.sessionsRunning = null;
-  const none = await draw(unread, { address: 'automation/agents', rows: 48 });
+  const none = await draw(unread, { address: 'work/agents', rows: 48, columns: 100 });
   try {
     assert.match(none.text(), /Could not be read: this Claude Code has no 'claude agents' command\./);
   } finally {
     none.close();
   }
-  const automation = await draw(new FakeData('tr'), { address: 'automation' });
+  const automation = await draw(new FakeData('tr'), { address: 'work' });
   try {
     assert.match(automation.text(), /Paralel ajanlar\s+kapalı/);
   } finally {
@@ -455,7 +462,7 @@ test('Automation › Parallel agents: turning it on says sessions start with age
   }
 });
 
-test('Automation › Done without asking: each call bypass let through, what it passed, by whom and how it went; on and off', async () => {
+test('Working › Done without asking: each call bypass let through, what it passed, by whom and how it went; on and off', async () => {
   const data = new FakeData();
   const ev = (at: number, rest: Record<string, unknown>) => ({ v: 1, at, kind: 'bypass', source: 'mod', session: 's', ...rest });
   data.extraEvents = [
@@ -472,7 +479,7 @@ test('Automation › Done without asking: each call bypass let through, what it 
     ev(NOW - 180_000, { action: 'call', tool: 'Edit', what: '/etc/hosts', rules: ['claude.permission'], was: ['ask'], agent: 'sub-1' }),
     ev(NOW - 7_300_000, { action: 'on', hours: 2 }),
   ];
-  const s = await draw(data, { address: 'automation/bypassed' });
+  const s = await draw(data, { address: 'work/bypassed' });
   try {
     const t = s.text();
     assert.match(t, /⚡ bypass off: 2 calls in 120 min \(its time ran out\)/);
@@ -483,7 +490,7 @@ test('Automation › Done without asking: each call bypass let through, what it 
   } finally {
     s.close();
   }
-  const empty = await draw(new FakeData('tr'), { address: 'automation/bypassed' });
+  const empty = await draw(new FakeData('tr'), { address: 'work/bypassed' });
   try {
     assert.match(empty.text(), /Bypass son 30 günde hiçbir şey geçirmedi\./);
   } finally {
@@ -491,13 +498,13 @@ test('Automation › Done without asking: each call bypass let through, what it 
   }
 });
 
-test('Automation › Recent tasks: the last tasks given full autonomy, the one picked whole; Enter or c copies it', async () => {
+test('Working › Recent tasks: the last tasks given full autonomy, the one picked whole; Enter or c copies it', async () => {
   const data = new FakeData('tr');
   data.promptList = [
     { text: 'Hız sınırı ekle.\nSonra belgeleri güncelle.', budget: '+20', at: NOW - 120_000 },
     { text: 'Giriş hatasını düzelt.\nTestleri de yaz.', budget: '+10', at: NOW - 3 * 3600_000 },
   ];
-  const s = await draw(data, { address: 'automation/prompts' });
+  const s = await draw(data, { address: 'work/prompts', columns: 100 });
   const flat = () =>
     s
       .text()
@@ -531,13 +538,13 @@ test('Automation › Recent tasks: the last tasks given full autonomy, the one p
   } finally {
     s.close();
   }
-  const automation = await draw(data, { address: 'automation' });
+  const automation = await draw(data, { address: 'work' });
   try {
     assert.match(automation.text(), /Son görevler\s+2/);
   } finally {
     automation.close();
   }
-  const empty = await draw(new FakeData(), { address: 'automation/prompts' });
+  const empty = await draw(new FakeData(), { address: 'work/prompts' });
   try {
     assert.match(empty.text(), /No task yet\./);
     await empty.press(KEY.enter);

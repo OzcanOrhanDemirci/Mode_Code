@@ -203,7 +203,7 @@ export const enMemory = {
 
   // ── the control center ──
   'tui.backSoon': 'Back to the control center…',
-  'page.memoryStore': 'Where it lives',
+  'page.memoryStore': 'Memory',
   'desc.memoryStore': 'This computer, your GitHub or both; whether Claude Code uses it; its sync. "s" opens the setup.',
   'page.memoryHandoffs': 'Handoffs and morning report',
   'desc.memoryHandoffs': 'When handoff notes are written and offered, and when the morning report is told.',

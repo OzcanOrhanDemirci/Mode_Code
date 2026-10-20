@@ -7,16 +7,16 @@ import { draw, FakeData, NOW } from './harness.js';
 test('Settings › Sync: not set up, "s" leaves for the setup and comes back here', async () => {
   const data = new FakeData();
   const left: [string, string][] = [];
-  const s = await draw(data, { address: 'settings/sync', onLeave: (action, back) => left.push([action, back]) });
+  const s = await draw(data, { address: 'memory/sync', onLeave: (action, back) => left.push([action, back]) });
   try {
     assert.match(s.text(), /Where\s+Sync · not set up/);
     assert.match(s.text(), /s: set it up/);
     await s.press('s');
-    assert.deepEqual(left, [['sync-setup', 'settings/sync']]);
+    assert.deepEqual(left, [['sync-setup', 'memory/sync']]);
   } finally {
     s.close();
   }
-  const s2 = await draw(data, { address: 'settings/sync' });
+  const s2 = await draw(data, { address: 'memory/sync' });
   try {
     await s2.press('s');
     assert.match(s2.text(), /Run mode-code sync setup in a terminal\./);
@@ -49,7 +49,7 @@ test('Settings › Sync: where, this computer and the others, what waits, projec
     homeless: ['car'],
     handoffs: 'shared',
   };
-  const s = await draw(data, { address: 'settings/sync' });
+  const s = await draw(data, { address: 'memory/sync' });
   try {
     const t = s
       .text()

@@ -194,9 +194,9 @@ test('what changes a line: ending a freeze, bypass or a run; the rule; the agent
   );
   assert.deepEqual(act(facts(), 'delete'), {
     kind: 'center',
-    address: 'security/rules/fs.delete-outside-project',
+    address: 'protection/rules/fs.delete-outside-project',
     label: 'The rule',
-    card: 'Opens this rule in the control center (Security › Safety belt rules): what it asks, blocks or lets through, and how to change it. This session goes on.',
+    card: 'Opens this rule in the control center (Protection › Safety belt rules): what it asks, blocks or lets through, and how to change it. This session goes on.',
     opens: true,
   });
   assert.equal(act(facts({}, { mode: 'chat' }), 'delete'), null, 'no rule decides it in chat');
@@ -320,10 +320,10 @@ test('the activity: what waits for you first, the routine left out, five at most
   assert.deepEqual(
     a.rows.map((r) => [r.mark, r.text.split(':')[0], r.address]),
     [
-      ['ask', 'Waits for you', 'security/rules/publish.package'],
+      ['ask', 'Waits for you', 'protection/rules/publish.package'],
       ['ok', 'The session was closed from the strip', null],
-      ['ok', 'Keyword', 'settings/keywords'],
-      ['bad', 'Blocked Bash', 'security/rules/git.force-push'],
+      ['ok', 'Keyword', 'work/keywords'],
+      ['bad', 'Blocked Bash', 'protection/rules/git.force-push'],
     ],
   );
   assert.match(a.rows[3]!.card, /^Why: safety belt rule: .+\. Press: the control center opens where it is changed\.$/);
@@ -399,7 +399,7 @@ test('quick settings: not allowed yet, a press asks to allow it; allowed, the pr
   );
   assert.match(
     allowed['bypass']!.card,
-    /Press: Its window says what bypass lifts and until when, .+ Allowed: "Allow bypass" is on \(Automation › Bypass\); it is taken back there\.$/,
+    /Press: Its window says what bypass lifts and until when, .+ Allowed: "Allow bypass" is on \(Working › Bypass\); it is taken back there\.$/,
   );
   // On only where it is allowed and set: the session's agents with the setting off are Claude's to decide.
   const agentsOn = (cfg: Record<string, unknown>, mode: 'off' | 'free', ultracode = false) =>
@@ -615,7 +615,7 @@ test('the drawing: agents, the activity, the budget and the control center press
     { width: 50 },
   );
   for (const key of ['view-ag1', 'stop-ag1', 'act-0', 'all-activity', 'budget', 'center']) (find(body, key)!.props.onPress as () => void)();
-  assert.deepEqual(log, ['view ag1', 'stop ag1', 'open security/rules/git.force-push', 'activity', 'act control quota…', 'center']);
+  assert.deepEqual(log, ['view ag1', 'stop ag1', 'open protection/rules/git.force-push', 'activity', 'act control quota…', 'center']);
   // An agent's words fit beside its two buttons, cut where the room ends; a section's title is bold; a mark that leads on
   // is drawn quiet, as information, not as a press of its own.
   assert.match(textOf(find(body, 'agent-ag1')!), /^👥 Find the slow step in the bu…\[ Open \] \[ Stop \]$/);

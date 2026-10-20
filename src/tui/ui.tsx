@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /** Building blocks every screen uses, so all screens look and behave the same. */
-import { createContext, useContext, useEffect, useId, useMemo, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import { Box, Text } from 'ink';
 import type { Key } from 'ink';
 import type { Lang, MessageKey } from '../core/i18n/index.js';
@@ -29,6 +29,8 @@ export interface Env {
   flash(text: string, kind?: 'ok' | 'warn' | 'bad', undo?: () => void): void;
   /** Bumps when data should be read again. */
   tick: number;
+  /** Nothing moves: motion is reduced, or the clock is fixed (tests, the README's pictures). */
+  still: boolean;
   /** Leaves for something that talks in the terminal, and comes back at `back` (absent in tests and without a terminal). */
   leave?: (action: LeaveAction, back: string) => void;
 }
@@ -70,7 +72,9 @@ export function useScreenKeys(handler: KeyHandler, active: boolean): void {
   const scope = useContext(KeyScopeContext);
   const ref = useRef(handler);
   ref.current = handler;
-  useEffect(() => {
+  // In the commit that draws the screen, as the pointer's targets are (src/tui/press.tsx): a key typed right after a
+  // screen opens reaches it, instead of scrolling it (a passive effect left that gap; seen on a slow CI runner).
+  useLayoutEffect(() => {
     if (!scope || !active) return;
     const h: KeyHandler = (i, k) => ref.current(i, k);
     scope.handlers.push(h);
@@ -270,7 +274,7 @@ export function ListView({
         const label = fitWidth(it.label, Math.max(1, inner - (right ? textWidth(right) + 2 : 0)));
         const line = (hovered: boolean) => (
           <>
-            <Text inverse={sel && focused} bold={sel} underline={hovered && !sel} {...(it.dim ? { color: theme.muted } : {})} wrap="truncate-end">
+            <Text inverse={sel && focused} bold={sel} underline={hovered} {...(it.dim ? { color: theme.muted } : {})} wrap="truncate-end">
               {mark} {label}
             </Text>
             <Box flexGrow={1} />

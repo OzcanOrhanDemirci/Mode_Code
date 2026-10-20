@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * Puts a text on the clipboard for the control center, where a task given full autonomy is copied back
- * (Automation › Recent tasks): through the system's own tool, which says whether it took, else through the
+ * (Working › Recent tasks): through the system's own tool, which says whether it took, else through the
  * terminal (OSC 52), which most terminals honour and none confirms. The text goes as UTF-8 throughout, so
  * Turkish letters arrive as typed: on Windows in a file PowerShell reads as UTF-8, not through a console
  * code page.

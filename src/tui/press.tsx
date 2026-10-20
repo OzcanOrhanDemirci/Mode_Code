@@ -5,8 +5,8 @@
  * cut by the panes they scroll in. Click = Enter (on the innermost box under the pointer), pointing = its sentence in
  * the bar at the bottom, the wheel = scrolling what is under the pointer. Pointing only explains; it never acts.
  */
-import { createContext, useContext, useId, useLayoutEffect, useRef, type ReactNode } from 'react';
-import { Box, measureElement, type DOMElement } from 'ink';
+import { Children, cloneElement, createContext, Fragment, isValidElement, useContext, useId, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { Box, measureElement, Text, type DOMElement } from 'ink';
 import type { PointerEvent } from './pointer.js';
 
 export interface TargetSpec {
@@ -60,6 +60,18 @@ export class PointerRegistry {
     };
   }
 
+  /** Every target a click presses, where it is drawn now (a test points at each one). */
+  pressables(): { id: string; x: number; y: number; width: number; height: number }[] {
+    const out: { id: string; x: number; y: number; width: number; height: number }[] = [];
+    for (const [id, e] of this.entries) {
+      const node = e.node();
+      if (!node || !e.spec().onPress) continue;
+      const b = measureElement(node);
+      if (b.width && b.height && visibleIn(node, b.x, b.y)) out.push({ id, ...b });
+    }
+    return out;
+  }
+
   /** The targets under a cell, the innermost (smallest) first. */
   hits(x: number, y: number): { id: string; spec: TargetSpec }[] {
     const found: { id: string; spec: TargetSpec; area: number; order: number }[] = [];
@@ -99,8 +111,10 @@ export class PointerRegistry {
           break;
         }
     }
-    const describing = hits.find((h) => h.spec.describe) ?? null;
-    const id = describing?.id ?? null;
+    // What the pointer rests on: the innermost target it could press or that says what it is; its sentence, or the
+    // nearest one around it that has one.
+    const describing = top?.spec.describe ? top : (hits.find((h) => h.spec.describe) ?? null);
+    const id = top?.id ?? null;
     const hoverChanged = id !== this.hovered;
     this.hovered = id;
     return { pressed, wheeled, hoverChanged, describe: describing?.spec.describe ?? null };
@@ -128,8 +142,24 @@ export function usePointerTarget(spec: TargetSpec): { ref: React.RefObject<DOMEl
 }
 
 /**
- * A box the pointer can press: a click does `onPress`, pointing shows `describe` in the bar. The keyboard reaches the
- * same thing by its own key (shown beside it); this adds the mouse, never a second behaviour.
+ * What the pointer rests on, drawn so: every text in it underlined (docs/design.md, One way to act: pointing at
+ * something shows that it is there to press). Texts inside boxes and fragments are reached; a component of its own
+ * draws its pointed look itself (a pressable that takes `(hovered) => …`).
+ */
+export function underlined(node: ReactNode, on = true): ReactNode {
+  // Mapped pointed or not, so the children keep their keys (and their state) as the pointer comes and goes.
+  return Children.map(node, (c) => {
+    if (!isValidElement<{ children?: ReactNode; underline?: boolean }>(c)) return c;
+    if (c.type === Text) return on ? cloneElement(c, { underline: true }) : c;
+    if (c.type === Box || c.type === Fragment) return cloneElement(c, {}, underlined(c.props.children, on));
+    return c;
+  });
+}
+
+/**
+ * A box the pointer can press: a click does `onPress`, pointing shows `describe` in the bar and underlines what it
+ * holds. The keyboard reaches the same thing by its own key (shown beside it); this adds the mouse, never a second
+ * behaviour. Children given as `(hovered) => …` draw their own pointed look.
  */
 export function Pressable({
   onPress,
@@ -143,7 +173,7 @@ export function Pressable({
   const { ref, hovered } = usePointerTarget({ onPress, describe: describe ?? null });
   return (
     <Box ref={ref} flexShrink={0} {...box}>
-      {typeof children === 'function' ? children(hovered) : children}
+      {typeof children === 'function' ? children(hovered) : underlined(children, hovered)}
     </Box>
   );
 }

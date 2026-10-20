@@ -307,9 +307,9 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'doc.autonomy.notReady': 'Tam otonom açık ama burada {n} başlangıç denetimi geçmez:',
   'doc.bypass.off': 'Bypass kapalı: hiçbir oturum emniyet kemerini kaldıramaz.',
   'doc.bypass.on': 'Bypass bir oturumda senin tarafından açılabilir, en çok {hours} saatliğine; şu an hiçbir oturumda açık değil.',
-  'doc.bypass.onNow': 'Bypass şu an {n} oturumda açık (her biri en çok {hours} saat); geçirdikleri Otomasyon › Sormadan yapılanlar altında.',
+  'doc.bypass.onNow': 'Bypass şu an {n} oturumda açık (her biri en çok {hours} saat); geçirdikleri Çalışma › Sormadan yapılanlar altında.',
   'doc.bypass.floorWeakened': 'Bypass açıkken de sorulması gereken {n} kural ayarlardan kapatılmış ya da izne çevrilmiş:',
-  'doc.bypass.floorHint': 'Güvenlik › Emniyet kemeri kuralları altından ya da mode-code config set belt.verdicts.<kural> ask ile geri al.',
+  'doc.bypass.floorHint': 'Koruma › Emniyet kemeri kuralları altından ya da mode-code config set belt.verdicts.<kural> ask ile geri al.',
 
   // ── kontrol merkezi ──
   'home.runs': 'Tam otonom işler',
@@ -321,13 +321,13 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'run.rollbackHint': 'Bir kilometre taşına dönüş: mode-code autonomy rollback {id} <n>',
   'runs.empty':
     'Henüz tam otonom iş yok. Tam otonom bir iş, klavyenin başında kimse yokken tek bir görevi sonuna kadar götürür; kodun önce ölçtüğü bir sınırın içinde.',
-  'runs.howTo': 'Otomasyon › Tam otonom altında aç, sonra bir mesajı "<proje> tam otonom kota +10" ile bitir (docs/autonomy.md).',
+  'runs.howTo': 'Çalışma › Tam otonom altında aç, sonra bir mesajı "<proje> tam otonom kota +10" ile bitir (docs/autonomy.md).',
   'page.autonomy': 'Tam otonom',
   'desc.autonomy': 'Tam otonom: açık ya da kapalı, sınırları ve buradan ölçülen başlangıç denetimleri.',
   'set.autonomy.confirm': "Açmak için Enter'a bir kez daha bas.",
   'set.autonomy.check': 'Buradan ölçülen başlangıç denetimleri',
   'set.autonomy.note': 'Gerisi (bütçe, canlı kum havuzu sınaması, oturumun izin modu) iş başlarken ölçülür.',
-  // ── Otomasyon › Bypass, Sormadan yapılanlar ──
+  // ── Çalışma › Bypass, Sormadan yapılanlar ──
   'desc.automation': "Özel çalışma biçimleri, sen açana kadar kapalı: tam otonom ve işleri, bypass ve bypass'ın geçirdikleri, paralel ajanlar.",
   'page.bypass': 'Bypass',
   'desc.bypass': 'Bypass: bir oturumda, sen orada açınca, emniyet kemerini bir süre kaldırır. Burada açılana kadar kapalı.',
@@ -353,7 +353,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'bypassed.outcome.ran': 'çalıştı',
   'bypassed.outcome.failed': 'başarısız',
   'bypassed.outcome.refused': 'sonra reddedildi',
-  // ── Otomasyon › Paralel ajanlar ──
+  // ── Çalışma › Paralel ajanlar ──
   'page.agents': 'Paralel ajanlar',
   'desc.agents': "Paralel ajanlar: Claude'un kaç ajan başlatacağı, her oturumda şeritten sen belirlersin. Burada açılana kadar kapalı.",
   'set.agents.confirm':
@@ -367,7 +367,7 @@ export const trAuto: Record<keyof typeof enAuto, string> = {
   'set.agents.sessions': 'Bu bilgisayardaki Claude Code oturumları',
   'set.agents.sessionsNone': 'Çalışan yok.',
   'set.agents.sessionsUnread': "Okunamadı: bu Claude Code'da 'claude agents' komutu yok.",
-  // ── Otomasyon › Son görevler ──
+  // ── Çalışma › Son görevler ──
   'page.autoPrompts': 'Son görevler',
   'desc.autoPrompts':
     'Tam otonoma verdiğin son üç görev, şeritteki pencereden ya da yazarak; hiçbiri kaybolmasın diye saklanır: birini kopyalayıp yeniden kullan.',

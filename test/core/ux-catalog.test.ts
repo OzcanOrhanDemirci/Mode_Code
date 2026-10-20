@@ -201,7 +201,7 @@ test('the four answers, for a switch that reads backwards no more', () => {
 test('a setting another one keeps from mattering says which and where', () => {
   let c = cloneDefaults();
   const place = (page: string) => `<${page}>`;
-  assert.equal(explain(c, 'agents.helpers', 'en', place).blocked, 'No effect now, because "I set the number of agents" is off (<automation/agents>).');
+  assert.equal(explain(c, 'agents.helpers', 'en', place).blocked, 'No effect now, because "I set the number of agents" is off (<work/agents>).');
   c = setConfigValue(c, 'agents.enabled', true).config;
   assert.equal(explain(c, 'agents.helpers', 'en', place).blocked, null);
   // Two gates in a row: the lines are off, so how they are made and from when the quota shows do not matter.

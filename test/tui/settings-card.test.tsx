@@ -14,7 +14,7 @@ import { placeOf, SETTING_IDS, SETTINGS } from '../../src/core/ux/catalog.js';
 const flat = (text: string) => text.replace(/[│╭╮╰╯─]/g, '').replace(/\s+/g, ' ');
 
 test('a switch: what it is, now and its default, what the other side does, how to take it back, who changes it', async () => {
-  const s = await draw(new FakeData(), { address: 'automation/agents', rows: 48 });
+  const s = await draw(new FakeData(), { address: 'work/agents', rows: 48, columns: 100 });
   try {
     const t = flat(s.text());
     assert.match(t, /What it is Who decides how many helper Claudes \(agents\) run beside the main one/);
@@ -32,8 +32,8 @@ test('a choice in Turkish: the value now, then each other option with its effect
   try {
     await s.press(KEY.down); // view
     const t = flat(s.text());
-    assert.match(t, /Şu an Önerilen \(varsayılan\)\. Bütün sayfalar\./);
-    assert.match(t, /Değiştirirsen Ayrıntılı: Önerilen gibi bütün sayfalar.* Sade: Uzmanlara yönelik dört sayfa/);
+    assert.match(t, /Şu an Önerilen \(varsayılan\)\. Uzmanlara yönelik dört sayfa dışında hepsi/);
+    assert.match(t, /Değiştirirsen Ayrıntılı: Bütün sayfalar\..* Sade: Yalnız gündelik sayfalar/);
   } finally {
     s.close();
   }
@@ -51,7 +51,7 @@ test('a value other than the default says what the default is', async () => {
 
 test('a number: its range, then what the typed value would do before Enter saves it', async () => {
   const data = new FakeData();
-  const s = await draw(data, { address: 'automation/full-auto', rows: 48 });
+  const s = await draw(data, { address: 'work/full-auto', rows: 48, columns: 100 });
   try {
     await s.press(KEY.down, KEY.down, KEY.down); // stall time
     assert.match(flat(s.text()), /Now 90 minutes \(default\)\. After 90 minutes without a finished step Claude is told/);
@@ -68,10 +68,10 @@ test('a number: its range, then what the typed value would do before Enter saves
 });
 
 test('a setting another keeps from mattering says which one and where it lives', async () => {
-  const s = await draw(new FakeData('tr'), { address: 'automation/agents', rows: 48 });
+  const s = await draw(new FakeData('tr'), { address: 'work/agents', rows: 48, columns: 100 });
   try {
     await s.press(KEY.down); // read-only helpers, while agents are left to Claude Code
-    assert.match(flat(s.text()), /Şu an etkisiz, çünkü "Ajan sayısını ben belirlerim" ayarı: kapalı \(Otomasyon › Paralel ajanlar\)\./);
+    assert.match(flat(s.text()), /Şu an etkisiz, çünkü "Ajan sayısını ben belirlerim" ayarı: kapalı \(Çalışma › Paralel ajanlar\)\./);
   } finally {
     s.close();
   }
@@ -94,12 +94,12 @@ test('every page a setting lives on is a real page, reachable in every view; quo
   const data = new FakeData('en', { view: 'simple' });
   const roots = buildTree(data, 'en', NOW);
   const pages = new Set(SETTING_IDS.map((id) => SETTINGS[id].page));
-  assert.ok(pages.has('settings/footer-quota'));
+  assert.ok(pages.has('quota/limits'));
   for (const page of pages) assert.equal(resolve(roots, page, 'simple').length, page.split('/').length, page);
 });
 
 test('the same four answers in the other language: a Turkish switch and number, an English choice', async () => {
-  const sw = await draw(new FakeData('tr'), { address: 'automation/agents', rows: 48 });
+  const sw = await draw(new FakeData('tr'), { address: 'work/agents', rows: 48, columns: 100 });
   try {
     const t = flat(sw.text());
     assert.match(t, /Bu ne Ana Claude'un yanında kaç yardımcı Claude \(ajan\) çalışacağına/);
@@ -110,18 +110,19 @@ test('the same four answers in the other language: a Turkish switch and number, 
   } finally {
     sw.close();
   }
-  const num = await draw(new FakeData('tr'), { address: 'automation/bypass', rows: 48 });
+  const num = await draw(new FakeData('tr'), { address: 'work/bypass', rows: 48, columns: 100 });
   try {
     await num.press(KEY.down);
     const t = flat(num.text());
     assert.match(t, /Şu an 2 saat \(varsayılan\)\. Bypass açıldıktan 2 saat sonra kendiliğinden kapanır/);
     assert.match(t, /Değiştirirsen 1 saat ile 24 saat arasında bir sayı yaz\./);
-    assert.match(t, /Şu an etkisiz, çünkü "Bypass'a izin ver" ayarı: kapalı \(Otomasyon › Bypass\)\./);
+    assert.match(t, /Şu an etkisiz, çünkü "Bypass'a izin ver" ayarı: kapalı \(Çalışma › Bypass\)\./);
   } finally {
     num.close();
   }
-  const ch = await draw(new FakeData(), { address: 'settings/footer-quota', rows: 44 });
+  const ch = await draw(new FakeData(), { address: 'settings/footer', rows: 44 });
   try {
+    await ch.press(KEY.down); // the feature's own switch first, then who writes the lines
     const t = flat(ch.text());
     assert.match(t, /What it is How the lines under each answer are made\./);
     assert.match(t, /Now Mode_Code draws them \(default\)\. Mode_Code draws them under the answer/);

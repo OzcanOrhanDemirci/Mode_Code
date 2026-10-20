@@ -52,9 +52,9 @@ The catalog (`src/core/ux/catalog.ts`) holds the four answers for every setting 
 
    Every click target shows its key; everything reachable by a key can be clicked; pointing only explains, it never acts.
 
-   In the control center the mouse is the terminal's own (`src/tui/pointer.ts`: xterm's reporting, the SGR encoding, taken out of the input before Ink reads it, and turned off again on every way out). The bar at the bottom says what the pointer rests on, or what was just done with its undo, and shows the keys that work where you are, each one a click as well. Hold Shift to select text as usual; `mode-code --no-mouse` leaves the mouse to the terminal.
+   In the control center the mouse is the terminal's own (`src/tui/pointer.ts`: xterm's reporting, the SGR encoding, taken out of the input before Ink reads it, and turned off again on every way out). Whatever the pointer rests on that a click presses is underlined, and the bar at the bottom says what it is (or what was just done, with its undo), and shows the keys that work where you are, each one a click as well. Hold Shift to select text as usual; `mode-code --no-mouse` leaves the mouse to the terminal.
 
-5. **Say, do, undo.** The effect is said before it is applied. Once applied: _"Changed · undo (u)"_. Every setting shows its default and can go back to it (a preview first: `d` one setting, `D` its page). Every change is recorded with who made it (`src/core/ux/changes.ts`, `state/changes.jsonl`), and the history of changes is a page (Settings › History of changes, `mode-code config history`). Only what cannot be undone asks for a confirmation.
+5. **Say, do, undo.** The effect is said before it is applied. Once applied: _"Changed · undo (u)"_. Every setting shows its default and can go back to it (a preview first: `d` one setting, `D` its page). Every change is recorded with who made it (`src/core/ux/changes.ts`, `state/changes.jsonl`), and the history of changes is a page (Activity › History of changes, `mode-code config history`). Only what cannot be undone asks for a confirmation.
 6. **No invisible work.** Everything Mode_Code does in the background writes an activity line: what, when, **why** (the setting or rule behind it) and a way to change it. Mo and the strip say what runs now.
 7. **"Why is it so?" is always answered.** The reason for any state is worked out by code from the settings and the session, not guessed, and shown in one press. Something switched off is not hidden: it is dimmed and says why.
 8. **The person is in command.** The AI proposes, the person decides: only the person's press changes a setting. What Claude may do right now is visible at a glance. Every autonomous run is visible and can be stopped.
@@ -154,6 +154,14 @@ The panel you open beside Claude Code's conversation (`/0`, or `0 ≡ cockpit` o
 
 Only your press changes anything in the cockpit: Claude has no way to press.
 
+## The control center
+
+The map follows what a person comes for, not the parts of the system (`src/tui/nav.ts`, `src/tui/tree.tsx`): **Now** · **Activity** (what happened: in the background, while you were away, in a day or a week, to the settings) · **Working** (how Claude works: modes, keywords, flows, and the ways of working you turn on) · **Protection** · **Memory and projects** · **Quota** · **Claude Code** (its own setup) · **Settings** (this tool's own). Digits 1 to 8 jump to them. Every page has an address; an address of the map before 1.2 still leads to its page, and the palette (Ctrl+K) finds a page by its name in either language and by its old place.
+
+**Now** is the first screen, beside the list before anything is opened (`src/tui/screens/now.tsx`). Mo says the one thing that matters most and leads there with a press: protection that does not work, a flow or a run waiting for you, what happened while you were away, a run at work, a quota near its limit, a session at work, or calm (`src/core/ux/now.ts`). Under it, the goals people come for, each one a press: leave Claude on a task, work in parallel, guard the quota, what happened, and why is it so (every line below then shows its reasons). Then, after a long gap, the morning report; **Claude right now** for the session at work on this computer (the cockpit's own lines, worked out from what the session keeps on disk; with several, `s` shows the next; with none, as a new session starts); what is at work (sessions, flows, runs); what waits for you and today's numbers; and the quota. The keys walk every press in order; the line under Mo shows the card of the one they rest on.
+
+**The view level** decides how many pages the lists show, never what can be reached: Simple lists the everyday pages, Recommended all but four for experts, Detailed every one. A list that leaves pages out says how many, and a click there opens the setting; the palette and an address reach every page, and a page opened so shows in its list.
+
 ## Where it is enforced
 
 A row whose test is still to come names the stage that brings it; `test/core/design-doc.test.ts` holds every other path to a file that exists.
@@ -166,6 +174,8 @@ A row whose test is still to come names the stage that brings it; `test/core/des
 | One idea, one name                                                               | `test/core/ux-glossary.test.ts`                                                                       |
 | No wrapped line starts with a space                                              | `test/core/ux-text.test.ts` (`wrapText`); the control center's own wrap: `test/tui/grid.test.tsx`     |
 | Mouse and keyboard reach the same result                                         | `test/tui/pointer.test.tsx`                                                                           |
+| Everything a click presses shows the pointer resting on it                       | `test/tui/places.test.tsx`                                                                            |
+| Every old address leads to its page; the view hides nothing from reach           | `test/tui/places.test.tsx`                                                                            |
 | No state told by colour alone                                                    | `test/core/ux-kit.test.ts`, `test/tui/grid.test.tsx` (`NO_COLOR`), `test/tui/widths.test.tsx` (plain) |
 | Right edges of a block line up                                                   | `test/tui/grid.test.tsx`                                                                              |
 | The kit sets only what Claude Code's elements take                               | `test/core/ux-kit.test.ts`; the installed version's declarations: `src/mod/kit-host.ts`               |

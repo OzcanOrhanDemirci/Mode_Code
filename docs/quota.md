@@ -4,7 +4,7 @@ Claude Code reports two windows after each answer: five hours and a week. Mode_C
 
 ## The guard
 
-- **Budgets.** Wrap-up at 95% of the five-hour window and a stop at 99%. A weekly budget you give (`quota 40`, `kota +8`) wraps up one point before it and stops one point past it; with none, the week wraps up at 97% and stops at 99%. Settings: `quota.*` in `mode-code config`, or Settings › Footer and quota in the control center.
+- **Budgets.** Wrap-up at 95% of the five-hour window and a stop at 99%. A weekly budget you give (`quota 40`, `kota +8`) wraps up one point before it and stops one point past it; with none, the week wraps up at 97% and stops at 99%. Settings: `quota.*` in `mode-code config`, or Quota › Budget and limits (and Settings › Lines under answers) in the control center.
 - **Wrap-up.** Past a budget the strip says so, and new heavy work is refused: a subagent, a workflow, a web search or fetch. Claude finishes the step it is on and reports.
 - **Stop.** At the limit only reading, notes, the memory and committing what is done run.
 - **Resume.** Autonomous work that stopped at the limit goes on one minute after the window resets (`quota.autoResume`).

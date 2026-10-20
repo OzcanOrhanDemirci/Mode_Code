@@ -103,7 +103,7 @@ export const tr: Record<MessageKey, string> = {
   'belt.tail.deny':
     'Bunu dolanmaya çalışma (başka yazımla, başka araçla ya da betikle). Kullanıcıya ne yapmak istediğini ve nedenini söyle. Gerçekten gerekiyorsa komutu ! önekiyle kendisi çalıştırabilir.',
   'belt.tail.ask': 'Yalnız gerçekten bunu istiyorsan onayla.',
-  'belt.tail.bypass': 'Bypass açıkken (kontrol merkezi › Otomasyon › Bypass, kullanıcı açar) bu engellenmez, sorulur.',
+  'belt.tail.bypass': 'Bypass açıkken (kontrol merkezi › Çalışma › Bypass, kullanıcı açar) bu engellenmez, sorulur.',
   'belt.tail.floor': 'Bypass açık, bu yine de soruluyor: geri alınamaz.',
   'belt.tail.repeat': 'Bu kural bu oturumda {n} denemeyi engelledi. Yeniden deneme: dur ve kullanıcıya bildir.',
 
@@ -149,7 +149,7 @@ export const tr: Record<MessageKey, string> = {
   'belt.ask.block': 'Engelle',
   'belt.ask.header': 'Kemer',
   'belt.failed':
-    'Emniyet kemeri bu çağrıyı denetleyemedi ({error}); güvenli olsun diye engellendi. Kullanıcıya söyle; hata, kontrol merkezinde Güvenlik altında görünür.',
+    'Emniyet kemeri bu çağrıyı denetleyemedi ({error}); güvenli olsun diye engellendi. Kullanıcıya söyle; hata, kontrol merkezinde Koruma altında görünür.',
 
   'kw.toast': 'Anahtar kelime: {kind}{project}',
   'kw.toast.unknownProject': 'Anahtar kelime: {kind} · "{text}" kayıtlı bir proje değil',

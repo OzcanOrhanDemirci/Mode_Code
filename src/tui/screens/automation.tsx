@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Automation › Recent tasks, Bypass, Done without asking and Parallel agents (docs/autonomy.md, docs/agents.md):
+ * Working › Recent tasks, Bypass, Done without asking and Parallel agents (docs/autonomy.md, docs/agents.md):
  * the last tasks given full autonomy, to copy one again; turning bypass on for this computer, its time limit, and
  * every call it let through, one by one, for the person to review; turning the parallel agent mode on.
  */

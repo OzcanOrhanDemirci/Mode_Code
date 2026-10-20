@@ -31,7 +31,7 @@ export function ProjectCard({ cwd, width, height, open }: ScreenProps & { cwd: s
     key: s.id,
     label: s.title ?? s.firstPrompt ?? s.id.slice(0, 8),
     right: `${compact(s.tokens, lang)} · ${ago(s.lastTs, now, lang)}`,
-    address: `sessions/${s.id}`,
+    address: `memory/sessions/${s.id}`,
   }));
   return (
     <Box flexDirection="column" width={width}>
@@ -339,7 +339,7 @@ export function RunCard({ id, width }: ScreenProps & { id: string }) {
   );
 }
 
-/** Automation › Runs before there is one: what full autonomy is, and how a run starts. */
+/** Working › Full-autonomy runs before there is one: what full autonomy is, and how a run starts. */
 export function RunsEmpty({ width }: ScreenProps) {
   const t = useT();
   return (
@@ -352,7 +352,7 @@ export function RunsEmpty({ width }: ScreenProps) {
   );
 }
 
-/** Projects › Flows before there is one: what a flow is and how to start one. */
+/** Working › Flows before there is one: what a flow is and how to start one. */
 export function FlowsEmpty({ width }: ScreenProps) {
   const t = useT();
   return (
@@ -365,7 +365,7 @@ export function FlowsEmpty({ width }: ScreenProps) {
   );
 }
 
-/** Projects › Handoffs: one handoff note, as it is kept in the memory (docs/memory.md). */
+/** Memory and projects › Handoffs: one handoff note, as it is kept in the memory (docs/memory.md). */
 export function HandoffCard({ path, width }: ScreenProps & { path: string }) {
   const { data, lang } = useEnv();
   const t = useT();
@@ -387,7 +387,7 @@ export function HandoffCard({ path, width }: ScreenProps & { path: string }) {
   );
 }
 
-/** Projects › Handoffs before there is one: what a handoff note is and how one is written. */
+/** Memory and projects › Handoffs before there is one: what a handoff note is and how one is written. */
 export function HandoffsEmpty({ width }: ScreenProps) {
   const t = useT();
   return (

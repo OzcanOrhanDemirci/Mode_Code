@@ -11,7 +11,7 @@ const flat = (text: string) => text.replace(/[│╭╮╰╯─]/g, '').replace
 
 test('projects: added by typing, refused in the wrong form, removed only on the second press', async () => {
   const data = new FakeData();
-  const s = await draw(data, { address: 'settings/projects', rows: 40 });
+  const s = await draw(data, { address: 'memory/names', rows: 40 });
   try {
     assert.match(flat(s.text()), /No projects yet\./);
     await s.press('a');

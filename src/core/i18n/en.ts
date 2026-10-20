@@ -103,7 +103,7 @@ export const en = {
   'belt.tail.deny':
     'Do not work around this (no other spelling, tool or script). Tell the user what you wanted to do and why. If it is really needed, they can run it themselves by typing ! followed by the command.',
   'belt.tail.ask': 'Approve only if this is what you meant.',
-  'belt.tail.bypass': 'With bypass on (control center › Automation › Bypass, turned on by the user) this is asked instead of blocked.',
+  'belt.tail.bypass': 'With bypass on (control center › Working › Bypass, turned on by the user) this is asked instead of blocked.',
   'belt.tail.floor': 'Bypass is on, and this is still asked: it cannot be undone.',
   'belt.tail.repeat': 'This rule has blocked {n} attempts in this session. Do not try again: stop and report to the user.',
 
@@ -153,7 +153,7 @@ export const en = {
   'belt.ask.block': 'Block',
   'belt.ask.header': 'Safety belt',
   'belt.failed':
-    'The safety belt could not check this call ({error}), so it was blocked to be safe. Tell the person; the control center shows the error under Security.',
+    'The safety belt could not check this call ({error}), so it was blocked to be safe. Tell the person; the control center shows the error under Protection.',
 
   // ── keywords as the person sees them ──
   'kw.toast': 'Keyword: {kind}{project}',

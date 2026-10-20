@@ -39,7 +39,7 @@ async function turnOn($: any): Promise<any> {
 test('until it is turned on in the settings, there is no bypass: /bypass says where to turn it on', async ($, on) => {
   const w = world(on, { answer: 'allow' });
   const r = await run($, 'bypass');
-  expect(r.text).toBe('Bypass is not allowed yet: allow it in the cockpit (/0) or under Automation › Bypass.');
+  expect(r.text).toBe('Bypass is not allowed yet: allow it in the cockpit (/0) or under Working › Bypass.');
   expect(w.modState()?.bypass ?? null).toBe(null);
   expect(w.asked).toEqual([]);
 });
@@ -150,7 +150,7 @@ test('on the strip: ⚡ once turned on, red and unfilled while on with the calls
   await ui.press({ key: 'strip-bypass' });
   await ui.unmount();
   expect(w.modState().bypass).toBe(null);
-  expect(w.toasts.at(-1)).toBe('Bypass ended: 1 calls without asking in 1 min. Each one: Automation › Done without asking.');
+  expect(w.toasts.at(-1)).toBe('Bypass ended: 1 calls without asking in 1 min. Each one: Working › Done without asking.');
 });
 
 test('a reminder with each prompt; ten minutes before its time a warning; at its time it ends by itself and says so', async ($, on) => {

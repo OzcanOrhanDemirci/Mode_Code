@@ -92,7 +92,7 @@ export function activityOf(e: ActivityEvent, lang: Lang): ActivityLine {
       const rules = list(e.rules);
       const rule = rules[0];
       const why = rule ? t('act.why.rule', { rule: t(`rulename.${rule}`) }) : null;
-      const at = rule ? `security/rules/${rule}` : 'security/events';
+      const at = rule ? `protection/rules/${rule}` : 'protection/events';
       const reason = list(e.reasons)[0] ?? '';
       if (e.verdict === 'deny') return line('blocked', t('act.belt.deny', { tool, reason }), why, at);
       if (e.verdict === 'warn') return line('note', t('act.belt.warn', { tool, reason }), why, at, true);
@@ -105,12 +105,12 @@ export function activityOf(e: ActivityEvent, lang: Lang): ActivityLine {
     case 'mode':
       return line('blocked', t('act.mode', { tool, mode: t(`mode.name.${str(e.mode, 20)}`) }), t('act.why.mode'));
     case 'quota':
-      if (e.verdict === 'deny') return line('blocked', t('act.quota.held', { tool }), t('act.why.budget'), 'settings/footer-quota');
+      if (e.verdict === 'deny') return line('blocked', t('act.quota.held', { tool }), t('act.why.budget'), 'quota/limits');
       return line(
         e.level === 'ok' ? 'done' : 'waiting',
         t(`act.quota.${e.level === 'stop' ? 'stop' : e.level === 'ok' ? 'ok' : 'wrapUp'}`),
         t('act.why.budget'),
-        'settings/footer-quota',
+        'quota/limits',
       );
     case 'modeDisagree':
       return line('note', t('act.modeDisagree', { mode: t(`mode.name.${str(e.mode, 20)}`) }), null, null, true);
@@ -123,11 +123,11 @@ export function activityOf(e: ActivityEvent, lang: Lang): ActivityLine {
     case 'hint':
       return line('note', t('act.hint', { hint: str(e.hint, 40) }), null, null, true);
     case 'keyword':
-      return line('done', t('act.keyword', { keyword: t(`kw.kind.${str(e.keyword, 20)}`) }), null, 'settings/keywords');
+      return line('done', t('act.keyword', { keyword: t(`kw.kind.${str(e.keyword, 20)}`) }), null, 'work/keywords');
     case 'reading':
-      return line('note', t('act.reading', { five: num(e.five), week: num(e.week) }), null, 'measure/quota', true);
+      return line('note', t('act.reading', { five: num(e.five), week: num(e.week) }), null, 'quota/usage', true);
     case 'resume':
-      return line('done', t('act.resume'), on('quota.autoResume'), 'settings/footer-quota');
+      return line('done', t('act.resume'), on('quota.autoResume'), 'quota/limits');
     case 'skill':
       return line('done', t('act.skill', { skill: str(e.skill, 80) }), null, 'claude-code/skills');
     case 'mcpChanged':
@@ -143,28 +143,28 @@ export function activityOf(e: ActivityEvent, lang: Lang): ActivityLine {
       return line('note', t('act.pack', { pack: str(e.pack, 40) }), null, 'claude-code/packs', true);
     case 'memory': {
       const trouble = num(e.conflicts) > 0 || num(e.held) > 0 || e.pull === 'conflict' || e.pull === 'diverged';
-      if (trouble) return line('blocked', t('act.memory.held'), null, 'settings/memory/store');
-      return line('done', t('act.memory.synced', { n: num(e.pulled) }), null, 'settings/memory/store', !num(e.pulled) && e.commit !== 'ok');
+      if (trouble) return line('blocked', t('act.memory.held'), null, 'memory/store');
+      return line('done', t('act.memory.synced', { n: num(e.pulled) }), null, 'memory/store', !num(e.pulled) && e.commit !== 'ok');
     }
     case 'sync':
-      if (e.error === true) return line('blocked', t('act.sync.failed'), null, 'settings/sync');
-      return line('done', t('act.sync.done'), null, 'settings/sync', true);
+      if (e.error === true) return line('blocked', t('act.sync.failed'), null, 'memory/sync');
+      return line('done', t('act.sync.done'), null, 'memory/sync', true);
     case 'handoff':
-      return line('done', t('act.handoff', { project: str(e.project, 60) || '?' }), on('memory.handoff.enabled'), 'projects/handoffs');
+      return line('done', t('act.handoff', { project: str(e.project, 60) || '?' }), on('memory.handoff.enabled'), 'memory/handoffs');
     case 'center':
       return e.ok === false ? line('blocked', t('act.center.failed')) : line('done', t('act.center.opened'), null, null, true);
     case 'agents': {
       const why = t('act.why.agents');
-      if (e.action === 'deny') return line('blocked', t('act.agents.deny'), why, 'automation/agents');
-      if (e.action === 'set') return line('done', t('act.agents.set', { mode: t(`agents.mode.${str(e.mode, 20)}`) }), why, 'automation/agents');
-      if (e.action === 'stop') return line('done', t('act.agents.stop', { n: num(e.stopped) }), null, 'automation/agents');
-      if (e.action === 'batchDone') return line('done', t('act.agents.batchDone', { n: num(e.started) }), why, 'automation/agents');
-      return line('note', t('act.agents.note'), why, 'automation/agents', true);
+      if (e.action === 'deny') return line('blocked', t('act.agents.deny'), why, 'work/agents');
+      if (e.action === 'set') return line('done', t('act.agents.set', { mode: t(`agents.mode.${str(e.mode, 20)}`) }), why, 'work/agents');
+      if (e.action === 'stop') return line('done', t('act.agents.stop', { n: num(e.stopped) }), null, 'work/agents');
+      if (e.action === 'batchDone') return line('done', t('act.agents.batchDone', { n: num(e.started) }), why, 'work/agents');
+      return line('note', t('act.agents.note'), why, 'work/agents', true);
     }
     case 'close':
       return line('done', t('act.close'));
     case 'conflict':
-      return line('waiting', t('act.conflict', { n: list(e.sessions).length }), null, 'home/overview');
+      return line('waiting', t('act.conflict', { n: list(e.sessions).length }), null, 'now');
     case 'flow': {
       const flow = str(e.flow, 60);
       const status = str(e.status, 20);
@@ -172,28 +172,28 @@ export function activityOf(e: ActivityEvent, lang: Lang): ActivityLine {
         status === 'waiting' ? 'waiting' : e.action === 'refused' ? 'blocked' : 'done',
         t('act.flow', { flow, status: t(`flow.status.${status}`) }),
         null,
-        flow ? `projects/flows/${flow}` : null,
+        flow ? `work/flows/${flow}` : null,
       );
     }
     case 'run': {
       const run = str(e.run, 60);
       if (e.action === 'gate' && e.ok === false)
-        return line('blocked', t('act.run.refused', { checks: list(e.failed).join(', ') }), t('act.why.autonomy'), 'automation/full-auto');
-      if (e.action === 'gate') return line('note', t('act.run.checked'), null, 'automation/full-auto', true);
+        return line('blocked', t('act.run.refused', { checks: list(e.failed).join(', ') }), t('act.why.autonomy'), 'work/full-auto');
+      if (e.action === 'gate') return line('note', t('act.run.checked'), null, 'work/full-auto', true);
       const status = str(e.status, 20) || 'active';
       return line(
         status === 'paused' || e.defer ? 'waiting' : status === 'stuck' ? 'blocked' : 'done',
         t('act.run', { run, status: t(`auto.status.${status}`) }),
         null,
-        run ? `automation/runs/${run}` : 'automation/runs',
+        run ? `work/runs/${run}` : 'work/runs',
       );
     }
     case 'bypass':
       if (e.action === 'on')
-        return line('note', t('act.bypass.on', { hours: num(e.hours) }), t('act.why.bypass', { name: nameOf('bypass.enabled', lang) }), 'automation/bypass');
+        return line('note', t('act.bypass.on', { hours: num(e.hours) }), t('act.why.bypass', { name: nameOf('bypass.enabled', lang) }), 'work/bypass');
       if (e.action === 'off')
-        return line('done', t('act.bypass.off', { n: num(e.count) }), t('act.why.bypass', { name: nameOf('bypass.enabled', lang) }), 'automation/bypassed');
-      return line('note', t('act.bypass.call', { tool }), t('act.why.bypass', { name: nameOf('bypass.enabled', lang) }), 'automation/bypassed');
+        return line('done', t('act.bypass.off', { n: num(e.count) }), t('act.why.bypass', { name: nameOf('bypass.enabled', lang) }), 'work/bypassed');
+      return line('note', t('act.bypass.call', { tool }), t('act.why.bypass', { name: nameOf('bypass.enabled', lang) }), 'work/bypassed');
     case 'permission':
       return line('done', t('act.permission', { tool }), t('act.why.permission'), 'claude-code/permissions', true);
     default:

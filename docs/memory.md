@@ -26,7 +26,7 @@ All three make Claude Code use **one memory for all your projects**: the folder 
 mode-code memory setup
 ```
 
-or in the control center: Settings › Memory › Where it lives, then `s` (the control center steps aside for the setup and comes back to the same page). The setup is a short conversation in your terminal; it changes nothing until you have seen the whole list of changes and said yes once.
+or in the control center: Memory and projects › Memory, then `s` (the control center steps aside for the setup and comes back to the same page). The setup is a short conversation in your terminal; it changes nothing until you have seen the whole list of changes and said yes once.
 
 1. **What is there now.** Where it is set up, Claude Code's `autoMemoryDirectory` if you set one, the per-project memories under `~/.claude/projects/`, and whether the folder is a git repository with a remote.
 2. **Where it should live:** 1, 2 or 3 (Enter takes 3).
@@ -78,13 +78,13 @@ A **handoff note** says where the work stands so that the next session, here or 
 
 **Where it is kept:** in the memory, under `handoffs/<project>/`, one file per note named by its time (UTC) and session, synced like the rest; without a memory set up, in Mode_Code's own folder. `<project>` is the project you named in the session (`terminal devam`), else the project registered for the folder, else its GitHub repository (`owner-repo`), else its folder's name, so the same project on two computers shares its handoffs. The newest 20 per project stay in the folder; older ones leave it at the next session's start and remain in the memory's git history.
 
-**How the next session takes it.** On the session's first prompt, Claude is told in one line that a note is waiting: when and where it was written, why, its next step, and its path. When you type `<project> continue` / `<proje> devam`, the whole note goes to Claude with your prompt. A session is not offered its own note, and notes older than 14 days are not offered. `mode-code memory handoff` prints the newest, `--all` lists them; the control center lists them under Projects › Handoffs.
+**How the next session takes it.** On the session's first prompt, Claude is told in one line that a note is waiting: when and where it was written, why, its next step, and its path. When you type `<project> continue` / `<proje> devam`, the whole note goes to Claude with your prompt. A session is not offered its own note, and notes older than 14 days are not offered. `mode-code memory handoff` prints the newest, `--all` lists them; the control center lists them under Memory and projects › Handoffs.
 
 Handoff notes are not memory entries: they are not added to `MEMORY.md`, and Claude is told not to index them.
 
 ## The morning report
 
-When you come back after a while (6 hours by default), the first prompt shows one line of what happened while you were away and what waits for you, the control center's Home shows it first, and `mode-code morning` shows it in full:
+When you come back after a while (6 hours by default), the first prompt shows one line of what happened while you were away and what waits for you, the control center's Now shows it first, and `mode-code morning` shows it in full:
 
 - full-autonomy runs that ended, paused or got stuck, with their reports, and the steps they deferred to you;
 - flows whose plans wait for your approval;
@@ -120,7 +120,7 @@ During a full-autonomy run Claude does not write the memory (the run's guard ref
 | `mode-code memory notes [approve\|discard <id>]`     | notes from full-autonomy runs waiting for you, and your decision |
 | `mode-code morning [--hours N]`                      | the morning report                                               |
 
-Each takes `--json`. In the control center: Settings › Memory (where it lives, handoffs and morning report, protected folders), Projects › Handoffs, Home. `mode-code doctor` checks the store too: whether Claude Code uses it, its history and remote, and its last sync.
+Each takes `--json`. In the control center: Memory and projects (where it lives, handoffs and morning report, protected folders), Memory and projects › Handoffs, Now. `mode-code doctor` checks the store too: whether Claude Code uses it, its history and remote, and its last sync.
 
 ## Settings
 
@@ -171,7 +171,7 @@ Written 2026-10-13, kept as a checklist:
 - [x] The setup as steps with a question interface, driven by the terminal and by the control center; refused under an agent.
 - [x] Plugin: the sync at session start and after a turn, the handoff tool and its triggers (keyword, wrap up, compaction, `/clear` and end, runs), the first prompt's handoff line, the whole note on continue, the morning line, approved notes handed over once.
 - [x] Safety-net hook: the sync and the handoff line on the first prompt, the sync at Stop, when the plugin is not loaded; pruning at every session start.
-- [x] Command line: `memory`, `memory setup`, `memory sync`, `memory handoff`, `memory notes`, `morning`; control center: Settings › Memory, Projects › Handoffs, Home; the doctor's check.
+- [x] Command line: `memory`, `memory setup`, `memory sync`, `memory handoff`, `memory notes`, `morning`; control center: Memory and projects, Memory and projects › Handoffs, Now; the doctor's check.
 - [x] Tests in every layer: unit, real git against a local bare repository, git answered by script, a stand-in GitHub, the setup driven through its questions, the command line as a process, the hook as a process, the control center, the engine's test kit, mutation targets and coverage floors, live sessions.
 - [x] Docs: README in both languages, keywords, command reference, architecture, testing, changelog.
 - [x] Measured: a live session that pulls a change made elsewhere and answers from it, writes a handoff on the keyword and has it taken over by the next session; on Windows and in WSL2.

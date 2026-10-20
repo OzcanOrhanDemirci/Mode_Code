@@ -198,7 +198,7 @@ export const trMemory: Record<keyof typeof enMemory, string> = {
   'doc.memory.ok': 'Hafızanın yeri: {place} · {dir}. Claude Code onu kullanıyor.',
 
   'tui.backSoon': 'Kontrol merkezine dönülüyor…',
-  'page.memoryStore': 'Nerede duruyor',
+  'page.memoryStore': 'Hafıza',
   'desc.memoryStore': 'Bu bilgisayar, GitHub ya da ikisi; Claude Code kullanıyor mu; eşitlemesi. "s" kurulumu açar.',
   'page.memoryHandoffs': 'Devir notları ve sabah raporu',
   'desc.memoryHandoffs': 'Devir notlarının ne zaman yazılıp sunulduğu, sabah raporunun ne zaman söylendiği.',

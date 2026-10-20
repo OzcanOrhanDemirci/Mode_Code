@@ -128,6 +128,8 @@ const TARGETS = {
   'src/core/ux/cockpit.ts': ['test/core/ux-cockpit.test.ts'],
   'src/core/ux/cockpit-view.ts': ['test/core/ux-cockpit.test.ts'],
   'src/core/ux/elapsed.ts': ['test/core/ux-cockpit.test.ts'],
+  // Now, the control center's first screen: the cockpit's facts for a session on disk, and what Mo says.
+  'src/core/ux/now.ts': ['test/core/ux-now.test.ts'],
 };
 
 // ── finding mutation sites in TypeScript without a parser: code outside strings, comments and regexes ──

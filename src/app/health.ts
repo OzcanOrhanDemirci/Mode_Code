@@ -121,7 +121,7 @@ export function checkHealth(ctx: AppContext, opts: { selfTest?: boolean; withPlu
 
   // ── data ──
   const dirs = ctx.config.memory.dirs.map((d) => resolvePath(d, { platform, home: home(), cwd: ctx.cwd }));
-  if (!dirs.length) f.push({ id: 'memory', protection: false, state: 'off', reason: { key: 'health.memory.none' }, fix: 'settings/memory' });
+  if (!dirs.length) f.push({ id: 'memory', protection: false, state: 'off', reason: { key: 'health.memory.none' }, fix: 'memory' });
   else {
     const missing = dirs.filter((d) => !existsSync(d));
     const notRepo = dirs.filter((d) => existsSync(d) && !repoStatus(d).isRepo);
@@ -131,7 +131,7 @@ export function checkHealth(ctx: AppContext, opts: { selfTest?: boolean; withPlu
         protection: false,
         state: 'gray',
         reason: { key: 'health.memory.missing', params: { path: missing[0]! } },
-        fix: 'settings/memory',
+        fix: 'memory',
       });
     else if (notRepo.length === dirs.length) f.push({ id: 'memory', protection: false, state: 'ok', reason: { key: 'health.memory.noGit' } });
     else f.push({ id: 'memory', protection: false, state: 'ok' });

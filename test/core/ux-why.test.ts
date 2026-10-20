@@ -93,9 +93,9 @@ test('the mode and the way of working say whether they are the start or your cho
 
 test('a setting as a reason names it, says its value and the page it is changed on, which is a real address', () => {
   const a = why('bypass', facts(), 'en');
-  assert.equal(a.because[0]!.text, '"Allow bypass" is off (Automation › Bypass)');
-  assert.equal(a.because[0]!.address, 'automation/bypass');
-  assert.equal(why('bypass', facts(), 'tr').because[0]!.text, '"Bypass\'a izin ver" kapalı (Otomasyon › Bypass)');
+  assert.equal(a.because[0]!.text, '"Allow bypass" is off (Working › Bypass)');
+  assert.equal(a.because[0]!.address, 'work/bypass');
+  assert.equal(why('bypass', facts(), 'tr').because[0]!.text, '"Bypass\'a izin ver" kapalı (Çalışma › Bypass)');
 });
 
 test('a rule of the belt: its own verdict, the one the settings give it, off, locked, lifted by bypass', () => {

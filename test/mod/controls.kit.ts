@@ -723,7 +723,7 @@ test("where no pane can be drawn, the activity's count opens the control center 
     'C:/Program Files/nodejs/node.exe',
     'C:/dev/tc/dist/cli.mjs',
     'open',
-    'home/activity',
+    'activity/feed',
   ]);
   expect(w.toasts.at(-1)).toBe('The control center opened in a new tab.');
   await ui.unmount();
@@ -1013,9 +1013,9 @@ test('/why: every part and why; one part by its word; "last" names the last refu
   on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }));
   const all = await run($, 'why');
   expect(all.text).toMatch(/^Safety belt: on: it checks every command and file write\n {2}- the safety belt is always on/);
-  expect(all.text).toMatch(/\nBypass: off in this session: ⚡ on the strip switches it on\n {2}- "Allow bypass" is on \(Automation › Bypass\)/);
+  expect(all.text).toMatch(/\nBypass: off in this session: ⚡ on the strip switches it on\n {2}- "Allow bypass" is on \(Working › Bypass\)/);
   expect((await run($, 'why', 'agents')).text).toMatch(
-    /^Agents: Claude decides how many agents it starts\n {2}- "Parallel agents" is off|^Agents: Claude decides how many agents it starts\n {2}- ".+" is off \(Automation › Parallel agents\)$/,
+    /^Agents: Claude decides how many agents it starts\n {2}- "Parallel agents" is off|^Agents: Claude decides how many agents it starts\n {2}- ".+" is off \(Working › Parallel agents\)$/,
   );
   expect((await run($, 'why', 'last')).text).toBe('Nothing was refused in this session.');
   // A command the belt blocks, then why: the line, and the rule's own reasons.
