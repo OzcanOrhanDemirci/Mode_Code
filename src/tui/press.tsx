@@ -72,6 +72,14 @@ export class PointerRegistry {
     return out;
   }
 
+  /** Presses a target, as a click on it does; false when it is no longer drawn. */
+  press(id: string): boolean {
+    const onPress = this.entries.get(id)?.spec().onPress;
+    if (!onPress) return false;
+    onPress();
+    return true;
+  }
+
   /** The targets under a cell, the innermost (smallest) first. */
   hits(x: number, y: number): { id: string; spec: TargetSpec }[] {
     const found: { id: string; spec: TargetSpec; area: number; order: number }[] = [];

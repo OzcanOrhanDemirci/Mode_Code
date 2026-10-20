@@ -580,4 +580,11 @@ export const enTui = {
   'set.now.rest': 'the rest at their defaults',
   'set.now.back': 'All back to defaults',
   'set.now.backCard': 'Shows what goes back to its default on this page, then asks: nothing changes before you apply. D does the same.',
+
+  // ── jump mode (src/tui/jump.ts) ──
+  'keys.jump': 'jump',
+  'help.k.jump': 'Jump: a letter beside everything you can press; type it, and it is pressed',
+  'jump.say': 'Type the letters beside what you want to press · Esc cancels',
+  'jump.none': 'No label is "{typed}": nothing pressed.',
+  'jump.empty': 'Nothing on this screen to press.',
 } as const;

@@ -200,7 +200,7 @@ Yazarın Windows 11 makinesinde, Claude Code 2.1.296 ve Node.js 24.15 ile ölç�
 
 `mode-code` açar; Claude Code'un içinde `/0` onu terminalinin yeni bir sekmesinde açar. Üç sütun: geldiğin yer, bulunduğun yer ve seçili olan. Her ekranın bir adresi var (`protection/rules`, `quota/usage`); `mode-code open <adres>` de aynı adresi alır. Bu sayfanın başındaki resim, programın kendi ekranlarını örnek veriden çizmesidir (`npm run screenshots`).
 
-Tuşlar her yerde aynı: `↑↓` gez, `→` aç, `←` geri, `1`-`8` kategoriye atla, `/` listeyi süz, `Ctrl+K` adıyla herhangi bir ekrana git (iki dilde de), `?` terimlerin açıklandığı yardım, `q` çık. Üç görünüm seviyesi (Sade, Önerilen, Ayrıntılı) neyin gösterildiğini değiştirir, neyin korunduğunu asla. Düz metin (çerçevesiz, ASCII simgeler) ve yüksek kontrast Ayarlar › Erişilebilirlik altında.
+Tuşlar her yerde aynı: `↑↓` gez, `→` aç, `←` geri, `1`-`8` kategoriye atla, `/` listeyi süz, `Ctrl+K` adıyla herhangi bir ekrana git (iki dilde de, eski yeriyle de), `Ctrl+O` atla (basılabilen her şeyin yanında bir etiket), `?` terimlerin açıklandığı yardım, `q` çık. Üç görünüm seviyesi (Sade, Önerilen, Ayrıntılı) neyin gösterildiğini değiştirir, neyin korunduğunu asla. Düz metin (çerçevesiz, ASCII simgeler) ve yüksek kontrast Ayarlar › Erişilebilirlik altında.
 
 Her şey komut olarak da var; her biri sürümlü `--json` çıktısı verir:
 

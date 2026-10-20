@@ -172,6 +172,10 @@ The map follows what a person comes for, not the parts of the system (`src/tui/n
 
 **Every empty page leads on:** it says what will appear there, and a press (Enter, or a click) opens the page where that is done. **It is live:** what a session writes into the data folder (its state, an event, the quota, a flow, the settings) shows at once, without `r`. The location bar keeps its crumbs whole beside the protection and the quota: on a narrow terminal the middle ones give way to `…`.
 
+**Jump** (`Ctrl+O`): a label of a letter or two stands over everything on the screen a click presses, in reading order; typing a label presses it, `Esc` lets it be. The keyboard reaches any target in two or three keys without walking to it.
+
+**What the terminal takes beyond drawing** (`src/tui/terminal.ts`), read from what it says of itself and sent nowhere else: the window's title says where you are (_Mode_Code · Working_) and goes back to the terminal at the end; the first reading of your history shows its progress on the tab and the taskbar (Windows Terminal, ConEmu); a folder or a file a card names is a link the terminal opens (Ctrl+click in most).
+
 **The view level** decides how many pages the lists show, never what can be reached: Simple lists the everyday pages, Recommended all but four for experts, Detailed every one. A list that leaves pages out says how many, and a click there opens the setting; the palette and an address reach every page, and a page opened so shows in its list.
 
 ## Where it is enforced
@@ -190,6 +194,7 @@ A row whose test is still to come names the stage that brings it; `test/core/des
 | Every old address leads to its page; the view hides nothing from reach           | `test/tui/places.test.tsx`                                                                            |
 | A page of settings says what it holds; empty pages lead on; crumbs fit           | `test/tui/pages.test.tsx`                                                                             |
 | The control center shows what changes on disk                                    | `test/tui/live.test.ts`                                                                               |
+| Jump reaches every target; the title, progress and links only where they show    | `test/tui/jump.test.tsx`                                                                              |
 | No state told by colour alone                                                    | `test/core/ux-kit.test.ts`, `test/tui/grid.test.tsx` (`NO_COLOR`), `test/tui/widths.test.tsx` (plain) |
 | Right edges of a block line up                                                   | `test/tui/grid.test.tsx`                                                                              |
 | The kit sets only what Claude Code's elements take                               | `test/core/ux-kit.test.ts`; the installed version's declarations: `src/mod/kit-host.ts`               |

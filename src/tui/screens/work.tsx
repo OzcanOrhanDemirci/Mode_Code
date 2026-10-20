@@ -2,16 +2,15 @@
 /** Projects and sessions: where work happened and what each session did. */
 import { useState } from 'react';
 import { Box, Text } from 'ink';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { ago, compact, dateTime, duration, integer, percent, shortPath } from '../../core/format.js';
+import { ago, compact, dateTime, duration, integer, percent } from '../../core/format.js';
 import { maskSecrets } from '../../core/secrets/scan.js';
 import { cacheHitRate, type SessionRow } from '../../node/index-db.js';
 import { repoStatus, git } from '../../node/git.js';
 import { readTail } from '../../node/tail.js';
 import { readText, writeAtomic } from '../../node/fsx.js';
 import type { ScreenProps } from '../nav.js';
-import { Empty, EmptyState, Muted, Note, Row, Section, Table, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
+import { Empty, EmptyState, Muted, Note, PathText, Row, Section, Table, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
 import { LinkList, type Link } from '../widgets.js';
 import type { MessageKey } from '../../core/i18n/index.js';
 import { evidenceText, flowTitle, statusText } from '../../core/flow-view.js';
@@ -36,7 +35,9 @@ export function ProjectCard({ cwd, width, height, open }: ScreenProps & { cwd: s
   return (
     <Box flexDirection="column" width={width}>
       <Section>
-        <Row label={t('project.folder')}>{shortPath(cwd, homedir(), width - 24)}</Row>
+        <Row label={t('project.folder')}>
+          <PathText path={cwd} max={width - 24} />
+        </Row>
         {project ? <Row label={t('project.keyword')}>{project.names.map((n) => `${n} devam`).join(', ')}</Row> : null}
         <Row label={t('project.sessions')}>{integer(sessions.length, lang)}</Row>
         <Row label={t('project.last')}>{sessions[0] ? ago(sessions[0].lastTs, now, lang) : '?'}</Row>
@@ -97,7 +98,7 @@ export function SessionCard({ id, width, height, open }: ScreenProps & { id: str
         {s.firstPrompt ? <Muted>“{s.firstPrompt}”</Muted> : null}
       </Section>
       <Section>
-        <Row label={t('session.folder')}>{shortPath(s.cwd, homedir(), width - 24)}</Row>
+        <Row label={t('session.folder')}>{s.cwd ? <PathText path={s.cwd} max={width - 24} /> : '?'}</Row>
         <Row label={t('session.when')}>{`${dateTime(s.firstTs, lang)} · ${duration(s.lastTs - s.firstTs, lang)} · ${ago(s.lastTs, now, lang)}`}</Row>
         <Row label={t('session.prompts')}>{integer(s.prompts, lang)}</Row>
         <Row
@@ -196,7 +197,9 @@ export function FlowCard({ id, width }: ScreenProps & { id: string }) {
         <Row label={t('flow.card.status')} {...(f.status === 'waiting' ? { color: theme.warn } : {})}>
           {statusText(f.status, lang)}
         </Row>
-        <Row label={t('flow.card.folder')}>{shortPath(f.cwd, homedir(), wide)}</Row>
+        <Row label={t('flow.card.folder')}>
+          <PathText path={f.cwd} max={wide} />
+        </Row>
         <Row label={t('flow.card.updated')}>{ago(f.updatedAt, now, lang)}</Row>
       </Section>
       <Section title={t('flow.card.steps')}>
@@ -230,7 +233,7 @@ export function FlowCard({ id, width }: ScreenProps & { id: string }) {
           {fileRows.map(([k, p]) =>
             p ? (
               <Row key={k} label={t(k)}>
-                {shortPath(p, homedir(), wide)}
+                <PathText path={p} max={wide} />
               </Row>
             ) : null,
           )}
@@ -277,7 +280,9 @@ export function RunCard({ id, width }: ScreenProps & { id: string }) {
         <Row label={t('auto.report.status')} {...(r.status === 'paused' || r.status === 'stuck' ? { color: theme.warn } : {})}>
           {`${status} · ${r.phase === 'plan' || !r.plan ? t('auto.phase.plan') : next ? `${p.done}/${p.of}` : t('auto.phase.finish')}`}
         </Row>
-        <Row label={t('auto.report.folder')}>{shortPath(r.cwd, homedir(), wide)}</Row>
+        <Row label={t('auto.report.folder')}>
+          <PathText path={r.cwd} max={wide} />
+        </Row>
         <Row label={t('auto.report.time')}>{`${durationText(activeTime(r, now), lang)} · ${ago(r.updatedAt, now, lang)}`}</Row>
         <Row label={t('auto.cli.budget')}>{`${r.budget.weeklyTarget}% (${r.budget.source})`}</Row>
       </Section>
@@ -329,7 +334,7 @@ export function RunCard({ id, width }: ScreenProps & { id: string }) {
         ).map(([k, path]) =>
           path ? (
             <Row key={k} label={t(k)}>
-              {shortPath(path, homedir(), wide)}
+              <PathText path={path} max={wide} />
             </Row>
           ) : null,
         )}
@@ -375,7 +380,9 @@ export function HandoffCard({ path, width }: ScreenProps & { path: string }) {
           <Row label={t('handoff.project')}>{item.project}</Row>
           <Row label={t('handoff.when')}>{`${dateTime(item.at, lang)}${item.machine ? ` · ${item.machine}` : ''}`}</Row>
           <Row label={t('handoff.why')}>{t(`handoff.trigger.${item.trigger}` as MessageKey)}</Row>
-          <Row label={t('handoff.file')}>{shortPath(path, homedir(), width - 24)}</Row>
+          <Row label={t('handoff.file')}>
+            <PathText path={path} max={width - 24} />
+          </Row>
         </Section>
       ) : null}
       <Text wrap="wrap">{body.split('\n').slice(0, 60).join('\n')}</Text>

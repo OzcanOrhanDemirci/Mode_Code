@@ -8,6 +8,9 @@ import { tIn } from '../core/i18n/index.js';
 import { meter, opener, type KitHost, type MeterLevel } from '../core/ux/kit.js';
 import { wrapText } from '../core/ux/text.js';
 import { fitWidth, textWidth } from '../node/width.js';
+import { homedir } from 'node:os';
+import { shortPath } from '../core/format.js';
+import { fileUrl, linkSequence } from './terminal.js';
 import type { HealthState } from '../app/health.js';
 import type { DataSource } from './store.js';
 import { inkHost } from './kit.js';
@@ -31,6 +34,8 @@ export interface Env {
   tick: number;
   /** Nothing moves: motion is reduced, or the clock is fixed (tests, the README's pictures). */
   still: boolean;
+  /** The terminal shows links (OSC 8): a path is one, opened by a click with the terminal's modifier. */
+  links?: boolean;
   /** Leaves for something that talks in the terminal, and comes back at `back` (absent in tests and without a terminal). */
   leave?: (action: LeaveAction, back: string) => void;
 }
@@ -247,6 +252,16 @@ export function EmptyState({ text, to, open }: { text: string; to: string; open:
       </Box>
     </Box>
   );
+}
+
+/**
+ * A path, shortened to `max` columns; where the terminal shows links (src/tui/terminal.ts) it is one, and the
+ * terminal's own click (Ctrl+click in most) opens the file or the folder.
+ */
+export function PathText({ path, max }: { path: string; max: number }) {
+  const { links } = useEnv();
+  const text = shortPath(path, homedir(), Math.max(12, max));
+  return <Text>{links ? linkSequence(fileUrl(path), text) : text}</Text>;
 }
 
 export interface ListItem {

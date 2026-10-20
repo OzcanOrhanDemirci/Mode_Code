@@ -569,4 +569,11 @@ export const trTui: Record<keyof typeof enTui, string> = {
   'set.now.rest': 'gerisi varsayılanında',
   'set.now.back': 'Hepsini varsayılana döndür',
   'set.now.backCard': 'Bu sayfada neyin varsayılana döneceğini gösterir, sonra sorar: sen uygulamadan hiçbir şey değişmez. D de aynısını yapar.',
+
+  // ── atla (src/tui/jump.ts) ──
+  'keys.jump': 'atla',
+  'help.k.jump': 'Atla: basılabilen her şeyin yanında bir harf; onu yazınca basılır',
+  'jump.say': 'Basmak istediğin şeyin yanındaki harfleri yaz · Esc vazgeçer',
+  'jump.none': '"{typed}" diye bir etiket yok: hiçbir şeye basılmadı.',
+  'jump.empty': 'Bu ekranda basılacak bir şey yok.',
 };

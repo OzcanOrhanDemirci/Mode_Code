@@ -11,7 +11,7 @@ import { KEYWORD_LISTS } from '../../core/keywords.js';
 import { nextOf } from '../../core/handoff.js';
 import { newerThan } from '../../core/update.js';
 import type { ScreenProps } from '../nav.js';
-import { Muted, Note, Row, Section, StateMark, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
+import { Muted, Note, PathText, Row, Section, StateMark, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
 import { Pressable } from '../press.js';
 import { fieldsOf, SettingsEditor, TextField } from '../widgets.js';
 
@@ -211,7 +211,11 @@ export function MemoryStore({ width, open }: ScreenProps) {
       <Muted>{t('mem.intro')}</Muted>
       <Box marginTop={1} flexDirection="column">
         <Row label={t('mem.place')}>{s ? t(`msetup.place.${s.place}` as MessageKey) : t('mem.notSetUp')}</Row>
-        {s ? <Row label={t('mcli.folder')}>{shortPath(s.dir, homedir(), width - 24)}</Row> : null}
+        {s ? (
+          <Row label={t('mcli.folder')}>
+            <PathText path={s.dir} max={width - 24} />
+          </Row>
+        ) : null}
         {s && (s.repo || s.remote) ? <Row label="GitHub">{s.repo ?? s.remote ?? ''}</Row> : null}
         <Row label={t('mcli.claude')} {...(s ? { color: v.inUse ? theme.ok : theme.bad } : {})}>
           {s
@@ -507,7 +511,9 @@ export function Maintenance({ width, open }: ScreenProps) {
         </Row>
         <Row label="Claude Code">{h.claude ?? t('cli.notFound')}</Row>
         <Row label="Node.js">{process.version}</Row>
-        <Row label={t('cli.doctor.data')}>{shortPath(data.layout.root, homedir(), width - 24)}</Row>
+        <Row label={t('cli.doctor.data')}>
+          <PathText path={data.layout.root} max={width - 24} />
+        </Row>
         <Row label={t('maint.plugin')}>
           <StateMark state={h.features.find((f) => f.id === 'mod')?.state ?? 'absent'} />
         </Row>

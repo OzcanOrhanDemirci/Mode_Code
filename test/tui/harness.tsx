@@ -433,6 +433,8 @@ export async function draw(
     onQuit?: AppProps['onQuit'];
     /** The address the screen opens at, when it is not the one asked for (an old address leads to its page's new one). */
     opens?: string;
+    /** What the terminal takes beyond drawing, and where its sequences go. */
+    terminal?: AppProps['terminal'];
   } = {},
 ): Promise<Screen> {
   const stdout = new FakeStdout(opts.columns ?? 110, opts.rows ?? 32);
@@ -453,6 +455,7 @@ export async function draw(
       {...(opts.onQuit ? { onQuit: opts.onQuit } : {})}
       onRegistry={(r) => (registry = r)}
       onAddress={(a) => (shown = a)}
+      {...(opts.terminal ? { terminal: opts.terminal } : {})}
     />,
     {
       stdout: stdout as unknown as NodeJS.WriteStream,
