@@ -20,7 +20,6 @@ export function themeColor(theme: Theme, m: Meaning): string | undefined {
     case 'ask':
       return theme.warn;
     case 'bad':
-    case 'bypass':
       return theme.bad;
     case 'focus':
       return theme.accent;

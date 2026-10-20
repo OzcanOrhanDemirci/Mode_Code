@@ -31,7 +31,6 @@ Koruma
   ✓ Kemer, Windows'un korunan yerlere verdiği 1 kısa adı da koruyor.
       ~/MODECO~1 = ~/.mode-code.
   ✓ 1 hafıza klasörü korunuyor ve git deposu.
-  i Bypass kapalı: hiçbir oturum emniyet kemerini kaldıramaz.
   ✓ Projenin paylaşılan ayarları hiçbir şeyi genişletmiyor.
   ✓ En yeni sürüm hangisiyse onunla başlayan MCP sunucusu yok.
   ✓ Claude Code ayar dosyalarında yazılı sır yok.
@@ -66,7 +65,7 @@ Veri
 Öz-sınama
   ✓ 1 paketteki 30 yerleşik örneğin hepsi beklenen cevabı verdi.
 
-2.1 sn içinde 53 denetim: 39 tamam, 2 uyarı, 3 sorun.
+2.1 sn içinde 52 denetim: 39 tamam, 2 uyarı, 3 sorun.
 Sorunlardan 3 tanesi bir korumayı zayıflatıyor.
 
 3 sorun kendiliğinden onarılabilir:

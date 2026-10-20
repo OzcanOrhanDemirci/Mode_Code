@@ -35,15 +35,6 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.center.remote': 'Kokpit ve kontrol merkezi bilgisayarda açılır: orada yazılan /0 kokpiti gösterir.',
   'ctl.runAttached': 'Bu oturuma bağlı bir tam otonom iş var: önce "{cancel}" ile bırak.',
   'ctl.personOnly': '{cmd} komutunu yalnız sen çalıştırabilirsin: şeritten ya da kendin yazarak, burada ya da telefonda.',
-  // ── bypass ──
-  'ctl.bypass.notEnabled': 'Bypass için henüz izin yok: kokpitten (/0) ya da Çalışma › Bypass altından ver.',
-  // Kısa: neyi kaldırdığı ve neyi asla yapmadığı Çalışma › Bypass'ta tam anlatılır.
-  'ctl.bypass.confirm': 'Bypass {hours} saatliğine açılsın mı? Claude bu oturumda sormadan çalışır; her çağrı kaydedilir.',
-  'ctl.bypass.yes': 'Aç',
-  'ctl.bypass.no': 'Vazgeç',
-  'ctl.bypass.started': 'Bypass {until} saatine kadar açık ({hours} saat). /bypass ya da şeritteki ⚡ kapatır.',
-  'bypass.summary': 'Bypass kapandı: {minutes} dakikada {count} çağrı sorulmadan geçti. Liste: Çalışma › Sormadan yapılanlar.',
-  'bypass.toast.soon': 'Bypass {minutes} dakika sonra kapanacak.',
   // ── / menüsü: her komutun aldığı değer (satırı kataloğun, ux.ctl.*) ──
   'ctl.hint.text': '[metin]',
   'ctl.hint.fullAuto': '[kota +N] [görev]',
@@ -221,8 +212,4 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.flowPane.placeholder': 'boş: sıradaki mesajın görev olur',
   'ctl.flowPane.preview': 'Buraya görev yazdıysan akış onunla şimdi başlar; yazmadıysan sıradaki mesajın görevi olur. Adımları: {steps}.',
   'ctl.flowPane.apply': 'Seç',
-  'ctl.bypassPane.title': 'Bypass',
-  'ctl.bypassPane.now': 'Kapalı. En çok {hours} saate izin var (Çalışma › Bypass).',
-  'ctl.bypassPane.preview':
-    '{hours} saat boyunca, saat {until} olana kadar, emniyet kemeri bu oturumda neredeyse hiçbir şey sormaz: proje dışında silmek ve birkaç korunan adım yine sorulur, kendini koruma hiç kalkmaz. Geçirdiği her çağrı kaydedilir. Bitirmek için ⚡ simgesine yeniden bas ya da süre dolsun.',
 };

@@ -33,15 +33,6 @@ export const enControls = {
   'ctl.center.remote': 'The cockpit and the control center open on the computer: /0 typed there shows the cockpit.',
   'ctl.runAttached': 'A full-autonomy run is attached to this session: "{cancel}" lets it go first.',
   'ctl.personOnly': 'Only you can run {cmd}: from the strip, or typed by you, here or on the phone.',
-  // ── bypass ──
-  'ctl.bypass.notEnabled': 'Bypass is not allowed yet: allow it in the cockpit (/0) or under Working › Bypass.',
-  // Short: what it lifts and what it never does are told in full under Working › Bypass.
-  'ctl.bypass.confirm': 'Turn bypass on for {hours} h? Claude works without asking in this session; every call is recorded.',
-  'ctl.bypass.yes': 'Turn on',
-  'ctl.bypass.no': 'Cancel',
-  'ctl.bypass.started': 'Bypass on until {until} ({hours} h). /bypass, or ⚡ on the strip, turns it off.',
-  'bypass.summary': 'Bypass ended: {count} calls without asking in {minutes} min. Each one: Working › Done without asking.',
-  'bypass.toast.soon': 'Bypass ends in {minutes} min.',
   // ── the slash-command menu: what each command takes (its line is the catalog's, ux.ctl.*) ──
   'ctl.hint.text': '[text]',
   'ctl.hint.fullAuto': '[quota +N] [task]',
@@ -219,8 +210,4 @@ export const enControls = {
   'ctl.flowPane.placeholder': 'empty: your next message is the task',
   'ctl.flowPane.preview': 'With a task written here the flow starts now; without one, your next message is its task. Its steps: {steps}.',
   'ctl.flowPane.apply': 'Choose',
-  'ctl.bypassPane.title': 'Bypass',
-  'ctl.bypassPane.now': 'Off. Allowed for up to {hours} h (Working › Bypass).',
-  'ctl.bypassPane.preview':
-    'For {hours} h, until {until}, the safety belt asks almost nothing in this session: deleting outside the project and a few protected steps still ask, and self-protection never lifts. Every call it lets through is recorded. Press ⚡ again, or let the time run out, to end it.',
 } as const;

@@ -74,7 +74,6 @@ test("the commands are declared at the start, in the person's language; the mode
     'flow',
     'tam-otonom',
     'full-auto',
-    'bypass',
     'dondur',
     'freeze',
     'ajan',
@@ -613,7 +612,7 @@ const focusOn = ($: any, element: string) =>
   $.ui.focus({ component: 'AbovePrompt', requestId: 'band', plugin: 'mode-code', element, origin: { kind: 'person' } });
 
 test("under the strip: what Claude does now, in words; the pointer on a control, or on Mo, shows that one's card there", async ($, on) => {
-  world(on, { config: { bypass: { enabled: true } } });
+  world(on);
   await run($, '3');
   const ui: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
   const drawn = await ui.drawn();
@@ -623,7 +622,7 @@ test("under the strip: what Claude does now, in words; the pointer on a control,
   expect(textOf(node(drawn, 'say-text'))).toBe('📐 plan: reads and plans; writes the plan only · manual: one step, then it waits for you');
   // Every control's card lies in the line unseen; the pointer on that control reveals it (one hover group).
   const cards = new Map<string, any>(say.children.filter((c: any) => c.hover?.scope).map((c: any) => [c.hover.scope, c]));
-  const controls = ['1', '2', '3', '4', '5', '6', '7', '8', 'bypass', '0', '00'];
+  const controls = ['1', '2', '3', '4', '5', '6', '7', '8', '0', '00'];
   for (const id of controls) {
     const scope = node(drawn, `strip-${id}`)?.hover?.scope;
     expect(scope).toBe(`card-${id}`);
@@ -634,7 +633,6 @@ test("under the strip: what Claude does now, in words; the pointer on a control,
     '◉ In effect: Claude reads and plans, and writes the plan only; nothing else changes. · Undo: pick another mode · /3',
   );
   expect(textOf(cards.get('card-4'))).toBe('Press: Claude develops, tests and commits in the project, inside the safety belt. · Undo: pick another mode · /4');
-  expect(textOf(cards.get('card-bypass'))).toMatch(/^○ Off\. Press: Its window says what bypass lifts and until when, .+ · Undo: press it again · \/bypass$/);
   expect(textOf(cards.get('card-00'))).toMatch(/^Press: Writes the handoff note.+ · Cannot be undone · \/00$/);
   // Mo: its state in words, and what a click on it does.
   expect(node(drawn, 'mo-at')?.hover?.scope).toBe('card-mo');
@@ -1009,11 +1007,11 @@ test('a keyword typed with a slash is applied and said so; one typo from a keywo
 });
 
 test('/why: every part and why; one part by its word; "last" names the last refusal and its rule; Claude asks the same', async ($, on) => {
-  const w = world(on, { config: { bypass: { enabled: true } }, answer: 'block' });
+  const w = world(on, { answer: 'block' });
   on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }));
   const all = await run($, 'why');
   expect(all.text).toMatch(/^Safety belt: on: it checks every command and file write\n {2}- the safety belt is always on/);
-  expect(all.text).toMatch(/\nBypass: off in this session: ⚡ on the strip switches it on\n {2}- "Allow bypass" is on \(Working › Bypass\)/);
+  expect(all.text).not.toMatch(/bypass/i);
   expect((await run($, 'why', 'agents')).text).toMatch(
     /^Agents: Claude decides how many agents it starts\n {2}- "Parallel agents" is off|^Agents: Claude decides how many agents it starts\n {2}- ".+" is off \(Working › Parallel agents\)$/,
   );
@@ -1027,6 +1025,6 @@ test('/why: every part and why; one part by its word; "last" names the last refu
   await $.session.start({ source: 'startup', cwd: PROJECT } as any);
   for (let i = 0; i < 40; i++) await Promise.resolve();
   expect(w.registered.find((t: any) => t.name === 'why')?.isDeferred).toBe(true);
-  const told: any = await $.tool.call({ tool: 'mcp__mode-code__why', about: 'bypass', tool_use_id: 'w2' } as any);
-  expect(String(told.result)).toMatch(/^Bypass: off in this session/);
+  const told: any = await $.tool.call({ tool: 'mcp__mode-code__why', about: 'agents', tool_use_id: 'w2' } as any);
+  expect(String(told.result)).toMatch(/^Agents: Claude decides how many agents it starts/);
 });

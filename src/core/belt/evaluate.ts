@@ -5,7 +5,7 @@
  */
 import { tIn } from '../i18n/index.js';
 import { checkCommand, checkFileTool, checkOutward } from './check.js';
-import { bypassVerdict, effectiveVerdict, RULES } from './rules.js';
+import { effectiveVerdict } from './rules.js';
 import { isFileTool, isOutwardTool, shellOf } from './tools.js';
 import { VERDICT_ORDER, type BeltContext, type BeltDecision, type Finding, type Verdict } from './types.js';
 
@@ -39,48 +39,38 @@ export async function evaluateToolCall(tool: string, input: Readonly<Record<stri
   return decide(raw, issues, ctx);
 }
 
-/**
- * Applies the catalog, the person's configuration and bypass to raw findings, dedupes, and picks the
- * verdict. What bypass changed is kept in `lifted`, with the verdict it had without bypass.
- */
-export function decide(raw: readonly Finding[], issues: readonly string[], ctx: Pick<BeltContext, 'config' | 'bypass'>): BeltDecision {
+/** Applies the catalog and the person's configuration to raw findings, dedupes, and picks the verdict. */
+export function decide(raw: readonly Finding[], issues: readonly string[], ctx: Pick<BeltContext, 'config'>): BeltDecision {
   const seen = new Set<string>();
   const findings: Finding[] = [];
-  const lifted: Finding[] = [];
   for (const f of raw) {
-    const before = effectiveVerdict(f.rule, ctx.config);
-    if (!before || before === 'allow') continue;
+    const v = effectiveVerdict(f.rule, ctx.config);
+    if (!v || v === 'allow') continue;
     const key = f.rule + '\u0000' + f.reason;
     if (seen.has(key)) continue;
     seen.add(key);
-    const v = ctx.bypass ? bypassVerdict(f.rule, before) : before;
-    if (v !== before) lifted.push({ ...f, verdict: v, lifted: before });
-    if (v === 'allow') continue;
-    findings.push({ ...f, verdict: v, ...(v !== before ? { lifted: before } : {}) });
+    findings.push({ ...f, verdict: v });
   }
   findings.sort((a, b) => VERDICT_ORDER[b.verdict] - VERDICT_ORDER[a.verdict]);
   const verdict: Verdict = findings[0]?.verdict ?? 'allow';
-  return { verdict, findings, issues: [...issues], lifted };
+  return { verdict, findings, issues: [...issues] };
 }
 
-/** Two decisions about one call as one: the stricter verdict, every finding, everything bypass changed. */
+/** Two decisions about one call as one: the stricter verdict, every finding. */
 export function mergeDecisions(a: BeltDecision, b: BeltDecision): BeltDecision {
   const findings = [...a.findings, ...b.findings].sort((x, y) => VERDICT_ORDER[y.verdict] - VERDICT_ORDER[x.verdict]);
-  return { verdict: findings[0]?.verdict ?? 'allow', findings, issues: [...a.issues, ...b.issues], lifted: [...a.lifted, ...b.lifted] };
+  return { verdict: findings[0]?.verdict ?? 'allow', findings, issues: [...a.issues, ...b.issues] };
 }
 
 /**
  * The text that goes back to Claude Code. For a deny it is also what the person sees in the transcript,
- * so it is written in their language: what was blocked, why, and that it must not be worked around. A
- * block that bypass would turn into a question says so: the way to do it, with the person's approval.
+ * so it is written in their language: what was blocked, why, and that it must not be worked around.
  */
-export function decisionText(d: BeltDecision, ctx: Pick<BeltContext, 'lang' | 'bypass'>, opts: { repeatCount?: number } = {}): string {
+export function decisionText(d: BeltDecision, ctx: Pick<BeltContext, 'lang'>, opts: { repeatCount?: number } = {}): string {
   const shown = d.findings.filter((f) => f.verdict === d.verdict);
   const lines = shown.map((f) => `• ${f.reason} [${f.rule}]`);
   const head = tIn(ctx.lang, d.verdict === 'deny' ? 'belt.head.deny' : d.verdict === 'ask' ? 'belt.head.ask' : 'belt.head.warn');
   const tail = d.verdict === 'deny' ? tIn(ctx.lang, 'belt.tail.deny') : d.verdict === 'ask' ? tIn(ctx.lang, 'belt.tail.ask') : '';
-  const viaBypass = d.verdict === 'deny' && !ctx.bypass && shown.every((f) => RULES[f.rule].bypass === 'ask') ? tIn(ctx.lang, 'belt.tail.bypass') : '';
-  const floor = d.verdict === 'ask' && ctx.bypass && shown.some((f) => RULES[f.rule].bypass === 'ask') ? tIn(ctx.lang, 'belt.tail.floor') : '';
   const repeat = opts.repeatCount && opts.repeatCount > 1 ? tIn(ctx.lang, 'belt.tail.repeat', { n: opts.repeatCount }) : '';
-  return [head, ...lines, floor, tail, viaBypass, repeat].filter(Boolean).join('\n');
+  return [head, ...lines, tail, repeat].filter(Boolean).join('\n');
 }

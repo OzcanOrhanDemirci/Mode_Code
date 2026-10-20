@@ -62,7 +62,6 @@ const TARGETS = {
     'test/core/templates.test.ts',
     'test/core/memory.test.ts',
     'test/core/sync.test.ts',
-    'test/core/bypass.test.ts',
   ],
   'src/core/secrets/scan.ts': ['test/core/secrets.test.ts', 'test/core/edges.test.ts', 'test/core/selftest.test.ts'],
   'src/core/version.ts': ['test/core/format.test.ts', 'test/core/selftest.test.ts'],
@@ -92,7 +91,7 @@ const TARGETS = {
   // A rename (docs/release.md): what of an installation under an earlier name is found, copied and pointed here.
   'src/node/previous.ts': ['test/node/install-previous.test.ts'],
   // The session's controls (docs/modes.md, "Session controls"): commands, budgets, what to continue, the strip.
-  'src/core/controls.ts': ['test/core/controls.test.ts', 'test/core/keywords.test.ts', 'test/core/bypass.test.ts'],
+  'src/core/controls.ts': ['test/core/controls.test.ts', 'test/core/keywords.test.ts'],
   // Full autonomy's start window and Automation › Recent tasks: what is kept, offered and copied back.
   'src/core/auto-prompts.ts': ['test/core/auto-prompts.test.ts'],
   'src/node/clipboard.ts': ['test/node/clipboard.test.ts'],
@@ -113,7 +112,7 @@ const TARGETS = {
   'src/core/mo/state.ts': ['test/core/mo.test.ts'],
   'src/core/mo/cells.ts': ['test/core/mo.test.ts'],
   // What a keyword does to the session: the mode and the way of working change only where the person names them.
-  'src/core/session.ts': ['test/core/session.test.ts', 'test/core/modes.test.ts', 'test/core/bypass.test.ts'],
+  'src/core/session.ts': ['test/core/session.test.ts', 'test/core/modes.test.ts'],
   // Whether a session is still open: its process looked up, the answer read, a freed number told apart.
   'src/core/host.ts': ['test/core/host.test.ts'],
   // Mode_Code's own git calls: nothing the repository's settings name runs, git from PATH's absolute folders only.

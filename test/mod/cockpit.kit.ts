@@ -124,14 +124,12 @@ test('every line says itself: a card for each, unseen in the line the cockpit op
   expect(textOf(node(drawn, 'ck-now'))).toBe('What Claude may do now, what is at work, and your quota. Point at anything: it says what it is here.');
   const all = await cards(ui);
   // Every pressable carries the scope of its card.
-  for (const key of ['can-write', 'can-delete', 'quick-bypass', 'quick-agents', 'quick-fullAuto', 'quick-freeze', 'budget', 'center']) {
+  for (const key of ['can-write', 'can-delete', 'quick-agents', 'quick-fullAuto', 'quick-freeze', 'budget', 'center']) {
     expect(node(drawn, key)?.hover?.scope).toBe(key);
     expect(all.get(key)?.length ?? 0).toBeGreaterThan(20);
   }
   expect(all.get('can-delete')).toBe('Delete outside the project: ask. Its own verdict: ask. Press: why, and what changes it.');
-  expect(all.get('quick-bypass')).toMatch(
-    /^Bypass: Claude works without asking .+ Now: not allowed yet\. Press: first what allowing it means; nothing changes until you confirm\.$/,
-  );
+  expect(all.get('quick-fullAuto')).toMatch(/ Now: not allowed yet\. Press: first what allowing it means; nothing changes until you confirm\.$/);
   // The keyboard on a line: its card, marked as the focus, while the cockpit holds the keyboard; Esc hands it back
   // unannounced, so a cockpit that does not hold it says what it is for again.
   await $.ui.focus({ component: 'Pane', requestId: 'cockpit', plugin: 'mode-code', element: 'can-risky', origin: { kind: 'person' } });
@@ -147,47 +145,47 @@ test('a permission from Quick settings: its warning first, Cancel changes nothin
   const w = world(on);
   await run($, '0');
   const ui = await mount($);
-  expect(textOf(node(await ui.drawn(), 'quick-bypass'))).toMatch(/^Bypass +○ not allowed yet$/);
-  await ui.press({ key: 'quick-bypass' });
-  expect(await body(ui)).toMatch(/! Bypass lets Claude act without asking for a while: .+ only you switch it on in a session\. \[ Allow \] \[ Cancel \]/);
-  await ui.press({ key: 'quick-bypass-no' });
-  expect(await body(ui)).not.toMatch(/Bypass lets Claude/);
+  expect(textOf(node(await ui.drawn(), 'quick-fullAuto'))).toMatch(/^Full autonomy +○ not allowed yet$/);
+  await ui.press({ key: 'quick-fullAuto' });
+  expect(await body(ui)).toMatch(/! A full-autonomy run carries one task to its end .+ only you start a run\. \[ Allow \] \[ Cancel \]/);
+  await ui.press({ key: 'quick-fullAuto-no' });
+  expect(await body(ui)).not.toMatch(/A full-autonomy run carries/);
   expect(w.read(`${DATA}/config.json`)).toBeNull();
-  await ui.press({ key: 'quick-bypass' });
-  await ui.press({ key: 'quick-bypass-yes' });
-  expect(w.json(`${DATA}/config.json`).bypass.enabled).toBe(true);
+  await ui.press({ key: 'quick-fullAuto' });
+  await ui.press({ key: 'quick-fullAuto-yes' });
+  expect(w.json(`${DATA}/config.json`).autonomy.enabled).toBe(true);
   const rows = w
     .read(`${DATA}/state/changes.jsonl`)!
     .trim()
     .split('\n')
     .map((l: string) => JSON.parse(l));
-  expect(rows).toEqual([expect.objectContaining({ who: 'cockpit', path: 'bypass.enabled', from: false, to: true })]);
-  expect(await body(ui)).toMatch(/^✓ Changed: Allow bypass: off → on ?\[ Undo \]/);
-  // Now the session's own switch: off, and a press opens its window.
-  expect(textOf(node(await ui.drawn(), 'quick-bypass'))).toMatch(/^Bypass +○ off$/);
+  expect(rows).toEqual([expect.objectContaining({ who: 'cockpit', path: 'autonomy.enabled', from: false, to: true })]);
+  expect(await body(ui)).toMatch(/^✓ Changed: Full autonomy: off → on ?\[ Undo \]/);
+  // Now on the strip, as its opener.
+  expect(textOf(node(await ui.drawn(), 'quick-fullAuto'))).toMatch(/^Full autonomy +○ off$/);
   const strip: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
-  expect(await words(strip)).toContain('⚡ bypass ○');
+  expect(await words(strip)).toContain('full auto…');
   await strip.unmount();
   await ui.press({ key: 'undo' });
-  expect(w.json(`${DATA}/config.json`).bypass.enabled).toBe(false);
-  expect(w.toasts.at(-1)).toBe('Taken back: Allow bypass: on → off.');
+  expect(w.json(`${DATA}/config.json`).autonomy.enabled).toBe(false);
+  expect(w.toasts.at(-1)).toBe('Taken back: Full autonomy: on → off.');
   const after = w
     .read(`${DATA}/state/changes.jsonl`)!
     .trim()
     .split('\n')
     .map((l: string) => JSON.parse(l));
-  expect(after.at(-1)).toMatchObject({ who: 'undo', path: 'bypass.enabled', from: true, to: false });
+  expect(after.at(-1)).toMatchObject({ who: 'undo', path: 'autonomy.enabled', from: true, to: false });
   expect(await body(ui)).not.toContain('Changed:');
   await ui.unmount();
 });
 
-test("an allowed control is the strip's own press: bypass opens its window, the freeze takes this folder and ends", async ($, on) => {
-  const w = world(on, { config: { bypass: { enabled: true } } });
+test("an allowed control is the strip's own press: the agents open their window, the freeze takes this folder and ends", async ($, on) => {
+  const w = world(on, { config: { agents: { enabled: true } } });
   w.write('/home/ada/dev/app/README.md', '# app');
   await run($, '0');
   const ui = await mount($);
-  await ui.press({ key: 'quick-bypass' });
-  expect(w.panes).toEqual(['cockpit', 'bypass']);
+  await ui.press({ key: 'quick-agents' });
+  expect(w.panes).toEqual(['cockpit', 'parallel-agents']);
   await ui.press({ key: 'quick-freeze' });
   expect(w.modState().frozen).toBe('/home/ada/dev/app');
   expect(textOf(node(await ui.drawn(), 'quick-freeze'))).toMatch(/^Freeze +● on: app$/);

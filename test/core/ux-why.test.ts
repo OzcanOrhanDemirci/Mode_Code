@@ -24,15 +24,6 @@ const ask = (s: WhySubject, f: WhyFacts) => {
 };
 
 const CASES: [string, WhySubject, WhyFacts, RegExp, (string | null)[]][] = [
-  ['bypass not allowed', 'bypass', facts(), /^not on the strip$/, ['bypass.enabled']],
-  ['bypass allowed, off now', 'bypass', facts({ 'bypass.enabled': true }), /^off in this session/, ['bypass.enabled', null]],
-  [
-    'bypass on',
-    'bypass',
-    facts({ 'bypass.enabled': true }, { bypass: { since: NOW - 1, until: NOW + 3600_000, count: 0 } }),
-    /^on until /,
-    [null, 'bypass.maxHours'],
-  ],
   ['agents left to Claude', 'agents', facts(), /^Claude decides/, ['agents.enabled']],
   ['agents set, none yet', 'agents', facts({ 'agents.enabled': true }), /^none in this session/, ['agents.enabled', null]],
   ['agents free 3', 'agents', facts({ 'agents.enabled': true }, { agents: { ...state().agents, mode: 'free', n: 3 } }), /^at most 3 at once$/, [null]],
@@ -63,13 +54,6 @@ const CASES: [string, WhySubject, WhyFacts, RegExp, (string | null)[]][] = [
   ['packs automatic', 'packs', facts({ 'packs.autoUse': true }), /where a project needs them/, ['packs.autoUse']],
   ['update check off', 'update', facts({ 'update.check': false }), /^never by itself$/, ['update.check']],
   ['memory not set up', 'memory', facts(), /^not set up$/, [null]],
-  [
-    'belt lifted by bypass',
-    'belt',
-    facts({ 'bypass.enabled': true }, { bypass: { since: NOW - 1, until: NOW + 60_000, count: 0 } }),
-    /^lifted until /,
-    [null, 'bypass.enabled'],
-  ],
   ['belt off for development', 'belt', facts({}, {}, { beltOff: true }), /development switch/, [null]],
   ['outside a session', 'agents', facts({ 'agents.enabled': true }, null), /^none in this session/, ['agents.enabled', null]],
 ];
@@ -92,13 +76,13 @@ test('the mode and the way of working say whether they are the start or your cho
 });
 
 test('a setting as a reason names it, says its value and the page it is changed on, which is a real address', () => {
-  const a = why('bypass', facts(), 'en');
-  assert.equal(a.because[0]!.text, '"Allow bypass" is off (Working › Bypass)');
-  assert.equal(a.because[0]!.address, 'work/bypass');
-  assert.equal(why('bypass', facts(), 'tr').because[0]!.text, '"Bypass\'a izin ver" kapalı (Çalışma › Bypass)');
+  const a = why('autonomy', facts(), 'en');
+  assert.equal(a.because[0]!.text, '"Full autonomy" is off (Working › Full autonomy)');
+  assert.equal(a.because[0]!.address, 'work/full-auto');
+  assert.equal(why('autonomy', facts(), 'tr').because[0]!.text, '"Tam otonom" kapalı (Çalışma › Tam otonom)');
 });
 
-test('a rule of the belt: its own verdict, the one the settings give it, off, locked, lifted by bypass', () => {
+test('a rule of the belt: its own verdict, the one the settings give it, off, locked', () => {
   assert.deepEqual(
     whyRule('git.clean', facts(), 'en').because.map((r) => r.text),
     ['its own verdict: ask'],
@@ -109,11 +93,8 @@ test('a rule of the belt: its own verdict, the one the settings give it, off, lo
     ['your settings give it: block'],
   );
   assert.equal(whyRule('git.clean', facts({ 'belt.disabled': ['git.clean'] }), 'en').now, 'off');
-  const locked = whyRule('self.tool-files', facts({}, { bypass: { since: NOW - 1, until: NOW + 60_000, count: 0 } }), 'en');
-  assert.match(locked.because[0]!.text, /^a locked rule/);
-  assert.ok(!locked.because.some((r) => /bypass is on/.test(r.text)));
-  const lifted = whyRule('git.clean', facts({}, { bypass: { since: NOW - 1, until: NOW + 60_000, count: 0 } }), 'en');
-  assert.match(lifted.because.at(-1)!.text, /bypass is on in this session/);
+  const locked = whyRule('self.tool-files', facts(), 'en');
+  assert.match(locked.because[0]!.text, /^a locked rule: nothing changes it$/);
 });
 
 test('every part answers in both languages; a part is found by its id, its title or the first word of it', () => {

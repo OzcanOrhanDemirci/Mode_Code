@@ -19,8 +19,8 @@
  *      takes the note over, and the rule waits for the person;
  *  10. a session closed without ending (its process killed, as a shut window does): while it runs, the next
  *      session in its folder is told of it; once it is gone, the next is not, and writes the note it owed;
- *  11. bypass: in Claude Code's default permission mode a headless session cannot answer its question, so a
- *      command not approved beforehand is refused; with bypass on, the plugin answers it and the command runs;
+ *  11. no bypass (1.2.0): in Claude Code's default permission mode a headless session cannot answer its question,
+ *      so a command not approved beforehand is refused, also where an older version recorded bypass on;
  *  12. a compound command whose every part the project's allow rules cover runs in the default permission mode;
  *  13. the tool packs: a pack's skill loads and its use is recorded; the catalog tool, behind tool search, is found;
  *  14. what the skills cost: the person's own skills add nothing, or almost nothing, to the session's context;
@@ -30,7 +30,7 @@
  *      the person's task for a row reaches the agent word for word, whatever Claude wrote for it.
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
- *        add --only-bypass to run case 11 alone (two sessions): what a Claude Code release could change for bypass
+ *        add --only-bypass to run case 11 alone (two sessions): a bypass an older version recorded lifts nothing
  *        add --only-auto to run cases 6 and 7 alone (two sessions): full autonomy, start to finish
  *        add --only-parts to run case 12 alone (one session): a compound command whose parts are allowed
  *        add --only-packs to run case 13 alone (two sessions): the tool packs
@@ -516,11 +516,10 @@ function autoSession(name, prompt) {
 }
 
 /**
- * 11. Bypass in the real engine (docs/autonomy.md, "Bypass"). Claude Code in its default permission mode asks
- * before a command that was not approved beforehand, and a headless session has no one to answer, so the command
- * is refused. With bypass on for the session, the plugin answers Claude Code's question (tool.check) and the
- * command runs, recorded. The answer goes through the engine, which any Claude Code release could change: this
- * is the measurement to repeat for each one (--only-bypass).
+ * 11. No bypass (1.2.0). Claude Code in its default permission mode asks before a command that was not approved
+ * beforehand, and a headless session has no one to answer, so the command is refused. Bypass, which once had the
+ * plugin answer that question, is gone: a settings file and a session record an older version wrote with it on
+ * change nothing (--only-bypass).
  */
 function bypassCases() {
   const home = join(work, 'bypass-data');
@@ -532,7 +531,7 @@ function bypassCases() {
   const off = run(offId, 'bypass-off.txt');
   const onId = randomUUID();
   const now = Date.now();
-  // Bypass switched on for this session as the plugin records it (a headless run cannot switch it: only the person may).
+  // Bypass on for this session as an older plugin recorded it.
   writeFileSync(
     join(home, 'state', 'sessions', `${onId}.mod.json`),
     JSON.stringify({
@@ -568,13 +567,9 @@ function bypassCases() {
     existsSync(join(project, 'bypass-off.txt')) ? 'the file was created' : '',
   );
   check(
-    "with bypass on, the plugin answers Claude Code's question: the command runs, and the call is recorded",
-    existsSync(join(project, 'bypass-on.txt')) && /"kind":"bypass"/.test(logged) && /claude\.permission/.test(logged),
-    existsSync(join(project, 'bypass-on.txt'))
-      ? /"kind":"bypass"/.test(logged)
-        ? ''
-        : 'ran, but no record'
-      : (on.final?.result?.slice?.(0, 120) ?? on.stderr.slice(0, 200)),
+    'a bypass an older version recorded lifts nothing: the question is refused there too, and nothing is recorded as bypass',
+    !existsSync(join(project, 'bypass-on.txt')) && !/"kind":"bypass"/.test(logged),
+    existsSync(join(project, 'bypass-on.txt')) ? 'the file was created' : /"kind":"bypass"/.test(logged) ? 'a bypass record was written' : '',
   );
   return [off, on];
 }

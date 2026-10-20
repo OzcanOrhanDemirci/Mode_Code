@@ -27,7 +27,6 @@ Protection
   ✓ The belt protects the short names Windows gave the protected places (1).
       ~/MODECO~1 is ~/.mode-code.
   ✓ Memory folders are protected and are git repositories (1).
-  i Bypass is off: no session can lift the safety belt.
   ✓ The project's shared settings widen nothing.
   ✓ No MCP server starts at whatever version is newest.
   ✓ No secret is written in the Claude Code settings files.
@@ -58,4 +57,4 @@ Data
 Self-tests
   ✓ All 30 built-in samples of 1 suites gave the expected answer.
 
-53 checks in 2.1 s: 44 ok, 0 warnings, 0 problems.
+52 checks in 2.1 s: 44 ok, 0 warnings, 0 problems.

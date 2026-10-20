@@ -72,8 +72,8 @@ export const tr: Record<MessageKey, string> = {
   'belt.reason.publish': 'Bir paket ya da sürüm yayımlanıyor: {command}',
   'belt.reason.visibility': 'Bir depo ya da gist herkese açık yapılıyor: {command}',
   'belt.reason.deploy': 'Canlı altyapıya dağıtım yapılıyor ya da altyapı değiştiriliyor: {command}',
-  'belt.reason.store': 'Bir uygulama mağazasına yükleniyor, gönderiliyor ya da yayınlanıyor: kararı kişi verir, bypass açık olsa da: {command}',
-  'belt.reason.payment': 'Bir ödeme yapılıyor ya da değiştiriliyor: kararı kişi verir, bypass açık olsa da: {what}',
+  'belt.reason.store': 'Bir uygulama mağazasına yükleniyor, gönderiliyor ya da yayınlanıyor: kararı kişi verir: {command}',
+  'belt.reason.payment': 'Bir ödeme yapılıyor ya da değiştiriliyor: kararı kişi verir: {what}',
   'belt.reason.unverifiable': 'Bu komutun bir kısmı izlenemedi ({issues}); emniyet kemeri güvenli olduğunu doğrulayamıyor.',
   'belt.reason.disableHooks': "Hook'lar kapatılıyor ya da yalnız yönetilen hook'larla sınırlanıyor: {command}",
   'guard.freeze.file': '❄ Düzenlemeler {folder} klasörüne donduruldu (/dondur): {path} dosyasına yazmak onun dışında. Kişiye sor ya da klasörün içinde çalış.',
@@ -91,7 +91,7 @@ export const tr: Record<MessageKey, string> = {
   'belt.reason.writeCloud': 'Canlı bir Firebase veritabanındaki veri değiştiriliyor: {command}',
   'belt.reason.resetDatabase': 'Bir veritabanı düşürülüyor ya da sıfırlanıyor, içindeki veri de gidiyor: {command}',
   'belt.reason.securityOff': 'Güvenlik yazılımı kapatılıyor ya da zayıflatılıyor (antivirüs, güvenlik duvarı, hesap denetimi): {command}',
-  'belt.reason.exfil': 'Bir sır bu bilgisayarın dışına gönderiliyor ({what}). Emniyet kemeri buna bypass dahil hiçbir zaman izin vermez.',
+  'belt.reason.exfil': 'Bir sır bu bilgisayarın dışına gönderiliyor ({what}). Emniyet kemeri buna hiçbir zaman izin vermez.',
   'belt.reason.adminMerge': 'Yönetici yetkisiyle, deponun zorunlu denetimleri ve dal kuralları atlanarak birleştiriliyor: {command}',
   'belt.reason.githubDelete': "GitHub'da bir şey siliniyor ya da arşivleniyor: {command}",
   'belt.reason.outboundSend': 'Bağlı bir servisle gönderiliyor, paylaşılıyor ya da davet ediliyor ({tool}): başkalarına ulaşır ve geri alınamaz.',
@@ -103,8 +103,6 @@ export const tr: Record<MessageKey, string> = {
   'belt.tail.deny':
     'Bunu dolanmaya çalışma (başka yazımla, başka araçla ya da betikle). Kullanıcıya ne yapmak istediğini ve nedenini söyle. Gerçekten gerekiyorsa komutu ! önekiyle kendisi çalıştırabilir.',
   'belt.tail.ask': 'Yalnız gerçekten bunu istiyorsan onayla.',
-  'belt.tail.bypass': 'Bypass açıkken (kontrol merkezi › Çalışma › Bypass, kullanıcı açar) bu engellenmez, sorulur.',
-  'belt.tail.floor': 'Bypass açık, bu yine de soruluyor: geri alınamaz.',
   'belt.tail.repeat': 'Bu kural bu oturumda {n} denemeyi engelledi. Yeniden deneme: dur ve kullanıcıya bildir.',
 
   'footer.yes': 'Evet',

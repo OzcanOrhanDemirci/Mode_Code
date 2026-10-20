@@ -173,13 +173,13 @@ test('an "ask" rule asks; the same call passes once the person approved it throu
   }
 });
 
-test('bypass the plugin recorded for the session holds here too: in time and turned on; never for self-protection', () => {
+test('a bypass an older version recorded lifts nothing: the settings and the session record are read, the call is asked', () => {
+  // 1.2.0 has no bypass: a settings file and a session record written before it may still say so.
   const home = fresh({ bypass: { enabled: true } });
   try {
     const call = { ...base(home), hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_use_id: 'toolu_b', tool_input: { command: 'git clean -f' } };
-    const self = { ...call, tool_use_id: 'toolu_s', tool_input: { command: `echo x > ${join(home, 'config.json').replace(/\\/g, '/')}` } };
     mkdirSync(join(home, 'state', 'sessions'), { recursive: true });
-    const state = (bypass: object | null) => ({
+    const state = {
       v: 1,
       sessionId: 'test-session',
       aliveAt: Date.now(),
@@ -188,17 +188,10 @@ test('bypass the plugin recorded for the session holds here too: in time and tur
       interaction: 'default',
       blocks: {},
       approvals: [],
-      bypass,
-    });
-    const write = (bypass: object | null) => writeFileSync(join(home, 'state', 'sessions', 'test-session.mod.json'), JSON.stringify(state(bypass)));
-    write({ since: Date.now() - 60_000, until: Date.now() + 3_600_000, count: 0 });
-    assert.equal(run('PreToolUse', call, home).out, null, 'asked without bypass, let through with it');
-    assert.equal(run('PreToolUse', self, home).out?.hookSpecificOutput?.permissionDecision, 'deny', 'its own files stay closed');
-    write({ since: Date.now() - 7_200_000, until: Date.now() - 1000, count: 0 });
-    assert.equal(run('PreToolUse', call, home).out?.hookSpecificOutput?.permissionDecision, 'ask', 'past its time');
-    write({ since: Date.now() - 60_000, until: Date.now() + 3_600_000, count: 0 });
-    writeFileSync(join(home, 'config.json'), JSON.stringify({ language: 'en', bypass: { enabled: false } }));
-    assert.equal(run('PreToolUse', call, home).out?.hookSpecificOutput?.permissionDecision, 'ask', 'turned off in the settings');
+      bypass: { since: Date.now() - 60_000, until: Date.now() + 3_600_000, count: 0 },
+    };
+    writeFileSync(join(home, 'state', 'sessions', 'test-session.mod.json'), JSON.stringify(state));
+    assert.equal(run('PreToolUse', call, home).out?.hookSpecificOutput?.permissionDecision, 'ask');
   } finally {
     rmSync(home, { recursive: true, force: true });
   }

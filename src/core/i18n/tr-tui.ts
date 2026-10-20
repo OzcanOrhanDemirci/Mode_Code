@@ -101,7 +101,7 @@ export const trTui: Record<keyof typeof enTui, string> = {
 
   'desc.now': "Claude'un şu an ne yapabildiği, ne çalıştığı, seni neyin beklediği ve kota, tek bakışta.",
   'desc.activityCat': 'Neler oldu: arka planda, sen yokken, bir günde ya da haftada, ayarlarda.',
-  'desc.work': "Claude'un nasıl çalıştığı: modlar, anahtar kelimeler, akışlar ve senin açtığın çalışma biçimleri (ajanlar, tam otonom, bypass).",
+  'desc.work': "Claude'un nasıl çalıştığı: modlar, anahtar kelimeler, akışlar ve senin açtığın çalışma biçimleri (ajanlar, tam otonom).",
   'desc.protectionCat': 'Emniyet kemeri, kuralları, yakaladıkları ve hafızadaki sırlar.',
   'desc.memoryCat': 'Hafızan ve devir notları, çalıştığın klasörler ve oturumlar, bilgisayarların arasında eşitleme.',
   'desc.quotaCat': 'Kotanın nerede durduğu, onu koruyan bütçe ve sınırlar, onu neyin harcadığı.',

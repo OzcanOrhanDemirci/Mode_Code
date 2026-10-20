@@ -11,7 +11,7 @@ import { MO_STATES } from '../../src/core/mo/art.js';
 import { CONTROL_IDS, CONTROLS, type ControlId } from '../../src/core/ux/catalog.js';
 import { cardLine, cardRows, commandText, controlOfItem, controlOn, moLine, nowText, stripNow } from '../../src/core/ux/say.js';
 
-const view: StripView = { mode: 'plan', style: 'manual', flow: null, fullAutoShown: false, bypass: { shown: false, on: false, count: 0 } };
+const view: StripView = { mode: 'plan', style: 'manual', flow: null, fullAutoShown: false };
 const LANGS = ['en', 'tr'] as const;
 /** A message key showing through: the plugin's dictionaries lacked it. */
 const leaked = (s: string) => /\b(?:ux|ctl|mode|agents)\.[a-z]+\.[a-zA-Z.]+/.test(s);
@@ -24,13 +24,12 @@ test('the line under the strip says what Claude does now: the mode and the way o
     mode: 'research',
     style: 'autonomous',
     flow: { at: '1/4', state: 'running' },
-    bypass: { shown: true, on: true, count: 2 },
     frozen: 'feature',
     agents: { shown: true, state: { ...DEFAULT_AGENTS, mode: 'free', n: 3 }, running: 1 },
   };
   assert.equal(
     stripNow(busy, 'en'),
-    '🔍 research: reads and searches; writes a report only · autonomous: goes on without asking; stops for your decisions · flow 1/4 at work · ⚡ bypass: the belt asks nothing · ❄ writes stay in feature · 👥 at most 3 agents at once',
+    '🔍 research: reads and searches; writes a report only · autonomous: goes on without asking; stops for your decisions · flow 1/4 at work · ❄ writes stay in feature · 👥 at most 3 agents at once',
   );
   assert.match(stripNow({ ...view, style: 'full' }, 'tr'), /tam otonom: bir görevi sonuna kadar götürür$/);
   assert.match(stripNow({ ...view, agents: { shown: true, state: { ...DEFAULT_AGENTS, ultracode: true }, running: 0 } }, 'en'), /workflows run the agents$/);
@@ -45,7 +44,6 @@ test('every control on the strip has its card: how it is now, what a press does,
   const all: StripView = {
     ...view,
     fullAutoShown: true,
-    bypass: { shown: true, on: false, count: 0 },
     frozen: 'feature',
     agents: { shown: true, state: { ...DEFAULT_AGENTS }, running: 0 },
   };
@@ -67,11 +65,6 @@ test('every control on the strip has its card: how it is now, what a press does,
   // In effect, a choice says so first; a switch says on or off; the rest say what a press does.
   assert.match(cardLine('3', view, 'en'), /^◉ In effect: Claude reads and plans/);
   assert.match(cardLine('4', view, 'en'), /^Press: Claude develops/);
-  assert.match(cardLine('bypass', all, 'en'), /^○ Off\. Press: Its window says what bypass lifts and until when/);
-  assert.match(
-    cardLine('bypass', { ...all, bypass: { shown: true, on: true, count: 1 } }, 'en'),
-    /^● On\. Press: Bypass ends at once; the safety belt asks again\. · Undo: press it again · \/bypass$/,
-  );
   assert.match(cardLine('dondur', all, 'tr'), /^● Açık\. Basarsan: Dondurma biter/);
   assert.match(cardLine('00', view, 'tr'), / · Geri alınmaz · \/00$/);
   assert.equal(cardLine('nope', view, 'en'), '');
@@ -96,19 +89,15 @@ test('what a press does follows the state: the flow closes, goes on or is put aw
   assert.match(cardLine('0', { ...view, cockpit: true }, 'en'), /^● On\. Press: The cockpit closes; the session goes on\./);
   assert.equal(nowText('close', view, 'en'), 'Acts at once when pressed');
   assert.equal(nowText('freeze', { ...view, frozen: 'src' }, 'en'), '● On: writes stay in src');
-  assert.equal(nowText('bypass', view, 'tr'), '○ Kapalı');
+  assert.equal(nowText('freeze', view, 'tr'), '○ Kapalı');
   assert.equal(nowText('agents', { ...view, agents: { shown: true, state: { ...DEFAULT_AGENTS, mode: 'free', n: 4 }, running: 2 } }, 'en'), '👥 agents ≤4 · 2');
   // Each control says its own state, whatever else holds beside it.
   const crowded: StripView = { ...view, frozen: 'src', agents: { shown: true, state: { ...DEFAULT_AGENTS, mode: 'free', n: 4 }, running: 0 } };
-  assert.equal(nowText('bypass', crowded, 'en'), '○ Off');
   assert.equal(nowText('cockpit', crowded, 'en'), '○ Off');
   assert.equal(nowText('why', crowded, 'en'), 'Opens a window; nothing changes until you act there');
-  // The state's colour follows its meaning: bypass on is bypass's own, anything else on is on, off is off.
+  // The state's colour follows its meaning: on is on, off is off.
   const meaning = (id: string, v: StripView) => cardRows(id, v, 'en')[1]!.meaning;
-  assert.deepEqual(
-    [meaning('bypass', { ...view, bypass: { shown: true, on: true, count: 0 } }), meaning('3', view), meaning('4', view)],
-    ['bypass', 'on', 'off'],
-  );
+  assert.deepEqual([meaning('dondur', { ...view, frozen: 'src' }), meaning('3', view), meaning('4', view)], ['on', 'on', 'off']);
 });
 
 test('in effect means what the strip lights: one mode, one way of working, the flow over the modes while it is on', () => {
@@ -116,7 +105,7 @@ test('in effect means what the strip lights: one mode, one way of working, the f
   assert.deepEqual(on(view), ['mode.plan', 'style.manual']);
   assert.deepEqual(on({ ...view, flow: { at: '1/3', state: 'running' } }), ['style.manual', 'flow']);
   assert.deepEqual(on({ ...view, flow: { at: '1/3', state: 'paused' } }), ['mode.plan', 'style.manual']);
-  assert.deepEqual(on({ ...view, style: 'full', bypass: { shown: true, on: true, count: 0 }, frozen: 'x' }), ['mode.plan', 'fullAuto', 'bypass', 'freeze']);
+  assert.deepEqual(on({ ...view, style: 'full', frozen: 'x' }), ['mode.plan', 'fullAuto', 'freeze']);
   assert.deepEqual(on({ ...view, agents: { shown: true, state: { ...DEFAULT_AGENTS, mode: 'free' }, running: 0 } }), ['mode.plan', 'style.manual', 'agents']);
   assert.deepEqual(on({ ...view, agents: { shown: true, state: { ...DEFAULT_AGENTS }, running: 0 } }), ['mode.plan', 'style.manual']);
   assert.deepEqual(on({ ...view, agents: { shown: true, state: { ...DEFAULT_AGENTS, ultracode: true }, running: 0 } }), [

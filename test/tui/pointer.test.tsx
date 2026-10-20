@@ -152,17 +152,17 @@ test('a click on a setting changes it, as Enter does; the bar offers to take it 
 
 test('a change that asks first shows what it will do, with apply and cancel as keys and as clicks', async () => {
   const data = new FakeData();
-  const s = await draw(data, { address: 'work/bypass', rows: 44 });
+  const s = await draw(data, { address: 'work/agents', rows: 44 });
   try {
-    await s.clickText('Allow bypass');
+    await s.clickText('I set the number of agents');
     assert.equal(data.saved.length, 0);
-    assert.match(flat(s.text()), /! Bypass lets Claude act without asking/);
+    assert.match(flat(s.text()), /! With this on, every session starts with agents off/);
     await s.clickText('[ cancel · Esc ]');
     assert.doesNotMatch(s.text(), /\[ apply · Enter \]/);
     assert.equal(data.saved.length, 0);
-    await s.clickText('Allow bypass');
+    await s.clickText('I set the number of agents');
     await s.clickText('[ apply · Enter ]');
-    assert.deepEqual(data.saved.at(-1), { path: 'bypass.enabled', value: true });
+    assert.deepEqual(data.saved.at(-1), { path: 'agents.enabled', value: true });
   } finally {
     s.close();
   }

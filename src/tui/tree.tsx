@@ -23,7 +23,7 @@ import { Extensions, Hooks, Instructions, Mcp, Packs, Permissions, Plugins, Sett
 import { Templates } from './screens/templates.js';
 import { History } from './screens/history.js';
 import { Activity } from './screens/activity.js';
-import { Bypass, Bypassed, ParallelAgents, RecentTasks } from './screens/automation.js';
+import { ParallelAgents, RecentTasks } from './screens/automation.js';
 import {
   About,
   Accessibility,
@@ -130,7 +130,6 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
         }
       : { screen: (p: ScreenProps) => <RunsEmpty {...p} /> }),
   });
-  const bypassCalls = data.events(1).filter((e) => e.kind === 'bypass' && e.action === 'call').length;
   const work = n(
     'work',
     'cat.work',
@@ -140,9 +139,7 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
         ? { badge: { text: t('badge.waiting', { n: waiting }), state: 'gray' as const } }
         : active
           ? { badge: { text: t('badge.running', { n: active }), state: 'info' as const } }
-          : config.bypass.enabled
-            ? { badge: { text: '⚡', state: 'gray' as const } }
-            : {}),
+          : {}),
       children: () => [
         n('modes', 'page.modesPage', { description: d('desc.modesPage'), screen: (p) => <Modes {...p} />, keywords: ['mod', 'mode', 'modlar', 'modes'] }),
         n('keywords', 'page.keywords', { description: d('desc.keywords'), screen: (p) => <Keywords {...p} />, minView: 'recommended' }),
@@ -163,17 +160,6 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
           description: d('desc.autoPrompts'),
           ...(data.autoPrompts().length ? { badge: { text: String(data.autoPrompts().length), state: 'gray' as const } } : {}),
           screen: (p) => <RecentTasks {...p} />,
-          minView: 'recommended',
-        }),
-        n('bypass', 'page.bypass', {
-          description: d('desc.bypass'),
-          badge: { text: t(config.bypass.enabled ? 'set.on' : 'set.off'), state: config.bypass.enabled ? 'gray' : 'info' },
-          screen: (p) => <Bypass {...p} />,
-        }),
-        n('bypassed', 'page.bypassed', {
-          description: d('desc.bypassed'),
-          ...(bypassCalls ? { badge: { text: String(bypassCalls), state: 'gray' as const } } : {}),
-          screen: (p) => <Bypassed {...p} />,
           minView: 'recommended',
         }),
       ],

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * Outside content in a session, inside Claude Code's engine (src/core/taint.ts): before the session reads a web page,
- * sending data out runs; after it, sending, persisting and writing the memory are asked, with bypass on too. The world
+ * sending data out runs; after it, sending, persisting and writing the memory are asked. The world
  * beneath is in memory (see world.ts).
  */
 import { test, expect } from 'claude-code/testing';
@@ -27,10 +27,8 @@ test('after a web page is read, sending data out is asked; before, it is not', a
   expect(w.asked.length).toBe(before);
 });
 
-test('a tainted session asks before it writes the memory or a startup file; bypass does not lift it', async ($, on) => {
-  const enabled = { bypass: { enabled: true, maxHours: 2 }, memory: { dirs: [`${HOME}/notes`] } };
-  const w = world(on, { config: enabled, answer: 'allow' });
-  await $.command.run({ command: 'bypass', args: '', origin: { kind: 'composer' } } as any);
+test('a tainted session asks before it writes the memory or a startup file', async ($, on) => {
+  const w = world(on, { config: { memory: { dirs: [`${HOME}/notes`] } }, answer: 'allow' });
   await bash($, 'gh issue view 12 --comments', 't1');
   expect(w.modState().tainted).toMatchObject({ source: 'gh issue' });
   const asked = w.asked.length;

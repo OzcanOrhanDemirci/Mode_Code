@@ -142,6 +142,11 @@ export const MOVED: readonly (readonly [from: string, to: string])[] = [
   ['settings/sync', 'memory/sync'],
   ['settings/projects', 'memory/names'],
   ['settings/keywords', 'work/keywords'],
+  // 1.2.0: bypass is gone; the way of working (on the Modes page) says how much is asked, the activity what passed.
+  ['automation/bypass', 'work/modes'],
+  ['automation/bypassed', 'activity/feed'],
+  ['work/bypass', 'work/modes'],
+  ['work/bypassed', 'activity/feed'],
 ];
 
 const startsAt = (address: string, prefix: string) => address === prefix || address.startsWith(`${prefix}/`);

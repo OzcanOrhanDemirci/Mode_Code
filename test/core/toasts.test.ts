@@ -68,8 +68,8 @@ function keysIn(arg: string): string[] {
 /** A control's body: from its signature to the next top-level function. */
 const controlBody = source.slice(source.indexOf('async function control('), source.indexOf('async function closeSession('));
 
-/** Keys reached another way: the line bypass ends with, the first line of the menu (both shown as toasts). */
-const INDIRECT = ['bypass.summary', 'ctl.menu.now', 'ctl.center.tab', 'ctl.center.window'];
+/** Keys reached another way: the first line of the menu, shown as a toast. */
+const INDIRECT = ['ctl.menu.now', 'ctl.center.tab', 'ctl.center.window'];
 
 /** `$.ui.toast(text, …)`; a control's `say(text, notes, toast)`: its text (the first line is the toast) and its toast. */
 const TOAST_KEYS = [
@@ -89,7 +89,7 @@ const SHIPPED_NAME = 'N'.repeat(9);
 
 /** Sample values: the longest a parameter usually is; anything else a word of eight letters. */
 const SAMPLE: Record<string, string> = {
-  controls: '🔍 araştırma · otonom · akış 2/4 · ⚡ bypass · 12',
+  controls: '🔍 araştırma · otonom · akış 2/4 · ❄ özellik',
   steps: 'araştırma → plan → onay → kod',
   quota: 'hafta %77 · 5s %10',
   until: '16:12',
@@ -136,8 +136,7 @@ function wrapped(text: string): number {
 }
 
 test('the toast lines are found: the plugin shows these, and each is a message', () => {
-  for (const k of ['ctl.auto.refusedToast', 'ctl.bypass.started', 'bypass.summary', 'auto.toast.starting', 'flow.toast.start', 'mod.memory.auth'])
-    assert.ok(TOAST_KEYS.includes(k), k);
+  for (const k of ['ctl.auto.refusedToast', 'auto.toast.starting', 'flow.toast.start', 'mod.memory.auth']) assert.ok(TOAST_KEYS.includes(k), k);
   assert.ok(TOAST_KEYS.length > 60, String(TOAST_KEYS.length));
 });
 

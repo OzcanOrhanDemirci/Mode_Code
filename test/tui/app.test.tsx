@@ -389,27 +389,6 @@ test('full autonomy: the runs list shows how many run, and each run its state', 
   }
 });
 
-test('Working › Bypass: turning it on says what it means and needs a second Enter; its tiers are listed', async () => {
-  const data = new FakeData();
-  const s = await draw(data, { address: 'work/bypass' });
-  try {
-    const flat = () =>
-      s
-        .text()
-        .replace(/[│╭╮╰╯─]/g, '')
-        .replace(/\s+/g, ' ');
-    assert.match(flat(), /Allow bypass/);
-    assert.match(flat(), /Never: changing this tool, Claude Code's settings or your memory; sending a secret off the computer\./);
-    await s.press(KEY.enter);
-    assert.equal(data.saved.length, 0, 'not yet');
-    assert.match(flat(), /Press Enter again to allow it on this computer\./);
-    await s.press(KEY.enter);
-    assert.deepEqual(data.saved, [{ path: 'bypass.enabled', value: true }]);
-  } finally {
-    s.close();
-  }
-});
-
 test('Working › Parallel agents: turning it on says sessions start with agents off and needs a second Enter; the helpers take one', async () => {
   const data = new FakeData();
   // Narrower than 110 columns, the list of Working stays out of the way of the flattened text.
@@ -459,42 +438,6 @@ test('Working › Parallel agents: turning it on says sessions start with agents
     assert.match(automation.text(), /Paralel ajanlar\s+kapalı/);
   } finally {
     automation.close();
-  }
-});
-
-test('Working › Done without asking: each call bypass let through, what it passed, by whom and how it went; on and off', async () => {
-  const data = new FakeData();
-  const ev = (at: number, rest: Record<string, unknown>) => ({ v: 1, at, kind: 'bypass', source: 'mod', session: 's', ...rest });
-  data.extraEvents = [
-    ev(NOW - 60_000, { action: 'off', why: 'time', count: 2, minutes: 120 }),
-    ev(NOW - 120_000, {
-      action: 'call',
-      tool: 'Bash',
-      what: 'git push --force origin main',
-      rules: ['git.force-push-protected'],
-      was: ['deny'],
-      agent: null,
-      outcome: 'ran',
-    }),
-    ev(NOW - 180_000, { action: 'call', tool: 'Edit', what: '/etc/hosts', rules: ['claude.permission'], was: ['ask'], agent: 'sub-1' }),
-    ev(NOW - 7_300_000, { action: 'on', hours: 2 }),
-  ];
-  const s = await draw(data, { address: 'work/bypassed' });
-  try {
-    const t = s.text();
-    assert.match(t, /⚡ bypass off: 2 calls in 120 min \(its time ran out\)/);
-    assert.match(t, /Bash: git push --force origin main/);
-    assert.match(t, /git\.force-push-protected \(block\) · ran/);
-    assert.match(t, /claude\.permission \(ask\) · by an agent/);
-    assert.match(t, /⚡ bypass on \(2 h\)/);
-  } finally {
-    s.close();
-  }
-  const empty = await draw(new FakeData('tr'), { address: 'work/bypassed' });
-  try {
-    assert.match(empty.text(), /Bypass son 30 günde hiçbir şey geçirmedi\./);
-  } finally {
-    empty.close();
   }
 });
 

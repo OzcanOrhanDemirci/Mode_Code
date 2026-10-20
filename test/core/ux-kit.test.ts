@@ -139,9 +139,8 @@ test('the kit sets only the props Claude Code takes, and a button there holds on
 
 test('colour never says a thing alone: with colour off, every meaning and every state still reads differently', () => {
   const none = recorder(() => undefined);
-  const meanings: Meaning[] = ['on', 'off', 'ask', 'bad', 'focus', 'bypass', 'agents'];
+  const meanings: Meaning[] = ['on', 'off', 'ask', 'bad', 'focus', 'agents'];
   const notes = meanings.map((m) => textOf(notice(none, { meaning: m, text: 'x' })));
-  // Bypass shares red with "blocked": its mark (⚡) sets it apart.
   assert.equal(new Set(notes).size, meanings.length, notes.join(' | '));
   assert.notEqual(textOf(switchValue(none, true, 'on')), textOf(switchValue(none, false, 'off')));
   const levels = [10, 85, 99].map((pct) =>

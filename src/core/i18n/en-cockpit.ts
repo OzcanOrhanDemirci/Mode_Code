@@ -26,7 +26,6 @@ export const enCockpit = {
   'ck.can.write.research': 'Writes a report only (🔍 research)',
   'ck.can.write.plan': 'Writes the plan only (📐 plan)',
   'ck.can.risky.ask': 'Asks you before a risky step',
-  'ck.can.risky.bypass': 'Risky steps unasked, until {until}',
   'ck.can.risky.devOff': 'Asks nothing: the belt is off',
   'ck.can.risky.mode': 'Takes no risky step in this mode',
   'ck.can.delete.ask': 'Asks before deleting outside the project',
@@ -50,7 +49,7 @@ export const enCockpit = {
   'ck.can.quota.stopNoTime': 'Stopped: the quota is used up',
   'ck.self.title': 'Its own protection',
   'ck.self.now': "locked, out of Claude's reach",
-  'ck.r.locked': "The safety belt's settings, Mode_Code's files and the memory's history: no setting opens them to Claude, and bypass does not either.",
+  'ck.r.locked': "The safety belt's settings, Mode_Code's files and the memory's history: no setting opens them to Claude.",
   'ck.r.mode.turn': 'You gave {mode} for this message only.',
   'ck.r.mode.flow': "The flow's step works in {mode}.",
   'ck.r.mode.run': 'The full-autonomy run is planning: {mode} until its plan is accepted.',
@@ -58,11 +57,9 @@ export const enCockpit = {
   'ck.r.pickMode': 'Pick another mode on the strip, or with /1 to /5.',
   'ck.r.pickStyle': 'Pick the other way of working on the strip, or with /7 and /8.',
   'ck.r.beltWatches': 'The safety belt still checks every command and every write.',
-  'ck.r.bypassFloor': 'What cannot be undone still asks: deleting outside the project, a payment, a store upload.',
   'ck.r.ultracode': 'Ultracode is on: your number of agents stands aside until it ends.',
   'ck.r.taintClean': 'A new session starts clean.',
   'ck.act.unfreeze': 'End the freeze',
-  'ck.act.endBypass': 'End bypass',
   'ck.act.endRun': 'End the run',
   'ck.act.rule': 'The rule',
   'ck.act.ruleCard':
@@ -136,14 +133,12 @@ export const enCockpit = {
 
   // ── quick settings ──
   'ck.quick.title': 'Quick settings',
-  'ck.quick.bypass': 'Bypass',
   'ck.quick.agents': 'Agents',
   'ck.quick.fullAuto': 'Full autonomy',
   'ck.quick.freeze': 'Freeze',
   'ck.quick.on': 'on',
   'ck.quick.off': 'off',
   'ck.quick.notAllowedShort': 'not allowed yet',
-  'ck.quick.bypassOn': 'on until {until} · {n} unasked',
   'ck.quick.agentsClaude': 'Claude decides',
   'ck.quick.agentsNone': 'none',
   'ck.quick.agentsFree': 'at most {n} at once',
@@ -156,8 +151,6 @@ export const enCockpit = {
   'ck.quick.press': 'Press',
   'ck.quick.allowed': 'Allowed: "{name}" is on ({place}); it is taken back there.',
   'ck.quick.allowPress': 'first what allowing it means; nothing changes until you confirm',
-  'ck.allow.bypass':
-    'Bypass lets Claude act without asking for a while: what the safety belt would ask about or block goes through, each call recorded. Your files, settings, memory and secrets stay protected, and deletions that cannot be undone still ask. Allowing it puts ⚡ on the strip; only you switch it on in a session.',
   'ck.allow.agents':
     'Every session then starts with helper agents off: Claude starts none until you give a number on the strip (the read-only helpers aside, as their setting says). Allowing it puts 👥 on the strip.',
   'ck.allow.autonomy':

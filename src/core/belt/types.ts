@@ -13,8 +13,6 @@ export interface Finding {
   verdict: Verdict;
   /** One sentence in the person's language: what was found, with the concrete target. */
   reason: string;
-  /** With bypass on: the verdict the rule would have given without it, when bypass changed it. */
-  lifted?: Verdict;
 }
 
 export interface BeltDecision {
@@ -22,11 +20,6 @@ export interface BeltDecision {
   findings: Finding[];
   /** Analysis problems (unterminated quote, eval of a runtime value, …); see meta.unverifiable. */
   issues: string[];
-  /**
-   * With bypass on: what bypass let through or turned into a question, each with the verdict it had
-   * without bypass. Empty when bypass is off or changed nothing. Recorded for the person to review.
-   */
-  lifted: Finding[];
 }
 
 export type RuleId =
@@ -129,11 +122,6 @@ export interface BeltContext {
   managedSettingsFiles: string[];
   lang: Lang;
   config: RuleConfig;
-  /**
-   * Bypass is on for this session (docs/autonomy.md): the person lifted the belt for a while. Rules then
-   * give their bypass verdict (rules.ts): most allow, the floor still asks, self-protection stays.
-   */
-  bypass?: boolean;
   git?: GitFacts;
   /** Size in bytes of an existing file, or null. Used for the memory shrink rule. */
   fileSize?(path: string): Promise<number | null>;

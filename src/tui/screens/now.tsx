@@ -30,7 +30,6 @@ import { sameFolderGroups, inboxEvents } from './home.js';
 const CONTROL_PAGE: Readonly<Record<string, string>> = {
   ajan: 'work/agents',
   parallel: 'work/agents',
-  bypass: 'work/bypass',
   'tam-otonom': 'work/full-auto',
   'full-auto': 'work/full-auto',
   kota: 'quota/limits',

@@ -35,8 +35,6 @@ export function controlOn(id: ControlId, v: StripView): boolean {
       return v.style === 'full';
     case 'flow':
       return v.flow !== null && v.flow.state !== 'paused';
-    case 'bypass':
-      return v.bypass.on;
     case 'freeze':
       return !!v.frozen;
     case 'agents':
@@ -57,12 +55,11 @@ function modeName(v: StripView, lang: Lang): string {
 
 /**
  * The line under the strip: what Claude does now, in words. "📐 plan: reads and plans; writes the plan only ·
- * manual: one step, then it waits for you", and after it what else holds: a flow, bypass, a freeze, the agents.
+ * manual: one step, then it waits for you", and after it what else holds: a flow, a freeze, the agents.
  */
 export function stripNow(v: StripView, lang: Lang): string {
   const parts = [`${modeName(v, lang)}: ${t(lang, `ux.say.mode.${v.mode}`)}`, `${t(lang, `ctl.style.${v.style}`)}: ${t(lang, `ux.say.style.${v.style}`)}`];
   if (v.flow) parts.push(t(lang, `ux.say.flow.${v.flow.state}`, { at: v.flow.at }));
-  if (v.bypass.on) parts.push(t(lang, 'ux.say.bypass'));
   if (v.frozen) parts.push(t(lang, 'ux.say.frozen', { folder: v.frozen }));
   const a = v.agents;
   if (a?.shown && a.state.ultracode) parts.push(t(lang, 'ux.say.agents.ultracode'));
@@ -81,7 +78,7 @@ const FLOW_PRESS = {
 /** What a press does now: a control in effect is pressed to end it (a switch, the flow, a run); the rest as the catalog says. */
 function pressText(id: ControlId, v: StripView, lang: Lang): string {
   if (id === 'flow' && v.flow) return tIn(lang, FLOW_PRESS[v.flow.state]);
-  if ((id === 'bypass' || id === 'freeze' || id === 'fullAuto' || id === 'cockpit') && controlOn(id, v)) return t(lang, `ux.ctl.${id}.pressOn`);
+  if ((id === 'freeze' || id === 'fullAuto' || id === 'cockpit') && controlOn(id, v)) return t(lang, `ux.ctl.${id}.pressOn`);
   return controlText(id, 'press', lang);
 }
 
@@ -134,7 +131,7 @@ export function cardRows(id: string, v: StripView, lang: Lang): { label: string;
   const on = controlOn(c, v);
   return [
     { label: t(lang, 'ux.card.what'), text: controlText(c, 'what', lang) },
-    { label: t(lang, 'ux.card.now'), text: nowText(c, v, lang), meaning: on ? (c === 'bypass' ? 'bypass' : 'on') : 'off' },
+    { label: t(lang, 'ux.card.now'), text: nowText(c, v, lang), meaning: on ? 'on' : 'off' },
     { label: t(lang, 'ux.card.press'), text: pressText(c, v, lang) },
     { label: t(lang, 'ux.card.back'), text: controlText(c, 'back', lang) },
     { label: t(lang, 'ux.card.keys'), text: t(lang, 'ux.card.keysLine', { cmd: commandText(id, lang) }) },

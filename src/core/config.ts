@@ -173,15 +173,6 @@ export interface Config {
     reviewModel: string | null;
   };
   /**
-   * Bypass (docs/autonomy.md): a session may lift the belt for a while. Off until the person turns it on in
-   * the control center or their own terminal; then they still switch it on in each session themselves.
-   */
-  bypass: {
-    enabled: boolean;
-    /** Hours after which bypass ends by itself in a session. */
-    maxHours: number;
-  };
-  /**
    * Parallel agents (docs/agents.md): with the mode on, every session starts with agents off and the person sets
    * them on the strip. Off here, this tool never touches an agent.
    */
@@ -206,7 +197,7 @@ export interface Config {
   };
   /**
    * Tool packs (docs/packs.md). Automatic use: a project's markers turn its packs on there, and Claude may turn one
-   * on through the catalog. Only the person changes it, as bypass. Each pack's own choice overrides it.
+   * on through the catalog. Only the person changes it. Each pack's own choice overrides it.
    */
   packs: {
     autoUse: boolean;
@@ -254,7 +245,6 @@ export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
   projects: [],
   modes: { workDir: null },
   autonomy: { enabled: false, maxHours: 12, stallMinutes: 90, atTimeLimit: 'continue', reviewModel: null },
-  bypass: { enabled: false, maxHours: 2 },
   agents: { enabled: false, helpers: true },
   update: { check: false },
   notify: { ntfy: null },
@@ -304,12 +294,18 @@ export function cloneDefaults(): Config {
   return structuredClone(DEFAULT_CONFIG) as Config;
 }
 
-/** Turns any value into a valid Config, keeping what is valid and reporting the rest. */
 /** An ntfy topic's address: https with a host and one topic name, or plain http to this computer (a server of one's own). */
 export function ntfyAddress(s: string): boolean {
   return /^(?:https:\/\/[A-Za-z0-9.-]+(?::\d{1,5})?|http:\/\/(?:localhost|127\.0\.0\.1)(?::\d{1,5})?)\/[A-Za-z0-9_-]{1,64}$/.test(s.trim());
 }
 
+/**
+ * Settings an earlier version had and this one no longer has: a settings file that still holds one reads
+ * without a problem, and the setting does nothing (bypass, 1.2.0: every way of working has the same core).
+ */
+export const RETIRED_KEYS: ReadonlySet<string> = new Set(['bypass']);
+
+/** Turns any value into a valid Config, keeping what is valid and reporting the rest. */
 export function normalizeConfig(raw: unknown): ParsedConfig {
   const problems: ConfigProblem[] = [];
   const c = cloneDefaults();
@@ -318,7 +314,8 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
     return { config: c, problems };
   }
   const known = new Set(Object.keys(c));
-  for (const k of Object.keys(raw)) if (!known.has(k) && k !== '$schema') problems.push({ path: k, kind: 'unknown-key', detail: 'not a setting' });
+  for (const k of Object.keys(raw))
+    if (!known.has(k) && k !== '$schema' && !RETIRED_KEYS.has(k)) problems.push({ path: k, kind: 'unknown-key', detail: 'not a setting' });
 
   if (typeof raw.version === 'number' && raw.version > CONFIG_VERSION)
     problems.push({ path: 'version', kind: 'newer-version', detail: `written by a newer version (${raw.version})` });
@@ -426,20 +423,6 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
       else problems.push({ path: 'autonomy.reviewModel', kind: 'type', detail: 'expected a model name or null' });
     }
   } else if (raw.autonomy !== undefined) problems.push({ path: 'autonomy', kind: 'type', detail: 'expected an object' });
-
-  if (isObj(raw.bypass)) {
-    const b = raw.bypass;
-    for (const k of Object.keys(b))
-      if (!['enabled', 'maxHours'].includes(k)) problems.push({ path: `bypass.${k}`, kind: 'unknown-key', detail: 'not a setting' });
-    if (b.enabled !== undefined) {
-      if (typeof b.enabled === 'boolean') c.bypass.enabled = b.enabled;
-      else problems.push({ path: 'bypass.enabled', kind: 'type', detail: 'expected true or false' });
-    }
-    if (b.maxHours !== undefined) {
-      if (typeof b.maxHours === 'number' && b.maxHours >= 1 && b.maxHours <= 24) c.bypass.maxHours = Math.round(b.maxHours);
-      else problems.push({ path: 'bypass.maxHours', kind: 'range', detail: 'expected 1 to 24' });
-    }
-  } else if (raw.bypass !== undefined) problems.push({ path: 'bypass', kind: 'type', detail: 'expected an object' });
 
   if (isObj(raw.agents)) {
     const a = raw.agents;

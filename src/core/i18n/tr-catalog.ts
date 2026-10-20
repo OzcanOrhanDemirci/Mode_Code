@@ -179,16 +179,6 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.autonomy.stallMinutes.what': 'Tam otonom işin bir adımı bitirmeden ne kadar gidebileceği; sonra takılmış sayılır.',
   'ux.autonomy.stallMinutes.eff': 'Bitmiş adım olmadan {n} geçince Claude uyarılır; bunun iki katında iş takıldı diye duraklar.',
 
-  // ── Çalışma › Bypass ──
-  'ux.bypass.enabled.name': "Bypass'a izin ver",
-  'ux.bypass.enabled.what':
-    "Bypass, bir oturumda Claude'un bir süre sormadan çalışmasını sağlar: emniyet kemerinin soracağı şeyler geçer, her çağrı kaydedilir.",
-  'ux.bypass.enabled.on': 'Bir oturumda kendin açabilirsin (/bypass ya da şeritte ⚡), aşağıdaki süre için. Claude açamaz.',
-  'ux.bypass.enabled.off': '/bypass ve ⚡ yok: emniyet kemeri her zamanki gibi sorar.',
-  'ux.bypass.maxHours.name': 'Ne kadar sürer',
-  'ux.bypass.maxHours.what': "Bir oturumda açtığın bypass'ın ne kadar açık kaldığı.",
-  'ux.bypass.maxHours.eff': 'Bypass açıldıktan {n} sonra kendiliğinden kapanır; on dakika önce uyarır.',
-
   // ── Çalışma › Paralel ajanlar ──
   'ux.agents.enabled.name': 'Ajan sayısını ben belirlerim',
   'ux.agents.enabled.what': "Ana Claude'un yanında kaç yardımcı Claude (ajan) çalışacağına kimin karar verdiği: sen şeritten, ya da Claude Code.",
@@ -266,12 +256,9 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.ctl.continue.press': 'Bir projeyi son devir notunun bıraktığı yerden açar; verirsen bütçesiyle.',
   'ux.ctl.why.what': 'Neden böyle: her parça şu an nasıl, arkasındaki ayarlar ve seçimler',
   'ux.ctl.why.press':
-    'Her parçanın şu an nasıl olduğunu ve nedenini gösterir; bir kelimeyle (ajanlar, bypass, kota ya da bir kural) yalnız o parçayı. Hiçbir şeyi değiştirmez.',
+    'Her parçanın şu an nasıl olduğunu ve nedenini gösterir; bir kelimeyle (ajanlar, kota ya da bir kural) yalnız o parçayı. Hiçbir şeyi değiştirmez.',
   'ux.ctl.quota.what': 'Haftalık bütçe: bir sayı (70) ya da şimdinin üstüne puan (+5)',
   'ux.ctl.quota.press': 'Bu oturumun haftalık kotanın ne kadarını kullanabileceğini koyar: iş yaklaşınca toparlanır, bütçede durur.',
-  'ux.ctl.bypass.what': 'Bypass: bu oturumda Claude bir süre sormadan çalışır, her çağrı kaydedilir (Çalışma altından izin verildikten sonra)',
-  'ux.ctl.bypass.press':
-    "Penceresi bypass'ın neyi kaldırdığını ve ne zamana kadar süreceğini söyler, sonra bu oturumda açar (süre: Çalışma › Bypass); yeniden basınca kapanır.",
   'ux.ctl.freeze.what': 'Dondur: bir çağrının adını verdiği her yazma tek bir klasörde kalmalı (başka birini vermezsen bu klasör)',
   'ux.ctl.freeze.press': 'Bundan sonra başka bir yere yazmayı adıyla isteyen çağrı reddedilir; sen bitirene kadar.',
   'ux.ctl.agents.what': 'Ajanlar: hiç, aynı anda en çok N ya da sonraki isteğin için tam N (Çalışma altından izin verdiğinde)',
@@ -285,7 +272,6 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.ctl.back.none': 'Geri alınacak bir şey yok: hiçbir şeyi değiştirmez.',
   'ux.ctl.back.continue': 'Aynı yoldan başka bir proje seç; seçmek hiçbir dosyayı değiştirmez.',
   'ux.ctl.back.quota': 'Aynı yoldan başka bir bütçe ver; o andan itibaren geçerli.',
-  'ux.ctl.back.bypass': 'Yeniden bas (⚡ ya da /bypass) ya da süresi dolsun; oturumla biter.',
   'ux.ctl.back.freeze': 'Yeniden dondur ya da "kapat" yaz; biter (şeritte ❄).',
   'ux.ctl.back.agents': 'Aynı yoldan başka bir sayı ver ya da kapat.',
   'ux.ctl.back.cockpit': 'Bir daha bas (şeritte 0 ya da /0): kapanır ya da açılır, başka hiçbir şeyi değiştirmez.',
@@ -295,7 +281,6 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.ctl.flow.pressRunning': 'Akış kapanır; kaydı ve yazdıkları kalır.',
   'ux.ctl.flow.pressPaused': 'Akış duraklatıldığı adımdan sürer.',
   'ux.ctl.flow.pressArmed': 'Kaldırılır: sıradaki mesajın sıradan bir mesaj olur.',
-  'ux.ctl.bypass.pressOn': 'Bypass hemen biter; emniyet kemeri yine sorar.',
   'ux.ctl.freeze.pressOn': 'Dondurma biter; yazmalar yine emniyet kemerinin izin verdiği her yere gidebilir.',
   'ux.ctl.cockpit.pressOn': 'Kokpit kapanır; oturum sürer.',
   'ux.ctl.fullAuto.pressOn': 'İş "tam otonom iptal" gibi biter; o ana kadarki iş commit\'li kalır.',
@@ -307,7 +292,6 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.ctl.backShort.none': 'Hiçbir şeyi değiştirmez',
   'ux.ctl.backShort.continue': 'Seçmek hiçbir dosyayı değiştirmez',
   'ux.ctl.backShort.quota': 'Geri: başka bir bütçe ver',
-  'ux.ctl.backShort.bypass': 'Geri: yeniden bas',
   'ux.ctl.backShort.freeze': 'Geri: yeniden bas',
   'ux.ctl.backShort.agents': 'Geri: başka bir sayı ya da kapat',
   'ux.ctl.backShort.close': 'Geri alınmaz',
@@ -326,7 +310,6 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.say.flow.approval': 'akış senin onayını bekliyor',
   'ux.say.flow.paused': 'akış {at} adımında duraklatıldı',
   'ux.say.flow.armed': 'sıradaki mesajın akışın görevi olur',
-  'ux.say.bypass': '⚡ bypass: emniyet kemeri sormaz',
   'ux.say.frozen': '❄ yazmalar {folder} içinde kalır',
   'ux.say.agents.free': '👥 aynı anda en çok {n} ajan',
   'ux.say.agents.assigned': '👥 sıradaki isteğin için tam {n} ajan',

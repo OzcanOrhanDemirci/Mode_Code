@@ -93,15 +93,8 @@ export interface ToolEvent {
   run?: string;
   reason?: string;
   defer?: string;
-  /** Bypass events ("bypass"): a call it let through (action "call"), or it went on or off. */
-  was?: string[];
-  agent?: string | null;
-  outcome?: string;
-  why?: string;
+  /** How many (notes written). */
   count?: number;
-  minutes?: number;
-  hours?: number;
-  until?: number;
   /** Quota readings ("reading" events). */
   five?: number | null;
   week?: number | null;

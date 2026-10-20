@@ -139,16 +139,16 @@ test('belt test explains a decision in words; config get prints a section as JSO
 test("config explain gives a setting's four answers and the command that changes it; a wrong name gets the nearest ones", () => {
   const tr = world({ lang: 'tr' });
   try {
-    const s = cli(tr, ['config', 'explain', 'bypass.enabled']);
+    const s = cli(tr, ['config', 'explain', 'agents.enabled']);
     assert.equal(s.code, 0, s.err);
     const flat = s.out.replace(/\s+/g, ' ');
-    assert.match(flat, /^Bypass'a izin ver \(bypass\.enabled\) · Çalışma › Bypass/);
-    assert.match(flat, /Bu ne Bypass, bir oturumda Claude'un bir süre sormadan çalışmasını sağlar/);
-    assert.match(flat, /Şu an kapalı \(varsayılan\)\. \/bypass ve ⚡ yok/);
-    assert.match(flat, /Değiştirirsen açık: Bir oturumda kendin açabilirsin/);
+    assert.match(flat, /^Ajan sayısını ben belirlerim \(agents\.enabled\) · Çalışma › Paralel ajanlar/);
+    assert.match(flat, /Bu ne Ana Claude'un yanında kaç yardımcı Claude \(ajan\) çalışacağına kimin karar verdiği/);
+    assert.match(flat, /Şu an kapalı \(varsayılan\)\. Mode_Code ajanlara karışmaz/);
+    assert.match(flat, /Değiştirirsen açık: Her oturum ajansız başlar/);
     assert.match(flat, /Geri almak Aynı yoldan eski hâline döndürebilirsin/);
     assert.match(flat, /Kim değiştirir Yalnız sen/);
-    assert.match(flat, /Değiştirmek için: mode-code config set bypass\.enabled true\|false/);
+    assert.match(flat, /Değiştirmek için: mode-code config set agents\.enabled true\|false/);
     // No line starts with the space a break fell on, and none is wider than the terminal it was given.
     for (const line of s.out.split('\n')) assert.ok(line.length <= 120, line);
   } finally {
@@ -163,10 +163,10 @@ test("config explain gives a setting's four answers and the command that changes
     assert.match(flat, /No effect now, because "Full autonomy" is off \(Working › Full autonomy\)\./);
     assert.match(flat, /If you change it Type a number from 10 minutes to 720 minutes\./);
     assert.match(flat, /mode-code config set autonomy\.stallMinutes 10-720/);
-    const bad = cli(en, ['config', 'explain', 'bypass']);
+    const bad = cli(en, ['config', 'explain', 'agents']);
     assert.equal(bad.code, 2);
-    assert.match(bad.out, /Not a setting: bypass\./);
-    assert.match(bad.out, /Did you mean: bypass\.enabled, bypass\.maxHours\?/);
+    assert.match(bad.out, /Not a setting: agents\./);
+    assert.match(bad.out, /Did you mean: agents\.enabled, agents\.helpers\b/);
     const typo = cli(en, ['config', 'explain', 'modules.keywrods']);
     assert.equal(typo.code, 2);
     assert.match(typo.out, /modules\.keywords/);
@@ -180,9 +180,10 @@ test("config explain gives a setting's four answers and the command that changes
     assert.equal(j.json?.path, 'view');
     assert.equal(j.json?.now, 'Recommended');
     assert.equal(cli(en, ['config', 'explain', '--json']).out.includes('"path": "packs.items.ffmpeg"'), true);
-    const jb = cli(en, ['config', 'explain', 'bypas', '--json']);
+    const jb = cli(en, ['config', 'explain', 'agent', '--json']);
     assert.equal(jb.code, 2);
-    assert.deepEqual(jb.json, { error: 'not-a-setting', nearest: ['bypass.enabled', 'bypass.maxHours'] });
+    assert.equal(jb.json?.error, 'not-a-setting');
+    assert.deepEqual((jb.json?.nearest as string[]).slice(0, 2), ['agents.enabled', 'agents.helpers']);
   } finally {
     en.done();
   }

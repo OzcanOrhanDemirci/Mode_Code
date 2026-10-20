@@ -105,7 +105,7 @@ export function toDefaults(config: Readonly<Config>, page: string | null = null)
     .filter((c) => !same(c.from, c.to));
 }
 
-/** One row as the history reads it: "19.10.2026 10:42 · Allow bypass: off → on · the control center". */
+/** One row as the history reads it: "19.10.2026 10:42 · Full autonomy: off → on · the control center". */
 export function changeText(row: Pick<ChangeRow, 'path' | 'from' | 'to'> & { at?: number; who?: ChangeWho }, lang: Lang): string {
   const what = `${nameOf(row.path, lang)}: ${valueText(row.path, row.from, lang)} → ${valueText(row.path, row.to, lang)}`;
   const parts = [...(row.at !== undefined ? [dateTime(row.at, lang)] : []), what, ...(row.who ? [tIn(lang, `changes.who.${row.who}` as MessageKey)] : [])];

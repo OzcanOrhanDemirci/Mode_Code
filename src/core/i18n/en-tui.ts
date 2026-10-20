@@ -104,7 +104,7 @@ export const enTui = {
   // one-sentence descriptions
   'desc.now': 'What Claude may do now, what is at work, what waits for you, and the quota, at a glance.',
   'desc.activityCat': 'What happened: in the background, while you were away, in a day or a week, and to the settings.',
-  'desc.work': 'How Claude works: modes, keywords, flows, and the ways of working you turn on (agents, full autonomy, bypass).',
+  'desc.work': 'How Claude works: modes, keywords, flows, and the ways of working you turn on (agents, full autonomy).',
   'desc.protectionCat': 'The safety belt, its rules, what it caught, and secrets in the memory.',
   'desc.memoryCat': 'Your memory and its handoff notes, the folders and sessions you worked in, and sync between your computers.',
   'desc.quotaCat': 'Where the quota stands, the budget and limits that guard it, and what used it.',

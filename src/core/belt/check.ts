@@ -232,7 +232,7 @@ function checkMove(t: Target, s: Scope): void {
 /**
  * Deleting or moving the tool's own folder or Claude Code's configuration (the folder itself, not
  * something that merely contains it, such as the home folder) is self-protection, not a critical
- * folder: bypass never opens it.
+ * folder.
  */
 function ownProtection(target: string, crit: string, s: Scope): { rule: RuleId; key: MessageKey } | null {
   const { ctx, paths } = s;
@@ -1065,7 +1065,7 @@ const SECURITY_KEY = /windows defender|\\?windefend\b|securityhealth|\benablelua
 /** Linux and macOS services that guard the machine. */
 const SECURITY_UNIT = /^(?:firewalld|ufw|nftables|iptables|apparmor|auditd|clamav-daemon|clamav-freshclam|clamd)(?:\.service)?$/i;
 
-/** Turning security software off: blocked without bypass, asked with it. */
+/** Turning security software off: blocked. */
 function checkSecurityOff(inv: Invocation, dialect: Dialect, s: Scope): void {
   const p = inv.program;
   const a = inv.args;
@@ -1154,7 +1154,7 @@ function remoteTarget(x: string): boolean {
 
 /**
  * A secret leaving the machine: a key or credential file uploaded, or a secret written into what is sent
- * (a request body, a form, a gist). Blocked always, bypass included: the person sends it themselves if it
+ * (a request body, a form, a gist). Blocked always: the person sends it themselves if it
  * must go. Authentication to the service itself (a header, a client certificate, an ssh key) is not sending.
  */
 function checkExfil(inv: Invocation, ws: Word[], s: Scope): void {
@@ -1325,7 +1325,7 @@ export function checkOutward(tool: string, input: Readonly<Record<string, unknow
   const action = (tool.split('__').pop() ?? '').toLowerCase();
   const verbs = action.split(/[_-]+/).filter(Boolean);
   const event = verbs.includes('event') && verbs.some((v) => v === 'create' || v === 'update' || v === 'delete');
-  // A payment through a connected service (a charge, a refund, a subscription): the person's, bypass or not.
+  // A payment through a connected service (a charge, a refund, a subscription): always the person's.
   if (PAY_TOOL.test(action) && PAY_ACT.test(action)) add(s, 'outbound.payment', 'belt.reason.payment', { what: tool });
   if (event || verbs.some((v) => OUT_SEND.has(v))) add(s, 'outbound.send', 'belt.reason.outboundSend', { tool });
   else if (verbs.some((v) => OUT_DELETE.has(v))) add(s, 'outbound.delete', 'belt.reason.outboundDelete', { tool });

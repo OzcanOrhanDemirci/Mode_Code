@@ -155,15 +155,6 @@ const S = {
     risk: 'none',
     gate: { id: 'autonomy.enabled', when: [true] },
   },
-  // Working › Bypass
-  'bypass.enabled': { page: 'work/bypass', kind: sw, takes: 'nextPrompt', risk: 'danger', confirm: { value: true, keys: ['set.bypass.confirm'] } },
-  'bypass.maxHours': {
-    page: 'work/bypass',
-    kind: { kind: 'number', min: 1, max: 24, unit: 'hours' },
-    takes: 'nextPrompt',
-    risk: 'none',
-    gate: { id: 'bypass.enabled', when: [true] },
-  },
   // Working › Parallel agents
   'agents.enabled': { page: 'work/agents', kind: sw, takes: 'nextPrompt', risk: 'none', confirm: { value: true, keys: ['set.agents.confirm'] } },
   'agents.helpers': { page: 'work/agents', kind: sw, takes: 'nextPrompt', risk: 'none', gate: { id: 'agents.enabled', when: [true] } },
@@ -307,7 +298,7 @@ export function confirmText(path: SettingPath, next: unknown, lang: Lang): strin
  * Settings an agent's shell may not change (`mode-code config set` refuses them under Claude): they lower a
  * protection or widen what a session does unasked. Some lie outside the catalog (the belt's rules, projects, sync).
  */
-const PERSON_ONLY = /^(?:belt|memory|modules\.(?:quota|secrets|modes)|autonomy|bypass|agents|projects|sync|update|packs|skills)(?:\.|$)/;
+const PERSON_ONLY = /^(?:belt|memory|modules\.(?:quota|secrets|modes)|autonomy|agents|projects|sync|update|packs|skills)(?:\.|$)/;
 
 export function personOnly(path: string): boolean {
   return PERSON_ONLY.test(path);
@@ -425,7 +416,6 @@ const PLACE_KEYS: Readonly<Record<string, MessageKey>> = {
   'quota/limits': 'page.limits',
   work: 'cat.work',
   'work/full-auto': 'page.autonomy',
-  'work/bypass': 'page.bypass',
   'work/agents': 'page.agents',
   'claude-code': 'cat.claude-code',
   'claude-code/packs': 'page.packs',
@@ -459,7 +449,6 @@ export type ControlId =
   | 'cockpit'
   | 'continue'
   | 'quota'
-  | 'bypass'
   | 'freeze'
   | 'agents'
   | 'close'
@@ -473,7 +462,7 @@ export interface ControlDef {
   /** The settings that must be on for it to be there at all. */
   needs?: readonly SettingId[];
   /** How it is taken back: `ux.ctl.back.<back>`. */
-  back: 'mode' | 'style' | 'fullAuto' | 'flow' | 'none' | 'continue' | 'quota' | 'bypass' | 'freeze' | 'agents' | 'close' | 'cockpit';
+  back: 'mode' | 'style' | 'fullAuto' | 'flow' | 'none' | 'continue' | 'quota' | 'freeze' | 'agents' | 'close' | 'cockpit';
 }
 
 const mode = { kind: 'choice', needs: ['modules.modes'], back: 'mode' } as const;
@@ -491,7 +480,6 @@ export const CONTROLS: Readonly<Record<ControlId, ControlDef>> = {
   cockpit: { kind: 'switch', back: 'cockpit' },
   continue: { kind: 'opener', back: 'continue' },
   quota: { kind: 'opener', back: 'quota' },
-  bypass: { kind: 'switch', personOnly: true, needs: ['bypass.enabled'], back: 'bypass' },
   freeze: { kind: 'switch', personOnly: true, back: 'freeze' },
   agents: { kind: 'opener', personOnly: true, needs: ['agents.enabled'], back: 'agents' },
   close: { kind: 'action', back: 'close' },
@@ -519,7 +507,7 @@ export function controlMissing(id: ControlId, config: Readonly<Config>): Setting
 
 // ── the windows ──
 
-export type WindowId = 'agents' | 'fullAuto' | 'quota' | 'flow' | 'bypass';
+export type WindowId = 'agents' | 'fullAuto' | 'quota' | 'flow';
 
 /**
  * A window a control opens inside Claude Code (docs/design.md, Window): every one is drawn to the same pattern, a
@@ -539,7 +527,6 @@ export const WINDOWS: Readonly<Record<WindowId, WindowDef>> = {
   fullAuto: { pane: 'full-auto', control: 'fullAuto', title: 'ctl.autoPane.title', what: 'ctl.autoPane.what', apply: 'ctl.auto.start' },
   quota: { pane: 'weekly-budget', control: 'quota', title: 'ctl.quotaPane.title', what: 'ux.ctl.quota.press', apply: 'ctl.quotaPane.apply' },
   flow: { pane: 'start-flow', control: 'flow', title: 'ctl.flowPane.title', what: 'ctl.flowPane.what', apply: 'ctl.flowPane.apply' },
-  bypass: { pane: 'bypass', control: 'bypass', title: 'ctl.bypassPane.title', what: 'ux.ctl.bypass.what', apply: 'ctl.bypass.yes' },
 };
 
 export const WINDOW_IDS = Object.keys(WINDOWS) as WindowId[];
