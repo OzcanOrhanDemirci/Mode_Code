@@ -6,6 +6,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { APP_NAME } from '../../src/core/app.js';
 import { fitCrumbs } from '../../src/tui/nav.js';
 import { textWidth } from '../../src/node/width.js';
 import { draw, FakeData, KEY } from './harness.js';
@@ -70,28 +71,30 @@ test('an empty page says what fills it, and Enter or a click opens where that is
 test('the location bar keeps its crumbs whole beside the protection and the quota, the middle ones giving way first', async () => {
   const m = (s: string) => textWidth(s);
   assert.deepEqual(
-    fitCrumbs(['Mode_Code', 'Settings', 'Accessibility'], 40, 3, m).map((c) => c.label),
-    ['Mode_Code', 'Settings', 'Accessibility'],
+    fitCrumbs(['Workbench', 'Settings', 'Accessibility'], 40, 3, m).map((c) => c.label),
+    ['Workbench', 'Settings', 'Accessibility'],
   );
   assert.deepEqual(
-    fitCrumbs(['Mode_Code', 'Memory and projects', 'Sessions', 'Fix the login bug'], 44, 3, m).map((c) => [c.label, c.level]),
+    fitCrumbs(['Workbench', 'Memory and projects', 'Sessions', 'Fix the login bug'], 44, 3, m).map((c) => [c.label, c.level]),
     [
-      ['Mode_Code', 0],
+      ['Workbench', 0],
       ['…', null],
       ['Sessions', 2],
       ['Fix the login bug', 3],
     ],
   );
-  const cut = fitCrumbs(['Mode_Code', 'Memory and projects', 'A very long session title that goes on'], 30, 3, m);
+  const cut = fitCrumbs(['Workbench', 'Memory and projects', 'A very long session title that goes on'], 30, 3, m);
   assert.deepEqual(
     cut.map((c) => c.label),
-    ['Mode_Code', '…', 'A very long s…'],
+    ['Workbench', '…', 'A very long s…'],
   );
   assert.ok(cut.reduce((n, c, i) => n + m(c.label) + (i ? 3 : 0), 0) <= 30);
   const s = await draw(new FakeData(), { address: 'settings/accessibility', columns: 60, rows: 30 });
   try {
+    // The tool's own name leads, whatever it is (the rename rehearsal draws a longer one).
     const top = s.text().split('\n')[0]!;
-    assert.match(top, /^Mode_Code › … › Accessibility\s+🛡 working {2}week 27% {2}5h 21%$/);
+    assert.ok(top.startsWith(`${APP_NAME} › … › Accessi`), top);
+    assert.match(top, /🛡 working {2}week 27% {2}5h 21%$/);
     await s.clickText('…');
     assert.match(s.text(), /Address: settings\/accessibility/, 'the … leads nowhere');
   } finally {
