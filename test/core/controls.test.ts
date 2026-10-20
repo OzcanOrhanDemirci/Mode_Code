@@ -37,7 +37,6 @@ const view: StripView = {
   style: 'autonomous',
   flow: null,
   fullAutoShown: false,
-  bypass: { shown: false, on: false, count: 0 },
 };
 
 test('every control has its number, 0 to 8 and 00, and the words that take a value or close; each name once', () => {
@@ -235,7 +234,7 @@ test('the strip: every control on every layout, one row when it fits, never wide
   // The menu and closing are no way of working: a group of their own, untitled, at the far end of the last
   // row, in every layout; the way of working's group ends with its own controls.
   for (const columns of [400, 100, 70, 50, 30]) {
-    const rows = stripRows({ ...view, fullAutoShown: true, bypass: { shown: true, on: false, count: 0 } }, 'tr', columns);
+    const rows = stripRows({ ...view, fullAutoShown: true }, 'tr', columns);
     const end = rows.at(-1)!.at(-1)!;
     assert.deepEqual([end.title, end.end, end.items.map((i) => i.id)], ['', true, ['0', '00']], String(columns));
     assert.equal(rows.flat().filter((s) => s.end).length, 1, String(columns));
@@ -244,7 +243,7 @@ test('the strip: every control on every layout, one row when it fits, never wide
         .at(-1)!
         .at(-2)!
         .items.map((i) => i.id),
-      ['7', '8', 'tam-otonom', 'bypass'],
+      ['7', '8', 'tam-otonom'],
       String(columns),
     );
   }
@@ -418,7 +417,7 @@ test('parallel agents: on the strip, in the line and the menu once turned on; li
   assert.deepEqual(item(shown(assigned, 1)), { id: 'parallel', label: '👥 agents… =3 · 1/3', active: true });
   assert.deepEqual(item(shown({ ...off, ultracode: true })), { id: 'parallel', label: '👥 agents… · ultracode', active: true });
   // Every layout still fits the room with it, and with the other optional controls beside it.
-  const full = { ...shown(assigned, 1), fullAutoShown: true, bypass: { shown: true, on: false, count: 0 }, frozen: 'feature' };
+  const full = { ...shown(assigned, 1), fullAutoShown: true, frozen: 'feature' };
   for (const lang of ['tr', 'en'] as const)
     for (const columns of [50, 60, 80, 100, 120, 160, 200])
       for (const r of stripRows(full, lang, columns)) assert.ok(rowCells(r) <= columns, `${lang} ${columns}`);
@@ -436,7 +435,6 @@ test('the look tells the kind on the strip, on every layout: an opener ends in �
   const all: StripView = {
     ...view,
     fullAutoShown: true,
-    bypass: { shown: true, on: false, count: 0 },
     frozen: 'feature',
     agents: { shown: true, state: { ...DEFAULT_AGENTS }, running: 0 },
   };
@@ -448,7 +446,6 @@ test('the look tells the kind on the strip, on every layout: an opener ends in �
       const label = (id: string) => items.find((i) => i.id === id)!.label;
       for (const id of [commandOf({ kind: 'fullAuto' }, lang), commandOf({ kind: 'agents' }, lang), '6'])
         assert.ok(label(id).includes('…'), `${lang} ${columns} ${id}: ${label(id)}`);
-      assert.ok(label('bypass').includes('○'), `${lang} ${columns} bypass`);
       // The cockpit is a switch too: shown or not.
       assert.ok(label('0').includes('○'), `${lang} ${columns} 0: ${label('0')}`);
       assert.ok(

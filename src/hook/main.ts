@@ -16,7 +16,7 @@ import { reminderDue, reminderNote } from '../core/agents.js';
 import { runDir } from '../core/layout.js';
 import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
 import { isBeltTool } from '../core/belt/tools.js';
-import { parseModState, parseHookState, isApproved, applyKeyword, bypassOn } from '../core/session.js';
+import { parseModState, parseHookState, isApproved, applyKeyword } from '../core/session.js';
 import { sessionFile, eventsFile } from '../core/layout.js';
 import { maskSecrets } from '../core/secrets/scan.js';
 import { tIn, setLanguage, type Lang } from '../core/i18n/index.js';
@@ -75,8 +75,7 @@ async function preToolUse(input: Input, lang: Lang): Promise<void> {
   if (isApproved(mod, str(input.tool_use_id), now)) return; // the person approved this exact call when the mod asked
   if (beltOffForDevelopment(process.env)) return; // TEMPORARY (src/core/dev-switch.ts): the person turned the belt off to develop Mode_Code
 
-  // Bypass as the plugin recorded it for this session: on, in time, and still turned on in the settings.
-  const ctx = { ...beltContext({ cwd, config, layout: l, lang }), bypass: config.bypass.enabled && bypassOn(mod, now) };
+  const ctx = beltContext({ cwd, config, layout: l, lang });
   const d = await evaluateToolCall(tool, toolInput, ctx);
   if (d.verdict === 'allow') return;
 

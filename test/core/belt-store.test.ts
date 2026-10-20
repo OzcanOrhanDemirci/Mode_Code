@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-// App store uploads (publish.store) and payments (outbound.payment): asked, and asked with bypass on too (K5 of 1.2.0).
+// App store uploads (publish.store) and payments (outbound.payment): always the person's (K5 of 1.2.0).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluateToolCall } from '../../src/core/belt/evaluate.js';
 import type { BeltContext } from '../../src/core/belt/types.js';
 
-const ctx = (bypass = false): BeltContext => ({
+const ctx = (): BeltContext => ({
   platform: 'linux',
   home: '/home/ada',
   cwd: '/home/ada/dev/app',
@@ -16,12 +16,11 @@ const ctx = (bypass = false): BeltContext => ({
   managedSettingsFiles: [],
   lang: 'en',
   config: {},
-  bypass,
 });
-const rules = async (tool: string, input: Record<string, unknown>, bypass = false) =>
-  (await evaluateToolCall(tool, input, ctx(bypass))).findings.map((f) => `${f.rule}:${f.verdict}`);
+const rules = async (tool: string, input: Record<string, unknown>) =>
+  (await evaluateToolCall(tool, input, ctx())).findings.map((f) => `${f.rule}:${f.verdict}`);
 
-test('an app store upload, submission or release is asked, with bypass on too', async () => {
+test('an app store upload, submission or release is asked', async () => {
   for (const command of [
     'asc builds upload --ipa build/app.ipa',
     'asc publish appstore --app 123 --ipa app.ipa --version 1.2.0 --submit --confirm',
@@ -36,7 +35,6 @@ test('an app store upload, submission or release is asked, with bypass on too', 
     'xcrun altool --upload-app -f app.ipa',
   ]) {
     assert.deepEqual(await rules('Bash', { command }), ['publish.store:ask'], command);
-    assert.deepEqual(await rules('Bash', { command }, true), ['publish.store:ask'], `bypass: ${command}`);
   }
 });
 
@@ -54,14 +52,12 @@ test('checking and reading a store is not asked', async () => {
     assert.deepEqual(await rules('Bash', { command }), [], command);
 });
 
-test('a payment through the Stripe command line or a connected service is asked, with bypass on too', async () => {
+test('a payment through the Stripe command line or a connected service is asked', async () => {
   for (const command of ['stripe refunds create --charge ch_123', 'stripe payment_intents confirm pi_1', 'stripe subscriptions cancel sub_9']) {
     assert.deepEqual(await rules('Bash', { command }), ['outbound.payment:ask'], command);
-    assert.deepEqual(await rules('Bash', { command }, true), ['outbound.payment:ask'], `bypass: ${command}`);
   }
   for (const tool of ['mcp__stripe__create_refund', 'mcp__plugin_stripe_stripe__create_payment_link', 'mcp__billing__cancel_subscription']) {
     assert.ok((await rules(tool, {})).includes('outbound.payment:ask'), tool);
-    assert.ok((await rules(tool, {}, true)).includes('outbound.payment:ask'), `bypass: ${tool}`);
   }
   // Reading payments, and the CLI's own work, are not.
   for (const command of ['stripe refunds list', 'stripe listen --forward-to localhost:3000/webhook', 'stripe login'])

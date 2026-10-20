@@ -184,16 +184,6 @@ export const enCatalog = {
   'ux.autonomy.stallMinutes.what': 'How long a full-autonomy run may go without finishing a step before it counts as stuck.',
   'ux.autonomy.stallMinutes.eff': 'After {n} without a finished step Claude is told; after twice that the run pauses as stuck.',
 
-  // ── Working › Bypass ──
-  'ux.bypass.enabled.name': 'Allow bypass',
-  'ux.bypass.enabled.what':
-    'Bypass lets Claude work without asking for a while in one session: what the safety belt would ask about goes through, each call recorded.',
-  'ux.bypass.enabled.on': 'You can switch it on in a session yourself (/bypass, or ⚡ on the strip) for the time below. Claude cannot.',
-  'ux.bypass.enabled.off': '/bypass and ⚡ are not there: the safety belt asks as usual.',
-  'ux.bypass.maxHours.name': 'How long it lasts',
-  'ux.bypass.maxHours.what': 'How long bypass stays on in a session once you switch it on.',
-  'ux.bypass.maxHours.eff': 'Bypass ends by itself {n} after you switch it on, with a warning ten minutes before.',
-
   // ── Working › Parallel agents ──
   'ux.agents.enabled.name': 'I set the number of agents',
   'ux.agents.enabled.what': 'Who decides how many helper Claudes (agents) run beside the main one: you, on the strip, or Claude Code.',
@@ -271,12 +261,9 @@ export const enCatalog = {
   'ux.ctl.continue.what': 'Continue a project or a folder: lists them all when none is given',
   'ux.ctl.continue.press': 'Picks a project up where its last handoff note left it, with a budget if you give one.',
   'ux.ctl.why.what': 'Why it is so: how each part is now, and the settings and choices behind it',
-  'ux.ctl.why.press': 'Shows how each part is now and why; with a word (agents, bypass, quota, or a rule) that part alone. Changes nothing.',
+  'ux.ctl.why.press': 'Shows how each part is now and why; with a word (agents, quota, or a rule) that part alone. Changes nothing.',
   'ux.ctl.quota.what': 'Weekly budget: a number (70) or points above now (+5)',
   'ux.ctl.quota.press': 'Sets how much of the weekly quota this session may use: work wraps up near it and stops at it.',
-  'ux.ctl.bypass.what': 'Bypass: Claude works without asking in this session for a while, each call recorded (once allowed under Working)',
-  'ux.ctl.bypass.press':
-    'Its window says what bypass lifts and until when, then turns it on in this session (the hours: Working › Bypass); pressed again, it ends.',
   'ux.ctl.freeze.what': 'Freeze: every write a call names must stay inside one folder (this one, unless you name another)',
   'ux.ctl.freeze.press': 'From now on a call that names a write anywhere else is refused, until you end it.',
   'ux.ctl.agents.what': 'Agents: none, at most N at once, or exactly N for your next request (once you allow it under Working)',
@@ -290,7 +277,6 @@ export const enCatalog = {
   'ux.ctl.back.none': 'Nothing to take back: it changes nothing.',
   'ux.ctl.back.continue': 'Pick another project the same way; picking changes no file.',
   'ux.ctl.back.quota': 'Give another budget the same way; it holds from then on.',
-  'ux.ctl.back.bypass': 'Press it again (⚡ or /bypass), or let its time run out; it never outlives the session.',
   'ux.ctl.back.freeze': 'Freeze again, or "off", to end it (❄ on the strip).',
   'ux.ctl.back.agents': 'Set another number the same way, or turn them off.',
   'ux.ctl.back.cockpit': 'Press it again (0 on the strip, or /0): it closes or opens, and changes nothing else.',
@@ -300,7 +286,6 @@ export const enCatalog = {
   'ux.ctl.flow.pressRunning': 'The flow closes; its record and what it wrote stay.',
   'ux.ctl.flow.pressPaused': 'The flow goes on from the step where it paused.',
   'ux.ctl.flow.pressArmed': 'Put away: your next message is an ordinary one.',
-  'ux.ctl.bypass.pressOn': 'Bypass ends at once; the safety belt asks again.',
   'ux.ctl.freeze.pressOn': 'The freeze ends; writes may go wherever the safety belt allows again.',
   'ux.ctl.cockpit.pressOn': 'The cockpit closes; the session goes on.',
   'ux.ctl.fullAuto.pressOn': 'The run ends as "full auto cancel" ends it; the work so far stays, committed.',
@@ -312,7 +297,6 @@ export const enCatalog = {
   'ux.ctl.backShort.none': 'Changes nothing',
   'ux.ctl.backShort.continue': 'Picking changes no file',
   'ux.ctl.backShort.quota': 'Undo: give another budget',
-  'ux.ctl.backShort.bypass': 'Undo: press it again',
   'ux.ctl.backShort.freeze': 'Undo: press it again',
   'ux.ctl.backShort.agents': 'Undo: another number, or off',
   'ux.ctl.backShort.close': 'Cannot be undone',
@@ -331,7 +315,6 @@ export const enCatalog = {
   'ux.say.flow.approval': 'the flow waits for your approval',
   'ux.say.flow.paused': 'flow paused at {at}',
   'ux.say.flow.armed': "your next message is the flow's task",
-  'ux.say.bypass': '⚡ bypass: the belt asks nothing',
   'ux.say.frozen': '❄ writes stay in {folder}',
   'ux.say.agents.free': '👥 at most {n} agents at once',
   'ux.say.agents.assigned': '👥 exactly {n} agents for your next request',

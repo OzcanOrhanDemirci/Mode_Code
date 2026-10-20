@@ -73,15 +73,14 @@ The catalog (`src/core/ux/catalog.ts`) holds the four answers for every setting 
 
 ## Colour and marks
 
-| Meaning                 | Colour    | Mark    | Plain          |
-| ----------------------- | --------- | ------- | -------------- |
-| on, done, healthy       | green     | `●` `✓` | `[on]` `[ok]`  |
-| off, idle, not set      | grey      | `○` `·` | `[off]` `[--]` |
-| asks you, needs a look  | yellow    | `?` `!` | `[?]` `[!]`    |
-| blocked, danger, failed | red       | `✗` `▲` | `[x]` `[!!]`   |
-| focus, selected, link   | cyan      | `▸` `›` | `>`            |
-| bypass (no questions)   | red, bold | `⚡`    | `[bypass]`     |
-| agents                  | blue      | `👥`    | `[agents]`     |
+| Meaning                 | Colour | Mark    | Plain          |
+| ----------------------- | ------ | ------- | -------------- |
+| on, done, healthy       | green  | `●` `✓` | `[on]` `[ok]`  |
+| off, idle, not set      | grey   | `○` `·` | `[off]` `[--]` |
+| asks you, needs a look  | yellow | `?` `!` | `[?]` `[!]`    |
+| blocked, danger, failed | red    | `✗` `▲` | `[x]` `[!!]`   |
+| focus, selected, link   | cyan   | `▸` `›` | `>`            |
+| agents                  | blue   | `👥`    | `[agents]`     |
 
 Only the 16 basic colours, so the person's terminal theme decides the contrast; Mo alone is drawn in 24-bit colour. High contrast swaps in the bright variants. `NO_COLOR` turns colour off everywhere and changes nothing else.
 
@@ -92,28 +91,27 @@ Only the 16 basic colours, so the person's terminal theme decides the contrast; 
 - **One line for a toast.** A toast fits one line of 40 columns; anything longer goes to the activity, the card or the cockpit.
 - **Every empty page says what will appear there, and the one thing that makes it appear.**
 - **Every error says what to do next.**
-- **Turkish is not translated English.** Both languages are written for their reader; Turkish uses Turkish words where they exist (_bypass_ stays a name, but its card says _"sormadan çalış"_).
+- **Turkish is not translated English.** Both languages are written for their reader; Turkish uses Turkish words where they exist (a flow is _akış_, the safety belt _emniyet kemeri_).
 - **No long dashes.**
 
 ## Glossary
 
-| Idea                                               | English                       | Turkish                                         | Not (✓: the test refuses it)  |
-| -------------------------------------------------- | ----------------------------- | ----------------------------------------------- | ----------------------------- |
-| the protection that stops risky commands           | safety belt                   | emniyet kemeri                                  | hook (Claude Code's own part) |
-| a session where the safety belt asks nothing       | bypass (works without asking) | bypass (sormadan çalış)                         | izinsiz ✓                     |
-| a task Claude carries to its end alone             | full-autonomy run             | tam otonom iş                                   | koşu ✓                        |
-| what keeps such a task's writes in the project     | write limits                  | yazma sınırları                                 | fence ✓, çit ✓                |
-| research → plan → approve → code                   | flow                          | akış (adım adım iş)                             |                               |
-| helper Claudes that run beside the main one        | agents                        | ajanlar (yardımcı Claude'lar)                   | subagent ✓, alt ajan ✓        |
-| Anthropic's usage limit                            | quota                         | kota                                            |                               |
-| the ceiling you set on it                          | budget                        | bütçe                                           | hedef                         |
-| the 5-hour and weekly periods of the quota         | period                        | dönem                                           | window ✓, pencere ✓           |
-| a summary Claude makes to shorten the conversation | summary (compaction)          | özet (sıkıştırma)                               |                               |
-| notes left for the next session                    | handoff note                  | devir notu                                      |                               |
-| the part Mode_Code adds inside Claude Code         | the plugin                    | Mode_Code'un Claude Code'daki parçası (eklenti) |                               |
-| Claude Code's own add-ons                          | Claude Code plugins           | Claude Code eklentileri                         |                               |
-| a connection to an outside tool                    | outside tool (MCP)            | dış araç (MCP)                                  |                               |
-| thousands of tokens                                | 250K tokens                   | 250 bin token                                   | 250 B ✓                       |
+| Idea                                               | English              | Turkish                                         | Not (✓: the test refuses it)  |
+| -------------------------------------------------- | -------------------- | ----------------------------------------------- | ----------------------------- |
+| the protection that stops risky commands           | safety belt          | emniyet kemeri                                  | hook (Claude Code's own part) |
+| a task Claude carries to its end alone             | full-autonomy run    | tam otonom iş                                   | koşu ✓                        |
+| what keeps such a task's writes in the project     | write limits         | yazma sınırları                                 | fence ✓, çit ✓                |
+| research → plan → approve → code                   | flow                 | akış (adım adım iş)                             |                               |
+| helper Claudes that run beside the main one        | agents               | ajanlar (yardımcı Claude'lar)                   | subagent ✓, alt ajan ✓        |
+| Anthropic's usage limit                            | quota                | kota                                            |                               |
+| the ceiling you set on it                          | budget               | bütçe                                           | hedef                         |
+| the 5-hour and weekly periods of the quota         | period               | dönem                                           | window ✓, pencere ✓           |
+| a summary Claude makes to shorten the conversation | summary (compaction) | özet (sıkıştırma)                               |                               |
+| notes left for the next session                    | handoff note         | devir notu                                      |                               |
+| the part Mode_Code adds inside Claude Code         | the plugin           | Mode_Code'un Claude Code'daki parçası (eklenti) |                               |
+| Claude Code's own add-ons                          | Claude Code plugins  | Claude Code eklentileri                         |                               |
+| a connection to an outside tool                    | outside tool (MCP)   | dış araç (MCP)                                  |                               |
+| thousands of tokens                                | 250K tokens          | 250 bin token                                   | 250 B ✓                       |
 
 The rows marked ✓ live in `src/core/ux/glossary.ts`, and `test/core/ux-glossary.test.ts` reads every message of both languages against them. The rest guide the writing and are not refused:
 
@@ -154,11 +152,11 @@ Prose is wrapped to the terminal's width at word boundaries, a list item running
 The panel you open beside Claude Code's conversation (`/0`, or `0 ≡ cockpit` on the strip, a switch): in the fullscreen layout from 110 columns it stands beside the conversation from top to bottom; narrower, it opens above the prompt with its sections side by side. Left open, the next session opens it in its place where the screen leaves room. Worked out by code from the settings and the session (`src/core/ux/cockpit.ts`), drawn with the kit (`src/core/ux/cockpit-view.ts`), it holds:
 
 - **A line that says.** It opens with one sentence on what the cockpit is for. The card of whatever the pointer rests on, or the keyboard, takes its place there, so every line says itself without a press. Its height never changes.
-- **Claude right now.** What Claude may do in this session, in words, each line marked ✓ it does, ? it asks you first, ✗ it cannot, or · it waits for you: change the project's files, take a risky step, delete outside the project, touch its own protection (locked), the way of working, helper agents; and while they hold, outside content read and the quota near its limit. Each line follows the mode in force (a flow's step and Claude Code's plan mode included), the way of working, the safety belt's rules, bypass, a freeze and the agents. A press opens its reasons, the why engine's chain, and what changes it.
+- **Claude right now.** What Claude may do in this session, in words, each line marked ✓ it does, ? it asks you first, ✗ it cannot, or · it waits for you: change the project's files, take a risky step, delete outside the project, touch its own protection (locked), the way of working, helper agents; and while they hold, outside content read and the quota near its limit. Each line follows the mode in force (a flow's step and Claude Code's plan mode included), the way of working, the safety belt's rules, a freeze and the agents. A press opens its reasons, the why engine's chain, and what changes it.
 - **At work now.** Claude's state in words; the call running, its time counted by the surface (`src/mod/cockpit-clock.ts`); each agent at work with **Open** (its conversation in the main view, the cockpit staying beside it) and **Stop**; a flow's step; a full-autonomy run's.
 - **Waiting for you, or In this session.** The session's activity, what waits for you first, five lines; a line whose rule or setting has a place opens the control center there, and **All activity…** opens the whole.
 - **Quota.** The two periods as meters, where the work wraps up marked on each track, and when each starts over; the weekly budget, and **Budget…**.
-- **Quick settings.** The controls whose permission is a setting (bypass, the agents, full autonomy) and the freeze, both doors in one row. Not allowed yet, the row says so, and a press first says what allowing it means, with **Allow** and **Cancel**; allowed, a press is the strip's own. A permission allowed here is written as the control center writes it, recorded as the cockpit's in the history of changes, and **Undo** takes it back. **Control center…** opens everything else.
+- **Quick settings.** The controls whose permission is a setting (the agents, full autonomy) and the freeze, both doors in one row. Not allowed yet, the row says so, and a press first says what allowing it means, with **Allow** and **Cancel**; allowed, a press is the strip's own. A permission allowed here is written as the control center writes it, recorded as the cockpit's in the history of changes, and **Undo** takes it back. **Control center…** opens everything else.
 
 Only your press changes anything in the cockpit: Claude has no way to press.
 

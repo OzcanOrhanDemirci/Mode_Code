@@ -107,26 +107,9 @@ const CASES: [string, CockpitFacts, CanRow['id'], string | null][] = [
   ['a flow step in research', facts({}, {}, { mode: 'research', modeFrom: 'flow' }), 'write', 'bad Writes a report only (🔍 research)'],
   ['frozen', facts({}, { frozen: '/home/ada/dev/app' }), 'write', 'ok Changes files only in app'],
   ['chat takes no risky step', facts({}, { mode: 'chat' }), 'risky', 'bad Takes no risky step in this mode'],
-  [
-    'bypass on',
-    facts({ 'bypass.enabled': true }, { bypass: { since: NOW - 1, until: NOW + 3600_000, count: 2 } }),
-    'risky',
-    `bypass Risky steps unasked, until ${new Date(NOW + 3600_000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
-  ],
-  [
-    'bypass on in the session, no longer allowed',
-    facts({}, { bypass: { since: NOW - 1, until: NOW + 3600_000, count: 0 } }),
-    'risky',
-    'ask Asks you before a risky step',
-  ],
-  [
-    'bypass over',
-    facts({ 'bypass.enabled': true }, { bypass: { since: NOW - 7200_000, until: NOW - 1, count: 0 } }),
-    'risky',
-    'ask Asks you before a risky step',
-  ],
-  ['the belt off for development', facts({}, {}, { beltOff: true }), 'risky', 'bypass Asks nothing: the belt is off'],
-  ['the belt off: delete unasked', facts({}, {}, { beltOff: true }), 'delete', 'bypass Deletes outside the project unasked'],
+  ['risky steps are asked', facts(), 'risky', 'ask Asks you before a risky step'],
+  ['the belt off for development', facts({}, {}, { beltOff: true }), 'risky', 'bad Asks nothing: the belt is off'],
+  ['the belt off: delete unasked', facts({}, {}, { beltOff: true }), 'delete', 'bad Deletes outside the project unasked'],
   ['chat cannot delete', facts({}, { mode: 'plan' }), 'delete', 'bad Cannot delete outside the project'],
   ['the delete rule off', facts({ 'belt.disabled': ['fs.delete-outside-project'] }), 'delete', 'look Deletes outside the project unasked'],
   ['the delete rule blocks', facts({ 'belt.verdicts': { 'fs.delete-outside-project': 'deny' } }), 'delete', 'bad Cannot delete outside the project'],
@@ -178,7 +161,7 @@ test('the reasons follow the mode in force: a flow, a mode for this message, a r
   assert.match(row(facts({ 'modules.modes': false }), 'write')!.why.now, /^no modes/);
 });
 
-test('what changes a line: ending a freeze, bypass or a run; the rule; the agents window; the budget', () => {
+test('what changes a line: ending a freeze or a run; the rule; the agents window; the budget', () => {
   const act = (f: CockpitFacts, id: CanRow['id'], lang: 'en' | 'tr' = 'en') => row(f, id, lang)!.act;
   assert.deepEqual(act(facts({}, { frozen: '/x/app' }), 'write', 'tr'), {
     kind: 'control',
@@ -188,10 +171,7 @@ test('what changes a line: ending a freeze, bypass or a run; the rule; the agent
     opens: false,
   });
   assert.equal(act(facts(), 'write'), null, 'the mode is on the strip itself');
-  assert.match(
-    JSON.stringify(act(facts({ 'bypass.enabled': true }, { bypass: { since: NOW, until: NOW + 60_000, count: 0 } }), 'risky')),
-    /"name":"bypass".*"opens":false/,
-  );
+  assert.equal(act(facts(), 'risky'), null, 'the belt asks: nothing to end');
   assert.deepEqual(act(facts(), 'delete'), {
     kind: 'center',
     address: 'protection/rules/fs.delete-outside-project',
@@ -378,29 +358,30 @@ test('quick settings: not allowed yet, a press asks to allow it; allowed, the pr
   assert.deepEqual(
     Object.values(none).map((r) => [r.id, r.value, r.press.kind, r.press.opens]),
     [
-      ['bypass', 'not allowed yet', 'allow', true],
       ['agents', 'Claude decides', 'allow', true],
       ['fullAuto', 'not allowed yet', 'allow', true],
       ['freeze', 'off', 'control', false],
     ],
   );
-  assert.deepEqual(none['bypass']!.press, { kind: 'allow', path: 'bypass.enabled', label: 'Allow', card: allowWarning('bypass.enabled', 'en'), opens: true });
+  assert.deepEqual(none['fullAuto']!.press, {
+    kind: 'allow',
+    path: 'autonomy.enabled',
+    label: 'Allow',
+    card: allowWarning('autonomy.enabled', 'en'),
+    opens: true,
+  });
   // A card answers the four questions: what it is, how it is now, what a press does, and, once allowed, where it is taken back.
   for (const r of Object.values(none)) assert.match(r.card, /\. Now: .+\. Press: .+\.$/, r.id);
-  const allowed = q(facts({ 'bypass.enabled': true, 'agents.enabled': true, 'autonomy.enabled': true }));
+  const allowed = q(facts({ 'agents.enabled': true, 'autonomy.enabled': true }));
   assert.deepEqual(
     Object.values(allowed).map((r) => [r.id, r.value, r.press.kind === 'control' ? r.press.name : r.press.kind, r.press.opens]),
     [
-      ['bypass', 'off', 'bypass', true],
       ['agents', 'none', 'parallel', true],
       ['fullAuto', 'off', 'full-auto', true],
       ['freeze', 'off', 'freeze', false],
     ],
   );
-  assert.match(
-    allowed['bypass']!.card,
-    /Press: Its window says what bypass lifts and until when, .+ Allowed: "Allow bypass" is on \(Working › Bypass\); it is taken back there\.$/,
-  );
+  assert.match(allowed['fullAuto']!.card, /Allowed: "Full autonomy" is on \(Working › Full autonomy\); it is taken back there\.$/);
   // On only where it is allowed and set: the session's agents with the setting off are Claude's to decide.
   const agentsOn = (cfg: Record<string, unknown>, mode: 'off' | 'free', ultracode = false) =>
     q(facts(cfg, { agents: { ...state().agents, mode, n: 3, ultracode } }))['agents']!.on;
@@ -415,8 +396,8 @@ test('quick settings: not allowed yet, a press asks to allow it; allowed, the pr
   );
   const on = q(
     facts(
-      { 'bypass.enabled': true, 'agents.enabled': true, 'autonomy.enabled': true },
-      { bypass: { since: NOW, until: NOW + 3600_000, count: 2 }, agents: { ...state().agents, mode: 'assigned', n: 2 }, frozen: '/x/app' },
+      { 'agents.enabled': true, 'autonomy.enabled': true },
+      { agents: { ...state().agents, mode: 'assigned', n: 2 }, frozen: '/x/app' },
       { style: 'full', run: { at: '2/5', paused: false, planning: false } },
     ),
     'tr',
@@ -424,22 +405,20 @@ test('quick settings: not allowed yet, a press asks to allow it; allowed, the pr
   assert.deepEqual(
     Object.values(on).map((r) => [r.id, r.on, r.value.replace(/\d\d:\d\d/, 'HH:MM'), r.press.opens]),
     [
-      ['bypass', true, 'açık, bitiş HH:MM · 2 sorusuz', false],
       ['agents', true, 'tam 2, sonraki istek', true],
       ['fullAuto', true, 'çalışıyor, adım 2/5', false],
       ['freeze', true, 'açık: app', false],
     ],
   );
-  assert.equal(on['bypass']!.meaning, 'bypass');
+  assert.equal(on['freeze']!.meaning, 'on');
   assert.equal(q(facts({ 'agents.enabled': true }, { agents: { ...state().agents, mode: 'free', n: 4 } }))['agents']!.value, 'at most 4 at once');
   assert.equal(q(facts({ 'agents.enabled': true }, { agents: { ...state().agents, ultracode: true } }))['agents']!.value, 'ultracode');
 });
 
 test("a permission's warning: what allowing it means, said for a press; another setting has its catalog's", () => {
-  assert.match(allowWarning('bypass.enabled', 'en'), /^Bypass lets Claude act without asking for a while: .+ only you switch it on in a session\.$/);
   assert.match(allowWarning('agents.enabled', 'tr'), /^Bundan sonra her oturum yardımcı ajanlar kapalı başlar/);
   assert.match(allowWarning('autonomy.enabled', 'en'), /only you start a run\.$/);
-  for (const p of ['bypass.enabled', 'agents.enabled', 'autonomy.enabled'] as const)
+  for (const p of ['agents.enabled', 'autonomy.enabled'] as const)
     for (const lang of ['en', 'tr'] as const) assert.doesNotMatch(allowWarning(p, lang), /Enter/, `${lang} ${p}: a press, not a second Enter`);
   assert.equal(allowWarning('packs.autoUse', 'en'), `${confirmText('packs.autoUse', true, 'en')} ${effectOf('packs.autoUse', true, 'en')}`);
 });
@@ -547,7 +526,7 @@ test('the drawing: every pressable and every line of information says itself, un
       'quota-five',
       'quota-week',
       'budget',
-      'quick-bypass',
+      'quick-fullAuto',
       'center',
     ])
       assert.ok(scopes.includes(id), `${lang}: ${id}`);
@@ -558,9 +537,9 @@ test('the drawing: every pressable and every line of information says itself, un
 
 test('the drawing: a label longer than its column is cut, never run into the value', () => {
   const d = cockpitData(facts(), 'en');
-  const long = { ...d, quick: d.quick.map((q, i) => (i === 0 ? { ...q, label: 'Something very long indeed' } : q)) };
+  const long = { ...d, quick: d.quick.map((q) => (q.id === 'fullAuto' ? { ...q, label: 'Something very long indeed' } : q)) };
   const { body } = cockpitBody(recorder(), long, UI, acts(), { width: 50 });
-  assert.match(textOf(find(body, 'quick-bypass')!), /^Something very… ○ not allowed yet$/);
+  assert.match(textOf(find(body, 'quick-fullAuto')!), /^Something very… ○ not allowed yet$/);
 });
 
 test('the drawing: one column beside the conversation, two or three above the prompt; nothing runs past its column', () => {
@@ -589,18 +568,18 @@ test('the drawing: a line pressed opens its reasons and what changes it; a permi
   (find(open, 'can-write')!.props.onPress as () => void)();
   const rule = cockpitBody(recorder(), cockpitData(facts(), 'en'), { ...UI, open: 'delete' }, acts(log), { width: 50 }).body;
   assert.equal(textOf(find(rule, 'can-delete-act')!), 'The rule…', 'it opens a page: an opener');
-  const confirm = cockpitBody(recorder(), cockpitData(facts(), 'en'), { ...UI, confirm: 'bypass.enabled' }, acts(log), { width: 50 }).body;
-  assert.match(textOf(confirm), /! Bypass lets Claude act without asking/);
+  const confirm = cockpitBody(recorder(), cockpitData(facts(), 'en'), { ...UI, confirm: 'autonomy.enabled' }, acts(log), { width: 50 }).body;
+  assert.match(textOf(confirm), /! A full-autonomy run carries one task to its/);
   // Allow is the main action: drawn as one.
-  assert.equal((find(confirm, 'quick-bypass-yes')!.children[0] as El).props.bold, true);
-  assert.notEqual((find(confirm, 'quick-bypass-no')!.children[0] as El).props.bold, true);
-  (find(confirm, 'quick-bypass-yes')!.props.onPress as () => void)();
-  (find(confirm, 'quick-bypass-no')!.props.onPress as () => void)();
-  (find(confirm, 'quick-bypass')!.props.onPress as () => void)();
-  const changed = cockpitBody(recorder(), cockpitData(facts(), 'en'), { ...UI, changed: 'Changed: Allow bypass: off → on' }, acts(log), { width: 50 }).body;
-  assert.match(textOf(changed.children[0] as El), /^✓ Changed: Allow bypass: off → on\[ Undo \]$/);
+  assert.equal((find(confirm, 'quick-fullAuto-yes')!.children[0] as El).props.bold, true);
+  assert.notEqual((find(confirm, 'quick-fullAuto-no')!.children[0] as El).props.bold, true);
+  (find(confirm, 'quick-fullAuto-yes')!.props.onPress as () => void)();
+  (find(confirm, 'quick-fullAuto-no')!.props.onPress as () => void)();
+  (find(confirm, 'quick-fullAuto')!.props.onPress as () => void)();
+  const changed = cockpitBody(recorder(), cockpitData(facts(), 'en'), { ...UI, changed: 'Changed: Full autonomy: off → on' }, acts(log), { width: 50 }).body;
+  assert.match(textOf(changed.children[0] as El), /^✓ Changed: Full autonomy: off → on\[ Undo \]$/);
   (find(changed, 'undo')!.props.onPress as () => void)();
-  assert.deepEqual(log, ['act control freeze', 'toggle write', 'allow bypass.enabled', 'cancel', 'act allow', 'undo']);
+  assert.deepEqual(log, ['act control freeze', 'toggle write', 'allow autonomy.enabled', 'cancel', 'act allow', 'undo']);
 });
 
 test('the drawing: agents, the activity, the budget and the control center press through; a call is timed where the host can', () => {

@@ -305,11 +305,6 @@ export const enAuto = {
   'doc.autonomy.off': 'Full autonomy is off (mode-code autonomy enable turns it on).',
   'doc.autonomy.ready': 'Full autonomy is on, and nothing measured here stands in the way of a run.',
   'doc.autonomy.notReady': 'Full autonomy is on, but {n} start check(s) would fail here:',
-  'doc.bypass.off': 'Bypass is off: no session can lift the safety belt.',
-  'doc.bypass.on': 'Bypass can be switched on in a session by you, for up to {hours} h; it is off in every session now.',
-  'doc.bypass.onNow': 'Bypass is on in {n} session(s) now (for up to {hours} h each); what it lets through is under Working › Done without asking.',
-  'doc.bypass.floorWeakened': '{n} rule(s) bypass should keep asking about are switched off or set to allow in the settings:',
-  'doc.bypass.floorHint': 'Set them back under Protection › Safety belt rules, or with mode-code config set belt.verdicts.<rule> ask.',
 
   // ── the control center ──
   'home.runs': 'Full-autonomy runs',
@@ -326,33 +321,7 @@ export const enAuto = {
   'set.autonomy.confirm': 'Press Enter again to turn it on.',
   'set.autonomy.check': 'Start checks, measured from here',
   'set.autonomy.note': "The rest (the budget, the live sandbox probe, the session's permission mode) is measured when a run starts.",
-  // ── Working › Bypass, Done without asking ──
-  'desc.automation': 'The special ways of working, off until you turn them on: full autonomy, its runs, bypass and what bypass let through, parallel agents.',
-  'page.bypass': 'Bypass',
-  'desc.bypass': 'Bypass: lifts the safety belt in one session for a while, when you switch it on there. Off until you turn it on here.',
-  'page.bypassed': 'Done without asking',
-  'desc.bypassed': 'Every call bypass let through that would have been asked about or blocked, one by one; and when it went on and off.',
-  'set.bypass.confirm':
-    'Bypass lets Claude act without asking: what the safety belt would ask about or block goes through, recorded call by call. Your files, your settings, your memory and secrets stay protected; irreversible deletions are still asked. Switch it on in a session only when you mean it. Press Enter again to allow it on this computer.',
-  'set.bypass.tiers': 'What it lifts',
-  'set.bypass.tier.never': "Never: changing this tool, Claude Code's settings or your memory; sending a secret off the computer.",
-  'set.bypass.tier.asked':
-    'Blocked without bypass, asked with it: deleting a drive root, a system folder or data in the cloud; formatting a disk; turning security software off.',
-  'set.bypass.tier.always': 'Asked as always: deletes outside the project, a .git folder, a database reset, staging a secrets file.',
-  'set.bypass.tier.through':
-    "Everything else goes through without a question, and so does what Claude Code's own mode would ask; a rule in Claude Code's settings keeps its question.",
-  'set.bypass.note': 'Each session starts without it, it ends with the session, and it never comes from another computer.',
-  'bypassed.empty': 'Bypass has let nothing through in the last 30 days.',
-  'bypassed.on': 'bypass on ({hours} h)',
-  'bypassed.off': 'bypass off: {count} calls in {minutes} min ({why})',
-  'bypassed.why.person': 'turned off',
-  'bypassed.why.time': 'its time ran out',
-  'bypassed.why.disabled': 'turned off in the settings',
-  'bypassed.why.session': 'the session ended',
-  'bypassed.agent': 'by an agent',
-  'bypassed.outcome.ran': 'ran',
-  'bypassed.outcome.failed': 'failed',
-  'bypassed.outcome.refused': 'refused further on',
+  'desc.automation': 'The special ways of working, off until you turn them on: full autonomy, its runs, parallel agents.',
   // ── Working › Parallel agents ──
   'page.agents': 'Parallel agents',
   'desc.agents': 'Parallel agents: how many agents Claude starts, set by you on the strip for each session. Off until you turn it on here.',

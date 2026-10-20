@@ -102,7 +102,6 @@ export const LOCAL_KEYS: readonly string[] = [
   'memory.store',
   'modes.workDir',
   'autonomy.enabled',
-  'bypass.enabled',
   'update.check',
   'sync',
   'projects',
@@ -388,7 +387,6 @@ const LOWER_IF_UP = new Set([
   'quota.staleMinutes',
   'autonomy.maxHours',
   'autonomy.stallMinutes',
-  'bypass.maxHours',
 ]);
 const PROTECTIVE_MODULES = new Set(['modules.quota', 'modules.secrets', 'modules.modes']);
 /** A pack's modes from the one that lets it least far to the one that lets it furthest. */

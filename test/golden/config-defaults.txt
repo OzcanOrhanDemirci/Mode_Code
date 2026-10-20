@@ -70,10 +70,6 @@
     "atTimeLimit": "continue",
     "reviewModel": null
   },
-  "bypass": {
-    "enabled": false,
-    "maxHours": 2
-  },
   "agents": {
     "enabled": false,
     "helpers": true

@@ -26,7 +26,6 @@ protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
-protection.bypass info doc.bypass.off
 protection.projectSettings ok doc.setup.projectOk
 protection.mcpPinned ok doc.setup.mcpPinned
 protection.settingsSecrets ok doc.setup.secretsNone
@@ -82,7 +81,6 @@ protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
-protection.bypass info doc.bypass.off
 protection.projectSettings ok doc.setup.projectOk
 protection.mcpPinned ok doc.setup.mcpPinned
 protection.settingsSecrets ok doc.setup.secretsNone
@@ -137,7 +135,6 @@ protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames skip protection doc.windowsOnly
 protect.memory ok doc.protect.memory.ok {"n":1}
-protection.bypass info doc.bypass.off
 protection.projectSettings ok doc.setup.projectOk
 protection.mcpPinned ok doc.setup.mcpPinned
 protection.settingsSecrets ok doc.setup.secretsNone
@@ -199,7 +196,6 @@ protect.links info protection doc.protect.links.some {"n":1}
 protect.shortNames fail protection hint=doc.reportHint doc.protect.shortNames.missed {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/CLAUDE~1","long":"C:/Users/ada/.claude"}
 protect.memory warn doc.protect.memory.missing {"path":"C:/notes"}
-protection.bypass info doc.bypass.off
 protection.projectSettings ok doc.setup.projectOk
 protection.mcpPinned ok doc.setup.mcpPinned
 protection.settingsSecrets ok doc.setup.secretsNone
@@ -259,7 +255,6 @@ protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames skip protection doc.windowsOnly
 protect.memory ok doc.protect.memory.ok {"n":1}
-protection.bypass info doc.bypass.off
 protection.projectSettings ok doc.setup.projectOk
 protection.mcpPinned ok doc.setup.mcpPinned
 protection.settingsSecrets ok doc.setup.secretsNone
@@ -315,7 +310,6 @@ protect.agreement skip protection doc.protect.agreement.notRun
 protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.none
 protect.memory info doc.protect.memory.none
-protection.bypass info doc.bypass.off
 protection.projectSettings ok doc.setup.projectOk
 protection.mcpPinned ok doc.setup.mcpPinned
 protection.settingsSecrets ok doc.setup.secretsNone
@@ -371,7 +365,6 @@ protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory info doc.protect.memory.noGit {"n":1}
-protection.bypass info doc.bypass.off
 protection.projectSettings ok doc.setup.projectOk
 protection.mcpPinned ok doc.setup.mcpPinned
 protection.settingsSecrets ok doc.setup.secretsNone
@@ -431,7 +424,6 @@ protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
 protect.shortNames skip protection doc.windowsOnly
 protect.memory ok doc.protect.memory.ok {"n":1}
-protection.bypass info doc.bypass.off
 protection.projectSettings ok doc.setup.projectOk
 protection.mcpPinned ok doc.setup.mcpPinned
 protection.settingsSecrets ok doc.setup.secretsNone
@@ -490,7 +482,6 @@ protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
-protection.bypass info doc.bypass.off
 protection.projectSettings ok doc.setup.projectOk
 protection.mcpPinned ok doc.setup.mcpPinned
 protection.settingsSecrets ok doc.setup.secretsNone
@@ -546,7 +537,6 @@ protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
-protection.bypass info doc.bypass.off
 protection.projectSettings ok doc.setup.projectOk
 protection.mcpPinned ok doc.setup.mcpPinned
 protection.settingsSecrets ok doc.setup.secretsNone
@@ -602,7 +592,6 @@ protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
-protection.bypass info doc.bypass.off
 protection.projectSettings ok doc.setup.projectOk
 protection.mcpPinned ok doc.setup.mcpPinned
 protection.settingsSecrets ok doc.setup.secretsNone
@@ -658,7 +647,6 @@ protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
-protection.bypass info doc.bypass.off
 protection.projectSettings ok doc.setup.projectOk
 protection.mcpPinned ok doc.setup.mcpPinned
 protection.settingsSecrets ok doc.setup.secretsNone
@@ -714,7 +702,6 @@ protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
-protection.bypass info doc.bypass.off
 protection.projectSettings ok doc.setup.projectOk
 protection.mcpPinned ok doc.setup.mcpPinned
 protection.settingsSecrets ok doc.setup.secretsNone
@@ -770,7 +757,6 @@ protect.links ok protection doc.protect.links.none
 protect.shortNames ok protection doc.protect.shortNames.ok {"n":1}
     doc.protect.shortNames.one {"short":"C:/Users/ada/MODECO~1","long":"C:/Users/ada/.mode-code"}
 protect.memory ok doc.protect.memory.ok {"n":1}
-protection.bypass info doc.bypass.off
 protection.projectSettings ok doc.setup.projectOk
 protection.mcpPinned ok doc.setup.mcpPinned
 protection.settingsSecrets ok doc.setup.secretsNone

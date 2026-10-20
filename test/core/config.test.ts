@@ -9,6 +9,14 @@ test('no file or an empty file gives the defaults and no problems', () => {
   assert.deepEqual(parseConfig('  \n').problems, []);
 });
 
+test('a setting an earlier version had reads without a problem and does nothing: bypass (1.2.0)', () => {
+  const r = parseConfig(JSON.stringify({ view: 'simple', bypass: { enabled: true, maxHours: 8 } }));
+  assert.deepEqual(r.problems, []);
+  assert.equal(r.config.view, 'simple');
+  assert.equal(Object.hasOwn(r.config, 'bypass'), false);
+  assert.equal(serializeConfig(r.config).includes('bypass'), false, 'the next write leaves it out');
+});
+
 test('invalid JSON keeps the defaults and says why', () => {
   const r = parseConfig('{ "view": ');
   assert.deepEqual(r.config, DEFAULT_CONFIG);

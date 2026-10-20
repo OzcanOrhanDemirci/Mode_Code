@@ -102,9 +102,9 @@ test("a number's effect names the value with its unit, in both languages", () =>
     assert.match(en[`ux.${id}.eff` as MessageKey], /\{n\}/, id);
     assert.match(tr[`ux.${id}.eff` as MessageKey], /\{n\}/, id);
   }
-  assert.match(effectOf('bypass.maxHours', 2, 'en'), /2 hours/);
-  assert.match(effectOf('bypass.maxHours', 1, 'en'), /1 hour\b/);
-  assert.match(effectOf('bypass.maxHours', 2, 'tr'), /2 saat/);
+  assert.match(effectOf('autonomy.maxHours', 2, 'en'), /2 hours/);
+  assert.match(effectOf('autonomy.maxHours', 1, 'en'), /1 hour\b/);
+  assert.match(effectOf('autonomy.maxHours', 2, 'tr'), /2 saat/);
   assert.match(effectOf('footer.showFiveFrom', 70, 'tr'), /%70/);
   assert.match(effectOf('footer.showFiveFrom', 70, 'en'), /70%/);
 });
@@ -236,19 +236,18 @@ test('what asks twice: lowering a protection, and the values that say what they 
   assert.ok(asksFirst('modules.quota', true, false));
   assert.ok(!asksFirst('modules.quota', false, true));
   assert.ok(!asksFirst('modules.keywords', true, false));
-  assert.ok(asksFirst('bypass.enabled', false, true));
-  assert.ok(!asksFirst('bypass.enabled', true, false));
+  assert.ok(asksFirst('autonomy.enabled', false, true));
+  assert.ok(!asksFirst('autonomy.enabled', true, false));
   assert.ok(asksFirst('packs.items.store', 'auto', 'always'));
   assert.ok(asksFirst('skills.items.grilling', 'me', 'on'));
-  assert.match(confirmText('bypass.enabled', true, 'en') ?? '', /without asking/);
-  assert.equal(confirmText('bypass.enabled', false, 'en'), null);
+  assert.match(confirmText('autonomy.enabled', true, 'en') ?? '', /turn it on\.$/);
+  assert.equal(confirmText('autonomy.enabled', false, 'en'), null);
   // The full-autonomy warning is told on one line, though the command line prints it on several.
   assert.doesNotMatch(confirmText('autonomy.enabled', true, 'tr') ?? '\n', /\n/);
 });
 
 test('who may change a setting: an agent never one that lowers a protection or widens what it does unasked', () => {
   for (const p of [
-    'bypass.enabled',
     'agents.enabled',
     'autonomy.maxHours',
     'modules.quota',
@@ -270,11 +269,13 @@ test('a path names a setting only when it is one: a real pack or skill, never a 
 });
 
 test('the nearest settings to a partial or mistyped name: those containing it first, then a typo away', () => {
-  assert.deepEqual(nearestSettings('bypass'), ['bypass.enabled', 'bypass.maxHours']);
+  assert.equal(nearestSettings('autonomy.stall')[0], 'autonomy.stallMinutes');
   assert.ok(nearestSettings('modules.keywrods').includes('modules.keywords'));
   assert.ok(nearestSettings('FLUTTER').includes('packs.items.flutter'));
   assert.deepEqual(nearestSettings(''), []);
-  assert.deepEqual(nearestSettings('bypass.'), ['bypass.enabled', 'bypass.maxHours']);
+  assert.deepEqual(nearestSettings('agents.'), ['agents.enabled', 'agents.helpers']);
+  // A setting this version no longer has is not offered.
+  assert.deepEqual(nearestSettings('bypass'), []);
   assert.deepEqual(nearestSettings('zzzzzzzz'), []);
   assert.ok(nearestSettings('a').length <= 5);
 });
@@ -296,9 +297,9 @@ test('every control a command reaches is in the catalog, with what it is, what a
 });
 
 test('only the person, never a script of theirs, uses the controls that let Claude do more; each is there once its setting is on', () => {
-  assert.deepEqual(CONTROL_IDS.filter((id) => CONTROLS[id].personOnly).sort(), ['agents', 'bypass', 'freeze', 'fullAuto']);
+  assert.deepEqual(CONTROL_IDS.filter((id) => CONTROLS[id].personOnly).sort(), ['agents', 'freeze', 'fullAuto']);
   const c = cloneDefaults();
-  assert.deepEqual(controlMissing('bypass', c), ['bypass.enabled']);
+  assert.deepEqual(controlMissing('agents', c), ['agents.enabled']);
   assert.deepEqual(controlMissing('fullAuto', c), ['autonomy.enabled']);
   assert.deepEqual(controlMissing('mode.plan', c), []);
   assert.deepEqual(controlMissing('mode.plan', setConfigValue(c, 'modules.modes', false).config), ['modules.modes']);
@@ -307,7 +308,7 @@ test('only the person, never a script of theirs, uses the controls that let Clau
 });
 
 test('every window a control opens is in the catalog: its pane, the control, its title, what it is for and its action, in both languages', () => {
-  assert.deepEqual([...WINDOW_IDS].sort(), ['agents', 'bypass', 'flow', 'fullAuto', 'quota']);
+  assert.deepEqual([...WINDOW_IDS].sort(), ['agents', 'flow', 'fullAuto', 'quota']);
   const panes = WINDOW_IDS.map((id) => WINDOWS[id].pane);
   assert.equal(new Set(panes).size, panes.length, 'one pane per window');
   for (const id of WINDOW_IDS) {
@@ -319,9 +320,9 @@ test('every window a control opens is in the catalog: its pane, the control, its
       id,
     );
   }
-  // Each window is opened by its control, and that control opens a window or acts with one: an opener, or the flow,
-  // bypass and the budget, whose window says what they will do before they do it.
-  assert.deepEqual(WINDOW_IDS.map((id) => CONTROLS[WINDOWS[id].control].kind).sort(), ['action', 'opener', 'opener', 'opener', 'switch']);
+  // Each window is opened by its control, and that control opens a window or acts with one: an opener, or the flow
+  // and the budget, whose window says what they will do before they do it.
+  assert.deepEqual(WINDOW_IDS.map((id) => CONTROLS[WINDOWS[id].control].kind).sort(), ['action', 'opener', 'opener', 'opener']);
 });
 
 test("the strip's cards: every control has its short undo, and a control in effect says what a press does then", () => {
@@ -331,7 +332,7 @@ test("the strip's cards: every control has its short undo, and a control in effe
     [],
   );
   assert.deepEqual(
-    ['bypass', 'freeze', 'fullAuto'].filter((id) => !has(`ux.ctl.${id}.pressOn`)),
+    ['freeze', 'fullAuto'].filter((id) => !has(`ux.ctl.${id}.pressOn`)),
     [],
   );
   assert.deepEqual(

@@ -23,7 +23,6 @@ export type ModeCodeLabels = {
     style: 'manual' | 'autonomous' | 'full';
     flow: { at: string; state: 'running' | 'approval' | 'paused' | 'armed' } | null;
     fullAutoShown: boolean;
-    bypass: { shown: boolean; on: boolean; count: number };
     lang: 'en' | 'tr';
     /** The person asked for less motion: the flow's step is marked, not breathing. */
     still: boolean;
@@ -116,16 +115,8 @@ export type ModeCodeFlowPane = {
   error: string | null;
 };
 
-/** The window that turns bypass on: for how long, and until when, read as it opened. */
-export type ModeCodeBypassPane = {
-  lang: 'en' | 'tr';
-  hours: number;
-  until: string;
-  error: string | null;
-};
-
 /** A meaning a line is drawn in (src/core/ux/tokens.ts). */
-export type ModeCodeCockpitMeaning = 'on' | 'off' | 'ask' | 'bad' | 'focus' | 'bypass' | 'agents';
+export type ModeCodeCockpitMeaning = 'on' | 'off' | 'ask' | 'bad' | 'focus' | 'agents';
 /** What a press in the cockpit does (src/core/ux/cockpit.ts, CockpitAct). */
 export type ModeCodeCockpitAct = { label: string; card: string; opens: boolean } & (
   { kind: 'control'; name: string } | { kind: 'center'; address: string } | { kind: 'allow'; path: string }
@@ -194,7 +185,6 @@ declare module 'claude-code' {
       stripFocus: ModeCodeStripFocus;
       quotaPane: ModeCodeQuotaPane;
       flowPane: ModeCodeFlowPane;
-      bypassPane: ModeCodeBypassPane;
       cockpit: ModeCodeCockpit;
       cockpitUi: ModeCodeCockpitUi;
     };

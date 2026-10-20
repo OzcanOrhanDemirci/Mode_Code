@@ -28,7 +28,6 @@ export const trCockpit: Record<keyof typeof enCockpit, string> = {
   'ck.can.write.research': 'Yalnız rapor yazar (🔍 araştırma)',
   'ck.can.write.plan': 'Yalnız planı yazar (📐 plan)',
   'ck.can.risky.ask': 'Riskli adımdan önce sana sorar',
-  'ck.can.risky.bypass': 'Riskli adımda sormaz, bitiş {until}',
   'ck.can.risky.devOff': 'Hiçbir şey sormaz: kemer kapalı',
   'ck.can.risky.mode': 'Bu modda riskli adım atmaz',
   'ck.can.delete.ask': 'Proje dışında silmeden önce sorar',
@@ -52,7 +51,7 @@ export const trCockpit: Record<keyof typeof enCockpit, string> = {
   'ck.can.quota.stopNoTime': 'Kota doldu: durdu',
   'ck.self.title': 'Kendi koruması',
   'ck.self.now': "kilitli, Claude'un erişimi dışında",
-  'ck.r.locked': "Emniyet kemerinin ayarları, Mode_Code'un dosyaları ve hafızanın geçmişi: hiçbir ayar onları Claude'a açmaz, bypass da açmaz.",
+  'ck.r.locked': "Emniyet kemerinin ayarları, Mode_Code'un dosyaları ve hafızanın geçmişi: hiçbir ayar onları Claude'a açmaz.",
   'ck.r.mode.turn': '{mode} modunu yalnız bu mesaj için verdin.',
   'ck.r.mode.flow': 'Akışın şu anki adımı {mode} modunda çalışıyor.',
   'ck.r.mode.run': 'Tam otonom iş plan yapıyor: planı kabul edilene kadar {mode}.',
@@ -60,11 +59,9 @@ export const trCockpit: Record<keyof typeof enCockpit, string> = {
   'ck.r.pickMode': 'Başka bir modu şeritten ya da /1-/5 ile seç.',
   'ck.r.pickStyle': 'Öbür çalışma biçimini şeritten ya da /7 ve /8 ile seç.',
   'ck.r.beltWatches': 'Emniyet kemeri yine her komutu ve her yazmayı denetler.',
-  'ck.r.bypassFloor': 'Geri dönüşü olmayan yine sorulur: proje dışında silmek, ödeme, mağazaya yükleme.',
   'ck.r.ultracode': 'Ultracode açık: senin ajan sayın o bitene kadar kenarda bekler.',
   'ck.r.taintClean': 'Yeni bir oturum temiz başlar.',
   'ck.act.unfreeze': 'Dondurmayı bitir',
-  'ck.act.endBypass': "Bypass'ı bitir",
   'ck.act.endRun': 'İşi bitir',
   'ck.act.rule': 'Kural',
   'ck.act.ruleCard':
@@ -139,14 +136,12 @@ export const trCockpit: Record<keyof typeof enCockpit, string> = {
 
   // ── hızlı ayarlar ──
   'ck.quick.title': 'Hızlı ayarlar',
-  'ck.quick.bypass': 'Bypass',
   'ck.quick.agents': 'Ajanlar',
   'ck.quick.fullAuto': 'Tam otonom',
   'ck.quick.freeze': 'Dondur',
   'ck.quick.on': 'açık',
   'ck.quick.off': 'kapalı',
   'ck.quick.notAllowedShort': 'henüz izin yok',
-  'ck.quick.bypassOn': 'açık, bitiş {until} · {n} sorusuz',
   'ck.quick.agentsClaude': 'Claude karar verir',
   'ck.quick.agentsNone': 'yok',
   'ck.quick.agentsFree': 'aynı anda en çok {n}',
@@ -159,8 +154,6 @@ export const trCockpit: Record<keyof typeof enCockpit, string> = {
   'ck.quick.press': 'Basınca',
   'ck.quick.allowed': 'İzin var: "{name}" açık ({place}); geri almak oradan.',
   'ck.quick.allowPress': 'önce iznin ne demek olduğunu söyler; sen onaylayana kadar hiçbir şey değişmez',
-  'ck.allow.bypass':
-    "Bypass, Claude'un bir süre sormadan çalışmasına izin verir: emniyet kemerinin soracağı ya da engelleyeceği şey geçer, her çağrı kaydedilir. Dosyaların, ayarların, hafızan ve sırların korunur; geri alınamayan silmeler yine sorulur. İzin vermek şeride ⚡ koyar; bir oturumda onu yalnız sen açarsın.",
   'ck.allow.agents':
     'Bundan sonra her oturum yardımcı ajanlar kapalı başlar: sen şeritten bir sayı verene kadar Claude ajan başlatmaz (ayarının dediği gibi okuyan yardımcılar hariç). İzin vermek şeride 👥 koyar.',
   'ck.allow.autonomy':

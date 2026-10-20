@@ -1,7 +1,7 @@
 ## Problem report for Mode_Code
 
 - Mode_Code dev · Node.js 24.15.0 · win32 x64 10.0.26200 · Claude Code 2.1.295
-- 39 ok · 5 notes · 2 warnings · 3 problems · 4 skipped
+- 39 ok · 4 notes · 2 warnings · 3 problems · 4 skipped
 
 | check | status | result |
 | --- | --- | --- |
@@ -30,7 +30,6 @@
 | protect.links | ok | No protected folder is a link. |
 | protect.shortNames | ok | The belt protects the short names Windows gave the protected places (1). |
 | protect.memory | ok | Memory folders are protected and are git repositories (1). |
-| protection.bypass | info | Bypass is off: no session can lift the safety belt. |
 | protection.projectSettings | ok | The project's shared settings widen nothing. |
 | protection.mcpPinned | ok | No MCP server starts at whatever version is newest. |
 | protection.settingsSecrets | ok | No secret is written in the Claude Code settings files. |

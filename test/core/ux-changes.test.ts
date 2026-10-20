@@ -26,12 +26,12 @@ const set = (c: Config, path: string, v: unknown) => setConfigValue(c, path, v).
 
 test('what changed between two configs, setting by setting, with a pack and a skill among them', () => {
   const a = cloneDefaults();
-  let b = set(a, 'bypass.enabled', true);
+  let b = set(a, 'autonomy.enabled', true);
   b = set(b, 'packs.items.flutter', 'never');
   b = set(b, 'quota.fiveHourStop', 98);
   assert.deepEqual(settingChanges(a, b), [
     { path: 'quota.fiveHourStop', from: 99, to: 98 },
-    { path: 'bypass.enabled', from: false, to: true },
+    { path: 'autonomy.enabled', from: false, to: true },
     { path: 'packs.items.flutter', from: 'auto', to: 'never' },
   ]);
   assert.deepEqual(settingChanges(b, b), []);
@@ -78,18 +78,18 @@ test('a change is taken back while it still holds; one changed again since is no
 test('back to the defaults: what goes back on one page, or everywhere, and nothing when all are at their defaults', () => {
   const a = cloneDefaults();
   let b = set(a, 'view', 'simple');
-  b = set(b, 'bypass.enabled', true);
+  b = set(b, 'autonomy.enabled', true);
   assert.deepEqual(toDefaults(b, 'settings/general'), [{ path: 'view', from: 'simple', to: 'recommended' }]);
   assert.deepEqual(
     toDefaults(b).map((c) => c.path),
-    ['view', 'bypass.enabled'],
+    ['view', 'autonomy.enabled'],
   );
   assert.deepEqual(toDefaults(a), []);
 });
 
 test('a row in words: the setting, from and to, and who', () => {
-  assert.match(changeText({ path: 'bypass.enabled', from: false, to: true, who: 'center' }, 'en'), /^Allow bypass: off → on · the control center$/);
-  assert.match(changeText({ path: 'bypass.enabled', from: true, to: false, who: 'undo' }, 'tr'), /: açık → kapalı · bir geri alma$/);
+  assert.match(changeText({ path: 'autonomy.enabled', from: false, to: true, who: 'center' }, 'en'), /^Full autonomy: off → on · the control center$/);
+  assert.match(changeText({ path: 'autonomy.enabled', from: true, to: false, who: 'undo' }, 'tr'), /: açık → kapalı · bir geri alma$/);
   assert.match(changeText({ path: 'view', from: 'simple', to: 'detailed', at: Date.UTC(2026, 9, 19, 10, 42) }, 'en'), /^\S.* · View level: Simple → Detailed$/);
 });
 

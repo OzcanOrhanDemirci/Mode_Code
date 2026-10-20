@@ -11,7 +11,6 @@ import type { RuleId } from '../belt/types.js';
 import { tIn, type Lang, type MessageKey } from '../i18n/index.js';
 import { clock } from '../format.js';
 import type { ModSessionState } from '../session.js';
-import { bypassOn } from '../session.js';
 import { nameOf, placeOf, SETTINGS, valueIn, valueText, type SettingId, type SettingPath } from './catalog.js';
 
 /** A link of the chain: in words; the setting behind it and its page, when it is one. */
@@ -32,7 +31,7 @@ export interface WhyAnswer {
 /** What the reasons are read from: the settings in effect, the session (null outside one), the clock. */
 export interface WhyFacts {
   config: Readonly<Config>;
-  session: Pick<ModSessionState, 'mode' | 'interaction' | 'bypass' | 'tainted' | 'frozen' | 'agents'> | null;
+  session: Pick<ModSessionState, 'mode' | 'interaction' | 'tainted' | 'frozen' | 'agents'> | null;
   now: number;
   /** Mode_Code's development switch has the belt off in this session (temporary, src/core/dev-switch.ts). */
   beltOff?: boolean;
@@ -43,7 +42,6 @@ export const WHY_SUBJECTS = [
   'mode',
   'style',
   'autonomy',
-  'bypass',
   'agents',
   'helpers',
   'freeze',
@@ -87,7 +85,7 @@ export function whySubjectNamed(word: string): WhySubject | null {
 /** One subject's answer. */
 export function why(subject: WhySubject, f: WhyFacts, lang: Lang): WhyAnswer {
   const t = (k: string, p?: Record<string, string | number>) => tIn(lang, k as MessageKey, p);
-  /** A setting as a reason: "Allow bypass" is off (Working › Bypass). */
+  /** A setting as a reason: "Allow full autonomy" is off (Working › Full autonomy). */
   const setting = (path: SettingPath): Reason => {
     const page = SETTINGS[path as SettingId]?.page ?? null;
     return {
@@ -105,8 +103,6 @@ export function why(subject: WhySubject, f: WhyFacts, lang: Lang): WhyAnswer {
   switch (subject) {
     case 'belt':
       if (f.beltOff) return answer(t('why.belt.devOff'), [said('why.r.devSwitch')]);
-      if (bypassOn(s, f.now))
-        return answer(t('why.belt.bypass', { until: clock(s!.bypass!.until, lang) }), [said('why.r.bypassOn'), setting('bypass.enabled')]);
       return answer(t('why.belt.on'), [said('why.r.beltAlways')]);
     case 'mode': {
       if (!on('modules.modes')) return answer(t('why.mode.off'), [setting('modules.modes')]);
@@ -122,10 +118,6 @@ export function why(subject: WhySubject, f: WhyFacts, lang: Lang): WhyAnswer {
       if (!on('autonomy.enabled')) return answer(t('why.autonomy.off'), [setting('autonomy.enabled')]);
       if (!on('modules.modes')) return answer(t('why.autonomy.noStrip'), [setting('modules.modes')]);
       return answer(t('why.autonomy.on'), [setting('autonomy.enabled'), setting('autonomy.maxHours')]);
-    case 'bypass':
-      if (!on('bypass.enabled')) return answer(t('why.bypass.off'), [setting('bypass.enabled')]);
-      if (bypassOn(s, f.now)) return answer(t('why.bypass.on', { until: clock(s!.bypass!.until, lang) }), [said('why.r.bypassOn'), setting('bypass.maxHours')]);
-      return answer(t('why.bypass.ready'), [setting('bypass.enabled'), said('why.r.bypassSession')]);
     case 'agents': {
       if (!on('agents.enabled')) return answer(t('why.agents.claude'), [setting('agents.enabled')]);
       const a = s?.agents;
@@ -191,8 +183,8 @@ export function why(subject: WhySubject, f: WhyFacts, lang: Lang): WhyAnswer {
 }
 
 /**
- * Why a rule of the safety belt does what it does: its own verdict, the one your settings give it, whether it is off,
- * locked, or lifted by bypass.
+ * Why a rule of the safety belt does what it does: its own verdict, the one your settings give it, whether it is off
+ * or locked.
  */
 export function whyRule(id: RuleId, f: WhyFacts, lang: Lang): WhyAnswer {
   const t = (k: string, p?: Record<string, string | number>) => tIn(lang, k as MessageKey, p);
@@ -206,7 +198,6 @@ export function whyRule(id: RuleId, f: WhyFacts, lang: Lang): WhyAnswer {
   else if (f.config.belt.verdicts?.[id])
     because.push({ text: t('why.r.ruleVerdict', { verdict: t(`verdict.${verdict}`) }), address: `protection/rules/${id}` });
   else because.push({ text: t('why.r.ruleDefault', { verdict: t(`verdict.${verdict}`) }), address: `protection/rules/${id}` });
-  if (bypassOn(f.session, f.now) && !rule.locked) because.push({ text: t('why.r.ruleBypass') });
   return { subject: 'belt', title: name, now: off ? t('verdict.off') : t(`verdict.${verdict}`), because };
 }
 

@@ -110,13 +110,13 @@ test('the same four answers in the other language: a Turkish switch and number, 
   } finally {
     sw.close();
   }
-  const num = await draw(new FakeData('tr'), { address: 'work/bypass', rows: 48, columns: 100 });
+  const num = await draw(new FakeData('tr'), { address: 'work/full-auto', rows: 48, columns: 100 });
   try {
     await num.press(KEY.down);
     const t = flat(num.text());
-    assert.match(t, /Şu an 2 saat \(varsayılan\)\. Bypass açıldıktan 2 saat sonra kendiliğinden kapanır/);
-    assert.match(t, /Değiştirirsen 1 saat ile 24 saat arasında bir sayı yaz\./);
-    assert.match(t, /Şu an etkisiz, çünkü "Bypass'a izin ver" ayarı: kapalı \(Çalışma › Bypass\)\./);
+    assert.match(t, /Şu an 12 saat \(varsayılan\)\. 12 saat sonra iş raporuyla duraklar/);
+    assert.match(t, /Değiştirirsen 1 saat ile 72 saat arasında bir sayı yaz\./);
+    assert.match(t, /Şu an etkisiz, çünkü "Tam otonom" ayarı: kapalı \(Çalışma › Tam otonom\)\./);
   } finally {
     num.close();
   }

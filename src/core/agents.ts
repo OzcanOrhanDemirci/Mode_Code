@@ -244,12 +244,12 @@ export function reminderDue(s: AgentsState | null | undefined, remindedAt: numbe
   return s.batch.started.length < s.n && remindedAt !== s.batch.at;
 }
 
-/** The control's icon on the strip: set apart from bypass's ⚡ beside it, two cells wide like the modes' icons. */
+/** The control's icon on the strip: two cells wide like the modes' icons. */
 export const AGENTS_ICON = '👥';
 
 /**
  * The strip's words: "👥 agents", "👥 agents ≤5 · 2", "👥 agents =7 · 3/7", "👥 agents · ultracode"; tight, the icon
- * in the word's place: "👥", "👥≤5·2". Off is the control not lit, as bypass's is. It had a ✕, read as a second
+ * in the word's place: "👥", "👥≤5·2". Off is the control not lit, as a switch's is. It had a ✕, read as a second
  * close control, and a terminal draws ✕ wider than the one cell it is given: the lit ground cut it in half.
  */
 export function stripAgents(s: AgentsState, running: number, word: string, tight: boolean, mark = ''): string {

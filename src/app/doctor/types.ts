@@ -193,7 +193,6 @@ export interface Facts {
    * Bypass (docs/autonomy.md): whether a session may switch it on, for how long, in how many sessions it is on
    * now, and the rules it never lifts or only turns into a question that the settings have weakened.
    */
-  bypass: { enabled: boolean; maxHours: number; onNow: number; floorWeakened: string[] };
   /** Updates (core/update.ts): whether the daily check is on, this version, and what the last check found. */
   update: { check: boolean; current: string; state: UpdateState | null };
   /** Claude Code's setup beyond this tool's own (A6 of 1.2.0, setup.ts): what cannot work, costs or widens. */
@@ -204,7 +203,7 @@ export interface Facts {
     jqHooks: { event: string; command: string }[];
     /** Hooks that start a model of their own on each event (`claude -p`). */
     modelHooks: { event: string; command: string }[];
-    /** What the project's shared settings widen: broad allow rules, every project MCP server, bypass as the start. */
+    /** What the project's shared settings widen: broad allow rules, every project MCP server, bypassPermissions as the start. */
     loosened: { scope: string; what: string }[];
     /** MCP servers started at no pinned version. */
     unpinnedMcp: { scope: string; name: string; target: string }[];

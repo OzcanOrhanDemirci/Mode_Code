@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Every place a message sends the person to ("Working › Bypass", "Ayarlar › Özellikler") is a real place in the
+ * Every place a message sends the person to ("Working › Full autonomy", "Ayarlar › Özellikler") is a real place in the
  * control center, in that message's language: each part a page under the one before, and a last part that may be a
  * setting's name on that page (from the catalog). A reference that leads nowhere is the price of a renamed page.
  */
@@ -23,7 +23,7 @@ const bare = (s: string) => s.replace(/^[\s("'`]+|[\s)"'`.,;:!?]+$/g, '');
 
 /**
  * The forms the last part may name a place by: it ends at a comma, or before a Turkish postposition ("Çalışma ›
- * Tam otonom altında aç"), and its last word may carry a case ending after an apostrophe ("Bypass'ta").
+ * Tam otonom altında aç"), and its last word may carry a case ending after an apostrophe ("Tam otonom'da").
  */
 function lastForms(part: string): string[] {
   const s = part.replace(/\s+altınd[ae]n?(?:\s.*)?$/u, '');
@@ -122,15 +122,15 @@ test('the reader of references finds a broken one, and a setting named as the la
   const one = (text: string) => resolveChain(roots, references(text)[0]!.parts, 'en');
   assert.equal(one('Turn it on under Working › Full autonomy.'), null);
   assert.equal(one('Turn them on in the cockpit (/0) or under Working › Parallel agents.'), null);
-  assert.equal(one('With bypass on (control center › Working › Bypass), it asks.'), null);
+  assert.equal(one('With it on (control center › Working › Full autonomy), a run can start.'), null);
   assert.equal(one('The daily check is off: Settings › Language and view › Check for updates daily.'), null);
   assert.match(one('Modes are off (Settings › Moods).') ?? '', /"Moods" is not under settings/);
-  assert.match(one('See Nowhere › Bypass.') ?? '', /is no page/);
+  assert.match(one('See Nowhere › Modes.') ?? '', /is no page/);
   // A last part is the whole name, not the start of one: "Memory folders" is no page because "Memory" is.
   assert.match(one('Add one under Settings › Memory folders.') ?? '', /"Memory folders" is not under settings/);
   const trRoots = buildTree(new FakeData('tr', { view: 'detailed' }), 'tr', NOW);
   const bir = (text: string) => resolveChain(trRoots, references(text)[0]!.parts, 'tr');
-  assert.equal(bir("Çalışma › Bypass'ta ayarlanan süre için açar."), null);
+  assert.equal(bir("Çalışma › Tam otonom'da ayarlanan süre için açar."), null);
   assert.equal(bir('Çalışma › Tam otonom altında aç, sonra yaz.'), null);
   assert.equal(bir("Bak: Claude Code › Hook'lar."), null);
 });

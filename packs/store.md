@@ -1,4 +1,4 @@
-App Store and Google Play from the command line. Checking and preparing are yours; **an upload, a submission and a release are the person's**: the safety belt asks before each, bypass or not.
+App Store and Google Play from the command line. Checking and preparing are yours; **an upload, a submission and a release are the person's**: the safety belt asks before each.
 
 **App Store Connect: `asc`.** The person signs in with an App Store Connect API key (`asc auth login`: key id, issuer id, the `.p8` file); the key never goes into the repository. Set `ASC_TELEMETRY_DISABLED=1`.
 

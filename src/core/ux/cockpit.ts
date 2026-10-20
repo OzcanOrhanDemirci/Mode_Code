@@ -18,7 +18,7 @@ import { isRestricted, MODE_ICON, type WorkMode } from '../modes.js';
 import { baseName } from '../paths.js';
 import type { QuotaAssessment, QuotaWindow } from '../quota.js';
 import { maskSecrets } from '../secrets/scan.js';
-import { bypassOn, type ModSessionState } from '../session.js';
+import type { ModSessionState } from '../session.js';
 import { beltConfigOf } from '../settings-view.js';
 import { confirmText, controlText, effectOf, nameOf, placeOf, SETTINGS, type ControlId, type SettingPath } from './catalog.js';
 import { MEANING_MARK, type MarkName, type Meaning } from './tokens.js';
@@ -41,7 +41,7 @@ export type ModeFrom = 'session' | 'turn' | 'flow' | 'run' | 'plan';
 export interface CockpitFacts {
   /** The settings in effect. */
   config: Readonly<Config>;
-  session: Pick<ModSessionState, 'mode' | 'interaction' | 'bypass' | 'tainted' | 'frozen' | 'agents' | 'weeklyTarget' | 'wrapUp' | 'resumeAt'> | null;
+  session: Pick<ModSessionState, 'mode' | 'interaction' | 'tainted' | 'frozen' | 'agents' | 'weeklyTarget' | 'wrapUp' | 'resumeAt'> | null;
   /** The mode in force now, and where it comes from. */
   mode: WorkMode;
   modeFrom: ModeFrom;
@@ -86,7 +86,7 @@ export interface CanRow {
   mark: MarkName;
   meaning: Meaning;
   text: string;
-  /** Locked: no setting and no bypass changes it. */
+  /** Locked: no setting changes it. */
   locked: boolean;
   /** The reasons (the why engine's answer), each one a sentence. */
   why: { title: string; now: string; because: string[] };
@@ -142,7 +142,7 @@ export interface QuotaView {
 
 /** A control of the session whose permission is a setting: both doors in one row. */
 export interface QuickRow {
-  id: 'bypass' | 'agents' | 'fullAuto' | 'freeze';
+  id: 'agents' | 'fullAuto' | 'freeze';
   label: string;
   /** How it is now, in words: on, off, a number, or not allowed yet. */
   value: string;
@@ -212,7 +212,7 @@ function control(name: string, label: string, card: string, opens: boolean): Coc
 
 /**
  * "Claude right now": what Claude may do in this session, each line worked out from the mode in force, the way of
- * working, the safety belt's rules, bypass, a freeze, the agents, outside content read, and the quota. A line names
+ * working, the safety belt's rules, a freeze, the agents, outside content read, and the quota. A line names
  * what Claude does, never the mechanism; its reasons are the chain of settings and choices behind it.
  */
 export function canNow(f: CockpitFacts, lang: Lang): CanRow[] {
@@ -222,8 +222,6 @@ export function canNow(f: CockpitFacts, lang: Lang): CanRow[] {
     rows.push({ ...r, locked: r.locked ?? false, ...reasons(a, lang, extra) });
   const modes = f.config.modules.modes;
   const restricted = modes && isRestricted(f.mode);
-  const bypass = f.config.bypass.enabled && bypassOn(f.session, f.now);
-  const until = bypass ? clock(f.session!.bypass!.until, lang) : '';
   // The mode in force, and why: the session's own as the why engine says it, or what stands above it (a mode for this
   // message, a flow's step, a run still planning, Claude Code's plan mode), said by its source.
   const sessionMode = why('mode', wf, lang);
@@ -251,21 +249,9 @@ export function canNow(f: CockpitFacts, lang: Lang): CanRow[] {
     );
   else add({ id: 'write', mark: 'ok', meaning: 'on', text: t(lang, 'ck.can.write.yes'), act: null }, mode, [t(lang, 'ck.r.beltWatches')]);
 
-  // Risky steps: the safety belt asks; bypass lets them through; the development switch has the belt off.
-  if (f.beltOff) add({ id: 'risky', mark: 'bypass', meaning: 'bypass', text: t(lang, 'ck.can.risky.devOff'), act: null }, why('belt', wf, lang));
+  // Risky steps: the safety belt asks; the development switch has the belt off.
+  if (f.beltOff) add({ id: 'risky', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.risky.devOff'), act: null }, why('belt', wf, lang));
   else if (restricted) add({ id: 'risky', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.risky.mode'), act: null }, mode);
-  else if (bypass)
-    add(
-      {
-        id: 'risky',
-        mark: 'bypass',
-        meaning: 'bypass',
-        text: t(lang, 'ck.can.risky.bypass', { until }),
-        act: control('bypass', t(lang, 'ck.act.endBypass'), t(lang, 'ux.ctl.bypass.pressOn'), false),
-      },
-      why('bypass', wf, lang),
-      [t(lang, 'ck.r.bypassFloor')],
-    );
   else add({ id: 'risky', mark: 'ask', meaning: 'ask', text: t(lang, 'ck.can.risky.ask'), act: null }, why('belt', wf, lang));
 
   // Deleting outside the project: one rule of the belt, the question a person asks first (docs/design.md, test 10).
@@ -278,7 +264,7 @@ export function canNow(f: CockpitFacts, lang: Lang): CanRow[] {
     card: t(lang, 'ck.act.ruleCard'),
     opens: true,
   };
-  if (f.beltOff) add({ id: 'delete', mark: 'bypass', meaning: 'bypass', text: t(lang, 'ck.can.delete.devOff'), act: null }, why('belt', wf, lang));
+  if (f.beltOff) add({ id: 'delete', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.delete.devOff'), act: null }, why('belt', wf, lang));
   else if (restricted) add({ id: 'delete', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.delete.no'), act: null }, mode);
   else if (verdict === 'deny') add({ id: 'delete', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.delete.no'), act: rule }, whyRule(delId, wf, lang));
   else if (verdict === 'ask') add({ id: 'delete', mark: 'ask', meaning: 'ask', text: t(lang, 'ck.can.delete.ask'), act: rule }, whyRule(delId, wf, lang));
@@ -289,7 +275,7 @@ export function canNow(f: CockpitFacts, lang: Lang): CanRow[] {
       whyRule(delId, wf, lang),
     );
 
-  // The protection protects itself: locked rules no setting and no bypass lifts.
+  // The protection protects itself: locked rules no setting lifts.
   rows.push({
     id: 'self',
     mark: 'bad',
@@ -502,36 +488,14 @@ function quickCard(id: ControlId, now: string, press: string, lang: Lang, gate: 
 }
 
 /**
- * The controls of the session whose permission is a setting (docs/design.md: no hidden second door): bypass, the
- * agents, full autonomy, and the freeze. Not allowed yet, the row says so and a press asks to allow it, with the
+ * The controls of the session whose permission is a setting (docs/design.md: no hidden second door): the agents,
+ * full autonomy, and the freeze. Not allowed yet, the row says so and a press asks to allow it, with the
  * setting's own warning; allowed, a press is the strip's.
  */
 export function quickRows(f: CockpitFacts, lang: Lang): QuickRow[] {
   const s = f.session;
   const rows: QuickRow[] = [];
   const allow = (path: SettingPath): CockpitAct => ({ kind: 'allow', path, label: t(lang, 'ck.act.allow'), card: allowWarning(path, lang), opens: true });
-
-  // Bypass.
-  {
-    const allowed = f.config.bypass.enabled;
-    const on = allowed && bypassOn(s, f.now);
-    const value = !allowed
-      ? t(lang, 'ck.quick.notAllowedShort')
-      : on
-        ? t(lang, 'ck.quick.bypassOn', { until: clock(s!.bypass!.until, lang), n: s!.bypass!.count })
-        : t(lang, 'ck.quick.off');
-    const press = !allowed ? allowText('bypass.enabled', lang) : controlText('bypass', 'press', lang);
-    rows.push({
-      id: 'bypass',
-      label: t(lang, 'ck.quick.bypass'),
-      value,
-      on,
-      meaning: on ? 'bypass' : 'off',
-      gate: { path: 'bypass.enabled', allowed },
-      press: allowed ? control('bypass', t(lang, 'ck.quick.bypass'), on ? t(lang, 'ux.ctl.bypass.pressOn') : press, !on) : allow('bypass.enabled'),
-      card: quickCard('bypass', value, on ? t(lang, 'ux.ctl.bypass.pressOn') : press, lang, gateCard('bypass.enabled', allowed, lang)),
-    });
-  }
 
   // Parallel agents.
   {
@@ -627,7 +591,7 @@ function allowText(path: SettingPath, lang: Lang): string {
 }
 
 /** The permissions the cockpit offers to allow, by the words of their warnings. */
-const ALLOW_WORDS: Readonly<Record<string, string>> = { 'bypass.enabled': 'bypass', 'agents.enabled': 'agents', 'autonomy.enabled': 'autonomy' };
+const ALLOW_WORDS: Readonly<Record<string, string>> = { 'agents.enabled': 'agents', 'autonomy.enabled': 'autonomy' };
 
 /**
  * The warning shown before a permission is turned on: what allowing it means, said for a press (the control center's

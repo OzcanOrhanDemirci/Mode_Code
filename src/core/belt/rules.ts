@@ -1,18 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * The rule catalog: every rule the safety belt knows, its category, its default verdict, whether it is
- * locked, and what it does while bypass is on. A locked rule protects the protection itself (settings, the
- * tool's files, memory, nested sessions that would run without hooks, secrets leaving the machine): it
- * cannot be switched off and its verdict can only be made stricter. Defaults follow one principle: a
- * protection that fires too often gets switched off, so only the clearly catastrophic is denied; what is
- * legitimate but dangerous asks the person; the rest warns.
- *
- * Bypass (decided with the person, 2026-10-15) lifts the belt for one session in three tiers:
- *  · keep: self-protection and secrets leaving the machine. Bypass changes nothing; there is no way around.
- *  · ask: what cannot be undone and is rarely needed (deleting a drive root, a system folder or data in the
- *    cloud, formatting a disk, turning security software off) is blocked without bypass and asked with it;
- *    deleting outside the project, a .git folder or a database is asked either way.
- *  · allow (the rest): no question, and each call is recorded for the person to review.
+ * The rule catalog: every rule the safety belt knows, its category, its default verdict, and whether it is
+ * locked. A locked rule protects the protection itself (settings, the tool's files, memory, nested sessions
+ * that would run without hooks, secrets leaving the machine) and what cannot be undone (a drive root, a system
+ * folder, a disk): it cannot be switched off and its verdict can only be made stricter. Defaults follow one
+ * principle: a protection that fires too often gets switched off, so only the clearly catastrophic is denied;
+ * what is legitimate but dangerous asks the person; the rest warns.
  */
 import type { RuleConfig, RuleId, Verdict } from './types.js';
 import { VERDICT_ORDER } from './types.js';
@@ -20,25 +13,20 @@ import { VERDICT_ORDER } from './types.js';
 export type RuleCategory =
   'git' | 'fs' | 'self' | 'claude' | 'persist' | 'publish' | 'docker' | 'data' | 'system' | 'outbound' | 'secrets' | 'quality' | 'inject' | 'meta';
 
-/** What a rule does while bypass is on: its verdict stays, it asks, or it lets the call through. */
-export type BypassTier = 'keep' | 'ask' | 'allow';
-
 export interface RuleInfo {
   id: RuleId;
   category: RuleCategory;
   verdict: Verdict;
   locked: boolean;
-  bypass: BypassTier;
   /** Rules in a pack apply only when the person turns the pack on. */
   pack?: keyof NonNullable<RuleConfig['packs']>;
 }
 
-const r = (id: RuleId, category: RuleCategory, verdict: Verdict, bypass: BypassTier = 'allow', locked = false, pack?: RuleInfo['pack']): RuleInfo => ({
+const r = (id: RuleId, category: RuleCategory, verdict: Verdict, locked = false, pack?: RuleInfo['pack']): RuleInfo => ({
   id,
   category,
   verdict,
   locked,
-  bypass,
   ...(pack ? { pack } : {}),
 });
 
@@ -59,21 +47,21 @@ export const RULES: Readonly<Record<RuleId, RuleInfo>> = Object.freeze({
   'git.branch-force-delete': r('git.branch-force-delete', 'git', 'ask'),
   'github.admin-merge': r('github.admin-merge', 'git', 'ask'),
   'github.delete': r('github.delete', 'git', 'ask'),
-  'fs.delete-critical': r('fs.delete-critical', 'fs', 'deny', 'ask', true),
-  'fs.delete-outside-project': r('fs.delete-outside-project', 'fs', 'ask', 'ask'),
-  'fs.delete-git-dir': r('fs.delete-git-dir', 'fs', 'ask', 'ask'),
-  'fs.move-critical': r('fs.move-critical', 'fs', 'deny', 'ask', true),
-  'fs.disk': r('fs.disk', 'fs', 'deny', 'ask', true),
-  'self.claude-settings': r('self.claude-settings', 'self', 'deny', 'keep', true),
-  'self.claude-settings-project': r('self.claude-settings-project', 'self', 'ask', 'keep', true),
-  'self.disable-hooks': r('self.disable-hooks', 'self', 'deny', 'keep', true),
-  'self.tool-files': r('self.tool-files', 'self', 'deny', 'keep', true),
-  'self.plugin-cli': r('self.plugin-cli', 'self', 'deny', 'keep', true),
-  'self.nested-session': r('self.nested-session', 'self', 'deny', 'keep', true),
+  'fs.delete-critical': r('fs.delete-critical', 'fs', 'deny', true),
+  'fs.delete-outside-project': r('fs.delete-outside-project', 'fs', 'ask'),
+  'fs.delete-git-dir': r('fs.delete-git-dir', 'fs', 'ask'),
+  'fs.move-critical': r('fs.move-critical', 'fs', 'deny', true),
+  'fs.disk': r('fs.disk', 'fs', 'deny', true),
+  'self.claude-settings': r('self.claude-settings', 'self', 'deny', true),
+  'self.claude-settings-project': r('self.claude-settings-project', 'self', 'ask', true),
+  'self.disable-hooks': r('self.disable-hooks', 'self', 'deny', true),
+  'self.tool-files': r('self.tool-files', 'self', 'deny', true),
+  'self.plugin-cli': r('self.plugin-cli', 'self', 'deny', true),
+  'self.nested-session': r('self.nested-session', 'self', 'deny', true),
   'claude.config-change': r('claude.config-change', 'claude', 'ask'),
-  'self.memory-delete': r('self.memory-delete', 'self', 'deny', 'keep', true),
-  'self.memory-shrink': r('self.memory-shrink', 'self', 'ask', 'keep', true),
-  'self.memory-history': r('self.memory-history', 'self', 'deny', 'keep', true),
+  'self.memory-delete': r('self.memory-delete', 'self', 'deny', true),
+  'self.memory-shrink': r('self.memory-shrink', 'self', 'ask', true),
+  'self.memory-history': r('self.memory-history', 'self', 'deny', true),
   'persist.scheduled-task': r('persist.scheduled-task', 'persist', 'ask'),
   'persist.startup': r('persist.startup', 'persist', 'ask'),
   'persist.shell-profile': r('persist.shell-profile', 'persist', 'ask'),
@@ -81,27 +69,27 @@ export const RULES: Readonly<Record<RuleId, RuleInfo>> = Object.freeze({
   'publish.package': r('publish.package', 'publish', 'ask'),
   'publish.visibility': r('publish.visibility', 'publish', 'ask'),
   'publish.deploy': r('publish.deploy', 'publish', 'ask'),
-  // An app store upload, submission or release, and a payment: the person's, bypass or not (K5 of 1.2.0).
-  'publish.store': r('publish.store', 'publish', 'ask', 'ask'),
-  'docker.volume-delete': r('docker.volume-delete', 'docker', 'deny', 'ask', false, 'dockerVolumes'),
-  'data.delete-cloud': r('data.delete-cloud', 'data', 'deny', 'ask'),
+  // An app store upload, submission or release, and a payment: always the person's (K5 of 1.2.0).
+  'publish.store': r('publish.store', 'publish', 'ask'),
+  'docker.volume-delete': r('docker.volume-delete', 'docker', 'deny', false, 'dockerVolumes'),
+  'data.delete-cloud': r('data.delete-cloud', 'data', 'deny'),
   'data.write-cloud': r('data.write-cloud', 'data', 'ask'),
-  'data.reset-database': r('data.reset-database', 'data', 'ask', 'ask'),
-  'system.security-off': r('system.security-off', 'system', 'deny', 'ask'),
+  'data.reset-database': r('data.reset-database', 'data', 'ask'),
+  'system.security-off': r('system.security-off', 'system', 'deny'),
   'outbound.send': r('outbound.send', 'outbound', 'ask'),
   'outbound.delete': r('outbound.delete', 'outbound', 'ask'),
-  'outbound.payment': r('outbound.payment', 'outbound', 'ask', 'ask'),
-  // A key pushed to a public repository is leaked the moment it lands: asked about even with bypass on.
-  'secrets.stage': r('secrets.stage', 'secrets', 'ask', 'ask'),
+  'outbound.payment': r('outbound.payment', 'outbound', 'ask'),
+  // A key pushed to a public repository is leaked the moment it lands: asked about.
+  'secrets.stage': r('secrets.stage', 'secrets', 'ask'),
   'secrets.write': r('secrets.write', 'secrets', 'warn'),
-  'secrets.exfil': r('secrets.exfil', 'secrets', 'deny', 'keep', true),
+  'secrets.exfil': r('secrets.exfil', 'secrets', 'deny', true),
   // The project's own lint and format settings: loosening a rule is how a failing check is made to pass.
   'quality.check-config': r('quality.check-config', 'quality', 'ask'),
   // After outside content was read (a page, an issue, a service's data): sending, persisting or writing the memory is
-  // what an instruction hidden in it would ask for. Asked, with bypass too (src/core/taint.ts).
-  'inject.tainted-act': r('inject.tainted-act', 'inject', 'ask', 'ask'),
+  // what an instruction hidden in it would ask for. Asked (src/core/taint.ts).
+  'inject.tainted-act': r('inject.tainted-act', 'inject', 'ask'),
   // What cannot be followed could be anything, the floor included: never let through unseen.
-  'meta.unverifiable': r('meta.unverifiable', 'meta', 'ask', 'ask', true),
+  'meta.unverifiable': r('meta.unverifiable', 'meta', 'ask', true),
 });
 
 export const RULE_IDS = Object.keys(RULES) as RuleId[];
@@ -118,14 +106,4 @@ export function effectiveVerdict(id: RuleId, config: RuleConfig): Verdict | null
   if (!override) return info.verdict;
   if (info.locked && VERDICT_ORDER[override] < VERDICT_ORDER[info.verdict]) return info.verdict;
   return override;
-}
-
-/**
- * The verdict while bypass is on, from the verdict without it. A note stays a note: it asks nothing.
- * The floor asks even where the person made the rule stricter (a deny they set becomes a question too).
- */
-export function bypassVerdict(id: RuleId, verdict: Verdict): Verdict {
-  const tier = RULES[id].bypass;
-  if (tier === 'keep' || verdict === 'allow' || verdict === 'warn') return verdict;
-  return tier === 'ask' ? 'ask' : 'allow';
 }

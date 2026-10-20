@@ -64,7 +64,6 @@ export const ACTIVITY_KINDS = [
   'conflict',
   'flow',
   'run',
-  'bypass',
   'permission',
   'flagged',
 ] as const;
@@ -189,12 +188,6 @@ export function activityOf(e: ActivityEvent, lang: Lang): ActivityLine {
         run ? `work/runs/${run}` : 'work/runs',
       );
     }
-    case 'bypass':
-      if (e.action === 'on')
-        return line('note', t('act.bypass.on', { hours: num(e.hours) }), t('act.why.bypass', { name: nameOf('bypass.enabled', lang) }), 'work/bypass');
-      if (e.action === 'off')
-        return line('done', t('act.bypass.off', { n: num(e.count) }), t('act.why.bypass', { name: nameOf('bypass.enabled', lang) }), 'work/bypassed');
-      return line('note', t('act.bypass.call', { tool }), t('act.why.bypass', { name: nameOf('bypass.enabled', lang) }), 'work/bypassed');
     case 'permission':
       return line('done', t('act.permission', { tool }), t('act.why.permission'), 'claude-code/permissions', true);
     case 'flagged': {

@@ -27,7 +27,6 @@ export type ControlAction =
   | { kind: 'continue' }
   | { kind: 'quota' }
   | { kind: 'close' }
-  | { kind: 'bypass' }
   | { kind: 'freeze' }
   | { kind: 'agents' }
   | { kind: 'why' };
@@ -53,8 +52,6 @@ export const COMMANDS: readonly { name: string; action: ControlAction }[] = [
   // Full autonomy has no number: a special way of working, shown only once turned on (Automation).
   { name: 'tam-otonom', action: { kind: 'fullAuto' } },
   { name: 'full-auto', action: { kind: 'fullAuto' } },
-  // Bypass has no number either: on the strip only once turned on (Automation), switched by the person alone.
-  { name: 'bypass', action: { kind: 'bypass' } },
   // Freezing the edits to one folder takes a folder, so a word: on the strip only while it holds.
   { name: 'dondur', action: { kind: 'freeze' } },
   { name: 'freeze', action: { kind: 'freeze' } },
@@ -77,7 +74,6 @@ export function digitOf(action: ControlAction): string {
 /** The command that does `action`: its number, or for one without (full autonomy) its word in `lang`. */
 export function commandOf(action: ControlAction, lang: Lang): string {
   if (action.kind === 'fullAuto') return lang === 'tr' ? 'tam-otonom' : 'full-auto';
-  if (action.kind === 'bypass') return 'bypass';
   if (action.kind === 'freeze') return lang === 'tr' ? 'dondur' : 'freeze';
   if (action.kind === 'agents') return lang === 'tr' ? 'ajan' : 'parallel';
   if (action.kind === 'why') return lang === 'tr' ? 'neden' : 'why';
@@ -260,8 +256,6 @@ export interface StripItem {
   active: boolean;
   /** Breathing: the mode a running flow's step works in (the flow itself is the one lit). */
   pulse?: boolean;
-  /** Drawn in the colour of danger: bypass while it is on. */
-  alert?: boolean;
 }
 
 /**
@@ -296,8 +290,6 @@ export interface StripView {
   flow: FlowView | null;
   /** Full autonomy is turned on (Automation), or a run is attached: only then is it on the strip. */
   fullAutoShown: boolean;
-  /** Bypass: on the strip once turned on (Automation); on in this session; the calls it let through so far. */
-  bypass: { shown: boolean; on: boolean; count: number };
   /** The folder the edits are frozen to (`/dondur`), as the strip names it; null or absent while they are not. */
   frozen?: string | null;
   /** Parallel agents: on the strip once turned on (Automation); the session's mode, and how many run now. */
@@ -312,16 +304,6 @@ export interface StripView {
  */
 const OPENER = mark('opener', false);
 const switchMark = (on: boolean) => mark(on ? 'on' : 'off', false);
-
-/**
- * Bypass, a switch: "⚡ bypass ○", and while it is on the calls it let through: "⚡ bypass ● · 3". In a line
- * of text it is named only while on, and nothing there is a control: "⚡ bypass · 3".
- */
-function bypassText(b: StripView['bypass'], tight: boolean, strip = true): string {
-  const count = b.on && b.count > 0 ? (tight ? `${b.count}` : ` · ${b.count}`) : '';
-  const state = strip ? (tight ? switchMark(b.on) : ` ${switchMark(b.on)}`) : '';
-  return tight ? `⚡${state}${count}` : `⚡ bypass${state}${count}`;
-}
 
 const MODES: readonly WorkMode[] = ['chat', 'research', 'plan', 'code', 'free'];
 const STYLES: readonly ('manual' | 'autonomous')[] = ['manual', 'autonomous'];
@@ -411,16 +393,6 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
               },
             ]
           : []),
-        ...(v.bypass.shown || v.bypass.on
-          ? [
-              {
-                id: commandOf({ kind: 'bypass' }, lang),
-                label: bypassText(v.bypass, tight),
-                active: v.bypass.on,
-                ...(v.bypass.on ? { alert: true } : {}),
-              },
-            ]
-          : []),
         ...(v.frozen
           ? [{ id: commandOf({ kind: 'freeze' }, lang), label: tight ? `❄${switchMark(true)}` : `❄ ${v.frozen} ${switchMark(true)}`, active: true }]
           : []),
@@ -464,7 +436,7 @@ export function controlsLine(v: StripView, lang: Lang): string {
     : a.state.mode === 'off' && !a.state.ultracode
       ? ` · ${AGENTS_ICON} ${tIn(lang, 'ctl.line.agentsOff')}`
       : ` · ${stripAgents(a.state, a.running, tIn(lang, 'ctl.strip.agents'), false)}`;
-  return `${modeLabel(v.mode, lang)} · ${style}${flow}${v.bypass.on ? ` · ${bypassText(v.bypass, false, false)}` : ''}${v.frozen ? ` · ❄ ${v.frozen}` : ''}${agents}`;
+  return `${modeLabel(v.mode, lang)} · ${style}${flow}${v.frozen ? ` · ❄ ${v.frozen}` : ''}${agents}`;
 }
 
 /**
@@ -481,7 +453,6 @@ export function menuText(v: StripView, lang: Lang, quota: string, update: string
   const styles = [
     ...STYLES.map((s) => mark(v.style === s, `/${STYLE_DIGIT[s]} ${tIn(lang, `ctl.style.${s}` as MessageKey)}`)),
     ...(v.fullAutoShown || v.style === 'full' ? [mark(v.style === 'full', `/${commandOf({ kind: 'fullAuto' }, lang)}`)] : []),
-    ...(v.bypass.shown || v.bypass.on ? [mark(v.bypass.on, `/bypass`)] : []),
     ...(v.agents?.shown ? [mark(v.agents.state.mode !== 'off', `/${commandOf({ kind: 'agents' }, lang)}`)] : []),
   ].join(' · ');
   const other = ['/devam', '/kota', `/0 ${tIn(lang, 'ctl.strip.cockpit')}`, `/00 ${tIn(lang, 'ctl.strip.close')}`].join(' · ');

@@ -28,7 +28,6 @@ export const GLOSSARY: readonly Term[] = [
     notEn: /\bfence\b/i,
     notTr: word('çit'),
   },
-  { idea: 'a session where the safety belt asks nothing', en: 'bypass (works without asking)', tr: 'bypass (sormadan çalış)', notTr: /izinsiz/iu },
   { idea: 'helper Claudes that run beside the main one', en: 'agents', tr: 'ajanlar', notEn: /\bsub-?agents?\b/i, notTr: /alt ajan/iu },
   {
     idea: 'the 5-hour and weekly periods of the quota',

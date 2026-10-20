@@ -601,29 +601,6 @@ const installAutonomy: Check = (f) => {
   });
 };
 
-/**
- * Bypass (docs/autonomy.md): off, said once; on, for how long and in how many sessions now. A rule bypass never
- * lifts or only turns into a question, switched off or set to allow in the settings, is a warning: bypass would
- * then let through what it is meant to keep asking about.
- */
-const protectBypass: Check = (f) => {
-  const id = 'protection.bypass';
-  const details = f.bypass.floorWeakened.map((r) => m('doc.line', { text: r }));
-  if (details.length)
-    return result(id, 'protection', true, 'warn', m('doc.bypass.floorWeakened', { n: details.length }), {
-      details,
-      hint: m('doc.bypass.floorHint'),
-    });
-  if (!f.bypass.enabled) return result(id, 'protection', false, 'info', m('doc.bypass.off'));
-  return result(
-    id,
-    'protection',
-    false,
-    'info',
-    f.bypass.onNow ? m('doc.bypass.onNow', { n: f.bypass.onNow, hours: f.bypass.maxHours }) : m('doc.bypass.on', { hours: f.bypass.maxHours }),
-  );
-};
-
 /** Every check, in the order the report shows them. */
 // ── Claude Code's setup beyond this tool's own (A6 of 1.2.0, setup.ts) ──
 
@@ -755,7 +732,6 @@ export const CHECKS: readonly Check[] = [
   protectLinks,
   protectShortNames,
   protectMemory,
-  protectBypass,
   protectProjectSettings,
   protectMcpPinned,
   protectSettingsSecrets,

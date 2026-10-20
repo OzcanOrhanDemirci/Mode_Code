@@ -2,7 +2,7 @@
 
 A **tool pack** extends Claude for one kind of work: building a Flutter app, working with Firebase, preparing a store release, testing a web page, writing a Typst document, rendering a 3D model, cutting a video. Each pack is a Claude Code plugin with a guide (a skill) and, for some, a local server. A pack is **on only in the projects that need it**: elsewhere it is not loaded and costs nothing.
 
-You do not have to know the packs. With **Automatic use** on (the default, asked at install), a project turns on the packs its files call for as a session starts there, and Claude can turn one on when the work needs it. Store uploads and payments stay yours: they are asked every time, bypass or not.
+You do not have to know the packs. With **Automatic use** on (the default, asked at install), a project turns on the packs its files call for as a session starts there, and Claude can turn one on when the work needs it. Store uploads and payments stay yours: they are asked every time.
 
 ## The packs
 

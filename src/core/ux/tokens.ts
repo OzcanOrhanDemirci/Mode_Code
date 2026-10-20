@@ -7,7 +7,7 @@
  */
 
 /** What a colour or a mark says. */
-export type Meaning = 'on' | 'off' | 'ask' | 'bad' | 'focus' | 'bypass' | 'agents';
+export type Meaning = 'on' | 'off' | 'ask' | 'bad' | 'focus' | 'agents';
 
 /**
  * The colour of each meaning: Ink's names (the 16 basic colours, so the person's terminal theme decides the contrast),
@@ -20,7 +20,6 @@ export const COLORS: Record<Meaning, { ink: string; bright: string; claude: stri
   ask: { ink: 'yellow', bright: 'yellowBright', claude: 'warning' },
   bad: { ink: 'red', bright: 'redBright', claude: 'error' },
   focus: { ink: 'cyan', bright: 'whiteBright', claude: 'suggestion' },
-  bypass: { ink: 'red', bright: 'redBright', claude: 'error' },
   agents: { ink: 'blue', bright: 'blueBright', claude: 'permission' },
 };
 
@@ -60,7 +59,6 @@ export const MARKS = {
   opener: m('…', '...'),
   /** Does something now (on the strip). */
   action: m('▶', '>'),
-  bypass: m('⚡', '[bypass]'),
   agents: m('👥', '[agents]'),
   lock: m('🔒', '(locked)'),
   /** A meter's filled and empty cells, and its threshold. */
@@ -83,7 +81,6 @@ export const MEANING_MARK: Record<Meaning, MarkName> = {
   ask: 'ask',
   bad: 'bad',
   focus: 'focus',
-  bypass: 'bypass',
   agents: 'agents',
 };
 
