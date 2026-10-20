@@ -108,6 +108,8 @@ Locked rules accept only stricter actions; the settings file cannot switch them 
 
 ## Limits
 
+What the protection is for, what it is not for, and what it takes for granted: [threat-model.md](threat-model.md).
+
 On native Windows there is no sandbox under Claude Code, and a script file can do what a single command cannot. There the belt prevents accidents; it is not a security boundary against a determined adversary. On macOS, Linux and WSL2, Claude Code's sandbox (`sandbox.filesystem.denyWrite`) adds a layer the belt does not replace; full autonomy requires it ([autonomy.md](autonomy.md)).
 
 A command typed on Windows for a WSL distribution (`wsl -d <name> -- …`) is judged with the distribution's paths: its home and absolute paths are the distribution's (shown as `//wsl.localhost/<name>/…`), the Windows drives it mounts under `/mnt` are Windows paths with Windows' protection, a relative path is relative to where `wsl` starts, and deleting the distribution's root, home or system folders is refused.
