@@ -68,6 +68,14 @@ The rules are the same in every way of working; the way of working on the strip 
 - **A safety net turns a question into an undoable step** in Autonomous and full autonomy (below): with what the call takes away kept first, it runs.
 - `mode-code belt test --level autonomous --command "git reset --hard"` shows what a way of working decides; `mode-code belt rules` lists each rule's verdict in Manual.
 
+## Three more families
+
+- **Data sent off the computer** (`outbound.network`): a request body or method, an upload, a raw socket, a copy to another host, a comment through `gh`. Reading is free; this computer (`localhost`, `127.0.0.1`, `::1`) is no outside. To a host you named in this session, or one of the project's remotes, it goes on with a note in Autonomous and full autonomy; to any other host it is asked in Autonomous and left to you in full autonomy; to a host found only in what the session read from outside, it is refused everywhere ([Evidence](#evidence)).
+- **A file something more trusted runs later** (`persist.autorun`): a git hook (`.git/hooks/`), husky's (`.husky/`), direnv's `.envrc`, a macOS launch agent, a `package.json` given a script that runs on install. Asked, and in Autonomous a note when the text written is word for word yours; left to you in full autonomy unless you clearly asked for it ([A clear request](#a-clear-request-in-full-autonomy)). The broad ring (an editor's tasks, a dev container, CI workflows), run later by your own tools, is a note.
+- **Another agent program started without its own approvals** (`codex --yolo`, `gemini --yolo`, `aider --yes-always`, `amp --dangerously-allow-all`): a session the belt does not watch, left to you in every way of working (`self.nested-session`).
+
+With these, outside content no longer asks about sending or about what starts by itself on its own: those are the rules above, for every session. What it still asks is writing into the memory what was read from outside.
+
 ## Fewer false alarms
 
 Measured on real sessions (the decision table's baseline), four kinds of question were the belt's own mistakes, now answered by what code can check:

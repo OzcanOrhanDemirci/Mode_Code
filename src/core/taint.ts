@@ -12,7 +12,7 @@ import { APP_ID, PLUGIN_NAME } from './app.js';
 import { packOfTool } from './packs.js';
 import { isFileTool, shellOf } from './belt/tools.js';
 import { isUnder, pathKey, resolvePath, type PathEnv } from './paths.js';
-import { carriesOutside, originOf, unitsIn, type Provenance } from './provenance.js';
+import { carriesOutside, type Provenance } from './provenance.js';
 
 /** Programs whose output is what a remote server sent. */
 const FETCHERS = new Set(['curl', 'wget', 'invoke-webrequest', 'invoke-restmethod', 'http', 'https', 'xh']);
@@ -78,7 +78,8 @@ function remote(arg: string): boolean {
   return host.length > 1 && !/[/\\]/.test(host);
 }
 
-function sends(program: string, args: readonly string[]): boolean {
+/** Whether a call sends data off the computer: a request body or method, an upload, a raw socket, a copy to a host, a comment through gh. */
+export function sends(program: string, args: readonly string[]): boolean {
   if (SENDERS.has(program)) return program === 'rsync' || program === 'scp' ? args.some(remote) : true;
   if (FETCHERS.has(program)) {
     if (args.some((a) => SEND_FLAGS.test(a.split('=')[0]!))) return true;
@@ -91,6 +92,33 @@ function sends(program: string, args: readonly string[]): boolean {
     return /^(?:issue|pr|discussion|gist|release)$/.test(sub ?? '') && /^(?:create|comment|edit|review|upload)$/.test(verb ?? '');
   }
   return false;
+}
+
+/** A host on this computer: what is sent there does not leave it. */
+export function isLocalHost(host: string): boolean {
+  return /^(?:localhost|.+\.localhost|127(?:\.\d{1,3}){3}|::1|0\.0\.0\.0|host\.docker\.internal)$/i.test(host);
+}
+
+/**
+ * The hosts a sending call reaches: a URL's host, the host of a copy to another machine (`host:path`), a socket's
+ * host, GitHub for gh. Empty when none can be told (a variable, a name only known when it runs).
+ */
+export function sendHosts(program: string, args: readonly string[], dynamic: readonly boolean[] = []): string[] {
+  if (program === 'gh') return ['github.com'];
+  const hosts: string[] = [];
+  args.forEach((a, i) => {
+    if (dynamic[i]) return;
+    const url = /^[a-z][a-z0-9+.-]*:\/\/(?:[^@/]*@)?(\[[^\]]+\]|[^/:?#]+)/i.exec(a);
+    if (url) hosts.push(url[1]!.replace(/^\[|\]$/g, '').toLowerCase());
+    else if ((program === 'scp' || program === 'rsync' || program === 'sftp') && remote(a))
+      hosts.push(a.slice(0, a.indexOf(':')).replace(/^.*@/, '').toLowerCase());
+  });
+  if (!hosts.length && (SENDERS.has(program) || FETCHERS.has(program))) {
+    // A bare host: `nc host 9000`, `curl -d x example.com/api`.
+    const bare = args.find((a, i) => !dynamic[i] && !a.startsWith('-') && /^(?:[a-z0-9-]+\.)+[a-z]{2,}(?:[:/].*)?$|^localhost(?:[:/].*)?$/i.test(a));
+    if (bare) hosts.push(bare.split(/[:/]/)[0]!.toLowerCase());
+  }
+  return [...new Set(hosts)];
 }
 
 /**
@@ -139,15 +167,10 @@ export function taintedAct(
 }
 
 /**
- * Whether what a tainted session's call does still needs the person, by where its parts came from
- * (src/core/provenance.ts): the memory written only with what the session did not read from outside, or data sent
- * only to hosts the person named or the project's remotes, goes on; what starts by itself is asked still.
+ * Whether what a tainted session's call does still needs the person here. Sending data out and what starts by
+ * itself are the belt's own rules now, for every session (`outbound.network`, `persist.*`), each by where its
+ * target came from (src/core/provenance.ts). What stays is the memory: written with what was read from outside.
  */
 export function taintMatters(t: { act: TaintedAct; what: string }, written: string, prov: Provenance): boolean {
-  if (t.act === 'memory') return carriesOutside(written || t.what, prov);
-  if (t.act === 'send') {
-    const hosts = unitsIn(t.what).filter((u) => !u.includes('/') && !u.includes('@'));
-    return !hosts.length || hosts.some((h) => originOf(h, 'host', prov) !== 'person' && originOf(h, 'host', prov) !== 'record');
-  }
-  return true;
+  return t.act === 'memory' && carriesOutside(written || t.what, prov);
 }

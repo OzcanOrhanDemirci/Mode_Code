@@ -67,6 +67,8 @@ const TABLE: Record<RuleId, string> = {
   'quality.check-config': 'ask ask note',
   'inject.tainted-act': 'ask ask self',
   'meta.unverifiable': 'ask ask self',
+  'outbound.network': 'ask ask self',
+  'persist.autorun': 'ask ask self',
 };
 
 test('every rule does in each way of working what the approved table says, and its verdict is its Manual one', () => {

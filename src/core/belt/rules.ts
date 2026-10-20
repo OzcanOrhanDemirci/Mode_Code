@@ -124,6 +124,8 @@ export const RULES: Readonly<Record<RuleId, RuleInfo>> = Object.freeze({
   'persist.scheduled-task': r('persist.scheduled-task', 'persist', ASK, false, undefined, undefined, EVIDENCE_AUTO),
   'persist.startup': r('persist.startup', 'persist', ASK, false, undefined, undefined, EVIDENCE_AUTO),
   'persist.shell-profile': r('persist.shell-profile', 'persist', ASK, false, undefined, undefined, EVIDENCE_AUTO),
+  // Trust passed on: a file something more trusted runs later (a git hook, an install script, .envrc).
+  'persist.autorun': r('persist.autorun', 'persist', ASK, false, undefined, undefined, EVIDENCE_AUTO),
   'persist.ssh': r('persist.ssh', 'persist', SELF),
   'publish.package': r('publish.package', 'publish', ASK),
   'publish.visibility': r('publish.visibility', 'publish', ASK),
@@ -136,6 +138,9 @@ export const RULES: Readonly<Record<RuleId, RuleInfo>> = Object.freeze({
   'data.reset-database': r('data.reset-database', 'data', ASK),
   'system.security-off': r('system.security-off', 'system', SELF),
   'outbound.send': r('outbound.send', 'outbound', ASK, false, undefined, undefined, EVIDENCE_NOTE),
+  // Data sent off the computer by a command (a request body, an upload, a socket, a copy to a host): to a host the
+  // person named or the project's remotes hold it goes on, to any other it is asked; reading is free.
+  'outbound.network': r('outbound.network', 'outbound', ASK, false, undefined, undefined, EVIDENCE_NOTE),
   'outbound.delete': r('outbound.delete', 'outbound', ASK, false, undefined, undefined, EVIDENCE_AUTO),
   'outbound.payment': r('outbound.payment', 'outbound', ASK),
   // A key pushed to a public repository is leaked the moment it lands: asked about.

@@ -62,6 +62,7 @@ const TARGETS = {
     'test/core/belt-evidence.test.ts',
     'test/core/belt-request.test.ts',
     'test/core/belt-refine.test.ts',
+    'test/core/belt-families.test.ts',
     'test/core/config.test.ts',
   ],
   'src/core/keywords.ts': [
@@ -107,7 +108,7 @@ const TARGETS = {
   // `/0` (docs/modes.md, "Session controls"): which terminal opens the control center, with which arguments.
   'src/core/launch.ts': ['test/core/launch.test.ts'],
   'src/core/update.ts': ['test/core/update.test.ts'],
-  'src/core/taint.ts': ['test/core/taint.test.ts', 'test/core/belt-evidence.test.ts'],
+  'src/core/taint.ts': ['test/core/taint.test.ts', 'test/core/belt-evidence.test.ts', 'test/core/belt-families.test.ts'],
   'src/core/hygiene.ts': ['test/core/hygiene.test.ts'],
   'src/core/measure.ts': ['test/core/measure.test.ts'],
   'src/core/permissions.ts': ['test/core/permissions.test.ts'],

@@ -273,6 +273,9 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'rule.system.security-off': 'Güvenlik yazılımını kapatmak ya da zayıflatmak: Defender ve dışlamaları, güvenlik duvarı, hesap denetimi, Gatekeeper, SELinux.',
   'rule.github.admin-merge': "Bir PR'ı yönetici yetkisiyle, deponun zorunlu denetimlerini atlayarak birleştirmek.",
   'rule.github.delete': "GitHub'da silmek ya da arşivlemek: sürümler, gizli anahtarlar, değişkenler, etiketler, gist'ler, API DELETE çağrıları.",
+  'rule.outbound.network':
+    "Bir komutla bilgisayardan dışarı veri göndermek (istek gövdesi, yükleme, soket, başka bir makineye kopya, gh ile yorum): host senin adını verdiğin ya da projenin remote'u değilse sorulur; okumak serbest",
+  'rule.persist.autorun': "Daha yetkili bir şeyin sonra çalıştırdığı bir dosyaya yazmak: bir git ya da husky hook'u, .envrc, package.json kurulum betiği",
   'rule.outbound.send': 'Bağlı bir servisle göndermek, paylaşmak, davet etmek ya da yanıtlamak (posta, takvim etkinlikleri, sürücüler …).',
   'rule.outbound.delete': 'Bağlı bir serviste silmek ya da çöpe atmak.',
   'rule.secrets.exfil':
