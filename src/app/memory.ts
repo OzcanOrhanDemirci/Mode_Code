@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * The memory store as the command line and the control center see it (docs/memory.md): where it lives and
- * whether Claude Code uses it, its last sync and its local state, the handoff notes of a project, the notes
- * from full-autonomy runs and the person's decisions on them, and the facts of the morning report.
+ * whether Claude Code uses it, its last sync and its local state, the handoff notes of a project, and the facts of
+ * the morning report.
  */
 import { existsSync, readdirSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { basename } from 'node:path';
 import type { MemoryStore } from '../core/config.js';
 import { nextOf, parseHandoff, type Handoff } from '../core/handoff.js';
 import { memorySyncFile } from '../core/layout.js';
 import { handoffRoot } from '../core/memory.js';
 import { newestRecord, parseSyncRecord, type SyncRecord } from '../core/memory-sync.js';
-import { parseActivity, parseNoteDecisions, pendingNotes, type MorningFacts, type NoteDecisions } from '../core/morning.js';
+import { parseActivity, type MorningFacts } from '../core/morning.js';
 import { pathKey } from '../core/paths.js';
 import { newerThan } from '../core/update.js';
 import { APP_VERSION } from '../core/app.js';
@@ -19,9 +19,8 @@ import type { AppContext } from './context.js';
 import { loadEvents, openIndex } from './data.js';
 import { loadFlows } from './flows.js';
 import { elsewhereFacts } from './sync.js';
-import { loadRuns } from './runs.js';
 import { claudeDir, platform, toolPath } from '../node/env.js';
-import { readText, writeJsonAtomic } from '../node/fsx.js';
+import { readText } from '../node/fsx.js';
 import { repoStatus } from '../node/git.js';
 import { handoffList, newestHandoffAt, projectKeyAt } from '../node/handoffs.js';
 import { readMemorySetting } from '../node/memory-store.js';
@@ -39,7 +38,6 @@ export interface MemoryView {
   /** The project key of the folder asked about, and its newest handoff note. */
   project: string;
   handoff: { path: string; note: Handoff } | null;
-  pendingNotes: number;
 }
 
 /** The project key of a folder (node/handoffs.ts). */
@@ -79,28 +77,6 @@ export function handoffsSince(ctx: Pick<AppContext, 'config' | 'layout'>, since:
   return out.sort((a, b) => a.at - b.at);
 }
 
-export function noteDecisions(ctx: Pick<AppContext, 'layout'>): NoteDecisions {
-  return parseNoteDecisions(readText(ctx.layout.notes));
-}
-
-/** Runs whose notes wait for the person, with the notes' path. */
-export function pendingNoteRuns(ctx: Pick<AppContext, 'layout'>): { id: string; task: string; path: string }[] {
-  const runs = loadRuns(ctx);
-  const ids = new Set(
-    pendingNotes(
-      runs.map((r) => ({ id: r.id, open: r.status === 'active' || r.status === 'paused', hasNotes: existsSync(r.notesPath) })),
-      noteDecisions(ctx),
-    ),
-  );
-  return runs.filter((r) => ids.has(r.id)).map((r) => ({ id: r.id, task: r.task, path: r.notesPath }));
-}
-
-/** Records the person's decision on a run's notes (the command line is this file's only writer). */
-export function decideNotes(ctx: Pick<AppContext, 'layout'>, id: string, decision: 'approved' | 'discarded', now = Date.now()): void {
-  const d = noteDecisions(ctx);
-  writeJsonAtomic(ctx.layout.notes, { ...d, [id]: { decision, at: now, delivered: null } });
-}
-
 export function lastSync(ctx: Pick<AppContext, 'layout'>): SyncRecord | null {
   return newestRecord((['mod', 'hook', 'cli'] as const).map((w) => parseSyncRecord(readText(memorySyncFile(ctx.layout, w)))));
 }
@@ -124,7 +100,6 @@ export function memoryView(ctx: AppContext, cwd = ctx.cwd): MemoryView {
     local,
     project,
     handoff: h ? { path: h.path, note: h.note } : null,
-    pendingNotes: pendingNoteRuns(ctx).length,
   };
 }
 
@@ -136,7 +111,6 @@ export function morningWindow(ctx: Pick<AppContext, 'layout'>, now: number, hour
 
 /** The facts of the morning report for a window. */
 export function morningFacts(ctx: AppContext, since: number, until: number, opts: { index?: boolean } = {}): MorningFacts {
-  const runs = loadRuns(ctx).filter((r) => r.updatedAt >= since);
   const flows = loadFlows(ctx).filter((f) => f.status === 'waiting');
   const events = loadEvents(ctx, Math.max(1, Math.ceil((until - since) / 86_400_000) + 1), until).filter((e) => e.at >= since && e.at <= until);
   const belt = events.filter((e) => e.kind === 'belt');
@@ -168,23 +142,17 @@ export function morningFacts(ctx: AppContext, since: number, until: number, opts
   return {
     since,
     now: until,
-    runs: runs
-      .filter((r) => r.status !== 'active')
-      .map((r) => ({
-        id: r.id,
-        task: r.task || r.id,
-        status: r.status,
-        reason: r.pause?.reason ?? null,
-        report: existsSync(join(ctx.layout.runsDir, r.id, 'report.md')) ? join(ctx.layout.runsDir, r.id, 'report.md').replace(/\\/g, '/') : null,
-        deferred: r.deferred.length,
-      })),
     flows: flows.map((f) => ({ id: f.id, title: f.task.split('\n')[0] ?? f.id })),
     sessions: [...sessions.entries()].map(([project, count]) => ({ project, count })).sort((a, b) => b.count - a.count),
     handoffs: handoffsSince(ctx, since),
-    belt: { blocked: belt.filter((e) => e.verdict === 'deny').length, asked: belt.filter((e) => e.verdict === 'ask').length },
+    belt: {
+      blocked: belt.filter((e) => e.verdict === 'deny' && !e.left).length,
+      asked: belt.filter((e) => e.verdict === 'ask').length,
+      // Left to the person in full autonomy: by the belt, and by Claude Code's own question.
+      left: belt.filter((e) => e.left).length + events.filter((e) => e.kind === 'permission' && e.answer === 'left').length,
+    },
     quota: readings.length ? { weekFrom: readings[0]!.week ?? null, weekTo: readings[readings.length - 1]!.week ?? null } : null,
     memory,
-    notes: pendingNoteRuns(ctx).length,
     elsewhere: elsewhereFacts(ctx, since, until),
     syncPending: ctx.pending?.length ?? 0,
     update: newerThan(APP_VERSION, readUpdateState(ctx.layout)?.latest ?? null),

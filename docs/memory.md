@@ -63,7 +63,7 @@ With a git history (all three, when git is installed):
 
 A **handoff note** says where the work stands so that the next session, here or on another computer, goes on from there instead of starting over.
 
-**What is in it.** What Claude wrote: a summary, what is still open, the decisions taken, and the next step. What code measured: the project's folder and branch (a project you named is measured in its own folder, wherever the session was opened), your last request, an open flow or full-autonomy run, the quota, the commits of the session and the files left uncommitted. Secrets are masked everywhere.
+**What is in it.** What Claude wrote: a summary, what is still open, the decisions taken, and the next step. What code measured: the project's folder and branch (a project you named is measured in its own folder, wherever the session was opened), your last request, an open flow, the quota, the commits of the session and the files left uncommitted. Secrets are masked everywhere.
 
 **When one is written:**
 
@@ -74,7 +74,6 @@ A **handoff note** says where the work stands so that the next session, here or 
 | Before Claude Code compacts the conversation                                       | the compaction's own summary, with what code measured: no extra model call                                                                                                                      |
 | On `/clear` and when the session ends, if it changed something since its last note | what code measured and your last request (no summary: there is no one left to write it)                                                                                                         |
 | A session closed without ending (its window shut), when the next session starts    | the next session, from what the closed one kept as it went (when it started, when it last changed something, its project, your last request) and what code measures in its project's folder now |
-| When a full-autonomy run pauses or ends                                            | the run's state, with the path of its report                                                                                                                                                    |
 
 **Where it is kept:** in the memory, under `handoffs/<project>/`, one file per note named by its time (UTC) and session, synced like the rest; without a memory set up, in Mode_Code's own folder. `<project>` is the project you named in the session (`terminal devam`), else the project registered for the folder, else its GitHub repository (`owner-repo`), else its folder's name, so the same project on two computers shares its handoffs. The newest 20 per project stay in the folder; older ones leave it at the next session's start and remain in the memory's git history.
 
@@ -86,10 +85,9 @@ Handoff notes are not memory entries: they are not added to `MEMORY.md`, and Cla
 
 When you come back after a while (6 hours by default), the first prompt shows one line of what happened while you were away and what waits for you, the control center's Now shows it first, and `mode-code morning` shows it in full:
 
-- full-autonomy runs that ended, paused or got stuck, with their reports, and the steps they deferred to you;
+- the steps full autonomy left to you, each with its command;
 - flows whose plans wait for your approval;
 - the memory: changes that still wait to go up, a pull that needs you, a file held back for a secret, a sync that failed;
-- notes from full-autonomy runs waiting for your approval (below);
 - sessions that ran, by folder, and the handoff notes they left;
 - what the safety belt blocked or asked about, and the quota used.
 
@@ -105,20 +103,15 @@ What Mode_Code adds to a session's first prompt by itself (its introduction, wha
 
 The memory is a folder of Markdown files with links between them, so it opens as an [Obsidian](https://obsidian.md) vault as it is: Open folder as vault, and pick the memory's folder (`mode-code memory` shows where it is). Obsidian keeps its settings in a `.obsidian` folder inside it, which the sync would carry to your other computers with the notes; add `.obsidian/workspace*.json` to the memory's `.gitignore` to keep each computer's window layout its own, or `.obsidian/` to keep all of it local. What you change there is committed and synced like what Claude writes, and the same rules hold: one fact per file, a short line in `MEMORY.md`, no secrets.
 
-## Notes from full-autonomy runs
-
-During a full-autonomy run Claude does not write the memory (the run's guard refuses it); its notes go to the run's notes file instead. They wait for you: `mode-code memory notes` shows them, `approve <id>` hands the notes to the next session, where Claude merges them into the memory by the memory's own rules, and `discard <id>` leaves them out. Each is handed over once. Nothing from an unattended run enters your memory without you, and an agent cannot approve.
-
 ## Commands
 
-| Command                                              | What it does                                                     |
-| ---------------------------------------------------- | ---------------------------------------------------------------- |
-| `mode-code memory`                                   | where the memory lives, its sync state, the newest handoff here  |
-| `mode-code memory setup`                             | the setup above                                                  |
-| `mode-code memory sync`                              | record, pull and push now                                        |
-| `mode-code memory handoff [--all] [--project <key>]` | the newest handoff note (or all of them)                         |
-| `mode-code memory notes [approve\|discard <id>]`     | notes from full-autonomy runs waiting for you, and your decision |
-| `mode-code morning [--hours N]`                      | the morning report                                               |
+| Command                                              | What it does                                                    |
+| ---------------------------------------------------- | --------------------------------------------------------------- |
+| `mode-code memory`                                   | where the memory lives, its sync state, the newest handoff here |
+| `mode-code memory setup`                             | the setup above                                                 |
+| `mode-code memory sync`                              | record, pull and push now                                       |
+| `mode-code memory handoff [--all] [--project <key>]` | the newest handoff note (or all of them)                        |
+| `mode-code morning [--hours N]`                      | the morning report                                              |
 
 Each takes `--json`. In the control center: Memory and projects (where it lives, handoffs and morning report, protected folders), Memory and projects › Handoffs, Now. `mode-code doctor` checks the store too: whether Claude Code uses it, its history and remote, and its last sync.
 
@@ -169,9 +162,9 @@ Written 2026-10-13, kept as a checklist:
 - [x] Keywords `handoff` / `devir`; `wrap up` asks for a handoff too.
 - [x] Node: git and the GitHub CLI found or installed (per platform and package manager), signing in, the repository viewed, created or cloned; `autoMemoryDirectory` written with a backup; existing memory brought in.
 - [x] The setup as steps with a question interface, driven by the terminal and by the control center; refused under an agent.
-- [x] Plugin: the sync at session start and after a turn, the handoff tool and its triggers (keyword, wrap up, compaction, `/clear` and end, runs), the first prompt's handoff line, the whole note on continue, the morning line, approved notes handed over once.
+- [x] Plugin: the sync at session start and after a turn, the handoff tool and its triggers (keyword, wrap up, compaction, `/clear` and end), the first prompt's handoff line, the whole note on continue, the morning line.
 - [x] Safety-net hook: the sync and the handoff line on the first prompt, the sync at Stop, when the plugin is not loaded; pruning at every session start.
-- [x] Command line: `memory`, `memory setup`, `memory sync`, `memory handoff`, `memory notes`, `morning`; control center: Memory and projects, Memory and projects › Handoffs, Now; the doctor's check.
+- [x] Command line: `memory`, `memory setup`, `memory sync`, `memory handoff`, `morning`; control center: Memory and projects, Memory and projects › Handoffs, Now; the doctor's check.
 - [x] Tests in every layer: unit, real git against a local bare repository, git answered by script, a stand-in GitHub, the setup driven through its questions, the command line as a process, the hook as a process, the control center, the engine's test kit, mutation targets and coverage floors, live sessions.
 - [x] Docs: README in both languages, keywords, command reference, architecture, testing, changelog.
 - [x] Measured: a live session that pulls a change made elsewhere and answers from it, writes a handoff on the keyword and has it taken over by the next session; on Windows and in WSL2.

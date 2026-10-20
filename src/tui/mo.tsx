@@ -25,7 +25,7 @@ export function MoPicture({ state, size, still }: { state: MoState; size: 'full'
   // A moving Mo starts a second in, its entrance over; a still one at the moment that reads whole.
   const t = still ? STILL_AT[state] : 1 + (tick * TICK) / 1000;
   const picture = size === 'full' ? frame(state, t) : mark2(state, t);
-  // Below the boots the whole body keeps room for the jets of a full-autonomy run; no other state uses it.
+  // Below the boots the whole body keeps room for the jets of full autonomy; no other state uses it.
   const rows = runsOf(picture).slice(0, size === 'full' && state !== 'auto' ? -2 : undefined);
   return (
     <Box flexDirection="column" flexShrink={0}>

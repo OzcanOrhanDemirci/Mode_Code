@@ -247,11 +247,6 @@ export function MemoryStore({ width, open }: ScreenProps) {
           </Row>
         ) : null}
         {v.handoff ? <Row label={t('mcli.handoff')}>{`${ago(v.handoff.note.at, now, lang)} · ${nextOf(v.handoff.note, width - 40, lang)}`}</Row> : null}
-        {v.pendingNotes ? (
-          <Row label={t('mcli.notes')} color={theme.warn}>
-            {t('mcli.notes.pending', { n: v.pendingNotes, cmd: `${CLI_NAME} memory notes` })}
-          </Row>
-        ) : null}
       </Box>
       <Box marginTop={1}>
         <Note kind={s ? 'info' : 'warn'}>{t(s ? 'mem.changeKey' : 'mem.setupKey')}</Note>
@@ -358,35 +353,6 @@ export function Memory({ width, open }: ScreenProps) {
           emptyText={t('memory.none')}
         />
       </Box>
-    </Box>
-  );
-}
-
-/** Full autonomy: off until the person turns it on here (after reading what it means), its limits, the checks from here. */
-export function Autonomy({ width, open }: ScreenProps) {
-  const { data, theme } = useEnv();
-  const t = useT();
-  const fields = fieldsOf(data.config(), ['autonomy.enabled', 'autonomy.maxHours', 'autonomy.atTimeLimit', 'autonomy.stallMinutes']);
-  const g = data.autonomyCheck();
-  return (
-    <Box flexDirection="column" width={width}>
-      <SettingsEditor fields={fields} open={open} width={width} />
-      <Section title={t('set.autonomy.check')}>
-        {g.checks.map((c) => (
-          <Box key={c.id}>
-            <Box width={3} flexShrink={0}>
-              <Text color={c.ok === true ? theme.ok : c.ok === false ? theme.bad : theme.muted}>{c.ok === true ? '✓' : c.ok === false ? '✗' : '·'}</Text>
-            </Box>
-            <Box width={20} flexShrink={0}>
-              <Text>{t(`auto.gate.name.${c.id}` as MessageKey)}</Text>
-            </Box>
-            <Text wrap="wrap" {...(c.ok === null ? { color: theme.muted } : {})}>
-              {t(c.key, c.params)}
-            </Text>
-          </Box>
-        ))}
-      </Section>
-      <Muted wrap="wrap">{t('set.autonomy.note')}</Muted>
     </Box>
   );
 }

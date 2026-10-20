@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * `mode-code memory` and `mode-code morning` (docs/memory.md): where the memory lives and how it
- * stands, the setup, a sync now, the handoff notes, the notes from full-autonomy runs, the morning report.
+ * stands, the setup, a sync now, the handoff notes, the morning report.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -15,14 +15,12 @@ import { heldText, syncProblem, type SyncResult } from '../core/memory-sync.js';
 import { morningLines } from '../core/morning.js';
 import { appContext, type AppContext } from '../app/context.js';
 import { memorySetup } from '../app/memory-setup.js';
-import { decideNotes, handoffsOf, memoryView, morningFacts, morningWindow, newestHandoff, pendingNoteRuns, projectKeyFor } from '../app/memory.js';
-import { findRun, loadRuns } from '../app/runs.js';
+import { handoffsOf, memoryView, morningFacts, morningWindow, newestHandoff, projectKeyFor } from '../app/memory.js';
 import { claudeDir, home, platform } from '../node/env.js';
-import { readText, writeAtomic } from '../node/fsx.js';
 import { underAgent } from '../node/install.js';
 import { nodeRunner, recordSync, seenSince, syncStore } from '../node/memory.js';
 import { flag, intValue, value, type Args } from './args.js';
-import { bold, cyan, dim, gray, green, red, yellow } from './style.js';
+import { bold, cyan, dim, green, red, yellow } from './style.js';
 import { say, terminalIO } from './ask.js';
 
 function json(schema: string, data: object): void {
@@ -135,39 +133,6 @@ export async function cmdMemory(a: Args): Promise<number> {
     return 0;
   }
 
-  if (sub === 'notes') {
-    const verb = a.positionals[1];
-    if (verb === 'approve' || verb === 'discard') {
-      if (underAgent()) {
-        say(red(T(ctx, 'cli.agentRefused')));
-        return 1;
-      }
-      const id = a.positionals[2] ?? '';
-      const run = findRun(loadRuns(ctx), id);
-      if (!run || !existsSync(run.notesPath)) {
-        say(red(T(ctx, 'mcli.notes.unknown', { id })));
-        return 1;
-      }
-      decideNotes(ctx, run.id, verb === 'approve' ? 'approved' : 'discarded');
-      say(green(T(ctx, verb === 'approve' ? 'mcli.notes.approved' : 'mcli.notes.discarded', { id: run.id })));
-      return 0;
-    }
-    const pending = pendingNoteRuns(ctx);
-    if (flag(a, 'json')) {
-      json('memory.notes', { pending });
-      return 0;
-    }
-    if (!pending.length) say(T(ctx, 'mcli.notes.none'));
-    for (const p of pending) {
-      say(`${bold(p.id)}  ${p.task.split('\n')[0]!.slice(0, 80)}`);
-      say(dim(`  ${p.path}`));
-      for (const l of (readText(p.path) ?? '').split('\n').slice(0, 12)) say(`  ${gray('│')} ${l}`);
-      say(dim(`  ${CLI_NAME} memory notes approve ${p.id}   ·   ${CLI_NAME} memory notes discard ${p.id}`));
-      say();
-    }
-    return 0;
-  }
-
   if (sub !== 'status') {
     say(red(T(ctx, 'cli.unknownCommand', { cmd: `memory ${sub}` })));
     return 2;
@@ -215,7 +180,6 @@ export async function cmdMemory(a: Args): Promise<number> {
     T(ctx, 'mcli.handoff'),
     v.handoff ? `${dateTime(v.handoff.note.at, ctx.lang)} · ${nextOf(v.handoff.note, 80, ctx.lang)}` : dim(T(ctx, 'mcli.handoff.none', { project: v.project })),
   );
-  if (v.pendingNotes) row(T(ctx, 'mcli.notes'), yellow(T(ctx, 'mcli.notes.pending', { n: v.pendingNotes, cmd: `${CLI_NAME} memory notes` })));
   return 0;
 }
 

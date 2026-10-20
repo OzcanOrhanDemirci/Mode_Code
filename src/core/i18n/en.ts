@@ -187,6 +187,7 @@ export const en = {
   // ── status line and toasts ──
   'status.chat': '💬 chat',
   'status.autonomous': 'autonomous',
+  'status.full': 'full auto',
   'status.manual': 'manual',
   'status.free': 'free',
   'status.wrapUp': 'wrapping up',

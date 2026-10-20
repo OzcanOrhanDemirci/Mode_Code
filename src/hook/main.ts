@@ -9,11 +9,7 @@
  * Usage: node hook.mjs <EventName>   (the event's JSON arrives on stdin)
  */
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { parseRun } from '../core/run.js';
-import { fingerprintOf, pauseFor, STALL_STOPS, stopDecision } from '../core/run-stop.js';
 import { reminderDue, reminderNote } from '../core/agents.js';
-import { runDir } from '../core/layout.js';
 import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
 import { isBeltTool, shellOf } from '../core/belt/tools.js';
 import { levelOf } from '../core/belt/rules.js';
@@ -32,7 +28,7 @@ import { APP_VERSION, SELF_TEST_SESSION } from '../core/app.js';
 import { dataLayout, noProgramsFromWorkingFolder, processLanguage } from '../node/env.js';
 import { loadConfig, beltContext, classifyEnv, memoryDirs } from '../node/context.js';
 import { readText, readJson, writeJsonAtomic, appendLine } from '../node/fsx.js';
-import { git, memoryStatus } from '../node/git.js';
+import { memoryStatus } from '../node/git.js';
 import { readTail } from '../node/tail.js';
 import { handoffLine, isFresh } from '../core/handoff.js';
 import { lookStore, recordSync, seenSince, syncStore, type SyncTrigger } from '../node/memory.js';
@@ -138,8 +134,8 @@ function recordPermissionMode(l: ReturnType<typeof dataLayout>, sessionId: strin
 }
 
 /**
- * Each of the person's prompts, with the permission mode it came with: a full-autonomy start reads both to
- * know the mode is this prompt's (the plugin's own prompt hook runs before this one, so it cannot).
+ * Each of the person's prompts, with the permission mode it came with: the time of the one before tells the
+ * session's first prompt, and the mode tells Claude Code's plan mode to the plugin.
  */
 function recordPrompt(l: ReturnType<typeof dataLayout>, sessionId: string, mode: string | undefined, now: number): number {
   if (sessionId === SELF_TEST_SESSION) return 0;
@@ -151,7 +147,7 @@ function recordPrompt(l: ReturnType<typeof dataLayout>, sessionId: string, mode:
   try {
     writeJsonAtomic(file, { ...state, ...(changed ? { permissionMode: mode, permissionModeAt: now } : {}), promptAt: now });
   } catch {
-    /* a full-autonomy start then finds no record of this prompt and does not start */
+    /* the next prompt then takes itself for the first one again; the memory is brought in once more */
   }
   return state.promptAt;
 }
@@ -242,62 +238,6 @@ async function userPromptSubmit(input: Input, lang: Lang): Promise<void> {
 }
 
 /**
- * A session working on a full-autonomy run stops only when code lets it (core/run-stop.ts): the text that
- * turns it back, or null. The hook keeps its counter in its own state file and records a stop it let
- * through for a reason (stalled, time limit, budget), which the plugin then pauses the run for.
- */
-function autonomyStop(input: Input, l: ReturnType<typeof dataLayout>, config: ReturnType<typeof loadConfig>['config'], lang: Lang): string | null {
-  const sessionId = str(input.session_id) ?? '';
-  const modFile = sessionFile(l, sessionId, 'mod');
-  const mod = modFile ? parseModState(readText(modFile)) : null;
-  const dir = mod?.runId ? runDir(l, mod.runId) : null;
-  let run = dir ? parseRun(readText(join(dir, 'run.json'))) : null;
-  if (dir && !run) {
-    // The plugin may be writing the record this very moment: read it once more before taking it as gone.
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
-    run = parseRun(readText(join(dir, 'run.json')));
-  }
-  if (!run) return null;
-  const hookFile = sessionFile(l, sessionId, 'hook');
-  const state = parseHookState(hookFile ? readText(hookFile) : null, sessionId);
-  const now = Date.now();
-  const q = assessQuota(readJson<QuotaReading>(l.quota), budgetOf(config, mod), now);
-  const tasks = Array.isArray(input.background_tasks) ? input.background_tasks : [];
-  const background = tasks.filter((t) => !!t && typeof t === 'object' && ['running', 'pending'].includes(String((t as Record<string, unknown>).status))).length;
-  const head = git(run.cwd, ['rev-parse', 'HEAD']);
-  const status = git(run.cwd, ['status', '--porcelain=v1'], 5000);
-  const d = stopDecision(
-    run,
-    {
-      now,
-      fingerprint: fingerprintOf(head.ok ? head.out : null, status.out, run),
-      // A reading too old to act on counts as a reached budget (the run pauses, and resumes after a fresh one).
-      quotaLevel: q.usable ? q.level : 'wrapUp',
-      background,
-      maxHours: config.autonomy.maxHours,
-      stallMinutes: config.autonomy.stallMinutes,
-      atTimeLimit: config.autonomy.atTimeLimit,
-    },
-    state.autoStop ?? { runId: null, fingerprint: null, streak: 0 },
-  );
-  const allowed = d.allow && pauseFor(d.why) ? { runId: run.id, why: d.why, at: now } : state.autoAllowed;
-  try {
-    if (hookFile) writeJsonAtomic(hookFile, { ...state, lastRunAt: now, autoStop: d.memory, autoAllowed: allowed });
-  } catch {
-    /* without the counter every attempt counts as the first: the run is turned back until another limit lets it stop */
-  }
-  if (d.allow) return null;
-  const m = d.missing;
-  const first =
-    m.kind === 'plan'
-      ? tIn(lang, 'auto.stop.plan', { path: run.planPath })
-      : m.kind === 'step'
-        ? tIn(lang, 'auto.stop.step', { n: m.n, of: m.of, title: m.title })
-        : tIn(lang, 'auto.stop.finish', { path: run.reportPath });
-  return `${first}\n${tIn(lang, 'auto.stop.tail', { streak: d.streak, max: STALL_STOPS })}`;
-}
-
-/**
  * An assigned agent batch (core/agents.ts) that Claude ends its turn without fully starting: turned back once, with
  * what is left (the person, 2026-10-18: "one reminder, sharp; then we do not force it"). The text, or null.
  */
@@ -327,12 +267,6 @@ async function stop(input: Input, lang: Lang): Promise<void> {
   if (!(modPath && readText(modPath) !== null)) {
     await hookSync(l, config, 'turn', sid, lang);
     if (sharedDue(local, l)) await syncShared(local, l, { trigger: 'turn', session: sid || null, writer: 'hook' });
-  }
-  const auto = autonomyStop(input, l, config, lang);
-  if (auto) {
-    // Feedback that keeps the run going, not an error: the run works as designed (docs/autonomy.md).
-    out({ hookSpecificOutput: { hookEventName: 'Stop', additionalContext: auto } });
-    return;
   }
   const agents = agentsStop(input, l, config);
   if (agents) {

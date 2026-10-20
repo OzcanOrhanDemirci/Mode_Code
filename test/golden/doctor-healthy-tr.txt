@@ -19,7 +19,6 @@ Kurulum
   ✓ Kontrol merkezi kokpitten C:/dev/mode-code/dist/cli.mjs ile açılır.
   ✓ Eklenti en son 2026-10-12 11:50 (UTC) zamanında bir oturumdan haber verdi.
   ✓ Mode_Code 1.2.0 en yeni sürüm.
-  i Tam otonom kapalı (mode-code autonomy enable ile açılır).
   ✓ Ayarlarının tuttuğu beceriler yerinde.
 Koruma
   ✓ Kurulu hook, 30 örneğin hepsine bu sürümle birebir aynı cevabı verdi.
@@ -57,4 +56,4 @@ Veri
 Öz-sınama
   ✓ 1 paketteki 30 yerleşik örneğin hepsi beklenen cevabı verdi.
 
-2.1 sn içinde 52 denetim: 44 tamam, 0 uyarı, 0 sorun.
+2.1 sn içinde 51 denetim: 44 tamam, 0 uyarı, 0 sorun.

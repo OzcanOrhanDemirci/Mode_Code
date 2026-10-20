@@ -105,11 +105,11 @@ test('the facts: the store without git has no local state; Claude Code using ano
     writeFileSync(`${s.root}/claude/settings.json`, JSON.stringify({ autoMemoryDirectory: `${s.root}/elsewhere` }));
     process.env.CLAUDE_CONFIG_DIR = `${s.root}/claude`;
     const v = memoryView(s.ctx, s.root);
-    assert.deepEqual([v.store?.place, v.inUse, v.local?.isRepo, v.pendingNotes], ['local', false, false, 0]);
+    assert.deepEqual([v.store?.place, v.inUse, v.local?.isRepo], ['local', false, false]);
     writeFileSync(`${s.root}/claude/settings.json`, JSON.stringify({ autoMemoryDirectory: `${s.root}/mem` }));
     assert.equal(memoryView(s.ctx, s.root).inUse, true);
     const f = morningFacts(s.ctx, NOW - 3_600_000, NOW, { index: false });
-    assert.deepEqual([f.memory?.place, f.memory?.conflicts, f.belt, f.quota, f.notes], ['local', [], { blocked: 0, asked: 0 }, null, 0]);
+    assert.deepEqual([f.memory?.place, f.memory?.conflicts, f.belt, f.quota], ['local', [], { blocked: 0, asked: 0, left: 0 }, null]);
   } finally {
     delete process.env.CLAUDE_CONFIG_DIR;
     s.done();

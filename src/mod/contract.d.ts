@@ -22,7 +22,6 @@ export type ModeCodeLabels = {
     mode: 'free' | 'chat' | 'research' | 'plan' | 'code';
     style: 'manual' | 'autonomous' | 'full';
     flow: { at: string; state: 'running' | 'approval' | 'paused' | 'armed' } | null;
-    fullAutoShown: boolean;
     lang: 'en' | 'tr';
     /** The person asked for less motion: the flow's step is marked, not breathing. */
     still: boolean;
@@ -61,22 +60,9 @@ export type ModeCodeMo = {
 };
 
 /**
- * The window where full autonomy is started (a pane): the budgets it offers and the one picked, the week's
- * reading they are measured from, a line saying what is missing, the language. The task's text is the plugin's
- * own while it is typed (a redraw on every key would fight the typing), drawn into the field on each redraw.
- */
-export type ModeCodeAutoPane = {
-  lang: 'en' | 'tr';
-  budgets: string[];
-  budget: string;
-  week: number | null;
-  error: string | null;
-};
-
-/**
  * The window where the person sets the session's parallel agents (src/core/agents.ts): the mode, its count as typed,
- * an assigned batch's rows (the one being edited), whether this mode can write, whether a full-autonomy run is attached,
- * the agents at work now, and a line saying what is wrong. The task being typed is the plugin's own while it is typed.
+ * an assigned batch's rows (the one being edited), whether this mode can write, the agents at work now, and a line
+ * saying what is wrong. The task being typed is the plugin's own while it is typed.
  */
 export type ModeCodeAgentsPane = {
   lang: 'en' | 'tr';
@@ -87,7 +73,6 @@ export type ModeCodeAgentsPane = {
   rows: { task: string; kind: 'code' | 'research' | 'plan'; model: string | null }[];
   editing: number;
   writable: boolean;
-  runActive: boolean;
   running: { id: string; label: string }[];
   error: string | null;
 };
@@ -180,7 +165,6 @@ declare module 'claude-code' {
       footers: ModeCodeFooters;
       labels: ModeCodeLabels;
       mo: ModeCodeMo;
-      autoPane: ModeCodeAutoPane;
       agentsPane: ModeCodeAgentsPane;
       stripFocus: ModeCodeStripFocus;
       quotaPane: ModeCodeQuotaPane;

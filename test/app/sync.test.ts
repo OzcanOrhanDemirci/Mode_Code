@@ -27,7 +27,6 @@ function setup(raw: object = {}) {
   const mac = `${shared}/machines/mac-0000`;
   mkdirSync(`${mac}/events/2026-10`, { recursive: true });
   mkdirSync(`${mac}/events/2026-09`, { recursive: true });
-  mkdirSync(`${mac}/runs`, { recursive: true });
   mkdirSync(`${mac}/flows`, { recursive: true });
   writeFileSync(`${mac}/machine.json`, JSON.stringify({ id: 'mac-0000', name: 'MacBook', platform: 'darwin', app: 'x', since: 1 }));
   return { root, shared, mac, l, ctx, done: () => rmSync(root, { recursive: true, force: true }) };
@@ -76,33 +75,14 @@ test('the computers and when each was last seen; where handoff notes go; project
   }
 });
 
-test('what the other computers did in a window: runs that ended or paused, flows waiting, sessions, what the belt stopped', () => {
+test('what the other computers did in a window: flows waiting, sessions, what the belt stopped', () => {
   const s = setup();
   try {
-    const run = (id: string, status: string, updatedAt: number) =>
-      writeFileSync(
-        `${s.mac}/runs/${id}.json`,
-        JSON.stringify({
-          id,
-          task: `Task ${id}`,
-          project: 'app',
-          folder: 'app',
-          status,
-          phase: 'finish',
-          reason: status === 'paused' ? 'quota' : null,
-          createdAt: 1,
-          updatedAt,
-          milestones: 1,
-          deferred: 2,
-        }),
-      );
-    run('r1', 'done', NOW - 3_600_000);
-    run('r2', 'paused', NOW - 1_800_000);
-    run('r3', 'active', NOW - 1000);
-    run('r4', 'done', NOW - 48 * 3_600_000);
+    // A run an older version shared is not read: this version has none.
+    mkdirSync(`${s.mac}/runs`, { recursive: true });
+    writeFileSync(`${s.mac}/runs/r1.json`, JSON.stringify({ id: 'r1', task: 'Task r1', status: 'done', updatedAt: NOW - 3_600_000 }));
     writeFileSync(`${s.mac}/flows/f1.json`, JSON.stringify({ id: 'f1', task: 'Plan', project: null, status: 'waiting', step: 'approval', updatedAt: NOW }));
     writeFileSync(`${s.mac}/flows/f2.json`, JSON.stringify({ id: 'f2', task: 'Done', project: null, status: 'done', step: null, updatedAt: NOW }));
-    writeFileSync(`${s.mac}/runs/broken.json`, '{');
     writeFileSync(
       `${s.mac}/events/2026-10/m.mod.jsonl`,
       [
@@ -115,10 +95,6 @@ test('what the other computers did in a window: runs that ended or paused, flows
     assert.deepEqual(e, [
       {
         machine: 'MacBook',
-        runs: [
-          { id: 'r1', task: 'Task r1', status: 'done', reason: null, report: null, deferred: 2 },
-          { id: 'r2', task: 'Task r2', status: 'paused', reason: 'quota', report: null, deferred: 2 },
-        ],
         flows: 1,
         sessions: 2,
         blocked: 1,

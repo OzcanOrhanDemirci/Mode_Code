@@ -184,24 +184,9 @@ test('the keys in the bar are clicks too: help opens, Esc closes it; a screen ad
 });
 
 test("each screen's own keys in the bar do what the key does, and its rows take a click", async () => {
-  // Recent tasks: a click on a task picks and copies it; "Enter/c" in the bar copies the one picked.
-  const tasks = new FakeData();
-  tasks.promptList = [
-    { text: 'Add a rate limit.', budget: '+20', at: 0 },
-    { text: 'Fix the login bug.', budget: '+10', at: 0 },
-  ];
-  let s = await draw(tasks, { address: 'work/prompts' });
-  try {
-    await s.clickText('Fix the login bug.');
-    assert.deepEqual(tasks.copied, ['Fix the login bug.']);
-    await s.clickText('Enter/c copy the whole task');
-    assert.deepEqual(tasks.copied, ['Fix the login bug.', 'Fix the login bug.']);
-  } finally {
-    s.close();
-  }
   // A rule template: the bar's a asks first, a second click applies; then x is the one offered.
   const tpl = new FakeData();
-  s = await draw(tpl, { address: 'claude-code/templates' });
+  let s = await draw(tpl, { address: 'claude-code/templates' });
   try {
     await s.clickText('a apply');
     assert.match(s.text(), /Press a again to apply it/);

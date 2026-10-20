@@ -126,35 +126,6 @@ const S = {
     risk: 'none',
     gate: { id: 'memory.morning.enabled', when: [true] },
   },
-  // Working › Full autonomy
-  'autonomy.enabled': {
-    page: 'work/full-auto',
-    kind: sw,
-    takes: 'nextPrompt',
-    risk: 'caution',
-    confirm: { value: true, keys: ['auto.cli.warnBody', 'set.autonomy.confirm'] },
-  },
-  'autonomy.maxHours': {
-    page: 'work/full-auto',
-    kind: { kind: 'number', min: 1, max: 72, unit: 'hours' },
-    takes: 'nextPrompt',
-    risk: 'none',
-    gate: { id: 'autonomy.enabled', when: [true] },
-  },
-  'autonomy.atTimeLimit': {
-    page: 'work/full-auto',
-    kind: { kind: 'choice', options: ['continue', 'pause'] },
-    takes: 'nextPrompt',
-    risk: 'none',
-    gate: { id: 'autonomy.enabled', when: [true] },
-  },
-  'autonomy.stallMinutes': {
-    page: 'work/full-auto',
-    kind: { kind: 'number', min: 10, max: 720, unit: 'minutes' },
-    takes: 'nextPrompt',
-    risk: 'none',
-    gate: { id: 'autonomy.enabled', when: [true] },
-  },
   // Working › Parallel agents
   'agents.enabled': { page: 'work/agents', kind: sw, takes: 'nextPrompt', risk: 'none', confirm: { value: true, keys: ['set.agents.confirm'] } },
   'agents.helpers': { page: 'work/agents', kind: sw, takes: 'nextPrompt', risk: 'none', gate: { id: 'agents.enabled', when: [true] } },
@@ -298,7 +269,7 @@ export function confirmText(path: SettingPath, next: unknown, lang: Lang): strin
  * Settings an agent's shell may not change (`mode-code config set` refuses them under Claude): they lower a
  * protection or widen what a session does unasked. Some lie outside the catalog (the belt's rules, projects, sync).
  */
-const PERSON_ONLY = /^(?:belt|memory|modules\.(?:quota|secrets|modes)|autonomy|agents|projects|sync|update|packs|skills)(?:\.|$)/;
+const PERSON_ONLY = /^(?:belt|memory|modules\.(?:quota|secrets|modes)|agents|projects|sync|update|packs|skills)(?:\.|$)/;
 
 export function personOnly(path: string): boolean {
   return PERSON_ONLY.test(path);
@@ -415,7 +386,6 @@ const PLACE_KEYS: Readonly<Record<string, MessageKey>> = {
   quota: 'cat.quota',
   'quota/limits': 'page.limits',
   work: 'cat.work',
-  'work/full-auto': 'page.autonomy',
   'work/agents': 'page.agents',
   'claude-code': 'cat.claude-code',
   'claude-code/packs': 'page.packs',
@@ -444,7 +414,7 @@ export type ControlId =
   | 'mode.free'
   | 'style.manual'
   | 'style.autonomous'
-  | 'fullAuto'
+  | 'style.full'
   | 'flow'
   | 'cockpit'
   | 'continue'
@@ -462,7 +432,7 @@ export interface ControlDef {
   /** The settings that must be on for it to be there at all. */
   needs?: readonly SettingId[];
   /** How it is taken back: `ux.ctl.back.<back>`. */
-  back: 'mode' | 'style' | 'fullAuto' | 'flow' | 'none' | 'continue' | 'quota' | 'freeze' | 'agents' | 'close' | 'cockpit';
+  back: 'mode' | 'style' | 'flow' | 'none' | 'continue' | 'quota' | 'freeze' | 'agents' | 'close' | 'cockpit';
 }
 
 const mode = { kind: 'choice', needs: ['modules.modes'], back: 'mode' } as const;
@@ -475,7 +445,7 @@ export const CONTROLS: Readonly<Record<ControlId, ControlDef>> = {
   'mode.free': mode,
   'style.manual': { kind: 'choice', needs: ['modules.modes'], back: 'style' },
   'style.autonomous': { kind: 'choice', needs: ['modules.modes'], back: 'style' },
-  fullAuto: { kind: 'opener', personOnly: true, needs: ['modules.modes', 'autonomy.enabled'], back: 'fullAuto' },
+  'style.full': { kind: 'choice', needs: ['modules.modes'], back: 'style' },
   flow: { kind: 'action', needs: ['modules.modes'], back: 'flow' },
   cockpit: { kind: 'switch', back: 'cockpit' },
   continue: { kind: 'opener', back: 'continue' },
@@ -507,7 +477,7 @@ export function controlMissing(id: ControlId, config: Readonly<Config>): Setting
 
 // ── the windows ──
 
-export type WindowId = 'agents' | 'fullAuto' | 'quota' | 'flow';
+export type WindowId = 'agents' | 'quota' | 'flow';
 
 /**
  * A window a control opens inside Claude Code (docs/design.md, Window): every one is drawn to the same pattern, a
@@ -524,7 +494,6 @@ export interface WindowDef {
 
 export const WINDOWS: Readonly<Record<WindowId, WindowDef>> = {
   agents: { pane: 'parallel-agents', control: 'agents', title: 'agents.pane.title', what: 'agents.pane.what', apply: 'agents.pane.apply' },
-  fullAuto: { pane: 'full-auto', control: 'fullAuto', title: 'ctl.autoPane.title', what: 'ctl.autoPane.what', apply: 'ctl.auto.start' },
   quota: { pane: 'weekly-budget', control: 'quota', title: 'ctl.quotaPane.title', what: 'ux.ctl.quota.press', apply: 'ctl.quotaPane.apply' },
   flow: { pane: 'start-flow', control: 'flow', title: 'ctl.flowPane.title', what: 'ctl.flowPane.what', apply: 'ctl.flowPane.apply' },
 };

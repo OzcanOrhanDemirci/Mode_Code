@@ -306,46 +306,6 @@
       "why": "stopping at the first line instead of before it leaves an empty or the only line, and both give the same text"
     },
     {
-      "file": "src/core/run.ts",
-      "from": "&&",
-      "to": "||",
-      "line": "typeof x === 'number' && Number.isFinite(x) ? x : d",
-      "kind": "equivalent",
-      "why": "a run record is JSON text, which cannot hold NaN or Infinity: every number read from it is finite"
-    },
-    {
-      "file": "src/core/run.ts",
-      "from": "&&",
-      "to": "||",
-      "line": "typeof o.runningSince === 'number' && Number.isFinite(o.runningSince)",
-      "kind": "equivalent",
-      "why": "a run record is JSON text, which cannot hold NaN or Infinity: a number read from it is finite"
-    },
-    {
-      "file": "src/core/run-gate.ts",
-      "from": "||",
-      "to": "&&",
-      "line": "if (!device || !point || !type) continue;",
-      "kind": "equivalent",
-      "why": "a line without a type or a mount point cannot name a drvfs, 9p or virtiofs mount, so it is left out either way"
-    },
-    {
-      "file": "src/core/run-stop.ts",
-      "from": "<",
-      "to": "<=",
-      "line": "for (let i = 0; i < status.length; i++) {",
-      "kind": "equivalent",
-      "why": "one more round of the hash changes every fingerprint the same way; only whether two fingerprints are equal is read"
-    },
-    {
-      "file": "src/core/run-guard.ts",
-      "from": "||",
-      "to": "&&",
-      "line": "if (!text || text.startsWith('-')) continue;",
-      "kind": "equivalent",
-      "why": "an option or an empty word resolves inside the folder the command runs in, and a command never runs inside a credential folder (refused at its cd), so it is never under one"
-    },
-    {
       "file": "src/core/morning.ts",
       "from": "||",
       "to": "&&",

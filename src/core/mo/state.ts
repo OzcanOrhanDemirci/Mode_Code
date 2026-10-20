@@ -15,9 +15,9 @@ export type MoFacts = {
   agents: number;
   /** Questions to the person open now: the belt's, AskUserQuestion, the approval of a plan. */
   asking: number;
-  /** A flow or a full-autonomy run waits for the person's decision. */
+  /** A flow waits for the person's decision. */
   waiting: boolean;
-  /** A full-autonomy run is active. */
+  /** The session works in full autonomy. */
   auto: boolean;
   /** The quota has reached its wrap-up level. */
   low: boolean;
@@ -48,8 +48,9 @@ export const SHOW_FOR = { block: 4000, error: 5000, done: 4000, stopped: 6000 } 
 const within = (at: number | null, now: number, ms: number): boolean => at !== null && now >= at && now - at < ms;
 
 /**
- * The state at `now`. In order: a refusal, a failure, a question to the person, the turn at work (a full-autonomy
- * run, an agent, a tool, or thinking), a turn just stopped or done, a run between turns, a low quota, rest.
+ * The state at `now`. In order: a refusal, a failure, a question to the person, the turn at work (in full
+ * autonomy, an agent, a tool, or thinking), a turn just stopped or done, full autonomy between turns, a low quota,
+ * rest.
  */
 export function moState(f: MoFacts, now: number): MoState {
   if (within(f.blockAt, now, SHOW_FOR.block)) return 'block';

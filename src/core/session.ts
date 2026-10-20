@@ -11,8 +11,8 @@ import { DEFAULT_AGENTS, parseAgents, type AgentsState } from './agents.js';
 export type { WorkMode } from './modes.js';
 
 /**
- * How much the model may do before asking: default (Claude Code's own), manual (ask each step), autonomous,
- * full (a full-autonomy run: nothing is asked, what needs the person is deferred; docs/autonomy.md).
+ * How much the model may do before asking (docs/safety-belt.md, "Ways of working"): default (none chosen: Manual),
+ * manual (ask each step), autonomous, full (nothing is asked; what needs the person is left to them, docs/autonomy.md).
  */
 export type Interaction = 'default' | 'manual' | 'autonomous' | 'full';
 
@@ -57,13 +57,9 @@ export interface ModSessionState {
   turnMode: WorkMode | null;
   /** The flow this session works on, if any (its record is in the data folder's flows). */
   flowId: string | null;
-  /** The full-autonomy run this session works on, if any (its record is in the data folder's runs). */
-  runId: string | null;
   /** Claude Code's own plan mode as last seen in this session, and the plan file it named. */
   nativePlan: { on: boolean; planFile: string | null; at: number } | null;
   interaction: Interaction;
-  /** The way of working a full-autonomy run took over, given back when the run ends (see withRun). */
-  interactionBefore: Exclude<Interaction, 'full'> | null;
   /** Project the last keyword named, if any. */
   project: string | null;
   /** Weekly quota target from "kota N" / "kota +N"; null means the default budget. */
@@ -104,10 +100,6 @@ export interface HookSessionState {
    * prompt hook before this one, so what the hook records for a prompt is there only from its first tool call on.
    */
   promptAt: number;
-  /** A full-autonomy run's attempts to stop: what had changed at the last one, and how many in a row did not change it. */
-  autoStop: { runId: string | null; fingerprint: string | null; streak: number } | null;
-  /** The last stop of a run the hook let through, and why (the plugin pauses the run accordingly). */
-  autoAllowed: { runId: string; why: string; at: number } | null;
   /** The process the session runs in (the hook's parent: Claude Code), to tell later whether it still runs. */
   host: Host | null;
   /** The assigned agent batch (its start time) the hook already reminded at a stop: once per batch (core/agents.ts). */
@@ -124,10 +116,8 @@ export function newModState(sessionId: string, modVersion: string, now: number):
     mode: 'free',
     turnMode: null,
     flowId: null,
-    runId: null,
     nativePlan: null,
     interaction: 'default',
-    interactionBefore: null,
     project: null,
     weeklyTarget: null,
     weeklyTargetSource: null,
@@ -160,9 +150,7 @@ export function parseModState(text: string | null): ModSessionState | null {
       mode: isWorkMode(s.mode) ? s.mode : 'free',
       turnMode: isWorkMode(s.turnMode) ? s.turnMode : null,
       flowId: typeof s.flowId === 'string' ? s.flowId : null,
-      runId: typeof s.runId === 'string' ? s.runId : null,
       interaction: INTERACTIONS.has(s.interaction) ? s.interaction : 'default',
-      interactionBefore: INTERACTIONS.has(s.interactionBefore as Interaction) && (s.interactionBefore as Interaction) !== 'full' ? s.interactionBefore : null,
       nativePlan:
         isObj(plan) && typeof plan.on === 'boolean' && typeof plan.at === 'number'
           ? { on: plan.on, planFile: typeof plan.planFile === 'string' ? plan.planFile : null, at: plan.at }
@@ -203,8 +191,6 @@ export function parseHookState(text: string | null, sessionId: string): HookSess
     permissionMode: null,
     permissionModeAt: 0,
     promptAt: 0,
-    autoStop: null,
-    autoAllowed: null,
     host: null,
     agentsRemindedAt: null,
   };
@@ -219,18 +205,6 @@ export function parseHookState(text: string | null, sessionId: string): HookSess
       permissionMode: typeof o.permissionMode === 'string' ? o.permissionMode : null,
       permissionModeAt: typeof o.permissionModeAt === 'number' ? o.permissionModeAt : 0,
       promptAt: typeof o.promptAt === 'number' ? o.promptAt : 0,
-      autoStop:
-        isObj(o.autoStop) && typeof o.autoStop.streak === 'number'
-          ? {
-              runId: typeof o.autoStop.runId === 'string' ? o.autoStop.runId : null,
-              fingerprint: typeof o.autoStop.fingerprint === 'string' ? o.autoStop.fingerprint : null,
-              streak: o.autoStop.streak,
-            }
-          : null,
-      autoAllowed:
-        isObj(o.autoAllowed) && typeof o.autoAllowed.runId === 'string' && typeof o.autoAllowed.why === 'string' && typeof o.autoAllowed.at === 'number'
-          ? { runId: o.autoAllowed.runId, why: o.autoAllowed.why, at: o.autoAllowed.at }
-          : null,
       host: parseHost(o.host),
       agentsRemindedAt: typeof o.agentsRemindedAt === 'number' ? o.agentsRemindedAt : null,
     };
@@ -320,11 +294,10 @@ export function applyKeyword(s: ModSessionState, kw: KeywordMatch, weeklyTarget:
       return kw.budget && weeklyTarget !== null ? { ...next, weeklyTarget, weeklyTargetSource: `${kw.budget.plus ? '+' : ''}${kw.budget.n}` } : next;
     }
     case 'fullAuto': {
-      // Full autonomy needs an explicit budget; the plugin starts the run only after its checks pass, and
-      // only then sets the interaction (see run-gate.ts). Here: the project and the budget the person named.
-      // Letting a run go brings back the way of working it took over.
-      if (kw.auto === 'cancel') return s.interaction === 'full' ? { ...s, interaction: s.interactionBefore ?? 'default', interactionBefore: null } : s;
-      const next: ModSessionState = { ...s, project: kw.project ?? s.project, wrapUp: false, resumeAt: null };
+      // Full autonomy is a way of working like the others (1.2.0): the keyword chooses it, with the project and the
+      // budget the person named; "full auto cancel" leaves it for Autonomous.
+      if (kw.auto === 'cancel') return s.interaction === 'full' ? { ...s, interaction: 'autonomous', resumeAt: null } : s;
+      const next: ModSessionState = { ...s, interaction: 'full', project: kw.project ?? s.project, wrapUp: false, turnMode: null };
       return kw.budget && weeklyTarget !== null ? { ...next, weeklyTarget, weeklyTargetSource: `${kw.budget.plus ? '+' : ''}${kw.budget.n}` } : next;
     }
     case 'quota':
@@ -338,15 +311,4 @@ export function applyKeyword(s: ModSessionState, kw: KeywordMatch, weeklyTarget:
     default:
       return s;
   }
-}
-
-/**
- * A full-autonomy run takes the session's way of working over while it is open, and gives back the one it
- * took when it ends: the strip shows what the person chose before the run, not a default.
- */
-export function withRun(s: ModSessionState, runId: string | null): ModSessionState {
-  if (runId) return { ...s, runId, interaction: 'full', interactionBefore: s.interaction === 'full' ? s.interactionBefore : s.interaction };
-  return s.interaction === 'full'
-    ? { ...s, runId: null, interaction: s.interactionBefore ?? 'default', interactionBefore: null }
-    : { ...s, runId: null, interactionBefore: null };
 }

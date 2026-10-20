@@ -2,7 +2,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  budgetLabel,
   budgetProblem,
+  budgetTarget,
   actionKeyword,
   cells,
   CHOICE_LINE,
@@ -16,7 +18,6 @@ import {
   FLOW_PRESETS,
   flowPhrase,
   flowPresetLine,
-  fullAutoPhrase,
   lastChoice,
   menuText,
   commandOf,
@@ -36,21 +37,20 @@ const view: StripView = {
   mode: 'plan',
   style: 'autonomous',
   flow: null,
-  fullAutoShown: false,
 };
 
-test('every control has its number, 0 to 8 and 00, and the words that take a value or close; each name once', () => {
+test('every control has its number, 0 to 9 and 00, and the words that take a value or close; each name once', () => {
   const names = COMMANDS.map((c) => c.name);
   assert.equal(new Set(names).size, names.length);
-  for (const d of '012345678') assert.ok(commandNamed(d), d);
-  assert.equal(commandNamed('9'), null, '9 is free: full autonomy has a word, not a number');
+  for (const d of '0123456789') assert.ok(commandNamed(d), d);
+  assert.deepEqual(commandNamed('9'), { kind: 'style', style: 'full' });
   assert.deepEqual(commandNamed('3'), { kind: 'mode', mode: 'plan' });
   assert.deepEqual(commandNamed('6'), { kind: 'flow' });
   assert.deepEqual(commandNamed('7'), { kind: 'style', style: 'manual' });
   assert.deepEqual(commandNamed('8'), { kind: 'style', style: 'autonomous' });
-  assert.deepEqual([commandNamed('tam-otonom'), commandNamed('full-auto')], [{ kind: 'fullAuto' }, { kind: 'fullAuto' }]);
-  assert.equal(commandOf({ kind: 'fullAuto' }, 'tr'), 'tam-otonom');
-  assert.equal(commandOf({ kind: 'fullAuto' }, 'en'), 'full-auto');
+  // Full autonomy by the word it had before it had a number too.
+  assert.deepEqual([commandNamed('tam-otonom'), commandNamed('full-auto')], [commandNamed('9'), commandNamed('9')]);
+  assert.equal(commandOf({ kind: 'style', style: 'full' }, 'tr'), '9');
   assert.equal(commandOf({ kind: 'flow' }, 'tr'), '6');
   assert.deepEqual([commandNamed('devam'), commandNamed('continue')], [{ kind: 'continue' }, { kind: 'continue' }]);
   assert.deepEqual([commandNamed('kota'), commandNamed('quota')], [{ kind: 'quota' }, { kind: 'quota' }]);
@@ -76,14 +76,26 @@ test('a command or a press stands for the keyword typed alone: the same state ch
   assert.deepEqual(applyKeyword(s, auto, null), applyKeyword(s, detectKeyword('otonom')!, null));
   assert.equal(actionKeyword({ kind: 'style', style: 'manual' }, 'en', 'command').kind, 'manualStyle');
   assert.equal(actionKeyword({ kind: 'mode', mode: 'research' }, 'en', 'strip').text, 'research');
+  // Full autonomy as its keyword typed alone starts it; the others carry no such part.
+  const full = actionKeyword({ kind: 'style', style: 'full' }, 'en', 'command');
+  assert.deepEqual(full, { kind: 'fullAuto', lang: 'en', text: '/9', standalone: true, via: 'command', auto: 'start' });
+  assert.deepEqual(applyKeyword(s, full, null), applyKeyword(s, detectKeyword('full auto')!, null));
+  assert.ok(!('auto' in auto));
 });
 
-test('the way of working shown: the default reads as manual; a run makes it full auto', () => {
-  assert.equal(styleOf('default', false), 'manual');
-  assert.equal(styleOf('manual', false), 'manual');
-  assert.equal(styleOf('autonomous', false), 'autonomous');
-  assert.equal(styleOf('full', false), 'full');
-  assert.equal(styleOf('autonomous', true), 'full');
+test('a budget as its window names it: the weekly limit it sets, points above the reading, or as written', () => {
+  assert.deepEqual(
+    [budgetTarget('70', 40), budgetTarget('+5', 40.4), budgetTarget('+10', 95), budgetTarget('+5', null), budgetTarget('soon', 40)],
+    [70, 45, 100, null, null],
+  );
+  assert.deepEqual(
+    [budgetLabel('+10', 41, 'en'), budgetLabel('+10', 41, 'tr'), budgetLabel('70', 41, 'en'), budgetLabel('+10', null, 'en'), budgetLabel('soon', 41, 'en')],
+    ['+10 → 51%', '+10 → %51', '70%', '+10', 'soon'],
+  );
+});
+
+test('the way of working shown: the default reads as manual', () => {
+  assert.deepEqual((['default', 'manual', 'autonomous', 'full'] as const).map(styleOf), ['manual', 'manual', 'autonomous', 'full']);
 });
 
 test('a budget: a number, +N, with or without the word, at either end of a task', () => {
@@ -175,8 +187,6 @@ test('the words a command puts at the end of a task are the keywords the detecto
       assert.deepEqual([kw?.kind, kw?.flow], ['flow', v], `${lang} ${v}`);
       assert.ok(flowPresetLine(v, lang).length > 3);
     }
-    const auto = detectKeyword(`Refactor it.\n${fullAutoPhrase({ n: 10, plus: true }, lang)}`);
-    assert.deepEqual([auto?.kind, auto?.budget], ['fullAuto', { n: 10, plus: true }], lang);
     const cont = detectKeyword(continuePhrase('terminal', { n: 29, plus: false }, lang), [{ id: 'tc', names: ['terminal'] }]);
     assert.deepEqual([cont?.kind, cont?.project, cont?.budget], ['continue', 'tc', { n: 29, plus: false }], lang);
     assert.equal(detectKeyword(continuePhrase(null, null, lang))?.kind, 'continue');
@@ -193,7 +203,7 @@ test('the strip: every control on every layout, one row when it fits, never wide
   for (const lang of ['tr', 'en'] as const)
     for (const columns of [40, 50, 60, 80, 100, 120, 160, 200]) {
       const rows = stripRows(view, lang, columns);
-      assert.deepEqual(ids(rows), ['0', '00', '1', '2', '3', '4', '5', '6', '7', '8'], `${lang} ${columns}`);
+      assert.deepEqual(ids(rows), ['0', '00', '1', '2', '3', '4', '5', '6', '7', '8', '9'], `${lang} ${columns}`);
       if (columns >= 50) for (const r of rows) assert.ok(rowCells(r) <= columns, `${lang} ${columns}: ${rowCells(r)}`);
     }
   assert.equal(stripRows(view, 'tr', 200).length, 1);
@@ -211,22 +221,21 @@ test('the strip: every control on every layout, one row when it fits, never wide
     .flat()
     .flatMap((s) => s.items.filter((i) => i.active).map((i) => i.id));
   assert.deepEqual(active, ['3', '8']);
-  // Full autonomy is on the strip only once turned on, and pressable as any other control (native Windows too).
+  // Full autonomy is a way of working like the others: always on the strip, a choice, lit when in effect.
   const items = (v: StripView, lang: 'tr' | 'en' = 'en') =>
     stripRows(v, lang, 200)
       .flat()
       .flatMap((s) => s.items);
-  assert.ok(!items(view).some((i) => i.id === 'full-auto'));
   assert.deepEqual(
-    items({ ...view, fullAutoShown: true }).find((i) => i.id === 'full-auto'),
-    { id: 'full-auto', label: 'full auto…', active: false },
+    items(view).find((i) => i.id === '9'),
+    { id: '9', label: '9 full auto', active: false },
   );
-  // An opener ends in `…`: off, a press opens the start window; with a run attached it ends the run, and says so plainly.
-  assert.deepEqual(items({ ...view, fullAutoShown: true }, 'tr').find((i) => i.id === 'tam-otonom')?.label, 'tam otonom…');
-  assert.equal(items({ ...view, style: 'full' }).find((i) => i.id === 'full-auto')?.label, 'full auto');
-  assert.ok(
-    items({ ...view, style: 'full' }).some((i) => i.id === 'full-auto' && i.active),
-    'a run attached shows it, lit',
+  assert.equal(items(view, 'tr').find((i) => i.id === '9')?.label, '9 tam otonom');
+  assert.deepEqual(
+    items({ ...view, style: 'full' })
+      .filter((i) => i.active)
+      .map((i) => i.id),
+    ['3', '9'],
   );
   // Closing comes last, after the menu, never highlighted.
   const last = (rows: ReturnType<typeof stripRows>) => rows.flat().at(-1)!.items.at(-1)!;
@@ -234,7 +243,7 @@ test('the strip: every control on every layout, one row when it fits, never wide
   // The menu and closing are no way of working: a group of their own, untitled, at the far end of the last
   // row, in every layout; the way of working's group ends with its own controls.
   for (const columns of [400, 100, 70, 50, 30]) {
-    const rows = stripRows({ ...view, fullAutoShown: true }, 'tr', columns);
+    const rows = stripRows(view, 'tr', columns);
     const end = rows.at(-1)!.at(-1)!;
     assert.deepEqual([end.title, end.end, end.items.map((i) => i.id)], ['', true, ['0', '00']], String(columns));
     assert.equal(rows.flat().filter((s) => s.end).length, 1, String(columns));
@@ -243,7 +252,7 @@ test('the strip: every control on every layout, one row when it fits, never wide
         .at(-1)!
         .at(-2)!
         .items.map((i) => i.id),
-      ['7', '8', 'tam-otonom'],
+      ['7', '8', '9'],
       String(columns),
     );
   }
@@ -269,8 +278,7 @@ test('the controls in a line and the menu', () => {
   assert.match(menu, /^- Mod: \/1 💬 sohbet · \/2 🔍 araştırma · \*\*\/3 📐 plan\*\* · \/4 🔨 kod · \/5 serbest · \/6 akış$/m);
   assert.match(menu, /\*\*\/8 otonom\*\*/);
   for (const c of ['/1', '/2', '/4', '/5', '/6', '/7', '/0', '/devam', '/kota', '/00 kapat']) assert.ok(menu.includes(c), c);
-  assert.ok(!menu.includes('/tam-otonom'), 'full autonomy is listed only once turned on');
-  assert.match(menuText({ ...view, fullAutoShown: true }, 'tr', '—'), /\/8 otonom\*\* · \/tam-otonom$/m);
+  assert.match(menu, /\*\*\/8 otonom\*\* · \/9 tam otonom$/m);
   assert.match(menuText({ ...view, flow: { at: '2/4', state: 'running' } }, 'tr', '—'), /\/5 serbest · \*\*\/6 akış 2\/4\*\*$/m);
   assert.match(menuText(view, 'en', '—'), /\/0 cockpit · \/00 close$/m);
 });
@@ -352,10 +360,10 @@ test("the folder's last choice: the newest other session there; a run comes back
   assert.deepEqual(lastChoice(states, 'C:/dev/app', 'win32', 'self'), { mode: 'code', interaction: 'autonomous' });
   assert.equal(lastChoice(states, 'C:/dev/app', 'linux', 'self')?.mode, 'plan', 'case matters on Linux');
   assert.equal(lastChoice(states, 'C:/dev/none', 'win32', 'self'), null);
-  // A run gives back the way of working it took over: the folder is taken up as it was before the run.
-  assert.deepEqual(lastChoice([{ ...s('e', 'C:/dev/app', 40, 'code', 'full'), interactionBefore: 'manual' as const }], 'C:/dev/app', 'win32', 'self'), {
+  // Full autonomy never comes back by itself: the folder is taken up Autonomous.
+  assert.deepEqual(lastChoice([s('e', 'C:/dev/app', 40, 'code', 'full')], 'C:/dev/app', 'win32', 'self'), {
     mode: 'code',
-    interaction: 'manual',
+    interaction: 'autonomous',
   });
 });
 
@@ -417,7 +425,7 @@ test('parallel agents: on the strip, in the line and the menu once turned on; li
   assert.deepEqual(item(shown(assigned, 1)), { id: 'parallel', label: '👥 agents… =3 · 1/3', active: true });
   assert.deepEqual(item(shown({ ...off, ultracode: true })), { id: 'parallel', label: '👥 agents… · ultracode', active: true });
   // Every layout still fits the room with it, and with the other optional controls beside it.
-  const full = { ...shown(assigned, 1), fullAutoShown: true, frozen: 'feature' };
+  const full = { ...shown(assigned, 1), frozen: 'feature' };
   for (const lang of ['tr', 'en'] as const)
     for (const columns of [50, 60, 80, 100, 120, 160, 200])
       for (const r of stripRows(full, lang, columns)) assert.ok(rowCells(r) <= columns, `${lang} ${columns}`);
@@ -426,15 +434,14 @@ test('parallel agents: on the strip, in the line and the menu once turned on; li
   assert.equal(controlsLine(shown(off), 'tr'), '📐 plan · otonom · 👥 ajan kapalı');
   assert.equal(controlsLine(shown({ ...off, ultracode: true }), 'en'), '📐 plan · autonomous · 👥 agents · ultracode');
   assert.doesNotMatch(controlsLine(shown(free, 2, false), 'en'), /agents/);
-  assert.match(menuText(shown(free), 'en', '—'), /\/8 autonomous\*\* · \*\*\/parallel\*\*$/m);
-  assert.match(menuText(shown(off), 'tr', '—'), /\/8 otonom\*\* · \/ajan$/m);
+  assert.match(menuText(shown(free), 'en', '—'), /\/8 autonomous\*\* · \/9 full auto · \*\*\/parallel\*\*$/m);
+  assert.match(menuText(shown(off), 'tr', '—'), /\/8 otonom\*\* · \/9 tam otonom · \/ajan$/m);
   assert.doesNotMatch(menuText(view, 'en', '—'), /parallel/);
 });
 
 test('the look tells the kind on the strip, on every layout: an opener ends in …, a switch says ● or ○, a choice is lit', () => {
   const all: StripView = {
     ...view,
-    fullAutoShown: true,
     frozen: 'feature',
     agents: { shown: true, state: { ...DEFAULT_AGENTS }, running: 0 },
   };
@@ -444,8 +451,7 @@ test('the look tells the kind on the strip, on every layout: an opener ends in �
         .flat()
         .flatMap((s) => s.items);
       const label = (id: string) => items.find((i) => i.id === id)!.label;
-      for (const id of [commandOf({ kind: 'fullAuto' }, lang), commandOf({ kind: 'agents' }, lang), '6'])
-        assert.ok(label(id).includes('…'), `${lang} ${columns} ${id}: ${label(id)}`);
+      for (const id of [commandOf({ kind: 'agents' }, lang), '6']) assert.ok(label(id).includes('…'), `${lang} ${columns} ${id}: ${label(id)}`);
       // The cockpit is a switch too: shown or not.
       assert.ok(label('0').includes('○'), `${lang} ${columns} 0: ${label('0')}`);
       assert.ok(

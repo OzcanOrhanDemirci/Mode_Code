@@ -37,7 +37,6 @@ Every agent's start passes through Mode_Code before Claude Code runs it, so the 
 What code cannot do is make Claude start an agent. When you set the mode, Claude is told with your next message, plainly: for exactly N, the rows in order and that it should not work around them. If it ends its turn with fewer started than you asked for, it is reminded once, with the rows still waiting; then it is left alone, as you decided (insisting backfires).
 
 - **A later message.** Exactly N belongs to the request it was set for. Your next message closes it to new agents; the ones still running finish, and the mode turns off when they do.
-- **A full-autonomy run attached.** Its plan decides the work, so exactly N cannot start; at most N works.
 - **A read-only mode** (chat, research, plan): no code agent; a row is research or plan.
 - **The quota guard comes first.** Past a budget no agent starts, whatever the mode ([quota.md](quota.md)).
 - **An agent's own agents count** toward N; free helpers do not.

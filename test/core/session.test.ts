@@ -12,7 +12,6 @@ import {
   parseHookState,
   parseModState,
   sameFolderSessions,
-  withRun,
   workingNow,
 } from '../../src/core/session.js';
 import { detectKeyword, type KeywordMatch } from '../../src/core/keywords.js';
@@ -154,72 +153,31 @@ test('state files that are missing, torn or foreign parse to nothing', () => {
   assert.equal(parseHookState('{"v":1,"sessionId":"other","lastRunAt":5,"blocks":{}}', 'abc').lastRunAt, 0);
 });
 
-test('full autonomy: the keyword names the project and the budget; the run itself sets the interaction', () => {
+test('full autonomy: the keyword chooses it, with the project and the budget; "cancel" leaves it for Autonomous', () => {
   const s0 = newModState('s1', 'dev', 0);
   const kw = detectKeyword('Hız sınırı ekle. terminal tam otonom kota +10', [{ id: 'terminal', names: ['terminal'] }])!;
-  const s = applyKeyword({ ...s0, wrapUp: true, resumeAt: 5 }, kw, 51);
-  assert.deepEqual([s.interaction, s.project, s.weeklyTarget, s.weeklyTargetSource, s.wrapUp, s.resumeAt], ['default', 'terminal', 51, '+10', false, null]);
-  const cancel = applyKeyword({ ...s0, interaction: 'full', runId: 'r1' }, detectKeyword('tam otonom iptal')!, null);
-  assert.equal(cancel.interaction, 'default');
-  // Letting a run go gives back the way of working it took over.
-  const back1 = applyKeyword({ ...s0, interaction: 'full', interactionBefore: 'autonomous', runId: 'r1' }, detectKeyword('tam otonom iptal')!, null);
-  assert.deepEqual([back1.interaction, back1.interactionBefore], ['autonomous', null]);
-  assert.equal(applyKeyword({ ...s0, interaction: 'manual' }, detectKeyword('tam otonom iptal')!, null).interaction, 'manual');
-  // The interaction and the run survive the state file; an unknown interaction does not.
-  const back = parseModState(JSON.stringify({ ...s0, interaction: 'full', interactionBefore: 'manual', runId: 'r1' }))!;
-  assert.deepEqual([back.interaction, back.interactionBefore, back.runId], ['full', 'manual', 'r1']);
-  assert.equal(parseModState(JSON.stringify({ ...s0, interaction: 'turbo' }))!.interaction, 'default');
-  for (const odd of ['full', 'turbo', 7, null])
-    assert.equal(parseModState(JSON.stringify({ ...s0, interactionBefore: odd }))!.interactionBefore, null, String(odd));
-  // A state file written before the field existed reads as none.
-  const { interactionBefore: _, ...old } = s0;
-  assert.equal(parseModState(JSON.stringify(old))!.interactionBefore, null);
-});
-
-test('a run takes the way of working over while it is open and gives back the one it took', () => {
-  for (const before of ['default', 'manual', 'autonomous'] as const) {
-    const open = withRun({ ...s0, interaction: before }, 'r1');
-    assert.deepEqual([open.runId, open.interaction, open.interactionBefore], ['r1', 'full', before]);
-    // The run's record is saved again while it runs: what it took stays what it took.
-    const again = withRun(open, 'r1');
-    assert.deepEqual([again.interaction, again.interactionBefore], ['full', before]);
-    const closed = withRun(again, null);
-    assert.deepEqual([closed.runId, closed.interaction, closed.interactionBefore], [null, before, null]);
-  }
-  // A session that never had a run, or whose run was let go already, keeps its own.
-  assert.deepEqual(withRun({ ...s0, interaction: 'manual' }, null), { ...s0, interaction: 'manual' });
-  // A run state from before the field: the default comes back.
-  assert.equal(withRun({ ...s0, interaction: 'full', runId: 'r1' }, null).interaction, 'default');
-});
-
-test("the hook state keeps a run's stop counter and the last stop it let through", () => {
-  const h = parseHookState(
-    JSON.stringify({
-      v: 1,
-      sessionId: 's1',
-      lastRunAt: 1,
-      blocks: {},
-      autoStop: { runId: 'r1', fingerprint: 'f', streak: 2 },
-      autoAllowed: { runId: 'r1', why: 'noProgress', at: 9 },
-    }),
-    's1',
-  );
+  const s = applyKeyword({ ...s0, wrapUp: true, resumeAt: 5, turnMode: 'chat' }, kw, 51);
   assert.deepEqual(
-    [h.autoStop, h.autoAllowed],
-    [
-      { runId: 'r1', fingerprint: 'f', streak: 2 },
-      { runId: 'r1', why: 'noProgress', at: 9 },
-    ],
+    [s.interaction, s.project, s.weeklyTarget, s.weeklyTargetSource, s.wrapUp, s.resumeAt, s.turnMode],
+    ['full', 'terminal', 51, '+10', false, 5, null],
   );
-  const torn = parseHookState(JSON.stringify({ v: 1, sessionId: 's1', autoStop: { streak: 'x' }, autoAllowed: { runId: 1 } }), 's1');
-  assert.deepEqual([torn.autoStop, torn.autoAllowed], [null, null]);
+  // Without a budget the week's budget stays as it was.
+  assert.deepEqual(
+    [applyKeyword(s0, detectKeyword('tam otonom')!, 51).interaction, applyKeyword(s0, detectKeyword('tam otonom')!, 51).weeklyTarget],
+    ['full', null],
+  );
+  const cancel = applyKeyword({ ...s0, interaction: 'full', resumeAt: 9 }, detectKeyword('tam otonom iptal')!, null);
+  assert.deepEqual([cancel.interaction, cancel.resumeAt], ['autonomous', null]);
+  // Cancel says nothing to a session that is not in full autonomy.
+  assert.equal(applyKeyword({ ...s0, interaction: 'manual' }, detectKeyword('tam otonom iptal')!, null).interaction, 'manual');
+  // The way of working survives the state file; an unknown one does not; a run an older version recorded is left aside.
+  const back = parseModState(JSON.stringify({ ...s0, interaction: 'full', runId: 'r1', interactionBefore: 'manual' }))!;
+  assert.equal(back.interaction, 'full');
+  assert.equal(parseModState(JSON.stringify({ ...s0, interaction: 'turbo' }))!.interaction, 'default');
 });
 
 test('a fresh state is all defaults; a state file needs its version, its session and when it was alive', () => {
-  assert.deepEqual(
-    [s0.mode, s0.interaction, s0.interactionBefore, s0.wrapUp, s0.resumeAt, s0.project, s0.weeklyTarget],
-    ['free', 'default', null, false, null, null, null],
-  );
+  assert.deepEqual([s0.mode, s0.interaction, s0.wrapUp, s0.resumeAt, s0.project, s0.weeklyTarget], ['free', 'default', false, null, null, null]);
   for (const torn of ['5', '[1]', '{"v":1,"sessionId":"a"}', '{"v":1,"aliveAt":1}', '{"sessionId":"a","aliveAt":1}'])
     assert.equal(parseModState(torn), null, torn);
   // Approvals in the file: only well-formed ones come back.
@@ -239,9 +197,6 @@ test('the hook state: its own session and version only; each field kept when it 
   assert.equal(parseHookState(JSON.stringify({ ...full, v: 2 }), 's1').lastRunAt, 0);
   assert.equal(parseHookState('[1]', 's1').lastRunAt, 0);
   assert.equal(parseHookState('{', 's1').lastRunAt, 0);
-  // A stop let through needs all three of its parts.
-  for (const part of [{ runId: 'r' }, { runId: 'r', why: 'w' }, { why: 'w', at: 1 }, { runId: 'r', at: 1 }])
-    assert.equal(parseHookState(JSON.stringify({ ...full, autoAllowed: part }), 's1').autoAllowed, null, JSON.stringify(part));
 });
 
 test('approvals: the same call approved again replaces the old one; one as old as the limit is gone', () => {

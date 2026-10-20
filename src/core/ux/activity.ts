@@ -63,7 +63,7 @@ export const ACTIVITY_KINDS = [
   'close',
   'conflict',
   'flow',
-  'run',
+  'full',
   'permission',
   'manual',
   'flagged',
@@ -95,8 +95,11 @@ export function activityOf(e: ActivityEvent, lang: Lang): ActivityLine {
       const why = rule ? t('act.why.rule', { rule: t(`rulename.${rule}`) }) : null;
       const at = rule ? `protection/rules/${rule}` : 'protection/events';
       const reason = list(e.reasons)[0] ?? '';
+      // Full autonomy left it to the person, with its command: it waits for them, it was not blocked.
+      if (e.verdict === 'deny' && e.left === true) return line('waiting', t('act.belt.left', { tool, reason }), why, at);
       if (e.verdict === 'deny') return line('blocked', t('act.belt.deny', { tool, reason }), why, at);
       if (e.verdict === 'warn') return line('note', t('act.belt.warn', { tool, reason }), why, at, true);
+      // Held for the person by a full-autonomy run of a version before 1.2.0.
       if (e.answer === 'deferred') return line('waiting', t('act.belt.deferred', { tool, reason }), why, at);
       if (e.answer === 'allow' || e.answer === 'third') return line('done', t('act.belt.allowed', { tool, reason }), why, at);
       return line('blocked', t('act.belt.declined', { tool, reason }), why, at);
@@ -176,19 +179,9 @@ export function activityOf(e: ActivityEvent, lang: Lang): ActivityLine {
         flow ? `work/flows/${flow}` : null,
       );
     }
-    case 'run': {
-      const run = str(e.run, 60);
-      if (e.action === 'gate' && e.ok === false)
-        return line('blocked', t('act.run.refused', { checks: list(e.failed).join(', ') }), t('act.why.autonomy'), 'work/full-auto');
-      if (e.action === 'gate') return line('note', t('act.run.checked'), null, 'work/full-auto', true);
-      const status = str(e.status, 20) || 'active';
-      return line(
-        status === 'paused' || e.defer ? 'waiting' : status === 'stuck' ? 'blocked' : 'done',
-        t('act.run', { run, status: t(`auto.status.${status}`) }),
-        null,
-        run ? `work/runs/${run}` : 'work/runs',
-      );
-    }
+    case 'full':
+      // A question to the person, or plan mode, answered by full autonomy: nobody is asked.
+      return line('note', t('act.full', { tool }), t('act.why.level'), 'work/modes', true);
     case 'permission':
       // Left to the person in full autonomy: it waits for them. Answered by the way of working, or by their own rules.
       if (e.answer === 'left') return line('waiting', t('act.permission.left', { tool }), t('act.why.level'), 'work/modes');

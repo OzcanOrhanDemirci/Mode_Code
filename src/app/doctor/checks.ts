@@ -588,19 +588,6 @@ const installUpdate: Check = (f) => {
   return result(id, 'install', false, 'ok', m('doc.update.ok', { version: f.update.current }));
 };
 
-// ── full autonomy ──
-
-/** Off: said once. On: the start checks measurable here; each failure names its fix (docs/autonomy.md). */
-const installAutonomy: Check = (f) => {
-  const id = 'install.autonomy';
-  if (!f.autonomy.enabled) return result(id, 'install', false, 'info', m('doc.autonomy.off'));
-  const failed = f.autonomy.checks.filter((c) => c.ok === false);
-  if (!failed.length) return result(id, 'install', false, 'ok', m('doc.autonomy.ready'));
-  return result(id, 'install', false, 'warn', m('doc.autonomy.notReady', { n: failed.length }), {
-    details: failed.map((c) => m(c.key, c.params)),
-  });
-};
-
 /** Every check, in the order the report shows them. */
 // ── Claude Code's setup beyond this tool's own (A6 of 1.2.0, setup.ts) ──
 
@@ -726,7 +713,6 @@ export const CHECKS: readonly Check[] = [
   installControlCenter,
   installModSeen,
   installUpdate,
-  installAutonomy,
   installSkills,
   protectAgreement,
   protectLinks,

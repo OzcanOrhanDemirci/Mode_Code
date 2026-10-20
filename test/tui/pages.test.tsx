@@ -48,11 +48,11 @@ test('a setting that matters only under another stands under it; while that one 
 });
 
 test('an empty page says what fills it, and Enter or a click opens where that is done', async () => {
-  const s = await draw(new FakeData(), { address: 'work/runs', rows: 40, columns: 100 });
+  const s = await draw(new FakeData(), { address: 'work/flows', rows: 40, columns: 100 });
   try {
-    assert.match(flat(s.text()), /No full-autonomy run yet\./);
+    assert.match(flat(s.text()), /End a message to Claude with "flow"/);
     await s.press(KEY.enter);
-    assert.match(s.text(), /Address: work\/full-auto/);
+    assert.match(s.text(), /Address: work\/modes/);
   } finally {
     s.close();
   }

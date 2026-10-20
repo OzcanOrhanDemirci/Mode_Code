@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * This computer's part of the shared place (docs/sync.md): what it writes into its own folder (its name,
- * its shared settings with their times, its history with secrets masked, summaries of its runs and flows)
+ * its shared settings with their times, its history with secrets masked, summaries of its flows)
  * and how it reads the others' settings back into the settings in effect here. Over an injected file
  * access, so the plugin (`$.fs`) and the hook and the command line (node:fs) do exactly the same.
  */
@@ -10,7 +10,6 @@ import { parseSyncRecord, type SyncResult } from './memory-sync.js';
 import type { Layout } from './layout.js';
 import { joinPath } from './paths.js';
 import { parseFlow } from './flow.js';
-import { parseRun } from './run.js';
 import {
   flowSummary,
   machinePaths,
@@ -22,7 +21,6 @@ import {
   parseIgnored,
   parseMachineInfo,
   parseMachineSettings,
-  runSummary,
   sharedValues,
   type Merged,
   type MachineSettings,
@@ -43,7 +41,7 @@ export interface ExportInput {
   platform: string;
   app: string;
   now: number;
-  layout: Pick<Layout, 'eventsDir' | 'runsDir' | 'flowsDir'>;
+  layout: Pick<Layout, 'eventsDir' | 'flowsDir'>;
   /** This computer's own settings (config.json as it is, without the others' changes). */
   local: Config;
   keepMonths: number;
@@ -117,24 +115,14 @@ export async function exportMachine(fs: SyncFs, input: ExportInput): Promise<Exp
     }
   }
 
-  // Its runs and flows, as the others see them: those that changed within the months kept.
+  // Its flows, as the others see them: those that changed within the months kept.
   const oldest = monthStart(input.now, input.keepMonths);
-  for (const [base, out, read] of [
-    [input.layout.runsDir, p.runs, async (d: string) => summaryOfRun(await fs.read(joinPath(d, 'run.json')))],
-    [input.layout.flowsDir, p.flows, async (d: string) => summaryOfFlow(await fs.read(joinPath(d, 'flow.json')))],
-  ] as const) {
-    for (const e of await fs.list(base)) {
-      if (e.kind !== 'dir' || !/^[a-z0-9][a-z0-9-]{0,80}$/.test(e.name)) continue;
-      const s = await read(joinPath(base, e.name));
-      if (s && s.updatedAt >= oldest) await put(fs, joinPath(out, `${e.name}.json`), JSON.stringify(s, null, 2) + '\n', written);
-    }
+  for (const e of await fs.list(input.layout.flowsDir)) {
+    if (e.kind !== 'dir' || !/^[a-z0-9][a-z0-9-]{0,80}$/.test(e.name)) continue;
+    const s = summaryOfFlow(await fs.read(joinPath(input.layout.flowsDir, e.name, 'flow.json')));
+    if (s && s.updatedAt >= oldest) await put(fs, joinPath(p.flows, `${e.name}.json`), JSON.stringify(s, null, 2) + '\n', written);
   }
   return { written, stale };
-}
-
-function summaryOfRun(text: string | null) {
-  const r = parseRun(text);
-  return r ? runSummary(r) : null;
 }
 
 function summaryOfFlow(text: string | null) {

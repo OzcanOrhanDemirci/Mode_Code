@@ -38,7 +38,6 @@ const record = (id: string, cwd: string, at: number, mode: string, interaction: 
     mode,
     turnMode: null,
     flowId: null,
-    runId: null,
     nativePlan: null,
     interaction,
     project: null,
@@ -64,6 +63,7 @@ test("the commands are declared at the start, in the person's language; the mode
     '6',
     '7',
     '8',
+    '9',
     '0',
     '00',
     'devam',
@@ -128,7 +128,8 @@ test("the commands are declared at the start, in the person's language; the mode
   expect(w.commands.find((c: any) => c.name === 'devam').immediate).toBeUndefined();
   expect(w.commands.find((c: any) => c.name === '8').immediate).toBe(true);
   expect(w.commands.find((c: any) => c.name === '6').immediate).toBeUndefined();
-  expect(w.commands.find((c: any) => c.name === 'tam-otonom').immediate).toBeUndefined();
+  expect(w.commands.find((c: any) => c.name === '9').immediate).toBe(true);
+  expect(w.commands.find((c: any) => c.name === 'tam-otonom').immediate).toBe(true);
 });
 
 test('/3 switches to plan mode, says so in its row, tells the model; a write into the project is then refused', async ($, on) => {
@@ -390,17 +391,22 @@ test('a keyword after /6 is that keyword: nothing starts', async ($, on) => {
   expect(w.modState().flowId ?? null).toBe(null);
 });
 
-test('/tam-otonom says at once why it cannot start, and asks nothing; on native Windows the platform is no reason', async ($, on) => {
+test('/9 and /full-auto choose full autonomy at once, on native Windows too, and ask nothing; what it means is said once', async ($, on) => {
   const w = world(on, { windows: true, answer: 'allow' });
-  const r = await runFrom($, 'full-auto', { kind: 'composer' });
-  expect(r.text).toMatch(/^Full autonomy cannot start here:\n- /);
-  expect(r.text).toMatch(/Turned on/);
-  expect(r.text).not.toMatch(/Platform/);
+  const card = 'Full autonomy asks nothing. What cannot be undone it does not do: it leaves it to you, with the command.';
+  expect((await run($, '9')).text).toBe('Now: free · full auto');
+  expect(w.modState().interaction).toBe('full');
   expect(w.asked).toEqual([]);
+  expect(w.toasts).toContain(card);
+  await run($, '8');
+  expect(w.modState().interaction).toBe('autonomous');
+  await runFrom($, 'full-auto', { kind: 'composer' });
+  expect(w.modState().interaction).toBe('full');
+  expect(w.toasts.filter((t: string) => t === card)).toHaveLength(1);
 });
 
-test('the strip above the prompt: every control, those in effect marked; full autonomy only once turned on, on Windows too; a press runs the command', async ($, on) => {
-  const w = world(on, { windows: true, config: { autonomy: { enabled: true } } });
+test('the strip above the prompt: every control, those in effect marked, on Windows too; a press runs the command', async ($, on) => {
+  const w = world(on, { windows: true });
   const session = mock.session(on);
   await run($, '3');
   const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
@@ -415,14 +421,14 @@ test('the strip above the prompt: every control, those in effect marked; full au
     'strip-6',
     'strip-7',
     'strip-8',
-    'strip-full-auto',
+    'strip-9',
     'strip-0',
     'strip-00',
     'strip-activity',
   ]);
   expect((await ui.find({ key: 'strip-3' }))?.props.variant).toBe('primary');
   expect((await ui.find({ key: 'strip-4' }))?.props.variant).toBeUndefined();
-  expect((await ui.find({ type: 'Text', text: 'full auto' }))?.props.dimColor).toBeFalsy();
+  expect((await ui.find({ type: 'Text', text: '9 full auto' }))?.props.dimColor).toBeFalsy();
   // The menu and closing stand apart: the room before them grows, so they end the row.
   const pushes = (await ui.findAll({ type: 'Box' })).filter((b: any) => /^push-/.test(String(b.key)));
   expect(pushes.map((b: any) => b.props)).toEqual([expect.objectContaining({ flexGrow: 1, minWidth: 2 })]);
@@ -436,29 +442,11 @@ test('the strip above the prompt: every control, those in effect marked; full au
   await w.clock.advance(3000);
   for (let i = 0; i < 20; i++) await Promise.resolve();
   expect(said().some((t: string) => /The person chose \\"code\\" on Mode_Code's mode strip/.test(t))).toBe(true);
-  await ui.press({ key: 'strip-full-auto' });
-  // A toast is one line: how many reasons, and where they are.
-  expect(w.toasts.at(-1)).toBe('Full autonomy cannot start, for 2 reasons. Type /full-auto to see them.');
-  await ui.unmount();
-});
-
-test('a press that cannot start full autonomy for one reason says it in plain words, with what to do', async ($, on) => {
-  const w = world(on, { lang: 'tr', windows: true, promptMode: 'bypassPermissions', config: { autonomy: { enabled: true } } });
-  // A prompt runs the safety-net hook; the session's folder is no git project.
-  await $.prompt.submit(typed('merhaba'));
-  const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
-  await ui.press({ key: 'strip-tam-otonom' });
-  expect(w.toasts.at(-1)).toBe("Tam otonom açılamıyor: bu klasör bir git projesi değil. Claude Code'u projenin klasöründe aç.");
-  await ui.unmount();
-});
-
-test('full autonomy is not on the strip until it is turned on', async ($, on) => {
-  world(on);
-  await run($, '7');
-  const ui = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: band } as any);
-  const keys = (await ui.findAll({ type: 'Button' })).map((b: any) => b.key);
-  expect(keys).toEqual(['strip-1', 'strip-2', 'strip-3', 'strip-4', 'strip-5', 'strip-6', 'strip-7', 'strip-8', 'strip-0', 'strip-00', 'strip-activity']);
-  expect(await ui.find({ type: 'Text', text: 'full auto' })).toBeUndefined();
+  // Full autonomy is pressed as any way of working: lit, and said.
+  await ui.press({ key: 'strip-9' });
+  expect(w.modState().interaction).toBe('full');
+  expect((await ui.find({ key: 'strip-9' }))?.props.variant).toBe('primary');
+  expect(w.toasts.at(-1)).toBe('Now: 🔨 code · full auto');
   await ui.unmount();
 });
 
@@ -575,7 +563,7 @@ test('the strip yields to a question of Claude Code, and fits a narrow terminal'
   }
   expect(handedOn).toMatch(/no implementation for ui\.render/);
   const narrow = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: { ...band, bodyColumns: 50 } } as any);
-  expect((await narrow.findAll({ type: 'Button' })).length).toBe(10);
+  expect((await narrow.findAll({ type: 'Button' })).length).toBe(11);
   expect(await narrow.find({ type: 'Text', text: '3📐' })).toBeDefined();
   await narrow.unmount();
 });

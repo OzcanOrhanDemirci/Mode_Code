@@ -30,8 +30,6 @@ export interface ModeGuard {
   env: Readonly<Record<string, string | undefined>>;
   /** The flow step's name in the person's language, when the mode comes from a flow's step. */
   flowStep: string | null;
-  /** What the refusal ends with instead of the flow's or the mode's own advice (a full-autonomy run's plan phase). */
-  tail?: string;
   /** What the person types to switch to code or free, in their language. */
   words: { code: string; free: string };
 }
@@ -56,7 +54,7 @@ function zoneText(mode: WorkMode, z: ModeZones, lang: Lang): string {
 
 function refuse(g: ModeGuard, lang: Lang, what: string, key: MessageKey, params: Record<string, string>): GuardRefusal {
   const head = tIn(lang, 'mode.refuse.head', { icon: MODE_ICON[g.mode], mode: tIn(lang, `mode.name.${g.mode}` as MessageKey) }).trim();
-  const tail = g.tail ?? (g.flowStep ? tIn(lang, 'mode.refuse.tailFlow', { step: g.flowStep }) : tIn(lang, 'mode.refuse.tail', g.words));
+  const tail = g.flowStep ? tIn(lang, 'mode.refuse.tailFlow', { step: g.flowStep }) : tIn(lang, 'mode.refuse.tail', g.words);
   return { kind: 'mode', mode: g.mode, what, reason: `${head} ${tIn(lang, key, params)} ${tail}` };
 }
 

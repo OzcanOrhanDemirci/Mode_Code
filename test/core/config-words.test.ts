@@ -34,8 +34,8 @@ test('English is said as the check wrote it; a reason it does not know, as it is
 });
 
 test('a run of the check, refused in Turkish with its numbers and names kept', () => {
-  const r = setConfigValue(parseConfig(null).config, 'autonomy.maxHours', 99);
-  assert.equal(problemWords(r.problems[0]!.detail, 'tr'), '1 ile 72 arası bir sayı bekleniyordu');
+  const r = setConfigValue(parseConfig(null).config, 'quota.staleMinutes', 9999);
+  assert.equal(problemWords(r.problems[0]!.detail, 'tr'), '5 ile 1440 arası bir sayı bekleniyordu');
   const view = setConfigValue(parseConfig(null).config, 'view', 'loud');
   assert.equal(problemWords(view.problems[0]!.detail, 'tr'), 'simple, recommended ya da detailed bekleniyordu');
 });

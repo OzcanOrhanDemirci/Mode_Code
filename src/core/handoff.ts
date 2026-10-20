@@ -43,8 +43,6 @@ export interface HandoffFacts {
   uncommitted: string[];
   /** An open flow, in a few words. */
   flow: string | null;
-  /** A full-autonomy run attached to the session. */
-  run: { id: string; status: string; report: string | null } | null;
   quota: { five: number | null; week: number | null } | null;
   /** The person's last request in the session. */
   request: string | null;
@@ -153,7 +151,6 @@ export function composeHandoff(f: HandoffFacts, body: { parts?: HandoffParts | n
   out.push(`- Branch: ${f.branch ?? 'none'}${f.head ? ` at ${f.head.slice(0, 12)}` : ''}`);
   if (f.request) out.push(`- Last request: ${maskSecrets(truncate(oneLine(f.request), 500))}`);
   if (f.flow) out.push(`- Open flow: ${oneLine(f.flow)}`);
-  if (f.run) out.push(`- Full-autonomy run: ${f.run.id} (${f.run.status})${f.run.report ? `, report ${f.run.report}` : ''}`);
   if (f.quota && (f.quota.five !== null || f.quota.week !== null))
     out.push(
       `- Quota: 5-hour ${f.quota.five === null ? '?' : `${Math.round(f.quota.five)}%`}, weekly ${f.quota.week === null ? '?' : `${Math.round(f.quota.week)}%`}`,

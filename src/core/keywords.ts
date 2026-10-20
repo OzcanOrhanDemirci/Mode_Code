@@ -306,7 +306,7 @@ export function detectKeyword(
       if (variant) return { ...base, kind: 'flow', flow: variant };
     }
 
-    // "<project> full auto", "full auto cancel": a full-autonomy run (docs/autonomy.md).
+    // "<project> full auto", "full auto cancel": full autonomy as the way of working, or back to Autonomous (docs/autonomy.md).
     const auto = t.fullAuto.length ? new RegExp(`^(?:(.{1,40}?)\\s+)?(?:${alt(t.fullAuto)})(?:\\s+(.+))?$`).exec(end) : null;
     if (auto && (auto[2] === undefined || listHas(t.cancel, auto[2]))) {
       const kind = { ...base, kind: 'fullAuto' as const, auto: auto[2] === undefined ? ('start' as const) : ('cancel' as const) };

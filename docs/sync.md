@@ -36,15 +36,14 @@ or in the control center: Memory and projects › Sync, then `s`. It is a short 
 
 ## What travels
 
-|                                                                                                                                   | Travels                                                        |
-| --------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| Settings: language, view, modules, footer, quota, keywords, the belt, handoff and morning-report settings, full autonomy's limits | yes, as described below                                        |
-| Projects: their ids, names and definition of done                                                                                 | yes; a project's **folder** is each computer's own (see below) |
-| Where things are on this computer: project folders, the memory folder, flows' work folder, the sync itself                        | no                                                             |
-| Full autonomy switched on                                                                                                         | no: each computer is switched on by you, there                 |
-| History: the belt's and the keywords' events, runs and flows (their summaries)                                                    | yes: each computer adds its own; the others read it            |
-| Handoff notes, when the memory does not keep them                                                                                 | yes, in `handoffs/<project>/`                                  |
-| The session index, the quota reading, sessions' live state, backups, installed programs                                           | no                                                             |
+|                                                                                                                          | Travels                                                        |
+| ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| Settings: language, view, modules, footer, quota, keywords, the belt, handoff and morning-report settings, notifications | yes, as described below                                        |
+| Projects: their ids, names and definition of done                                                                        | yes; a project's **folder** is each computer's own (see below) |
+| Where things are on this computer: project folders, the memory folder, flows' work folder, the sync itself               | no                                                             |
+| History: the belt's and the keywords' events, and flows (their summaries)                                                | yes: each computer adds its own; the others read it            |
+| Handoff notes, when the memory does not keep them                                                                        | yes, in `handoffs/<project>/`                                  |
+| The session index, the quota reading, sessions' live state, backups, installed programs                                  | no                                                             |
 
 **The quota reading is not shared.** Rate limits belong to an account, and a reading does not say whose it is: two computers may well use two accounts. Each computer measures its own with its first answer.
 
@@ -61,7 +60,7 @@ Lowering a protection means:
 - the belt: switching a rule off, softening a rule's verdict, removing a protected branch or a repository from the pull-request-only or single-branch lists, turning the Docker volumes pack off;
 - the modules that protect: the quota guard, the secret scanner, modes;
 - the quota: raising the five-hour or weekly stop and wrap-up lines, trusting a reading for longer, resuming by itself;
-- full autonomy: more hours, more minutes before a stall, another review model;
+- notifications: a new ntfy topic, or another one;
 - projects: fewer commands in a definition of done, or a project that had one removed;
 - keywords: a phrase added (a phrase can start autonomous work).
 

@@ -34,9 +34,29 @@ const AUTONOMOUS_NOTE =
   'Stop only for a decision the person must make (irreversible or outward-facing steps, a direction with no single right answer, a project lock); ' +
   'skip such a step if later work does not depend on it, and list your autonomous decisions in the final report.';
 
+/**
+ * Working in full autonomy, as the person defined it (2026-10-20): nothing is asked, and what is the person's to do is
+ * left to them, never done in their place unless they clearly asked for it.
+ */
+export const FULL_NOTE =
+  'work to the end of the task without asking anything: no question to the person (AskUserQuestion) and no plan mode. ' +
+  "Decide by the person's recorded decisions (the memory, the project's locks, the commit rule) or take the reversible, safe default, and say which in your answer. " +
+  'Never take an irreversible or outward step the person did not clearly ask for: a step the safety belt leaves to the person is not done; go on with the rest of the task and list each such step, with its command, at the end of your answer.';
+
 /** The way of working in one sentence; the default reads as manual, as the strip shows it. */
 function styleSentence(interaction: ModSessionState['interaction']): string {
+  if (interaction === 'full') return `Way of working, full autonomy: ${FULL_NOTE}`;
   return interaction === 'manual' || interaction === 'default' ? `Way of working, manual: ${MANUAL_NOTE}` : `Way of working, autonomous: ${AUTONOMOUS_NOTE}`;
+}
+
+/** With each of the person's prompts in full autonomy: what it means, in a line. */
+export function fullTurnNote(): string {
+  return `${P} Full autonomy: ask nothing. A step the safety belt leaves to the person is not done: go on with the rest and list it, with its command, at the end of your answer.`;
+}
+
+/** The project's own definition of done (`projects[].verify`), told in full autonomy before the task is called done. */
+export function verifyNote(commands: readonly string[]): string {
+  return `${P} The project's own definition of done: before you call the task done, run ${commands.map((c) => `\`${c}\``).join(', ')} and fix what fails.`;
 }
 
 /** What keeps a restricting mode: code, until the person changes it (a "continue" does not). */
@@ -110,6 +130,11 @@ export function keywordContext(
       return [`${said} The way of working is now manual: ${MANUAL_NOTE}`];
     case 'autonomous':
       return [`${said} The way of working is now autonomous: ${AUTONOMOUS_NOTE} The mode stays as it is.`];
+    case 'fullAuto':
+      if (kw.auto === 'cancel') return [`${said} Full autonomy is off; the way of working is now autonomous: ${AUTONOMOUS_NOTE}`];
+      return [
+        `${said} The way of working is now full autonomy: ${FULL_NOTE} The mode stays as it is.${kw.budget ? ` ${quotaLine(quota)}` : ''}${unknownProject}`,
+      ];
     case 'chat':
     case 'research':
     case 'plan':

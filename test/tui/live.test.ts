@@ -24,7 +24,7 @@ function fresh(make: (l: ReturnType<typeof layout>) => string[]) {
 }
 
 test('a write in the data folder reaches the screen once per burst; the index files do not', async () => {
-  const { root, l, data, done } = fresh((l) => [l.stateDir, l.sessionsDir, l.eventsDir, l.flowsDir, l.runsDir]);
+  const { root, l, data, done } = fresh((l) => [l.stateDir, l.sessionsDir, l.eventsDir, l.flowsDir]);
   let calls = 0;
   const stop = data.watch(() => calls++);
   try {

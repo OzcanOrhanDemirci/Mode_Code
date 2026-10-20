@@ -32,8 +32,9 @@ export function inboxEvents(events: ToolEvent[], lastSeen: number | null): ToolE
         e.kind === 'resume' ||
         // A flow that now waits for the person, or has ended.
         (e.kind === 'flow' && (e.status === 'waiting' || e.status === 'done') && (e.action === 'done' || e.action === 'resume')) ||
-        // A full-autonomy run that ended or paused while the person was away.
-        (e.kind === 'run' && (e.action === 'finish' || e.action === 'stuck' || e.action === 'pause' || e.action === 'cancel'))),
+        // A step full autonomy left to the person while they were away.
+        (e.kind === 'permission' && e.answer === 'left') ||
+        (e.kind === 'belt' && e.left === true)),
   );
 }
 
@@ -70,17 +71,15 @@ export function Inbox({ width, open }: ScreenProps) {
 }
 
 export function eventTitle(e: ToolEvent, t: (k: MessageKey, p?: Record<string, string | number>) => string): string {
+  if (e.kind === 'belt' && e.left) return t('event.left', { tool: e.tool ?? '?' });
   if (e.kind === 'belt') return t(e.verdict === 'ask' ? (e.answer === 'allow' ? 'event.allowed' : 'event.asked') : 'event.blocked', { tool: e.tool ?? '?' });
+  if (e.kind === 'permission' && e.answer === 'left') return t('event.left', { tool: e.tool ?? '?' });
   if (e.kind === 'quota') return t(e.level === 'stop' ? 'event.quotaStop' : 'event.quotaWrapUp');
   if (e.kind === 'resume') return t('event.resume');
   if (e.kind === 'chat') return t('event.chat', { tool: e.tool ?? '?' });
   if (e.kind === 'keyword') return t('event.keyword', { keyword: e.keyword ?? '?' });
   if (e.kind === 'mode') return t('event.mode', { mode: t(`mode.name.${e.mode ?? 'chat'}` as MessageKey), tool: e.tool ?? '?' });
   if (e.kind === 'modeDisagree') return t('event.modeDisagree');
-  if (e.kind === 'run') {
-    if (e.action === 'pause') return t('event.run.pause', { run: e.run ?? '?', reason: t(`auto.pause.${e.reason ?? 'person'}` as MessageKey) });
-    return t(`event.run.${e.action === 'finish' || e.action === 'stuck' || e.action === 'cancel' ? e.action : 'start'}` as MessageKey, { run: e.run ?? '?' });
-  }
   if (e.kind === 'flow') {
     if (e.status === 'waiting') return t('event.flow.waiting', { flow: e.flow ?? '?' });
     if (e.status === 'done') return t('event.flow.complete', { flow: e.flow ?? '?' });

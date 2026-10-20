@@ -156,13 +156,14 @@ test("config explain gives a setting's four answers and the command that changes
   }
   const en = world({ lang: 'en' });
   try {
-    const n = cli(en, ['config', 'explain', 'autonomy.stallMinutes']);
+    assert.equal(cli(en, ['config', 'set', 'memory.morning.enabled', 'false']).code, 0);
+    const n = cli(en, ['config', 'explain', 'memory.morning.afterHours']);
     assert.equal(n.code, 0, n.err);
     const flat = n.out.replace(/\s+/g, ' ');
-    assert.match(flat, /Now 90 minutes \(default\)\. After 90 minutes without a finished step Claude is told/);
-    assert.match(flat, /No effect now, because "Full autonomy" is off \(Working › Full autonomy\)\./);
-    assert.match(flat, /If you change it Type a number from 10 minutes to 720 minutes\./);
-    assert.match(flat, /mode-code config set autonomy\.stallMinutes 10-720/);
+    assert.match(flat, /Now 6 hours \(default\)\. 6 hours without a message count as being away\./);
+    assert.match(flat, /No effect now, because "Morning report" is off \(Memory and projects › Handoffs and morning report\)\./);
+    assert.match(flat, /If you change it Type a number from 1 hour to 72 hours\./);
+    assert.match(flat, /mode-code config set memory\.morning\.afterHours 1-72/);
     const bad = cli(en, ['config', 'explain', 'agents']);
     assert.equal(bad.code, 2);
     assert.match(bad.out, /Not a setting: agents\./);

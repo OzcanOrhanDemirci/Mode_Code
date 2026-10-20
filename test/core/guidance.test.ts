@@ -12,6 +12,7 @@ import {
   flowTurnContext,
   footerInstruction,
   freezeNote,
+  fullTurnNote,
   hygieneNote,
   invisibleNote,
   mcpChangedNote,
@@ -29,6 +30,7 @@ import {
   stepGuidance,
   stepsLine,
   stopContext,
+  verifyNote,
   wrapUpContext,
 } from '../../src/core/guidance.js';
 import { startFlow } from '../../src/core/flow.js';
@@ -167,6 +169,32 @@ test('the way of working: manual and autonomous alone, each said in the words th
   assert.match(
     keywordContext(kw('manuel app devam'), state, q(), null)[0]!,
     /Keyword "manual continue": pick the work up where it stopped\. Way of working, manual: work step by step/,
+  );
+});
+
+test('full autonomy: chosen by its keyword, with its budget; left for autonomous; and what each prompt is told in it', () => {
+  const full = keywordContext(kw('app tam otonom kota +10'), state, q(30, 40), 'app')[0]!;
+  assert.match(full, /The way of working is now full autonomy: work to the end of the task without asking anything/);
+  assert.match(full, /a step the safety belt leaves to the person is not done; go on with the rest of the task and list each such step, with its command/);
+  assert.match(full, /The mode stays as it is\. Quota: /);
+  // Without a budget, no quota line; an unknown project is said.
+  assert.doesNotMatch(keywordContext(kw('tam otonom'), state, q(), null)[0]!, /Quota:/);
+  assert.match(
+    keywordContext(kw('tam otonom iptal'), state, q(), null)[0]!,
+    /Full autonomy is off; the way of working is now autonomous: go on without asking/,
+  );
+  // The way of working as the strip has it, said with a continue.
+  assert.match(
+    keywordContext(kw('app devam'), { ...state, interaction: 'full' }, q(), 'app', { strip: true, workDir: '/tmp/w' })[0]!,
+    /Way of working, full autonomy: work to the end/,
+  );
+  assert.equal(
+    fullTurnNote(),
+    '[Mode_Code] Full autonomy: ask nothing. A step the safety belt leaves to the person is not done: go on with the rest and list it, with its command, at the end of your answer.',
+  );
+  assert.equal(
+    verifyNote(['npm run check', 'npm run test:mod']),
+    "[Mode_Code] The project's own definition of done: before you call the task done, run `npm run check`, `npm run test:mod` and fix what fails.",
   );
 });
 

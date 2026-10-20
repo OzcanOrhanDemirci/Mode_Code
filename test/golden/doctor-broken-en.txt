@@ -21,7 +21,6 @@ Installation
   ✓ The control center opens from the cockpit with C:/dev/mode-code/dist/cli.mjs.
   ✓ The plugin last reported in from a session at 2026-10-12 11:50 (UTC).
   ✓ Mode_Code 1.2.0 is the newest release.
-  i Full autonomy is off (mode-code autonomy enable turns it on).
   ✓ The skills your settings keep are in place.
 Protection
   ✗ The installed hook answered 1 of 30 samples differently from this version.
@@ -65,7 +64,7 @@ Data
 Self-tests
   ✓ All 30 built-in samples of 1 suites gave the expected answer.
 
-52 checks in 2.1 s: 39 ok, 2 warnings, 3 problems.
+51 checks in 2.1 s: 39 ok, 2 warnings, 3 problems.
 Problems that weaken a protection: 3.
 
 Problems that can be repaired automatically: 3.

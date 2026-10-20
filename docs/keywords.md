@@ -1,6 +1,6 @@
 # Keywords
 
-A keyword is a short phrase that steers the session. The tool detects it in code and adds a note for Claude that quotes your words and says what they mean, so the behavior does not depend on Claude remembering a convention. The mode and the way of working also have slash commands (`/1` … `/8`, `/0`, `/00`, `/devam`, `/kota`, `/tam-otonom`) and a strip above the prompt: see [modes.md](modes.md#session-controls).
+A keyword is a short phrase that steers the session. The tool detects it in code and adds a note for Claude that quotes your words and says what they mean, so the behavior does not depend on Claude remembering a convention. The mode and the way of working also have slash commands (`/1` … `/9`, `/0`, `/00`, `/devam`, `/kota`) and a strip above the prompt: see [modes.md](modes.md#session-controls).
 
 ## Rules
 
@@ -31,8 +31,8 @@ A keyword is a short phrase that steers the session. The tool detects it in code
 | flow research plan | `flow research plan`                             | `akış araştırma plan`                                | Starts a flow that researches and plans, with no code                                                                                                                                |
 | approve            | `approve`, `approved`                            | `onay`, `onayla`, `onaylıyorum`                      | Approves the plan waiting for approval; whole message only                                                                                                                           |
 | flow cancel        | `flow cancel`                                    | `akış iptal`                                         | Ends the running flow; its record stays                                                                                                                                              |
-| full auto          | `<project> full auto quota +10`, `full autonomy` | `<proje> tam otonom kota +10`                        | Runs the task in the message to its end without asking ([autonomy.md](autonomy.md)); the budget is required. Without a task or a budget it resumes the project's paused run          |
-| full auto cancel   | `full auto cancel`                               | `tam otonom iptal`                                   | Ends the run; its record and report stay                                                                                                                                             |
+| full auto          | `<project> full auto quota +10`, `full autonomy` | `<proje> tam otonom kota +10`                        | The way of working becomes full autonomy: Claude asks nothing and leaves what needs you to you ([autonomy.md](autonomy.md)); a budget if you give one                                |
+| full auto cancel   | `full auto cancel`                               | `tam otonom iptal`                                   | Back to autonomous                                                                                                                                                                   |
 | quota              | `quota 40`, `quota +8`                           | `kota 40`, `kota +8`                                 | Weekly budget: an absolute percentage, or points above the current reading. At the end of a task message, the budget for that task; the way of working stays as it is                |
 | autonomous         | `autonomous`, `auto` (whole message)             | `otonom` (whole message)                             | The way of working only: Claude goes on without asking between steps; the mode stays as it is                                                                                        |
 | continue + quota   | `<project> continue quota 40`                    | `<proje> devam kota 40`                              | Both at once                                                                                                                                                                         |
@@ -45,8 +45,6 @@ A keyword is a short phrase that steers the session. The tool detects it in code
 While a flow runs, a mode keyword (always the whole message) pauses the flow and switches modes. `stop` and `wrap up` pause a flow, `continue` resumes it at its step. See [modes.md](modes.md).
 
 When a session starts, Claude is told in one line about the newest handoff note of its project; `<project> continue` hands it the whole note. See [memory.md](memory.md).
-
-During a full-autonomy run, `stop` and `wrap up` pause it with its report, and `<project> continue` resumes it at its phase after its start checks pass again. See [autonomy.md](autonomy.md).
 
 ## Projects
 

@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 import { draw, FakeData, KEY, NOW, SESSION } from './harness.js';
 import { newModState } from '../../src/core/session.js';
 import { completeStep, startFlow } from '../../src/core/flow.js';
-import { acceptMilestone, acceptPlan, addDeferred, pauseRun, startRun } from '../../src/core/run.js';
 
 test('the first screen lists the eight categories by purpose, Now beside them, protection and quota at the top', async () => {
   const s = await draw(new FakeData());
@@ -258,137 +257,6 @@ test('Working › Flows says how to start one when there is none', async () => {
   }
 });
 
-test('full autonomy: turning it on shows what it means and needs a second Enter; the checks from here are listed', async () => {
-  const data = new FakeData();
-  const s = await draw(data, { address: 'work/full-auto' });
-  try {
-    assert.match(s.text(), /Start checks, measured from here/);
-    // A check's line wraps, never cut short: the pane says it in full.
-    assert.match(s.text(), /✓\s+Platform\s+Native Windows: no sandbox, so the safety belt and/);
-    assert.match(
-      s
-        .text()
-        .replace(/[│╭╮╰╯─]/g, '')
-        .replace(/\s+/g, ' '),
-      /neither is a security boundary\./,
-    );
-    await s.press(KEY.enter);
-    assert.equal(data.saved.length, 0, 'not yet');
-    // The warning wraps over several lines of the pane: read it as one text.
-    const flat = s
-      .text()
-      .replace(/[│╭╮╰╯─]/g, '')
-      .replace(/\s+/g, ' ');
-    assert.match(flat, /A run takes one task to its end while nobody is at the keyboard/);
-    assert.match(flat, /Press Enter again to turn it on\./);
-    await s.press(KEY.enter);
-    assert.deepEqual(data.saved, [{ path: 'autonomy.enabled', value: true }]);
-  } finally {
-    s.close();
-  }
-});
-
-test('full autonomy: Working › Full-autonomy runs lists each run, its card the milestones, what waits for the person and the way back', async () => {
-  const data = new FakeData('en');
-  let r = startRun({
-    id: '20261013-1210-rate-limit',
-    task: 'Add rate limiting to the API',
-    project: null,
-    cwd: 'C:/work/api',
-    sessionId: 's',
-    workDir: 'C:/tmp/w/runs',
-    budget: { weeklyTarget: 52, source: '+10' },
-    start: { commit: 'a'.repeat(40), branch: 'main' },
-    now: NOW - 3_600_000,
-  });
-  const plan = acceptPlan(
-    r,
-    {
-      steps: [
-        { n: 1, title: 'Limiter', acceptance: 'tests' },
-        { n: 2, title: 'Wire it in', acceptance: '429' },
-      ],
-      verification: ['npm test'],
-    },
-    [],
-    NOW - 3_000_000,
-  );
-  assert.ok(plan.ok);
-  const review = { verdict: 'concerns' as const, findings: ['reset not tested'], model: 'opus', at: NOW, signals: { deletedTests: 0, skipMarkers: 0 } };
-  const m = acceptMilestone(plan.run, { n: 1, at: NOW - 600_000, commit: 'b'.repeat(40), ref: 'x', commits: 2, review, note: '' }, NOW - 600_000);
-  assert.ok(m.ok);
-  const d = addDeferred(m.run, { kind: 'push', tool: 'Bash', what: 'git push origin main', reason: 'pushes to the protected branch main' }, NOW - 300_000);
-  assert.ok(d.ok);
-  r = pauseRun(d.run, 'quota', NOW - 60_000).run;
-  // Beside it: one running, one stuck, one done (the list's order and badges).
-  const other = (id: string, task: string) =>
-    startRun({ ...r, id, task, sessionId: 's', workDir: 'C:/tmp/w/runs', start: { commit: 'c'.repeat(40), branch: 'main' }, now: NOW - 7_200_000 });
-  const running = other('20261013-1100-running', 'Running task');
-  const stuck = { ...other('20261013-1000-stuck', 'Stuck task'), status: 'stuck' as const, runningSince: null };
-  const done = { ...other('20261013-0900-done', 'Done task'), status: 'done' as const, runningSince: null };
-  data.runList = [r, running, stuck, done];
-  const home = await draw(data, { address: 'now' });
-  try {
-    assert.match(home.text(), /paused: Add rate limiting to the API/);
-    assert.match(home.text(), /A full-autonomy run stopped and waits for you\./);
-  } finally {
-    home.close();
-  }
-  const card = await draw(data, { address: 'work/runs/20261013-1210-rate-limit' });
-  try {
-    const t = card.text();
-    assert.match(t, /Working › Full-autonomy runs › ⏸ Add rate limiting to the API/);
-    assert.match(t, /paused \(quota budget\) · 1\/2/);
-    assert.match(t, /✓\s+1\. Limiter\s+bbbbbbbbbbbb · CONCERNS/);
-    assert.match(t, /▶\s+2\. Wire it in/);
-    assert.match(t, /push git push origin main/);
-    assert.match(t.replace(/[│╭╮╰╯─]/g, '').replace(/\s+/g, ' '), /mode-code autonomy rollback 20261013-1210-rate-limit <n>/);
-  } finally {
-    card.close();
-  }
-  const empty = await draw(new FakeData('tr'), { address: 'work/runs' });
-  try {
-    assert.match(empty.text(), /Henüz tam otonom iş yok/);
-  } finally {
-    empty.close();
-  }
-});
-
-test('full autonomy: the runs list shows how many run, and each run its state', async () => {
-  const data = new FakeData('en');
-  const mk = (id: string, task: string, status: 'active' | 'paused' | 'stuck' | 'done') => ({
-    ...startRun({
-      id,
-      task,
-      project: null,
-      cwd: 'C:/work/api',
-      sessionId: 's',
-      workDir: 'C:/tmp/w/runs',
-      budget: { weeklyTarget: 52, source: '+10' },
-      start: { commit: 'a'.repeat(40), branch: 'main' },
-      now: NOW - 3_600_000,
-    }),
-    status,
-  });
-  data.runList = [mk('20261013-1300-a', 'Running one', 'active'), mk('20261013-1200-b', 'Stuck one', 'stuck'), mk('20261013-1100-c', 'Paused one', 'paused')];
-  const s = await draw(data, { address: 'work/runs' });
-  try {
-    const t = s.text();
-    assert.match(t, /Running one/);
-    assert.match(t, /⏸ Stuck one/);
-    assert.match(t, /⏸ Paused one/);
-    assert.match(t, /stuck/);
-  } finally {
-    s.close();
-  }
-  const automation = await draw(data, { address: 'work' });
-  try {
-    assert.match(automation.text(), /Full-autonomy runs\s+1 running/);
-  } finally {
-    automation.close();
-  }
-});
-
 test('Working › Parallel agents: turning it on says sessions start with agents off and needs a second Enter; the helpers take one', async () => {
   const data = new FakeData();
   // Narrower than 110 columns, the list of Working stays out of the way of the flattened text.
@@ -438,61 +306,6 @@ test('Working › Parallel agents: turning it on says sessions start with agents
     assert.match(automation.text(), /Paralel ajanlar\s+kapalı/);
   } finally {
     automation.close();
-  }
-});
-
-test('Working › Recent tasks: the last tasks given full autonomy, the one picked whole; Enter or c copies it', async () => {
-  const data = new FakeData('tr');
-  data.promptList = [
-    { text: 'Hız sınırı ekle.\nSonra belgeleri güncelle.', budget: '+20', at: NOW - 120_000 },
-    { text: 'Giriş hatasını düzelt.\nTestleri de yaz.', budget: '+10', at: NOW - 3 * 3600_000 },
-  ];
-  const s = await draw(data, { address: 'work/prompts', columns: 100 });
-  const flat = () =>
-    s
-      .text()
-      .replace(/[│╭╮╰╯─]/g, '')
-      .replace(/\s+/g, ' ');
-  try {
-    const t = flat();
-    assert.match(t, /Enter\/c görevin tamamını kopyala/);
-    assert.match(t, /kota \+20/);
-    // The one picked is whole; the others show their first line.
-    assert.match(t, /Hız sınırı ekle\. Sonra belgeleri güncelle\./);
-    assert.match(t, /Giriş hatasını düzelt\./);
-    assert.doesNotMatch(t, /Testleri de yaz\./);
-    await s.press(KEY.enter);
-    assert.deepEqual(data.copied, ['Hız sınırı ekle.\nSonra belgeleri güncelle.']);
-    assert.match(s.text(), /Kopyalandı: istediğin yere yapıştırabilirsin\./);
-    await s.press(KEY.down);
-    assert.match(flat(), /Giriş hatasını düzelt\. Testleri de yaz\./);
-    data.copyVia = 'terminal';
-    await s.type('c');
-    assert.deepEqual(data.copied.at(-1), 'Giriş hatasını düzelt.\nTestleri de yaz.');
-    assert.match(s.text(), /Terminale gönderildi; yapışmazsa metni fareyle seç\./);
-    // Past the last one, the picked one stays.
-    await s.press(KEY.down);
-    await s.type('c');
-    assert.equal(data.copied.length, 3);
-    assert.equal(data.copied.at(-1), 'Giriş hatasını düzelt.\nTestleri de yaz.');
-    await s.press(KEY.up, KEY.up);
-    await s.type('c');
-    assert.equal(data.copied.at(-1), 'Hız sınırı ekle.\nSonra belgeleri güncelle.');
-  } finally {
-    s.close();
-  }
-  const automation = await draw(data, { address: 'work' });
-  try {
-    assert.match(automation.text(), /Son görevler\s+2/);
-  } finally {
-    automation.close();
-  }
-  const empty = await draw(new FakeData(), { address: 'work/prompts' });
-  try {
-    assert.match(empty.text(), /No task yet\./);
-    await empty.press(KEY.enter);
-  } finally {
-    empty.close();
   }
 });
 

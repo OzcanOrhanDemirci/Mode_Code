@@ -23,7 +23,7 @@ test('the keys walk every press in order; Enter on a line of Claude right now op
     await s.press(KEY.down);
     assert.match(flat(s.text()), /1 new since you last looked/);
     await s.press(KEY.down);
-    assert.match(flat(s.text()), /Full autonomy: Claude carries one task to its end alone/);
+    assert.match(flat(s.text()), /Full autonomy: Claude works without asking you anything/);
     for (let i = 0; i < 5; i++) await s.press(KEY.down);
     assert.match(flat(s.text()), /Mode: free\./);
     await s.press(KEY.enter);
@@ -49,6 +49,24 @@ test('with two sessions at work, Claude right now names the one in this folder f
     assert.match(s.text(), /Writes the plan only \(📐 plan\)/);
     await s.clickText('Session 2 of 2: next');
     assert.match(s.text(), /Claude right now · in C:\/work\/app/);
+  } finally {
+    s.close();
+  }
+});
+
+class Frozen extends FakeData {
+  override modStates() {
+    return [{ ...newModState('ccc', 'dev', NOW - 60_000), cwd: 'C:/work/app', frozen: 'C:/work/app/src' }];
+  }
+}
+
+test("a line only its own session changes says so, with the strip's command", async () => {
+  const data = new Frozen();
+  data.seen = NOW;
+  const s = await draw(data, { address: 'now', rows: 70, columns: 90 });
+  try {
+    await s.press('w');
+    assert.match(flat(s.text()), /Only its own session changes this, on its strip: \/freeze\./);
   } finally {
     s.close();
   }
@@ -82,10 +100,8 @@ test('Activity › While you were away says each kind of thing that needed you, 
     ev(5, { kind: 'resume' }),
     ev(6, { kind: 'flow', status: 'waiting', action: 'done', flow: 'f1' }),
     ev(7, { kind: 'flow', status: 'done', action: 'done', flow: 'f2' }),
-    ev(8, { kind: 'run', action: 'finish', run: 'r1' }),
-    ev(9, { kind: 'run', action: 'pause', reason: 'quota', run: 'r2' }),
-    ev(10, { kind: 'run', action: 'stuck', run: 'r3' }),
-    ev(11, { kind: 'run', action: 'cancel', run: 'r4' }),
+    ev(8, { kind: 'belt', tool: 'Bash', verdict: 'deny', left: true, reasons: ['Merges into main'] }),
+    ev(9, { kind: 'permission', tool: 'Edit', answer: 'left' }),
   ] as never;
   const s = await draw(data, { address: 'activity/away', rows: 48, columns: 100 });
   try {
@@ -99,10 +115,8 @@ test('Activity › While you were away says each kind of thing that needed you, 
       /Pushes to main/,
       /A plan waits for your approval \(f1\)/,
       /A flow is complete \(f2\)/,
-      /Full-autonomy run done: r1/,
-      /Full-autonomy run paused \(.+\): r2/,
-      /Full-autonomy run stuck: r3/,
-      /Full-autonomy run canceled: r4/,
+      /Left to you, with its command: a Bash call Merges into main/,
+      /Left to you, with its command: a Edit call/,
     ])
       assert.match(t, line);
     // Opened, it counts as seen: next time, only what came after.
@@ -119,7 +133,7 @@ test('Modes and ways of working: what each does and the key that picks it, besid
     assert.match(t, /📐 plan Claude okur ve planlar, yalnız planı yazar;/);
     assert.match(t, / \/3 /);
     assert.match(t, /manuel .* \/7/);
-    assert.match(t, /\(\/tam-otonom\)/);
+    assert.match(t, /tam otonom .* \/9/);
     assert.match(t, /Modlar ve akışlar ● açık/);
   } finally {
     s.close();

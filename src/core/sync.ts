@@ -19,14 +19,13 @@ import { truncate } from './text.js';
 export const MACHINES_DIR = 'machines';
 
 /** Where a computer's files are in the shared place. */
-export function machinePaths(dir: string, id: string): { root: string; machine: string; settings: string; events: string; runs: string; flows: string } {
+export function machinePaths(dir: string, id: string): { root: string; machine: string; settings: string; events: string; flows: string } {
   const root = joinPath(dir, MACHINES_DIR, id);
   return {
     root,
     machine: joinPath(root, 'machine.json'),
     settings: joinPath(root, 'settings.json'),
     events: joinPath(root, 'events'),
-    runs: joinPath(root, 'runs'),
     flows: joinPath(root, 'flows'),
   };
 }
@@ -73,7 +72,7 @@ export function syncReadme(): string {
     '',
     `This folder is the shared copy of ${APP_NAME}'s settings and history between your computers (docs/sync.md).`,
     '',
-    `\`${MACHINES_DIR}/<computer>/\` is each computer's own: its settings with the time each changed, its history (the belt's and the keywords' events, summaries of runs and flows). Each computer writes only its own folder. \`handoffs/\` holds handoff notes, when your memory does not keep them.`,
+    `\`${MACHINES_DIR}/<computer>/\` is each computer's own: its settings with the time each changed, its history (the belt's and the keywords' events, summaries of flows). Each computer writes only its own folder. \`handoffs/\` holds handoff notes, when your memory does not keep them.`,
     '',
     'Change settings in Mode_Code, not here: each computer writes its own file from its settings, over any edit made to it.',
     '',
@@ -95,17 +94,8 @@ export const SYNC_MAX_BYTES = 8_000_000;
 
 // ── settings ─────────────────────────────────────────────────────────────────────────────────────
 
-/** Settings that are each computer's own: where things are on it, full autonomy switched on, the sync itself. */
-export const LOCAL_KEYS: readonly string[] = [
-  'version',
-  'memory.dirs',
-  'memory.store',
-  'modes.workDir',
-  'autonomy.enabled',
-  'update.check',
-  'sync',
-  'projects',
-];
+/** Settings that are each computer's own: where things are on it, the sync itself. */
+export const LOCAL_KEYS: readonly string[] = ['version', 'memory.dirs', 'memory.store', 'modes.workDir', 'update.check', 'sync', 'projects'];
 
 /** Settings shared as one value, though they are objects: two computers changing parts of one keep the newer whole. */
 const ATOMIC_KEYS = new Set(['belt.verdicts', 'keywords.extra']);
@@ -379,15 +369,7 @@ export function changedFromDefaults(c: Config): Set<string> {
 
 // ── lowering a protection ───────────────────────────────────────────────────────────────────────
 
-const LOWER_IF_UP = new Set([
-  'quota.fiveHourWrapUp',
-  'quota.fiveHourStop',
-  'quota.defaultWeeklyTarget',
-  'quota.defaultWeeklyWrapUp',
-  'quota.staleMinutes',
-  'autonomy.maxHours',
-  'autonomy.stallMinutes',
-]);
+const LOWER_IF_UP = new Set(['quota.fiveHourWrapUp', 'quota.fiveHourStop', 'quota.defaultWeeklyTarget', 'quota.defaultWeeklyWrapUp', 'quota.staleMinutes']);
 const PROTECTIVE_MODULES = new Set(['modules.quota', 'modules.secrets', 'modules.modes']);
 /** A pack's modes from the one that lets it least far to the one that lets it furthest. */
 const PACK_REACH = ['never', 'me', 'auto', 'always'];
@@ -420,11 +402,8 @@ export function lowersProtection(key: string, from: unknown, to: unknown): boole
   if (key.startsWith('packs.items.')) return PACK_REACH.indexOf(String(to ?? 'auto')) > PACK_REACH.indexOf(String(from ?? 'auto'));
   // A skill of someone else's turned on, or let Claude use it.
   if (key.startsWith('skills.items.')) return SKILL_REACH.indexOf(String(to ?? 'off')) > SKILL_REACH.indexOf(String(from ?? 'off'));
-  if (key === 'autonomy.reviewModel') return !same(from, to);
-  // Notifications sent to an address another computer chose: they carry the run's task.
+  // Notifications sent to an address another computer chose: they carry the task's first line.
   if (key === 'notify.ntfy') return to !== null && to !== undefined && !same(from, to);
-  // A run let go on past its time limit (absent: the default, continue).
-  if (key === 'autonomy.atTimeLimit') return (from ?? 'continue') !== 'continue' && (to ?? 'continue') === 'continue';
   if (key === 'keywords.extra') {
     const phrases = (v: unknown) =>
       new Set(
@@ -477,21 +456,6 @@ export function maskedEvents(text: string): string {
   return lines.length ? lines.map((l) => maskSecrets(l)).join('\n') + '\n' : '';
 }
 
-/** A run as the other computers see it. */
-export interface RunSummary {
-  id: string;
-  task: string;
-  project: string | null;
-  folder: string;
-  status: 'active' | 'paused' | 'done' | 'stuck' | 'canceled';
-  phase: string;
-  reason: string | null;
-  createdAt: number;
-  updatedAt: number;
-  milestones: number;
-  deferred: number;
-}
-
 /** A flow as the other computers see it. */
 export interface FlowSummary {
   id: string;
@@ -502,40 +466,7 @@ export interface FlowSummary {
   updatedAt: number;
 }
 
-const basename = (p: string) =>
-  p
-    .replace(/[\\/]+$/, '')
-    .split(/[\\/]/)
-    .pop() ?? '';
 const summaryText = (s: string) => maskSecrets(truncate(s.split('\n')[0] ?? '', 200));
-
-export function runSummary(r: {
-  id: string;
-  task: string;
-  project: string | null;
-  cwd: string;
-  status: RunSummary['status'];
-  phase: string;
-  pause: { reason: string } | null;
-  createdAt: number;
-  updatedAt: number;
-  milestones: unknown[];
-  deferred: unknown[];
-}): RunSummary {
-  return {
-    id: r.id,
-    task: summaryText(r.task),
-    project: r.project,
-    folder: basename(r.cwd),
-    status: r.status,
-    phase: r.phase,
-    reason: r.pause?.reason ?? null,
-    createdAt: r.createdAt,
-    updatedAt: r.updatedAt,
-    milestones: r.milestones.length,
-    deferred: r.deferred.length,
-  };
-}
 
 export function flowSummary(f: {
   id: string;
@@ -556,32 +487,9 @@ export function flowSummary(f: {
   };
 }
 
-const RUN_STATUSES = new Set(['active', 'paused', 'done', 'stuck', 'canceled']);
 const FLOW_STATUSES = new Set(['active', 'waiting', 'paused', 'done', 'canceled']);
 const str = (v: unknown, max = 200) => (typeof v === 'string' ? v.slice(0, max) : '');
 const num = (v: unknown) => (typeof v === 'number' ? v : 0);
-
-export function parseRunSummary(text: string | null): RunSummary | null {
-  try {
-    const o = JSON.parse(text ?? '') as Obj;
-    if (typeof o.id !== 'string' || !RUN_STATUSES.has(o.status as string)) return null;
-    return {
-      id: str(o.id, 80),
-      task: str(o.task),
-      project: typeof o.project === 'string' ? str(o.project, 60) : null,
-      folder: str(o.folder, 120),
-      status: o.status as RunSummary['status'],
-      phase: str(o.phase, 20),
-      reason: typeof o.reason === 'string' ? str(o.reason, 20) : null,
-      createdAt: num(o.createdAt),
-      updatedAt: num(o.updatedAt),
-      milestones: num(o.milestones),
-      deferred: num(o.deferred),
-    };
-  } catch {
-    return null;
-  }
-}
 
 export function parseFlowSummary(text: string | null): FlowSummary | null {
   try {

@@ -49,7 +49,6 @@ function facts(cfg: Record<string, unknown> = {}, session: Partial<ModSessionSta
     calls: [],
     agents: [],
     flow: null,
-    run: null,
     events: [],
     ...extra,
   };
@@ -130,7 +129,7 @@ const CASES: [string, CockpitFacts, CanRow['id'], string | null][] = [
   ['the delete rule blocks', facts({ 'belt.verdicts': { 'fs.delete-outside-project': 'deny' } }), 'delete', 'bad Cannot delete outside the project'],
   ['the delete rule notes', facts({ 'belt.verdicts': { 'fs.delete-outside-project': 'warn' } }), 'delete', 'look Deletes outside the project, with a note'],
   ['autonomous', facts({}, {}, { style: 'autonomous' }), 'style', 'ok Goes on without asking you'],
-  ['full autonomy', facts({}, {}, { style: 'full' }), 'style', 'ok Carries one task to its end alone'],
+  ['full autonomy', facts({}, {}, { style: 'full' }), 'style', 'ok Goes on without asking you anything'],
   ['agents set, none now, helpers free', facts({ 'agents.enabled': true }), 'agents', 'bad Only read-only helper agents'],
   ['agents set, none, helpers counted', facts({ 'agents.enabled': true, 'agents.helpers': false }), 'agents', 'bad Starts no helper agents'],
   ['agents free 3', facts({ 'agents.enabled': true }, { agents: { ...state().agents, mode: 'free', n: 3 } }), 'agents', 'ok At most 3 helper agents at once'],
@@ -165,18 +164,17 @@ for (const [name, f, id, expected] of CASES)
     assert.equal(said(f, id), expected);
   });
 
-test('the reasons follow the mode in force: a flow, a mode for this message, a run planning, Claude Code plan mode', () => {
+test('the reasons follow the mode in force: a flow, a mode for this message, Claude Code plan mode', () => {
   const why = (from: CockpitFacts['modeFrom']) => row(facts({}, {}, { mode: 'plan', modeFrom: from }), 'write')!.why;
   assert.deepEqual(why('flow').because, ["The flow's step works in 📐 plan.", 'Pick another mode on the strip, or with /1 to /5.']);
   assert.match(why('turn').because[0]!, /^You gave 📐 plan for this message only\.$/);
-  assert.match(why('run').because[0]!, /^The full-autonomy run is planning: 📐 plan until its plan is accepted\.$/);
   assert.match(why('plan').because[0]!, /^Claude Code's own plan mode is on\.$/);
   assert.equal(why('flow').now, '📐 plan');
   // With no modes the why engine says so, and nothing limits the writes.
   assert.match(row(facts({ 'modules.modes': false }), 'write')!.why.now, /^no modes/);
 });
 
-test('what changes a line: ending a freeze or a run; the rule; the agents window; the budget', () => {
+test('what changes a line: ending a freeze; the rule; the agents window; the budget', () => {
   const act = (f: CockpitFacts, id: CanRow['id'], lang: 'en' | 'tr' = 'en') => row(f, id, lang)!.act;
   assert.deepEqual(act(facts({}, { frozen: '/x/app' }), 'write', 'tr'), {
     kind: 'control',
@@ -195,15 +193,15 @@ test('what changes a line: ending a freeze or a run; the rule; the agents window
     opens: true,
   });
   assert.equal(act(facts({}, { mode: 'chat' }), 'delete'), null, 'no rule decides it in chat');
-  assert.match(JSON.stringify(act(facts({}, {}, { style: 'full' }), 'style')), /"name":"full-auto","label":"End the run".*"opens":false/);
-  // The way of working: waiting reads as rest, going on as on; only a way the strip picks says where it is picked.
+  assert.equal(act(facts({}, {}, { style: 'full' }), 'style'), null, 'full autonomy is picked on the strip, as the others');
+  // The way of working: waiting reads as rest, going on as on; each says where it is picked.
   const style = (s: CockpitFacts['style']) => row(facts({}, {}, { style: s }), 'style')!;
   assert.deepEqual(
-    (['manual', 'autonomous', 'full'] as const).map((s) => [style(s).meaning, style(s).why.because.at(-1)!.startsWith('Pick the other way')]),
+    (['manual', 'autonomous', 'full'] as const).map((s) => [style(s).meaning, style(s).why.because.at(-1)!]),
     [
-      ['off', true],
-      ['on', true],
-      ['on', false],
+      ['off', 'Pick another way of working on the strip, or with /7, /8 or /9.'],
+      ['on', 'Pick another way of working on the strip, or with /7, /8 or /9.'],
+      ['on', 'Pick another way of working on the strip, or with /7, /8 or /9.'],
     ],
   );
   assert.match(JSON.stringify(act(facts({ 'agents.enabled': true }), 'agents')), /"name":"parallel","label":"Agents".*"opens":true/);
@@ -264,7 +262,6 @@ test('at work now: Claude waits, a call runs with its time, more beside it, agen
       ],
       agents: [{ id: 'ag1', label: 'Find it · Explore' }],
       flow: { at: '2/4', step: '📐 plan', state: 'running' },
-      run: { at: '3/7', paused: false, planning: false },
     },
   );
   const rows = nowRows(busy, 'en');
@@ -274,23 +271,17 @@ test('at work now: Claude waits, a call runs with its time, more beside it, agen
       ['call', 'on', 'Bash · npm test (+1 more)', NOW - 3000],
       ['agent-ag1', 'agents', 'Find it · Explore', null],
       ['flow', 'on', 'Flow 2/4 · 📐 plan', null],
-      ['run', 'action', 'Full autonomy · step 3/7', null],
     ],
   );
   assert.equal(rows[1]!.agent, 'ag1');
   const flowMeaning = (state: 'running' | 'approval' | 'paused') => nowRows(facts({}, {}, { flow: { at: '1/4', step: 'x', state } }), 'en')[1]!.meaning;
   assert.deepEqual([flowMeaning('running'), flowMeaning('approval'), flowMeaning('paused')], ['on', 'ask', 'off']);
-  assert.equal(nowRows(facts({}, {}, { run: { at: '1/5', paused: false, planning: true } }), 'en')[1]!.text, 'Full autonomy · planning');
-  const waiting = nowRows(
-    facts({}, {}, { mo: 'wait', flow: { at: '3/4', step: 'approve', state: 'approval' }, run: { at: '1/5', paused: true, planning: false } }),
-    'tr',
-  );
+  const waiting = nowRows(facts({}, {}, { mo: 'wait', flow: { at: '3/4', step: 'approve', state: 'approval' } }), 'tr');
   assert.deepEqual(
     waiting.map((r) => [r.mark, r.text]),
     [
       ['ask', 'Bir soru cevabını bekliyor'],
       ['ask', 'Plan onayını bekliyor'],
-      ['off', 'Tam otonom 1/5 adımında duraklatıldı'],
     ],
   );
   // Every state Mo knows has its words and its card.
@@ -374,29 +365,27 @@ test('quick settings: not allowed yet, a press asks to allow it; allowed, the pr
     Object.values(none).map((r) => [r.id, r.value, r.press.kind, r.press.opens]),
     [
       ['agents', 'Claude decides', 'allow', true],
-      ['fullAuto', 'not allowed yet', 'allow', true],
       ['freeze', 'off', 'control', false],
     ],
   );
-  assert.deepEqual(none['fullAuto']!.press, {
+  assert.deepEqual(none['agents']!.press, {
     kind: 'allow',
-    path: 'autonomy.enabled',
+    path: 'agents.enabled',
     label: 'Allow',
-    card: allowWarning('autonomy.enabled', 'en'),
+    card: allowWarning('agents.enabled', 'en'),
     opens: true,
   });
   // A card answers the four questions: what it is, how it is now, what a press does, and, once allowed, where it is taken back.
   for (const r of Object.values(none)) assert.match(r.card, /\. Now: .+\. Press: .+\.$/, r.id);
-  const allowed = q(facts({ 'agents.enabled': true, 'autonomy.enabled': true }));
+  const allowed = q(facts({ 'agents.enabled': true }));
   assert.deepEqual(
     Object.values(allowed).map((r) => [r.id, r.value, r.press.kind === 'control' ? r.press.name : r.press.kind, r.press.opens]),
     [
       ['agents', 'none', 'parallel', true],
-      ['fullAuto', 'off', 'full-auto', true],
       ['freeze', 'off', 'freeze', false],
     ],
   );
-  assert.match(allowed['fullAuto']!.card, /Allowed: "Full autonomy" is on \(Working › Full autonomy\); it is taken back there\.$/);
+  assert.match(allowed['agents']!.card, /Allowed: "I set the number of agents" is on \(Working › Parallel agents\); it is taken back there\.$/);
   // On only where it is allowed and set: the session's agents with the setting off are Claude's to decide.
   const agentsOn = (cfg: Record<string, unknown>, mode: 'off' | 'free', ultracode = false) =>
     q(facts(cfg, { agents: { ...state().agents, mode, n: 3, ultracode } }))['agents']!.on;
@@ -409,19 +398,11 @@ test('quick settings: not allowed yet, a press asks to allow it; allowed, the pr
     ],
     [false, false, true, true],
   );
-  const on = q(
-    facts(
-      { 'agents.enabled': true, 'autonomy.enabled': true },
-      { agents: { ...state().agents, mode: 'assigned', n: 2 }, frozen: '/x/app' },
-      { style: 'full', run: { at: '2/5', paused: false, planning: false } },
-    ),
-    'tr',
-  );
+  const on = q(facts({ 'agents.enabled': true }, { agents: { ...state().agents, mode: 'assigned', n: 2 }, frozen: '/x/app' }, { style: 'full' }), 'tr');
   assert.deepEqual(
     Object.values(on).map((r) => [r.id, r.on, r.value.replace(/\d\d:\d\d/, 'HH:MM'), r.press.opens]),
     [
       ['agents', true, 'tam 2, sonraki istek', true],
-      ['fullAuto', true, 'çalışıyor, adım 2/5', false],
       ['freeze', true, 'açık: app', false],
     ],
   );
@@ -432,8 +413,7 @@ test('quick settings: not allowed yet, a press asks to allow it; allowed, the pr
 
 test("a permission's warning: what allowing it means, said for a press; another setting has its catalog's", () => {
   assert.match(allowWarning('agents.enabled', 'tr'), /^Bundan sonra her oturum yardımcı ajanlar kapalı başlar/);
-  assert.match(allowWarning('autonomy.enabled', 'en'), /only you start a run\.$/);
-  for (const p of ['agents.enabled', 'autonomy.enabled'] as const)
+  for (const p of ['agents.enabled'] as const)
     for (const lang of ['en', 'tr'] as const) assert.doesNotMatch(allowWarning(p, lang), /Enter/, `${lang} ${p}: a press, not a second Enter`);
   assert.equal(allowWarning('packs.autoUse', 'en'), `${confirmText('packs.autoUse', true, 'en')} ${effectOf('packs.autoUse', true, 'en')}`);
 });
@@ -541,7 +521,7 @@ test('the drawing: every pressable and every line of information says itself, un
       'quota-five',
       'quota-week',
       'budget',
-      'quick-fullAuto',
+      'quick-agents',
       'center',
     ])
       assert.ok(scopes.includes(id), `${lang}: ${id}`);
@@ -552,9 +532,9 @@ test('the drawing: every pressable and every line of information says itself, un
 
 test('the drawing: a label longer than its column is cut, never run into the value', () => {
   const d = cockpitData(facts(), 'en');
-  const long = { ...d, quick: d.quick.map((q) => (q.id === 'fullAuto' ? { ...q, label: 'Something very long indeed' } : q)) };
+  const long = { ...d, quick: d.quick.map((q) => (q.id === 'agents' ? { ...q, label: 'Something very long indeed' } : q)) };
   const { body } = cockpitBody(recorder(), long, UI, acts(), { width: 50 });
-  assert.match(textOf(find(body, 'quick-fullAuto')!), /^Something very… ○ not allowed yet$/);
+  assert.match(textOf(find(body, 'quick-agents')!), /^Something very… ○ Claude decides$/);
 });
 
 test('the drawing: one column beside the conversation, two or three above the prompt; nothing runs past its column', () => {
@@ -583,18 +563,20 @@ test('the drawing: a line pressed opens its reasons and what changes it; a permi
   (find(open, 'can-write')!.props.onPress as () => void)();
   const rule = cockpitBody(recorder(), cockpitData(facts(), 'en'), { ...UI, open: 'delete' }, acts(log), { width: 50 }).body;
   assert.equal(textOf(find(rule, 'can-delete-act')!), 'The rule…', 'it opens a page: an opener');
-  const confirm = cockpitBody(recorder(), cockpitData(facts(), 'en'), { ...UI, confirm: 'autonomy.enabled' }, acts(log), { width: 50 }).body;
-  assert.match(textOf(confirm), /! A full-autonomy run carries one task to its/);
+  const confirm = cockpitBody(recorder(), cockpitData(facts(), 'en'), { ...UI, confirm: 'agents.enabled' }, acts(log), { width: 50 }).body;
+  assert.match(textOf(confirm), /! Every session then starts with helper agents/);
   // Allow is the main action: drawn as one.
-  assert.equal((find(confirm, 'quick-fullAuto-yes')!.children[0] as El).props.bold, true);
-  assert.notEqual((find(confirm, 'quick-fullAuto-no')!.children[0] as El).props.bold, true);
-  (find(confirm, 'quick-fullAuto-yes')!.props.onPress as () => void)();
-  (find(confirm, 'quick-fullAuto-no')!.props.onPress as () => void)();
-  (find(confirm, 'quick-fullAuto')!.props.onPress as () => void)();
-  const changed = cockpitBody(recorder(), cockpitData(facts(), 'en'), { ...UI, changed: 'Changed: Full autonomy: off → on' }, acts(log), { width: 50 }).body;
-  assert.match(textOf(changed.children[0] as El), /^✓ Changed: Full autonomy: off → on\[ Undo \]$/);
+  assert.equal((find(confirm, 'quick-agents-yes')!.children[0] as El).props.bold, true);
+  assert.notEqual((find(confirm, 'quick-agents-no')!.children[0] as El).props.bold, true);
+  (find(confirm, 'quick-agents-yes')!.props.onPress as () => void)();
+  (find(confirm, 'quick-agents-no')!.props.onPress as () => void)();
+  (find(confirm, 'quick-agents')!.props.onPress as () => void)();
+  const changed = cockpitBody(recorder(), cockpitData(facts(), 'en'), { ...UI, changed: 'Changed: I set the number of agents: off → on' }, acts(log), {
+    width: 50,
+  }).body;
+  assert.match(textOf(changed.children[0] as El), /^✓ Changed: I set the number of agents: off → on\[ Undo \]$/);
   (find(changed, 'undo')!.props.onPress as () => void)();
-  assert.deepEqual(log, ['act control freeze', 'toggle write', 'allow autonomy.enabled', 'cancel', 'act allow', 'undo']);
+  assert.deepEqual(log, ['act control freeze', 'toggle write', 'allow agents.enabled', 'cancel', 'act allow', 'undo']);
 });
 
 test('the drawing: agents, the activity, the budget and the control center press through; a call is timed where the host can', () => {

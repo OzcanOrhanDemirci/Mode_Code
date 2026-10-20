@@ -15,8 +15,6 @@ import { LinkList, type Link } from '../widgets.js';
 import type { MessageKey } from '../../core/i18n/index.js';
 import { evidenceText, flowTitle, statusText } from '../../core/flow-view.js';
 import { stepName } from '../../core/guidance.js';
-import { activeTime, nextStep as nextRunStep, progress as runProgress } from '../../core/run.js';
-import { durationText } from '../../core/run-report.js';
 
 export function ProjectCard({ cwd, width, height, open }: ScreenProps & { cwd: string }) {
   const { data, lang, now, theme } = useEnv();
@@ -255,102 +253,6 @@ export function FlowCard({ id, width }: ScreenProps & { id: string }) {
             </Box>
           ))}
       </Section>
-    </Box>
-  );
-}
-
-/** A full-autonomy run: where it stands, its milestones and the ways back, what waits for the person, its files. */
-export function RunCard({ id, width }: ScreenProps & { id: string }) {
-  const { data, lang, now, theme } = useEnv();
-  const t = useT();
-  const r = data.runs().find((x) => x.id === id);
-  if (!r) return <Empty>{t('run.missing')}</Empty>;
-  const files = data.runFiles(r);
-  const wide = Math.max(20, width - 24);
-  const status =
-    r.status === 'paused' && r.pause
-      ? t('auto.report.statusPaused', { reason: t(`auto.pause.${r.pause.reason}` as MessageKey) })
-      : t(`auto.status.${r.status}` as MessageKey);
-  const p = runProgress(r);
-  const next = nextRunStep(r);
-  return (
-    <Box flexDirection="column" width={width}>
-      <Section>
-        <Row label={t('auto.report.task')}>{(r.task || r.id).split('\n')[0]!.slice(0, wide)}</Row>
-        <Row label={t('auto.report.status')} {...(r.status === 'paused' || r.status === 'stuck' ? { color: theme.warn } : {})}>
-          {`${status} · ${r.phase === 'plan' || !r.plan ? t('auto.phase.plan') : next ? `${p.done}/${p.of}` : t('auto.phase.finish')}`}
-        </Row>
-        <Row label={t('auto.report.folder')}>
-          <PathText path={r.cwd} max={wide} />
-        </Row>
-        <Row label={t('auto.report.time')}>{`${durationText(activeTime(r, now), lang)} · ${ago(r.updatedAt, now, lang)}`}</Row>
-        <Row label={t('auto.cli.budget')}>{`${r.budget.weeklyTarget}% (${r.budget.source})`}</Row>
-      </Section>
-      {r.plan ? (
-        <Section title={t('auto.report.milestones')}>
-          {r.plan.steps.map((s) => {
-            const m = r.milestones.find((x) => x.n === s.n);
-            return (
-              <Box key={s.n}>
-                <Box width={3} flexShrink={0}>
-                  <Text color={m ? theme.ok : next?.n === s.n ? theme.warn : theme.muted}>{m ? '✓' : next?.n === s.n ? '▶' : '·'}</Text>
-                </Box>
-                <Box width={Math.max(10, Math.min(40, wide - 30))} flexShrink={0}>
-                  <Text wrap="truncate-end">{`${s.n}. ${s.title}`}</Text>
-                </Box>
-                <Text color={theme.muted} wrap="truncate-end">
-                  {m ? `${m.commit.slice(0, 12)} · ${t(`auto.verdict.${m.review.verdict}` as MessageKey)}` : ''}
-                </Text>
-              </Box>
-            );
-          })}
-        </Section>
-      ) : null}
-      {r.deferred.length ? (
-        <Section title={t('auto.report.deferred')}>
-          {r.deferred.map((d, i) => (
-            <Text key={i} wrap="truncate-end">
-              <Text color={theme.warn}>{t(`auto.defer.${d.kind}` as MessageKey)}</Text> <Text color={theme.accent}>{d.what}</Text>
-              {d.count > 1 ? <Text color={theme.muted}>{` ×${d.count}`}</Text> : null}
-            </Text>
-          ))}
-        </Section>
-      ) : null}
-      {r.blockers.length ? (
-        <Section title={t('auto.report.blockers')}>
-          {r.blockers.map((b, i) => (
-            <Text key={i} wrap="truncate-end">{`${t(`auto.blocker.${b.kind}` as MessageKey)}: ${b.text}`}</Text>
-          ))}
-        </Section>
-      ) : null}
-      <Section title={t('flow.card.files')}>
-        {(
-          [
-            ['auto.cli.fileReport', files.report],
-            ['auto.cli.filePlan', files.plan],
-            ['auto.cli.fileDrafts', files.drafts],
-            ['auto.cli.fileNotes', files.notes],
-          ] as [MessageKey, string | null][]
-        ).map(([k, path]) =>
-          path ? (
-            <Row key={k} label={t(k)}>
-              <PathText path={path} max={wide} />
-            </Row>
-          ) : null,
-        )}
-        <Muted>{t('run.rollbackHint', { id: r.id })}</Muted>
-      </Section>
-    </Box>
-  );
-}
-
-/** Working › Full-autonomy runs before there is one: what full autonomy is, and how a run starts. */
-export function RunsEmpty({ width, open }: ScreenProps) {
-  const t = useT();
-  return (
-    <Box flexDirection="column" width={width}>
-      <Muted wrap="wrap">{t('runs.empty')}</Muted>
-      <EmptyState text={t('runs.howTo')} to="work/full-auto" open={open} />
     </Box>
   );
 }
