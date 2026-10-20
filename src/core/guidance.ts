@@ -7,7 +7,7 @@
 import { MODE_KEYWORDS, type KeywordMatch } from './keywords.js';
 import type { QuotaAssessment } from './quota.js';
 import type { ModSessionState } from './session.js';
-import { APP_NAME } from './app.js';
+import { APP_NAME, PLUGIN_NAME } from './app.js';
 import { currentStep, progress, type Flow, type FlowStepKind } from './flow.js';
 import type { WorkMode } from './modes.js';
 import { tIn, type Lang, type MessageKey } from './i18n/index.js';
@@ -41,7 +41,8 @@ const AUTONOMOUS_NOTE =
 export const FULL_NOTE =
   'work to the end of the task without asking anything: no question to the person (AskUserQuestion) and no plan mode. ' +
   "Decide by the person's recorded decisions (the memory, the project's locks, the commit rule) or take the reversible, safe default, and say which in your answer. " +
-  'Never take an irreversible or outward step the person did not clearly ask for: a step the safety belt leaves to the person is not done; go on with the rest of the task and list each such step, with its command, at the end of your answer.';
+  'Never take an irreversible or outward step the person did not clearly ask for: a step the safety belt leaves to the person is not done; go on with the rest of the task and list each such step, with its command, at the end of your answer. ' +
+  `When the person did clearly ask for such a step in their own message, call mcp__${PLUGIN_NAME}__request first with their sentence word for word and the target it names (a release, a branch, a recipient, a path): code checks the sentence is theirs, and the step then goes on.`;
 
 /** The way of working in one sentence; the default reads as manual, as the strip shows it. */
 function styleSentence(interaction: ModSessionState['interaction']): string {

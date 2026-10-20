@@ -25,6 +25,7 @@ Only the person chooses a way of working; Claude cannot press the strip. A new s
 | a step a safety net makes undoable (a hard reset, `git clean`, …)    | runs once kept          | runs once kept ([safety-belt.md](safety-belt.md#safety-net))                                       |
 | a step on a target you named (a release, a recipient, …)             | runs, Claude is told    | runs where the table says ([safety-belt.md](safety-belt.md#evidence))                              |
 | a target found only in what was read from outside                    | refused                 | refused                                                                                            |
+| a step you clearly asked for, your sentence quoted and checked       | asked                   | goes on with a note ([safety-belt.md](safety-belt.md#a-clear-request-in-full-autonomy))            |
 | a step a rule of yours asks about (your settings, another hook)      | asked                   | **left to you**, the same way                                                                      |
 | Claude Code's own permission question, once the belt let the call by | answered yes            | answered yes                                                                                       |
 | what the belt blocks; a secret leaving the computer                  | blocked; stopped        | blocked; stopped                                                                                   |

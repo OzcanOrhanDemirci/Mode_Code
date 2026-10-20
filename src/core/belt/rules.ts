@@ -210,6 +210,25 @@ export function evidenceAct(id: RuleId, level: Level, config: RuleConfig, netLai
   return withEvidence === info.acts[LEVEL_INDEX[level]] ? null : withEvidence;
 }
 
+/**
+ * The steps no clear request hands to Claude, even in full autonomy: the protection itself, a payment, a disk, the
+ * home or a system folder (the approved table's short list). The person's project locks are left to them by their
+ * own acts already.
+ */
+const NO_REQUEST = new Set<RuleId>(['claude.config-change', 'system.security-off', 'outbound.payment', 'fs.disk', 'fs.delete-critical', 'fs.move-critical']);
+
+/**
+ * What a rule does in full autonomy when the person clearly asked for the step (Claude quoted their sentence and
+ * code found it): a note, where Autonomous would ask and full autonomy would leave it to them; else null.
+ */
+export function requestAct(id: RuleId, level: Level, config: RuleConfig): Act | null {
+  const info = RULES[id];
+  // Locked rules (the protection itself among them) take none.
+  if (level !== 'full' || info.locked || NO_REQUEST.has(id) || config.verdicts?.[id]) return null;
+  if (effectiveAct(id, level, config) !== 'self' || info.acts[1] !== 'ask') return null;
+  return 'note';
+}
+
 export function effectiveAct(id: RuleId, level: Level, config: RuleConfig): Act | null {
   const info = RULES[id];
   if (info.pack && !config.packs?.[info.pack]) return null;

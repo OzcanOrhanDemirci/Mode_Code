@@ -6,8 +6,8 @@
 import { tIn } from '../i18n/index.js';
 import { visibleText } from '../text.js';
 import { checkCommand, checkFileTool, checkOutward } from './check.js';
-import { ACT_ORDER, effectiveAct, evidenceAct, netAct, RULES, VERDICT_OF } from './rules.js';
-import { carriesOutside, unitOrigin } from '../provenance.js';
+import { ACT_ORDER, effectiveAct, evidenceAct, netAct, requestAct, RULES, VERDICT_OF } from './rules.js';
+import { carriesOutside, grantedUnit, unitOrigin } from '../provenance.js';
 import { isFileTool, isOutwardTool, shellOf } from './tools.js';
 import type { BeltContext, BeltDecision, Finding, Verdict } from './types.js';
 
@@ -60,10 +60,12 @@ export function decide(raw: readonly Finding[], issues: readonly string[], ctx: 
     const netReady = !!(ctx.net && f.net);
     const carried = !!(f.carries && ctx.prov && carriesOutside(f.carries, ctx.prov));
     const byEvidence = (origin === 'person' || origin === 'record') && !carried ? evidenceAct(f.rule, level, ctx.config, netReady) : null;
+    // Full autonomy: a step the person clearly asked for, their sentence quoted and found (src/core/provenance.ts).
+    const byRequest = byEvidence === null && f.unit && ctx.prov && grantedUnit(f.unit, ctx.prov) ? requestAct(f.rule, level, ctx.config) : null;
     // A call a safety net can make undoable is decided as with the net; the net is then the caller's to lay.
-    const withNet = byEvidence === null && netReady ? netAct(f.rule, level, ctx.config) : null;
+    const withNet = byEvidence === null && byRequest === null && netReady ? netAct(f.rule, level, ctx.config) : null;
     const stopped = origin === 'content' && effectiveAct(f.rule, level, ctx.config) !== null;
-    const act = stopped ? 'stop' : (byEvidence ?? withNet ?? effectiveAct(f.rule, level, ctx.config));
+    const act = stopped ? 'stop' : (byEvidence ?? byRequest ?? withNet ?? effectiveAct(f.rule, level, ctx.config));
     if (!stopped && f.net && ((byEvidence !== null && RULES[f.rule].evidence?.withNet) || withNet !== null)) nets.push({ rule: f.rule, plan: f.net });
     if (!act || act === 'pass') continue;
     const key = f.rule + '\u0000' + f.reason;

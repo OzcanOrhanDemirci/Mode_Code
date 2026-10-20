@@ -79,6 +79,7 @@ export const enLedger = {
   'act.unknown': 'Work of a kind this version does not name: {kind}',
   'act.flagged': "Anthropic's safeguards stopped an answer",
   'act.full': 'Full autonomy answered {tool} in your place: nobody is asked',
+  'act.request': 'Your words, quoted for {target}: "{quote}"',
   'act.net': 'Kept first, so it can be undone: {what} · mode-code net restore {id}',
   'act.flagged.named': "Anthropic's safeguards stopped an answer ({category})",
   'act.why.rule': 'safety belt rule: {rule}',
