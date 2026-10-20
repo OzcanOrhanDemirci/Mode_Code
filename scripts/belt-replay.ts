@@ -9,9 +9,11 @@
  *     formats: claude-code (a row's `trajectory` holds Claude Code's records, or the file is a transcript),
  *              openhands (a row's `trajectory` or `messages`), swe-agent-xml (a row's `messages`)
  *   node --import tsx scripts/belt-replay.ts run [--sessions] [--set <cases.jsonl>]... [--config mine|default] [--out <dir>]
+ *        [--level manual|autonomous|full] [--no-net]
  *
- * `run` judges each call as the safety-net hook would, follows the plugin's outside-content rule along each
- * trajectory, and prints per source: calls, judged, verdicts by label, by rule and by category, the digests
+ * `run` judges each call as the safety-net hook would, in the way of working given (Manual by default; a safety net
+ * counted as laid unless --no-net), follows the plugin's outside-content rule along each trajectory (what is still
+ * asked there: the memory written after outside content), and prints per source: calls, judged, verdicts by label, by rule and by category, the digests
  * of attack cases let through, and how many everyday cases were asked about or stopped. With --out, those
  * everyday cases are written there for a reviewer (everyday-stopped.jsonl), and of the attack cases let
  * through only ids, verdicts and rules (attack-missed.jsonl). Files ending in .gz are read compressed.
@@ -27,6 +29,7 @@ import { isBeltTool, isOutwardTool } from '../src/core/belt/tools.js';
 import type { BeltContext, BeltDecision, GitFacts } from '../src/core/belt/types.js';
 import { DEFAULT_CONFIG, type Config } from '../src/core/config.js';
 import { beltConfigOf } from '../src/core/settings-view.js';
+import { levelNamed } from '../src/core/belt/rules.js';
 import { taintedAct, taintSource } from '../src/core/taint.js';
 import { beltContext } from '../src/node/context.js';
 import { managedSettingsFiles } from '../src/node/env.js';
@@ -114,7 +117,7 @@ async function convert(): Promise<void> {
 const NO_GIT: GitFacts = { currentBranch: async () => null, remoteUrl: async () => null, alias: async () => null };
 
 /** Where a call of another system ran: its home and folders, no git, nothing on this disk. */
-function foreignContext(c: ReplayCase, config: Config): BeltContext {
+function foreignContext(c: ReplayCase, start: string | undefined, config: Config): BeltContext {
   const platform = c.platform!;
   const home = platform === 'win32' ? 'C:/Users/user' : platform === 'darwin' ? '/Users/user' : '/root';
   const cwd = c.cwd ?? home;
@@ -122,7 +125,7 @@ function foreignContext(c: ReplayCase, config: Config): BeltContext {
     platform,
     home,
     cwd,
-    projectDir: cwd,
+    projectDir: start ?? cwd,
     env: { HOME: home },
     dataDir: `${home}/.mode-code`,
     memoryDirs: [],
@@ -181,11 +184,16 @@ async function run(): Promise<void> {
   const judged: Judged[] = [];
   // One context per folder, as `mode-code belt replay` keeps them: git is asked about each repository once.
   const contexts = new Map<string, BeltContext>();
-  const contextOf = (c: ReplayCase): BeltContext => {
-    if (c.platform && c.platform !== process.platform) return foreignContext(c, config);
+  // The way of working judged, and whether a safety net is counted as laid (the hook lays it where it runs).
+  const level = levelNamed(opt('level') ?? 'manual') ?? 'manual';
+  const net = !argv.includes('--no-net');
+  // The project is where the session started, as Claude Code's project folder is: its first call's folder.
+  const contextOf = (c: ReplayCase, start: string | undefined): BeltContext => {
+    if (c.platform && c.platform !== process.platform) return { ...foreignContext(c, start, config), level, net };
     const cwd = c.cwd ?? homedir();
-    let ctx = contexts.get(cwd);
-    if (!ctx) contexts.set(cwd, (ctx = beltContext({ cwd, config, layout: app.layout, lang: 'en' })));
+    const key = JSON.stringify([start ?? cwd, cwd]);
+    let ctx = contexts.get(key);
+    if (!ctx) contexts.set(key, (ctx = { ...beltContext({ cwd, projectDir: start ?? cwd, config, layout: app.layout, lang: 'en' }), level, net }));
     return ctx;
   };
   const kept: string[] = [];
@@ -195,10 +203,16 @@ async function run(): Promise<void> {
     // One trajectory at a time, in order: outside content read at one step taints the steps after it.
     for await (const trajectory of source) {
       let tainted = false;
+      const start = trajectory[0]?.cwd;
       for (const c of trajectory) {
-        const ctx = contextOf(c);
+        const ctx = contextOf(c, start);
         let d: BeltDecision | null = isBeltTool(c.tool_name) || isOutwardTool(c.tool_name) ? await evaluateToolCall(c.tool_name, c.tool_input, ctx) : null;
-        if (tainted && taintedAct(c.tool_name, c.tool_input, { platform: ctx.platform, home: ctx.home, cwd: ctx.cwd, memoryDirs: ctx.memoryDirs })) {
+        // What a session that read outside content still asks: the memory written after it (what was read is not
+        // in a replay, so every such write counts).
+        if (
+          tainted &&
+          taintedAct(c.tool_name, c.tool_input, { platform: ctx.platform, home: ctx.home, cwd: ctx.cwd, memoryDirs: ctx.memoryDirs })?.act === 'memory'
+        ) {
           const t = decide([{ rule: 'inject.tainted-act', verdict: 'ask', reason: '' }], [], ctx);
           d = d ? mergeDecisions(d, t) : t;
         }
@@ -208,7 +222,8 @@ async function run(): Promise<void> {
         const slim = { ...c, tool_input: {} };
         judged.push({ c: slim, verdict: d?.verdict ?? null, rules });
         const stopped = d !== null && (d.verdict === 'ask' || d.verdict === 'deny');
-        if (outDir && c.label === 'benign' && stopped) kept.push(JSON.stringify({ ...c, verdict: d?.verdict, rules }));
+        if (outDir && c.label === 'benign' && stopped)
+          kept.push(JSON.stringify({ ...c, verdict: d?.verdict, rules, reasons: d?.findings.map((f) => f.reason) }));
         if (outDir && c.label === 'attack' && d !== null && !stopped)
           missed.push(JSON.stringify({ case_id: c.case_id, category: c.category, verdict: d.verdict, rules }));
       }
