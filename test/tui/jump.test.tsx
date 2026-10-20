@@ -106,3 +106,22 @@ test('the title says where the person is and goes back to the terminal at the en
     plain.close();
   }
 });
+
+test('the help scrolls on a short terminal instead of squeezing its lines into one another', async () => {
+  const s = await draw(new FakeData('tr'), { columns: 84, rows: 24 });
+  try {
+    await s.press('?');
+    const first = () => s.text().split('\n')[2]!;
+    assert.match(first(), /Tuşlar her ekranda aynı çalışır/);
+    assert.match(s.text(), /↑↓ kaydır {2}Esc kapat/);
+    await s.press(KEY.down, KEY.down);
+    assert.match(first(), /↑ ↓ {2}j k/);
+    // Every key the help names stands on a line of its own, whole.
+    await s.press(KEY.down, KEY.down, KEY.down);
+    assert.match(s.text(), /Ctrl\+O {8}Atla: basılabilen her şeyin yanında bir harf; onu yazınca basılır/);
+    await s.press(KEY.esc);
+    assert.doesNotMatch(s.text(), /kaydır/);
+  } finally {
+    s.close();
+  }
+});
