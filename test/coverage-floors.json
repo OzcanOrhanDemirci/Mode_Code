@@ -81,11 +81,6 @@
       "branches": 85,
       "functions": 86
     },
-    "src/app/runs.ts": {
-      "lines": 91,
-      "branches": 74,
-      "functions": 88
-    },
     "src/app/sync-setup.ts": {
       "lines": 77,
       "branches": 61,
@@ -449,41 +444,6 @@
     "src/core/quota.ts": {
       "lines": 94,
       "branches": 89,
-      "functions": 94
-    },
-    "src/core/run-gate.ts": {
-      "lines": 94,
-      "branches": 88,
-      "functions": 94
-    },
-    "src/core/run-guard.ts": {
-      "lines": 93,
-      "branches": 88,
-      "functions": 94
-    },
-    "src/core/run-guidance.ts": {
-      "lines": 92,
-      "branches": 55,
-      "functions": 94
-    },
-    "src/core/run-report.ts": {
-      "lines": 94,
-      "branches": 72,
-      "functions": 94
-    },
-    "src/core/run-review.ts": {
-      "lines": 94,
-      "branches": 84,
-      "functions": 94
-    },
-    "src/core/run-stop.ts": {
-      "lines": 94,
-      "branches": 92,
-      "functions": 94
-    },
-    "src/core/run.ts": {
-      "lines": 94,
-      "branches": 82,
       "functions": 94
     },
     "src/core/secrets/scan.ts": {

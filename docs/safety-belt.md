@@ -113,8 +113,6 @@ Locked rules accept only stricter actions; the settings file cannot switch them 
 
 What the protection is for, what it is not for, and what it takes for granted: [threat-model.md](threat-model.md).
 
-On native Windows there is no sandbox under Claude Code, and a script file can do what a single command cannot. There the belt prevents accidents; it is not a security boundary against a determined adversary. On macOS, Linux and WSL2, Claude Code's sandbox (`sandbox.filesystem.denyWrite`) adds a layer the belt does not replace; full autonomy requires it ([autonomy.md](autonomy.md)).
+On native Windows there is no sandbox under Claude Code, and a script file can do what a single command cannot. There the belt prevents accidents; it is not a security boundary against a determined adversary. On macOS, Linux and WSL2, Claude Code's sandbox (`sandbox.filesystem.denyWrite`) adds a layer the belt does not replace; for work nobody watches, [autonomy.md](autonomy.md#limits) says where to run it.
 
 A command typed on Windows for a WSL distribution (`wsl -d <name> -- …`) is judged with the distribution's paths: its home and absolute paths are the distribution's (shown as `//wsl.localhost/<name>/…`), the Windows drives it mounts under `/mnt` are Windows paths with Windows' protection, a relative path is relative to where `wsl` starts, and deleting the distribution's root, home or system folders is refused.
-
-During a full-autonomy run there is nobody to ask: what a rule would ask about is refused as **deferred**, recorded with its exact command, and listed in the run's report for the person.

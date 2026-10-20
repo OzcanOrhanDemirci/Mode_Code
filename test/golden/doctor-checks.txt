@@ -19,7 +19,6 @@ install.pluginFiles ok doc.install.pluginFiles.ok
 install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
 install.update ok doc.update.ok {"version":"1.2.0"}
-install.autonomy info doc.autonomy.off
 install.skills ok doc.setup.skillsOk
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
@@ -74,7 +73,6 @@ install.pluginFiles skip doc.notInstalled
 install.controlCenter skip doc.notInstalled
 install.modSeen skip doc.notInstalled
 install.update ok doc.update.ok {"version":"1.2.0"}
-install.autonomy info doc.autonomy.off
 install.skills ok doc.setup.skillsOk
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
@@ -129,7 +127,6 @@ install.pluginFiles ok doc.install.pluginFiles.ok
 install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
 install.update ok doc.update.ok {"version":"1.2.0"}
-install.autonomy info doc.autonomy.off
 install.skills ok doc.setup.skillsOk
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
@@ -187,7 +184,6 @@ install.pluginFiles warn repair=restore-plugin-files doc.install.pluginFiles.bad
 install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen info doc.install.modSeen.never
 install.update ok doc.update.ok {"version":"1.2.0"}
-install.autonomy info doc.autonomy.off
 install.skills ok doc.setup.skillsOk
 protect.agreement fail protection repair=restore-hook-program doc.protect.agreement.differ {"n":2,"of":30}
     doc.protect.agreement.diff {"call":"Write C:/x","mine":"@verdict.deny","theirs":"@verdict.allow"}
@@ -249,7 +245,6 @@ install.pluginFiles ok doc.install.pluginFiles.ok
 install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
 install.update ok doc.update.ok {"version":"1.2.0"}
-install.autonomy info doc.autonomy.off
 install.skills ok doc.setup.skillsOk
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
@@ -304,7 +299,6 @@ install.pluginFiles info doc.install.hook.noBuild
 install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
 install.update ok doc.update.ok {"version":"1.2.0"}
-install.autonomy info doc.autonomy.off
 install.skills ok doc.setup.skillsOk
 protect.agreement skip protection doc.protect.agreement.notRun
 protect.links ok protection doc.protect.links.none
@@ -358,7 +352,6 @@ install.pluginFiles ok doc.install.pluginFiles.ok
 install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 11:50"}
 install.update ok doc.update.ok {"version":"1.2.0"}
-install.autonomy info doc.autonomy.off
 install.skills ok doc.setup.skillsOk
 protect.agreement warn protection doc.protect.agreement.error {"error":"spawn failed"}
 protect.links ok protection doc.protect.links.none
@@ -418,7 +411,6 @@ install.pluginFiles ok doc.install.pluginFiles.ok
 install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen info doc.install.modSeen.other {"have":"older","now":"dev"}
 install.update ok doc.update.ok {"version":"1.2.0"}
-install.autonomy info doc.autonomy.off
 install.skills ok doc.setup.skillsOk
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
@@ -475,7 +467,6 @@ install.pluginFiles ok doc.install.pluginFiles.ok
 install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
 install.update ok doc.update.ok {"version":"1.2.0"}
-install.autonomy info doc.autonomy.off
 install.skills ok doc.setup.skillsOk
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
@@ -530,7 +521,6 @@ install.pluginFiles ok doc.install.pluginFiles.ok
 install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
 install.update ok doc.update.ok {"version":"1.2.0"}
-install.autonomy info doc.autonomy.off
 install.skills ok doc.setup.skillsOk
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
@@ -585,7 +575,6 @@ install.pluginFiles ok doc.install.pluginFiles.ok
 install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
 install.update ok doc.update.ok {"version":"1.2.0"}
-install.autonomy info doc.autonomy.off
 install.skills ok doc.setup.skillsOk
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
@@ -640,7 +629,6 @@ install.pluginFiles ok doc.install.pluginFiles.ok
 install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen info doc.install.modSeen.other {"have":"0.1.0","now":"0.2.0"}
 install.update ok doc.update.ok {"version":"1.2.0"}
-install.autonomy info doc.autonomy.off
 install.skills ok doc.setup.skillsOk
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
@@ -695,7 +683,6 @@ install.pluginFiles ok doc.install.pluginFiles.ok
 install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
 install.update ok doc.update.ok {"version":"1.2.0"}
-install.autonomy info doc.autonomy.off
 install.skills ok doc.setup.skillsOk
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none
@@ -750,7 +737,6 @@ install.pluginFiles ok doc.install.pluginFiles.ok
 install.controlCenter ok doc.install.cli.ok {"path":"C:/dev/mode-code/dist/cli.mjs"}
 install.modSeen ok doc.install.modSeen.ok {"when":"2026-10-12 12:00"}
 install.update ok doc.update.ok {"version":"1.2.0"}
-install.autonomy info doc.autonomy.off
 install.skills ok doc.setup.skillsOk
 protect.agreement ok protection doc.protect.agreement.ok {"n":30}
 protect.links ok protection doc.protect.links.none

@@ -8,8 +8,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { SyncSetting } from '../core/config.js';
-import type { MorningRun } from '../core/morning.js';
-import { machinePaths, parseFlowSummary, parseRunSummary, type Pending } from '../core/sync.js';
+import { machinePaths, parseFlowSummary, type Pending } from '../core/sync.js';
 import type { SharedRecord } from '../core/sync-export.js';
 import { readText } from '../node/fsx.js';
 import { lastShared, mergedConfig } from '../node/sync.js';
@@ -104,10 +103,9 @@ export function syncView(ctx: AppContext): SyncView {
   };
 }
 
-/** What another computer did in a window: its runs that ended or paused, its flows waiting, its sessions, what the belt stopped. */
+/** What another computer did in a window: its flows waiting, its sessions, what the belt stopped. */
 export interface Elsewhere {
   machine: string;
-  runs: MorningRun[];
   flows: number;
   sessions: number;
   blocked: number;
@@ -121,18 +119,12 @@ export function elsewhereFacts(ctx: AppContext, since: number, until: number): E
   for (const m of machinesIn(s.dir)) {
     if (m.id === s.machine.id) continue;
     const p = machinePaths(s.dir, m.id);
-    const runs: MorningRun[] = [];
-    for (const f of list(p.runs)) {
-      const r = parseRunSummary(readText(join(p.runs, f)));
-      if (r && r.status !== 'active' && r.updatedAt >= since && r.updatedAt <= until)
-        runs.push({ id: r.id, task: r.task || r.id, status: r.status, reason: r.reason, report: null, deferred: r.deferred });
-    }
     let flows = 0;
     for (const f of list(p.flows)) if (parseFlowSummary(readText(join(p.flows, f)))?.status === 'waiting') flows++;
     const events = loadEventsFrom(p.events, Math.max(1, Math.ceil((until - since) / 86_400_000) + 1), until).filter((e) => e.at >= since && e.at <= until);
     const sessions = new Set(events.map((e) => e.session)).size;
     const blocked = events.filter((e) => e.kind === 'belt' && e.verdict === 'deny').length;
-    if (runs.length || flows || sessions || blocked) out.push({ machine: m.name, runs, flows, sessions, blocked });
+    if (flows || sessions || blocked) out.push({ machine: m.name, flows, sessions, blocked });
   }
   return out;
 }

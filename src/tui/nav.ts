@@ -147,6 +147,13 @@ export const MOVED: readonly (readonly [from: string, to: string])[] = [
   ['automation/bypassed', 'activity/feed'],
   ['work/bypass', 'work/modes'],
   ['work/bypassed', 'activity/feed'],
+  // 1.2.0: full autonomy is a way of working like the others, chosen on the strip; its runs and their pages are gone.
+  ['automation/full-auto', 'work/modes'],
+  ['automation/runs', 'work/modes'],
+  ['automation/prompts', 'work/modes'],
+  ['work/full-auto', 'work/modes'],
+  ['work/runs', 'work/modes'],
+  ['work/prompts', 'work/modes'],
 ];
 
 const startsAt = (address: string, prefix: string) => address === prefix || address.startsWith(`${prefix}/`);

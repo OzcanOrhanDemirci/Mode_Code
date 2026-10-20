@@ -40,7 +40,6 @@ const facts = (over: Partial<HandoffFacts> = {}): HandoffFacts => ({
   commits: ['0123456 feat(memory): the store', 'fedcba9 docs: plan'],
   uncommitted: ['src/core/handoff.ts'],
   flow: null,
-  run: null,
   quota: { five: 38.4, week: 46 },
   request: 'Bu güncellemeyi yapalım.',
   ...over,
@@ -81,14 +80,12 @@ test('a note without a summary from Claude: the compaction summary, or only what
       head: null,
       quota: null,
       flow: 'flow 20261013-x: plan (waiting)',
-      run: { id: 'r1', status: 'paused', report: '/d/runs/r1/report.md' },
     }),
     {},
   );
   assert.doesNotMatch(bare, /## Summary/);
   assert.match(bare, /- Branch: none\n/);
   assert.match(bare, /- Open flow: flow 20261013-x: plan \(waiting\)/);
-  assert.match(bare, /- Full-autonomy run: r1 \(paused\), report \/d\/runs\/r1\/report\.md/);
   assert.match(bare, /### Commits in this session\n\n- none\n/);
   assert.match(bare, /### Uncommitted\n\n- nothing\n/);
   assert.doesNotMatch(bare, /Quota/);

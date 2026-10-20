@@ -15,19 +15,9 @@ export interface Term {
   notTr?: RegExp;
 }
 
-/** A Turkish word on its own, so a longer word holding it is not taken for it. */
-const word = (w: string) => new RegExp(`(?<!\\p{L})${w}(?!\\p{L})`, 'iu');
-
 export const GLOSSARY: readonly Term[] = [
   // "koşu" read as a race; the plural and every case ("koşular", "koşunun") too, but never "koşul", a condition.
-  { idea: 'a task Claude carries to its end alone', en: 'full-autonomy run', tr: 'tam otonom iş', notTr: /(?<!\p{L})koşu(?:lar|(?!l))/iu },
-  {
-    idea: "what keeps a full-autonomy run's writes in the project and its own folders",
-    en: 'write limits',
-    tr: 'yazma sınırları',
-    notEn: /\bfence\b/i,
-    notTr: word('çit'),
-  },
+  { idea: 'the way of working that asks the person nothing', en: 'full autonomy', tr: 'tam otonom', notTr: /(?<!\p{L})koşu(?:lar|(?!l))/iu },
   { idea: 'helper Claudes that run beside the main one', en: 'agents', tr: 'ajanlar', notEn: /\bsub-?agents?\b/i, notTr: /alt ajan/iu },
   {
     idea: 'the 5-hour and weekly periods of the quota',

@@ -28,18 +28,17 @@ export function Modes({ width, open }: ScreenProps) {
   const ways = [
     { id: 'style.manual' as ControlId, name: t('kw.kind.manualStyle'), action: { kind: 'style', style: 'manual' } as ControlAction },
     { id: 'style.autonomous' as ControlId, name: t('kw.kind.autonomous'), action: { kind: 'style', style: 'autonomous' } as ControlAction },
-    { id: 'fullAuto' as ControlId, name: t('page.autonomy'), action: { kind: 'fullAuto' } as ControlAction },
+    { id: 'style.full' as ControlId, name: t('kw.kind.fullAuto'), action: { kind: 'style', style: 'full' } as ControlAction },
     { id: 'flow' as ControlId, name: t('page.flows'), action: { kind: 'flow' } as ControlAction },
   ];
   const labelW = Math.min(18, Math.max(...[...modes, ...ways].map((r) => textWidth(r.name))) + 2);
-  // The keys are numbers, in a column of their own on the right; a command that is a word (full autonomy) ends its text.
+  // The keys are numbers, in a column of their own on the right.
   const keyOf = (r: { action: ControlAction }) => `/${commandOf(r.action, lang)}`;
-  const short = (r: { action: ControlAction }) => textWidth(keyOf(r)) <= 3;
   const keyW = 4;
   const textW = Math.max(12, width - labelW - keyW);
   // A row of information, not a control: the name, what a press on the strip does, and the strip's key (on the right).
   const row = (r: { id: ControlId; name: string; action: ControlAction }) => {
-    const lines = wrapText(`${controlText(r.id, 'press', lang)}${short(r) ? '' : ` (${keyOf(r)})`}`, textW - 1, textWidth);
+    const lines = wrapText(controlText(r.id, 'press', lang), textW - 1, textWidth);
     return (
       <Box key={r.id} width={width}>
         <Box width={labelW} flexShrink={0}>
@@ -53,7 +52,7 @@ export function Modes({ width, open }: ScreenProps) {
           ))}
         </Box>
         <Box width={keyW} flexShrink={0} justifyContent="flex-end">
-          {short(r) ? <Text color={theme.accent}>{keyOf(r)}</Text> : null}
+          <Text color={theme.accent}>{keyOf(r)}</Text>
         </Box>
       </Box>
     );

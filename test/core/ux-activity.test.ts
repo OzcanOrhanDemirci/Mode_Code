@@ -73,10 +73,8 @@ const SAMPLES: ActivityEvent[] = [
   { at: 1, kind: 'flow', action: 'pause', flow: 'f1', step: 'approve', status: 'waiting' },
   { at: 1, kind: 'flow', action: 'done', flow: 'f1', step: 'code', status: 'done' },
   { at: 1, kind: 'flow', action: 'refused', flow: 'f1', step: 'plan', status: 'active' },
-  { at: 1, kind: 'run', action: 'gate', step: 'first', ok: false, failed: ['git'] },
-  { at: 1, kind: 'run', action: 'gate', step: 'prompt', ok: true },
-  { at: 1, kind: 'run', action: 'pause', run: 'r1', phase: 'code', status: 'paused' },
-  { at: 1, kind: 'run', action: 'milestone', run: 'r1', phase: 'code', status: 'active' },
+  { at: 1, kind: 'belt', tool: 'Bash', verdict: 'deny', left: true, rules: ['git.push-pr-only'], reasons: ['Pushes to main'] },
+  { at: 1, kind: 'full', tool: 'AskUserQuestion' },
   { at: 1, kind: 'permission', tool: 'Bash', answer: 'parts' },
   { at: 1, kind: 'permission', tool: 'Edit', answer: 'auto' },
   { at: 1, kind: 'permission', tool: 'Edit', answer: 'left' },
@@ -201,10 +199,8 @@ test('every sample: its class, whether it is routine, where it is changed, and w
     ['waiting', false, 'work/flows/f1', false],
     ['done', false, 'work/flows/f1', false],
     ['blocked', false, 'work/flows/f1', false],
-    ['blocked', false, 'work/full-auto', true],
-    ['note', true, 'work/full-auto', false],
-    ['waiting', false, 'work/runs/r1', false],
-    ['done', false, 'work/runs/r1', false],
+    ['waiting', false, 'protection/rules/git.push-pr-only', true],
+    ['note', true, 'work/modes', true],
     ['done', true, 'claude-code/permissions', true],
     ['done', true, 'work/modes', true],
     ['waiting', false, 'work/modes', true],
@@ -224,8 +220,11 @@ test('every sample: its class, whether it is routine, where it is changed, and w
   assert.equal(activityOf({ at: 1, kind: 'memory', commit: 'ok', pulled: 0 }, 'en').quiet, false);
   assert.equal(activityOf({ at: 1, kind: 'memory', commit: 'none', pulled: 0, pull: 'diverged' }, 'en').cls, 'blocked');
   assert.equal(activityOf({ at: 1, kind: 'memory', held: 1 }, 'en').cls, 'blocked');
-  assert.equal(activityOf({ at: 1, kind: 'run', action: 'stuck', run: 'r2', status: 'stuck' }, 'en').cls, 'blocked');
-  assert.equal(activityOf({ at: 1, kind: 'run', action: 'defer', run: 'r2', status: 'active', defer: 'push' }, 'en').cls, 'waiting');
+  // A full-autonomy run an older version recorded reads as work of a kind this version does not name.
+  assert.deepEqual((({ cls, text }) => [cls, text])(activityOf({ at: 1, kind: 'run', action: 'stuck', run: 'r2', status: 'stuck' }, 'en')), [
+    'note',
+    'Work of a kind this version does not name: run',
+  ]);
 });
 
 test('the fields read as words whatever their type: none, a number, a string where a number goes', () => {

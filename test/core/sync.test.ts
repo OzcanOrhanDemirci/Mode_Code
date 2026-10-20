@@ -28,8 +28,6 @@ import {
   parseIgnored,
   parseMachineInfo,
   parseMachineSettings,
-  parseRunSummary,
-  runSummary,
   sharedValues,
   stableJson,
   syncReadme,
@@ -194,7 +192,6 @@ test('the name offered for a computer: its first real name, never a network addr
     machine: '/s/machines/pc-1a2b/machine.json',
     settings: '/s/machines/pc-1a2b/settings.json',
     events: '/s/machines/pc-1a2b/events',
-    runs: '/s/machines/pc-1a2b/runs',
     flows: '/s/machines/pc-1a2b/flows',
   });
   assert.match(syncReadme(), /machines\/<computer>\//);
@@ -206,7 +203,7 @@ test('what the computers share: every setting but where things are on this compu
     belt: { verdicts: { 'git.clean': 'warn' } },
     memory: { dirs: ['/m'], store: { place: 'local', dir: '/m' } },
     modes: { workDir: '/w' },
-    autonomy: { enabled: true, maxHours: 8 },
+    quota: { staleMinutes: 30 },
     projects: [
       { id: 'app', names: ['app'], path: '/dev/app', verify: ['npm test'] },
       { id: 'notes', names: ['notes'] },
@@ -214,9 +211,9 @@ test('what the computers share: every setting but where things are on this compu
     sync: { place: 'folder', dir: '/s', machine: { id: 'pc-0000', name: 'pc' } },
   });
   const v = sharedValues(c);
-  for (const k of Object.keys(v)) assert.ok(!/^(version|memory\.dirs|memory\.store|modes|autonomy\.enabled|sync|projects$)/.test(k), k);
+  for (const k of Object.keys(v)) assert.ok(!/^(version|memory\.dirs|memory\.store|modes|sync|projects$)/.test(k), k);
   assert.deepEqual(v['belt.verdicts'], { 'git.clean': 'warn' }, 'the verdicts are one setting');
-  assert.deepEqual([v.language, v['autonomy.maxHours'], v['belt.packs.dockerVolumes'], v['autonomy.reviewModel']], ['tr', 8, false, null]);
+  assert.deepEqual([v.language, v['quota.staleMinutes'], v['belt.packs.dockerVolumes'], v['notify.ntfy']], ['tr', 30, false, null]);
   assert.deepEqual(v['projects.app'], { names: ['app'], verify: ['npm test'] });
   assert.deepEqual(v['projects.notes'], { names: ['notes'] });
   assert.equal(stableJson({ b: 1, a: [1, { d: undefined, c: 2 }] }), '{"a":[1,{"c":2}],"b":1}');
@@ -426,15 +423,6 @@ test('what lowers a protection, setting by setting', () => {
     ['quota.autoResume', false, true, true],
     ['quota.autoResume', true, false, false],
     ['quota.autoResume', false, false, false],
-    ['autonomy.maxHours', 12, 24, true],
-    ['autonomy.stallMinutes', 90, 60, false],
-    ['autonomy.reviewModel', null, 'claude-haiku-5-5', true],
-    ['autonomy.reviewModel', 'a', 'a', false],
-    ['autonomy.atTimeLimit', 'pause', 'continue', true],
-    ['autonomy.atTimeLimit', 'pause', undefined, true],
-    ['autonomy.atTimeLimit', 'continue', 'pause', false],
-    ['autonomy.atTimeLimit', undefined, 'pause', false],
-    ['autonomy.atTimeLimit', 'pause', 'pause', false],
     ['notify.ntfy', null, 'https://ntfy.sh/x', true],
     ['notify.ntfy', 'https://ntfy.sh/a', 'https://ntfy.sh/b', true],
     ['notify.ntfy', 'https://ntfy.sh/a', null, false],
@@ -481,7 +469,7 @@ test('applying shared values: a project keeps its folder here; a removal drops i
   assert.deepEqual(applyShared(c, { 'projects.app': undefined }).projects, []);
 });
 
-test('history: month folders kept, events masked line by line, summaries of runs and flows read back', () => {
+test('history: month folders kept, events masked line by line, summaries of flows read back', () => {
   assert.deepEqual(
     [monthIndex('2026-10'), monthIndex('2026-12'), monthIndex('2026-01'), monthIndex('2026-13'), monthIndex('2026-00'), monthIndex('26-10'), monthIndex('x')],
     [2026 * 12 + 9, 2026 * 12 + 11, 2026 * 12, null, null, null, null],
@@ -499,26 +487,9 @@ test('history: month folders kept, events masked line by line, summaries of runs
   assert.equal(masked.split('\n').length, 3);
   assert.equal(maskedEvents('not json\n'), '');
   assert.equal(maskedEvents(''), '');
-  const run = runSummary({
-    id: 'r1',
-    task: `Fix it with ${key}\nsecond line`,
-    project: 'app',
-    cwd: 'C:\\dev\\app\\',
-    status: 'paused',
-    phase: 'work',
-    pause: { reason: 'quota' },
-    createdAt: 1,
-    updatedAt: 2,
-    milestones: [1, 2],
-    deferred: [1],
-  });
-  assert.equal(run.folder, 'app');
-  assert.ok(!run.task.includes(key) && !run.task.includes('second'));
-  assert.deepEqual(parseRunSummary(JSON.stringify(run)), run);
-  assert.equal(runSummary({ ...run, cwd: '/x', task: 't', pause: null, milestones: [], deferred: [] }).reason, null);
   const flow = flowSummary({
     id: 'f1',
-    task: 'Plan it',
+    task: `Plan it with ${key}\nsecond line`,
     project: null,
     status: 'waiting',
     current: 1,
@@ -526,14 +497,12 @@ test('history: month folders kept, events masked line by line, summaries of runs
     updatedAt: 3,
   });
   assert.equal(flow.step, 'plan');
+  assert.ok(!flow.task.includes(key) && !flow.task.includes('second'));
   assert.deepEqual(parseFlowSummary(JSON.stringify(flow)), flow);
   assert.equal(flowSummary({ ...flow, current: 5, steps: [] }).step, null);
-  for (const t of [null, 'x', '{}', '{"id":"r","status":"odd"}']) {
-    assert.equal(parseRunSummary(t), null);
-    assert.equal(parseFlowSummary(t), null);
-  }
-  const loose = parseRunSummary(JSON.stringify({ id: 'r', status: 'done', createdAt: 'x', project: 3, reason: 4 }))!;
-  assert.deepEqual([loose.createdAt, loose.project, loose.reason, loose.task], [0, null, null, '']);
+  for (const t of [null, 'x', '{}', '{"id":"f","status":"odd"}']) assert.equal(parseFlowSummary(t), null);
+  const loose = parseFlowSummary(JSON.stringify({ id: 'f', status: 'done', updatedAt: 'x', project: 3, step: 4 }))!;
+  assert.deepEqual([loose.updatedAt, loose.project, loose.step, loose.task], [0, null, null, '']);
   assert.deepEqual(parseMachineInfo(JSON.stringify({ id: 'mac-0000', name: 'Mac', platform: 'darwin', app: '0.5.0', since: 5 })), {
     id: 'mac-0000',
     name: 'Mac',

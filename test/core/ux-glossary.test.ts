@@ -31,8 +31,8 @@ test('no message uses a form the glossary rules out, in either language', () => 
 test('the glossary catches what it is meant to, and not the words that only look alike', () => {
   const tr = (idea: string) => GLOSSARY.find((g) => g.idea.startsWith(idea))!.notTr!;
   const enOf = (idea: string) => GLOSSARY.find((g) => g.idea.startsWith(idea))!.notEn!;
-  for (const s of ['Bir koşu başladı', 'Koşular', 'koşunun raporu', 'koşuyu durdur']) assert.ok(tr('a task Claude').test(s), s);
-  for (const s of ['bir koşul', 'koşulları', 'yarışkoşusu yok']) assert.ok(!tr('a task Claude').test(s), s);
+  for (const s of ['Bir koşu başladı', 'Koşular', 'koşunun raporu', 'koşuyu durdur']) assert.ok(tr('the way of working').test(s), s);
+  for (const s of ['bir koşul', 'koşulları', 'yarışkoşusu yok']) assert.ok(!tr('the way of working').test(s), s);
   assert.ok(tr('the 5-hour').test('5 saatlik pencere'));
   assert.ok(tr('the 5-hour').test('Kota penceresi sıfırlandı'));
   assert.ok(!tr('the 5-hour').test('Kontrol merkezi yeni pencerede açıldı.'));

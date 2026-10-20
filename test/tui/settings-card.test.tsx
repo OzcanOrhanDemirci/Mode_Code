@@ -6,6 +6,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { cloneDefaults } from '../../src/core/config.js';
 import { draw, FakeData, KEY, NOW } from './harness.js';
 import { buildTree } from '../../src/tui/tree.js';
 import { resolve } from '../../src/tui/nav.js';
@@ -51,17 +52,17 @@ test('a value other than the default says what the default is', async () => {
 
 test('a number: its range, then what the typed value would do before Enter saves it', async () => {
   const data = new FakeData();
-  const s = await draw(data, { address: 'work/full-auto', rows: 48, columns: 100 });
+  const s = await draw(data, { address: 'memory/notes', rows: 48, columns: 100 });
   try {
-    await s.press(KEY.down, KEY.down, KEY.down); // stall time
-    assert.match(flat(s.text()), /Now 90 minutes \(default\)\. After 90 minutes without a finished step Claude is told/);
-    assert.match(flat(s.text()), /If you change it Type a number from 10 minutes to 720 minutes\./);
+    await s.press(KEY.down, KEY.down, KEY.down, KEY.down); // how old a note may be
+    assert.match(flat(s.text()), /Now 14 days \(default\)\. A note older than 14 days is not offered/);
+    assert.match(flat(s.text()), /If you change it Type a number from 1 day to 365 days\./);
     await s.press(KEY.enter);
     await s.type('\b\b30');
-    assert.match(flat(s.text()), /If you change it 30 minutes: After 30 minutes without a finished step/);
+    assert.match(flat(s.text()), /If you change it 30 days: A note older than 30 days is not offered/);
     await s.press(KEY.enter);
-    assert.deepEqual(data.saved, [{ path: 'autonomy.stallMinutes', value: 30 }]);
-    assert.match(flat(s.text()), /Stall time: 30 minutes\. Saved\./);
+    assert.deepEqual(data.saved, [{ path: 'memory.handoff.maxAgeDays', value: 30 }]);
+    assert.match(flat(s.text()), /Offer notes up to: 30 days\. Saved\./);
   } finally {
     s.close();
   }
@@ -110,13 +111,15 @@ test('the same four answers in the other language: a Turkish switch and number, 
   } finally {
     sw.close();
   }
-  const num = await draw(new FakeData('tr'), { address: 'work/full-auto', rows: 48, columns: 100 });
+  const quiet = cloneDefaults();
+  quiet.memory.morning.enabled = false;
+  const num = await draw(new FakeData('tr', quiet), { address: 'memory/notes', rows: 48, columns: 100 });
   try {
-    await num.press(KEY.down);
+    await num.press(KEY.down, KEY.down, KEY.down, KEY.down, KEY.down, KEY.down); // away after
     const t = flat(num.text());
-    assert.match(t, /Şu an 12 saat \(varsayılan\)\. 12 saat sonra iş raporuyla duraklar/);
+    assert.match(t, /Şu an 6 saat \(varsayılan\)\./);
     assert.match(t, /Değiştirirsen 1 saat ile 72 saat arasında bir sayı yaz\./);
-    assert.match(t, /Şu an etkisiz, çünkü "Tam otonom" ayarı: kapalı \(Çalışma › Tam otonom\)\./);
+    assert.match(t, /Şu an etkisiz, çünkü "Sabah raporu" ayarı: kapalı \(Hafıza ve projeler › Devir notları ve sabah raporu\)\./);
   } finally {
     num.close();
   }

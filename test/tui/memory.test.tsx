@@ -63,7 +63,6 @@ test('Memory and projects › Memory: the place, the folder, the repository, whe
     local: { isRepo: true, dirty: 2, ahead: 1 },
     project: 'app',
     handoff: null,
-    pendingNotes: 1,
   };
   const s = await draw(data, { address: 'memory/store' });
   try {
@@ -77,7 +76,6 @@ test('Memory and projects › Memory: the place, the folder, the repository, whe
     assert.match(t, /Claude Code\s+✓ writes its memory here/);
     assert.match(t, /Here\s+git history · 2 change\(s\) not recorded yet · 1 commit\(s\) not sent yet/);
     assert.match(t, /Sync\s+by itself · 2 min ago: fine/);
-    assert.match(t, /Notes\s+1 note file\(s\) from full-autonomy runs wait for you/);
     assert.match(t, /s: change where it lives/);
   } finally {
     s.close();

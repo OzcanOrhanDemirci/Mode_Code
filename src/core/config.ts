@@ -29,8 +29,8 @@ export interface ProjectEntry {
   /** Project folder, absolute. Optional: a project can live only in the person's notes. */
   path?: string;
   /**
-   * The person's own definition of done for the project: commands a full-autonomy run must pass at its
-   * finish, which a run's plan can add to but never drop (docs/autonomy.md).
+   * The person's own definition of done for the project: commands Claude is told to pass before it calls a task
+   * done in full autonomy (docs/autonomy.md).
    */
   verify?: string[];
 }
@@ -160,18 +160,6 @@ export interface Config {
     /** Where flows keep their drafts (the report, the plan); null: a mode-code folder in the temporary folder. */
     workDir: string | null;
   };
-  /** Full autonomy (docs/autonomy.md). Off until the person turns it on in their own terminal. */
-  autonomy: {
-    enabled: boolean;
-    /** Running hours after which a run pauses, or goes on with a fresh limit while it reaches milestones (atTimeLimit). */
-    maxHours: number;
-    /** Minutes without a milestone after which the run is warned, and twice that after which it pauses. */
-    stallMinutes: number;
-    /** At the time limit: `continue` while a milestone came within the stall time, else pause; `pause` always. */
-    atTimeLimit: 'continue' | 'pause';
-    /** The model of the independent reviews; null: the session's own model. */
-    reviewModel: string | null;
-  };
   /**
    * Parallel agents (docs/agents.md): with the mode on, every session starts with agents off and the person sets
    * them on the strip. Off here, this tool never touches an agent.
@@ -189,8 +177,8 @@ export interface Config {
     check: boolean;
   };
   /**
-   * Notifications that reach the person away from the computer (docs/autonomy.md): a full-autonomy run that ends,
-   * pauses or gets stuck is posted to this ntfy topic's address as well; null: the desktop alone.
+   * Notifications that reach the person away from the computer (docs/autonomy.md): a full-autonomy turn that ends,
+   * done or waiting for them, is posted to this ntfy topic's address as well; null: the desktop alone.
    */
   notify: {
     ntfy: string | null;
@@ -244,7 +232,6 @@ export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
   keywords: { extra: {} },
   projects: [],
   modes: { workDir: null },
-  autonomy: { enabled: false, maxHours: 12, stallMinutes: 90, atTimeLimit: 'continue', reviewModel: null },
   agents: { enabled: false, helpers: true },
   update: { check: false },
   notify: { ntfy: null },
@@ -301,9 +288,10 @@ export function ntfyAddress(s: string): boolean {
 
 /**
  * Settings an earlier version had and this one no longer has: a settings file that still holds one reads
- * without a problem, and the setting does nothing (bypass, 1.2.0: every way of working has the same core).
+ * without a problem, and the setting does nothing (1.2.0: bypass, as every way of working has the same core;
+ * autonomy, as full autonomy is a way of working chosen on the strip, with no run, limit or switch of its own).
  */
-export const RETIRED_KEYS: ReadonlySet<string> = new Set(['bypass']);
+export const RETIRED_KEYS: ReadonlySet<string> = new Set(['bypass', 'autonomy']);
 
 /** Turns any value into a valid Config, keeping what is valid and reporting the rest. */
 export function normalizeConfig(raw: unknown): ParsedConfig {
@@ -395,34 +383,6 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
     else if (typeof w === 'string' && w.trim()) c.modes.workDir = w.trim();
     else problems.push({ path: 'modes.workDir', kind: 'type', detail: 'expected a folder path or null' });
   } else if (raw.modes !== undefined) problems.push({ path: 'modes', kind: 'type', detail: 'expected an object' });
-
-  if (isObj(raw.autonomy)) {
-    const a = raw.autonomy;
-    for (const k of Object.keys(a))
-      if (!['enabled', 'maxHours', 'stallMinutes', 'atTimeLimit', 'reviewModel'].includes(k))
-        problems.push({ path: `autonomy.${k}`, kind: 'unknown-key', detail: 'not a setting' });
-    if (a.enabled !== undefined) {
-      if (typeof a.enabled === 'boolean') c.autonomy.enabled = a.enabled;
-      else problems.push({ path: 'autonomy.enabled', kind: 'type', detail: 'expected true or false' });
-    }
-    if (a.maxHours !== undefined) {
-      if (typeof a.maxHours === 'number' && a.maxHours >= 1 && a.maxHours <= 72) c.autonomy.maxHours = Math.round(a.maxHours);
-      else problems.push({ path: 'autonomy.maxHours', kind: 'range', detail: 'expected 1 to 72' });
-    }
-    if (a.stallMinutes !== undefined) {
-      if (typeof a.stallMinutes === 'number' && a.stallMinutes >= 10 && a.stallMinutes <= 720) c.autonomy.stallMinutes = Math.round(a.stallMinutes);
-      else problems.push({ path: 'autonomy.stallMinutes', kind: 'range', detail: 'expected 10 to 720' });
-    }
-    if (a.atTimeLimit !== undefined) {
-      if (a.atTimeLimit === 'continue' || a.atTimeLimit === 'pause') c.autonomy.atTimeLimit = a.atTimeLimit;
-      else problems.push({ path: 'autonomy.atTimeLimit', kind: 'type', detail: 'expected continue or pause' });
-    }
-    if (a.reviewModel !== undefined) {
-      if (a.reviewModel === null) c.autonomy.reviewModel = null;
-      else if (typeof a.reviewModel === 'string' && /^[A-Za-z0-9._:[\]-]{1,80}$/.test(a.reviewModel.trim())) c.autonomy.reviewModel = a.reviewModel.trim();
-      else problems.push({ path: 'autonomy.reviewModel', kind: 'type', detail: 'expected a model name or null' });
-    }
-  } else if (raw.autonomy !== undefined) problems.push({ path: 'autonomy', kind: 'type', detail: 'expected an object' });
 
   if (isObj(raw.agents)) {
     const a = raw.agents;

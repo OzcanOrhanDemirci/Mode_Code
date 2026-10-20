@@ -41,7 +41,6 @@ export const WHY_SUBJECTS = [
   'belt',
   'mode',
   'style',
-  'autonomy',
   'agents',
   'helpers',
   'freeze',
@@ -85,7 +84,7 @@ export function whySubjectNamed(word: string): WhySubject | null {
 /** One subject's answer. */
 export function why(subject: WhySubject, f: WhyFacts, lang: Lang): WhyAnswer {
   const t = (k: string, p?: Record<string, string | number>) => tIn(lang, k as MessageKey, p);
-  /** A setting as a reason: "Allow full autonomy" is off (Working › Full autonomy). */
+  /** A setting as a reason: "Modes and flows" is off (Settings › Features). */
   const setting = (path: SettingPath): Reason => {
     const page = SETTINGS[path as SettingId]?.page ?? null;
     return {
@@ -114,10 +113,6 @@ export function why(subject: WhySubject, f: WhyFacts, lang: Lang): WhyAnswer {
       const style = s?.interaction === 'autonomous' ? 'autonomous' : s?.interaction === 'full' ? 'full' : 'manual';
       return answer(t(`why.style.${style}`), [s?.interaction && s.interaction !== 'default' ? said('why.r.styleChosen') : said('why.r.styleDefault')]);
     }
-    case 'autonomy':
-      if (!on('autonomy.enabled')) return answer(t('why.autonomy.off'), [setting('autonomy.enabled')]);
-      if (!on('modules.modes')) return answer(t('why.autonomy.noStrip'), [setting('modules.modes')]);
-      return answer(t('why.autonomy.on'), [setting('autonomy.enabled'), setting('autonomy.maxHours')]);
     case 'agents': {
       if (!on('agents.enabled')) return answer(t('why.agents.claude'), [setting('agents.enabled')]);
       const a = s?.agents;

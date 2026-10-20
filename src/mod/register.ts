@@ -13,7 +13,6 @@ import type { EngineInterface, EventName, Hook, On } from 'claude-code';
 import { atom, read, update } from 'claude-code';
 import type {
   ModeCodeAgentsPane,
-  ModeCodeAutoPane,
   ModeCodeCockpit,
   ModeCodeCockpitUi,
   ModeCodeFlowPane,
@@ -45,7 +44,7 @@ import {
 } from '../core/agents.js';
 import { APP_ID, APP_NAME, APP_VERSION, CLI_NAME, DATA_DIR_NAME, PLUGIN_NAME } from '../core/app.js';
 import { parseConfig, serializeConfig, setConfigValue, type Config } from '../core/config.js';
-import { layout, sessionFile, eventsFile, flowDir, memorySeenFile, memorySyncFile, runDir, syncRecordFile, type Layout } from '../core/layout.js';
+import { layout, sessionFile, eventsFile, flowDir, memorySeenFile, memorySyncFile, syncRecordFile, type Layout } from '../core/layout.js';
 import { SYNC_MAX_BYTES, syncCommitMessage, type Pending } from '../core/sync.js';
 import { exportMachine, parseSharedRecord, settingsInEffect, syncDue, type SharedRecord, type SyncFs } from '../core/sync-export.js';
 import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform } from '../core/paths.js';
@@ -93,7 +92,7 @@ import { analyzeCommand } from '../core/shell/analyze.js';
 import { CORE_SKILLS, commandsText, LIST_COMMANDS, memorySetUp, shortCommands, type CoreSkill } from '../core/skills.js';
 import { comparePins, parsePins } from '../core/mcp-pins.js';
 import { partsAllowed, shellRules, type ShellRules } from '../core/permissions.js';
-import { isBeltTool, isFileTool, shellOf } from '../core/belt/tools.js';
+import { isFileTool, shellOf } from '../core/belt/tools.js';
 import type { BeltContext, BeltDecision, GitFacts } from '../core/belt/types.js';
 import { checkFreeze, checkGuards, type ModeGuard } from '../core/guard.js';
 import {
@@ -123,9 +122,10 @@ import {
   FLOW_PRESETS,
   flowPhrase,
   flowPresetLine,
-  fullAutoPhrase,
   lastChoice,
   menuText,
+  budgetLabel,
+  budgetTarget,
   parseBudget,
   pickChoice,
   splitBudget,
@@ -157,6 +157,8 @@ import {
   nearKeywordNote,
   devBeltOffNote,
   freezeNote,
+  fullTurnNote,
+  verifyNote,
   invisibleNote,
   mcpChangedNote,
   hygieneNote,
@@ -185,7 +187,6 @@ import {
   parseHookState,
   parseModState,
   sameFolderSessions,
-  withRun,
   workingNow,
   type ModSessionState,
 } from '../core/session.js';
@@ -251,56 +252,7 @@ import {
   type HandoffParts,
   type HandoffTrigger,
 } from '../core/handoff.js';
-import { morningSummary, nextActivity, notesContext, parseActivity, parseNoteDecisions, toDeliver, type MorningFacts } from '../core/morning.js';
-import {
-  acceptMilestone,
-  acceptPlan,
-  activeTime,
-  atLimit,
-  extendLimit,
-  addBlocker,
-  addDeferred,
-  cancelRun,
-  finishRun,
-  heartbeat as runHeartbeat,
-  isTerminal,
-  lastProgressAt,
-  markStuck,
-  newUntracked,
-  nextStep,
-  noteRefusal as runRefusal,
-  parseRun,
-  pauseRun,
-  progress as runProgress,
-  resumeRun,
-  rollbackRef,
-  runId as newRunId,
-  startRun,
-  type BlockerKind,
-  type DeferKind,
-  type PauseReason,
-  type Review,
-  type Run,
-  type RunResult,
-  type RunStep,
-} from '../core/run.js';
-import { checkGate, gateOpen, type GateFacts, type GateResult, type WslFacts } from '../core/run-gate.js';
-import { checkAutonomy, credentialPaths, type AutoEnv } from '../core/run-guard.js';
-import { diffSignals, parseReview, REVIEW_SYSTEM, reviewManifests, reviewPrompt } from '../core/run-review.js';
-import { checkDraft, composeReport, durationText } from '../core/run-report.js';
-import { pauseFor, type StopAllow } from '../core/run-stop.js';
-import { budgetLabel, budgetTarget, parseAutoPrompts, rememberAutoPrompt, serializeAutoPrompts, startBudgets, type AutoPrompt } from '../core/auto-prompts.js';
-import {
-  autoNoTaskContext,
-  autoPendingContext,
-  autoRefusedContext,
-  autoResumeContext,
-  autoStallContext,
-  autoStartContext,
-  autoStateText,
-  autoTurnContext,
-} from '../core/run-guidance.js';
-
+import { morningSummary, nextActivity, parseActivity, type MorningFacts } from '../core/morning.js';
 type $ = EngineInterface;
 /** The input, `next` and result of a hook on event N, for handlers written as top-level functions. */
 type In<N extends EventName> = Parameters<Hook<N>>[1];
@@ -332,14 +284,8 @@ interface Ctx {
   aliases: { at: number; list: PathAlias[] } | null;
   /** The flow this session works on (its record is the mod's to write). */
   flow: Flow | null;
-  /** The full-autonomy run this session works on (its record is the mod's to write). */
-  run: Run | null;
-  /** When the model was last told that no milestone came for the stall time. */
-  stallWarnedAt: number;
-  /** A full-autonomy start or resume whose last checks wait for the model's first step (see PendingStart). */
-  pendingStart: PendingStart | null;
-  /** The plugin's own sandbox probe while it runs: the one command a paused run's guard lets through. */
-  probing: string | null;
+  /** Steps left to the person in this turn (full autonomy): the turn's notification says they wait. */
+  leftThisTurn: number;
   // ── memory (docs/memory.md) ──
   /** When this session's context was loaded: the commits of the session are counted from here. */
   startedAt: number;
@@ -390,8 +336,8 @@ interface Ctx {
   fresh: boolean;
   /** The session took up the person's last choice in this folder: the model is told with the first prompt. */
   restored: boolean;
-  /** A flow or a full-autonomy run asked for by `/6` or `/tam-otonom` without a task: the person's next message is its task. */
-  armed: { kind: 'flow'; variant: StartableVariant } | { kind: 'fullAuto'; budget: Budget } | null;
+  /** A flow asked for by `/6` without a task: the person's next message is its task. */
+  armed: { kind: 'flow'; variant: StartableVariant } | null;
   /**
    * Notes of strip presses not told to Claude yet, the last of each kind: presses close together count as the
    * last one (the person, 2026-10-15). They go a moment after the last press, or with the next prompt.
@@ -432,21 +378,6 @@ interface Ctx {
   };
 }
 
-/**
- * A run asked for at a prompt, every check measurable there passed. Claude Code runs the plugin's prompt hook
- * before the safety-net hook, so the permission mode this prompt came with is on record only once the model
- * takes its first step: then the last checks run (that mode, and the live probe) and the run starts.
- */
-interface PendingStart {
-  /** When the prompt came in: the safety-net hook's record of it is newer. */
-  at: number;
-  /** The paused run to resume, or null for a new one. */
-  resume: string | null;
-  request: string;
-  project: string | null;
-  budget: { target: number; source: string };
-}
-
 let ctxPromise: Promise<Ctx> | null = null;
 
 /** Session state the drawings read (kept by Claude Code across reloads of this module). */
@@ -478,17 +409,6 @@ const moAtom = atom(
 const stripFocusAtom = atom({ plugin: 'mode-code', key: 'stripFocus' } as const, { id: null, at: 0 } as ModeCodeStripFocus);
 /** How long a control's card stays under the strip after the focus last moved: Claude Code does not say when Esc took it back. */
 const FOCUS_MS = 20_000;
-/** The window full autonomy starts from: its pane's id, and what it shows besides the task (see ModeCodeAutoPane). */
-const AUTO_PANE = WINDOWS.fullAuto.pane;
-const autoPaneAtom = atom(
-  { plugin: 'mode-code', key: 'autoPane' } as const,
-  { lang: 'en', budgets: ['+5', '+10', '+20'], budget: '+10', week: null, error: null } as ModeCodeAutoPane,
-);
-/**
- * The task typed in the window, kept while it is closed until it starts. Not in the session's context: the
- * window draws it, and a drawing may not load that context (loading writes, which a drawing may not do).
- */
-const autoDraft = { task: '' };
 
 /** Environment variables the belt may need to expand in paths; the API reads them one literal name at a time. */
 async function readEnv($: $): Promise<Record<string, string | undefined>> {
@@ -615,8 +535,6 @@ async function load($: $): Promise<Ctx> {
   const existing = await readFile($, eventsPath);
   const fdir = state.flowId ? flowDir(l, state.flowId) : null;
   const flow = fdir ? parseFlow(await readFile($, joinPath(fdir, 'flow.json'))) : null;
-  const rdir = state.runId ? runDir(l, state.runId) : null;
-  const run = rdir ? parseRun(await readFile($, joinPath(rdir, 'run.json'))) : null;
   return {
     layout: l,
     config,
@@ -636,10 +554,7 @@ async function load($: $): Promise<Ctx> {
     gone: new Set(),
     aliases: null,
     flow: flow && isOpen(flow) ? flow : null,
-    run: run && !isTerminal(run) ? run : null,
-    stallWarnedAt: 0,
-    pendingStart: null,
-    probing: null,
+    leftThisTurn: 0,
     startedAt: now,
     prompts: 0,
     lastPrompt: null,
@@ -1002,7 +917,7 @@ function zonesFor(c: Ctx, cwd: string): ModeZones {
   const plan = [joinPath(claudeDirOf(c, cwd), 'plans')];
   const named = c.state.nativePlan?.planFile;
   if (named) plan.push(resolvePath(named, env));
-  return { temp: tempZones(c.env, env), work: [workRoot(c, cwd), ...(c.run ? [c.run.workDir] : [])], plan };
+  return { temp: tempZones(c.env, env), work: [workRoot(c, cwd)], plan };
 }
 
 /** The flow this session works on while it runs (not paused, not ended). */
@@ -1010,17 +925,12 @@ function flowRunning(c: Ctx): Flow | null {
   return c.flow && isRunning(c.flow) ? c.flow : null;
 }
 
-/** A full-autonomy run that is planning: the project does not change until its plan is accepted. */
-function autoPlanning(c: Ctx): boolean {
-  return !!c.run && c.run.status === 'active' && c.run.phase === 'plan';
-}
-
 function modeNow(c: Ctx): WorkMode {
   const step = flowRunning(c) ? currentStep(c.flow!) : null;
   return effectiveMode({
     session: c.state.mode,
     turn: c.state.turnMode,
-    flowStep: step ? stepMode(step.kind) : autoPlanning(c) ? 'plan' : null,
+    flowStep: step ? stepMode(step.kind) : null,
     nativePlan: c.state.nativePlan?.on === true,
   });
 }
@@ -1033,7 +943,6 @@ function modeGuardFor(c: Ctx, cwd: string): ModeGuard | null {
     zones: zonesFor(c, cwd),
     env: c.env,
     flowStep: step && !c.state.turnMode ? stepName(step.kind, c.lang) : null,
-    ...(autoPlanning(c) && !step ? { tail: tIn(c.lang, 'auto.mode.tailPlan', { path: c.run!.planPath }) } : {}),
     words: { code: tIn(c.lang, 'kw.kind.code'), free: tIn(c.lang, 'kw.kind.free') },
   };
 }
@@ -1455,81 +1364,6 @@ async function onExitPlanMode($: $, c: Ctx, e: In<'tool.call'>, next: Nx<'tool.c
   return { ...r, context: [...(r.context ?? []), `${tIn(c.lang, 'flow.step.approved')}\n${stepGuidance(approved.flow, c.lang, stepTexts(c, approved.flow))}`] };
 }
 
-// ── full autonomy ─────────────────────────────────────────────────────────────────────────────────────
-
-/** The runs' work folder: beside the flows' (the setting), or mode-code/runs in the temporary folder. */
-function runWorkRoot(c: Ctx, cwd: string): string {
-  const env = pathEnv(c, cwd);
-  if (c.config.modes.workDir) return joinPath(resolvePath(c.config.modes.workDir, env), 'runs');
-  return joinPath(tempZones(c.env, env)[0] ?? joinPath(c.home, '.cache'), APP_ID, 'runs');
-}
-
-/** The run this session works on while it runs (not paused, not over). */
-function autoRunning(c: Ctx): Run | null {
-  return c.run && c.run.status === 'active' ? c.run : null;
-}
-
-/** Writes the run's record, attaches an open run to the session (and lets an ended one go), redraws. */
-async function saveRun($: $, c: Ctx, r: Run, redraw = true): Promise<void> {
-  const dir = runDir(c.layout, r.id);
-  if (dir) await $.fs.write(joinPath(dir, 'run.json'), JSON.stringify(r, null, 2) + '\n');
-  const open = !isTerminal(r);
-  c.run = open ? r : null;
-  c.state = withRun(c.state, open ? r.id : null);
-  await saveState($, c);
-  if (redraw) await refreshStatus($, c);
-}
-
-async function runEvent($: $, c: Ctx, r: Run, action: string, extra: Record<string, unknown> = {}): Promise<void> {
-  await logEvent($, c, { kind: 'run', action, run: r.id, phase: r.phase, status: r.status, ...extra });
-}
-
-/** A run's record by its id; null when it is missing or torn. */
-async function loadRun($: $, c: Ctx, id: string): Promise<Run | null> {
-  const dir = runDir(c.layout, id);
-  return dir ? parseRun(await readFile($, joinPath(dir, 'run.json'))) : null;
-}
-
-/** The open runs in the data folder, newest first. */
-async function openRuns($: $, c: Ctx): Promise<Run[]> {
-  let names: string[] = [];
-  try {
-    names = (await $.fs.list(c.layout.runsDir)).filter((e) => e.kind === 'dir').map((e) => e.name);
-  } catch {
-    return [];
-  }
-  const out: Run[] = [];
-  for (const n of names.sort().reverse().slice(0, 60)) {
-    const dir = runDir(c.layout, n);
-    const r = dir ? parseRun(await readFile($, joinPath(dir, 'run.json'))) : null;
-    if (r && !isTerminal(r)) out.push(r);
-  }
-  return out.sort((a, b) => b.updatedAt - a.updatedAt);
-}
-
-/** Another live session is working on this run now. */
-async function runHeldElsewhere($: $, c: Ctx, r: Run): Promise<boolean> {
-  if (!r.sessionId || r.sessionId === c.sessionId || r.status !== 'active') return false;
-  const path = sessionFile(c.layout, r.sessionId, 'mod');
-  const other = path ? parseModState(await readFile($, path)) : null;
-  return !!other && other.runId === r.id && (await workingElsewhere($, c, other));
-}
-
-/** The open run a "continue" picks up: the attached one, else the named project's or this folder's. */
-async function runToResume($: $, c: Ctx, project: string | null, cwd: string): Promise<Run | null> {
-  if (c.run) return c.run;
-  const here = resolvePath(cwd, pathEnv(c, cwd));
-  const projPath = project ? c.config.projects.find((p) => p.id === project)?.path : undefined;
-  const root = projPath ? resolvePath(projPath, pathEnv(c, cwd)) : null;
-  for (const r of await openRuns($, c)) {
-    const match = project
-      ? r.project === project || (root !== null && isUnder(r.cwd, root, c.platform))
-      : pathKey(r.cwd, c.platform) === pathKey(here, c.platform);
-    if (match) return r;
-  }
-  return null;
-}
-
 /** git in a folder with its output; diffs get a longer time. */
 async function gitIn($: $, dir: string, args: string[], timeoutMs = 15_000): Promise<{ ok: boolean; out: string; err: string }> {
   try {
@@ -1541,854 +1375,34 @@ async function gitIn($: $, dir: string, args: string[], timeoutMs = 15_000): Pro
   }
 }
 
-interface ProjectFacts {
-  topLevel: string | null;
-  head: string | null;
-  branch: string | null;
-  /** Tracked files with uncommitted changes. */
-  tracked: number;
-  /** Untracked files that are not ignored. */
-  untracked: string[];
-  error: string;
-}
-
-async function projectFacts($: $, c: Ctx, dir: string): Promise<ProjectFacts> {
-  const top = await gitIn($, dir, ['rev-parse', '--show-toplevel']);
-  if (!top.ok || !top.out) return { topLevel: null, head: null, branch: null, tracked: 0, untracked: [], error: top.err };
-  const head = await gitIn($, dir, ['rev-parse', 'HEAD']);
-  const branch = await gitIn($, dir, ['symbolic-ref', '--quiet', '--short', 'HEAD']);
-  const st = await gitIn($, dir, ['status', '--porcelain=v1', '--untracked-files=no']);
-  const others = await gitIn($, dir, ['ls-files', '--others', '--exclude-standard']);
-  return {
-    topLevel: resolvePath(top.out, pathEnv(c, dir)),
-    head: head.ok && head.out ? head.out : null,
-    branch: branch.ok && branch.out ? branch.out : null,
-    tracked: st.ok ? st.out.split('\n').filter(Boolean).length : 0,
-    untracked: others.ok ? others.out.split('\n').filter(Boolean) : [],
-    error: head.ok ? (st.ok ? '' : st.err) : head.err,
-  };
-}
-
-/** A file of /proc: read directly, or through cat when the engine's read gives nothing (/proc files report no size). */
-async function procFile($: $, path: string): Promise<string | null> {
-  const direct = await readFile($, path);
-  if (direct) return direct;
-  try {
-    const r = await $.process.run(['cat', path], { timeoutMs: 3000 });
-    return r.exitCode === 0 ? r.stdout : direct;
-  } catch {
-    return direct;
-  }
-}
-
-/** WSL's own files, when this Linux is WSL (its kernel or its environment says so); null elsewhere. */
-async function wslFactsOf($: $, c: Ctx): Promise<WslFacts | null> {
-  if (c.platform !== 'linux') return null;
-  const osrelease = await procFile($, '/proc/sys/kernel/osrelease');
-  if (!c.env.WSL_DISTRO_NAME && !(osrelease ?? '').toLowerCase().includes('microsoft')) return null;
-  const interopPath = '/proc/sys/fs/binfmt_misc/WSLInterop';
-  let interop: string | null = null;
-  try {
-    // An entry that exists but cannot be read counts as on.
-    if (await $.fs.exists(interopPath)) interop = (await procFile($, interopPath)) ?? '';
-  } catch {
-    interop = '';
-  }
-  return { osrelease, interop, mounts: await procFile($, '/proc/mounts') };
-}
-
-/** A write outside the project through Claude Code's own shell tool: the operating system must refuse it. */
-async function probeSandbox($: $, c: Ctx): Promise<{ ran: boolean; refused: boolean; detail: string }> {
-  const path = joinPath(c.home, '.mode-code-sandbox-probe');
-  const tools = new Set((await $.tool.list()).map((t) => t.name));
-  if (!tools.has('Bash')) return { ran: false, refused: false, detail: 'no Bash tool' };
-  let r: Awaited<ReturnType<typeof $.tool.call>>;
-  const command = `touch '${path.replace(/'/g, `'\\''`)}'`;
-  c.probing = command;
-  try {
-    r = await $.tool.call({
-      tool: 'Bash',
-      command,
-      description: 'Mode_Code: full autonomy sandbox probe (a write outside the project must be refused)',
-    } as never);
-  } catch (err) {
-    return { ran: false, refused: false, detail: String((err as Error)?.message ?? err).slice(0, 200) };
-  } finally {
-    c.probing = null;
-  }
-  if (r.deny !== undefined) return { ran: false, refused: false, detail: String(r.deny).slice(0, 200) };
-  let exists = false;
-  try {
-    exists = await $.fs.exists(path);
-  } catch {
-    exists = false;
-  }
-  if (exists) {
-    try {
-      await $.process.run(['rm', '-f', path], { timeoutMs: 5000 });
-    } catch {
-      /* a probe file left behind is harmless; the gate fails either way */
-    }
-    return { ran: true, refused: false, detail: '' };
-  }
-  const text = String(r.text ?? r.result ?? '');
-  if (r.isError && /read-only file system|operation not permitted|permission denied/i.test(text))
-    return { ran: true, refused: true, detail: text.slice(0, 200) };
-  return { ran: false, refused: false, detail: text.slice(0, 200) || 'no answer' };
-}
-
-/** The person's own definition of done for the project the run works in (`projects[].verify`). */
-function requiredFor(c: Ctx, top: string, project: string | null): string[] {
-  const env = pathEnv(c, top);
-  return c.config.projects
-    .filter((p) => (project !== null && p.id === project) || (!!p.path && pathKey(resolvePath(p.path, env), c.platform) === pathKey(top, c.platform)))
-    .flatMap((p) => p.verify ?? []);
-}
+// ── telling the person (full autonomy, the safeguards) ──
 
 /**
- * Everything the start checks need, measured. At the prompt (`firstStep` null) the permission mode and the
- * live probe are not measurable yet; at the run's first step (`firstStep`: when that prompt came in) the
- * mode is the one the safety-net hook recorded with the prompt, and the probe runs once every other check passed.
+ * Tells the person, away from the computer too: a desktop notification, and their ntfy topic when they set one
+ * (docs/autonomy.md), with curl, which every system this runs on has (Windows 10 and later too). The line is all
+ * that is sent.
  */
-async function autoGate(
-  $: $,
-  c: Ctx,
-  budget: { explicit: boolean; target: number | null; source: string | null },
-  resuming: Run | null,
-  firstStep: number | null,
-): Promise<{ result: GateResult; project: ProjectFacts }> {
-  const cwd = await $.session.cwd();
-  const env = pathEnv(c, cwd);
-  const project = await projectFacts($, c, env.cwd);
-  const hookPath = sessionFile(c.layout, c.sessionId, 'hook');
-  const hook = parseHookState(hookPath ? await readFile($, hookPath) : null, c.sessionId);
-  let settings: Record<string, unknown> | null = null;
-  try {
-    settings = (await $.settings.read()) as Record<string, unknown>;
-  } catch {
-    settings = null;
-  }
-  const runs = await openRuns($, c);
-  const elsewhere: boolean[] = [];
-  for (const r of runs)
-    if (r.id !== resuming?.id && pathKey(r.cwd, c.platform) === pathKey(project.topLevel ?? env.cwd, c.platform))
-      elsewhere.push(await runHeldElsewhere($, c, r));
-  const paused = resuming ? null : runs.find((r) => r.status === 'paused' && pathKey(r.cwd, c.platform) === pathKey(project.topLevel ?? env.cwd, c.platform));
-  const quota = assessQuota(c.reading, budgetOf(c.config, { weeklyTarget: budget.target, weeklyTargetSource: budget.source }), await $.clock.now());
-  const facts: GateFacts = {
-    enabled: c.config.autonomy.enabled,
-    budget: { explicit: budget.explicit, target: budget.target, quota },
-    platform: c.platform,
-    wsl: await wslFactsOf($, c),
-    settings,
-    probe: null,
-    // A record from before this prompt may be stale (the person can switch modes between prompts): not this prompt's, not known.
-    permissionMode: firstStep !== null && hook.promptAt >= firstStep ? hook.permissionMode : null,
-    permissionMeasured: firstStep !== null,
-    hookRan: hook.lastRunAt > 0 || hook.promptAt > 0,
-    modes: c.config.modules.modes,
-    git: {
-      topLevel: project.topLevel,
-      cwd: env.cwd,
-      tracked: project.tracked,
-      sameFolder: project.topLevel !== null && pathKey(project.topLevel, c.platform) === pathKey(env.cwd, c.platform),
-    },
-    alone: {
-      flow: !!c.flow,
-      ownRun: !!c.run && c.run.id !== resuming?.id,
-      elsewhere: elsewhere.some(Boolean),
-      paused: paused
-        ? { id: paused.id, cont: tIn(c.lang, 'kw.kind.continue'), cancel: `${tIn(c.lang, 'kw.kind.fullAuto')} ${tIn(c.lang, 'kw.word.cancel')}` }
-        : null,
-    },
-  };
-  const before = checkGate(facts);
-  // The probe writes (outside the project, where it must be refused): only at the first step, when nothing else stands in the way.
-  if (firstStep !== null && gateOpen(before) && c.platform !== 'win32') facts.probe = await probeSandbox($, c);
-  return { result: checkGate(facts), project };
-}
-
-const AUTO_TOOL = {
-  name: 'autonomy',
-  description:
-    'Drives the full-autonomy run of this session (Mode_Code): "start" first, when a run was asked for (it runs the last start checks); "plan" once the plan file is written; "milestone" with step when that plan step is done and committed; "blocker" with kind and text for what is in the way; "defer" with text for a step that must wait for the person; "finish" when every step has its milestone and the report draft is written; "stuck" when every path is blocked; "status". Code checks each and answers what is missing or what comes next.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      action: { type: 'string', enum: ['start', 'plan', 'milestone', 'blocker', 'defer', 'finish', 'stuck', 'status'] },
-      step: { type: 'integer', minimum: 1, description: 'For milestone: the plan step it completes.' },
-      kind: { type: 'string', enum: ['decision', 'access', 'tool', 'external', 'other'], description: 'For blocker.' },
-      text: { type: 'string', description: 'For blocker and defer: what, in a sentence or two.' },
-      note: { type: 'string', description: 'For milestone: a short handoff note on the step.' },
-    },
-    required: ['action'],
-    additionalProperties: false,
-  },
-  isDeferred: false,
-} as const;
-
-async function registerAutoTool($: $): Promise<void> {
-  try {
-    await $.tool.register(AUTO_TOOL);
-  } catch {
-    /* the run then has no way to move; the doctor's live test notices */
-  }
-}
-
-/** The request of a run: the message without the keyword, or the person's last message before it. */
-async function taskOf($: $, text: string): Promise<string> {
-  const own = messageWithoutKeyword(text).trim();
-  if (own) return own;
-  try {
-    const rows = await $.session.messages();
-    for (let i = rows.length - 1; i >= 0; i--) {
-      const m = rows[i]!;
-      const t = m.role === 'user' ? m.text.trim() : '';
-      if (t && !t.startsWith('<') && !t.startsWith(`[${APP_NAME}]`) && !(m.toolResults?.length ?? 0)) return t;
-    }
-  } catch {
-    /* no history to take it from */
-  }
-  return '';
-}
-
-/** The report as it stands: Claude's draft and what code measured, kept beside the record. */
-async function writeReport($: $, c: Ctx, r: Run): Promise<string> {
-  const dir = runDir(c.layout, r.id) ?? c.layout.runsDir;
-  const path = joinPath(dir, 'report.md');
-  let notes = false;
-  try {
-    notes = await $.fs.exists(r.notesPath);
-  } catch {
-    notes = false;
-  }
-  const q = await quotaNow($, c);
-  const text = composeReport(await readFile($, r.reportPath), r, c.lang, {
-    now: await $.clock.now(),
-    notes,
-    quota: q.usable ? { five: q.five?.used ?? null, week: q.week?.used ?? null } : null,
-  });
-  await $.fs.write(path, text);
-  return path;
-}
-
-async function autoNotify(
-  $: $,
-  c: Ctx,
-  key: 'auto.notify.done' | 'auto.notify.stuck' | 'auto.notify.paused' | 'auto.notify.flagged',
-  r: Run,
-  reason = '',
-): Promise<void> {
+async function notifyPerson($: $, c: Ctx, text: string): Promise<void> {
   if (!c.config.modules.notifications) return;
-  const text = tIn(c.lang, key, { task: maskSecrets((r.task || r.id).split('\n')[0]!.slice(0, 120)), reason });
   try {
     await $.ui.notify(text, { title: APP_NAME });
   } catch {
     /* a convenience */
   }
-  // Away from the computer: the person's ntfy topic as well (docs/autonomy.md), with curl, which every system
-  // this runs on has (Windows 10 and later too). The message is the line above; nothing else is sent.
   const topic = c.config.notify.ntfy;
   if (topic)
     try {
       await $.process.run(['curl', '-sS', '-m', '10', '-H', `Title: ${APP_NAME}`, '-d', text, topic], { timeoutMs: 15_000 });
     } catch {
-      /* a convenience too: the desktop and the report have it */
+      /* a convenience too: the desktop and the activity have it */
     }
 }
 
-/** Pauses the attached run for a reason, writes its report and says so. */
-async function pauseAuto($: $, c: Ctx, reason: PauseReason, detail = ''): Promise<void> {
-  if (!c.run) return;
-  const r = pauseRun(c.run, reason, await $.clock.now(), detail);
-  if (!r.ok || r.run === c.run) return;
-  await saveRun($, c, r.run);
-  await writeReport($, c, r.run);
-  // A pause at the session's end is in that session's own handoff note.
-  if (reason !== 'session') await runHandoff($, c, r.run);
-  await runEvent($, c, r.run, 'pause', { reason, detail });
-  const words = tIn(c.lang, `auto.pause.${reason}` as MessageKey);
-  $.ui.toast(tIn(c.lang, 'auto.toast.paused', { reason: words, cont: tIn(c.lang, 'kw.kind.continue') }), { timeoutMs: 10_000 });
-  // Paused for the budget: it goes on by itself a minute after the binding window resets, as autonomous work does.
-  if (reason === 'quota' && c.config.quota.autoResume) {
-    const q = await quotaNow($, c);
-    if (q.resumeAt) {
-      c.state = { ...c.state, resumeAt: q.resumeAt + 60_000 };
-      await saveState($, c);
-      await scheduleResume($, c);
-      await refreshStatus($, c);
-    }
-  }
-  if (reason !== 'person' && reason !== 'wrapUp' && reason !== 'session') await autoNotify($, c, 'auto.notify.paused', r.run, words);
-}
-
-function failedChecks(g: GateResult): number {
-  return g.checks.filter((x) => x.ok === false).length;
-}
-
-function passedChecks(g: GateResult): number {
-  return g.checks.filter((x) => x.ok === true).length;
-}
-
-function failedIds(g: GateResult): string[] {
-  return g.checks.filter((x) => x.ok === false).map((x) => x.id);
-}
-
-/**
- * "<task>. <project> full auto quota +N": the start checks measurable at the prompt; when they pass, the run
- * waits for the model's first step, where the last two are measured (see PendingStart).
- */
-async function autoKeyword($: $, c: Ctx, kw: KeywordMatch, text: string): Promise<string[]> {
-  const now = await $.clock.now();
-  if (kw.auto === 'cancel') {
-    if (!c.run) {
-      $.ui.toast(tIn(c.lang, 'auto.toast.noRun'));
-      return [];
-    }
-    const r = cancelRun(c.run, now);
-    if (!r.ok) return [];
-    await saveRun($, c, r.run);
-    await writeReport($, c, r.run);
-    await runEvent($, c, r.run, 'cancel');
-    if (!kw.via) $.ui.toast(tIn(c.lang, 'auto.toast.canceled'));
-    return [`[${APP_NAME}] The person canceled the full-autonomy run ${r.run.id}. Stop its work and say in one line what was left where.`];
-  }
-  const cwd = await $.session.cwd();
-  const task = messageWithoutKeyword(text).trim();
-  // "<project> full auto" with nothing else resumes that project's paused run with its own budget.
-  if (!task && !kw.budget) {
-    const resumed = await autoResume($, c, kw.project ?? c.state.project, cwd);
-    if (resumed) return resumed;
-  }
-  const target = kw.budget ? weeklyTargetFrom(kw.budget, c.reading, now) : null;
-  const source = kw.budget ? `${kw.budget.plus ? '+' : ''}${kw.budget.n}` : null;
-  const { result, project } = await autoGate($, c, { explicit: !!kw.budget, target, source }, null, null);
-  await logEvent($, c, { kind: 'run', action: 'gate', step: 'prompt', ok: gateOpen(result), failed: failedIds(result) });
-  if (!gateOpen(result) || !project.topLevel || !project.head || target === null || source === null) {
-    $.ui.toast(tIn(c.lang, 'auto.toast.refused', { n: Math.max(1, failedChecks(result)) }), { timeoutMs: 10_000 });
-    return [autoRefusedContext(result, c.lang)];
-  }
-  const request = await taskOf($, text);
-  if (!request) {
-    $.ui.toast(tIn(c.lang, 'auto.toast.noTask'));
-    return [autoNoTaskContext()];
-  }
-  c.pendingStart = { at: now, resume: null, request, project: kw.project ?? c.state.project, budget: { target, source } };
-  await rememberPrompt($, c, request, source);
-  await registerAutoTool($);
-  $.ui.toast(tIn(c.lang, 'auto.toast.starting', { checks: passedChecks(result) }), { timeoutMs: 8000 });
-  return [autoPendingContext(false)];
-}
-
-/** Resumes the attached paused run, or the project's or this folder's: the start checks run again first. */
-async function autoResume($: $, c: Ctx, project: string | null, cwd: string): Promise<string[] | null> {
-  const r = await runToResume($, c, project, cwd);
-  if (!r || (r.status === 'active' && r.sessionId === c.sessionId)) return null;
-  if (await runHeldElsewhere($, c, r)) {
-    $.ui.toast(tIn(c.lang, 'auto.toast.held'));
-    return null;
-  }
-  const { result } = await autoGate($, c, { explicit: true, target: r.budget.weeklyTarget, source: r.budget.source }, r, null);
-  await logEvent($, c, { kind: 'run', action: 'gate', step: 'prompt', run: r.id, ok: gateOpen(result), failed: failedIds(result) });
-  if (!gateOpen(result)) {
-    $.ui.toast(tIn(c.lang, 'auto.toast.refused', { n: Math.max(1, failedChecks(result)) }), { timeoutMs: 10_000 });
-    return [autoRefusedContext(result, c.lang)];
-  }
-  c.pendingStart = {
-    at: await $.clock.now(),
-    resume: r.id,
-    request: r.task,
-    project: r.project,
-    budget: { target: r.budget.weeklyTarget, source: r.budget.source },
-  };
-  await registerAutoTool($);
-  $.ui.toast(tIn(c.lang, 'auto.toast.starting', { checks: passedChecks(result) }), { timeoutMs: 8000 });
-  return [autoPendingContext(true)];
-}
-
-/**
- * The model's first step after a start or resume was asked for: the last checks (the permission mode the
- * safety-net hook recorded with that prompt, the live probe) and every other check again, then the run starts
- * or resumes. Answers what the model reads: the run's rules and phase, or which checks failed.
- */
-async function completeStart($: $, c: Ctx): Promise<string> {
-  const p = c.pendingStart!;
-  // Taken first: the probe below is a tool call of its own, and the next prompt starts over.
-  c.pendingStart = null;
-  const cwd = await $.session.cwd();
-  const resuming = p.resume ? await loadRun($, c, p.resume) : null;
-  if (p.resume && (!resuming || isTerminal(resuming) || (await runHeldElsewhere($, c, resuming)))) {
-    $.ui.toast(tIn(c.lang, 'auto.toast.held'));
-    return tIn(c.lang, 'auto.tool.none');
-  }
-  const { result, project } = await autoGate($, c, { explicit: true, target: p.budget.target, source: p.budget.source }, resuming, p.at);
-  await logEvent($, c, { kind: 'run', action: 'gate', step: 'first', ...(p.resume ? { run: p.resume } : {}), ok: result.ok, failed: failedIds(result) });
-  if (!result.ok || !project.topLevel || !project.head) {
-    $.ui.toast(tIn(c.lang, 'auto.toast.refused', { n: Math.max(1, failedChecks(result)) }), { timeoutMs: 10_000 });
-    return autoRefusedContext(result, c.lang);
-  }
-  const now = await $.clock.now();
-  c.state = { ...c.state, weeklyTarget: p.budget.target, weeklyTargetSource: p.budget.source };
-  if (resuming) {
-    const paused = resuming.status === 'paused' ? resuming : (pauseRun(resuming, 'session', now).run as Run);
-    const res = resumeRun(paused, c.sessionId, now);
-    if (!res.ok) return tIn(c.lang, 'auto.tool.none');
-    await saveRun($, c, res.run);
-    await runEvent($, c, res.run, 'resume');
-    const phase = tIn(c.lang, `auto.phase.${res.run.phase}` as MessageKey);
-    $.ui.toast(tIn(c.lang, 'auto.toast.resumed', { phase }));
-    return `${tIn(c.lang, 'auto.tool.resumedAt', { phase })}\n\n${autoResumeContext(res.run)}`;
-  }
-  const taken = new Set<string>();
-  try {
-    for (const e of await $.fs.list(c.layout.runsDir)) taken.add(e.name);
-  } catch {
-    /* no runs yet */
-  }
-  const id = newRunId(p.request, now, taken);
-  const r = startRun({
-    id,
-    task: p.request,
-    project: p.project,
-    cwd: project.topLevel,
-    sessionId: c.sessionId,
-    workDir: runWorkRoot(c, cwd),
-    budget: { weeklyTarget: p.budget.target, source: p.budget.source },
-    start: { commit: project.head, branch: project.branch, untracked: project.untracked },
-    now,
-  });
-  await gitIn($, project.topLevel, ['update-ref', rollbackRef(id, 0), project.head]);
-  try {
-    await $.fs.write(joinPath(r.workDir, 'README.md'), `Drafts of the full-autonomy run ${id}: plan.md, report.md, notes.md.\n`);
-  } catch {
-    /* Claude's Write tool makes the folder too */
-  }
-  await saveRun($, c, r);
-  await runEvent($, c, r, 'start', { checks: result.checks.length });
-  $.ui.toast(tIn(c.lang, 'auto.toast.started', { checks: passedChecks(result) }), { timeoutMs: 8000 });
-  const mode = String(result.checks.find((x) => x.id === 'permission')?.params?.mode ?? '');
-  return `${tIn(c.lang, 'auto.tool.started', { checks: passedChecks(result), mode })}\n\n${autoStartContext(r, requiredFor(c, r.cwd, r.project))}`;
-}
-
-/** An independent review: a model call with none of the session's conversation. */
-async function reviewRun(
-  $: $,
-  c: Ctx,
-  r: Run,
-  step: RunStep | null,
-  from: string,
-  to: string,
-  verification: { command: string; ok: boolean; output: string }[] | null,
-): Promise<Review> {
-  const range = `${from}..${to}`;
-  const commits = await gitIn($, r.cwd, ['log', '--oneline', '--no-decorate', range]);
-  const stat = await gitIn($, r.cwd, ['diff', '--stat', range]);
-  const diff = await gitIn($, r.cwd, ['diff', '--no-color', range], 60_000);
-  // The project beyond the diff, as it is at the reviewed commit: what exists, and how it builds and runs.
-  const tree = await gitIn($, r.cwd, ['ls-tree', '-r', '--name-only', to]);
-  const files = tree.ok ? tree.out.split('\n').filter(Boolean) : [];
-  const manifests: { path: string; text: string }[] = [];
-  for (const path of reviewManifests(files)) {
-    const shown = await gitIn($, r.cwd, ['show', `${to}:${path}`]);
-    if (shown.ok) manifests.push({ path, text: shown.out });
-  }
-  const signals = diffSignals(diff.out);
-  const earlier = r.milestones.filter((m) => m.review.verdict === 'concerns').flatMap((m) => m.review.findings.map((f) => `step ${m.n}: ${f}`));
-  const prompt = reviewPrompt({
-    task: r.task,
-    plan: r.plan!,
-    step,
-    commits: commits.out,
-    stat: stat.out,
-    diff: diff.out,
-    signals,
-    earlier: step ? [] : earlier,
-    files,
-    manifests,
-    verification,
-  });
-  let model: string;
-  try {
-    model = c.config.autonomy.reviewModel ?? (await $.session.model());
-  } catch {
-    model = 'opus';
-  }
-  const sig = { deletedTests: signals.deletedTests.length, skipMarkers: signals.skipMarkers };
-  let reason = '';
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const res = await $.model.complete({ model, system: REVIEW_SYSTEM, prompt, maxTokens: 3000, timeoutMs: 300_000 });
-      if (res.isAnswered) {
-        const p = parseReview(res.text);
-        return { verdict: p.verdict, findings: p.findings, model, at: await $.clock.now(), signals: sig };
-      }
-      reason = String(res.reason ?? 'no answer');
-    } catch (err) {
-      reason = String((err as Error)?.message ?? err).slice(0, 200);
-    }
-  }
-  return { verdict: 'unavailable', findings: [reason], model: null, at: await $.clock.now(), signals: sig };
-}
-
-function stepLine(c: Ctx, r: Run): string {
-  const next = nextStep(r);
-  const p = runProgress(r);
-  return next
-    ? tIn(c.lang, 'auto.tool.next', { n: next.n, of: p.of, title: next.title, acceptance: next.acceptance })
-    : tIn(c.lang, 'auto.tool.allStepsDone', { path: r.reportPath });
-}
-
-function requestLines(c: Ctx, r: Run): string {
-  return r.task
-    ? `${tIn(c.lang, 'auto.tool.request', { task: r.task })}\n${tIn(c.lang, 'auto.tool.stillServes', { path: r.planPath })}`
-    : tIn(c.lang, 'auto.tool.stillServes', { path: r.planPath });
-}
-
-/** The tool the model drives the run with: code checks every action and says what is missing or what comes next. */
-async function onAutoTool($: $, e: any): Promise<any> {
-  const c = await ctxOf($);
-  const answer = (text: string) => ({ result: text });
-  if (e.agentId !== undefined) return answer(tIn(c.lang, 'auto.tool.agent'));
-  // The first step after a start was asked for: whatever the action, the last checks come first.
-  if (c.pendingStart) return answer(await completeStart($, c));
-  const r = c.run;
-  if (!r) return answer(tIn(c.lang, 'auto.tool.none'));
-  const action = String(e.action ?? '');
-  const now = await $.clock.now();
-  if (action === 'status' || !action)
-    return answer(
-      tIn(c.lang, 'auto.tool.status', {
-        id: r.id,
-        phase: tIn(c.lang, `auto.phase.${r.phase}` as MessageKey),
-        done: runProgress(r).done,
-        of: runProgress(r).of,
-        deferred: r.deferred.length,
-        blockers: r.blockers.length,
-        time: durationText(activeTime(r, now), c.lang),
-      }) + (r.status === 'active' ? `\n${r.phase === 'plan' ? tIn(c.lang, 'auto.tool.planPhase', { path: r.planPath }) : stepLine(c, r)}` : ''),
-    );
-  if (isTerminal(r)) return answer(tIn(c.lang, 'auto.tool.over', { status: tIn(c.lang, `auto.status.${r.status}` as MessageKey) }));
-  if (r.status === 'paused')
-    return answer(
-      tIn(c.lang, 'auto.tool.paused', {
-        reason: tIn(c.lang, `auto.pause.${r.pause?.reason ?? 'person'}` as MessageKey),
-        cont: tIn(c.lang, 'kw.kind.continue'),
-      }),
-    );
-  const refused = async (run: Run, why: string, text: string) => {
-    await saveRun($, c, runRefusal(run, `${action}: ${why}`, now), false);
-    return answer(text);
-  };
-  const saved = async (res: RunResult) => {
-    if (res.ok) await saveRun($, c, res.run);
-    return res;
-  };
-
-  if (action === 'blocker') {
-    const text = String(e.text ?? '').trim();
-    if (!text) return answer(tIn(c.lang, 'auto.tool.blockerText'));
-    const kind = (['decision', 'access', 'tool', 'external', 'other'].includes(String(e.kind)) ? e.kind : 'other') as BlockerKind;
-    const res = await saved(addBlocker(r, kind, maskSecrets(text), now));
-    if (res.ok) await runEvent($, c, res.run, 'blocker', { blocker: kind });
-    return answer(tIn(c.lang, 'auto.tool.blocker', { kind: tIn(c.lang, `auto.blocker.${kind}` as MessageKey), path: r.reportPath }));
-  }
-  if (action === 'defer') {
-    const text = String(e.text ?? '').trim();
-    if (!text) return answer(tIn(c.lang, 'auto.tool.blockerText'));
-    const what = maskSecrets(text);
-    await saved(addDeferred(r, { kind: 'model', tool: 'Claude', what, reason: 'recorded by Claude for the person' }, now));
-    return answer(tIn(c.lang, 'auto.tool.deferred', { what }));
-  }
-
-  if (action === 'plan') {
-    const check = await checkPlanFile($, c, r.planPath);
-    if (check.problems.length || check.text === null)
-      return refused(
-        r,
-        check.problems.map((p) => p.key).join(', '),
-        [
-          tIn(c.lang, 'auto.tool.planRefused'),
-          ...check.problems.map((p) => `• ${tIn(c.lang, p.key, p.params)}`),
-          tIn(c.lang, 'auto.tool.planRefusedTail', { path: r.planPath }),
-        ].join('\n'),
-      );
-    const parsed = checkPlan(check.text);
-    const required = requiredFor(c, r.cwd, r.project);
-    // A verification command the run itself may not run (it would wait for the person) could never pass.
-    const here = await $.session.cwd();
-    const waits: string[] = [];
-    for (const command of [...new Set([...check.verification, ...required])]) {
-      const v = checkAutonomy('Bash', { command }, await autoEnvFor($, c, r, here, command));
-      if (v.kind !== 'allow') waits.push(`• ${tIn(c.lang, 'auto.tool.planWaits', { command, reason: v.kind === 'defer' ? v.reason : v.why })}`);
-    }
-    if (waits.length)
-      return refused(
-        r,
-        'verification waits',
-        [tIn(c.lang, 'auto.tool.planRefused'), ...waits, tIn(c.lang, 'auto.tool.planRefusedTail', { path: r.planPath })].join('\n'),
-      );
-    const res = acceptPlan(
-      r,
-      { steps: parsed.steps.map((s) => ({ n: s.n, title: s.title, acceptance: s.acceptance ?? '' })), verification: check.verification },
-      required,
-      now,
-    );
-    if (!res.ok) {
-      if (res.error === 'verification-dropped')
-        return refused(
-          r,
-          res.error,
-          tIn(c.lang, 'auto.tool.planDropped', {
-            commands: (res.detail ?? '')
-              .split('\n')
-              .map((x) => `\`${x}\``)
-              .join(', '),
-          }),
-        );
-      if (res.error === 'steps-dropped') return refused(r, res.error, tIn(c.lang, 'auto.tool.planStepsDropped', { n: res.detail ?? '' }));
-      return answer(tIn(c.lang, 'auto.tool.over', { status: tIn(c.lang, `auto.status.${r.status}` as MessageKey) }));
-    }
-    const dir = runDir(c.layout, r.id) ?? c.layout.runsDir;
-    await $.fs.write(joinPath(dir, 'plan.md'), check.text);
-    await saveRun($, c, res.run);
-    await runEvent($, c, res.run, r.plan ? 'revise' : 'plan', { steps: res.run.plan!.steps.length, commands: res.run.plan!.verification.length });
-    $.ui.toast(tIn(c.lang, 'auto.toast.planAccepted', { steps: count(c.lang, 'steps', res.run.plan!.steps.length) }));
-    const head = r.plan
-      ? tIn(c.lang, 'auto.tool.planRevised', {
-          n: res.run.plan!.revisions,
-          steps: count(c.lang, 'steps', res.run.plan!.steps.length),
-          commands: count(c.lang, 'commands', res.run.plan!.verification.length),
-        })
-      : tIn(c.lang, 'auto.tool.planAccepted', {
-          steps: count(c.lang, 'steps', res.run.plan!.steps.length),
-          commands: count(c.lang, 'commands', res.run.plan!.verification.length),
-        });
-    const req = required.length ? `\n${tIn(c.lang, 'auto.tool.planRequired', { commands: required.map((x) => `\`${x}\``).join(', ') })}` : '';
-    return answer(`${head}${req}\n${stepLine(c, res.run)}`);
-  }
-
-  if (r.phase === 'plan' || !r.plan) return answer(tIn(c.lang, 'auto.tool.planPhase', { path: r.planPath }));
-
-  if (action === 'milestone') {
-    const next = nextStep(r);
-    if (!next) return answer(tIn(c.lang, 'auto.tool.allStepsDone', { path: r.reportPath }));
-    const n = Number(e.step);
-    if (!Number.isInteger(n) || n < 1) return answer(tIn(c.lang, 'auto.tool.noStep', { n: next.n }));
-    if (n !== next.n) return refused(r, `order ${n}`, tIn(c.lang, 'auto.tool.order', { n: next.n, title: next.title }));
-    const facts = await projectFacts($, c, r.cwd);
-    if (!facts.head) return answer(tIn(c.lang, 'auto.tool.git', { cwd: r.cwd, detail: facts.error }));
-    if (facts.tracked > 0) return refused(r, 'dirty', tIn(c.lang, 'auto.tool.dirty', { n: facts.tracked }));
-    const fresh = newUntracked(r, facts.untracked);
-    if (fresh.length) return refused(r, 'untracked', tIn(c.lang, 'auto.tool.untracked', { n: fresh.length, files: fresh.slice(0, 10).join(', ') }));
-    const prev = r.milestones.at(-1)?.commit ?? r.start.commit;
-    if (facts.head === prev) return refused(r, 'no commit', tIn(c.lang, 'auto.tool.noCommit', { commit: prev.slice(0, 12) }));
-    const counted = await gitIn($, r.cwd, ['rev-list', '--count', `${prev}..${facts.head}`]);
-    const review = await reviewRun($, c, r, next, prev, facts.head, null);
-    if (review.verdict === 'fail') {
-      await saveRun($, c, runRefusal(r, `milestone ${n}: review failed`, now), false);
-      await runEvent($, c, r, 'refused', { milestone: n, review: 'fail' });
-      return answer(
-        [tIn(c.lang, 'auto.tool.reviewFailed'), ...review.findings.map((f) => `• ${f}`), tIn(c.lang, 'auto.tool.reviewFailedTail', { n })].join('\n'),
-      );
-    }
-    const ref = rollbackRef(r.id, n);
-    await gitIn($, r.cwd, ['update-ref', ref, facts.head]);
-    const res = acceptMilestone(
-      r,
-      {
-        n,
-        at: now,
-        commit: facts.head,
-        ref,
-        commits: /^\d+$/.test(counted.out) ? parseInt(counted.out, 10) : 0,
-        review,
-        note: maskSecrets(String(e.note ?? '')),
-      },
-      now,
-    );
-    if (!res.ok) return answer(tIn(c.lang, 'auto.tool.order', { n: next.n, title: next.title }));
-    await saveRun($, c, res.run);
-    await runEvent($, c, res.run, 'milestone', { milestone: n, review: review.verdict });
-    const of = res.run.plan!.steps.length;
-    const verdict = tIn(c.lang, `auto.verdict.${review.verdict}` as MessageKey);
-    $.ui.toast(tIn(c.lang, 'auto.toast.milestone', { n, of, verdict }));
-    const lines = [tIn(c.lang, 'auto.tool.milestone', { n, of, commit: facts.head.slice(0, 12), ref, verdict })];
-    if (review.verdict === 'unavailable') lines.push(tIn(c.lang, 'auto.tool.reviewUnavailable', { reason: review.findings[0] ?? '' }));
-    else if (review.findings.length) lines.push(tIn(c.lang, 'auto.tool.reviewFindings'), ...review.findings.map((f) => `• ${f}`));
-    lines.push(requestLines(c, res.run), stepLine(c, res.run));
-    return answer(lines.join('\n'));
-  }
-
-  if (action === 'finish') {
-    const next = nextStep(r);
-    if (next) return refused(r, `unfinished ${next.n}`, tIn(c.lang, 'auto.tool.unfinished', { n: next.n }));
-    const facts = await projectFacts($, c, r.cwd);
-    if (!facts.head) return answer(tIn(c.lang, 'auto.tool.git', { cwd: r.cwd, detail: facts.error }));
-    if (facts.tracked > 0) return refused(r, 'dirty', tIn(c.lang, 'auto.tool.finishDirty', { n: facts.tracked }));
-    const left = newUntracked(r, facts.untracked);
-    if (left.length) return refused(r, 'untracked', tIn(c.lang, 'auto.tool.untracked', { n: left.length, files: left.slice(0, 10).join(', ') }));
-    const draft = await readFile($, r.reportPath);
-    const problems = checkDraft(draft, 'done', r.reportPath);
-    if (problems.length)
-      return refused(
-        r,
-        'report',
-        [tIn(c.lang, 'auto.tool.finishReport'), ...problems.map((p) => `• ${tIn(c.lang, p.key, p.params)}`), tIn(c.lang, 'auto.tool.finishTail')].join('\n'),
-      );
-    const ran = await runCommands($, c, r.plan.verification);
-    if (ran.failure !== null)
-      return refused(r, 'verification', [tIn(c.lang, 'auto.tool.finishVerification'), ran.failure, tIn(c.lang, 'auto.tool.finishTail')].join('\n'));
-    const review = await reviewRun(
-      $,
-      c,
-      r,
-      null,
-      r.start.commit,
-      facts.head,
-      ran.results.map((x, i) => ({ command: x.command, ok: x.ok, output: ran.outputs[i] ?? '' })),
-    );
-    if (review.verdict === 'fail')
-      return refused(
-        r,
-        'final review',
-        [tIn(c.lang, 'auto.tool.finishReview'), ...review.findings.map((f) => `• ${f}`), tIn(c.lang, 'auto.tool.finishTail')].join('\n'),
-      );
-    const done = finishRun(r, { at: await $.clock.now(), verification: ran.results, review }, true, await $.clock.now());
-    if (!done.ok) return refused(r, done.error, tIn(c.lang, 'auto.tool.finishTail'));
-    await saveRun($, c, done.run);
-    const report = await writeReport($, c, done.run);
-    await runHandoff($, c, done.run);
-    await runEvent($, c, done.run, 'finish', { review: review.verdict, commands: ran.results.length });
-    $.ui.toast(tIn(c.lang, 'auto.toast.done'), { timeoutMs: 10_000 });
-    await autoNotify($, c, 'auto.notify.done', done.run);
-    return answer(
-      tIn(c.lang, 'auto.tool.done', {
-        steps: count(c.lang, 'steps', done.run.milestones.length),
-        commands: count(c.lang, 'commands', ran.results.length),
-        verdict: tIn(c.lang, `auto.verdict.${review.verdict}` as MessageKey),
-        report,
-      }),
-    );
-  }
-
-  if (action === 'stuck') {
-    if (!r.blockers.length) return refused(r, 'no blocker', tIn(c.lang, 'auto.tool.noBlocker'));
-    const problems = checkDraft(await readFile($, r.reportPath), 'stuck', r.reportPath);
-    if (problems.length)
-      return refused(
-        r,
-        'report',
-        [tIn(c.lang, 'auto.tool.finishReport'), ...problems.map((p) => `• ${tIn(c.lang, p.key, p.params)}`), tIn(c.lang, 'auto.tool.finishTail')].join('\n'),
-      );
-    const res = markStuck(r, true, now);
-    if (!res.ok) return refused(r, res.error, tIn(c.lang, 'auto.tool.noBlocker'));
-    await saveRun($, c, res.run);
-    const report = await writeReport($, c, res.run);
-    await runHandoff($, c, res.run);
-    await runEvent($, c, res.run, 'stuck', { blockers: res.run.blockers.length });
-    $.ui.toast(tIn(c.lang, 'auto.toast.stuck'), { timeoutMs: 10_000 });
-    await autoNotify($, c, 'auto.notify.stuck', res.run);
-    return answer(tIn(c.lang, 'auto.tool.stuck', { report }));
-  }
-  return answer(tIn(c.lang, 'auto.tool.badAction', { action }));
-}
-
-/** A call's input in one line for the report: the command, the file, or the input itself; secrets masked. */
+/** A call in one line, for the person: the command, or the tool and its file, secrets masked. */
 function callSummary(tool: string, input: Readonly<Record<string, unknown>>): string {
   const raw =
     typeof input.command === 'string' ? input.command : typeof input.file_path === 'string' ? `${tool} ${input.file_path}` : `${tool} ${JSON.stringify(input)}`;
   return maskSecrets(raw).slice(0, 600);
-}
-
-/** Where a run's file tools may write, what they may not read, and the facts the push check needs. */
-async function autoEnvFor($: $, c: Ctx, r: Run, cwd: string, command: string): Promise<AutoEnv> {
-  const env = pathEnv(c, cwd);
-  // The current branch matters only to a push that names none; asking git for it costs a process.
-  const branch = /\bpush\b/.test(command) ? await (await gitFactsFor($)).currentBranch(r.cwd) : null;
-  return {
-    ...env,
-    env: c.env,
-    writable: [r.cwd, ...tempZones(c.env, env), r.workDir],
-    memoryDirs: memoryDirs(c, cwd),
-    credentials: credentialPaths(c.home, claudeDirOf(c, cwd)),
-    protectedBranches: c.config.belt.protectedBranches ?? ['main', 'master', 'release/*'],
-    branch,
-  };
-}
-
-/**
- * The full-autonomy guard on one tool call: a step that waits for the person is recorded and refused as
- * deferred; a call no run makes is refused; past the time limit or twice the stall time the run pauses.
- * Null lets the call go on.
- */
-async function autoGuard($: $, c: Ctx, tool: string, input: Record<string, unknown>, cwd: string): Promise<{ deny: string } | null> {
-  const r = c.run;
-  if (!r) return null;
-  const now = await $.clock.now();
-  if (r.status === 'active') {
-    // Turned off in the settings while it ran: it pauses at this step, as docs/autonomy.md says.
-    const limit = atLimit(r, now, c.config.autonomy);
-    if (!c.config.autonomy.enabled) await pauseAuto($, c, 'disabled');
-    else if (limit === 'pause') await pauseAuto($, c, 'timeout');
-    else if (limit === 'extend') {
-      // The time is up and the work goes on: a fresh limit, no one asked (docs/autonomy.md).
-      await saveRun($, c, extendLimit(r, now), true);
-      await logEvent($, c, { kind: 'run', run: r.id, action: 'extend', hours: c.config.autonomy.maxHours });
-    } else if (now - lastProgressAt(r) >= 2 * c.config.autonomy.stallMinutes * 60_000) await pauseAuto($, c, 'stalled', 'no milestone');
-  }
-  const run = c.run;
-  if (!run) return null;
-  if (run.status === 'paused') {
-    // A run paused by code (stalled, time limit) reports and stops: nothing more changes until the person resumes it.
-    if (run.pause && ['stalled', 'timeout', 'disabled', 'gate'].includes(run.pause.reason) && isBeltTool(tool)) {
-      const acts = classifyTurn([{ name: tool, input }], classifyEnvFor(c, cwd));
-      if (acts.files + acts.settings + acts.shell + acts.external > 0)
-        return { deny: tIn(c.lang, 'auto.guard.stalled', { reason: tIn(c.lang, `auto.pause.${run.pause.reason}` as MessageKey) }) };
-    }
-    return null;
-  }
-  const v = checkAutonomy(tool, input, await autoEnvFor($, c, run, cwd, String(input.command ?? '')));
-  if (v.kind === 'allow') {
-    const beat = runHeartbeat(run, now);
-    if (beat) await saveRun($, c, beat, false);
-    return null;
-  }
-  if (v.kind === 'defer') {
-    const what = maskSecrets(v.what);
-    const res = addDeferred(run, { kind: v.defer, tool, what, reason: v.reason }, now);
-    if (res.ok) await saveRun($, c, res.run, false);
-    await runEvent($, c, run, 'deferred', { defer: v.defer, tool });
-    return { deny: tIn(c.lang, 'auto.guard.deferred', { what, reason: v.reason }) };
-  }
-  await runEvent($, c, run, 'refused', { why: v.why, tool });
-  switch (v.why) {
-    case 'person-only':
-      return { deny: tIn(c.lang, 'auto.guard.person', { tool }) };
-    case 'unknown-tool':
-      return { deny: tIn(c.lang, 'auto.guard.unknown', { tool }) };
-    case 'fence-write':
-      return { deny: tIn(c.lang, 'auto.guard.fenceWrite', { project: run.cwd, work: run.workDir, path: v.detail }) };
-    case 'fence-read':
-      return { deny: tIn(c.lang, 'auto.guard.fenceRead', { what: maskSecrets(v.detail) }) };
-    case 'memory':
-      return { deny: tIn(c.lang, 'auto.guard.memory', { notes: run.notesPath }) };
-    default:
-      return { deny: tIn(c.lang, 'auto.guard.escape') };
-  }
-}
-
-/** A step the belt leaves to the person during a run: nobody is there to answer, so it waits in the run's report. */
-async function autoDeferBelt($: $, c: Ctx, tool: string, input: Record<string, unknown>, d: BeltDecision): Promise<string> {
-  const r = c.run!;
-  const what = callSummary(tool, input);
-  const reason = d.findings
-    .filter((f) => f.verdict === d.verdict)
-    .map((f) => `${maskSecrets(f.reason)} [${f.rule}]`)
-    .join(' ');
-  const res = addDeferred(r, { kind: 'belt', tool, what, reason }, await $.clock.now());
-  if (res.ok) await saveRun($, c, res.run, false);
-  await runEvent($, c, r, 'deferred', { defer: 'belt', tool, rules: d.findings.map((f) => f.rule) });
-  return tIn(c.lang, 'auto.guard.deferred', { what, reason });
 }
 
 /** The person's allow rules for a shell tool: Claude Code's user and project settings, read as they are now. */
@@ -2431,13 +1445,8 @@ async function onToolCheck($: $, e: In<'tool.check'>, next: Nx<'tool.check'>): O
     if (level !== 'full') return { ...v, decider: 'person' };
     const what = callSummary(tool, input);
     const reason = maskSecrets(v.reason ?? v.rule ?? v.hook ?? v.setting ?? '');
-    const r = autoRunning(c);
-    if (r) {
-      const res = addDeferred(r, { kind: 'permission', tool, what, reason }, await $.clock.now());
-      if (res.ok) await saveRun($, c, res.run, false);
-      await runEvent($, c, r, 'deferred', { defer: 'permission', tool });
-    }
-    await logEvent($, c, { kind: 'permission', tool, answer: 'left' });
+    c.leftThisTurn++;
+    await logEvent($, c, { kind: 'permission', tool, answer: 'left', what });
     return { decision: 'deny', reason: tIn(c.lang, 'belt.claude.left', { what, reason }) };
   }
   // A compound command whose every part the person allowed (`cd app && npm test`): what they said yes to already.
@@ -2455,19 +1464,6 @@ async function onToolCheck($: $, e: In<'tool.check'>, next: Nx<'tool.check'>): O
   if (level === 'manual') return v;
   await logEvent($, c, { kind: 'permission', tool, answer: level });
   return { ...v, decision: 'allow' };
-}
-
-/** After a turn: a stop the safety-net hook let through for a measured reason pauses the run. */
-async function autoTurnEnded($: $, c: Ctx): Promise<void> {
-  const r = autoRunning(c);
-  if (!r) return;
-  const path = sessionFile(c.layout, c.sessionId, 'hook');
-  const h = parseHookState(path ? await readFile($, path) : null, c.sessionId);
-  const now = await $.clock.now();
-  if (h.autoAllowed && h.autoAllowed.runId === r.id && now - h.autoAllowed.at < 120_000) {
-    const reason = pauseFor(h.autoAllowed.why as StopAllow);
-    if (reason) await pauseAuto($, c, reason, h.autoAllowed.why);
-  }
 }
 
 /**
@@ -2516,19 +1512,8 @@ async function refreshStatus($: $, c: Ctx): Promise<void> {
     band = tIn(c.lang, 'quota.boundary', { kind: c.boundary.kind, tokens: compact(c.boundary.tokens, c.lang) });
     bandMeaning = 'on';
   }
-  if (c.run) {
-    const p = runProgress(c.run);
-    modes.push(
-      c.run.status === 'paused'
-        ? tIn(c.lang, 'status.autoPaused')
-        : c.run.phase === 'plan'
-          ? tIn(c.lang, 'status.autoPlan')
-          : nextStep(c.run)
-            ? tIn(c.lang, 'status.auto', { at: `${p.done}/${p.of}` })
-            : tIn(c.lang, 'status.autoFinish'),
-    );
-  } else if (c.config.modules.modes || c.state.interaction !== 'default')
-    modes.push(tIn(c.lang, c.state.interaction === 'autonomous' ? 'status.autonomous' : 'status.manual'));
+  if (c.config.modules.modes || c.state.interaction !== 'default')
+    modes.push(tIn(c.lang, c.state.interaction === 'full' ? 'status.full' : c.state.interaction === 'autonomous' ? 'status.autonomous' : 'status.manual'));
   if (c.state.wrapUp) modes.push(tIn(c.lang, 'status.wrapUp'));
   if (c.state.resumeAt) {
     const d = new Date(c.state.resumeAt);
@@ -2570,7 +1555,7 @@ async function publishMo($: $, c: Ctx): Promise<void> {
       agents: m.agents,
       asking: m.asking,
       waiting: c.flow?.status === 'waiting',
-      auto: autoRunning(c) !== null,
+      auto: c.state.interaction === 'full',
       low: c.announced !== 'ok',
       blockAt: m.blockAt,
       errorAt: m.errorAt,
@@ -2654,7 +1639,10 @@ async function sessionStateText($: $): Promise<string> {
   const s = c.state;
   const parts: string[] = [];
   const label = s.project ? (c.config.projects.find((p) => p.id === s.project)?.names[0] ?? s.project) : null;
-  if (c.run) parts.push(autoStateText(c.run));
+  if (s.interaction === 'full')
+    parts.push(
+      `the person chose full autonomy${label ? ` on project "${label}"` : ''}: ask nothing; list each step left to them, with its command, at the end`,
+    );
   else if (s.interaction === 'autonomous') parts.push(`the person asked for autonomous work${label ? ` on project "${label}"` : ''}`);
   else if (s.interaction === 'manual') parts.push(`the person asked to work step by step${label ? ` on project "${label}"` : ''}`);
   if (s.mode === 'chat') parts.push('chat mode is on: no project or memory writes and no commits until the person picks another mode');
@@ -2730,6 +1718,27 @@ async function askPerson($: $, c: Ctx, tool: string, d: BeltDecision): Promise<'
   }
 }
 
+/**
+ * Full autonomy's card, the first time it is chosen on this computer (the person, 2026-10-20): it asks nothing, and
+ * what cannot be undone it does not do but leaves to them. Kept in state/once.json; a file that does not read shows
+ * the card again rather than never.
+ */
+async function fullCardOnce($: $, c: Ctx): Promise<void> {
+  let once: Record<string, unknown> = {};
+  try {
+    once = JSON.parse((await readFile($, c.layout.once)) ?? '{}') as Record<string, unknown>;
+  } catch {
+    once = {};
+  }
+  if (typeof once.fullCard === 'number') return;
+  $.ui.toast(tIn(c.lang, 'full.card'), { timeoutMs: TOAST_MS.attention });
+  try {
+    await $.fs.write(c.layout.once, JSON.stringify({ ...once, fullCard: await $.clock.now() }, null, 2) + '\n');
+  } catch {
+    /* said again next time: better twice than never */
+  }
+}
+
 /** "commit", "push", "commit and push", in the person's language. */
 function promisedWords(promised: readonly ('commit' | 'push')[], lang: Lang): string {
   return promised.map((p) => tIn(lang, `manual.what.${p}` as MessageKey)).join(tIn(lang, 'manual.and'));
@@ -2760,14 +1769,12 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   void [_t, _a, _c, _m];
   const cwd = await $.session.cwd();
 
-  // A start was asked for and the model went to work without the autonomy tool: this call is held, the last
-  // checks run now, and the model reads their outcome (the run's rules, or what failed).
-  if (c.pendingStart && e.agentId === undefined && tool !== `mcp__${PLUGIN_NAME}__${AUTO_TOOL.name}`)
-    return { deny: `${tIn(c.lang, 'auto.guard.heldForStart', { tool })}\n\n${await completeStart($, c)}` };
-
-  // The settings, read again at most once a minute between prompts: full autonomy turned off in the control center
-  // takes hold during a long turn too, not only at the next prompt.
-  if (c.run && (await $.clock.now()) - c.configReadAt >= 60_000) await refreshConfig($, c);
+  // Full autonomy asks nobody: a question to the person, or Claude Code's plan mode, which waits for their approval,
+  // is answered with what to do instead (docs/autonomy.md).
+  if (c.state.interaction === 'full' && (tool === 'AskUserQuestion' || tool === 'EnterPlanMode')) {
+    await logEvent($, c, { kind: 'full', tool });
+    return { deny: tIn(c.lang, tool === 'AskUserQuestion' ? 'full.guard.ask' : 'full.guard.plan') };
+  }
   const ctx = await beltContextFor($, c);
   let d = await evaluateToolCall(tool, input, ctx);
   // Outside content was read in this session: what an instruction hidden in it would ask for is asked (src/core/taint.ts).
@@ -2785,6 +1792,8 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
     for (const r of new Set(d.findings.filter((f) => f.verdict === 'deny').map((f) => f.rule))) c.state.blocks[r] = (c.state.blocks[r] ?? 0) + 1;
     const repeat = Math.max(0, ...d.findings.filter((f) => f.verdict === 'deny').map((f) => c.state.blocks[f.rule] ?? 0));
     await saveState($, c);
+    // Full autonomy asks nobody: what Autonomous would ask about is left to the person, with its command.
+    const left = ctx.level === 'full' && d.findings.every((f) => f.verdict !== 'deny' || f.act === 'self');
     await logEvent($, c, {
       kind: 'belt',
       tool,
@@ -2793,17 +1802,11 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
       rules,
       reasons: d.findings.map((f) => maskSecrets(f.reason)),
       issues: d.issues,
+      ...(left ? { left: true, what: callSummary(tool, input) } : {}),
     });
+    if (left) c.leftThisTurn++;
     const command = typeof input.command === 'string' && shellOf(tool) ? input.command : null;
-    // Full autonomy asks nobody: what Autonomous would ask about is left to the person, and a run's report lists it.
-    const leftInRun = ctx.level === 'full' && autoRunning(c) && d.findings.every((f) => f.verdict !== 'deny' || f.act === 'self');
-    if (leftInRun) await autoDeferBelt($, c, tool, input, d);
     return { deny: decisionText(d, ctx, { repeatCount: repeat, command }) };
-  }
-
-  if (d.verdict === 'ask' && autoRunning(c)) {
-    await logEvent($, c, { kind: 'belt', tool, verdict: 'ask', answer: 'deferred', rules, reasons: d.findings.map((f) => maskSecrets(f.reason)) });
-    return { deny: await autoDeferBelt($, c, tool, input, d) };
   }
 
   if (d.verdict === 'ask') {
@@ -2825,12 +1828,6 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
       await logEvent($, c, { kind: 'manual', tool, what: promised, answer });
       if (answer !== 'allow') return { deny: tIn(c.lang, answer === 'none' ? 'manual.noOne' : 'manual.declined', { what: promisedWords(promised, c.lang) }) };
     }
-  }
-
-  // The plugin's own sandbox probe is a start check, not a step of the run (a paused run's guard would hold it).
-  if (c.run && !(c.probing !== null && tool === 'Bash' && input.command === c.probing)) {
-    const auto = await autoGuard($, c, tool, input, cwd);
-    if (auto) return auto;
   }
 
   // Edits frozen to one folder by the person (`/dondur`): a write named elsewhere is refused.
@@ -2913,16 +1910,6 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
     await logEvent($, c, { kind: 'belt', tool, verdict: 'warn', level: ctx.level, rules, reasons: d.findings.map((f) => maskSecrets(f.reason)) });
     extra.push(decisionText(d, ctx));
   }
-  // No milestone for the stall time: said once every ten minutes, on a call of the main session.
-  const run = autoRunning(c);
-  if (run && e.agentId === undefined) {
-    const now = await $.clock.now();
-    const quiet = now - lastProgressAt(run);
-    if (quiet >= c.config.autonomy.stallMinutes * 60_000 && now - c.stallWarnedAt >= 10 * 60_000) {
-      c.stallWarnedAt = now;
-      extra.push(autoStallContext(run, Math.round(quiet / 60_000)));
-    }
-  }
   // Outside content that hides text in characters nobody sees (instructions spelled in Unicode tags, reversed text):
   // the model reads it without them, and is told how many were taken out.
   if (result.deny === undefined && typeof result.text === 'string' && taintSource(tool, input)) {
@@ -2990,10 +1977,9 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   }
   if (human) {
     c.turn = { startedAt: await $.clock.now(), uses: [], changed: false };
+    c.leftThisTurn = 0;
     // The person has typed what comes next: the /clear moment has passed.
     c.boundary = null;
-    // A start asked for at an earlier prompt and never taken up lapses: each prompt asks anew.
-    if (!applied) c.pendingStart = null;
     c.prompts++;
     if (kind !== 'plugin') c.lastPrompt = maskSecrets(String(e.text ?? '')).slice(0, 2000);
     await refreshConfig($, c);
@@ -3036,12 +2022,11 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
       typed = bare;
     }
   }
-  // `/6` or `/tam-otonom` without a task: the person's next own message is the task, unless it is a keyword itself.
+  // `/6` without a task: the person's next own message is the task, unless it is a keyword itself.
   if (human && kind !== 'plugin' && c.armed) {
     const a = c.armed;
     c.armed = null;
-    if (!detectKeyword(typed, projectRefs(c.config), keywordTables(c.config)))
-      typed = `${typed}\n\n${a.kind === 'flow' ? flowPhrase(a.variant, c.lang) : fullAutoPhrase(a.budget, c.lang)}`;
+    if (!detectKeyword(typed, projectRefs(c.config), keywordTables(c.config))) typed = `${typed}\n\n${flowPhrase(a.variant, c.lang)}`;
   }
   if (human && !applied && (c.config.modules.keywords || typed !== String(e.text ?? ''))) {
     const turn = await keywordTurn($, c, typed);
@@ -3066,8 +2051,12 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   // While a flow runs, every prompt carries where it stands (short), unless a flow keyword just said more.
   const running = flowRunning(c);
   if (human && running && !flowSaid && c.config.modules.modes) extra.push(flowTurnContext(running, c.lang, stepTexts(c, running)));
-  const run = autoRunning(c);
-  if (human && run && !flowSaid) extra.push(autoTurnContext(run));
+  // Full autonomy: every prompt carries what it means, and the project's own definition of done.
+  if (human && c.state.interaction === 'full') {
+    extra.push(...own([fullTurnNote()]));
+    const verify = c.config.projects.find((p) => p.id === c.state.project)?.verify ?? [];
+    if (verify.length) extra.push(...own([verifyNote(verify)]));
+  }
   if (human) {
     try {
       const kw = c.config.modules.keywords ? detectKeyword(String(e.text ?? ''), projectRefs(c.config), keywordTables(c.config)) : null;
@@ -3142,15 +2131,15 @@ async function applyKeywordTurn($: $, c: Ctx, given: KeywordMatch, text: string)
     pausedFor = stepName(currentStep(running)!.kind, c.lang);
     await pauseAttached($, c, 'mode');
   }
+  const wasFull = c.state.interaction === 'full';
   c.state = applyKeyword(c.state, kw, target);
-  // While a run is attached the session's interaction is the run's; "full auto cancel" lets it go.
-  if (c.run && !(kw.kind === 'fullAuto' && kw.auto === 'cancel')) c.state = { ...c.state, interaction: 'full' };
+  // Full autonomy chosen for the first time on this computer: what it means, once (docs/autonomy.md).
+  if (!wasFull && c.state.interaction === 'full') await fullCardOnce($, c);
   if (kw.kind === 'continue' || kw.kind === 'manual') c.state = { ...c.state, resumeAt: null };
   if (kw.kind === 'stop' || kw.kind === 'wrapUp') {
     c.resumeTimer?.cancel();
     c.resumeTimer = null;
     if (running) await pauseAttached($, c, kw.kind);
-    if (autoRunning(c)) await pauseAuto($, c, kw.kind === 'stop' ? 'person' : 'wrapUp');
   }
   if (kw.kind === 'continue' || kw.kind === 'quota') c.announced = 'ok';
   await saveState($, c);
@@ -3158,7 +2147,6 @@ async function applyKeywordTurn($: $, c: Ctx, given: KeywordMatch, text: string)
 
   if (kw.kind === 'flow') return { context: await flowKeyword($, c, kw, text), flow: true };
   if (kw.kind === 'approve') return { context: await approveKeyword($, c), flow: true };
-  if (kw.kind === 'fullAuto') return { context: await autoKeyword($, c, kw, text), flow: true };
   // "<project> handoff": Claude writes the note's four parts through the handoff tool (docs/memory.md).
   if (kw.kind === 'handoff') {
     if (!c.config.memory.handoff.enabled) {
@@ -3186,26 +2174,6 @@ async function applyKeywordTurn($: $, c: Ctx, given: KeywordMatch, text: string)
     flow: running && isModeKeyword(kw.kind) ? { step: pausedFor ?? stepName(currentStep(running)!.kind, c.lang), paused: pausedFor !== null } : null,
   });
   if (folder) context.push(continueFolderContext(folder.folder, pathKey(folder.folder, c.platform) === pathKey(resolvePath(cwd, pathEnv(c, cwd)), c.platform)));
-  // "Continue" resumes a paused full-autonomy run first (the attached one, or the project's or this folder's).
-  if (kw.kind === 'continue') {
-    const resumed = await autoResume($, c, kw.project ?? c.state.project, cwd);
-    if (resumed) return { context: resumed, flow: true };
-    // A run that already goes on in this session: "continue" means go on with it, under its own rules.
-    const live = autoRunning(c);
-    if (live) return { context: [autoTurnContext(live)], flow: true };
-  }
-  if (kw.kind === 'status' && c.run)
-    context.push(
-      tIn(c.lang, 'auto.tool.status', {
-        id: c.run.id,
-        phase: tIn(c.lang, `auto.phase.${c.run.phase}` as MessageKey),
-        done: runProgress(c.run).done,
-        of: runProgress(c.run).of,
-        deferred: c.run.deferred.length,
-        blockers: c.run.blockers.length,
-        time: durationText(activeTime(c.run, await $.clock.now()), c.lang),
-      }),
-    );
   // "Continue" resumes a paused flow: the one attached, or the project's or this folder's from an earlier session.
   if (modes && (kw.kind === 'continue' || kw.kind === 'manual')) {
     const resumed = await resumeFor($, c, kw.project ?? c.state.project, cwd);
@@ -3490,16 +2458,10 @@ async function onTurnComplete($: $, e: In<'turn.complete'>, next: Nx<'turn.compl
   } catch {
     /* the next turn or session syncs again */
   }
-  if (c.pendingStart) {
-    // The model answered without taking the run's first step: nothing started, and the person is told.
-    c.pendingStart = null;
-    await logEvent($, c, { kind: 'run', action: 'gate', step: 'first', ok: false, failed: ['notTaken'] });
-    $.ui.toast(tIn(c.lang, 'auto.toast.notStarted'), { timeoutMs: 10_000 });
-  }
-  try {
-    await autoTurnEnded($, c);
-  } catch {
-    /* the run stays as it was; the next stop decides again */
+  // Full autonomy: the turn is over, done, or with steps left to the person; they hear it, away from the computer too.
+  if (c.state.interaction === 'full') {
+    const task = maskSecrets((c.lastPrompt ?? '').split('\n')[0]!.slice(0, 120));
+    await notifyPerson($, c, c.leftThisTurn ? tIn(c.lang, 'full.notify.waiting', { n: c.leftThisTurn, task }) : tIn(c.lang, 'full.notify.done', { task }));
   }
   if (!c.config.modules.footer || c.config.footer.mode !== 'draw') return result;
   const cwd = await $.session.cwd();
@@ -3531,8 +2493,8 @@ async function onTurnComplete($: $, e: In<'turn.complete'>, next: Nx<'turn.compl
 
 /**
  * Says what stopped the answer and the three ways on, under it, as a notice the model never reads (so it neither
- * costs context nor goes to the classifier again); the activity keeps it, and a full-autonomy run's person, away,
- * is told the run waits. Nothing else is done: the model stays the person's to pick. The two ways the same stop
+ * costs context nor goes to the classifier again); the activity keeps it, and in full autonomy the person, away,
+ * is told the work waits. Nothing else is done: the model stays the person's to pick. The two ways the same stop
  * comes (the turn's end, Claude Code's StopFailure) lead here, and the second, seconds later, is not said again.
  */
 async function explainFlag($: $, c: Ctx, flag: Flag, via: 'refusal' | 'error' | 'stopFailure'): Promise<void> {
@@ -3545,8 +2507,8 @@ async function explainFlag($: $, c: Ctx, flag: Flag, via: 'refusal' | 'error' | 
     /* the activity has it */
   }
   await logEvent($, c, { kind: 'flagged', category: flag.category, model: flag.model, via });
-  const r = autoRunning(c);
-  if (r) await autoNotify($, c, 'auto.notify.flagged', r);
+  // Nobody may be at the keyboard in full autonomy: the stop is said where they are.
+  if (c.state.interaction === 'full') await notifyPerson($, c, tIn(c.lang, 'full.notify.flagged'));
 }
 
 /** Claude Code's StopFailure: an API error ended the turn. Its text is the flag's when the safeguards stopped it. */
@@ -3916,13 +2878,6 @@ async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.st
   } catch {
     /* /neden still answers the person */
   }
-  // A run attached to this session (a resumed session) keeps its tool; a paused one in this folder is said once.
-  if (c.run) await registerAutoTool($);
-  else {
-    const cwd = await $.session.cwd();
-    const waiting = await runToResume($, c, null, cwd);
-    if (waiting && waiting.status === 'paused') $.ui.toast(tIn(c.lang, 'auto.toast.found', { cont: tIn(c.lang, 'kw.kind.continue') }), { timeoutMs: 10_000 });
-  }
   // The cockpit, where the person kept it open: beside the conversation again, where the screen leaves room.
   await reopenCockpit($, c);
   // The session's start waits for the memory's pull; the sync across computers goes on while the person types.
@@ -3959,7 +2914,6 @@ async function onSessionEnd($: $, e: In<'session.end'>, next: Nx<'session.end'>)
       const p = pauseFlow(c.flow, `session ${String(e.reason ?? 'ended')}`, await $.clock.now());
       if (p.ok) await saveFlow($, c, p.flow);
     }
-    if (autoRunning(c)) await pauseAuto($, c, 'session', String(e.reason ?? 'ended'));
     // A session closed with /00 handed off and synced before it asked to exit, with no clock running (closeSession).
     if (!c.closed) {
       // The work of a session that changed something is handed off, even without a note asked for (docs/memory.md).
@@ -4224,11 +3178,6 @@ async function handoffFacts($: $, c: Ctx, trigger: HandoffTrigger): Promise<Hand
   const log = isRepo ? await gitIn($, p.folder, ['log', `--since=${new Date(c.startedAt).toISOString()}`, '--format=%h %s', '-n', '40'], 10_000) : null;
   const status = isRepo ? await gitIn($, p.folder, ['status', '--porcelain=v1'], 10_000) : null;
   const q = await quotaNow($, c);
-  let report: string | null = null;
-  if (c.run) {
-    const dir = runDir(c.layout, c.run.id);
-    report = dir ? joinPath(dir, 'report.md') : null;
-  }
   return {
     project: p.key,
     cwd: p.folder,
@@ -4247,7 +3196,6 @@ async function handoffFacts($: $, c: Ctx, trigger: HandoffTrigger): Promise<Hand
           .filter(Boolean)
       : [],
     flow: c.flow && isOpen(c.flow) ? `${c.flow.id}: ${stepName(currentStep(c.flow)?.kind ?? 'research', c.lang)} (${c.flow.status})` : null,
-    run: c.run ? { id: c.run.id, status: c.run.status, report } : null,
     quota: q.usable ? { five: q.five?.used ?? null, week: q.week?.used ?? null } : null,
     request: c.lastPrompt,
   };
@@ -4398,8 +3346,6 @@ async function closedFacts($: $, c: Ctx, s: ModSessionState, project: string, at
   const status = isRepo ? await gitIn($, folder, ['status', '--porcelain=v1'], 10_000) : null;
   const fdir = s.flowId ? flowDir(c.layout, s.flowId) : null;
   const flow = fdir ? parseFlow(await readFile($, joinPath(fdir, 'flow.json'))) : null;
-  const rdir = s.runId ? runDir(c.layout, s.runId) : null;
-  const run = rdir ? parseRun(await readFile($, joinPath(rdir, 'run.json'))) : null;
   return {
     project,
     cwd: folder,
@@ -4417,7 +3363,6 @@ async function closedFacts($: $, c: Ctx, s: ModSessionState, project: string, at
           .filter(Boolean)
       : [],
     flow: flow && isOpen(flow) ? `${flow.id}: ${stepName(currentStep(flow)?.kind ?? 'research', c.lang)} (${flow.status})` : null,
-    run: run && rdir ? { id: run.id, status: run.status, report: joinPath(rdir, 'report.md') } : null,
     quota: null,
     request: w.request,
   };
@@ -4439,60 +3384,8 @@ async function compactHandoff($: $, trigger: string, r: unknown): Promise<void> 
   }
 }
 
-/** A note from a full-autonomy run's state when it pauses or ends. */
-async function runHandoff($: $, c: Ctx, r: Run): Promise<void> {
-  const report = runDir(c.layout, r.id);
-  const summary = `${r.task}\n\nFull-autonomy run ${r.id}: ${r.status}${r.pause ? ` (${r.pause.reason})` : ''}, ${runProgress(r).done}/${runProgress(r).of} milestones.${report ? ` Report: ${joinPath(report, 'report.md')}` : ''}`;
-  const path = await writeHandoff($, c, 'run', { summary });
-  if (path) await memorySync($, c, 'turn');
-}
-
-/** The run notes the person approved and no session has merged yet. */
-async function notesToDeliver($: $, c: Ctx): Promise<{ id: string; path: string }[]> {
-  const decided = parseNoteDecisions(await readFile($, c.layout.notes));
-  let delivered: Record<string, number> = {};
-  try {
-    delivered = JSON.parse((await readFile($, c.layout.notesDelivered)) ?? '{}') as Record<string, number>;
-  } catch {
-    delivered = {};
-  }
-  const out: { id: string; path: string }[] = [];
-  for (const id of toDeliver(decided)) {
-    if (Object.hasOwn(delivered, id)) continue;
-    const dir = runDir(c.layout, id);
-    const run = dir ? parseRun(await readFile($, joinPath(dir, 'run.json'))) : null;
-    if (run) out.push({ id, path: run.notesPath });
-  }
-  if (out.length) {
-    const now = await $.clock.now();
-    for (const o of out) delivered[o.id] = now;
-    try {
-      await $.fs.write(c.layout.notesDelivered, JSON.stringify(delivered, null, 2) + '\n');
-    } catch {
-      /* delivered again next time: harmless */
-    }
-  }
-  return out;
-}
-
-/** The morning line after a long gap: what ended, what waits for the person (a short version of `mode-code morning`). */
+/** The morning line after a long gap: what waits for the person (a short version of `mode-code morning`). */
 async function morningLineFor($: $, c: Ctx, from: number, now: number): Promise<string | null> {
-  const runs: MorningFacts['runs'] = [];
-  let notes = 0;
-  const decided = parseNoteDecisions(await readFile($, c.layout.notes));
-  try {
-    const names = (await $.fs.list(c.layout.runsDir)).filter((e) => e.kind === 'dir').map((e) => e.name);
-    for (const n of names.sort().reverse().slice(0, 60)) {
-      const dir = runDir(c.layout, n);
-      const r = dir ? parseRun(await readFile($, joinPath(dir, 'run.json'))) : null;
-      if (!r) continue;
-      if (r.updatedAt >= from && r.status !== 'active')
-        runs.push({ id: r.id, task: r.task, status: r.status, reason: r.pause?.reason ?? null, report: null, deferred: r.deferred.length });
-      if (isTerminal(r) && !Object.hasOwn(decided, r.id) && (await $.fs.exists(r.notesPath).catch(() => false))) notes++;
-    }
-  } catch {
-    /* no runs */
-  }
   const flows: MorningFacts['flows'] = [];
   try {
     for (const e of (await $.fs.list(c.layout.flowsDir)).filter((x) => x.kind === 'dir').slice(-40)) {
@@ -4516,14 +3409,12 @@ async function morningLineFor($: $, c: Ctx, from: number, now: number): Promise<
     {
       since: from,
       now,
-      runs,
       flows,
       sessions: [],
       handoffs: [],
       belt: null,
       quota: null,
       memory,
-      notes,
       syncPending: c.syncPending.length,
       update: newerThan(APP_VERSION, parseUpdateState(await readFile($, c.layout.updateState))?.latest ?? null),
     },
@@ -4533,7 +3424,7 @@ async function morningLineFor($: $, c: Ctx, from: number, now: number): Promise<
 
 /**
  * What the memory adds to a prompt of the person's: the morning line after a long gap (a notice), on the
- * session's first prompt the waiting handoff in one line and approved run notes, on "continue" the whole note.
+ * session's first prompt the waiting handoff in one line, on "continue" the whole note.
  */
 async function memoryPromptContext($: $, c: Ctx, kw: KeywordMatch | null, own: (notes: readonly string[]) => readonly string[] = (n) => n): Promise<string[]> {
   const out: string[] = [];
@@ -4580,10 +3471,6 @@ async function memoryPromptContext($: $, c: Ctx, kw: KeywordMatch | null, own: (
     if (h && kw?.kind === 'continue') out.push(handoffFull(h.text, h.path));
     else if (h && first) out.push(...own([handoffLine(h.note, h.path)]));
   }
-  if (first) {
-    const notes = await notesToDeliver($, c);
-    if (notes.length) out.push(...own([notesContext(notes)]));
-  }
   return out;
 }
 
@@ -4591,12 +3478,10 @@ async function memoryPromptContext($: $, c: Ctx, kw: KeywordMatch | null, own: (
 
 /** What the strip, the menu and the confirmations show: the mode in effect, the way of working, the flow's place. */
 function viewOf(c: Ctx): StripView {
-  const style = styleOf(c.state.interaction, !!c.run);
   return {
     mode: modeNow(c),
-    style,
+    style: styleOf(c.state.interaction),
     flow: flowView(c),
-    fullAutoShown: c.config.autonomy.enabled || style === 'full',
     frozen: c.state.frozen ? (c.state.frozen.split('/').filter(Boolean).pop() ?? c.state.frozen) : null,
     agents: { shown: c.config.agents.enabled, state: c.state.agents, running: c.agentsRunning },
     cockpit: c.cockpit.open,
@@ -4617,7 +3502,6 @@ function flowView(c: Ctx): FlowView | null {
 const COMMAND_HINT: Record<ControlAction['kind'], MessageKey | null> = {
   mode: 'ctl.hint.text',
   style: 'ctl.hint.text',
-  fullAuto: 'ctl.hint.fullAuto',
   flow: 'ctl.hint.flow',
   cockpit: null,
   continue: 'ctl.hint.continue',
@@ -5083,30 +3967,13 @@ async function openCenter($: $, c: Ctx, address?: string): Promise<{ ok: true; o
   return reason === null ? { ok: true, opens: OPENS[launch.via] } : { ok: false, text: tIn(lang, 'ctl.center.failed', { reason, cmd }) };
 }
 
-// ── full autonomy's start window ──
-
-/** The tasks kept for the control center, newest first (src/core/auto-prompts.ts). */
-async function keptPrompts($: $, c: Ctx): Promise<AutoPrompt[]> {
-  return parseAutoPrompts(await readFile($, c.layout.autoPrompts));
-}
-
-/** Keeps a task given full autonomy, three in all: what was written for a run is never lost (the person, 2026-10-15). */
-async function rememberPrompt($: $, c: Ctx, text: string, budget: string): Promise<void> {
-  try {
-    const list = rememberAutoPrompt(await keptPrompts($, c), { text, budget, at: await $.clock.now() });
-    await $.fs.write(c.layout.autoPrompts, serializeAutoPrompts(list));
-  } catch {
-    /* a convenience: the task is in the conversation too */
-  }
-}
-
 // ── parallel agents (core/agents.ts, docs/agents.md) ──
 
 /** The window where the person sets the session's agents: its pane's id. */
 const AGENTS_PANE = WINDOWS.agents.pane;
 const agentsPaneAtom = atom(
   { plugin: 'mode-code', key: 'agentsPane' } as const,
-  { lang: 'en', current: '', mode: 'off', n: '5', rows: [], editing: 0, writable: true, runActive: false, running: [], error: null } as ModeCodeAgentsPane,
+  { lang: 'en', current: '', mode: 'off', n: '5', rows: [], editing: 0, writable: true, running: [], error: null } as ModeCodeAgentsPane,
 );
 /** The task typed for the row being edited, kept by the plugin while it is typed (a redraw per key would fight it). */
 const agentsDraft = { task: '' };
@@ -5250,12 +4117,10 @@ async function stopAgents($: $, c: Ctx): Promise<string> {
 }
 
 /**
- * The person sets the session's agents (the window, /ajan): the line to show, and whether it was set (exactly N waits
- * while a full-autonomy run is attached: its plan decides the work).
+ * The person sets the session's agents (the window, /ajan): the line to show, and whether it was set.
  */
 async function setAgents($: $, c: Ctx, mode: AgentMode, n: number, rows: readonly AgentRow[] = []): Promise<{ line: string; set: boolean }> {
   const lang = c.lang;
-  if (mode === 'assigned' && c.run) return { line: tIn(lang, 'agents.runActive'), set: false };
   const writable = !isRestricted(modeNow(c));
   c.state = { ...c.state, agents: setMode(c.state.agents, mode, n, mode === 'assigned' ? rowsFor(n, rows, writable) : []) };
   await saveState($, c);
@@ -5298,7 +4163,6 @@ async function agentsPaneFrom($: $, c: Ctx): Promise<void> {
     rows: s.mode === 'assigned' && s.rows.length ? s.rows : rowsFor(s.n, x.rows, writable),
     editing: 0,
     writable,
-    runActive: !!c.run,
     running,
     error: null,
   }));
@@ -5366,44 +4230,6 @@ function rowsForCount(x: ModeCodeAgentsPane, text: string): Pick<ModeCodeAgentsP
   return { n: text, rows, editing: Math.min(x.editing, n - 1) };
 }
 
-/**
- * Opens full autonomy's start window (the person, 2026-10-15: "full auto opens with a click"): the budget
- * picked from three (or the one given with the command), the task typed (the one given, or what was typed
- * before the window was closed), started by its button or Enter. False where no window can be shown.
- */
-async function openAutoPane($: $, c: Ctx, given: string | null, task: string): Promise<boolean> {
-  const q = await quotaNow($, c);
-  const { options, value } = startBudgets(given, await keptPrompts($, c));
-  if (task) autoDraft.task = task;
-  // The window takes the place of `/tam-otonom`'s wait for the next message.
-  if (c.armed?.kind === 'fullAuto') c.armed = null;
-  const week = q.usable && q.week ? Math.round(q.week.used) : null;
-  await update($, autoPaneAtom, () => ({ lang: c.lang, budgets: options, budget: value, week, error: null }));
-  // No window here (a phone, a headless session): the command asks instead.
-  return openWindow($, 'fullAuto', c.lang, 13);
-}
-
-/**
- * The window's start: the task goes as the person's message ending in the keyword with the budget picked, as
- * if typed, so the start checks and the run are the keyword's. An empty task keeps the window open and says so.
- */
-async function startFromPane($: $, typed?: string): Promise<void> {
-  const c = await ctxOf($);
-  if (typed !== undefined) autoDraft.task = typed;
-  const task = autoDraft.task.trim();
-  const pane = await read($, autoPaneAtom);
-  const budget = parseBudget(pane.budget);
-  if (!task || !budget) {
-    await update($, autoPaneAtom, (x) => ({ ...x, error: tIn(c.lang, 'ctl.autoPane.noTask') }));
-    return;
-  }
-  await rememberPrompt($, c, task, pane.budget);
-  autoDraft.task = '';
-  await update($, autoPaneAtom, (x) => ({ ...x, error: null }));
-  await $.ui.close({ id: AUTO_PANE }).catch(() => undefined);
-  await appendNotes($, await sendAsPerson($, c, `${task}\n\n${fullAutoPhrase(budget, c.lang)}`));
-}
-
 // ── the windows (docs/design.md, Window; src/core/ux/catalog.ts, WINDOWS): one pattern, drawn with the kit ──
 
 const QUOTA_PANE = WINDOWS.quota.pane;
@@ -5415,9 +4241,9 @@ const quotaPaneAtom = atom(
 /** A budget typed in its window: the plugin's own while it is typed (a redraw on every key would fight the typing). */
 const quotaDraft = { text: '' };
 const flowPaneAtom = atom({ plugin: 'mode-code', key: 'flowPane' } as const, { lang: 'en', pick: 'full', error: null } as ModeCodeFlowPane);
-/** A flow's task typed in its window, kept as the auto window keeps its own. */
+/** A flow's task typed in its window, kept while the window is open. */
 const flowDraft = { task: '' };
-/** The budgets a window offers to pick (the full-autonomy window may add the one given with its command). */
+/** The budgets a window offers to pick. */
 const BUDGET_PICKS = ['+5', '+10', '+20'] as const;
 
 /** The elements a window draws with: Claude Code's, as the surface resolves them. */
@@ -5507,7 +4333,7 @@ function agentsWindow($: $, els: Els, pane: ModeCodeAgentsPane, width: number): 
       t('agents.pane.mode'),
       choices(k, {
         column: true,
-        options: AGENT_MODES.filter((m) => m !== 'assigned' || !pane.runActive).map((m) => ({
+        options: AGENT_MODES.map((m) => ({
           id: `ag-mode-${m}`,
           label: t(`agents.mode.${m}` as MessageKey),
           chosen: pane.mode === m,
@@ -5631,55 +4457,6 @@ async function viewAgent($: $, id: string): Promise<void> {
   await $.ui.close({ id: AGENTS_PANE }).catch(() => undefined);
   const r = await $.ui.view({ agentId: id }).catch((err: unknown) => ({ deny: String((err as Error)?.message ?? err) }));
   if ('deny' in r && r.deny) $.ui.toast(String(r.deny).slice(0, 200), { timeoutMs: TOAST_MS.result });
-}
-
-/** Full autonomy's start window: the budget, the task, start or cancel (Esc closes it, the task stays). */
-function autoWindow($: $, els: Els, pane: ModeCodeAutoPane, width: number): Node {
-  const k = claudeHost(els);
-  const Input = els.Input as Tag;
-  const Text = els.Text as Tag;
-  const t = (key: MessageKey, params?: Record<string, string | number>) => tIn(pane.lang, key, params);
-  const lw = windowLabels(pane.lang, [t('ctl.autoPane.budget'), t('ctl.autoPane.task')]);
-  const target = budgetTarget(pane.budget, pane.week);
-  return windowTree($, els, WINDOWS.fullAuto, {
-    lang: pane.lang,
-    width,
-    now: t('ctl.autoPane.now', { week: percentText(pane.week, pane.lang) }),
-    controls: [
-      kitRow(k, {
-        label: t('ctl.autoPane.budget'),
-        labelWidth: lw,
-        value: choices(k, {
-          options: pane.budgets.map((v) => ({
-            id: `auto-budget-${v}`,
-            label: budgetLabel(v, pane.week, pane.lang),
-            chosen: v === pane.budget,
-            onPress: () => void update($, autoPaneAtom, (x) => ({ ...x, budget: v, error: null })),
-          })),
-        }),
-      }),
-      kitRow(k, {
-        label: t('ctl.autoPane.task'),
-        labelWidth: lw,
-        value: h(Input, {
-          key: 'auto-task',
-          placeholder: t('ctl.autoPane.placeholder'),
-          value: autoDraft.task,
-          submitLabel: t('ctl.autoPane.submit'),
-          autoFocus: true,
-          onInput: (v: string) => {
-            autoDraft.task = v;
-          },
-          onSubmit: (v: string) => startFromPane($, v),
-        }),
-      }),
-    ],
-    preview: target !== null ? t('ctl.autoPane.preview', { target: percent(target, pane.lang) }) : t('ctl.autoPane.previewNoReading', { budget: pane.budget }),
-    apply: () => startFromPane($),
-    error: pane.error,
-    after: [h(Text, { key: 'auto-kept', dimColor: true }, t('ctl.autoPane.kept'))],
-    labelWidth: lw,
-  });
 }
 
 /** The weekly budget window: three to pick, or one typed; what it will hold before it does. */
@@ -5845,13 +4622,12 @@ const COCKPIT_UI: ModeCodeCockpitUi = { open: null, confirm: null, changed: null
 const cockpitUiAtom = atom({ plugin: 'mode-code', key: 'cockpitUi' } as const, COCKPIT_UI);
 
 /** The permissions a press in the cockpit may turn on, each after its own warning: the first doors of its controls. */
-const ALLOWABLE: ReadonlySet<string> = new Set(['agents.enabled', 'autonomy.enabled']);
+const ALLOWABLE: ReadonlySet<string> = new Set(['agents.enabled']);
 
 /** Where the mode in force comes from, in the order effectiveMode takes them. */
 function modeFromOf(c: Ctx): ModeFrom {
   if (c.state.turnMode) return 'turn';
   if (flowRunning(c) && currentStep(c.flow!)) return 'flow';
-  if (autoPlanning(c)) return 'run';
   if (c.state.nativePlan?.on) return 'plan';
   return 'session';
 }
@@ -5868,7 +4644,6 @@ async function publishCockpit($: $, c: Ctx): Promise<void> {
     const agents = (await agentList($)).filter((a) => AT_WORK.has(a.status)).map((a) => ({ id: a.id, label: `${a.description || a.type} · ${a.type}` }));
     const step = c.flow && isOpen(c.flow) ? currentStep(c.flow) : null;
     const fp = c.flow && isOpen(c.flow) ? progress(c.flow) : null;
-    const rp = c.run ? runProgress(c.run) : null;
     // The activity's newest lines are enough here: the whole of it is a press away, in the control center.
     const events: ActivityEvent[] = [];
     for (const l of c.events.slice(-400)) {
@@ -5885,7 +4660,7 @@ async function publishCockpit($: $, c: Ctx): Promise<void> {
         session: c.state,
         mode: modeNow(c),
         modeFrom: modeFromOf(c),
-        style: styleOf(c.state.interaction, !!c.run),
+        style: styleOf(c.state.interaction),
         now,
         beltOff: beltOffForDevelopment(c.env),
         quota: await quotaNow($, c),
@@ -5897,7 +4672,7 @@ async function publishCockpit($: $, c: Ctx): Promise<void> {
             agents: c.mo.agents,
             asking: c.mo.asking,
             waiting: c.flow?.status === 'waiting',
-            auto: autoRunning(c) !== null,
+            auto: c.state.interaction === 'full',
             low: c.announced !== 'ok',
             blockAt: c.mo.blockAt,
             errorAt: c.mo.errorAt,
@@ -5916,7 +4691,6 @@ async function publishCockpit($: $, c: Ctx): Promise<void> {
                 state: c.flow.status === 'paused' ? 'paused' : step?.kind === 'approve' ? 'approval' : 'running',
               }
             : null,
-        run: c.run && rp ? { at: `${rp.done}/${rp.of}`, paused: c.run.status === 'paused', planning: c.run.phase === 'plan' } : null,
         events,
       },
       c.lang,
@@ -6174,9 +4948,7 @@ async function control(
     ...(context?.length ? { context } : {}),
     ...(toast !== undefined ? { toast } : {}),
   });
-  if (!c.config.modules.modes && (action.kind === 'mode' || action.kind === 'style' || action.kind === 'flow' || action.kind === 'fullAuto'))
-    return say(tIn(lang, 'ctl.modesOff'));
-  const letRunGo = `${tIn(lang, 'kw.kind.fullAuto')} ${tIn(lang, 'kw.word.cancel')}`;
+  if (!c.config.modules.modes && (action.kind === 'mode' || action.kind === 'style' || action.kind === 'flow')) return say(tIn(lang, 'ctl.modesOff'));
   switch (action.kind) {
     case 'why':
       return say(await whyAnswer($, c, args));
@@ -6208,7 +4980,6 @@ async function control(
     }
     case 'mode':
     case 'style': {
-      if (action.kind === 'style' && c.run) return say(tIn(lang, 'ctl.runAttached', { cancel: letRunGo }));
       const kw = actionKeyword(action, lang, via);
       const said = await applyKeywordTurn($, c, kw, kw.text);
       await refreshStatus($, c);
@@ -6328,58 +5099,6 @@ async function control(
       await refreshStatus($, c);
       return say(tIn(lang, 'ctl.flow.armed', { steps: lines[i]! }));
     }
-    case 'fullAuto': {
-      // On, pressed: the run ends as "full auto cancel" ends it, its record kept (the person, 2026-10-15).
-      if (c.run) {
-        const kw: KeywordMatch = { kind: 'fullAuto', lang, auto: 'cancel', text: `/${name}`, standalone: true, via };
-        const said = await applyKeywordTurn($, c, kw, kw.text);
-        return say(tIn(lang, 'auto.toast.canceled'), said.context);
-      }
-      const { budget: given, rest } = splitBudget(args);
-      // What can be measured now: on native Windows this says why at once, before any question.
-      const pre = await autoGate($, c, { explicit: true, target: 100, source: '+1' }, null, null);
-      const failed = pre.result.checks.filter((k) => k.ok === false && k.id !== 'budget');
-      if (failed.length) {
-        const names = failed.map((k) => tIn(lang, `auto.gate.name.${k.id}` as MessageKey));
-        const cmd = `/${commandOf({ kind: 'fullAuto' }, lang)}`;
-        return say(
-          [tIn(lang, 'ctl.auto.refused'), ...failed.map((k, i) => `- ${names[i]}: ${tIn(lang, k.key, k.params)}`)].join('\n'),
-          undefined,
-          // On the strip a toast: the one reason in plain words and what to do, or how many there are and where they
-          // are listed. A check's name alone ("Project") told the person nothing (2026-10-15).
-          failed.length === 1
-            ? tIn(lang, `auto.refuse.${failed[0]!.key.slice('auto.gate.'.length)}` as MessageKey, { ...failed[0]!.params, cmd })
-            : tIn(lang, 'ctl.auto.refusedToast', { n: failed.length, cmd }),
-        );
-      }
-      // At the computer: the start window, where the budget is picked and the task written, then started.
-      if (where === 'here' && (await openAutoPane($, c, given ? `${given.plus ? '+' : ''}${given.n}` : null, rest)))
-        return say(tIn(lang, 'ctl.auto.window', { start: tIn(lang, 'ctl.auto.start') }), undefined, '');
-      // On the phone (no field there), or where no window can be shown: asked, as before the window.
-      let budget = given;
-      if (!budget) {
-        const q = await quotaNow($, c);
-        const answer = await askOptions($, tIn(lang, 'ctl.auto.budgetAsk', { week: percentText(q.usable && q.week ? Math.round(q.week.used) : null, lang) }), [
-          '+5',
-          '+10',
-          '+20',
-        ]);
-        if (answer === null) return say(tIn(lang, 'ctl.cancelled'));
-        budget = parseBudget(answer);
-        if (!budget) return say(tIn(lang, 'ctl.quota.bad'));
-      }
-      const start = tIn(lang, 'ctl.auto.start');
-      const yes = await askOptions($, tIn(lang, 'ctl.auto.confirm', { budget: budgetText(budget, lang) }), [start, tIn(lang, 'ctl.auto.cancel')]);
-      if (yes === null || fold(yes) !== fold(start)) return say(tIn(lang, 'ctl.cancelled'));
-      if (rest) {
-        return say(
-          tIn(lang, 'ctl.auto.starting', { budget: budgetText(budget, lang) }),
-          await sendAsPerson($, c, `${rest}\n\n${fullAutoPhrase(budget, lang)}`),
-        );
-      }
-      c.armed = { kind: 'fullAuto', budget };
-      return say(tIn(lang, 'ctl.auto.armed', { budget: budgetText(budget, lang) }));
-    }
     case 'close': {
       if (c.closing) return say(tIn(lang, 'ctl.close.already'));
       // While Claude works, closing stops its work: asked first. Idle, it closes at once.
@@ -6495,12 +5214,11 @@ export function register(on: On): void {
     return r;
   });
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${FLOW_TOOL.name}` }, onFlowStep);
-  on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${AUTO_TOOL.name}` }, onAutoTool);
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${HANDOFF_TOOL_DEF.name}` }, onHandoffTool);
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${CATALOG_TOOL.name}` }, onCatalogTool);
   on('tool.call', { tool: `mcp__${PLUGIN_NAME}__${WHY_TOOL.name}` }, onWhyTool);
   on('skill.prompt', onSkillPrompt);
-  // Claude Code's own permission questions: during a run they are answered "deferred" instead of waiting.
+  // Claude Code's own permission questions, answered as the way of working says (in full autonomy nobody waits).
   // A failure leaves Claude Code's verdict as it was (a question nobody answers, never a call let through).
   on('tool.check', onToolCheck).catch(($, e, next) => next(e));
   // The session's state survives a compaction: the summarizer is asked to keep it, and it is restated after.
@@ -6680,12 +5398,6 @@ export function register(on: On): void {
     const els = $.ui.resolve(e);
     if (!('Input' in els)) return next(e);
     const tree = agentsWindow($, els, await read($, agentsPaneAtom), paneWidth(e.props));
-    return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
-  });
-  on('ui.render', { component: 'Pane', requestId: AUTO_PANE }, async ($, e, next) => {
-    const els = $.ui.resolve(e);
-    if (!('Input' in els)) return next(e);
-    const tree = autoWindow($, els, await read($, autoPaneAtom), paneWidth(e.props));
     return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
   });
   on('ui.render', { component: 'Pane', requestId: QUOTA_PANE }, async ($, e, next) => {

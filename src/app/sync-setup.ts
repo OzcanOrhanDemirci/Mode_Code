@@ -543,7 +543,7 @@ export async function applySyncPlan(io: SetupIO, env: SyncSetupEnv, p: SyncPlan)
   return { ok: true, plan: p, config, record };
 }
 
-/** A setting that differs, as the person reads it: "Full autonomy: off → on", or its key and values for one the catalog does not name. */
+/** A setting that differs, as the person reads it: "Morning report: on → off", or its key and values for one the catalog does not name. */
 function settingWords(key: string, here: unknown, theirs: unknown, lang: Lang, none: string): string {
   const s = settingOf(key);
   if (!s) return `${key}: ${show(here, none)} → ${show(theirs, none)}`;

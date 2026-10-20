@@ -34,9 +34,8 @@ test('stale readings: 5 to 1440 minutes, both ends included', () => {
   assert.deepEqual(problems({ quota: { clearHint: 1 } }), ['quota.clearHint type']);
   assert.equal(config({ quota: { clearHint: false } }).quota.clearHint, false);
   assert.equal(config({}).quota.clearHint, true);
-  assert.equal(config({}).autonomy.atTimeLimit, 'continue');
-  assert.equal(config({ autonomy: { atTimeLimit: 'pause' } }).autonomy.atTimeLimit, 'pause');
-  assert.deepEqual(problems({ autonomy: { atTimeLimit: 'stop' } }), ['autonomy.atTimeLimit type']);
+  // Full autonomy's old settings (1.1) read without a problem and do nothing.
+  assert.deepEqual(problems({ autonomy: { atTimeLimit: 'stop', enabled: 1 } }), []);
   assert.equal(config({}).notify.ntfy, null);
   assert.equal(config({ notify: { ntfy: ' https://ntfy.sh/ada-runs ' } }).notify.ntfy, 'https://ntfy.sh/ada-runs');
   assert.equal(config({ notify: { ntfy: 'http://localhost:8080/runs' } }).notify.ntfy, 'http://localhost:8080/runs');

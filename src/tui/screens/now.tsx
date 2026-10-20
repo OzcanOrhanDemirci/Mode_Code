@@ -30,8 +30,9 @@ import { sameFolderGroups, inboxEvents } from './home.js';
 const CONTROL_PAGE: Readonly<Record<string, string>> = {
   ajan: 'work/agents',
   parallel: 'work/agents',
-  'tam-otonom': 'work/full-auto',
-  'full-auto': 'work/full-auto',
+  'tam-otonom': 'work/modes',
+  'full-auto': 'work/modes',
+  '9': 'work/modes',
   kota: 'quota/limits',
   quota: 'quota/limits',
 };
@@ -59,13 +60,11 @@ export function Now({ width, open }: ScreenProps) {
   const live = liveSessions(data.modStates(), data.closedSessions(), data.cwd, now);
   const session = live.length ? live[Math.min(pick, live.length - 1)]! : null;
   const flows = data.flows();
-  const runs = data.runs();
   const events = data.events(1) as unknown as ActivityEvent[];
   const facts = centerFacts({
     config,
     state: session,
     flow: session?.flowId ? (flows.find((f) => f.id === session.flowId) ?? null) : null,
-    run: session?.runId ? (runs.find((r) => r.id === session.runId) ?? null) : null,
     quota: q.assessment,
     events,
     now,
@@ -87,7 +86,6 @@ export function Now({ width, open }: ScreenProps) {
   const g = guide({
     protectionBroken: belt?.state === 'red',
     flows,
-    runs,
     away: inboxEvents(data.events(14), data.lastSeen()).length,
     quota: q.assessment,
     live,
@@ -277,18 +275,6 @@ export function Now({ width, open }: ScreenProps) {
           ),
           text: `${t('page.flows')}: ${flowTitle(f, 48)}`,
           trailing: ago(f.updatedAt, now, lang),
-          w,
-        }),
-      );
-    for (const r of runs.filter((x) => x.status === 'active' || x.status === 'paused' || x.status === 'stuck').slice(0, 3))
-      out.push(
-        line(`run-${r.id}`, t('now.work.runCard'), () => go(`work/runs/${r.id}`), {
-          lead: markNode(
-            r.status === 'active' ? 'action' : r.status === 'stuck' ? 'bad' : 'off',
-            r.status === 'active' ? 'on' : r.status === 'stuck' ? 'bad' : 'off',
-          ),
-          text: `${t(`auto.status.${r.status}` as MessageKey)}: ${(r.task || r.id).split('\n')[0]!}`,
-          trailing: ago(r.updatedAt, now, lang),
           w,
         }),
       );

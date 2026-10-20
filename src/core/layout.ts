@@ -14,7 +14,6 @@
  *   install/manifest.json            the installer (every change it made, so removal undoes exactly that)
  *   state/doctor.json                the maintenance check (its last summary, which the control center shows)
  *   flows/<id>/flow.json             the mod (a flow's record), with the checked report and approved plan beside it
- *   runs/<id>/run.json               the mod (a full-autonomy run's record), with the accepted plan and the report beside it
  *   marketplace/                     the installer (the local plugin marketplace Claude Code reads)
  *   memory/<name>/                   the memory setup (the working copy of a memory kept on GitHub only)
  *   handoffs/<project>/              the mod (handoff notes, when no memory store is set up)
@@ -23,9 +22,7 @@
  *   state/sync.<who>.json            one writer each (mod, hook, cli): the last sync across computers (docs/sync.md)
  *   state/sync-ignored.json          the command line (settings from other computers the person kept their own value for)
  *   state/activity.json              the mod (when the person last typed: the morning report's gap)
- *   state/notes.json                 the command line (the person's decisions on notes from runs)
- *   state/notes-delivered.json       the mod (approved notes handed to a session)
- *   state/auto-prompts.json          the mod (the last tasks given full autonomy, for the control center)
+ *   state/once.json                  the mod (what is told once on a computer: full autonomy's card)
  *   state/update.json                the command line (the last check for a newer release: core/update.ts)
  *   secrets-allow.json               the command line (fingerprints of secrets the person let a memory push send)
  *   state/mcp-pins.json              the mod (fingerprints of the MCP tools' descriptions as first seen: core/mcp-pins.ts)
@@ -51,14 +48,12 @@ export interface Layout {
   pluginDir: string;
   logsDir: string;
   flowsDir: string;
-  runsDir: string;
   memoryDir: string;
   handoffsDir: string;
   activity: string;
-  notes: string;
-  notesDelivered: string;
   syncIgnored: string;
-  autoPrompts: string;
+  /** What is told once on this computer (the card full autonomy shows the first time it is chosen). */
+  once: string;
   updateState: string;
   secretsAllow: string;
   mcpPins: string;
@@ -84,14 +79,11 @@ export function layout(root: string): Layout {
     pluginDir: joinPath(marketplace, 'plugins', APP_ID),
     logsDir: joinPath(root, 'logs'),
     flowsDir: joinPath(root, 'flows'),
-    runsDir: joinPath(root, 'runs'),
     memoryDir: joinPath(root, 'memory'),
     handoffsDir: joinPath(root, 'handoffs'),
     activity: joinPath(root, 'state', 'activity.json'),
-    notes: joinPath(root, 'state', 'notes.json'),
-    notesDelivered: joinPath(root, 'state', 'notes-delivered.json'),
     syncIgnored: joinPath(root, 'state', 'sync-ignored.json'),
-    autoPrompts: joinPath(root, 'state', 'auto-prompts.json'),
+    once: joinPath(root, 'state', 'once.json'),
     updateState: joinPath(root, 'state', 'update.json'),
     secretsAllow: joinPath(root, 'secrets-allow.json'),
     mcpPins: joinPath(root, 'state', 'mcp-pins.json'),
@@ -129,11 +121,6 @@ export function sessionFile(l: Layout, sessionId: string, writer: 'mod' | 'hook'
 /** A flow's folder in the data folder (its record and the checked copies), or null for an id of another shape. */
 export function flowDir(l: Layout, id: string): string | null {
   return /^[a-z0-9][a-z0-9-]{0,80}$/.test(id) ? joinPath(l.flowsDir, id) : null;
-}
-
-/** A full-autonomy run's folder in the data folder (its record, the accepted plan, the report), or null for an id of another shape. */
-export function runDir(l: Layout, id: string): string | null {
-  return /^[a-z0-9][a-z0-9-]{0,80}$/.test(id) ? joinPath(l.runsDir, id) : null;
 }
 
 /** The event file for a session and a writer, in the month the event happened (UTC). */

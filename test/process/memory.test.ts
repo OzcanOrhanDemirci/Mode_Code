@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * `mode-code memory` and `mode-code morning` as separate processes (docs/memory.md): before any
- * setup, the setup's refusals, a local store's status and sync, handoff notes, notes from runs approved and
- * discarded, the morning report; each with its --json contract.
+ * setup, the setup's refusals, a local store's status and sync, handoff notes, the morning report; each with
+ * its --json contract.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { cli, world } from '../helpers/proc.js';
 import { handoffName } from '../../src/core/handoff.js';
@@ -35,13 +35,20 @@ test('memory: before a setup, and the setup refused without a terminal or under 
     assert.match(agent.out, /Claude Code session/i);
     const sync = cli(w, ['memory', 'sync', '--json']);
     assert.deepEqual([sync.code, sync.json?.ok, sync.json?.reason], [1, false, 'not-set-up']);
+    const syncText = cli(w, ['memory', 'sync']);
+    assert.equal(syncText.code, 1);
+    assert.match(syncText.out, /The memory is not set up yet: mode-code memory setup/);
+    // No handoff note anywhere yet: said in words, and an empty list in JSON.
+    assert.match(cli(w, ['memory', 'handoff', '--all', '--project', 'app']).out, /No handoff note for app yet\./);
+    const none = cli(w, ['memory', 'handoff', '--all', '--project', 'app', '--json']);
+    assert.deepEqual([none.code, none.json?.project, none.json?.notes], [0, 'app', []]);
     assert.equal(cli(w, ['memory', 'frob']).code, 2);
   } finally {
     w.done();
   }
 });
 
-test('memory: a local store with a history: status, sync, handoffs, notes from runs, the morning report', { skip: !hasGit && 'git is not installed' }, () => {
+test('memory: a local store with a history: status, sync, handoffs, the morning report', { skip: !hasGit && 'git is not installed' }, () => {
   const w = world();
   try {
     const mem = slash(join(w.root, 'mem'));
@@ -81,65 +88,20 @@ test('memory: a local store with a history: status, sync, handoffs, notes from r
     assert.ok(cli(w, ['memory', 'handoff', '--all']).out.includes(name));
     assert.equal(cli(w, ['memory', 'handoff', '--project', 'nothing-here']).code, 1);
     assert.match(cli(w, ['memory']).out, /Handoff\s+.*Write the setup\./);
-    // Notes a full-autonomy run left: listed, approved, gone from the list; another discarded.
-    const run = (id: string) => {
-      const notes = slash(join(w.root, 'runs-work', id, 'notes.md'));
-      mkdirSync(join(w.root, 'runs-work', id), { recursive: true });
-      writeFileSync(notes, `Notes of ${id}.\n`);
-      mkdirSync(join(w.data, 'runs', id), { recursive: true });
-      writeFileSync(
-        join(w.data, 'runs', id, 'run.json'),
-        JSON.stringify({
-          v: 1,
-          id,
-          task: `Task ${id}`,
-          status: 'done',
-          phase: 'finish',
-          createdAt: 1,
-          updatedAt: Date.now(),
-          aliveAt: 1,
-          notesPath: notes,
-          workDir: '',
-          planPath: '',
-          reportPath: '',
-          milestones: [],
-          deferred: [],
-          blockers: [],
-          refusals: [],
-          history: [],
-          budget: { weeklyTarget: 50, source: '50' },
-          start: { commit: 'a', branch: 'main', ref: 'r', untracked: [] },
-          cwd: '/x',
-          sessionId: 's',
-          project: null,
-          plan: null,
-          finish: null,
-          pause: null,
-        }),
-      );
-    };
-    run('20261012-0800-a');
-    run('20261012-0900-b');
-    const pending = cli(w, ['memory', 'notes', '--json']);
-    assert.equal(pending.json?.pending?.length, 2, pending.err + pending.out);
-    assert.match(cli(w, ['memory']).out, /Notes\s+2 note file\(s\) from full-autonomy runs wait for you/);
-    assert.match(cli(w, ['memory', 'notes']).out, /Notes of 20261012-0800-a\./);
-    assert.equal(cli(w, ['memory', 'notes', 'approve', '20261012-0800-a']).code, 0);
-    assert.equal(cli(w, ['memory', 'notes', 'discard', '20261012-0900']).code, 0, 'a unique start of the id is enough');
-    assert.equal(cli(w, ['memory', 'notes', 'approve', 'nope']).code, 1);
-    const decided = JSON.parse(readFileSync(join(w.data, 'state', 'notes.json'), 'utf8'));
-    assert.deepEqual(
-      [decided['20261012-0800-a'].decision, decided['20261012-0900-b'].decision, decided['20261012-0800-a'].delivered],
-      ['approved', 'discarded', null],
+    // A step full autonomy left to the person, an hour ago.
+    const month = new Date(at).toISOString().slice(0, 7);
+    mkdirSync(join(w.data, 'events', month), { recursive: true });
+    writeFileSync(
+      join(w.data, 'events', month, 's1.mod.jsonl'),
+      JSON.stringify({ at, kind: 'belt', tool: 'Bash', verdict: 'deny', left: true, rules: ['git.push-pr-only'], reasons: ['Pushes to main'] }) + '\n',
     );
-    assert.match(cli(w, ['memory', 'notes']).out, /No notes from full-autonomy runs wait for you\./);
-    w.env.CLAUDECODE = '1';
-    assert.equal(cli(w, ['memory', 'notes', 'approve', '20261012-0800-a']).code, 1, 'an agent cannot approve what enters the memory');
-    delete w.env.CLAUDECODE;
     // The morning report over the last day.
     const m = cli(w, ['morning', '--json', '--hours', '24']);
     assert.equal(m.json?.schema, 'mode-code.morning/1');
-    assert.ok((m.json?.lines as { text: string }[]).some((l) => /Task 20261012-0800-a · done/.test(l.text)));
+    assert.ok(
+      (m.json?.lines as { text: string }[]).some((l) => /^1 step\(s\) full autonomy left to you/.test(l.text)),
+      JSON.stringify(m.json?.lines),
+    );
     const mt = cli(w, ['morning', '--hours', '24']).out;
     assert.match(mt, /While you were away · since/);
     assert.match(mt, /Handoffs\s+.*\(1\)/);

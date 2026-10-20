@@ -80,7 +80,9 @@ test('every address of the old map leads to a page of the new one, wholly', () =
   assert.equal(movedTo('claude-code/packs'), null);
   assert.equal(movedTo('security/rules/git.clean'), 'protection/rules/git.clean');
   assert.equal(movedTo('sessions/abc'), 'memory/sessions/abc');
-  assert.deepEqual(formerAddresses('work/full-auto'), ['automation/full-auto']);
+  assert.deepEqual(formerAddresses('work/flows'), ['projects/flows', 'automation/flows']);
+  // Full autonomy's pages went with its runs: they lead to the ways of working.
+  for (const old of ['automation/full-auto', 'work/full-auto', 'work/runs', 'work/prompts']) assert.equal(movedTo(old), 'work/modes', old);
   // A page that is gone leads to what took its place.
   assert.equal(movedTo('work/bypass'), 'work/modes');
   assert.equal(movedTo('automation/bypassed'), 'activity/feed');
@@ -108,9 +110,9 @@ test('the palette finds a page by its old place, and by the old name of its cate
   try {
     await s.press(KEY.ctrlK);
     await s.type('automation/full-auto');
-    assert.match(s.text(), /▸ Working › Full autonomy/);
+    assert.match(s.text(), /▸ Working › Modes and ways of working/);
     await s.press(KEY.enter);
-    assert.match(s.text(), /Address: work\/full-auto/);
+    assert.match(s.text(), /Address: work\/modes/);
   } finally {
     s.close();
   }
@@ -128,18 +130,17 @@ test('the view leaves pages out of the lists, says how many, and never out of re
   const data = new FakeData('en', { view: 'simple' });
   const s = await draw(data, { address: 'work', columns: 110 });
   try {
-    assert.doesNotMatch(s.text(), /Recent tasks/);
-    assert.match(s.text(), /\+2 more in the detailed view/);
-    // The palette still finds a page the view leaves out, and the list shows it once it is open.
-    await s.press(KEY.ctrlK);
-    await s.type('recent tasks');
-    await s.press(KEY.enter);
-    assert.match(s.text(), /Address: work\/prompts/);
-    assert.match(s.text(), /Recent tasks/);
+    assert.doesNotMatch(s.text(), /Keywords/);
+    assert.match(s.text(), /\+1 more in the detailed view/);
     // A click on the count opens where the view is changed.
-    await s.press(KEY.esc);
     await s.clickText('more in the detailed view');
     assert.match(s.text(), /Address: settings\/general/);
+    // The palette still finds a page the view leaves out, and the list shows it once it is open.
+    await s.press(KEY.ctrlK);
+    await s.type('keywords');
+    await s.press(KEY.enter);
+    assert.match(s.text(), /Address: work\/keywords/);
+    assert.match(s.text(), /Keywords/);
   } finally {
     s.close();
   }

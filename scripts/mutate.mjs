@@ -81,12 +81,6 @@ const TARGETS = {
   'src/core/flow.ts': ['test/core/flow.test.ts', 'test/core/guidance.test.ts'],
   'src/core/flow-checks.ts': ['test/core/flow-checks.test.ts'],
   // Full autonomy: when a run may start, stop, move on, and what it may do while nobody is there.
-  'src/core/run.ts': ['test/core/run.test.ts', 'test/core/run-stop.test.ts', 'test/core/run-report.test.ts', 'test/properties/autonomy.test.ts'],
-  'src/core/run-gate.ts': ['test/core/run-gate.test.ts', 'test/properties/autonomy.test.ts', 'test/app/runs.test.ts'],
-  'src/core/run-stop.ts': ['test/core/run-stop.test.ts', 'test/properties/autonomy.test.ts'],
-  'src/core/run-guard.ts': ['test/core/run-guard.test.ts', 'test/properties/autonomy.test.ts'],
-  'src/core/run-review.ts': ['test/core/run-review.test.ts'],
-  'src/core/run-report.ts': ['test/core/run-report.test.ts'],
   // The memory (docs/memory.md): what is committed, held back, pulled and pushed; the notes handed over.
   'src/core/memory.ts': ['test/core/memory.test.ts', 'test/core/memory-sync-records.test.ts'],
   'src/core/memory-sync.ts': ['test/core/memory-sync-steps.test.ts', 'test/core/memory-sync-records.test.ts'],
@@ -100,7 +94,6 @@ const TARGETS = {
   // The session's controls (docs/modes.md, "Session controls"): commands, budgets, what to continue, the strip.
   'src/core/controls.ts': ['test/core/controls.test.ts', 'test/core/keywords.test.ts'],
   // Full autonomy's start window and Automation › Recent tasks: what is kept, offered and copied back.
-  'src/core/auto-prompts.ts': ['test/core/auto-prompts.test.ts'],
   'src/node/clipboard.ts': ['test/node/clipboard.test.ts'],
   // `/0` (docs/modes.md, "Session controls"): which terminal opens the control center, with which arguments.
   'src/core/launch.ts': ['test/core/launch.test.ts'],

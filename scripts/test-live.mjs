@@ -10,9 +10,9 @@
  *   3. a keyword typed as the prompt reaches the mod, which logs it (one that asks for a summary, not for work);
  *   4. research mode keeps the project unchanged: the guard refuses the write, or the model, told the mode, does not try;
  *   5. a research flow: the model writes a sourced report, calls flow_step, and code checks it and ends the flow;
- *   6. full autonomy: a whole run, on native Windows too (there with no sandbox, so no live probe);
- *   7. there too, a stop before the run is done is turned back by the safety-net hook; the run then finishes,
- *      or, when the model keeps stopping with nothing changed, the stall guard pauses it;
+ *   6. full autonomy (/9): Claude Code's own question about a write is answered, and a command the belt would ask
+ *      about is left to the person with its command while the rest of the task is done;
+ *   7. there too, the end of a turn reaches the person away from the computer through their ntfy topic;
  *   8. the memory: a change made elsewhere is pulled at the start and reaches Claude before it answers, the
  *      handoff keyword has Claude write a note that is kept and sent, and the next session is told about it;
  *   9. sync across computers: one computer's plugin sends a softened belt rule and a handoff note, the other
@@ -31,14 +31,14 @@
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
  *        add --only-bypass to run case 11 alone (two sessions): a bypass an older version recorded lifts nothing
- *        add --only-auto to run cases 6 and 7 alone (two sessions): full autonomy, start to finish
+ *        add --only-auto to run cases 6 and 7 alone (two sessions): full autonomy as a way of working
  *        add --only-parts to run case 12 alone (one session): a compound command whose parts are allowed
  *        add --only-packs to run case 13 alone (two sessions): the tool packs
  *        add --only-skills to run cases 14 and 15 alone (three sessions): the skills
  *        add --only-automode to run case 16 alone (two sessions): Claude Code's auto mode with the belt
  *        add --only-agents to run case 17 alone (two sessions): parallel agents in the real engine
  *        add --only-memory to run case 8 alone (three sessions): the memory, pulled, handed off and told
- *        add --keep to leave the sessions' folders and the full-autonomy sessions' streams in place
+ *        add --keep to leave the sessions' folders in place
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -246,76 +246,94 @@ async function closedCases() {
 }
 
 /**
- * 6. Full autonomy (docs/autonomy.md), on every platform. A project with a first commit, the strict sandbox
- * (where Claude Code runs one; native Windows has none), the Stop hook, full autonomy turned on; the task is
- * small and its verification real. The run must pass its start checks (the live probe where there is a
- * sandbox), plan, reach a milestone on a commit with a rollback reference, and finish with its verification
- * passing and its report written.
+ * 6. Full autonomy (docs/autonomy.md), chosen with /9, in Claude Code's default permission mode, where a headless
+ * session has no one to answer. Claude Code's own question about a file write is answered by the way of working; a
+ * command the belt would ask about (`git clean`) is left to the person, with its command, and does not run.
  */
-function fullAutonomy() {
-  const cfg = JSON.parse(readFileSync(join(data, 'config.json'), 'utf8'));
-  writeFileSync(join(data, 'config.json'), JSON.stringify({ ...cfg, autonomy: { enabled: true, maxHours: 1, stallMinutes: 20 } }, null, 2));
-  const s = JSON.parse(readFileSync(settings, 'utf8'));
-  writeFileSync(
-    join(work, 'settings-auto.json'),
-    JSON.stringify({
-      ...s,
-      // Native Windows has no sandbox: asked to fail without one, Claude Code would not start there.
-      ...(process.platform === 'win32' ? {} : { sandbox: { enabled: true, failIfUnavailable: true, allowUnsandboxedCommands: false } }),
-      hooks: { ...s.hooks, Stop: [{ hooks: [entry('Stop', 15, false)] }] },
-    }),
+function fullAutonomyLeft() {
+  const dir = join(work, 'full-project');
+  const home = join(work, 'full-data');
+  mkdirSync(dir);
+  mkdirSync(home, { recursive: true });
+  writeFileSync(join(home, 'config.json'), JSON.stringify({ language: 'en' }));
+  const g = (...a) =>
+    spawnSync('git', ['-C', dir, '-c', 'user.name=live', '-c', 'user.email=live@example.com', '-c', 'commit.gpgsign=false', ...a], {
+      encoding: 'utf8',
+      windowsHide: true,
+    });
+  g('init', '-q');
+  writeFileSync(join(dir, 'README.md'), '# Full\n');
+  g('add', '-A');
+  g('commit', '-q', '-m', 'start');
+  writeFileSync(join(dir, 'build.tmp'), 'left over\n');
+  const r = session(
+    [
+      '/9',
+      'Do both steps, in this order. First use the Write tool to write the text hi to the file notes.txt in the current folder. Then use the Bash tool to run exactly this command: git clean -f build.tmp . Then reply with the single word DONE.',
+    ],
+    settings,
+    'Read',
+    { MODE_CODE_HOME: home },
+    dir,
+    ['--permission-mode', 'default'],
   );
-  // The budget is above the weekly quota as it stands (`+5`): a fixed one fails the start check once the
-  // person's own week has come near it (measured: 98% used, `quota 99` refused).
-  const { final, run, refs, stderr } = autoSession(
-    'auto',
-    'Write sum.js exporting a function sum(a, b) that returns a + b, and sum.test.js that tests it with node:test; the verification is node --test. full auto quota +5',
+  const months = existsSync(join(home, 'events')) ? readdirSync(join(home, 'events')) : [];
+  const logged = months.flatMap((m) => readdirSync(join(home, 'events', m)).map((x) => readFileSync(join(home, 'events', m, x), 'utf8'))).join('\n');
+  check(
+    "full autonomy: Claude Code's own question about a write is answered, and the file is written",
+    existsSync(join(dir, 'notes.txt')) && /"kind":"permission"[^\n]*"answer":"full"/.test(logged),
+    existsSync(join(dir, 'notes.txt')) ? '' : (r.final?.result?.slice?.(0, 120) ?? r.stderr.slice(0, 200)),
   );
   check(
-    `full autonomy: the start checks passed, ${process.platform === 'win32' ? 'native Windows (no sandbox, no probe)' : 'the live probe included'}, and a run started`,
-    !!run,
-    run ? run.id : (final?.result?.slice?.(0, 120) ?? stderr.slice(0, 200)),
+    'full autonomy: a command the belt would ask about is left to the person with its command, and does not run',
+    existsSync(join(dir, 'build.tmp')) && /"kind":"belt"[^\n]*"left":true/.test(logged) && /Full autonomy asks nobody/.test(r.text),
+    existsSync(join(dir, 'build.tmp')) ? (/"left":true/.test(logged) ? '' : 'not recorded as left') : 'the command ran',
   );
-  check(
-    'full autonomy: the run planned, reached a milestone on a commit, and finished with its verification passing',
-    run?.status === 'done' && run.milestones.length > 0 && run.finish?.verification.every((v) => v.ok),
-    run ? `${run.status}, ${run.milestones.length} milestone(s), ${run.history.map((h) => h.event).join(' ')}` : '',
-  );
-  check(
-    'full autonomy: rollback references and the report are kept',
-    refs.length >= 2 && !!run && existsSync(join(data, 'runs', run.id, 'report.md')),
-    refs.join(' '),
-  );
-  return { final };
+  return r;
 }
 
 /**
- * 7. A stop before the run is done is turned back: the person asks Claude to end its turn as soon as the
- * plan is accepted; the safety-net hook's Stop decision answers what is missing. A turn that ends and goes
- * on in a headless session is a stop the hook turned back. The run then reaches its finish, or, when the
- * model keeps to the person's word and stops again with nothing changed, the stall guard lets the third
- * such stop through and pauses the run: both are the design. A model that does not stop early leaves the
- * turn-back unexercised, which is said.
+ * 7. The person away from the computer (docs/autonomy.md): a turn in full autonomy that ends is said on their ntfy
+ * topic, sent with curl from the plugin. The topic here is a server on this computer that keeps what it receives.
  */
-function stopTurnedBack() {
-  const { final, run, hook, turnEnds } = autoSession(
-    'auto-stop',
-    'Write hello.js exporting a function hello() that returns the string hello, and hello.test.js that tests it with node:test; the verification is node --test. As soon as the plan is accepted, end your turn with the single word PAUSED. full auto quota +5',
+async function fullAutonomyNotify() {
+  const home = join(work, 'notify-data');
+  mkdirSync(home, { recursive: true });
+  const got = join(work, 'notify-received.txt');
+  const ready = join(work, 'notify-port.txt');
+  const server = spawn(
+    process.execPath,
+    [
+      '-e',
+      `const fs = require('node:fs');
+const s = require('node:http').createServer((req, res) => {
+  let b = '';
+  req.on('data', (d) => (b += d));
+  req.on('end', () => {
+    fs.appendFileSync(${JSON.stringify(got)}, b + '\\n');
+    res.end('ok');
+  });
+});
+s.listen(0, '127.0.0.1', () => fs.writeFileSync(${JSON.stringify(ready)}, String(s.address().port)));`,
+    ],
+    { stdio: 'ignore', windowsHide: true },
   );
-  const turnedBack = Math.max(0, turnEnds - 1);
-  if (run && turnedBack === 0 && run.status === 'done') {
-    console.log('· the model did not stop before the finish, so the Stop hook had nothing to turn back');
-    return { final };
-  }
-  const held =
-    !!run && run.status === 'paused' && run.pause?.reason === 'stalled' && hook?.autoAllowed?.runId === run.id && hook.autoAllowed.why === 'noProgress';
-  if (held) console.log('· the model kept to the request to stop, so the stall guard paused the run and its finish went unexercised');
+  const until = async (ok, ms) => {
+    for (const end = Date.now() + ms; !ok() && Date.now() < end;) await new Promise((r) => setTimeout(r, 100));
+  };
+  await until(() => existsSync(ready), 10_000);
+  const port = existsSync(ready) ? readFileSync(ready, 'utf8').trim() : '9';
+  writeFileSync(join(home, 'config.json'), JSON.stringify({ language: 'en', notify: { ntfy: `http://127.0.0.1:${port}/live` } }));
+  const r = session(['/9', 'Reply with the single word OK.'], settings, 'Read', { MODE_CODE_HOME: home });
+  await until(() => existsSync(got), 15_000);
+  server.kill();
+  const body = existsSync(got) ? readFileSync(got, 'utf8') : '';
   check(
-    'full autonomy: a stop before the run was done was turned back; the run finished, or the stall guard paused it',
-    !!run && turnedBack > 0 && (run.status === 'done' || held),
-    run ? `${run.status}, ${run.history.map((h) => h.event).join(' ')}, turned back ${turnedBack}` : 'no run',
+    'full autonomy: the end of a turn reaches the person away, on their ntfy topic',
+    /Full autonomy (?:is done|stopped)/.test(body),
+    body.slice(0, 120) || `nothing received (${r.final?.result?.slice?.(0, 80) ?? r.stderr.slice(0, 120)})`,
   );
-  return { final };
+  return r;
 }
 
 /**
@@ -456,63 +474,6 @@ function syncCases() {
     `${toast ? 'told' : 'not told'}; in effect ${inEffect}`,
   );
   return [handed, told];
-}
-
-function autoSession(name, prompt) {
-  const proj = join(work, name);
-  mkdirSync(proj);
-  const g = (...a) => spawnSync('git', ['-C', proj, '-c', 'user.name=live', '-c', 'user.email=live@example.com', ...a], { encoding: 'utf8' });
-  writeFileSync(join(proj, 'package.json'), '{ "name": "auto-demo", "type": "module", "private": true }\n');
-  g('init', '-q');
-  g('add', '-A');
-  g('commit', '-q', '-m', 'start');
-  const args = [
-    '-p',
-    prompt,
-    '--plugin-dir',
-    join(dist, 'plugin'),
-    '--settings',
-    join(work, 'settings-auto.json'),
-    '--setting-sources',
-    'project',
-    '--model',
-    'haiku',
-    '--max-budget-usd',
-    '1.50',
-    '--permission-mode',
-    'bypassPermissions',
-    '--output-format',
-    'stream-json',
-    '--verbose',
-    '--no-session-persistence',
-  ];
-  const r = spawnSync('claude', args, { cwd: proj, env, encoding: 'utf8', timeout: 900_000 });
-  writeFileSync(join(work, `${name}-session.jsonl`), `${r.stdout ?? ''}\n${r.stderr ?? ''}`);
-  const events = (r.stdout ?? '')
-    .split('\n')
-    .filter((l) => l.startsWith('{'))
-    .map((l) => {
-      try {
-        return JSON.parse(l);
-      } catch {
-        return null;
-      }
-    })
-    .filter(Boolean);
-  const final = events.find((e) => e.type === 'result');
-  // This project's run (another session may have left one of its own in the data folder).
-  const runs = existsSync(join(data, 'runs')) ? readdirSync(join(data, 'runs')) : [];
-  const run = runs.map((id) => JSON.parse(readFileSync(join(data, 'runs', id, 'run.json'), 'utf8'))).find((x) => fwd(x.cwd) === fwd(proj)) ?? null;
-  const refs = g('for-each-ref', '--format=%(refname)', 'refs/mode-code/').stdout.trim().split('\n').filter(Boolean);
-  const sessionId = events.find((e) => e.type === 'system' && e.subtype === 'init')?.session_id;
-  const hookFile = sessionId ? join(data, 'state', 'sessions', `${sessionId}.hook.json`) : null;
-  const hook = hookFile && existsSync(hookFile) ? JSON.parse(readFileSync(hookFile, 'utf8')) : null;
-  // Turn ends: replies with no tool call (the stream splits a reply into one event per block, under one id).
-  const replies = new Map();
-  for (const e of events)
-    if (e.type === 'assistant' && e.message?.id) replies.set(e.message.id, [...(replies.get(e.message.id) ?? []), ...(e.message.content ?? [])]);
-  const turnEnds = [...replies.values()].filter((c) => c.some((b) => b.type === 'text') && !c.some((b) => b.type === 'tool_use')).length;
-  return { final, run, refs, hook, turnEnds, stderr: r.stderr ?? '' };
 }
 
 /**
@@ -878,8 +839,7 @@ try {
     );
     process.exitCode = results.every((r) => r.ok) ? 0 : 1;
   } else if (process.argv.includes('--only-auto')) {
-    // A run needs a quota reading; in the whole suite the sessions before it leave one.
-    const runs = [session('Reply with the single word OK.'), fullAutonomy(), stopTurnedBack()];
+    const runs = [fullAutonomyLeft(), await fullAutonomyNotify()];
     const cost = runs.reduce((n, x) => n + (x?.final?.total_cost_usd ?? 0), 0);
     console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
     process.exitCode = results.every((r) => r.ok) ? 0 : 1;
@@ -952,8 +912,8 @@ try {
       record ? `${record.status}, ${record.history.map((h) => h.event).join(' ')}` : (five.final?.result?.slice?.(0, 80) ?? five.stderr.slice(0, 200)),
     );
     const ten = await closedCases();
-    const six = fullAutonomy();
-    const seven = stopTurnedBack();
+    const six = fullAutonomyLeft();
+    const seven = await fullAutonomyNotify();
     const eight = memoryCases();
     const nine = syncCases();
     const eleven = bypassCases();

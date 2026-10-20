@@ -30,9 +30,8 @@ export function controlOn(id: ControlId, v: StripView): boolean {
       return (v.flow === null || v.flow.state === 'paused') && v.mode === id.slice('mode.'.length);
     case 'style.manual':
     case 'style.autonomous':
+    case 'style.full':
       return v.style === id.slice('style.'.length);
-    case 'fullAuto':
-      return v.style === 'full';
     case 'flow':
       return v.flow !== null && v.flow.state !== 'paused';
     case 'freeze':
@@ -75,10 +74,10 @@ const FLOW_PRESS = {
   armed: 'ux.ctl.flow.pressArmed',
 } as const satisfies Record<NonNullable<StripView['flow']>['state'], MessageKey>;
 
-/** What a press does now: a control in effect is pressed to end it (a switch, the flow, a run); the rest as the catalog says. */
+/** What a press does now: a control in effect is pressed to end it (a switch, the flow); the rest as the catalog says. */
 function pressText(id: ControlId, v: StripView, lang: Lang): string {
   if (id === 'flow' && v.flow) return tIn(lang, FLOW_PRESS[v.flow.state]);
-  if ((id === 'freeze' || id === 'fullAuto' || id === 'cockpit') && controlOn(id, v)) return t(lang, `ux.ctl.${id}.pressOn`);
+  if ((id === 'freeze' || id === 'cockpit') && controlOn(id, v)) return t(lang, `ux.ctl.${id}.pressOn`);
   return controlText(id, 'press', lang);
 }
 
@@ -95,7 +94,6 @@ export function nowText(id: ControlId, v: StripView, lang: Lang): string {
   }
   if (id === 'agents' && v.agents) return stripAgents(v.agents.state, v.agents.running, t(lang, 'ctl.strip.agents'), false);
   if (id === 'flow') return v.flow ? t(lang, `ux.say.flow.${v.flow.state}`, { at: v.flow.at }) : t(lang, 'ux.card.flowOff');
-  if (id === 'fullAuto') return t(lang, on ? 'ux.card.runOn' : 'ux.card.runOff');
   return t(lang, CONTROLS[id].kind === 'opener' ? 'ux.card.opens' : 'ux.card.acts');
 }
 

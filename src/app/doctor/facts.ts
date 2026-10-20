@@ -33,7 +33,6 @@ import { beltContext, memoryDirs, protectedAliases } from '../../node/context.js
 import { toolPath } from '../../node/env.js';
 import { readTail } from '../../node/tail.js';
 import type { Facts, ProgramRun, SettingsFileFacts } from './types.js';
-import { autonomyCheck } from '../runs.js';
 import { memorySyncFile } from '../../core/layout.js';
 import { newestRecord, parseSyncRecord } from '../../core/memory-sync.js';
 import { readMemorySetting } from '../../node/memory-store.js';
@@ -790,9 +789,5 @@ export async function gatherFacts(d0: DoctorEnv, now = Date.now()): Promise<Fact
     hookAgreement: !wants(d, 'agreement') || !hookExists || !realPathOf(node) ? null : await hookAgreement(d, node, hookFile),
     update: { check: d.config.update.check, current: APP_VERSION, state: readUpdateState(l) },
     setup: setupFacts(d, env, manifest !== null, plugins),
-    autonomy: {
-      enabled: d.config.autonomy.enabled,
-      checks: d.config.autonomy.enabled ? autonomyCheck({ layout: l, config: d.config }, d.cwd, { platform: d.platform, env: d.env, claude: env }).checks : [],
-    },
   };
 }

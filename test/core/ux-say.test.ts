@@ -11,7 +11,7 @@ import { MO_STATES } from '../../src/core/mo/art.js';
 import { CONTROL_IDS, CONTROLS, type ControlId } from '../../src/core/ux/catalog.js';
 import { cardLine, cardRows, commandText, controlOfItem, controlOn, moLine, nowText, stripNow } from '../../src/core/ux/say.js';
 
-const view: StripView = { mode: 'plan', style: 'manual', flow: null, fullAutoShown: false };
+const view: StripView = { mode: 'plan', style: 'manual', flow: null };
 const LANGS = ['en', 'tr'] as const;
 /** A message key showing through: the plugin's dictionaries lacked it. */
 const leaked = (s: string) => /\b(?:ux|ctl|mode|agents)\.[a-z]+\.[a-zA-Z.]+/.test(s);
@@ -31,7 +31,7 @@ test('the line under the strip says what Claude does now: the mode and the way o
     stripNow(busy, 'en'),
     '🔍 research: reads and searches; writes a report only · autonomous: goes on without asking; stops for your decisions · flow 1/4 at work · ❄ writes stay in feature · 👥 at most 3 agents at once',
   );
-  assert.match(stripNow({ ...view, style: 'full' }, 'tr'), /tam otonom: bir görevi sonuna kadar götürür$/);
+  assert.match(stripNow({ ...view, style: 'full' }, 'tr'), /tam otonom: hiçbir şey sormaz; seni gerektireni sana bırakır$/);
   assert.match(stripNow({ ...view, agents: { shown: true, state: { ...DEFAULT_AGENTS, ultracode: true }, running: 0 } }, 'en'), /workflows run the agents$/);
   // Agents shown but off add nothing: the line says what holds.
   assert.equal(stripNow({ ...view, agents: { shown: true, state: { ...DEFAULT_AGENTS }, running: 0 } }, 'en'), stripNow(view, 'en'));
@@ -43,7 +43,6 @@ test('the line under the strip says what Claude does now: the mode and the way o
 test('every control on the strip has its card: how it is now, what a press does, how it is taken back, its command', () => {
   const all: StripView = {
     ...view,
-    fullAutoShown: true,
     frozen: 'feature',
     agents: { shown: true, state: { ...DEFAULT_AGENTS }, running: 0 },
   };
@@ -71,18 +70,18 @@ test('every control on the strip has its card: how it is now, what a press does,
   assert.deepEqual(cardRows('nope', view, 'en'), []);
 });
 
-test('what a press does follows the state: the flow closes, goes on or is put away; a run attached ends', () => {
+test('what a press does follows the state: the flow closes, goes on or is put away', () => {
   const flow = (state: 'running' | 'approval' | 'paused' | 'armed') => cardLine('6', { ...view, flow: { at: '2/4', state } }, 'en');
   assert.match(flow('running'), /^Press: The flow closes; its record and what it wrote stay\./);
   assert.match(flow('approval'), /^Press: The flow closes/);
   assert.match(flow('paused'), /^Press: The flow goes on from the step where it paused\./);
   assert.match(flow('armed'), /^Press: Put away: your next message is an ordinary one\./);
   assert.match(cardLine('6', view, 'en'), /^Press: Its window offers the steps/);
-  assert.match(cardLine('full-auto', { ...view, style: 'full' }, 'en'), /^Press: The run ends as "full auto cancel" ends it/);
-  assert.match(cardLine('full-auto', { ...view, fullAutoShown: true }, 'en'), /^Press: Starts a full-autonomy run/);
+  // Full autonomy is a choice like the other ways of working.
+  assert.match(cardLine('9', view, 'en'), /^Press: Claude works without asking anything; a step that needs you is left to you/);
+  assert.match(cardLine('9', { ...view, style: 'full' }, 'en'), /^◉ In effect: Claude works without asking anything/);
   assert.equal(nowText('flow', { ...view, flow: { at: '2/4', state: 'paused' } }, 'en'), 'flow paused at 2/4');
   assert.equal(nowText('flow', view, 'tr'), 'Akış yok; mesajların sıradan mesajlar');
-  assert.equal(nowText('fullAuto', { ...view, style: 'full' }, 'en'), '● A full-autonomy run is attached');
   // The cockpit is a switch: shown or not.
   assert.equal(nowText('cockpit', view, 'en'), '○ Off');
   assert.equal(nowText('cockpit', { ...view, cockpit: true }, 'tr'), '● Açık');
@@ -105,7 +104,7 @@ test('in effect means what the strip lights: one mode, one way of working, the f
   assert.deepEqual(on(view), ['mode.plan', 'style.manual']);
   assert.deepEqual(on({ ...view, flow: { at: '1/3', state: 'running' } }), ['style.manual', 'flow']);
   assert.deepEqual(on({ ...view, flow: { at: '1/3', state: 'paused' } }), ['mode.plan', 'style.manual']);
-  assert.deepEqual(on({ ...view, style: 'full', frozen: 'x' }), ['mode.plan', 'fullAuto', 'freeze']);
+  assert.deepEqual(on({ ...view, style: 'full', frozen: 'x' }), ['mode.plan', 'style.full', 'freeze']);
   assert.deepEqual(on({ ...view, agents: { shown: true, state: { ...DEFAULT_AGENTS, mode: 'free' }, running: 0 } }), ['mode.plan', 'style.manual', 'agents']);
   assert.deepEqual(on({ ...view, agents: { shown: true, state: { ...DEFAULT_AGENTS }, running: 0 } }), ['mode.plan', 'style.manual']);
   assert.deepEqual(on({ ...view, agents: { shown: true, state: { ...DEFAULT_AGENTS, ultracode: true }, running: 0 } }), [

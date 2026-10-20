@@ -30,12 +30,12 @@ The catalog (`src/core/ux/catalog.ts`) holds the four answers for every setting 
 2. **Information and controls look different.** What can be changed looks like a control, with its kind's mark. Information is plain text. No line leaves you wondering whether it can be changed.
 3. **The look tells the kind.** Four kinds of control, four looks, the same on every surface:
 
-   | Kind   | Look                                           | Does                                                |
-   | ------ | ---------------------------------------------- | --------------------------------------------------- |
-   | Switch | `● On` · `○ Off`                               | flips at once, and says so                          |
-   | Choice | `◉ one  ○ two  ○ three` or `‹ value ›`         | picks one of several                                |
-   | Action | `[ Start ]`, or `▶ full autonomy` on the strip | does something now                                  |
-   | Opener | `Agents…`                                      | opens a window; nothing changes until you act there |
+   | Kind   | Look                                   | Does                                                |
+   | ------ | -------------------------------------- | --------------------------------------------------- |
+   | Switch | `● On` · `○ Off`                       | flips at once, and says so                          |
+   | Choice | `◉ one  ○ two  ○ three` or `‹ value ›` | picks one of several                                |
+   | Action | `[ Start ]`, or `00 ✕` on the strip    | does something now                                  |
+   | Opener | `Agents…`                              | opens a window; nothing changes until you act there |
 
 4. **One way to act.** Mouse and keyboard do the same thing everywhere:
 
@@ -57,7 +57,7 @@ The catalog (`src/core/ux/catalog.ts`) holds the four answers for every setting 
 5. **Say, do, undo.** The effect is said before it is applied. Once applied: _"Changed · undo (u)"_. Every setting shows its default and can go back to it (a preview first: `d` one setting, `D` its page). Every change is recorded with who made it (`src/core/ux/changes.ts`, `state/changes.jsonl`), and the history of changes is a page (Activity › History of changes, `mode-code config history`). Only what cannot be undone asks for a confirmation.
 6. **No invisible work.** Everything Mode_Code does in the background writes an activity line: what, when, **why** (the setting or rule behind it) and a way to change it. Mo and the strip say what runs now.
 7. **"Why is it so?" is always answered.** The reason for any state is worked out by code from the settings and the session, not guessed, and shown in one press. Something switched off is not hidden: it is dimmed and says why.
-8. **The person is in command.** The AI proposes, the person decides: only the person's press changes a setting. What Claude may do right now is visible at a glance. Every autonomous run is visible and can be stopped.
+8. **The person is in command.** The AI proposes, the person decides: only the person's press changes a setting. What Claude may do right now is visible at a glance. Every way of working is in view and changed with one press.
 9. **No silent press.** Every press gives a visible result: changed, opened, or why not.
 10. **One idea, one name, one mark, one colour.** The glossary below. Colours exclude one another, and colour never carries meaning alone: there is always a mark and a word.
 11. **Calm and layered.** Every page opens with one sentence on what it is for, then its few most important items. Depth opens on request. Nothing is removed to make a page calmer; only density goes down.
@@ -99,8 +99,7 @@ Only the 16 basic colours, so the person's terminal theme decides the contrast; 
 | Idea                                               | English              | Turkish                                         | Not (✓: the test refuses it)  |
 | -------------------------------------------------- | -------------------- | ----------------------------------------------- | ----------------------------- |
 | the protection that stops risky commands           | safety belt          | emniyet kemeri                                  | hook (Claude Code's own part) |
-| a task Claude carries to its end alone             | full-autonomy run    | tam otonom iş                                   | koşu ✓                        |
-| what keeps such a task's writes in the project     | write limits         | yazma sınırları                                 | fence ✓, çit ✓                |
+| the way of working that asks the person nothing    | full autonomy        | tam otonom                                      | koşu ✓                        |
 | research → plan → approve → code                   | flow                 | akış (adım adım iş)                             |                               |
 | helper Claudes that run beside the main one        | agents               | ajanlar (yardımcı Claude'lar)                   | subagent ✓, alt ajan ✓        |
 | Anthropic's usage limit                            | quota                | kota                                            |                               |
@@ -153,10 +152,10 @@ The panel you open beside Claude Code's conversation (`/0`, or `0 ≡ cockpit` o
 
 - **A line that says.** It opens with one sentence on what the cockpit is for. The card of whatever the pointer rests on, or the keyboard, takes its place there, so every line says itself without a press. Its height never changes.
 - **Claude right now.** What Claude may do in this session, in words, each line marked ✓ it does, ? it asks you first, ✗ it cannot, or · it waits for you: change the project's files, take a risky step, delete outside the project, touch its own protection (locked), the way of working, helper agents; and while they hold, outside content read and the quota near its limit. Each line follows the mode in force (a flow's step and Claude Code's plan mode included), the way of working, the safety belt's rules, a freeze and the agents. A press opens its reasons, the why engine's chain, and what changes it.
-- **At work now.** Claude's state in words; the call running, its time counted by the surface (`src/mod/cockpit-clock.ts`); each agent at work with **Open** (its conversation in the main view, the cockpit staying beside it) and **Stop**; a flow's step; a full-autonomy run's.
+- **At work now.** Claude's state in words; the call running, its time counted by the surface (`src/mod/cockpit-clock.ts`); each agent at work with **Open** (its conversation in the main view, the cockpit staying beside it) and **Stop**; a flow's step.
 - **Waiting for you, or In this session.** The session's activity, what waits for you first, five lines; a line whose rule or setting has a place opens the control center there, and **All activity…** opens the whole.
 - **Quota.** The two periods as meters, where the work wraps up marked on each track, and when each starts over; the weekly budget, and **Budget…**.
-- **Quick settings.** The controls whose permission is a setting (the agents, full autonomy) and the freeze, both doors in one row. Not allowed yet, the row says so, and a press first says what allowing it means, with **Allow** and **Cancel**; allowed, a press is the strip's own. A permission allowed here is written as the control center writes it, recorded as the cockpit's in the history of changes, and **Undo** takes it back. **Control center…** opens everything else.
+- **Quick settings.** The control whose permission is a setting (the agents) and the freeze, both doors in one row. Not allowed yet, the row says so, and a press first says what allowing it means, with **Allow** and **Cancel**; allowed, a press is the strip's own. A permission allowed here is written as the control center writes it, recorded as the cockpit's in the history of changes, and **Undo** takes it back. **Control center…** opens everything else.
 
 Only your press changes anything in the cockpit: Claude has no way to press.
 
@@ -164,7 +163,7 @@ Only your press changes anything in the cockpit: Claude has no way to press.
 
 A classifier on Anthropic's server can flag a session and stop the answer being written. It is not the model's choice, not Claude Code's and not Mode_Code's, and it sometimes flags harmless work: in October 2026 it did so nine times in three sessions, each in Mode_Code's own work. Claude Code says so in English, as an error, and it was taken for a broken tool.
 
-Mode_Code tells it from a turn's end, both ways it comes: a turn the API ended as a refusal, with what the classifier named, and an API error carrying Claude Code's text for it, at the turn's end or in its StopFailure (`src/core/flagged.ts`). Under the answer it says, once and in your language, what stopped it and who did, that your session and files are as they were, and the three ways on that Claude Code itself names: press Esc twice to edit your last message, `/model` to go on with another model (Anthropic's own advice), `/feedback` to report a false alarm. It is a notice the model never reads, so nothing of it goes back to the classifier. The activity and the cockpit keep it as a blocked line; a full-autonomy run's person is told the run waits.
+Mode_Code tells it from a turn's end, both ways it comes: a turn the API ended as a refusal, with what the classifier named, and an API error carrying Claude Code's text for it, at the turn's end or in its StopFailure (`src/core/flagged.ts`). Under the answer it says, once and in your language, what stopped it and who did, that your session and files are as they were, and the three ways on that Claude Code itself names: press Esc twice to edit your last message, `/model` to go on with another model (Anthropic's own advice), `/feedback` to report a false alarm. It is a notice the model never reads, so nothing of it goes back to the classifier. The activity and the cockpit keep it as a blocked line; in full autonomy the person, away, is told the session waits.
 
 Nothing else is done for you: the model stays yours to pick, and nothing is hidden from the classifier.
 
@@ -172,7 +171,7 @@ Nothing else is done for you: the model stays yours to pick, and nothing is hidd
 
 The map follows what a person comes for, not the parts of the system (`src/tui/nav.ts`, `src/tui/tree.tsx`): **Now** · **Activity** (what happened: in the background, while you were away, in a day or a week, to the settings) · **Working** (how Claude works: modes, keywords, flows, and the ways of working you turn on) · **Protection** · **Memory and projects** · **Quota** · **Claude Code** (its own setup) · **Settings** (this tool's own). Digits 1 to 8 jump to them. Every page has an address; an address of the map before 1.2 still leads to its page, and the palette (Ctrl+K) finds a page by its name in either language and by its old place.
 
-**Now** is the first screen, beside the list before anything is opened (`src/tui/screens/now.tsx`). Mo says the one thing that matters most and leads there with a press: protection that does not work, a flow or a run waiting for you, what happened while you were away, a run at work, a quota near its limit, a session at work, or calm (`src/core/ux/now.ts`). Under it, the goals people come for, each one a press: leave Claude on a task, work in parallel, guard the quota, what happened, and why is it so (every line below then shows its reasons). Then, after a long gap, the morning report; **Claude right now** for the session at work on this computer (the cockpit's own lines, worked out from what the session keeps on disk; with several, `s` shows the next; with none, as a new session starts); what is at work (sessions, flows, runs); what waits for you and today's numbers; and the quota. The keys walk every press in order; the line under Mo shows the card of the one they rest on.
+**Now** is the first screen, beside the list before anything is opened (`src/tui/screens/now.tsx`). Mo says the one thing that matters most and leads there with a press: protection that does not work, a flow waiting for you, what happened while you were away, a quota near its limit, a session at work, or calm (`src/core/ux/now.ts`). Under it, the goals people come for, each one a press: leave Claude on a task, work in parallel, guard the quota, what happened, and why is it so (every line below then shows its reasons). Then, after a long gap, the morning report; **Claude right now** for the session at work on this computer (the cockpit's own lines, worked out from what the session keeps on disk; with several, `s` shows the next; with none, as a new session starts); what is at work (sessions, flows); what waits for you and today's numbers; and the quota. The keys walk every press in order; the line under Mo shows the card of the one they rest on.
 
 **A page of settings** opens with what it holds now, in words: that every setting is at its default, or which ones differ and from what, with **All back to defaults** (`D`), which shows what goes back before it does. Each row ends with where it stands: `default`, `• changed`, or `no effect now` when another setting keeps it from mattering; such a setting stands indented under the one it depends on, dimmed while that one is off, and its card says which and where.
 

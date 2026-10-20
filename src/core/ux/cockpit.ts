@@ -34,8 +34,8 @@ export const COCKPIT_PANE = 'cockpit';
 export const COCKPIT_COLUMNS = 50;
 export const COCKPIT_ROWS = 10;
 
-/** Where the mode in force comes from: the session's own, a mode for this turn, a flow's step, a run planning, Claude Code's plan mode. */
-export type ModeFrom = 'session' | 'turn' | 'flow' | 'run' | 'plan';
+/** Where the mode in force comes from: the session's own, a mode for this turn, a flow's step, Claude Code's plan mode. */
+export type ModeFrom = 'session' | 'turn' | 'flow' | 'plan';
 
 /** What the cockpit is worked out from. */
 export interface CockpitFacts {
@@ -60,8 +60,6 @@ export interface CockpitFacts {
   agents: readonly { id: string; label: string }[];
   /** The flow: its place ("2/4"), its step's name, and whether it waits for the person or is paused. */
   flow: { at: string; step: string; state: 'running' | 'approval' | 'paused' } | null;
-  /** A full-autonomy run: its place, and whether it is paused. */
-  run: { at: string; paused: boolean; planning: boolean } | null;
   /** This session's events, as the activity reads them. */
   events: readonly ActivityEvent[];
 }
@@ -142,7 +140,7 @@ export interface QuotaView {
 
 /** A control of the session whose permission is a setting: both doors in one row. */
 export interface QuickRow {
-  id: 'agents' | 'fullAuto' | 'freeze';
+  id: 'agents' | 'freeze';
   label: string;
   /** How it is now, in words: on, off, a number, or not allowed yet. */
   value: string;
@@ -292,18 +290,12 @@ export function canNow(f: CockpitFacts, lang: Lang): CanRow[] {
     act: null,
   });
 
-  // The way of working: one step and wait, on without asking, or one task to its end.
+  // The way of working: one step and wait, on without asking, or on without asking anything.
   const styleMark: Record<Style, MarkName> = { manual: 'none', autonomous: 'ok', full: 'ok' };
   add(
-    {
-      id: 'style',
-      mark: styleMark[f.style],
-      meaning: f.style === 'manual' ? 'off' : 'on',
-      text: t(lang, `ck.can.style.${f.style}`),
-      act: f.style === 'full' ? control(lang === 'tr' ? 'tam-otonom' : 'full-auto', t(lang, 'ck.act.endRun'), t(lang, 'ux.ctl.fullAuto.pressOn'), false) : null,
-    },
+    { id: 'style', mark: styleMark[f.style], meaning: f.style === 'manual' ? 'off' : 'on', text: t(lang, `ck.can.style.${f.style}`), act: null },
     why('style', wf, lang),
-    f.style === 'full' ? [] : [t(lang, 'ck.r.pickStyle')],
+    [t(lang, 'ck.r.pickStyle')],
   );
 
   // Helper agents.
@@ -420,15 +412,6 @@ export function nowRows(f: CockpitFacts, lang: Lang): NowRow[] {
       card: t(lang, 'ck.now.flowCard'),
     });
   }
-  if (f.run)
-    rows.push({
-      id: 'run',
-      mark: f.run.paused ? 'off' : 'action',
-      meaning: f.run.paused ? 'off' : 'on',
-      text: t(lang, f.run.paused ? 'ck.now.runPaused' : f.run.planning ? 'ck.now.runPlan' : 'ck.now.run', { at: f.run.at }),
-      since: null,
-      card: t(lang, 'ck.now.runCard'),
-    });
   return rows;
 }
 
@@ -494,7 +477,7 @@ function quickCard(id: ControlId, now: string, press: string, lang: Lang, gate: 
 
 /**
  * The controls of the session whose permission is a setting (docs/design.md: no hidden second door): the agents,
- * full autonomy, and the freeze. Not allowed yet, the row says so and a press asks to allow it, with the
+ * and the freeze. Not allowed yet, the row says so and a press asks to allow it, with the
  * setting's own warning; allowed, a press is the strip's.
  */
 export function quickRows(f: CockpitFacts, lang: Lang): QuickRow[] {
@@ -534,39 +517,6 @@ export function quickRows(f: CockpitFacts, lang: Lang): QuickRow[] {
     });
   }
 
-  // Full autonomy: allowed in the settings, and the strip's modes on.
-  {
-    const allowed = f.config.autonomy.enabled;
-    const on = f.style === 'full';
-    const value = on
-      ? f.run
-        ? t(lang, 'ck.quick.runAt', { at: f.run.at })
-        : t(lang, 'ck.quick.on')
-      : allowed
-        ? t(lang, 'ck.quick.off')
-        : t(lang, 'ck.quick.notAllowedShort');
-    const name = lang === 'tr' ? 'tam-otonom' : 'full-auto';
-    rows.push({
-      id: 'fullAuto',
-      label: t(lang, 'ck.quick.fullAuto'),
-      value,
-      on,
-      meaning: on ? 'on' : 'off',
-      gate: { path: 'autonomy.enabled', allowed },
-      press:
-        allowed || on
-          ? control(name, t(lang, 'ck.quick.fullAuto'), on ? t(lang, 'ux.ctl.fullAuto.pressOn') : controlText('fullAuto', 'press', lang), !on)
-          : allow('autonomy.enabled'),
-      card: quickCard(
-        'fullAuto',
-        value,
-        on ? t(lang, 'ux.ctl.fullAuto.pressOn') : allowed ? controlText('fullAuto', 'press', lang) : allowText('autonomy.enabled', lang),
-        lang,
-        gateCard('autonomy.enabled', allowed, lang),
-      ),
-    });
-  }
-
   // The freeze: no permission; it takes this folder, and ends with a press.
   {
     const frozen = s?.frozen ?? null;
@@ -596,7 +546,7 @@ function allowText(path: SettingPath, lang: Lang): string {
 }
 
 /** The permissions the cockpit offers to allow, by the words of their warnings. */
-const ALLOW_WORDS: Readonly<Record<string, string>> = { 'agents.enabled': 'agents', 'autonomy.enabled': 'autonomy' };
+const ALLOW_WORDS: Readonly<Record<string, string>> = { 'agents.enabled': 'agents' };
 
 /**
  * The warning shown before a permission is turned on: what allowing it means, said for a press (the control center's

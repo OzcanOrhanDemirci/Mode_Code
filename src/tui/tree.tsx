@@ -16,18 +16,17 @@ import { inboxEvents, Inbox } from './screens/home.js';
 import { Now } from './screens/now.js';
 import { Modes } from './screens/modes.js';
 import { Folders, Quota, ReportScreen, Tokens, Tools } from './screens/measure.js';
-import { FlowCard, FlowsEmpty, HandoffCard, HandoffsEmpty, ProjectCard, RunCard, RunsEmpty, SessionCard, sessionLabel } from './screens/work.js';
+import { FlowCard, FlowsEmpty, HandoffCard, HandoffsEmpty, ProjectCard, SessionCard, sessionLabel } from './screens/work.js';
 import { flowTitle, statusText } from '../core/flow-view.js';
 import { Events, Protection, RuleDetail, Secrets, TestCommand } from './screens/security.js';
 import { Extensions, Hooks, Instructions, Mcp, Packs, Permissions, Plugins, SettingsSources, Skills } from './screens/claude.js';
 import { Templates } from './screens/templates.js';
 import { History } from './screens/history.js';
 import { Activity } from './screens/activity.js';
-import { ParallelAgents, RecentTasks } from './screens/automation.js';
+import { ParallelAgents } from './screens/automation.js';
 import {
   About,
   Accessibility,
-  Autonomy,
   Footer,
   General,
   Keywords,
@@ -104,42 +103,12 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
         }
       : { screen: (p: ScreenProps) => <FlowsEmpty {...p} /> }),
   });
-  const runs = data.runs();
-  const active = runs.filter((r) => r.status === 'active').length;
-  const runsNode = n('runs', 'page.runs', {
-    description: d('desc.runs'),
-    ...(active
-      ? { badge: { text: t('badge.running', { n: active }), state: 'info' as const } }
-      : runs.length
-        ? { badge: { text: String(runs.length), state: 'info' as const } }
-        : {}),
-    ...(runs.length
-      ? {
-          children: () =>
-            runs.map((r) => ({
-              id: r.id,
-              label: `${r.status === 'paused' || r.status === 'stuck' ? '⏸ ' : ''}${(r.task || r.id).split('\n')[0]!.slice(0, 48)}`,
-              description: d('desc.run'),
-              badge: {
-                text: tIn(lang, `auto.status.${r.status}` as MessageKey),
-                state: r.status === 'stuck' ? ('red' as const) : r.status === 'paused' ? ('gray' as const) : ('info' as const),
-              },
-              keywords: [r.id, r.task],
-              screen: (p: ScreenProps) => <RunCard id={r.id} {...p} />,
-            })),
-        }
-      : { screen: (p: ScreenProps) => <RunsEmpty {...p} /> }),
-  });
   const work = n(
     'work',
     'cat.work',
     {
       description: d('desc.work'),
-      ...(waiting
-        ? { badge: { text: t('badge.waiting', { n: waiting }), state: 'gray' as const } }
-        : active
-          ? { badge: { text: t('badge.running', { n: active }), state: 'info' as const } }
-          : {}),
+      ...(waiting ? { badge: { text: t('badge.waiting', { n: waiting }), state: 'gray' as const } } : {}),
       children: () => [
         n('modes', 'page.modesPage', { description: d('desc.modesPage'), screen: (p) => <Modes {...p} />, keywords: ['mod', 'mode', 'modlar', 'modes'] }),
         n('keywords', 'page.keywords', { description: d('desc.keywords'), screen: (p) => <Keywords {...p} />, minView: 'recommended' }),
@@ -149,18 +118,6 @@ export function buildTree(data: DataSource, lang: Lang, now: number): NavNode[] 
           badge: { text: t(config.agents.enabled ? 'set.on' : 'set.off'), state: 'info' },
           screen: (p) => <ParallelAgents {...p} />,
           keywords: ['ajan', 'ajanlar', 'agents', 'paralel', 'parallel'],
-        }),
-        n('full-auto', 'page.autonomy', {
-          description: d('desc.autonomy'),
-          badge: { text: t(config.autonomy.enabled ? 'set.on' : 'set.off'), state: 'info' },
-          screen: (p) => <Autonomy {...p} />,
-        }),
-        runsNode,
-        n('prompts', 'page.autoPrompts', {
-          description: d('desc.autoPrompts'),
-          ...(data.autoPrompts().length ? { badge: { text: String(data.autoPrompts().length), state: 'gray' as const } } : {}),
-          screen: (p) => <RecentTasks {...p} />,
-          minView: 'recommended',
         }),
       ],
     },

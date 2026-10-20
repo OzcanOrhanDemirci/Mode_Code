@@ -136,7 +136,7 @@ function wrapped(text: string): number {
 }
 
 test('the toast lines are found: the plugin shows these, and each is a message', () => {
-  for (const k of ['ctl.auto.refusedToast', 'auto.toast.starting', 'flow.toast.start', 'mod.memory.auth']) assert.ok(TOAST_KEYS.includes(k), k);
+  for (const k of ['full.card', 'flow.toast.start', 'mod.memory.auth']) assert.ok(TOAST_KEYS.includes(k), k);
   assert.ok(TOAST_KEYS.length > 60, String(TOAST_KEYS.length));
 });
 

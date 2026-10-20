@@ -14,14 +14,14 @@ import { fold } from './text.js';
 import { AGENTS_ICON, stripAgents, type AgentsState } from './agents.js';
 import { tIn, type Lang, type MessageKey } from './i18n/index.js';
 import { mark } from './ux/tokens.js';
+import { percent } from './format.js';
 
 export type Style = 'manual' | 'autonomous' | 'full';
 export type StartableVariant = Exclude<FlowVariant, 'cancel'>;
 
 export type ControlAction =
   | { kind: 'mode'; mode: WorkMode }
-  | { kind: 'style'; style: 'manual' | 'autonomous' }
-  | { kind: 'fullAuto' }
+  | { kind: 'style'; style: Style }
   | { kind: 'flow' }
   | { kind: 'cockpit' }
   | { kind: 'continue' }
@@ -41,6 +41,7 @@ export const COMMANDS: readonly { name: string; action: ControlAction }[] = [
   { name: '6', action: { kind: 'flow' } },
   { name: '7', action: { kind: 'style', style: 'manual' } },
   { name: '8', action: { kind: 'style', style: 'autonomous' } },
+  { name: '9', action: { kind: 'style', style: 'full' } },
   { name: '0', action: { kind: 'cockpit' } },
   { name: '00', action: { kind: 'close' } },
   { name: 'devam', action: { kind: 'continue' } },
@@ -49,9 +50,9 @@ export const COMMANDS: readonly { name: string; action: ControlAction }[] = [
   { name: 'quota', action: { kind: 'quota' } },
   { name: 'akis', action: { kind: 'flow' } },
   { name: 'flow', action: { kind: 'flow' } },
-  // Full autonomy has no number: a special way of working, shown only once turned on (Automation).
-  { name: 'tam-otonom', action: { kind: 'fullAuto' } },
-  { name: 'full-auto', action: { kind: 'fullAuto' } },
+  // Full autonomy by its word too, as it was called before it had a number.
+  { name: 'tam-otonom', action: { kind: 'style', style: 'full' } },
+  { name: 'full-auto', action: { kind: 'style', style: 'full' } },
   // Freezing the edits to one folder takes a folder, so a word: on the strip only while it holds.
   { name: 'dondur', action: { kind: 'freeze' } },
   { name: 'freeze', action: { kind: 'freeze' } },
@@ -71,9 +72,8 @@ export function digitOf(action: ControlAction): string {
   return COMMANDS.find((c) => /^\d+$/.test(c.name) && JSON.stringify(c.action) === JSON.stringify(action))!.name;
 }
 
-/** The command that does `action`: its number, or for one without (full autonomy) its word in `lang`. */
+/** The command that does `action`: its number, or for one without its word in `lang`. */
 export function commandOf(action: ControlAction, lang: Lang): string {
-  if (action.kind === 'fullAuto') return lang === 'tr' ? 'tam-otonom' : 'full-auto';
   if (action.kind === 'freeze') return lang === 'tr' ? 'dondur' : 'freeze';
   if (action.kind === 'agents') return lang === 'tr' ? 'ajan' : 'parallel';
   if (action.kind === 'why') return lang === 'tr' ? 'neden' : 'why';
@@ -91,15 +91,16 @@ const MODE_KIND: Record<WorkMode, KeywordKind> = { chat: 'chat', research: 'rese
  * the same state change, the same note for the model, the same event.
  */
 export function actionKeyword(action: Extract<ControlAction, { kind: 'mode' | 'style' }>, lang: Lang, via: 'command' | 'strip'): KeywordMatch {
-  const kind: KeywordKind = action.kind === 'mode' ? MODE_KIND[action.mode] : action.style === 'manual' ? 'manualStyle' : 'autonomous';
+  const kind: KeywordKind =
+    action.kind === 'mode' ? MODE_KIND[action.mode] : action.style === 'manual' ? 'manualStyle' : action.style === 'full' ? 'fullAuto' : 'autonomous';
   const name = action.kind === 'mode' ? tIn(lang, `mode.name.${action.mode}` as MessageKey) : tIn(lang, `kw.kind.${kind}` as MessageKey);
-  return { kind, lang, text: via === 'command' ? `/${digitOf(action)}` : name, standalone: true, via };
+  const text = via === 'command' ? `/${digitOf(action)}` : name;
+  return kind === 'fullAuto' ? { kind, lang, text, standalone: true, via, auto: 'start' } : { kind, lang, text, standalone: true, via };
 }
 
 /** The way of working a session shows: the default reads as manual (Claude does what it is asked and stops). */
-export function styleOf(interaction: Interaction, runAttached: boolean): Style {
-  if (runAttached || interaction === 'full') return 'full';
-  return interaction === 'autonomous' ? 'autonomous' : 'manual';
+export function styleOf(interaction: Interaction): Style {
+  return interaction === 'full' ? 'full' : interaction === 'autonomous' ? 'autonomous' : 'manual';
 }
 
 // ── values ──
@@ -115,6 +116,23 @@ export function parseBudget(text: string): Budget | null {
   if (!m) return null;
   const n = parseInt(m[2]!, 10);
   return n >= 0 && n <= 100 ? { n, plus: m[1] === '+' } : null;
+}
+
+/** The weekly limit a budget sets: its number, or points above the week's reading; null without a reading or a budget. */
+export function budgetTarget(value: string, week: number | null): number | null {
+  const b = parseBudget(value);
+  if (!b) return null;
+  if (!b.plus) return b.n;
+  return week === null ? null : Math.min(100, Math.round(week) + b.n);
+}
+
+/** A budget as the window names it: "+10 → %89" with the week's reading (the weekly limit it sets), else as written. */
+export function budgetLabel(value: string, week: number | null, lang: Lang): string {
+  const b = parseBudget(value);
+  if (!b) return value;
+  if (!b.plus) return percent(b.n, lang);
+  const target = budgetTarget(value, week);
+  return target === null ? value : `${value} → ${percent(target, lang)}`;
 }
 
 /**
@@ -235,11 +253,6 @@ export function flowPresetLine(variant: StartableVariant, lang: Lang): string {
   }
 }
 
-/** The words that start a full-autonomy run with `budget`, at the end of a task. */
-export function fullAutoPhrase(budget: Budget, lang: Lang): string {
-  return `${lang === 'tr' ? 'tam otonom kota' : 'full auto quota'} ${budget.plus ? '+' : ''}${budget.n}`;
-}
-
 /** The words that continue `project` (a registered one's name) with an optional budget. */
 export function continuePhrase(name: string | null, budget: Budget | null, lang: Lang): string {
   const word = lang === 'tr' ? 'devam' : 'continue';
@@ -288,8 +301,6 @@ export interface StripView {
   mode: WorkMode;
   style: Style;
   flow: FlowView | null;
-  /** Full autonomy is turned on (Automation), or a run is attached: only then is it on the strip. */
-  fullAutoShown: boolean;
   /** The folder the edits are frozen to (`/dondur`), as the strip names it; null or absent while they are not. */
   frozen?: string | null;
   /** Parallel agents: on the strip once turned on (Automation); the session's mode, and how many run now. */
@@ -306,8 +317,8 @@ const OPENER = mark('opener', false);
 const switchMark = (on: boolean) => mark(on ? 'on' : 'off', false);
 
 const MODES: readonly WorkMode[] = ['chat', 'research', 'plan', 'code', 'free'];
-const STYLES: readonly ('manual' | 'autonomous')[] = ['manual', 'autonomous'];
-const STYLE_DIGIT: Record<'manual' | 'autonomous', string> = { manual: '7', autonomous: '8' };
+const STYLES: readonly Style[] = ['manual', 'autonomous', 'full'];
+const STYLE_DIGIT: Record<Style, string> = { manual: '7', autonomous: '8', full: '9' };
 
 /** The flow while it is on: lit itself, the modes not (its step's breathes). */
 function flowOn(v: StripView): boolean {
@@ -383,16 +394,6 @@ export function stripRows(v: StripView, lang: Lang, columns: number): StripRow[]
           label: `${STYLE_DIGIT[s]}${tight ? tIn(lang, `ctl.style.short.${s}` as MessageKey) : ` ${tIn(lang, `ctl.style.${s}` as MessageKey)}`}`,
           active: v.style === s,
         })),
-        ...(v.fullAutoShown || v.style === 'full'
-          ? [
-              {
-                id: commandOf({ kind: 'fullAuto' }, lang),
-                // Off, it opens the start window; with a run attached, a press ends the run.
-                label: `${tIn(lang, tight ? 'ctl.style.short.full' : 'ctl.style.full')}${v.style === 'full' ? '' : OPENER}`,
-                active: v.style === 'full',
-              },
-            ]
-          : []),
         ...(v.frozen
           ? [{ id: commandOf({ kind: 'freeze' }, lang), label: tight ? `❄${switchMark(true)}` : `❄ ${v.frozen} ${switchMark(true)}`, active: true }]
           : []),
@@ -452,7 +453,6 @@ export function menuText(v: StripView, lang: Lang, quota: string, update: string
   ].join(' · ');
   const styles = [
     ...STYLES.map((s) => mark(v.style === s, `/${STYLE_DIGIT[s]} ${tIn(lang, `ctl.style.${s}` as MessageKey)}`)),
-    ...(v.fullAutoShown || v.style === 'full' ? [mark(v.style === 'full', `/${commandOf({ kind: 'fullAuto' }, lang)}`)] : []),
     ...(v.agents?.shown ? [mark(v.agents.state.mode !== 'off', `/${commandOf({ kind: 'agents' }, lang)}`)] : []),
   ].join(' · ');
   const other = ['/devam', '/kota', `/0 ${tIn(lang, 'ctl.strip.cockpit')}`, `/00 ${tIn(lang, 'ctl.strip.close')}`].join(' · ');
@@ -485,11 +485,11 @@ export function choicesText(choices: readonly ContinueChoice[], lang: Lang, shor
 
 /**
  * The mode and way of working the person last used in `cwd`, from the other sessions' records, newest
- * first; null when no session worked there. A full-autonomy run is never taken over: it starts only when
- * asked for, so its way of working comes back as the one before the run (autonomous when that is unknown).
+ * first; null when no session worked there. Full autonomy never comes back by itself: a new session in its
+ * folder works Autonomous until the person chooses it again.
  */
 export function lastChoice(
-  states: readonly (Pick<ModSessionState, 'sessionId' | 'cwd' | 'mode' | 'interaction' | 'aliveAt'> & Partial<Pick<ModSessionState, 'interactionBefore'>>)[],
+  states: readonly Pick<ModSessionState, 'sessionId' | 'cwd' | 'mode' | 'interaction' | 'aliveAt'>[],
   cwd: string,
   platform: Platform,
   self: string,
@@ -497,6 +497,5 @@ export function lastChoice(
   const here = pathKey(cwd, platform);
   const last = states.filter((s) => s.sessionId !== self && s.cwd && pathKey(s.cwd, platform) === here).sort((a, b) => b.aliveAt - a.aliveAt)[0];
   if (!last) return null;
-  // A run never comes back by itself: its session is taken up as it was before the run (autonomous if unknown).
-  return { mode: last.mode, interaction: last.interaction === 'full' ? (last.interactionBefore ?? 'autonomous') : last.interaction };
+  return { mode: last.mode, interaction: last.interaction === 'full' ? 'autonomous' : last.interaction };
 }

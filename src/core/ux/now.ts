@@ -14,13 +14,12 @@ import type { Lang } from '../i18n/index.js';
 import type { MoState } from '../mo/art.js';
 import { effectiveMode } from '../modes.js';
 import type { QuotaAssessment } from '../quota.js';
-import { progress as runProgress, type Run } from '../run.js';
 import { workingNow, type ModSessionState } from '../session.js';
 import type { ActivityEvent } from './activity.js';
 import type { CockpitFacts, ModeFrom } from './cockpit.js';
 
 /**
- * The cockpit's facts for one session, as its state file and its flow and run records hold them; null: a new session,
+ * The cockpit's facts for one session, as its state file and its flow record hold them; null: a new session,
  * as it would start. What only a running session knows (the call at work, its agents, Mo's moment) is left empty: Now
  * says what is at work from the sessions themselves.
  */
@@ -28,7 +27,6 @@ export function centerFacts(i: {
   config: Readonly<Config>;
   state: ModSessionState | null;
   flow: Flow | null;
-  run: Run | null;
   quota: QuotaAssessment;
   events: readonly ActivityEvent[];
   now: number;
@@ -36,25 +34,23 @@ export function centerFacts(i: {
 }): CockpitFacts {
   const s = i.state;
   const flow = s && i.flow && i.flow.id === s.flowId ? i.flow : null;
-  const run = s && i.run && i.run.id === s.runId ? i.run : null;
   const step = flow && isRunning(flow) ? currentStep(flow) : null;
-  const planning = !!run && run.status === 'active' && run.phase === 'plan';
   const mode = s
     ? effectiveMode({
         session: s.mode,
         turn: s.turnMode,
-        flowStep: step ? stepMode(step.kind) : planning ? 'plan' : null,
+        flowStep: step ? stepMode(step.kind) : null,
         nativePlan: s.nativePlan?.on === true,
       })
     : 'free';
-  const modeFrom: ModeFrom = !s ? 'session' : s.turnMode ? 'turn' : step ? 'flow' : planning ? 'run' : s.nativePlan?.on ? 'plan' : 'session';
+  const modeFrom: ModeFrom = !s ? 'session' : s.turnMode ? 'turn' : step ? 'flow' : s.nativePlan?.on ? 'plan' : 'session';
   const fp = flow && (flow.status === 'active' || flow.status === 'waiting' || flow.status === 'paused') ? flowProgress(flow) : null;
   return {
     config: i.config as Config,
     session: s,
     mode,
     modeFrom,
-    style: styleOf(s?.interaction ?? 'default', !!run && (run.status === 'active' || run.status === 'paused')),
+    style: styleOf(s?.interaction ?? 'default'),
     now: i.now,
     beltOff: false,
     quota: i.quota,
@@ -70,7 +66,6 @@ export function centerFacts(i: {
             state: flow.status === 'paused' ? 'paused' : step?.kind === 'approve' || flow.status === 'waiting' ? 'approval' : 'running',
           }
         : null,
-    run: run ? { at: `${runProgress(run).done}/${runProgress(run).of}`, paused: run.status === 'paused', planning } : null,
     events: s ? i.events.filter((e) => e.session === s.sessionId) : [],
   };
 }
@@ -90,20 +85,18 @@ export function liveSessions(states: readonly ModSessionState[], closed: Readonl
 /** What Mo says on Now: the one thing that matters most, in words, and the place it leads to (null: nowhere). */
 export interface Guide {
   mo: MoState;
-  key: 'broken' | 'flow' | 'run.paused' | 'away' | 'run' | 'quota' | 'session' | 'calm';
+  key: 'broken' | 'flow' | 'away' | 'quota' | 'session' | 'calm';
   params: Record<string, string | number>;
   address: string | null;
 }
 
 /**
  * Mo's sentence, the most pressing first: protection that does not work, a step that waits for the person (a flow's
- * approval, a paused run), what happened while they were away, a run at work, the quota near its limit, a session at
- * work, or calm.
+ * approval), what happened while they were away, the quota near its limit, a session at work, or calm.
  */
 export function guide(f: {
   protectionBroken: boolean;
   flows: readonly Flow[];
-  runs: readonly Run[];
   away: number;
   quota: QuotaAssessment;
   live: readonly ModSessionState[];
@@ -113,14 +106,7 @@ export function guide(f: {
   if (f.protectionBroken) return { mo: 'error', key: 'broken', params: {}, address: 'protection/status' };
   const waiting = f.flows.find((x) => x.status === 'waiting');
   if (waiting) return { mo: 'wait', key: 'flow', params: { flow: f.flowTitle(waiting) }, address: `work/flows/${waiting.id}` };
-  const paused = f.runs.find((r) => r.status === 'paused' || r.status === 'stuck');
-  if (paused) return { mo: 'wait', key: 'run.paused', params: {}, address: `work/runs/${paused.id}` };
   if (f.away) return { mo: 'wait', key: 'away', params: { n: f.away }, address: 'activity/away' };
-  const active = f.runs.find((r) => r.status === 'active');
-  if (active) {
-    const p = runProgress(active);
-    return { mo: 'auto', key: 'run', params: { at: `${p.done}/${p.of}` }, address: `work/runs/${active.id}` };
-  }
   if (f.quota.usable && f.quota.level !== 'ok') return { mo: 'low', key: 'quota', params: {}, address: 'quota/usage' };
   const s = f.live[0];
   if (s) return { mo: 'work', key: 'session', params: { folder: f.folder(s), n: f.live.length }, address: `memory/sessions/${s.sessionId}` };
@@ -129,7 +115,7 @@ export function guide(f: {
 
 /** The goals Now offers, each a place: what a person comes to the control center for (docs/design.md, Now). */
 export const GOALS = [
-  { id: 'task', address: 'work/full-auto' },
+  { id: 'task', address: 'work/modes' },
   { id: 'parallel', address: 'work/agents' },
   { id: 'quota', address: 'quota/limits' },
   { id: 'happened', address: 'activity/report' },

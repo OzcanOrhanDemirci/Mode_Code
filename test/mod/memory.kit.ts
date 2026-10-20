@@ -2,7 +2,7 @@
 /**
  * The memory inside Claude Code's engine (docs/memory.md): handoff notes written on the keyword, on wrap up,
  * from a compaction's summary and at a session's end, taken over by the next session; the store's sync
- * after a turn; the morning line after a long gap; approved notes from runs handed to a session once.
+ * after a turn; the morning line after a long gap.
  */
 import { test, expect } from 'claude-code/testing';
 import { DATA, HOME, PROJECT, SESSION, world } from './world.ts';
@@ -366,49 +366,44 @@ test('after a turn the store is synced: a quick look first, then commit and send
   expect(w.toasts.filter((t) => /held back from GitHub, it looks like it holds a secret: notes\.md/.test(t)).length).toBe(1);
 });
 
-test('the morning line after a long gap, and approved run notes handed to the next session once', async ($, on) => {
+test('the morning line after a long gap: what waits for the person, once', async ($, on) => {
   const w = world(on, { config: {}, git: repoGit() });
   w.write(`${DATA}/state/activity.json`, JSON.stringify({ lastPromptAt: NOW - 10 * 3_600_000, away: null }));
-  const run = (id: string, status: string) => ({
-    v: 1,
-    id,
-    task: `Task ${id}`,
-    project: null,
-    cwd: PROJECT,
-    sessionId: 'old',
-    createdAt: NOW - 9 * 3_600_000,
-    updatedAt: NOW - 3_600_000,
-    aliveAt: NOW - 3_600_000,
-    status,
-    phase: 'finish',
-    pause: null,
-    budget: { weeklyTarget: 60, source: '60' },
-    start: { commit: 'a', branch: 'main', ref: 'r', untracked: [] },
-    workDir: `/tmp/tc/runs/${id}`,
-    planPath: `/tmp/tc/runs/${id}/plan.md`,
-    reportPath: `/tmp/tc/runs/${id}/report.md`,
-    notesPath: `/tmp/tc/runs/${id}/notes.md`,
-    plan: null,
-    milestones: [],
-    deferred: [],
-    blockers: [],
-    refusals: [],
-    finish: null,
-    history: [],
-  });
-  w.write(`${DATA}/runs/r1/run.json`, JSON.stringify(run('r1', 'done')));
-  w.write(`${DATA}/runs/r2/run.json`, JSON.stringify(run('r2', 'done')));
-  w.write('/tmp/tc/runs/r1/notes.md', 'Prefers small commits.\n');
-  w.write('/tmp/tc/runs/r2/notes.md', 'Uses pnpm.\n');
-  w.write(`${DATA}/state/notes.json`, JSON.stringify({ r2: { decision: 'approved', at: NOW, delivered: null } }));
-  const first: any = await $.prompt.submit(typed('Good morning.'));
-  expect(w.toasts.some((t) => /^☀ While you were away: 2 run\(s\) done · 1 note file\(s\) wait for approval\. mode-code morning$/.test(t))).toBe(true);
-  expect(first.context.join('\n')).toMatch(/The person approved notes that full-autonomy runs left for the memory: \/tmp\/tc\/runs\/r2\/notes\.md \(run r2\)/);
+  w.write(
+    `${DATA}/flows/20261012-0100-f1/flow.json`,
+    JSON.stringify({
+      v: 1,
+      id: '20261012-0100-f1',
+      variant: 'full',
+      task: 'Sign-in',
+      project: null,
+      cwd: PROJECT,
+      createdAt: NOW - 9 * 3_600_000,
+      updatedAt: NOW - 3_600_000,
+      status: 'waiting',
+      current: 2,
+      steps: [
+        { kind: 'research', status: 'done', startedAt: 1, doneAt: 2 },
+        { kind: 'plan', status: 'done', startedAt: 2, doneAt: 3 },
+        { kind: 'approve', status: 'active', startedAt: 3, doneAt: null },
+        { kind: 'code', status: 'pending', startedAt: null, doneAt: null },
+      ],
+      sessionId: null,
+      workDir: '/tmp/tc/flows/f1',
+      reportPath: '/tmp/tc/flows/f1/report.md',
+      planPath: '/tmp/tc/flows/f1/plan.md',
+      approval: null,
+      verification: [],
+      history: [],
+    }),
+  );
+  await $.prompt.submit(typed('Good morning.'));
+  const morning = (t: string) => t.startsWith('☀ While you were away');
+  expect(w.toasts.filter(morning)).toEqual(['☀ While you were away: 1 plan(s) wait for approval. mode-code morning']);
   expect(w.json(`${DATA}/state/activity.json`)).toEqual({ lastPromptAt: NOW, away: { from: NOW - 10 * 3_600_000, to: NOW } });
-  // Once: the next session is told nothing again.
-  const again: any = await $.prompt.submit(typed('And?'));
-  expect(again.context.join('\n')).not.toMatch(/approved notes/);
-  expect(Object.keys(w.json(`${DATA}/state/notes-delivered.json`))).toEqual(['r2']);
+  // Once: the next prompt is no gap.
+  await $.prompt.submit(typed('And?'));
+  expect(w.toasts.filter(morning)).toHaveLength(1);
 });
 
 test("what the start's pull brought in is told with the first prompt, which waits for it; once", async ($, on) => {

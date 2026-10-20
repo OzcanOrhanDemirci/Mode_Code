@@ -180,6 +180,7 @@ export const tr: Record<MessageKey, string> = {
 
   'status.chat': '💬 sohbet',
   'status.autonomous': 'otonom',
+  'status.full': 'tam otonom',
   'status.manual': 'manuel',
   'status.free': 'serbest',
   'status.wrapUp': 'toparlanıyor',

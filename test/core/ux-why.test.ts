@@ -30,14 +30,12 @@ const CASES: [string, WhySubject, WhyFacts, RegExp, (string | null)[]][] = [
   ['agents exactly 2', 'agents', facts({ 'agents.enabled': true }, { agents: { ...state().agents, mode: 'assigned', n: 2 } }), /^exactly 2 /, [null]],
   ['helpers left to Claude', 'helpers', facts(), /^Claude decides/, ['agents.enabled']],
   ['helpers counted', 'helpers', facts({ 'agents.enabled': true, 'agents.helpers': false }), /^counted/, ['agents.helpers']],
-  ['autonomy off', 'autonomy', facts(), /^not on the strip$/, ['autonomy.enabled']],
-  ['autonomy without the strip', 'autonomy', facts({ 'autonomy.enabled': true, 'modules.modes': false }), /strip is off/, ['modules.modes']],
-  ['autonomy on', 'autonomy', facts({ 'autonomy.enabled': true }), /^on the strip/, ['autonomy.enabled', 'autonomy.maxHours']],
   ['mode by default', 'mode', facts(), /^free$/, [null]],
   ['mode chosen', 'mode', facts({}, { mode: 'plan' }), /^plan$/, [null]],
   ['no modes', 'mode', facts({ 'modules.modes': false }), /^no modes/, ['modules.modes']],
   ['manual by default', 'style', facts(), /^manual/, [null]],
   ['autonomous chosen', 'style', facts({}, { interaction: 'autonomous' }), /^autonomous/, [null]],
+  ['full autonomy chosen', 'style', facts({}, { interaction: 'full' }), /^full autonomy/, [null]],
   ['frozen', 'freeze', facts({}, { frozen: 'C:/work/app/src' }), /inside C:\/work\/app\/src$/, [null]],
   ['outside content read', 'taint', facts({}, { tainted: { source: 'WebFetch', at: NOW - 60_000 } }), /ask first$/, [null]],
   ['quota guard off', 'quota', facts({ 'modules.quota': false }), /^no budget/, ['modules.quota']],
@@ -76,10 +74,10 @@ test('the mode and the way of working say whether they are the start or your cho
 });
 
 test('a setting as a reason names it, says its value and the page it is changed on, which is a real address', () => {
-  const a = why('autonomy', facts(), 'en');
-  assert.equal(a.because[0]!.text, '"Full autonomy" is off (Working › Full autonomy)');
-  assert.equal(a.because[0]!.address, 'work/full-auto');
-  assert.equal(why('autonomy', facts(), 'tr').because[0]!.text, '"Tam otonom" kapalı (Çalışma › Tam otonom)');
+  const a = why('agents', facts(), 'en');
+  assert.equal(a.because[0]!.text, '"I set the number of agents" is off (Working › Parallel agents)');
+  assert.equal(a.because[0]!.address, 'work/agents');
+  assert.equal(why('agents', facts(), 'tr').because[0]!.text, '"Ajan sayısını ben belirlerim" kapalı (Çalışma › Paralel ajanlar)');
 });
 
 test('a rule of the belt: its own verdict, the one the settings give it, off, locked', () => {

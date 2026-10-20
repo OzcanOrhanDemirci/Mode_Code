@@ -218,59 +218,6 @@ test('above 20 the window says what decides, and the toast keeps to what was set
   expect((await person($, '20')).text).toBe('Parallel agents: free, at most 20 at once.');
 });
 
-test('a full-autonomy run attached: exactly N waits, said in the window and on the line; at most N is set', async ($, on) => {
-  const w = world(on, { config: { agents: { enabled: true } } });
-  engine(on);
-  const id = '20261018-1200-kit';
-  const at = 1_792_300_000_000;
-  const dir = `/home/ada/.mode-code/runs/${id}`;
-  w.write(
-    `${dir}/run.json`,
-    JSON.stringify({
-      v: 1,
-      id,
-      task: 'Add rate limiting.',
-      project: null,
-      cwd: '/home/ada/dev/app',
-      sessionId: 'kit-session-1',
-      createdAt: at,
-      updatedAt: at,
-      aliveAt: at,
-      status: 'active',
-      phase: 'work',
-      pause: null,
-      budget: { weeklyTarget: 60, source: 'prompt' },
-      start: { commit: 'abc1234', branch: 'main', ref: `refs/mode-code/${id}/0`, untracked: [] },
-      workDir: dir,
-      planPath: `${dir}/plan.md`,
-      reportPath: `${dir}/report.md`,
-      notesPath: `${dir}/notes.md`,
-      plan: null,
-      milestones: [],
-      deferred: [],
-      blockers: [],
-      finish: null,
-      activeMs: 0,
-      limitFrom: 0,
-      runningSince: at,
-      history: [{ at, event: 'start' }],
-    }),
-  );
-  w.write(
-    '/home/ada/.mode-code/state/sessions/kit-session-1.mod.json',
-    JSON.stringify({ v: 1, sessionId: 'kit-session-1', aliveAt: at, runId: id, interaction: 'full', interactionBefore: 'default' }),
-  );
-  expect((await person($, 'exact 3')).text).toBe('A full-autonomy run is attached: its plan decides the work, so exactly N cannot start now. At most N works.');
-  expect(w.modState().agents?.mode ?? 'off').toBe('off');
-  await person($, '');
-  const pane: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'Pane', requestId: 'parallel-agents', props: PANE } as any);
-  const modes = (await pane.findAll({ type: 'Button' })).map((b: any) => String(b.key)).filter((k: string) => k.startsWith('ag-mode-'));
-  expect(modes).toEqual(['ag-mode-off', 'ag-mode-free']);
-  await pane.unmount();
-  expect((await person($, '3')).text).toBe('Parallel agents: free, at most 3 at once.');
-  expect(w.modState().agents).toMatchObject({ mode: 'free', n: 3 });
-});
-
 test('workflows and ultracode: never touched; /effort ultracode stands the mode aside, another level brings it back', async ($, on) => {
   const w = world(on, { config: { agents: { enabled: true } } });
   engine(on);
