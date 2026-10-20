@@ -536,7 +536,7 @@ param(
     $S.Code = 1
   }
   $global:LASTEXITCODE = $S.Code
-} $Yes $Version $NoModifyPath $NoSetup $Help
+} $Yes $InstallClaude $Version $NoModifyPath $NoSetup $Help
 
 # Run as a file (powershell -File install.ps1), the exit code says how it went; pasted, the window stays.
 if ($PSCommandPath) { exit $LASTEXITCODE }
