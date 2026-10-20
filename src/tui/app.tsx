@@ -19,6 +19,8 @@ import type { DataSource } from './store.js';
 import { buildTree } from './tree.js';
 import { makeTheme, noColorAsked, stateColor, type Theme } from './theme.js';
 import { inkHost } from './kit.js';
+import { jumpLabels, jumpMatch } from './jump.js';
+import { titleSequence, type TerminalCaps } from './terminal.js';
 import { textWidth } from '../node/width.js';
 import type { PointerEvent, PointerHub } from './pointer.js';
 import { PointerContext, PointerRegistry, Pressable } from './press.js';
@@ -62,6 +64,8 @@ export interface AppProps {
   onRegistry?: (registry: PointerRegistry) => void;
   /** Told the address of the screen drawn, each time it changes (tests wait for a screen to open). */
   onAddress?: (address: string) => void;
+  /** What the terminal can do beyond drawing (src/tui/terminal.ts), and where to send it. Absent: nothing is sent. */
+  terminal?: { caps: TerminalCaps; write: (sequence: string) => void };
 }
 
 interface Flash {
@@ -120,7 +124,11 @@ export function App(props: AppProps) {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<{ text: string; typing: boolean } | null>(null);
   const [overlay, setOverlay] = useState<'help' | 'palette' | null>(null);
+  /** Jump mode: a label beside each target on the screen, and what has been typed of one (src/tui/jump.ts). */
+  const [jump, setJump] = useState<{ targets: { id: string; label: string; x: number; y: number }[]; typed: string } | null>(null);
   const [palette, setPalette] = useState({ text: '', sel: 0 });
+  /** How far the help is scrolled: on a short terminal it runs below the screen. */
+  const [helpScroll, setHelpScroll] = useState(0);
   const [flash, setFlash] = useState<Flash | null>(null);
   const [scroll, setScroll] = useState(0);
   const keyScope = useRef<KeyScope>({ handlers: [] }).current;
@@ -194,7 +202,23 @@ export function App(props: AppProps) {
     }
   };
 
+  /** Jump mode: a label for every target the screen draws now, in reading order. */
+  const startJump = () => {
+    const targets = pointer
+      .pressables()
+      .filter((b) => b.y >= 0 && b.y < rows && b.x >= 0 && b.x < columns)
+      .sort((a, b) => a.y - b.y || a.x - b.x);
+    if (!targets.length) {
+      showFlash(t('jump.empty'), 'warn');
+      return;
+    }
+    const labels = jumpLabels(targets.length);
+    setHover({ id: null, describe: null });
+    setJump({ targets: targets.map((b, i) => ({ id: b.id, label: labels[i]!, x: b.x, y: b.y })), typed: '' });
+  };
   const quit = () => {
+    // The title goes back to the terminal before the screen does.
+    if (props.terminal?.caps.title) props.terminal.write(titleSequence(''));
     props.onQuit?.();
     app.exit();
   };
@@ -248,6 +272,7 @@ export function App(props: AppProps) {
     flash: showFlash,
     tick,
     still: theme.reduceMotion || !!props.now,
+    links: !!props.terminal?.caps.links,
     ...(props.onLeave
       ? {
           leave: (action: LeaveAction, back: string) => {
@@ -304,8 +329,11 @@ export function App(props: AppProps) {
   // The pointer: the target under it acts or describes itself; a wheel step nothing took scrolls the page or the list.
   const onPointer = useRef<(e: PointerEvent) => void>(() => {});
   onPointer.current = (e) => {
+    // A click in jump mode does what a click does, and the labels go.
+    if (jump && e.kind === 'press') setJump(null);
     const r = pointer.dispatch(e);
     if (r.hoverChanged) setHover({ id: pointer.hovered, describe: r.describe });
+    if (e.kind === 'wheel' && overlay === 'help') setHelpScroll((x) => Math.max(0, x + (e.wheel === 'up' ? -1 : 1)));
     if (e.kind === 'wheel' && !r.wheeled && !overlay) {
       const d = e.wheel === 'up' ? -1 : 1;
       if (open) setScroll((s) => Math.max(0, s + d));
@@ -320,9 +348,37 @@ export function App(props: AppProps) {
       quit();
       return;
     }
-    // 1. overlays take every key
+    // 1. jump mode and the overlays take every key
+    if (jump) {
+      if (key.escape) setJump(null);
+      else if (key.backspace || key.delete) setJump({ ...jump, typed: jump.typed.slice(0, -1) });
+      else if (/^[a-z]$/i.test(input) && !key.ctrl && !key.meta) {
+        const typed = jump.typed + input.toLowerCase();
+        const m = jumpMatch(
+          jump.targets.map((x) => x.label),
+          typed,
+        );
+        if (m === 'more') setJump({ ...jump, typed });
+        else {
+          setJump(null);
+          if (m === 'none') showFlash(t('jump.none', { typed }), 'warn');
+          else pointer.press(jump.targets[m.press]!.id);
+        }
+      }
+      return;
+    }
+    if (key.ctrl && input === 'o' && !overlay) {
+      startJump();
+      return;
+    }
     if (overlay === 'help') {
-      if (key.escape || input === '?' || input === 'q' || key.return) setOverlay(null);
+      if (key.escape || input === '?' || input === 'q' || key.return) {
+        setOverlay(null);
+        setHelpScroll(0);
+      } else if (key.downArrow || input === 'j') setHelpScroll((x) => x + 1);
+      else if (key.upArrow || input === 'k') setHelpScroll((x) => Math.max(0, x - 1));
+      else if (key.pageDown) setHelpScroll((x) => x + 10);
+      else if (key.pageUp) setHelpScroll((x) => Math.max(0, x - 10));
       return;
     }
     if (overlay === 'palette') {
@@ -419,6 +475,11 @@ export function App(props: AppProps) {
   const address = [...chain, ...(selected ? [selected.id] : [])].join('/');
   useEffect(() => {
     props.onAddress?.(address);
+    // The window's title says where the person is: "Mode_Code · Working".
+    if (props.terminal?.caps.title) {
+      const where = resolve(roots, address, 'detailed')[0]?.label;
+      props.terminal.write(titleSequence(where ? `${APP_NAME} · ${where}` : APP_NAME));
+    }
   }, [address]);
   const health = data.health();
   const belt = health.features.find((f) => f.id === 'belt');
@@ -478,14 +539,16 @@ export function App(props: AppProps) {
         r.current.map((h, i) => ({ key: h.key, label: h.label, ...(h.run ? { onPress: () => r.current[i]?.run?.() } : {}) })),
       )
     : [];
+  // In jump mode the bar stays as it was: its keys are targets with labels of their own.
   const allHints: Hint[] = overlay
-    ? [{ key: 'Esc', label: t('keys.close'), onPress: () => setOverlay(null) }]
+    ? [...(overlay === 'help' ? [{ key: '↑↓', label: t('keys.scroll') }] : []), { key: 'Esc', label: t('keys.close'), onPress: () => setOverlay(null) }]
     : open
       ? [
           ...own,
           { key: '←/Esc', label: t('keys.back'), onPress: back },
           { key: '?', label: t('keys.help'), onPress: () => setOverlay('help') },
           { key: 'Ctrl+K', label: t('keys.palette'), onPress: openPalette },
+          { key: 'Ctrl+O', label: t('keys.jump'), onPress: startJump },
           { key: 'q', label: t('keys.close'), onPress: () => setOpen(false) },
         ]
       : [
@@ -495,13 +558,14 @@ export function App(props: AppProps) {
           { key: '1-8', label: t('keys.categories') },
           { key: '/', label: t('keys.filter'), onPress: () => setFilter({ text: '', typing: true }) },
           { key: 'Ctrl+K', label: t('keys.palette'), onPress: openPalette },
+          { key: 'Ctrl+O', label: t('keys.jump'), onPress: startJump },
           { key: '?', label: t('keys.help'), onPress: () => setOverlay('help') },
           { key: 'q', label: t('keys.quit'), onPress: quit },
         ];
   // One line of hints: on a narrow terminal the less essential ones give way (help still lists them all).
   const hintWidth = (h: Hint[]) => h.reduce((n, k) => n + textWidth(k.key) + textWidth(k.label) + 3, 0);
   const hints = [...allHints];
-  for (const drop of ['1-8', '/', 'Ctrl+K', '←', '?']) {
+  for (const drop of ['1-8', 'Ctrl+O', '/', 'Ctrl+K', '←', '?']) {
     if (hintWidth(hints) <= columns) break;
     const i = hints.findIndex((k) => k.key === drop);
     if (i >= 0) hints.splice(i, 1);
@@ -514,15 +578,17 @@ export function App(props: AppProps) {
 
   // The bar: what was just done (and its undo), else what the pointer rests on, else the address of the screen (the
   // one the palette and the command line take).
-  const context = flash
-    ? notice(kit, {
-        meaning: flash.kind === 'bad' ? 'bad' : flash.kind === 'warn' ? 'ask' : 'on',
-        text: flash.text,
-        ...(flash.undo ? { undo: { id: 'undo', label: t('keys.undo'), keyName: 'u', onPress: () => void undo() } } : {}),
-      })
-    : hover.describe
-      ? notice(kit, { meaning: 'focus', text: hover.describe })
-      : kit.text({ wrap: 'truncate-end', ...(theme.muted ? { color: theme.muted } : {}) }, address ? `${t('nav.address')}: ${address}` : ' ');
+  const context = jump
+    ? notice(kit, { meaning: 'focus', text: jump.typed ? `${t('jump.say')} · ${jump.typed}` : t('jump.say') })
+    : flash
+      ? notice(kit, {
+          meaning: flash.kind === 'bad' ? 'bad' : flash.kind === 'warn' ? 'ask' : 'on',
+          text: flash.text,
+          ...(flash.undo ? { undo: { id: 'undo', label: t('keys.undo'), keyName: 'u', onPress: () => void undo() } } : {}),
+        })
+      : hover.describe
+        ? notice(kit, { meaning: 'focus', text: hover.describe })
+        : kit.text({ wrap: 'truncate-end', ...(theme.muted ? { color: theme.muted } : {}) }, address ? `${t('nav.address')}: ${address}` : ' ');
   const footer = (
     <Box width={columns} flexDirection="column">
       <Box width={columns} overflow="hidden">
@@ -533,7 +599,7 @@ export function App(props: AppProps) {
   );
 
   let body: React.ReactNode;
-  if (overlay === 'help') body = <Help env={env} width={columns} height={bodyH} />;
+  if (overlay === 'help') body = <Help env={env} width={columns} height={bodyH} scroll={helpScroll} />;
   else if (overlay === 'palette')
     body = (
       <Box flexDirection="column" width={columns} height={bodyH} borderStyle={theme.border} borderColor={theme.accent} paddingX={1}>
@@ -683,6 +749,18 @@ export function App(props: AppProps) {
               {header}
               {body}
               {footer}
+              {jump
+                ? // Each label stands over the first cells of its target, those that no longer match fall away.
+                  jump.targets
+                    .filter((x) => x.label.startsWith(jump.typed))
+                    .map((x) => (
+                      <Box key={x.id} position="absolute" top={x.y} left={x.x}>
+                        <Text inverse bold {...(theme.warn ? { color: theme.warn } : {})}>
+                          {x.label}
+                        </Text>
+                      </Box>
+                    ))
+                : null}
             </Box>
           </HintContext.Provider>
         </PointerContext.Provider>
@@ -750,7 +828,8 @@ function Preview({
   );
 }
 
-function Help({ env, width, height }: { env: Env; width: number; height: number }) {
+/** The keys and the terms; on a short terminal it scrolls (↑↓, the wheel), it is never squeezed. */
+function Help({ env, width, height, scroll }: { env: Env; width: number; height: number; scroll: number }) {
   const t = (k: MessageKey) => tIn(env.lang, k);
   const keys: [string, MessageKey][] = [
     ['↑ ↓  j k', 'help.k.move'],
@@ -759,6 +838,7 @@ function Help({ env, width, height }: { env: Env; width: number; height: number 
     ['1 … 8', 'help.k.categories'],
     ['/', 'help.k.filter'],
     ['Ctrl+K', 'help.k.palette'],
+    ['Ctrl+O', 'help.k.jump'],
     ['r', 'help.k.refresh'],
     ['u', 'help.k.undo'],
     [t('help.mouseKey'), 'help.k.mouse'],
@@ -768,29 +848,31 @@ function Help({ env, width, height }: { env: Env; width: number; height: number 
   const terms: MessageKey[] = ['term.belt', 'term.mod', 'term.hook', 'term.quota', 'term.cache', 'term.keyword', 'term.view'];
   return (
     <Box flexDirection="column" width={width} height={height} borderStyle={env.theme.border} borderColor={env.theme.accent} paddingX={1} overflow="hidden">
-      <Text bold>{t('help.title')}</Text>
-      <Box marginTop={1} flexDirection="column">
-        {keys.map(([k, v]) => (
-          <Box key={k}>
-            <Box width={14} flexShrink={0}>
-              <Text bold color={env.theme.accent}>
-                {k}
-              </Text>
+      <Box flexDirection="column" flexShrink={0} marginTop={-Math.max(0, scroll)}>
+        <Text bold>{t('help.title')}</Text>
+        <Box marginTop={1} flexDirection="column">
+          {keys.map(([k, v]) => (
+            <Box key={k}>
+              <Box width={14} flexShrink={0}>
+                <Text bold color={env.theme.accent}>
+                  {k}
+                </Text>
+              </Box>
+              <Text>{prose(t(v), width - 18)}</Text>
             </Box>
-            <Text>{prose(t(v), width - 18)}</Text>
-          </Box>
-        ))}
-      </Box>
-      <Box marginTop={1} flexDirection="column">
-        <Text bold>{t('help.terms')}</Text>
-        {terms.map((k) => (
-          <Text key={k} wrap="wrap">
-            {prose(t(k), width - 4)}
-          </Text>
-        ))}
-      </Box>
-      <Box marginTop={1}>
-        <Muted>{t('help.close')}</Muted>
+          ))}
+        </Box>
+        <Box marginTop={1} flexDirection="column">
+          <Text bold>{t('help.terms')}</Text>
+          {terms.map((k) => (
+            <Text key={k} wrap="wrap">
+              {prose(t(k), width - 4)}
+            </Text>
+          ))}
+        </Box>
+        <Box marginTop={1}>
+          <Muted>{t('help.close')}</Muted>
+        </Box>
       </Box>
     </Box>
   );

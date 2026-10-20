@@ -13,9 +13,13 @@ import { runMemorySetup } from '../cli/memory.js';
 import { runSyncSetup } from '../cli/sync.js';
 import { runUpdate } from '../cli/update.js';
 import { mouseReporting, PointerHub, pointerInput } from './pointer.js';
+import { progressSequence, terminalCaps } from './terminal.js';
 
 export async function runControlCenter(opts: { address: string | null; plain: boolean; noColor: boolean; mouse: boolean }): Promise<number> {
   const ctx = appContext();
+  // What the terminal takes beyond drawing (src/tui/terminal.ts): the title, the progress on its tab, links.
+  const caps = terminalCaps(process.env, !!process.stdout.isTTY);
+  const terminal = { caps, write: (s: string) => void process.stdout.write(s) };
   // The first index of a large history takes a few seconds: say so, instead of a blank screen.
   try {
     const idx = new SessionIndex(ctx.layout.index);
@@ -27,8 +31,10 @@ export async function runControlCenter(opts: { address: string | null; plain: bo
       if (nowMs - lastShown < 120 && p.done < p.files) return;
       lastShown = nowMs;
       process.stderr.write(`\r${tIn(ctx.lang, 'tui.indexing', { done: p.done, total: p.files, mb: Math.round(p.bytes / 1048576) })}   `);
+      if (caps.progress && p.files) process.stderr.write(progressSequence((p.done / p.files) * 100));
     });
     if (first && process.stderr.isTTY) process.stderr.write('\r\u001B[2K');
+    if (first && caps.progress) process.stderr.write(progressSequence(null));
     idx.close();
   } catch (err) {
     process.stderr.write(`${tIn(ctx.lang, 'tui.indexFailed', { error: (err as Error).message })}\n`);
@@ -48,6 +54,7 @@ export async function runControlCenter(opts: { address: string | null; plain: bo
         plain={opts.plain}
         {...(opts.noColor ? { noColor: true } : {})}
         pointer={hub}
+        terminal={terminal}
         onLeave={(action, back) => (leave = { action, back })}
         {...(mouse ? { onQuit: mouse.off } : {})}
       />,

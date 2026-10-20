@@ -751,6 +751,11 @@
       "branches": 63,
       "functions": 73
     },
+    "src/tui/jump.ts": {
+      "lines": 100,
+      "branches": 95,
+      "functions": 100
+    },
     "src/tui/kit.tsx": {
       "lines": 87,
       "branches": 75,
@@ -840,6 +845,11 @@
       "lines": 55,
       "branches": 92,
       "functions": 48
+    },
+    "src/tui/terminal.ts": {
+      "lines": 100,
+      "branches": 95,
+      "functions": 100
     },
     "src/tui/theme.ts": {
       "lines": 94,
