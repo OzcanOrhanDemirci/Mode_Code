@@ -188,7 +188,7 @@ const BASH: [string, string][] = [
   ['mode-code config get belt', 'mode-code:read/reads'],
   ['mode-code config set belt.disabled []', 'mode-code:local/local'],
   ['mode-code doctor', 'mode-code:local/local'],
-  ['mode-code open measure/quota', 'mode-code:local/local'],
+  ['mode-code open quota/usage', 'mode-code:local/local'],
   ['mode-code.cmd belt rules', 'mode-code:read/reads'],
   ['flutter pub deps', 'flutter:read/reads'],
   ['flutter pub get', 'flutter:local/local'],

@@ -68,7 +68,7 @@ export const trCockpit: Record<keyof typeof enCockpit, string> = {
   'ck.act.endRun': 'İşi bitir',
   'ck.act.rule': 'Kural',
   'ck.act.ruleCard':
-    'Bu kuralı kontrol merkezinde açar (Güvenlik › Emniyet kemeri kuralları): neyi sorduğu, engellediği ya da geçirdiği ve nasıl değişeceği. Bu oturum sürer.',
+    'Bu kuralı kontrol merkezinde açar (Koruma › Emniyet kemeri kuralları): neyi sorduğu, engellediği ya da geçirdiği ve nasıl değişeceği. Bu oturum sürer.',
   'ck.act.agents': 'Ajanlar',
   'ck.act.budget': 'Haftalık bütçe',
   'ck.act.allow': 'İzin ver',

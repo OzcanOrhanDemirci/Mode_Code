@@ -266,8 +266,9 @@ export function keyBar<N>(h: KitHost<N>, hints: readonly Hint[]): N {
     ...hints.map((k, i) => {
       const body = [h.text({ bold: true, ...colored(h.color('focus')) }, k.key), h.text(colored(h.color('off')), ` ${k.label}`)];
       const gap = i ? h.text({}, '  ') : null;
+      // Pointed at, a key says what it does, as the bar shows it.
       return k.onPress
-        ? h.box({ flexDirection: 'row' }, gap, h.press({ id: `hint-${k.key}`, onPress: k.onPress, ...(k.describe ? { describe: k.describe } : {}) }, ...body))
+        ? h.box({ flexDirection: 'row' }, gap, h.press({ id: `hint-${k.key}`, onPress: k.onPress, describe: k.describe ?? `${k.key}: ${k.label}` }, ...body))
         : h.box({ flexDirection: 'row' }, gap, ...body);
     }),
   );

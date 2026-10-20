@@ -51,7 +51,7 @@ test('Settings › History of changes: every change newest first; Enter or a cli
   data.setConfig('view', 'simple');
   data.setConfig('view', 'detailed');
   data.setConfig('update.check', true);
-  const s = await draw(data, { address: 'settings/history', rows: 40 });
+  const s = await draw(data, { address: 'activity/changes', rows: 40 });
   try {
     const t = flat(s.text());
     assert.match(t, /Check for updates daily: off → on · the control center .* View level: Simple → Detailed .* View level: Recommended → Simple/);
@@ -70,7 +70,7 @@ test('Settings › History of changes: every change newest first; Enter or a cli
   const guarded = new FakeData();
   guarded.setConfig('modules.quota', false);
   guarded.setConfig('modules.quota', true);
-  const g = await draw(guarded, { address: 'settings/history', rows: 40, columns: 100 });
+  const g = await draw(guarded, { address: 'activity/changes', rows: 40, columns: 100 });
   try {
     await g.clickText('Enter take it back');
     assert.match(flat(g.text()), /! This lowers a protection \(off\)/);
@@ -82,7 +82,7 @@ test('Settings › History of changes: every change newest first; Enter or a cli
   } finally {
     g.close();
   }
-  const empty = await draw(new FakeData('tr'), { address: 'settings/history' });
+  const empty = await draw(new FakeData('tr'), { address: 'activity/changes' });
   try {
     assert.match(flat(empty.text()), /Henüz hiçbir ayar değişmedi\./);
   } finally {
@@ -90,14 +90,14 @@ test('Settings › History of changes: every change newest first; Enter or a cli
   }
 });
 
-test('Home › Activity: what waits for you first, then the newest; Enter goes where it is changed; a shows the routine work', async () => {
+test('Activity › Activity feed: what waits for you first, then the newest; Enter goes where it is changed; a shows the routine work', async () => {
   const data = new FakeData();
   data.extraEvents = [
     { v: 1, at: NOW - 3600_000, kind: 'conflict', source: 'mod', session: 's2', sessions: ['a', 'b'] } as never,
     { v: 1, at: NOW - 30_000, kind: 'reading', source: 'mod', session: 's2', five: 20, week: 30 } as never,
     { v: 1, at: NOW - 20_000, kind: 'packs', source: 'mod', session: 's2', on: ['flutter'], by: 'auto' } as never,
   ];
-  const s = await draw(data, { address: 'home/activity', rows: 40 });
+  const s = await draw(data, { address: 'activity/feed', rows: 40 });
   try {
     const lines = s.text().split('\n');
     const at = (re: RegExp) => lines.findIndex((l) => re.test(l));

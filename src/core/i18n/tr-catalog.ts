@@ -32,13 +32,13 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.language.eff.en': 'Her şey İngilizce.',
   'ux.language.eff.tr': 'Her şey Türkçe.',
   'ux.view.name': 'Görünüm seviyesi',
-  'ux.view.what': 'Kontrol merkezinin kaç sayfa listelediği. Neyin korunduğunu asla değiştirmez; her ayara her seviyede ulaşılır.',
+  'ux.view.what': 'Kontrol merkezinin kaç sayfa listelediği. Neyin korunduğunu asla değiştirmez; her sayfaya ulaşılır: palet (Ctrl+K) hepsini bulur.',
   'ux.view.opt.simple': 'Sade',
   'ux.view.opt.recommended': 'Önerilen',
   'ux.view.opt.detailed': 'Ayrıntılı',
-  'ux.view.eff.simple': "Uzmanlara yönelik dört sayfa listelerde ve aramada görünmez: Araçlar, Klasörler, Hook'lar ve Skill, ajan, komut.",
-  'ux.view.eff.recommended': 'Bütün sayfalar.',
-  'ux.view.eff.detailed': 'Önerilen gibi bütün sayfalar: henüz daha fazlasını isteyen sayfa yok.',
+  'ux.view.eff.simple': 'Yalnız gündelik sayfalar: uzmanlara yönelik 11 sayfa listelerde görünmez, her liste kaç sayfayı dışarıda bıraktığını söyler.',
+  'ux.view.eff.recommended': "Uzmanlara yönelik dört sayfa dışında hepsi: Araçlar, Klasörler, Hook'lar ve Skill, ajan, komut.",
+  'ux.view.eff.detailed': 'Bütün sayfalar.',
   'ux.update.check.name': 'Güncellemelere her gün bak',
   'ux.update.check.what': "Yeni sürüm çıkınca sana söyleyebilmek için Mode_Code'un GitHub'a günde bir kez en yeni sürümü sorup sormadığı.",
   'ux.update.check.on':
@@ -84,7 +84,7 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.modules.mascot.on': 'Mo düşünmeyi, çalışan bir aracı, seni beklemeyi ve emniyet kemerinin reddettiği bir çağrıyı gösterir.',
   'ux.modules.mascot.off': 'Mo ne şeritte ne burada.',
 
-  // ── Ayarlar › Alt satırlar ve kota ──
+  // ── Ayarlar › Cevap altı satırları; Kota › Bütçe ve sınırlar ──
   'ux.footer.mode.name': 'Satırları kim yazar',
   'ux.footer.mode.what': 'Cevap altı satırlarının nasıl yapıldığı.',
   'ux.footer.mode.opt.draw': 'Mode_Code çizer',
@@ -133,7 +133,7 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.accessibility.reduceMotion.on': 'Hiçbir şey kıpırdamaz.',
   'ux.accessibility.reduceMotion.off': 'Claude çalışırken Mo ve şerit biraz kıpırdar.',
 
-  // ── Ayarlar › Hafıza › Devir notları ve sabah raporu ──
+  // ── Hafıza ve projeler › Devir notları ve sabah raporu ──
   'ux.memory.handoff.enabled.name': 'Devir notları',
   'ux.memory.handoff.enabled.what': 'İşin nerede durduğunu söyleyen not: oturum biterken ya da devrederken yazılır, projedeki sonraki oturuma sunulur.',
   'ux.memory.handoff.enabled.on': 'Notlar aşağıdaki ayarlara göre yazılır ve sunulur.',
@@ -161,7 +161,7 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.memory.morning.afterHours.what': 'Mesaj yazılmayan ne kadar sürenin yokluk sayıldığı.',
   'ux.memory.morning.afterHours.eff': 'Mesajsız {n} geçince yokken sayılırsın.',
 
-  // ── Otomasyon › Tam otonom ──
+  // ── Çalışma › Tam otonom ──
   'ux.autonomy.enabled.name': 'Tam otonom',
   'ux.autonomy.enabled.what': 'Tam otonom iş: Claude bir görevi sana sormadan, emniyet kemerinin içinde sonuna kadar götürür.',
   'ux.autonomy.enabled.on': 'Bir tane başlatabilirsin: /tam-otonom ya da şeritte tam otonom. Yalnız sen başlatırsın; Claude başlatamaz.',
@@ -179,7 +179,7 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.autonomy.stallMinutes.what': 'Tam otonom işin bir adımı bitirmeden ne kadar gidebileceği; sonra takılmış sayılır.',
   'ux.autonomy.stallMinutes.eff': 'Bitmiş adım olmadan {n} geçince Claude uyarılır; bunun iki katında iş takıldı diye duraklar.',
 
-  // ── Otomasyon › Bypass ──
+  // ── Çalışma › Bypass ──
   'ux.bypass.enabled.name': "Bypass'a izin ver",
   'ux.bypass.enabled.what':
     "Bypass, bir oturumda Claude'un bir süre sormadan çalışmasını sağlar: emniyet kemerinin soracağı şeyler geçer, her çağrı kaydedilir.",
@@ -189,7 +189,7 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.bypass.maxHours.what': "Bir oturumda açtığın bypass'ın ne kadar açık kaldığı.",
   'ux.bypass.maxHours.eff': 'Bypass açıldıktan {n} sonra kendiliğinden kapanır; on dakika önce uyarır.',
 
-  // ── Otomasyon › Paralel ajanlar ──
+  // ── Çalışma › Paralel ajanlar ──
   'ux.agents.enabled.name': 'Ajan sayısını ben belirlerim',
   'ux.agents.enabled.what': "Ana Claude'un yanında kaç yardımcı Claude (ajan) çalışacağına kimin karar verdiği: sen şeritten, ya da Claude Code.",
   'ux.agents.enabled.on': 'Her oturum ajansız başlar: sen şeritten (👥) bir sayı verene kadar Claude ajan başlatmaz; aşağıdaki salt okuyan yardımcılar hariç.',
@@ -269,12 +269,12 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
     'Her parçanın şu an nasıl olduğunu ve nedenini gösterir; bir kelimeyle (ajanlar, bypass, kota ya da bir kural) yalnız o parçayı. Hiçbir şeyi değiştirmez.',
   'ux.ctl.quota.what': 'Haftalık bütçe: bir sayı (70) ya da şimdinin üstüne puan (+5)',
   'ux.ctl.quota.press': 'Bu oturumun haftalık kotanın ne kadarını kullanabileceğini koyar: iş yaklaşınca toparlanır, bütçede durur.',
-  'ux.ctl.bypass.what': "Bypass: bu oturumda Claude bir süre sormadan çalışır, her çağrı kaydedilir (Otomasyon'dan izin verildikten sonra)",
+  'ux.ctl.bypass.what': 'Bypass: bu oturumda Claude bir süre sormadan çalışır, her çağrı kaydedilir (Çalışma altından izin verildikten sonra)',
   'ux.ctl.bypass.press':
-    "Penceresi bypass'ın neyi kaldırdığını ve ne zamana kadar süreceğini söyler, sonra bu oturumda açar (süre: Otomasyon › Bypass); yeniden basınca kapanır.",
+    "Penceresi bypass'ın neyi kaldırdığını ve ne zamana kadar süreceğini söyler, sonra bu oturumda açar (süre: Çalışma › Bypass); yeniden basınca kapanır.",
   'ux.ctl.freeze.what': 'Dondur: bir çağrının adını verdiği her yazma tek bir klasörde kalmalı (başka birini vermezsen bu klasör)',
   'ux.ctl.freeze.press': 'Bundan sonra başka bir yere yazmayı adıyla isteyen çağrı reddedilir; sen bitirene kadar.',
-  'ux.ctl.agents.what': "Ajanlar: hiç, aynı anda en çok N ya da sonraki isteğin için tam N (Otomasyon'da sayılarını sen belirlediğinde)",
+  'ux.ctl.agents.what': 'Ajanlar: hiç, aynı anda en çok N ya da sonraki isteğin için tam N (Çalışma altından izin verdiğinde)',
   'ux.ctl.agents.press': "Bir pencere açar: kaç yardımcı Claude'un ne için çalışacağını seçersin. Sen onaylamadan hiçbir şey değişmez.",
   'ux.ctl.close.what': "Oturumu düzgünce kapatır: devir notu, eşitleme, çıkış; Windows'ta sekmesiyle birlikte",
   'ux.ctl.close.press': "Devir notunu yazar, hafızayı eşitler ve bu oturumu bitirir; Windows'ta sekmesi de kapanır.",

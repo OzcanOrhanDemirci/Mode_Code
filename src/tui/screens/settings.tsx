@@ -44,15 +44,21 @@ export function Modules({ width, open }: ScreenProps) {
   );
 }
 
-export function FooterAndQuota({ width, open }: ScreenProps) {
+/** Settings › Lines under answers: the feature's own switch first, then what it decides. */
+export function Footer({ width, open }: ScreenProps) {
+  const { data } = useEnv();
+  const fields = fieldsOf(data.config(), ['modules.footer', 'footer.mode', 'footer.showFiveFrom', 'footer.showWeekFrom']);
+  return <SettingsEditor fields={fields} open={open} width={width} />;
+}
+
+/** Quota › Budget and limits: the quota guard's own switch first, then where it wraps up, stops and resumes. */
+export function Limits({ width, open }: ScreenProps) {
   const { data } = useEnv();
   const fields = fieldsOf(data.config(), [
-    'footer.mode',
-    'footer.showFiveFrom',
-    'footer.showWeekFrom',
+    'modules.quota',
+    'quota.defaultWeeklyTarget',
     'quota.fiveHourWrapUp',
     'quota.fiveHourStop',
-    'quota.defaultWeeklyTarget',
     'quota.autoResume',
     'quota.clearHint',
   ]);
@@ -189,7 +195,7 @@ export function MemoryStore({ width, open }: ScreenProps) {
   const t = useT();
   const v = data.memory();
   const setup = () => {
-    if (leave) leave('memory-setup', 'settings/memory/store');
+    if (leave) leave('memory-setup', 'memory/store');
     else flash(t('mem.setupCli'), 'warn');
   };
   useScreenKeys((input) => {
@@ -255,7 +261,7 @@ export function Sync({ width, open }: ScreenProps) {
   const t = useT();
   const v = data.sync();
   const setup = () => {
-    if (leave) leave('sync-setup', 'settings/sync');
+    if (leave) leave('sync-setup', 'memory/sync');
     else flash(t('sync.setupCli'), 'warn');
   };
   useScreenKeys((input) => {

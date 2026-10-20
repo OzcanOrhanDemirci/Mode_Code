@@ -50,7 +50,7 @@ During a full-autonomy run, `stop` and `wrap up` pause it with its report, and `
 
 ## Projects
 
-Register projects under Settings › Projects and keywords (or `projects` in the settings file): an id, the names you type, and optionally the folder. Without a registered project, a single word before "continue" is still taken as a project name the model has to resolve from context.
+Register projects under Memory and projects › Project names (or `projects` in the settings file): an id, the names you type, and optionally the folder. Without a registered project, a single word before "continue" is still taken as a project name the model has to resolve from context.
 
 ## Your own phrases
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Every place a message sends the person to ("Automation › Bypass", "Ayarlar › Özellikler") is a real place in the
+ * Every place a message sends the person to ("Working › Bypass", "Ayarlar › Özellikler") is a real place in the
  * control center, in that message's language: each part a page under the one before, and a last part that may be a
  * setting's name on that page (from the catalog). A reference that leads nowhere is the price of a renamed page.
  */
@@ -22,7 +22,7 @@ const norm = (s: string) => s.toLocaleLowerCase('tr').replace(/\s+/g, ' ').trim(
 const bare = (s: string) => s.replace(/^[\s("'`]+|[\s)"'`.,;:!?]+$/g, '');
 
 /**
- * The forms the last part may name a place by: it ends at a comma, or before a Turkish postposition ("Otomasyon ›
+ * The forms the last part may name a place by: it ends at a comma, or before a Turkish postposition ("Çalışma ›
  * Tam otonom altında aç"), and its last word may carry a case ending after an apostrophe ("Bypass'ta").
  */
 function lastForms(part: string): string[] {
@@ -120,9 +120,9 @@ for (const [lang, dict] of [
 test('the reader of references finds a broken one, and a setting named as the last part', () => {
   const roots = buildTree(new FakeData('en', { view: 'detailed' }), 'en', NOW);
   const one = (text: string) => resolveChain(roots, references(text)[0]!.parts, 'en');
-  assert.equal(one('Turn it on under Automation › Full autonomy.'), null);
-  assert.equal(one('Turn them on in the cockpit (/0) or under Automation › Parallel agents.'), null);
-  assert.equal(one('With bypass on (control center › Automation › Bypass), it asks.'), null);
+  assert.equal(one('Turn it on under Working › Full autonomy.'), null);
+  assert.equal(one('Turn them on in the cockpit (/0) or under Working › Parallel agents.'), null);
+  assert.equal(one('With bypass on (control center › Working › Bypass), it asks.'), null);
   assert.equal(one('The daily check is off: Settings › Language and view › Check for updates daily.'), null);
   assert.match(one('Modes are off (Settings › Moods).') ?? '', /"Moods" is not under settings/);
   assert.match(one('See Nowhere › Bypass.') ?? '', /is no page/);
@@ -130,7 +130,7 @@ test('the reader of references finds a broken one, and a setting named as the la
   assert.match(one('Add one under Settings › Memory folders.') ?? '', /"Memory folders" is not under settings/);
   const trRoots = buildTree(new FakeData('tr', { view: 'detailed' }), 'tr', NOW);
   const bir = (text: string) => resolveChain(trRoots, references(text)[0]!.parts, 'tr');
-  assert.equal(bir("Otomasyon › Bypass'ta ayarlanan süre için açar."), null);
-  assert.equal(bir('Otomasyon › Tam otonom altında aç, sonra yaz.'), null);
+  assert.equal(bir("Çalışma › Bypass'ta ayarlanan süre için açar."), null);
+  assert.equal(bir('Çalışma › Tam otonom altında aç, sonra yaz.'), null);
   assert.equal(bir("Bak: Claude Code › Hook'lar."), null);
 });

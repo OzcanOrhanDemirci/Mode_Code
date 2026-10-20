@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * Settings › History of changes (docs/design.md, Say, do, undo): every change to a setting, newest first, with when,
+ * Activity › History of changes (docs/design.md, Say, do, undo): every change to a setting, newest first, with when,
  * from what to what and where it came from; Enter or a click takes one back. A change made again since is not taken
  * back from its old row (the newer one is); one that would lower a protection asks first.
  */

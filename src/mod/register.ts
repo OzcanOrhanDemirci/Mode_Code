@@ -2386,7 +2386,7 @@ interface Bypassed {
   outcome?: 'ran' | 'failed' | 'refused';
 }
 
-/** Kept for the person to review one by one (Automation › Without asking), and counted on the strip. */
+/** Kept for the person to review one by one (Working › Done without asking), and counted on the strip. */
 async function recordBypassed($: $, c: Ctx, b: Bypassed): Promise<void> {
   if (c.state.bypass) c.state = { ...c.state, bypass: { ...c.state.bypass, count: c.state.bypass.count + 1 } };
   await saveState($, c);
@@ -4812,7 +4812,7 @@ async function showCockpit($: $, surface?: string): Promise<void> {
   }
 }
 
-/** Opens the control center at Home › Activity beside the session; from the phone, says where it opens. Never silent. */
+/** Opens the control center at Activity › Activity feed beside the session; from the phone, says where it opens. Never silent. */
 async function openActivity($: $, surface?: string): Promise<void> {
   return openCenterAt($, ACTIVITY_PAGE, surface);
 }
@@ -4833,7 +4833,7 @@ async function openCenterAt($: $, address: string | undefined, surface?: string)
 }
 
 /** The control center's page of what Mode_Code did in the background, and why (src/tui/tree.tsx). */
-const ACTIVITY_PAGE = 'home/activity';
+const ACTIVITY_PAGE = 'activity/feed';
 
 /** How long the strip stays still before its presses are told to Claude. */
 const PRESS_QUIET_MS = 2500;

@@ -306,26 +306,26 @@ export const enAuto = {
   'doc.autonomy.notReady': 'Full autonomy is on, but {n} start check(s) would fail here:',
   'doc.bypass.off': 'Bypass is off: no session can lift the safety belt.',
   'doc.bypass.on': 'Bypass can be switched on in a session by you, for up to {hours} h; it is off in every session now.',
-  'doc.bypass.onNow': 'Bypass is on in {n} session(s) now (for up to {hours} h each); what it lets through is under Automation › Done without asking.',
+  'doc.bypass.onNow': 'Bypass is on in {n} session(s) now (for up to {hours} h each); what it lets through is under Working › Done without asking.',
   'doc.bypass.floorWeakened': '{n} rule(s) bypass should keep asking about are switched off or set to allow in the settings:',
-  'doc.bypass.floorHint': 'Set them back under Security › Safety belt rules, or with mode-code config set belt.verdicts.<rule> ask.',
+  'doc.bypass.floorHint': 'Set them back under Protection › Safety belt rules, or with mode-code config set belt.verdicts.<rule> ask.',
 
   // ── the control center ──
   'home.runs': 'Full-autonomy runs',
-  'page.runs': 'Runs',
+  'page.runs': 'Full-autonomy runs',
   'desc.runs': 'Full-autonomy runs: each with its phases, milestones, reviews, what waits for you and its report.',
   'desc.run': 'A full-autonomy run.',
   'badge.running': '{n} running',
   'run.missing': 'This run is no longer on record.',
   'run.rollbackHint': 'Back to a milestone: mode-code autonomy rollback {id} <n>',
   'runs.empty': 'No full-autonomy run yet. A run takes one task to its end while nobody is at the keyboard, inside a boundary code measures first.',
-  'runs.howTo': 'Turn it on under Automation › Full autonomy, then end a message with "<project> full auto quota +10" (see docs/autonomy.md).',
+  'runs.howTo': 'Turn it on under Working › Full autonomy, then end a message with "<project> full auto quota +10" (see docs/autonomy.md).',
   'page.autonomy': 'Full autonomy',
   'desc.autonomy': 'Full autonomy: on or off, its limits, and the start checks measured from here.',
   'set.autonomy.confirm': 'Press Enter again to turn it on.',
   'set.autonomy.check': 'Start checks, measured from here',
   'set.autonomy.note': "The rest (the budget, the live sandbox probe, the session's permission mode) is measured when a run starts.",
-  // ── Automation › Bypass, Done without asking ──
+  // ── Working › Bypass, Done without asking ──
   'desc.automation': 'The special ways of working, off until you turn them on: full autonomy, its runs, bypass and what bypass let through, parallel agents.',
   'page.bypass': 'Bypass',
   'desc.bypass': 'Bypass: lifts the safety belt in one session for a while, when you switch it on there. Off until you turn it on here.',
@@ -352,7 +352,7 @@ export const enAuto = {
   'bypassed.outcome.ran': 'ran',
   'bypassed.outcome.failed': 'failed',
   'bypassed.outcome.refused': 'refused further on',
-  // ── Automation › Parallel agents ──
+  // ── Working › Parallel agents ──
   'page.agents': 'Parallel agents',
   'desc.agents': 'Parallel agents: how many agents Claude starts, set by you on the strip for each session. Off until you turn it on here.',
   'set.agents.confirm':
@@ -367,7 +367,7 @@ export const enAuto = {
   'set.agents.sessions': 'Claude Code sessions on this computer',
   'set.agents.sessionsNone': 'None running.',
   'set.agents.sessionsUnread': "Could not be read: this Claude Code has no 'claude agents' command.",
-  // ── Automation › Recent tasks ──
+  // ── Working › Recent tasks ──
   'page.autoPrompts': 'Recent tasks',
   'desc.autoPrompts': "The last three tasks you gave full autonomy, from the strip's window or typed, kept so none is lost: copy one to use it again.",
   'prompts.empty': 'No task yet. The tasks you give full autonomy (in its window on the strip, or typed) are kept here, the last three.',

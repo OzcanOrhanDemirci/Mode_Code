@@ -221,9 +221,9 @@ async function main() {
   const tour: { address: string | null; type?: string; keys: string[] }[] = [
     { address: null, keys: [] },
     { address: null, keys: ['right'] },
-    { address: 'security/rules', keys: [] },
-    { address: 'security/test', type: 'git push --force origin main', keys: ['enter'] },
-    { address: 'measure/quota', keys: [] },
+    { address: 'protection/rules', keys: [] },
+    { address: 'protection/test', type: 'git push --force origin main', keys: ['enter'] },
+    { address: 'quota/usage', keys: [] },
     { address: 'claude-code/templates', keys: [] },
   ];
   mkdirSync(join(root, 'docs', 'images'), { recursive: true });

@@ -64,17 +64,6 @@ export function moState(f: MoFacts, now: number): MoState {
 }
 
 /**
- * Mo in the control center, which sees no turn: protection that needs a look, a full-autonomy run, a quota
- * near its limit, or rest.
- */
-export function centerState(f: { protectionBroken: boolean; runActive: boolean; quotaLow: boolean }): 'error' | 'auto' | 'low' | 'idle' {
-  if (f.protectionBroken) return 'error';
-  if (f.runActive) return 'auto';
-  if (f.quotaLow) return 'low';
-  return 'idle';
-}
-
-/**
  * The moment each state is drawn at when Mo does not move (accessibility's reduced motion): one that reads
  * whole, its entrance over, the eyes open.
  */

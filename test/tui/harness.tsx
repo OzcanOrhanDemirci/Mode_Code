@@ -9,6 +9,7 @@ import type { SyncView } from '../../src/app/sync.js';
 import { EventEmitter } from 'node:events';
 import { App, type AppProps } from '../../src/tui/app.js';
 import { PointerHub, pointerInput } from '../../src/tui/pointer.js';
+import type { PointerRegistry } from '../../src/tui/press.js';
 import { textWidth } from '../../src/node/width.js';
 import { cloneDefaults, setConfigValue, type Config, type ConfigProblem } from '../../src/core/config.js';
 import { changeRows, type ChangeRow, type ChangeWho } from '../../src/core/ux/changes.js';
@@ -409,6 +410,8 @@ export interface Screen {
   wheel(x: number, y: number, dir: 'up' | 'down'): Promise<void>;
   /** The cell where `text` starts on the screen now (its `nth` time, from 0), or null. */
   find(text: string, nth?: number): { x: number; y: number } | null;
+  /** What the pointer can reach on the screen now. */
+  registry(): PointerRegistry;
   /** A click on the middle of `text` where it is on the screen now; fails when it is not there. */
   clickText(text: string, nth?: number): Promise<void>;
   hoverText(text: string, nth?: number): Promise<void>;
@@ -428,11 +431,14 @@ export async function draw(
     noColor?: boolean;
     onLeave?: AppProps['onLeave'];
     onQuit?: AppProps['onQuit'];
+    /** The address the screen opens at, when it is not the one asked for (an old address leads to its page's new one). */
+    opens?: string;
   } = {},
 ): Promise<Screen> {
   const stdout = new FakeStdout(opts.columns ?? 110, opts.rows ?? 32);
   const stdin = new FakeStdin();
   const hub = new PointerHub();
+  let registry: PointerRegistry | null = null;
   const inst = render(
     <App
       data={data}
@@ -444,6 +450,7 @@ export async function draw(
       pointer={hub}
       {...(opts.onLeave ? { onLeave: opts.onLeave } : {})}
       {...(opts.onQuit ? { onQuit: opts.onQuit } : {})}
+      onRegistry={(r) => (registry = r)}
     />,
     {
       stdout: stdout as unknown as NodeJS.WriteStream,
@@ -458,7 +465,8 @@ export async function draw(
   // loaded CI runner that frame once came after the pause below, and a test read the home screen instead
   // and passed: the screen it meant to check never drew (seen as coverage falling on one run in two). The
   // footer names the address once it is open.
-  if (opts.address && !(await until(() => stdout.last.includes(`: ${opts.address}`), START_CAP_MS)))
+  const opens = opts.opens ?? opts.address;
+  if (opens && !(await until(() => stdout.last.includes(`: ${opens}`), START_CAP_MS)))
     throw new Error(`the screen at ${opts.address} did not open within ${START_CAP_MS} ms`);
   await wait(80);
   // eslint-disable-next-line no-control-regex
@@ -502,6 +510,7 @@ export async function draw(
     hover,
     wheel: (x, y, dir) => press(sgr(dir === 'up' ? 64 : 65, x, y)),
     find,
+    registry: () => registry!,
     clickText: async (s, nth) => {
       const p = await at(s, nth);
       return click(p.x, p.y);

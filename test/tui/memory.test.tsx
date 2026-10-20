@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * The memory in the control center (docs/memory.md): Settings › Memory (where it lives, the setup key,
- * handoff and morning settings), Projects › Handoffs, and the morning report on Home.
+ * handoff and morning settings), Memory and projects › Handoffs, and the morning report.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,14 +13,14 @@ import { draw, FakeData, KEY, NOW } from './harness.js';
 test('Settings › Memory › Where it lives: not set up, "s" leaves for the setup and comes back here', async () => {
   const data = new FakeData();
   const left: [string, string][] = [];
-  const s = await draw(data, { address: 'settings/memory/store', onLeave: (action, back) => left.push([action, back]) });
+  const s = await draw(data, { address: 'memory/store', onLeave: (action, back) => left.push([action, back]) });
   try {
     const t = s.text();
     assert.match(t, /Lives on\s+not set up/);
     assert.match(t, /Claude Code\s+one memory per project \(its default\)/);
     assert.match(t, /s: set it up \(this computer, your GitHub, or both\)/);
     await s.press('s');
-    assert.deepEqual(left, [['memory-setup', 'settings/memory/store']]);
+    assert.deepEqual(left, [['memory-setup', 'memory/store']]);
   } finally {
     s.close();
   }
@@ -65,7 +65,7 @@ test('Settings › Memory › Where it lives: the place, the folder, the reposit
     handoff: null,
     pendingNotes: 1,
   };
-  const s = await draw(data, { address: 'settings/memory/store' });
+  const s = await draw(data, { address: 'memory/store' });
   try {
     // The pane wraps long rows: read it as one text.
     const t = s
@@ -83,7 +83,7 @@ test('Settings › Memory › Where it lives: the place, the folder, the reposit
     s.close();
   }
   // Without a terminal to leave for (no onLeave), the key says how to run it.
-  const s2 = await draw(data, { address: 'settings/memory/store' });
+  const s2 = await draw(data, { address: 'memory/store' });
   try {
     await s2.press('s');
     assert.match(s2.text(), /Run mode-code memory setup in a terminal\./);
@@ -94,7 +94,7 @@ test('Settings › Memory › Where it lives: the place, the folder, the reposit
 
 test('Settings › Memory › Handoffs and morning report: each setting is edited in place', async () => {
   const data = new FakeData();
-  const s = await draw(data, { address: 'settings/memory/handoffs' });
+  const s = await draw(data, { address: 'memory/notes' });
   try {
     assert.match(s.text(), /Handoff notes\s+● on/);
     assert.match(s.text(), /Notes kept per project\s+20/);
@@ -105,8 +105,8 @@ test('Settings › Memory › Handoffs and morning report: each setting is edite
   }
 });
 
-test('Projects › Handoffs: each note as it is kept; none yet says how one is written', async () => {
-  const empty = await draw(new FakeData(), { address: 'projects/handoffs' });
+test('Memory and projects › Handoffs: each note as it is kept; none yet says how one is written', async () => {
+  const empty = await draw(new FakeData(), { address: 'memory/handoffs' });
   try {
     assert.match(empty.text(), /No handoff note yet/);
     assert.match(empty.text(), /Type "handoff"/);
@@ -119,7 +119,7 @@ test('Projects › Handoffs: each note as it is kept; none yet says how one is w
     writeFileSync(path, '---\ntype: handoff\nproject: app\nat: 2026-10-12T08:00:00Z\n---\n\n# Handoff · app\n\n## Next\n\nWrite the setup.\n');
     const data = new FakeData();
     data.handoffList = [{ project: 'app', path, at: Date.parse('2026-10-12T08:00:00Z'), trigger: 'keyword', machine: 'mac', next: 'Write the setup.' }];
-    const s = await draw(data, { address: 'projects/handoffs' });
+    const s = await draw(data, { address: 'memory/handoffs' });
     try {
       assert.match(s.text(), /app · Write the setup\./);
       await s.press(KEY.right);
@@ -138,7 +138,7 @@ test('Projects › Handoffs: each note as it is kept; none yet says how one is w
 test('Home: after a long gap, what happened while the person was away comes first', async () => {
   const data = new FakeData();
   data.morningReport = { since: NOW - 10 * 3_600_000, lines: [{ label: 'Full autonomy', text: 'Add rate limiting · done' }] };
-  const s = await draw(data, { address: 'home/overview' });
+  const s = await draw(data, { address: 'now' });
   try {
     assert.match(s.text(), /While you were away · since/);
     assert.match(s.text(), /Full autonomy\s+Add rate limiting · done/);

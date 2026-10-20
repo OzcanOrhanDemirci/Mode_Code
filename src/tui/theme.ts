@@ -34,7 +34,6 @@ export interface Theme {
     shield: string;
     cursor: string;
   };
-  categoryIcon: Record<string, string>;
 }
 
 /** NO_COLOR set to anything but empty turns color off (https://no-color.org). */
@@ -73,9 +72,6 @@ export function makeTheme(opts: { plain?: boolean; highContrast?: boolean; reduc
       shield: plain ? '[belt]' : '🛡',
       cursor: mark('focus', plain),
     },
-    categoryIcon: plain
-      ? { home: '1', projects: '2', sessions: '3', measure: '4', security: '5', 'claude-code': '6', automation: '7', settings: '8' }
-      : { home: '⌂', projects: '▤', sessions: '☰', measure: '▥', security: '⛨', 'claude-code': '◆', automation: '⟳', settings: '⚙' },
   };
 }
 

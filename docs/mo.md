@@ -31,17 +31,17 @@ Claude Code's own permission question is not a separate look: the plugin learns 
 ## Where Mo is drawn
 
 - **The strip above the prompt.** A small Mo (two rows) beside a strip of two rows, only its face (one row) beside a strip that fits on one. In Apple's Terminal the face is drawn beside two rows as well: half blocks leave a gap between rows there, and the small Mo's eyes, which cross the rows, read as two Mos stacked. Drawn by a surface module Claude Code runs on its own clock (`src/mod/mo-strip.ts`), so its frames cost the session nothing. A hair of room, an eighth of a row, parts it from the line above (Claude Code's spinner, a tip): a cell there holds one color, so the small Mo leaves its head's top edge out and only its antenna stands up. Not on a phone, and not in a strip narrower than 72 columns, where the controls need the room. Mo moves there only while Claude works and while something that just happened shows; resting, waiting for you or low on quota it stands still and is not drawn again until something changes, because every frame Claude Code draws hides and shows the terminal's cursor, and a Mo moving at rest made it flicker under your typing (seven times a second, measured). Point at Mo and the line under the strip says its look in words ("Mo: a question waits for your answer."); click it and the cockpit opens beside the conversation: what Claude may do, what is at work and what Mode_Code did, and why.
-- **The control center.** On the first screen, beside the Home category: the whole body where there is room, the small Mo where there is not, with a line that says what it shows (resting, a full-autonomy run, a quota near its limit, protection that needs a look).
+- **The control center.** At the top of Now, the first screen: the small Mo beside the one thing that matters most right now, in words, and a press away from where it is handled (protection that does not work, a flow or a run waiting for you, what happened while you were away, a full-autonomy run, a quota near its limit, a session at work, or calm).
 - **The installer.** A still Mo beside "Installed.", in a terminal that draws colors.
 - **This repository.** The README, this page and the social preview; drawn from the same pixels by `npm run mo-art`.
 
 ## Settings
 
-| Setting                               | Effect                                                                                |
-| ------------------------------------- | ------------------------------------------------------------------------------------- |
-| `modules.mascot` (Settings › Modules) | off: no Mo anywhere                                                                   |
-| `accessibility.reduceMotion`          | Mo stands still: each look is drawn at one moment, and what just happened still shows |
-| `accessibility.plain`                 | no Mo (it is drawn in colored half blocks)                                            |
+| Setting                                | Effect                                                                                |
+| -------------------------------------- | ------------------------------------------------------------------------------------- |
+| `modules.mascot` (Settings › Features) | off: no Mo anywhere                                                                   |
+| `accessibility.reduceMotion`           | Mo stands still: each look is drawn at one moment, and what just happened still shows |
+| `accessibility.plain`                  | no Mo (it is drawn in colored half blocks)                                            |
 
 Mo's faint light (the shield, the sparkles) fades into the terminal's background: dark, or light when Claude Code's theme is a light one.
 

@@ -34,13 +34,14 @@ export const enCatalog = {
   'ux.language.eff.en': 'Everything in English.',
   'ux.language.eff.tr': 'Everything in Turkish.',
   'ux.view.name': 'View level',
-  'ux.view.what': 'How many pages the control center lists. It never changes what is protected, and every setting stays within reach.',
+  'ux.view.what':
+    'How many pages the control center lists. It never changes what is protected, and every page stays within reach: the palette (Ctrl+K) finds them all.',
   'ux.view.opt.simple': 'Simple',
   'ux.view.opt.recommended': 'Recommended',
   'ux.view.opt.detailed': 'Detailed',
-  'ux.view.eff.simple': 'Four pages for experts stay out of the lists and the search: Tools, Folders, Hooks, and Skills, agents, commands.',
-  'ux.view.eff.recommended': 'Every page.',
-  'ux.view.eff.detailed': 'Every page, as Recommended: no page asks for more yet.',
+  'ux.view.eff.simple': 'Only the everyday pages: 11 pages for experts stay out of the lists, and each list says how many it leaves out.',
+  'ux.view.eff.recommended': 'Every page but four for experts: Tools, Folders, Hooks, and Skills, agents, commands.',
+  'ux.view.eff.detailed': 'Every page.',
   'ux.update.check.name': 'Check for updates daily',
   'ux.update.check.what': 'Whether Mode_Code asks GitHub once a day which release is the newest, so it can tell you when a new one is out.',
   'ux.update.check.on':
@@ -86,7 +87,7 @@ export const enCatalog = {
   'ux.modules.mascot.on': 'Mo shows thinking, a tool at work, waiting for you, and a call the safety belt refused.',
   'ux.modules.mascot.off': 'No Mo, on the strip or here.',
 
-  // ── Settings › Footer and quota ──
+  // ── Settings › Lines under answers; Quota › Budget and limits ──
   'ux.footer.mode.name': 'Who writes the lines',
   'ux.footer.mode.what': 'How the lines under each answer are made.',
   'ux.footer.mode.opt.draw': 'Mode_Code draws them',
@@ -136,7 +137,7 @@ export const enCatalog = {
   'ux.accessibility.reduceMotion.on': 'Nothing moves.',
   'ux.accessibility.reduceMotion.off': 'Mo and the strip move a little while Claude works.',
 
-  // ── Settings › Memory › Handoffs and morning report ──
+  // ── Memory and projects › Handoffs and morning report ──
   'ux.memory.handoff.enabled.name': 'Handoff notes',
   'ux.memory.handoff.enabled.what':
     'A note that says where the work stands, written as a session ends or hands over, and offered to the next session in the project.',
@@ -165,7 +166,7 @@ export const enCatalog = {
   'ux.memory.morning.afterHours.what': 'How long without a message counts as being away.',
   'ux.memory.morning.afterHours.eff': '{n} without a message count as being away.',
 
-  // ── Automation › Full autonomy ──
+  // ── Working › Full autonomy ──
   'ux.autonomy.enabled.name': 'Full autonomy',
   'ux.autonomy.enabled.what': 'Full-autonomy runs: Claude carries one task to its end without asking you, inside the safety belt.',
   'ux.autonomy.enabled.on': 'You can start one: /full-auto, or full autonomy on the strip. Only you start one; Claude cannot.',
@@ -183,7 +184,7 @@ export const enCatalog = {
   'ux.autonomy.stallMinutes.what': 'How long a full-autonomy run may go without finishing a step before it counts as stuck.',
   'ux.autonomy.stallMinutes.eff': 'After {n} without a finished step Claude is told; after twice that the run pauses as stuck.',
 
-  // ── Automation › Bypass ──
+  // ── Working › Bypass ──
   'ux.bypass.enabled.name': 'Allow bypass',
   'ux.bypass.enabled.what':
     'Bypass lets Claude work without asking for a while in one session: what the safety belt would ask about goes through, each call recorded.',
@@ -193,7 +194,7 @@ export const enCatalog = {
   'ux.bypass.maxHours.what': 'How long bypass stays on in a session once you switch it on.',
   'ux.bypass.maxHours.eff': 'Bypass ends by itself {n} after you switch it on, with a warning ten minutes before.',
 
-  // ── Automation › Parallel agents ──
+  // ── Working › Parallel agents ──
   'ux.agents.enabled.name': 'I set the number of agents',
   'ux.agents.enabled.what': 'Who decides how many helper Claudes (agents) run beside the main one: you, on the strip, or Claude Code.',
   'ux.agents.enabled.on':
@@ -273,12 +274,12 @@ export const enCatalog = {
   'ux.ctl.why.press': 'Shows how each part is now and why; with a word (agents, bypass, quota, or a rule) that part alone. Changes nothing.',
   'ux.ctl.quota.what': 'Weekly budget: a number (70) or points above now (+5)',
   'ux.ctl.quota.press': 'Sets how much of the weekly quota this session may use: work wraps up near it and stops at it.',
-  'ux.ctl.bypass.what': 'Bypass: Claude works without asking in this session for a while, each call recorded (once allowed under Automation)',
+  'ux.ctl.bypass.what': 'Bypass: Claude works without asking in this session for a while, each call recorded (once allowed under Working)',
   'ux.ctl.bypass.press':
-    'Its window says what bypass lifts and until when, then turns it on in this session (the hours: Automation › Bypass); pressed again, it ends.',
+    'Its window says what bypass lifts and until when, then turns it on in this session (the hours: Working › Bypass); pressed again, it ends.',
   'ux.ctl.freeze.what': 'Freeze: every write a call names must stay inside one folder (this one, unless you name another)',
   'ux.ctl.freeze.press': 'From now on a call that names a write anywhere else is refused, until you end it.',
-  'ux.ctl.agents.what': 'Agents: none, at most N at once, or exactly N for your next request (once you set their number under Automation)',
+  'ux.ctl.agents.what': 'Agents: none, at most N at once, or exactly N for your next request (once you allow it under Working)',
   'ux.ctl.agents.press': 'Opens a window: you choose how many helper Claudes may run, and for what. Nothing changes before you confirm.',
   'ux.ctl.close.what': 'Closes the session cleanly: handoff note, sync, exit; on Windows its tab too',
   'ux.ctl.close.press': 'Writes the handoff note, syncs the memory and ends this session; on Windows its tab closes too.',

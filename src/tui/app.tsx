@@ -14,11 +14,10 @@ import { fold } from '../core/text.js';
 import { percent } from '../core/format.js';
 import { keyBar, notice, type Hint } from '../core/ux/kit.js';
 import { TOAST_MS } from '../core/ux/tokens.js';
-import { allEntries, CATEGORY_IDS, resolve, searchEntries, visible, type NavNode } from './nav.js';
+import { allEntries, CATEGORY_IDS, resolve, resolveAddress, searchEntries, visible, type NavNode } from './nav.js';
 import type { DataSource } from './store.js';
 import { buildTree } from './tree.js';
 import { makeTheme, noColorAsked, stateColor, type Theme } from './theme.js';
-import { MoGreeting } from './mo.js';
 import { inkHost } from './kit.js';
 import { textWidth } from '../node/width.js';
 import type { PointerEvent, PointerHub } from './pointer.js';
@@ -59,6 +58,8 @@ export interface AppProps {
    * turned off there (the mouse; under Windows' console a mode turned off after the screen was left is lost).
    */
   onQuit?: () => void;
+  /** Hands over what the pointer can reach (tests point at every target of a screen). */
+  onRegistry?: (registry: PointerRegistry) => void;
 }
 
 interface Flash {
@@ -99,9 +100,19 @@ export function App(props: AppProps) {
 
   const [tick, setTick] = useState(0);
   const now = useMemo(() => clock(), [tick]);
-  const roots = useMemo(() => buildTree(data, lang, now).filter((n) => visible(n, view)), [tick, lang, view, data]);
+  // Every page, whatever the view: an address and the palette reach them all (docs/design.md, the view level hides
+  // pages from the lists only, never a setting).
+  const roots = useMemo(() => buildTree(data, lang, now), [tick, lang, view, data]);
 
   // ── navigation state ──
+  /** A page the view hides that was asked for by its address: the lists along its way show it. */
+  const [reveal, setReveal] = useState<string | null>(null);
+  const shown = (nodes: NavNode[], prefix: readonly string[], open: string | null = reveal) =>
+    nodes.filter((n) => {
+      if (visible(n, view)) return true;
+      const a = [...prefix, n.id].join('/');
+      return open !== null && (open === a || open.startsWith(`${a}/`));
+    });
   const [chain, setChain] = useState<string[]>([]);
   const [sel, setSel] = useState<Record<string, number>>({});
   const [open, setOpen] = useState(false);
@@ -113,6 +124,9 @@ export function App(props: AppProps) {
   const keyScope = useRef<KeyScope>({ handlers: [] }).current;
   // What the pointer can reach, and what it rests on; the keys the open screen adds to the bar.
   const pointer = useRef(new PointerRegistry()).current;
+  useEffect(() => {
+    props.onRegistry?.(pointer);
+  }, []);
   const [hover, setHover] = useState<{ id: string | null; describe: string | null }>({ id: null, describe: null });
   pointer.onHoverGone = () => setHover({ id: null, describe: null });
   const [screenHints, setScreenHints] = useState<ReadonlyMap<string, { current: ScreenHint[] }>>(new Map());
@@ -130,10 +144,13 @@ export function App(props: AppProps) {
     [],
   );
 
-  const chainNodes = useMemo(() => resolve(roots, chain.join('/'), view), [roots, chain, view]);
+  const chainNodes = useMemo(() => resolve(roots, chain.join('/'), 'detailed'), [roots, chain]);
   const listOwner = chainNodes[chainNodes.length - 1] ?? null;
   const listKey = chain.join('/');
-  const rawList = useMemo(() => (listOwner ? (listOwner.children?.() ?? []).filter((n) => visible(n, view)) : roots), [listOwner, roots, view]);
+  const allHere = useMemo(() => (listOwner ? (listOwner.children?.() ?? []) : roots), [listOwner, roots]);
+  const rawList = useMemo(() => shown(allHere, chain), [allHere, view, reveal, chain]);
+  /** Pages of this list the view leaves out: a line under it says how many, and where the view is changed. */
+  const hidden = allHere.length - rawList.length;
   const list = useMemo(() => {
     if (!filter?.text) return rawList;
     const f = fold(filter.text);
@@ -143,22 +160,25 @@ export function App(props: AppProps) {
   const selected = list[index] ?? null;
 
   const go = (address: string) => {
-    const nodes = resolve(roots, address, view);
+    // An old address (the map before 1.2) leads where its page went.
+    const target = resolveAddress(roots, address);
+    const nodes = target.chain;
     if (!nodes.length) {
       showFlash(t('nav.notFound', { address }), 'warn');
       return;
     }
     const ids = nodes.map((n) => n.id);
     const last = nodes[nodes.length - 1]!;
+    setReveal(target.address);
     // Select each node along the way in its list, so ← walks back through the same places.
     const updates: Record<string, number> = {};
-    let level: NavNode[] = roots;
+    let level: NavNode[] = shown(roots, [], target.address);
     nodes.forEach((n, i) => {
       updates[ids.slice(0, i).join('/')] = Math.max(
         0,
         level.findIndex((x) => x.id === n.id),
       );
-      level = n.children ? n.children().filter((x) => visible(x, view)) : [];
+      level = n.children ? shown(n.children(), ids.slice(0, i + 1), target.address) : [];
     });
     setSel((s) => ({ ...s, ...updates }));
     setFilter(null);
@@ -215,11 +235,12 @@ export function App(props: AppProps) {
     now,
     go,
     place: (address) =>
-      resolve(roots, address, 'detailed')
-        .map((n) => n.label)
+      resolveAddress(roots, address)
+        .chain.map((n) => n.label)
         .join(' › '),
     flash: showFlash,
     tick,
+    still: theme.reduceMotion || !!props.now,
     ...(props.onLeave
       ? {
           leave: (action: LeaveAction, back: string) => {
@@ -265,7 +286,8 @@ export function App(props: AppProps) {
     }
   };
 
-  const paletteEntries = useMemo(() => (overlay === 'palette' ? allEntries(roots, view) : []), [overlay, roots, view]);
+  // The palette finds every page, those the view leaves out of the lists too, by its old place as well.
+  const paletteEntries = useMemo(() => (overlay === 'palette' ? allEntries(roots, 'detailed') : []), [overlay, roots]);
   const paletteRoom = Math.max(1, rows - 4 - 2 - 3);
   const paletteResults = useMemo(
     () => searchEntries(paletteEntries, palette.text, fold, Math.min(12, paletteRoom)),
@@ -349,8 +371,11 @@ export function App(props: AppProps) {
     }
     if (/^[1-8]$/.test(input)) {
       const id = CATEGORY_IDS[parseInt(input, 10) - 1]!;
-      const i = roots.findIndex((n) => n.id === id);
-      if (i >= 0) {
+      const node = roots.find((n) => n.id === id);
+      const i = shown(roots, []).findIndex((n) => n.id === id);
+      // A category that is one screen (Now) opens it; the others open their list.
+      if (node && node.screen && !node.children) go(id);
+      else if (i >= 0) {
         setSel((s) => ({ ...s, '': i }));
         setChain([id]);
         setOpen(false);
@@ -557,9 +582,9 @@ export function App(props: AppProps) {
   } else {
     const three = columns >= 100;
     const two = columns >= 64;
-    const parentNodes = chainNodes.length ? resolve(roots, chain.slice(0, -1).join('/'), view) : [];
+    const parentNodes = chainNodes.length ? resolve(roots, chain.slice(0, -1).join('/'), 'detailed') : [];
     const parentList = chainNodes.length
-      ? (chain.length > 1 ? (parentNodes[parentNodes.length - 1]?.children?.() ?? []) : roots).filter((n) => visible(n, view))
+      ? shown(chain.length > 1 ? (parentNodes[parentNodes.length - 1]?.children?.() ?? []) : roots, chain.slice(0, -1))
       : null;
     const parentIndex = parentList
       ? Math.max(
@@ -570,7 +595,8 @@ export function App(props: AppProps) {
     const aW = three && parentList ? Math.min(28, Math.floor(columns * 0.2)) : 0;
     const bW = two ? Math.min(46, Math.floor((columns - aW) * 0.42)) : columns;
     const cW = columns - aW - bW;
-    const listH = bodyH - 2 - (filter ? 1 : 0);
+    const more = hidden > 0 && !filter?.text;
+    const listH = bodyH - 2 - (filter ? 1 : 0) - (more ? 1 : 0);
     body = (
       <Box width={columns} height={bodyH}>
         {aW && parentList ? (
@@ -603,6 +629,14 @@ export function App(props: AppProps) {
               <Muted>{filter?.text ? t('nav.noMatch') : t('nav.empty')}</Muted>
             </Box>
           )}
+          {more ? (
+            // The view leaves these out of the list, never out of reach: the palette finds them, a click changes the view.
+            <Pressable onPress={() => go('settings/general')} describe={t('nav.hiddenCard', { place: env.place('settings/general') })}>
+              <Text color={theme.muted} wrap="truncate-end">
+                {` ${t('nav.hidden', { n: hidden })}`}
+              </Text>
+            </Pressable>
+          ) : null}
           {filter ? (
             <Text color={theme.accent}>
               {' /'}
@@ -615,28 +649,7 @@ export function App(props: AppProps) {
           <Box width={cW} flexDirection="column" borderStyle={theme.border} borderColor={theme.muted} paddingX={1} overflow="hidden">
             <ProseWidth.Provider value={cW - 4}>
               {selected ? (
-                <Preview
-                  node={selected}
-                  width={cW - 4}
-                  height={bodyH - 2}
-                  theme={theme}
-                  t={t}
-                  below={
-                    // Mo greets beside the first screen: the home category, before anything was opened.
-                    !chain.length && selected.id === 'home'
-                      ? (room: number) => (
-                          <MoGreeting
-                            data={data}
-                            width={cW - 4}
-                            height={room}
-                            plain={theme.plain || theme.noColor}
-                            still={theme.reduceMotion || !!props.now}
-                            t={t}
-                          />
-                        )
-                      : undefined
-                  }
-                />
+                <Preview node={selected} width={cW - 4} height={bodyH - 2} theme={theme} t={t} shown={(nodes) => shown(nodes, [...chain, selected.id])} />
               ) : null}
             </ProseWidth.Provider>
           </Box>
@@ -674,20 +687,18 @@ function Preview({
   height,
   theme,
   t,
-  below,
+  shown,
 }: {
   node: NavNode;
   width: number;
   height: number;
   theme: Theme;
   t: (k: MessageKey) => string;
-  /** What goes under the list, given the rows left for it. */
-  below?: ((room: number) => React.ReactNode) | undefined;
+  /** The children the view lists. */
+  shown: (nodes: NavNode[]) => NavNode[];
 }) {
   if (node.children && !node.screen) {
-    const kids = node.children();
-    const shown = Math.min(kids.length, Math.max(1, height - 4));
-    const descRows = node.description ? Math.ceil(node.description.length / Math.max(1, width)) : 0;
+    const kids = shown(node.children());
     return (
       <Box flexDirection="column" width={width}>
         <Box flexDirection="column" flexShrink={0}>
@@ -705,7 +716,6 @@ function Preview({
           {kids.length > height - 4 ? <Muted>{`+${kids.length - (height - 4)}`}</Muted> : null}
           {!kids.length ? <Muted>{t('nav.empty')}</Muted> : null}
         </Box>
-        {below ? <Box marginTop={1}>{below(height - 3 - descRows - shown - (kids.length > height - 4 ? 1 : 0))}</Box> : null}
       </Box>
     );
   }

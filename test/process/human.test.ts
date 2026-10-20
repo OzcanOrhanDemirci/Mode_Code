@@ -142,7 +142,7 @@ test("config explain gives a setting's four answers and the command that changes
     const s = cli(tr, ['config', 'explain', 'bypass.enabled']);
     assert.equal(s.code, 0, s.err);
     const flat = s.out.replace(/\s+/g, ' ');
-    assert.match(flat, /^Bypass'a izin ver \(bypass\.enabled\) · Otomasyon › Bypass/);
+    assert.match(flat, /^Bypass'a izin ver \(bypass\.enabled\) · Çalışma › Bypass/);
     assert.match(flat, /Bu ne Bypass, bir oturumda Claude'un bir süre sormadan çalışmasını sağlar/);
     assert.match(flat, /Şu an kapalı \(varsayılan\)\. \/bypass ve ⚡ yok/);
     assert.match(flat, /Değiştirirsen açık: Bir oturumda kendin açabilirsin/);
@@ -160,7 +160,7 @@ test("config explain gives a setting's four answers and the command that changes
     assert.equal(n.code, 0, n.err);
     const flat = n.out.replace(/\s+/g, ' ');
     assert.match(flat, /Now 90 minutes \(default\)\. After 90 minutes without a finished step Claude is told/);
-    assert.match(flat, /No effect now, because "Full autonomy" is off \(Automation › Full autonomy\)\./);
+    assert.match(flat, /No effect now, because "Full autonomy" is off \(Working › Full autonomy\)\./);
     assert.match(flat, /If you change it Type a number from 10 minutes to 720 minutes\./);
     assert.match(flat, /mode-code config set autonomy\.stallMinutes 10-720/);
     const bad = cli(en, ['config', 'explain', 'bypass']);

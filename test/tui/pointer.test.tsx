@@ -84,14 +84,14 @@ test('the input Ink reads loses the pointer sequences and keeps everything else 
 test('a click on a category opens it, as → does; a crumb leads back to its level', async () => {
   const s = await draw(new FakeData());
   try {
-    await s.clickText('Security');
-    assert.match(s.text(), /^Mode_Code › Security/);
-    assert.match(s.text(), /Address: security/);
+    await s.clickText('Protection');
+    assert.match(s.text(), /^Mode_Code › Protection/);
+    assert.match(s.text(), /Address: protection/);
     await s.clickText('Mode_Code');
     assert.match(s.text(), /^Mode_Code {2,}/);
     // The keyboard reaches the same place.
-    await s.press('5');
-    assert.match(s.text(), /^Mode_Code › Security/);
+    await s.press('4');
+    assert.match(s.text(), /^Mode_Code › Protection/);
   } finally {
     s.close();
   }
@@ -108,7 +108,7 @@ test('pointing at a row says what it is in the bar and does nothing else', async
     assert.match(bar, /^▸ Settings: /);
     // Moving off it, onto nothing that explains itself, leaves the bar to the address again.
     await s.hover(0, 0);
-    assert.match(s.text(), /Address: home/);
+    assert.match(s.text(), /Address: now/);
   } finally {
     s.close();
   }
@@ -117,12 +117,12 @@ test('pointing at a row says what it is in the bar and does nothing else', async
 test('the wheel over the list moves the selection, as ↓ and ↑ do', async () => {
   const s = await draw(new FakeData());
   try {
-    const at = s.find('Projects')!;
+    const at = s.find('Activity')!;
     await s.wheel(at.x, at.y, 'down');
-    assert.match(s.text(), /│▸ Projects/);
+    assert.match(s.text(), /│▸ Activity/);
     await s.wheel(at.x, at.y, 'down');
     await s.wheel(at.x, at.y, 'up');
-    assert.match(s.text(), /│▸ Projects/);
+    assert.match(s.text(), /│▸ Activity/);
   } finally {
     s.close();
   }
@@ -130,9 +130,9 @@ test('the wheel over the list moves the selection, as ↓ and ↑ do', async () 
 
 test('a click on a setting changes it, as Enter does; the bar offers to take it back, and u or a click does', async () => {
   const byKey = new FakeData();
-  const k = await draw(byKey, { address: 'settings/memory/handoffs' });
+  const k = await draw(byKey, { address: 'memory/notes' });
   const byMouse = new FakeData();
-  const m = await draw(byMouse, { address: 'settings/memory/handoffs' });
+  const m = await draw(byMouse, { address: 'memory/notes' });
   try {
     await k.press(KEY.enter);
     await m.clickText('Handoff notes');
@@ -152,7 +152,7 @@ test('a click on a setting changes it, as Enter does; the bar offers to take it 
 
 test('a change that asks first shows what it will do, with apply and cancel as keys and as clicks', async () => {
   const data = new FakeData();
-  const s = await draw(data, { address: 'automation/bypass', rows: 44 });
+  const s = await draw(data, { address: 'work/bypass', rows: 44 });
   try {
     await s.clickText('Allow bypass');
     assert.equal(data.saved.length, 0);
@@ -169,7 +169,7 @@ test('a change that asks first shows what it will do, with apply and cancel as k
 });
 
 test('the keys in the bar are clicks too: help opens, Esc closes it; a screen adds its own', async () => {
-  const s = await draw(new FakeData(), { address: 'security/secrets' });
+  const s = await draw(new FakeData(), { address: 'protection/secrets' });
   try {
     await barShows(s, /^s scan again {2}←\/Esc back/);
     await s.clickText('? help');
@@ -189,7 +189,7 @@ test("each screen's own keys in the bar do what the key does, and its rows take 
     { text: 'Add a rate limit.', budget: '+20', at: 0 },
     { text: 'Fix the login bug.', budget: '+10', at: 0 },
   ];
-  let s = await draw(tasks, { address: 'automation/prompts' });
+  let s = await draw(tasks, { address: 'work/prompts' });
   try {
     await s.clickText('Fix the login bug.');
     assert.deepEqual(tasks.copied, ['Fix the login bug.']);
@@ -216,7 +216,7 @@ test("each screen's own keys in the bar do what the key does, and its rows take 
     s.close();
   }
   // The belt's test: the tool is a click away, on its tab or on Tab in the bar.
-  s = await draw(new FakeData(), { address: 'security/test' });
+  s = await draw(new FakeData(), { address: 'protection/test' });
   try {
     await s.clickText('File write');
     assert.match(s.text(), /Path:/);
@@ -227,8 +227,8 @@ test("each screen's own keys in the bar do what the key does, and its rows take 
   }
   // The report's and the tokens' days, and a scan again.
   for (const [address, before, after] of [
-    ['measure/report', /in the last day/, /in the last 7 days/],
-    ['measure/tokens', /Last 7 days/, /Last 30 days/],
+    ['activity/report', /in the last day/, /in the last 7 days/],
+    ['quota/tokens', /Last 7 days/, /Last 30 days/],
   ] as const) {
     s = await draw(new FakeData(), { address });
     try {
@@ -239,7 +239,7 @@ test("each screen's own keys in the bar do what the key does, and its rows take 
       s.close();
     }
   }
-  s = await draw(new FakeData('en', { memory: { ...new FakeData().config().memory, dirs: ['C:/notes'] } }), { address: 'security/secrets' });
+  s = await draw(new FakeData('en', { memory: { ...new FakeData().config().memory, dirs: ['C:/notes'] } }), { address: 'protection/secrets' });
   try {
     await s.clickText('s scan again');
     assert.match(s.text(), /No secrets found in 3 files./);
@@ -302,7 +302,7 @@ test('every way out ends through the app, so what it turned on (the mouse) goes 
 test('a target the pane has scrolled out of view cannot be clicked', async () => {
   const data = new FakeData();
   // Ten rows: the settings list runs past the pane, and what lies under the bar is no target.
-  const s = await draw(data, { address: 'settings/memory/handoffs', rows: 12 });
+  const s = await draw(data, { address: 'memory/notes', rows: 12 });
   try {
     assert.equal(s.find('Away after'), null);
     assert.match(s.text(), /▸ Handoff notes/);

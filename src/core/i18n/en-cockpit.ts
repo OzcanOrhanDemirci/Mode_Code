@@ -66,7 +66,7 @@ export const enCockpit = {
   'ck.act.endRun': 'End the run',
   'ck.act.rule': 'The rule',
   'ck.act.ruleCard':
-    'Opens this rule in the control center (Security › Safety belt rules): what it asks, blocks or lets through, and how to change it. This session goes on.',
+    'Opens this rule in the control center (Protection › Safety belt rules): what it asks, blocks or lets through, and how to change it. This session goes on.',
   'ck.act.agents': 'Agents',
   'ck.act.budget': 'Weekly budget',
   'ck.act.allow': 'Allow',

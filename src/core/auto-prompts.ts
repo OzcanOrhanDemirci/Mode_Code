@@ -2,7 +2,7 @@
 /**
  * The tasks the person gave full autonomy, the newest first and the last three kept, so a task written in the
  * start window is never lost (the person, 2026-10-15): written when a start is asked for, from the window or
- * a typed keyword, and shown in the control center (Automation › Recent tasks), where one can be copied
+ * a typed keyword, and shown in the control center (Working › Recent tasks), where one can be copied
  * again. Also the budgets the start window offers. Pure: the plugin writes the file, the control center
  * reads it (src/core/layout.ts, `state/auto-prompts.json`).
  */

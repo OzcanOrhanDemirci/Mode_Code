@@ -220,7 +220,7 @@ export function Folders({ width, height, open }: ScreenProps) {
     key: f.cwd,
     label: shortPath(f.cwd, homedir(), Math.max(20, width - 34)),
     right: `${compact(f.tokens, lang)} · ${t('folders.sessions', { n: f.sessions })} · ${ago(f.lastTs, now, lang)}`,
-    address: `projects/${encodeURIComponent(f.cwd)}`,
+    address: `memory/projects/${encodeURIComponent(f.cwd)}`,
   }));
   return (
     <Box flexDirection="column" width={width}>

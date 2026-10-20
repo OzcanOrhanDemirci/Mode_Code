@@ -347,7 +347,7 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
           >
             {(hovered) => (
               <>
-                <Text inverse={selected} underline={hovered && !selected}>
+                <Text inverse={selected} underline={hovered}>
                   {(selected ? env.theme.sym.cursor : ' ') + ' ' + truncate(nameOf(f.path, lang), labelW - 2).padEnd(labelW)}
                 </Text>
                 {valueOf(f, i)}

@@ -29,6 +29,8 @@ export interface Env {
   flash(text: string, kind?: 'ok' | 'warn' | 'bad', undo?: () => void): void;
   /** Bumps when data should be read again. */
   tick: number;
+  /** Nothing moves: motion is reduced, or the clock is fixed (tests, the README's pictures). */
+  still: boolean;
   /** Leaves for something that talks in the terminal, and comes back at `back` (absent in tests and without a terminal). */
   leave?: (action: LeaveAction, back: string) => void;
 }
@@ -270,7 +272,7 @@ export function ListView({
         const label = fitWidth(it.label, Math.max(1, inner - (right ? textWidth(right) + 2 : 0)));
         const line = (hovered: boolean) => (
           <>
-            <Text inverse={sel && focused} bold={sel} underline={hovered && !sel} {...(it.dim ? { color: theme.muted } : {})} wrap="truncate-end">
+            <Text inverse={sel && focused} bold={sel} underline={hovered} {...(it.dim ? { color: theme.muted } : {})} wrap="truncate-end">
               {mark} {label}
             </Text>
             <Box flexGrow={1} />

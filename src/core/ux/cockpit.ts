@@ -271,7 +271,13 @@ export function canNow(f: CockpitFacts, lang: Lang): CanRow[] {
   // Deleting outside the project: one rule of the belt, the question a person asks first (docs/design.md, test 10).
   const delId = 'fs.delete-outside-project';
   const verdict = effectiveVerdict(delId, beltConfigOf(f.config as Config));
-  const rule: CockpitAct = { kind: 'center', address: `security/rules/${delId}`, label: t(lang, 'ck.act.rule'), card: t(lang, 'ck.act.ruleCard'), opens: true };
+  const rule: CockpitAct = {
+    kind: 'center',
+    address: `protection/rules/${delId}`,
+    label: t(lang, 'ck.act.rule'),
+    card: t(lang, 'ck.act.ruleCard'),
+    opens: true,
+  };
   if (f.beltOff) add({ id: 'delete', mark: 'bypass', meaning: 'bypass', text: t(lang, 'ck.can.delete.devOff'), act: null }, why('belt', wf, lang));
   else if (restricted) add({ id: 'delete', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.delete.no'), act: null }, mode);
   else if (verdict === 'deny') add({ id: 'delete', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.delete.no'), act: rule }, whyRule(delId, wf, lang));

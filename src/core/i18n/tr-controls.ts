@@ -36,13 +36,13 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.runAttached': 'Bu oturuma bağlı bir tam otonom iş var: önce "{cancel}" ile bırak.',
   'ctl.personOnly': '{cmd} komutunu yalnız sen çalıştırabilirsin: şeritten ya da kendin yazarak, burada ya da telefonda.',
   // ── bypass ──
-  'ctl.bypass.notEnabled': 'Bypass için henüz izin yok: kokpitten (/0) ya da Otomasyon › Bypass altından ver.',
-  // Kısa: neyi kaldırdığı ve neyi asla yapmadığı Otomasyon › Bypass'ta tam anlatılır.
+  'ctl.bypass.notEnabled': 'Bypass için henüz izin yok: kokpitten (/0) ya da Çalışma › Bypass altından ver.',
+  // Kısa: neyi kaldırdığı ve neyi asla yapmadığı Çalışma › Bypass'ta tam anlatılır.
   'ctl.bypass.confirm': 'Bypass {hours} saatliğine açılsın mı? Claude bu oturumda sormadan çalışır; her çağrı kaydedilir.',
   'ctl.bypass.yes': 'Aç',
   'ctl.bypass.no': 'Vazgeç',
   'ctl.bypass.started': 'Bypass {until} saatine kadar açık ({hours} saat). /bypass ya da şeritteki ⚡ kapatır.',
-  'bypass.summary': 'Bypass kapandı: {minutes} dakikada {count} çağrı sorulmadan geçti. Liste: Otomasyon › Sormadan yapılanlar.',
+  'bypass.summary': 'Bypass kapandı: {minutes} dakikada {count} çağrı sorulmadan geçti. Liste: Çalışma › Sormadan yapılanlar.',
   'bypass.toast.soon': 'Bypass {minutes} dakika sonra kapanacak.',
   // ── / menüsü: her komutun aldığı değer (satırı kataloğun, ux.ctl.*) ──
   'ctl.hint.text': '[metin]',
@@ -100,7 +100,7 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.flow.noCode': '{steps}, kod yok',
   'ctl.flow.ask': 'Hangi akış? Adımlar bu sırayla koşar ve her birini kod denetler.',
   'ctl.flow.armed': 'Akış hazır: {steps}. Sonraki mesajın görevi olacak.',
-  'ctl.flow.closed': 'Akış kapandı. Kaydı Projeler › Akışlar altında duruyor; 6 yenisini başlatır.',
+  'ctl.flow.closed': 'Akış kapandı. Kaydı Çalışma › Akışlar altında duruyor; 6 yenisini başlatır.',
   'ctl.flow.notResumed': 'Duraklatılmış akışı başka bir oturum tutuyor. Şimdi: {controls}',
   'ctl.flow.disarmed': 'Akıştan vazgeçildi: bir sonraki mesajın sıradan bir mesaj.',
   // ── tam otonom ──
@@ -120,7 +120,7 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.autoPane.placeholder': 'Ne yapılsın? Tek mesaj gibi yaz.',
   'ctl.autoPane.submit': 'başlat',
   'ctl.autoPane.noTask': 'Önce görevi yaz.',
-  'ctl.autoPane.kept': 'Kontrol merkezinde saklanır: Otomasyon › Son görevler (son 3).',
+  'ctl.autoPane.kept': 'Kontrol merkezinde saklanır: Çalışma › Son görevler (son 3).',
   // ── kota ──
   'ctl.quota.ask': 'Haftalık bütçe? Hafta şu an {week}.',
   'ctl.quota.set': 'Haftalık bütçe: %{target}.',
@@ -147,7 +147,7 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.strip.agents': 'ajan',
   'ctl.line.agentsOff': 'ajan kapalı',
   'ctl.hint.agents': '[N | tam N | kapat | dur]',
-  'agents.notEnabled': 'Paralel ajanlar kapalı: kokpitten (/0) ya da Otomasyon › Paralel ajanlar altından aç.',
+  'agents.notEnabled': 'Paralel ajanlar kapalı: kokpitten (/0) ya da Çalışma › Paralel ajanlar altından aç.',
   'agents.set.off': 'Paralel ajanlar: bu oturumda kapalı.',
   'agents.set.free': 'Paralel ajanlar: serbest, aynı anda en çok {n}.',
   'agents.set.assigned': 'Paralel ajanlar: sonraki isteğin için tam {n}; ajanlar bitince mod kendiliğinden kapanır.',
@@ -222,7 +222,7 @@ export const trControls: Record<keyof typeof enControls, string> = {
   'ctl.flowPane.preview': 'Buraya görev yazdıysan akış onunla şimdi başlar; yazmadıysan sıradaki mesajın görevi olur. Adımları: {steps}.',
   'ctl.flowPane.apply': 'Seç',
   'ctl.bypassPane.title': 'Bypass',
-  'ctl.bypassPane.now': 'Kapalı. En çok {hours} saate izin var (Otomasyon › Bypass).',
+  'ctl.bypassPane.now': 'Kapalı. En çok {hours} saate izin var (Çalışma › Bypass).',
   'ctl.bypassPane.preview':
     '{hours} saat boyunca, saat {until} olana kadar, emniyet kemeri bu oturumda neredeyse hiçbir şey sormaz: proje dışında silmek ve birkaç korunan adım yine sorulur, kendini koruma hiç kalkmaz. Geçirdiği her çağrı kaydedilir. Bitirmek için ⚡ simgesine yeniden bas ya da süre dolsun.',
 };

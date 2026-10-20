@@ -253,7 +253,7 @@ test('the activity: what waits for you first; a line with a place opens the cont
   expect(w.ran.at(-1)?.slice(-2)?.[0]).toBe('open');
   expect(String(w.ran.at(-1)?.at(-1))).toMatch(/^security\/rules\//);
   await ui.press({ key: 'all-activity' });
-  expect(w.ran.at(-1)?.slice(-2)).toEqual(['open', 'home/activity']);
+  expect(w.ran.at(-1)?.slice(-2)).toEqual(['open', 'activity/feed']);
   await ui.press({ key: 'center' });
   expect(w.ran.at(-1)?.at(-1)).toBe('C:/dev/tc/dist/cli.mjs');
   expect(w.toasts.at(-1)).toBe('The control center opened in a new tab.');

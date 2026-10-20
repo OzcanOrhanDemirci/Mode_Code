@@ -57,6 +57,7 @@ const env = (width: number): Env => ({
   place: (a) => a,
   flash: () => {},
   tick: 0,
+  still: true,
 });
 
 test("prose in the control center wraps at word boundaries with no line opening on a space (Ink's own wrap keeps it)", () => {
@@ -148,14 +149,14 @@ test('the kit in the control center: marks and words in plain mode, no colour at
 });
 
 test('NO_COLOR: the control center draws no colour, every state still in a mark and a word', async () => {
-  const colour = await draw(new FakeData('en', {}, 'red'), { address: 'home/overview' });
+  const colour = await draw(new FakeData('en', {}, 'red'), { address: 'now' });
   assert.match(colour.ansi(), /\u001B\[(?:3[0-7]|9[0-7])m/);
   colour.close();
-  const s = await draw(new FakeData('en', {}, 'red'), { noColor: true, address: 'home/overview' });
+  const s = await draw(new FakeData('en', {}, 'red'), { noColor: true, address: 'now', rows: 48 });
   try {
     assert.doesNotMatch(s.ansi(), /\u001B\[(?:3[0-7]|9[0-7]|38;[25])/);
-    assert.match(s.text(), /✗ broken/);
-    assert.match(s.text(), /█+░+ 21%/);
+    assert.match(s.text(), /✗ Protection: broken/);
+    assert.match(s.text(), /█+░+│?░* 21%/);
   } finally {
     s.close();
   }

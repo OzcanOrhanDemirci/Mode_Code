@@ -25,7 +25,7 @@ A repository on GitHub must be **private**: the setup checks, and refuses a publ
 mode-code sync setup
 ```
 
-or in the control center: Settings › Sync, then `s`. It is a short conversation in your terminal, like the memory setup, and it changes nothing until you have seen the whole list of changes and said yes once. Run it on each computer.
+or in the control center: Memory and projects › Sync, then `s`. It is a short conversation in your terminal, like the memory setup, and it changes nothing until you have seen the whole list of changes and said yes once. Run it on each computer.
 
 1. **Where:** 1 or 2.
 2. **GitHub:** the setup finds git and the GitHub CLI (or offers to install them) and signs you in. Then it asks for the **repository**: a new name (it suggests `mode-code-sync`), or one you have. A new one is created private. An existing one is checked: private, and either empty, already used for sync, or holding other files (then it asks for the **folder** inside it to use). Last, where the **copy on this computer** goes: a new folder, or a copy of that repository you already have (a copy of your memory's repository, for example).
@@ -54,7 +54,7 @@ or in the control center: Settings › Sync, then `s`. It is a short conversatio
 
 Each computer keeps its settings in its own `config.json`, as before, and puts the shared part in its own file in the shared place, with the time each setting was last changed there. When computers disagree about a setting, **the newest change wins**, and every computer comes to the same value. A change you just made here wins at once, before it is even sent.
 
-A setting from another computer never **lowers a protection** here without you. It waits instead, and you are told: on your first prompt, in the morning report, in `mode-code sync` and in Settings › Sync. `mode-code sync approve` takes it (in your own terminal; a Claude Code session cannot), `mode-code sync ignore` keeps yours until that computer changes it again. Making a protection stricter, and every other setting, applies by itself.
+A setting from another computer never **lowers a protection** here without you. It waits instead, and you are told: on your first prompt, in the morning report, in `mode-code sync` and in Memory and projects › Sync. `mode-code sync approve` takes it (in your own terminal; a Claude Code session cannot), `mode-code sync ignore` keeps yours until that computer changes it again. Making a protection stricter, and every other setting, applies by itself.
 
 Lowering a protection means:
 
@@ -159,6 +159,6 @@ Written 2026-10-13, kept as a checklist:
 - [x] The shared place on disk and in git: this computer's files, the others' read back, the sync through the same engine as the memory's.
 - [x] The setup, both places, with the GitHub steps shared with the memory setup.
 - [x] The command line, the plugin and the hook (when it syncs, settings read with the others' changes, the first-prompt notice), handoff notes in the shared place.
-- [x] The control center (Settings › Sync, the morning report and Home with the other computers), the doctor, the belt protecting the shared place.
+- [x] The control center (Memory and projects › Sync, the morning report and Now with the other computers), the doctor, the belt protecting the shared place.
 - [x] Tests in every layer, mutation targets and coverage floors; live: two computers' data folders through a bare repository.
 - [x] README, changelog, testing.md; measured.
