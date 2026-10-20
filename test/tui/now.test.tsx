@@ -71,6 +71,47 @@ test('a goal is a press: it opens its page, as Enter does on it', async () => {
   }
 });
 
+test('Activity › While you were away says each kind of thing that needed you, in words, the newest first', async () => {
+  const data = new FakeData();
+  const ev = (minutes: number, rest: Record<string, unknown>) => ({ v: 1, at: NOW - minutes * 60_000, source: 'mod', session: 's', ...rest });
+  data.extraEvents = [
+    ev(1, { kind: 'belt', tool: 'Bash', verdict: 'ask', answer: 'allow', reasons: ['Pushes to main'] }),
+    ev(2, { kind: 'belt', tool: 'Write', verdict: 'ask' }),
+    ev(3, { kind: 'quota', level: 'stop' }),
+    ev(4, { kind: 'quota', level: 'wrapUp' }),
+    ev(5, { kind: 'resume' }),
+    ev(6, { kind: 'flow', status: 'waiting', action: 'done', flow: 'f1' }),
+    ev(7, { kind: 'flow', status: 'done', action: 'done', flow: 'f2' }),
+    ev(8, { kind: 'run', action: 'finish', run: 'r1' }),
+    ev(9, { kind: 'run', action: 'pause', reason: 'quota', run: 'r2' }),
+    ev(10, { kind: 'run', action: 'stuck', run: 'r3' }),
+    ev(11, { kind: 'run', action: 'cancel', run: 'r4' }),
+  ] as never;
+  const s = await draw(data, { address: 'activity/away', rows: 48, columns: 100 });
+  try {
+    const t = flat(s.text());
+    for (const line of [
+      /Allowed a Bash call after asking/,
+      /Asked about a Write call/,
+      /Quota limit reached: work stopped/,
+      /Quota budget reached: work wrapped up/,
+      /The quota period reset: work resumed/,
+      /Pushes to main/,
+      /A plan waits for your approval \(f1\)/,
+      /A flow is complete \(f2\)/,
+      /Full-autonomy run done: r1/,
+      /Full-autonomy run paused \(.+\): r2/,
+      /Full-autonomy run stuck: r3/,
+      /Full-autonomy run canceled: r4/,
+    ])
+      assert.match(t, line);
+    // Opened, it counts as seen: next time, only what came after.
+    assert.ok(data.seen !== null);
+  } finally {
+    s.close();
+  }
+});
+
 test('Modes and ways of working: what each does and the key that picks it, beside the two features they need', async () => {
   const s = await draw(new FakeData('tr'), { address: 'work/modes', rows: 48, columns: 90 });
   try {

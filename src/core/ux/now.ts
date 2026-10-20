@@ -49,7 +49,6 @@ export function centerFacts(i: {
     : 'free';
   const modeFrom: ModeFrom = !s ? 'session' : s.turnMode ? 'turn' : step ? 'flow' : planning ? 'run' : s.nativePlan?.on ? 'plan' : 'session';
   const fp = flow && (flow.status === 'active' || flow.status === 'waiting' || flow.status === 'paused') ? flowProgress(flow) : null;
-  const rp = run ? runProgress(run) : null;
   return {
     config: i.config as Config,
     session: s,
@@ -71,7 +70,7 @@ export function centerFacts(i: {
             state: flow.status === 'paused' ? 'paused' : step?.kind === 'approve' || flow.status === 'waiting' ? 'approval' : 'running',
           }
         : null,
-    run: run && rp ? { at: `${rp.done}/${rp.of}`, paused: run.status === 'paused', planning } : null,
+    run: run ? { at: `${runProgress(run).done}/${runProgress(run).of}`, paused: run.status === 'paused', planning } : null,
     events: s ? i.events.filter((e) => e.session === s.sessionId) : [],
   };
 }

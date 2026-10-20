@@ -52,6 +52,8 @@ test('a new session, as it starts: free, its own mode, manual, nothing attached'
   assert.equal(f.style, 'manual');
   assert.equal(f.flow, null);
   assert.equal(f.run, null);
+  // What only a running session knows is left empty: no turn at work, the belt as the settings have it.
+  assert.deepEqual([f.working, f.beltOff, f.mo, f.calls.length, f.agents.length], [false, false, 'idle', 0, 0]);
   // The cockpit's lines come from these facts as they do inside a session.
   assert.deepEqual(
     canNow(f, 'en').map((r) => r.id),
@@ -72,6 +74,23 @@ test('the mode in force and where it comes from: a mode for this message, a flow
   assert.equal(facts({ state: state({ flowId: 'other' }), flow: flow() }).flow, null);
   const r = facts({ state: state({ runId: 'r1', interaction: 'full' }), run: run() });
   assert.deepEqual([r.mode, r.modeFrom, r.style, r.run?.planning], ['plan', 'run', 'full', true]);
+  // Neither a run nor a flow of another session is this one's; with modes off a flow says nothing.
+  assert.equal(facts({ state: state({ runId: 'other' }), run: run() }).run, null);
+  assert.equal(facts({ run: run() }).run, null);
+  const modesOff = cloneDefaults();
+  modesOff.modules.modes = false;
+  assert.equal(facts({ config: modesOff, state: state({ flowId: 'f1' }), flow: flow() }).flow, null);
+  // An attached run makes the way of working full autonomy while it is at work or paused, not once it is over.
+  assert.equal(facts({ state: state({ runId: 'r1' }), run: run() }).style, 'full');
+  assert.equal(facts({ state: state({ runId: 'r1' }), run: { ...run(), status: 'paused' } }).style, 'full');
+  assert.equal(facts({ state: state({ runId: 'r1' }), run: { ...run(), status: 'done' } }).style, 'manual');
+  // A flow's place: at work, waiting for the person's approval, or paused.
+  assert.equal(f.flow?.state, 'running');
+  assert.equal(facts({ state: state({ flowId: 'f1' }), flow: { ...flow(), status: 'waiting' } }).flow?.state, 'approval');
+  assert.equal(facts({ state: state({ flowId: 'f1' }), flow: { ...flow(), status: 'paused' } }).flow?.state, 'paused');
+  // A run's: working, or paused.
+  assert.deepEqual(r.run, { at: '0/0', paused: false, planning: true });
+  assert.equal(facts({ state: state({ runId: 'r1' }), run: { ...run(), status: 'paused' } }).run?.paused, true);
   const p = facts({ state: state({ nativePlan: { on: true, planFile: null, at: NOW } }) });
   assert.deepEqual([p.mode, p.modeFrom], ['plan', 'plan']);
   assert.equal(facts({ state: state({ interaction: 'autonomous' }) }).style, 'autonomous');
@@ -82,7 +101,10 @@ test("a session's own events only, as the cockpit inside it shows them", () => {
     { at: NOW - 1000, kind: 'belt', session: 's1', verdict: 'deny' },
     { at: NOW - 2000, kind: 'belt', session: 's2', verdict: 'deny' },
   ];
-  assert.equal(facts({ state: state(), events }).events.length, 1);
+  assert.deepEqual(
+    facts({ state: state(), events }).events.map((e) => e.session),
+    ['s1'],
+  );
   assert.equal(facts({ events }).events.length, 0);
 });
 
