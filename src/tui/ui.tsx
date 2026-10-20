@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /** Building blocks every screen uses, so all screens look and behave the same. */
-import { createContext, useContext, useEffect, useId, useMemo, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import { Box, Text } from 'ink';
 import type { Key } from 'ink';
 import type { Lang, MessageKey } from '../core/i18n/index.js';
@@ -72,7 +72,9 @@ export function useScreenKeys(handler: KeyHandler, active: boolean): void {
   const scope = useContext(KeyScopeContext);
   const ref = useRef(handler);
   ref.current = handler;
-  useEffect(() => {
+  // In the commit that draws the screen, as the pointer's targets are (src/tui/press.tsx): a key typed right after a
+  // screen opens reaches it, instead of scrolling it (a passive effect left that gap; seen on a slow CI runner).
+  useLayoutEffect(() => {
     if (!scope || !active) return;
     const h: KeyHandler = (i, k) => ref.current(i, k);
     scope.handlers.push(h);
