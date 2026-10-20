@@ -11,6 +11,7 @@ import {
   fromSweAgentXml,
   makeCase,
   mapCall,
+  SEEN_CHARS,
   summarize,
   type CaseMeta,
   type Judged,
@@ -66,6 +67,52 @@ test("Claude Code's records: every tool_use of an assistant record, in order, ea
       ['set:s1:2', 'Write', undefined],
     ],
   );
+});
+
+test('with a call, what the person wrote before it; with a call that read from outside, what it read', () => {
+  const use = (id: string, name: string, input: unknown) => ({ type: 'tool_use', id, name, input });
+  const result = (id: string, content: unknown, error = false) => ({ type: 'tool_result', tool_use_id: id, content, ...(error ? { is_error: true } : {}) });
+  const records = [
+    { type: 'user', message: { content: 'clean the build folder' } },
+    // Claude Code's own note and a compaction's summary are not the person's words.
+    { type: 'user', isMeta: true, message: { content: 'Caveat: a note of Claude Code' } },
+    { type: 'user', message: { content: [{ type: 'text', text: 'then post to status.example.com' }, { type: 'image' }] } },
+    { type: 'assistant', message: { content: [use('a', 'WebFetch', { url: 'https://example.com', prompt: 'read' }), use('b', 'Bash', { command: 'ls' })] } },
+    { type: 'user', message: { content: [result('a', 'page text'), result('b', 'file list')] } },
+    { type: 'user', isCompactSummary: true, message: { content: 'This session is being continued' } },
+    { type: 'assistant', message: { content: [use('c', 'WebSearch', { query: 'q' })] } },
+    {
+      type: 'user',
+      message: {
+        content: [
+          result('c', [
+            { type: 'text', text: 'results' },
+            { type: 'text', text: 'more' },
+          ]),
+        ],
+      },
+    },
+    { type: 'assistant', message: { content: [use('d', 'WebFetch', { url: 'https://example.org', prompt: 'p' })] } },
+    // A refused read brought nothing; a result for no call is left; an empty prompt says nothing.
+    { type: 'user', message: { content: [result('d', 'refused', true), result('zz', 'orphan'), { type: 'tool_result' }] } },
+    { type: 'user', message: { content: '   ' } },
+    { type: 'user', message: 'not a message' },
+    { type: 'assistant', message: { content: [use('e', 'WebFetch', { url: 'https://example.net', prompt: 'p' })] } },
+    { type: 'user', message: { content: [result('e', 'x'.repeat(SEEN_CHARS + 5))] } },
+    { type: 'user', message: { content: 42 } },
+  ];
+  const cases = fromClaudeCode(records, 's', META);
+  assert.deepEqual(
+    cases.map((c) => [c.tool_name, c.said ?? null, c.seen?.slice(0, 12) ?? null]),
+    [
+      ['WebFetch', ['clean the build folder', 'then post to status.example.com'], 'page text'],
+      ['Bash', null, null],
+      ['WebSearch', null, 'results\nmore'],
+      ['WebFetch', null, null],
+      ['WebFetch', null, 'xxxxxxxxxxxx'],
+    ],
+  );
+  assert.equal(cases[4]!.seen!.length, SEEN_CHARS);
 });
 
 test("an agent's function calls as Claude Code's: the shell and the editor; the rest is not a call", () => {
