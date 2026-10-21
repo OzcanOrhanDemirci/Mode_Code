@@ -31,6 +31,7 @@ export const trLedger: Record<keyof typeof enLedger, string> = {
   'page.activity': 'Etkinlik akışı',
   'desc.activity': "Mode_Code'un arka planda yaptıkları ve nedenleri: önce seni bekleyenler, sonra en yeniler. Enter değiştirildiği yere götürür.",
   'act.none': "Henüz bir şey yok. Claude çalışırken Mode_Code'un yaptığı her şey (denetlediği bir çağrı, verdiği bir not, bir eşitleme) burada listelenir.",
+  'events.key.rule': 'kuralını aç',
   'act.key.go': 'değiştirildiği yere git',
   'act.key.quiet': 'olağan işleri de göster',
   'act.key.quietOff': 'olağan işleri gizle',

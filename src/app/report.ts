@@ -8,6 +8,7 @@ import { cacheHitRate } from '../node/index-db.js';
 import type { ToolEvent } from './data.js';
 import { compact, percent, shortPath } from '../core/format.js';
 import { tIn, type Lang, type MessageKey } from '../core/i18n/index.js';
+import { RULES } from '../core/belt/rules.js';
 
 export interface Report {
   from: number;
@@ -82,7 +83,10 @@ export function reportLines(r: Report, lang: Lang, home: string): { label: strin
       label: L('report.belt'),
       text:
         L('report.beltText', { blocked: r.blocked, asked: r.asked, allowed: r.allowedAfterAsk }) +
-        (r.topRules.length ? ' · ' + r.topRules.map((x) => `${x.rule} (${x.count})`).join(', ') : ''),
+        // The rules by the names the control center gives them; an id no rule has (an older record's) as written.
+        (r.topRules.length
+          ? ' · ' + r.topRules.map((x) => `${Object.hasOwn(RULES, x.rule) ? L(`rulename.${x.rule}` as MessageKey) : x.rule} (${x.count})`).join(', ')
+          : ''),
     },
   ];
   if (r.quota.weekTo !== null)

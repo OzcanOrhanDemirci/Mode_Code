@@ -13,7 +13,7 @@ import type { ScreenProps } from '../nav.js';
 import { Empty, EmptyState, Muted, Note, Row, Section, StateMark, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
 import { Pressable } from '../press.js';
 import { TextField } from '../widgets.js';
-import { eventTitle } from './home.js';
+import { EventRows } from './home.js';
 
 export function Protection({ width }: ScreenProps) {
   const { data, theme } = useEnv();
@@ -88,29 +88,15 @@ export function RuleDetail({ id, width }: ScreenProps & { id: RuleId }) {
   );
 }
 
-export function Events({ width, height, open }: ScreenProps) {
-  const { data, lang, now, theme } = useEnv();
+export function Events({ width, open }: ScreenProps) {
+  const { data } = useEnv();
   const t = useT();
   const list = data.events(30).filter((e) => e.kind === 'belt' || e.kind === 'chat' || e.kind === 'quota' || e.kind === 'resume');
   if (!list.length) return <EmptyState text={t('belt.noEvents', { n: 30 })} to="protection/test" open={open} />;
+  // The page scrolls to the selected row (src/tui/app.tsx): every event of the period, not as many as fit.
   return (
     <Box flexDirection="column" width={width}>
-      {list.slice(0, Math.max(4, Math.floor((height - 2) / 2))).map((e, i) => (
-        <Box key={i} flexDirection="column">
-          <Box>
-            <Box width={14} flexShrink={0}>
-              <Text color={theme.muted}>{ago(e.at, now, lang)}</Text>
-            </Box>
-            <Text color={e.verdict === 'deny' ? theme.bad : e.verdict === 'ask' ? theme.warn : undefined}>{eventTitle(e, t)}</Text>
-            <Text color={theme.muted}> {(e.rules ?? []).join(', ')}</Text>
-          </Box>
-          {e.reasons?.[0] ? (
-            <Box marginLeft={14}>
-              <Muted wrap="truncate-end">{e.reasons[0]}</Muted>
-            </Box>
-          ) : null}
-        </Box>
-      ))}
+      <EventRows events={list.slice(0, 200)} open={open} />
     </Box>
   );
 }

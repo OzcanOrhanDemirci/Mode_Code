@@ -31,7 +31,8 @@ test('a report counts what the belt did, quota movement, stops and same-folder w
   const text = reportLines(r, 'en', 'C:/Users/u')
     .map((l) => `${l.label}: ${l.text}`)
     .join('\n');
-  assert.match(text, /Safety belt: 1 blocked · 2 asked \(1 allowed\) · git\.clean \(2\), publish\.package \(1\)/);
+  // The rules by the names the control center gives them.
+  assert.match(text, /Safety belt: 1 blocked · 2 asked \(1 allowed\) · Delete untracked files \(2\), Publish a package \(1\)/);
   assert.match(text, /Quota: weekly 20% → 24% · 5-hour peak 60%/);
   assert.match(
     reportLines(r, 'tr', 'C:/Users/u')
