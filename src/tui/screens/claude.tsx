@@ -16,6 +16,7 @@ import { EXTERNAL_SKILLS } from '../../core/skills-external.js';
 import { findProgram } from '../../node/packs.js';
 import { SettingsEditor, type Field } from '../widgets.js';
 import { valueIn, valueText } from '../../core/ux/catalog.js';
+import { MoBadge } from '../mo.js';
 
 function Cmd({ children }: { children: string }) {
   const { theme } = useEnv();
@@ -115,6 +116,7 @@ export function Hooks({ width, height }: ScreenProps) {
   const { data, theme } = useEnv();
   const t = useT();
   const env = data.claude();
+  const mascot = data.config().modules.mascot;
   if (!env.hooks.length) return <Empty>{t('hooks.none')}</Empty>;
   const byEvent = new Map<string, typeof env.hooks>();
   for (const h of env.hooks) byEvent.set(h.event, [...(byEvent.get(h.event) ?? []), h]);
@@ -132,7 +134,8 @@ export function Hooks({ width, height }: ScreenProps) {
             {list.map((h, i) => (
               <Text key={i} wrap="truncate-end" color={h.ours ? theme.accent : undefined}>
                 {'  '}
-                {h.ours ? theme.sym.shield + ' ' : ''}[{t(`scope.${h.scope}` as MessageKey)}] {h.matcher ? `${h.matcher}: ` : ''}
+                {h.ours ? (theme.sym.belt ?? (mascot ? <MoBadge look="ok" /> : '[belt]')) : null}
+                {h.ours ? ' ' : ''}[{t(`scope.${h.scope}` as MessageKey)}] {h.matcher ? `${h.matcher}: ` : ''}
                 {shortPath([h.command, ...h.args].join(' '), homedir(), Math.max(20, width - 30))}
                 {h.onFailure === 'block' ? <Text color={theme.muted}> · onFailure: block</Text> : null}
               </Text>

@@ -163,7 +163,7 @@ The footer lines under an answer, the mode beside Claude Code's own, and the quo
 ──────────────────────────────────────────────────────────────────────────────
 ❯
 ──────────────────────────────────────────────────────────────────────────────
-  ⏵⏵ auto mode on (shift+tab to cycle) · 🛡 5h 31% · week 28%        autonomous
+  ⏵⏵ auto mode on (shift+tab to cycle) · 5h 31% · week 28%          autonomous
 ```
 
 A flow's plan waits for approval: the plugin checked it first, and only the person's answer moves the flow to its code step:

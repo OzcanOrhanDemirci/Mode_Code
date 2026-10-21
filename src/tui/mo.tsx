@@ -7,9 +7,10 @@
 import { useEffect, useState } from 'react';
 import { Box, Text } from 'ink';
 import { frame, type MoState } from '../core/mo/art.js';
-import { mark2 } from '../core/mo/marks.js';
+import { badge, mark2, type BadgeLook } from '../core/mo/marks.js';
 import { runsOf } from '../core/mo/cells.js';
 import { STILL_AT } from '../core/mo/state.js';
+import type { HealthState } from '../app/health.js';
 
 const TICK = 125;
 
@@ -40,4 +41,26 @@ export function MoPicture({ state, size, still }: { state: MoState; size: 'full'
       ))}
     </Box>
   );
+}
+
+/** The cells Mo's badge takes in a line. */
+export const BADGE_CELLS = 5;
+
+/** Mo's badge (src/core/mo/marks.ts) inside a line of text: its face in five cells, its eyes saying `look`. */
+export function MoBadge({ look }: { look: BadgeLook }) {
+  const row = runsOf(badge(look))[0] ?? [];
+  return (
+    <Text>
+      {row.map((r, i) => (
+        <Text key={i} {...(r.fg ? { color: r.fg } : {})} {...(r.bg ? { backgroundColor: r.bg } : {})}>
+          {r.text}
+        </Text>
+      ))}
+    </Text>
+  );
+}
+
+/** The badge's look for a feature's health: fine, look, wrong, off. */
+export function badgeLook(state: HealthState): BadgeLook {
+  return state === 'ok' ? 'ok' : state === 'red' ? 'bad' : state === 'gray' ? 'look' : 'off';
 }

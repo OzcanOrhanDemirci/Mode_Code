@@ -3,8 +3,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { draw, FakeData, KEY, NOW } from './harness.js';
 
-/** Rows drawn in half blocks: Mo's picture. */
-const moRows = (text: string) => text.split('\n').filter((l) => /[▀▄]{3,}/.test(l)).length;
+/** Rows drawn in half blocks under the top line (where Mo's badge marks the belt): Mo's picture. */
+const moRows = (text: string) =>
+  text
+    .split('\n')
+    .slice(1)
+    .filter((l) => /[▀▄]{3,}/.test(l)).length;
 
 test('Mo leads on Now: the small Mo beside the one thing that matters most, in words', async () => {
   const s = await draw(new FakeData(), { columns: 110, rows: 44, address: null });
@@ -51,6 +55,8 @@ test('no picture in plain text, nor with the setting off: what Mo says stays, in
   try {
     assert.match(off.text(), /1 new since you last looked/);
     assert.equal(moRows(off.text()), 0);
+    // Mo turned off takes its badge too: the belt's mark is in words.
+    assert.match(off.text().split('\n')[0]!, /\[belt\] working/);
   } finally {
     off.close();
   }

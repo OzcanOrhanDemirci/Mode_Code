@@ -89,12 +89,13 @@ test('the location bar keeps its crumbs whole beside the protection and the quot
     ['Workbench', '…', 'A very long s…'],
   );
   assert.ok(cut.reduce((n, c, i) => n + m(c.label) + (i ? 3 : 0), 0) <= 30);
-  const s = await draw(new FakeData(), { address: 'settings/accessibility', columns: 60, rows: 30 });
+  // Wide enough that the last crumb keeps a few letters beside Mo's five-cell badge with the rehearsal's longer name.
+  const s = await draw(new FakeData(), { address: 'settings/accessibility', columns: 64, rows: 30 });
   try {
     // The tool's own name leads, whatever it is (the rename rehearsal draws a longer one).
     const top = s.text().split('\n')[0]!;
     assert.ok(top.startsWith(`${APP_NAME} › … › Accessi`), top);
-    assert.match(top, /🛡 working {2}week 27% {2}5h 21%$/);
+    assert.match(top, /▀{5} working {2}week 27% {2}5h 21%$/);
     await s.clickText('…');
     assert.match(s.text(), /Address: settings\/accessibility/, 'the … leads nowhere');
   } finally {

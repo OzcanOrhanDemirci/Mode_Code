@@ -381,3 +381,27 @@ export function mark1(state: MoState, t: number, backdrop: Backdrop = 'dark'): P
   if (f.dim !== 1) dimPicture(px, f.dim);
   return { w: MARK_W, h: 2, px };
 }
+
+// ---- Mo's badge: the face in five cells of one row, where a word needs a mark beside it ----
+
+/** What the badge's eyes say, as the marks of the interface do (src/core/ux/tokens.ts): fine, look, wrong, off. */
+export type BadgeLook = 'ok' | 'look' | 'bad' | 'off';
+
+const BADGE_EYES: Record<BadgeLook, Rgb> = { ok: CYAN, look: AMBER, bad: RED, off: STEEL[2]! };
+
+/**
+ * Mo's face at its smallest, 5 x 2: a steel frame over the glass and two eyes in the color of `look`. It stands where
+ * a pictograph stood (the shield): a terminal draws such a sign two cells wide and the width tables count it one,
+ * so it covered the word after it (the person, 2026-10-21). Half blocks are one cell everywhere.
+ */
+export function badge(look: BadgeLook): Picture {
+  const eye = BADGE_EYES[look];
+  return {
+    w: 5,
+    h: 2,
+    px: [
+      [STEEL[4]!, STEEL[5]!, STEEL[5]!, STEEL[4]!, STEEL[3]!],
+      [STEEL[3]!, eye, GLASS, eye, STEEL[2]!],
+    ],
+  };
+}

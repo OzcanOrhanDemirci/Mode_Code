@@ -10,7 +10,7 @@ test('the first screen lists the eight categories by purpose, Now beside them, p
   try {
     const t = s.text();
     for (const c of ['Now', 'Activity', 'Working', 'Protection', 'Memory and projects', 'Quota', 'Claude Code', 'Settings']) assert.ok(t.includes(c), c);
-    assert.match(t, /🛡 working/);
+    assert.match(t, /▀{5} working/); // Mo's badge, not the shield that covered the word
     assert.match(t, /week 27%/);
     assert.match(t, /Address: now/);
     // Now, beside the list before anything is opened: what Claude may do, and the goals.
@@ -118,7 +118,7 @@ test('Turkish everywhere when the language is Turkish; a broken protection shows
     const t = s.text();
     assert.match(t, /Şimdi/);
     assert.match(t, /Koruma/);
-    assert.match(t, /🛡 bozuk/);
+    assert.match(t, /▀{5} bozuk/);
     assert.match(t, /hafta %27/);
   } finally {
     s.close();
@@ -129,7 +129,7 @@ test('plain mode uses no box drawing and no emoji-only signals', async () => {
   const s = await draw(new FakeData(), { plain: true });
   try {
     const t = s.text();
-    assert.doesNotMatch(t, /[╭╮│─🛡]/u);
+    assert.doesNotMatch(t, /[╭╮│─🛡▀]/u);
     assert.match(t, /\[belt\] working/);
   } finally {
     s.close();
