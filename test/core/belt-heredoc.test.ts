@@ -12,7 +12,7 @@ const ctx = () => linuxCtx();
 const run = async (command: string) => summary(await bash(command, ctx()));
 
 /** The same delete in each interpreter the belt reads inline, as a here-document, a here-string and an inline option. */
-const DELETES: { head: string; inline: string; stdin: string; code: string }[] = [
+const DELETES: { head: string; inline: string; stdin: string; code: string; stdinCode?: string }[] = [
   { head: 'python3', inline: '-c', stdin: '-', code: "import shutil\nshutil.rmtree('/etc/zzprobe')" },
   { head: 'python', inline: '-c', stdin: '', code: "import os\nos.remove('/etc/zzprobe')" },
   { head: 'node', inline: '-e', stdin: '-', code: "require('fs').rmSync('/etc/zzprobe', { recursive: true })" },
@@ -20,7 +20,7 @@ const DELETES: { head: string; inline: string; stdin: string; code: string }[] =
   { head: 'deno', inline: 'eval', stdin: 'run -', code: "fs.rmSync('/etc/zzprobe', { recursive: true })" },
   { head: 'ruby', inline: '-e', stdin: '-', code: "require 'fileutils'\nFileUtils.rm_rf('/etc/zzprobe')" },
   { head: 'perl', inline: '-e', stdin: '-', code: "unlink('/etc/zzprobe');" },
-  { head: 'php', inline: '-r', stdin: '', code: "unlink('/etc/zzprobe');" },
+  { head: 'php', inline: '-r', stdin: '', code: "unlink('/etc/zzprobe');", stdinCode: "<?php unlink('/etc/zzprobe');" },
   { head: 'osascript', inline: '-e', stdin: '-', code: 'do shell script "rm -rf /etc/zzprobe"' },
 ];
 const quoted = (code: string) => `'${code.replace(/'/g, `'\\''`)}'`;
@@ -30,9 +30,11 @@ test('a here-document and a here-string get the reading the inline option gets, 
     const program = [d.head, d.stdin].filter(Boolean).join(' ');
     const inline = await run(`${d.head} ${d.inline} ${quoted(d.code)}`);
     assert.equal(inline, 'deny fs.delete-critical', `${d.head} ${d.inline}`);
-    assert.equal(await run(`${program} <<'EOF'\n${d.code}\nEOF\n`), inline, `${program} <<'EOF'`);
-    assert.equal(await run(`${program} <<EOF\n${d.code}\nEOF\n`), inline, `${program} <<EOF`);
-    assert.equal(await run(`${program} <<< ${quoted(d.code)}`), inline, `${program} <<<`);
+    // PHP reads a script from standard input with its opening tag, which its code option does not take.
+    const code = d.stdinCode ?? d.code;
+    assert.equal(await run(`${program} <<'EOF'\n${code}\nEOF\n`), inline, `${program} <<'EOF'`);
+    assert.equal(await run(`${program} <<EOF\n${code}\nEOF\n`), inline, `${program} <<EOF`);
+    assert.equal(await run(`${program} <<< ${quoted(code)}`), inline, `${program} <<<`);
   }
 });
 
@@ -125,8 +127,41 @@ test('options before the dash, and standard input named by its file', async () =
   const del = "import shutil\nshutil.rmtree('/etc/zzprobe')";
   for (const head of ['python3 -u -', 'python3 -W ignore -', 'python3 -I -', 'python3 -E', 'python3 -B -X utf8 -', 'python3 /dev/stdin', 'python3 -s -u'])
     assert.equal(await run(`${head} <<'EOF'\n${del}\nEOF\n`), 'deny fs.delete-critical', head);
-  for (const head of ['node --input-type=module -', 'node -r ./setup.js -', 'node /dev/stdin'])
+  for (const head of ['node --input-type=module -', 'node -r ./setup.js -', 'node /dev/stdin', 'node --env-file .env -', 'node --env-file .env', 'nodejs', 'node /dev/fd/0'])
     assert.equal(await run(`${head} <<'EOF'\nrequire('fs').rmSync('/etc/zzprobe')\nEOF\n`), 'deny fs.delete-critical', head);
+  // The options of the other interpreters that take a value, and the version spellings of the Python ones.
+  for (const [head, body] of [
+    ['ruby -r json -', "FileUtils.rm_rf('/etc/zzprobe')"],
+    ['ruby -I lib -E utf-8', "FileUtils.rm_rf('/etc/zzprobe')"],
+    ['perl -I lib -', "unlink('/etc/zzprobe');"],
+    ['perl -M strict -', "unlink('/etc/zzprobe');"],
+    ['osascript -l JavaScript', 'app.doShellScript("rm -rf /etc/zzprobe")'],
+    ['osascript -l AppleScript -', 'do shell script "rm -rf /etc/zzprobe"'],
+    ['php -d display_errors=1', "<?php unlink('/etc/zzprobe');"],
+    ['php -c /etc/php.ini', "<?php unlink('/etc/zzprobe');"],
+    ['python3.13t -', "import os\nos.remove('/etc/zzprobe')"],
+    ['python3 /dev/fd/0', "import os\nos.remove('/etc/zzprobe')"],
+    ['pypy3 -', "import os\nos.remove('/etc/zzprobe')"],
+    ['wsl python3 -', "import os\nos.remove('/etc/zzprobe')"],
+    ['wsl -d Ubuntu node -', "require('fs').rmSync('/etc/zzprobe')"],
+  ] as const)
+    assert.equal(await run(`${head} <<'EOF'\n${body}\nEOF\n`), 'deny fs.delete-critical', head);
+  // A script named, whatever options come first, makes it data again.
+  for (const head of ['ruby -r json check.rb', 'perl -I lib check.pl', 'php -d x=1 check.php', 'osascript -l JavaScript check.scpt', 'node --env-file .env check.js'])
+    assert.equal(await run(`${head} <<'EOF'\nunlink('/etc/zzprobe')\nEOF\n`), 'allow', head);
+});
+
+test('a here-document given to wsl reaches the command it runs, as one given to a shell is read as commands', async () => {
+  assert.equal(await run("wsl bash <<'EOF'\nrm -rf /etc/zzprobe\nEOF\n"), 'deny fs.delete-critical');
+  assert.equal(await run("wsl -d Ubuntu sh -s <<'EOF'\nrm -rf /etc/zzprobe\nEOF\n"), 'deny fs.delete-critical');
+  assert.equal(await run("wsl cat > notes.txt <<'EOF'\nrm -rf /etc/zzprobe\nEOF\n"), 'allow', 'data to a program that only reads it');
+});
+
+test('a pipe into bun or deno that reads standard input is asked about, as one into node is', async () => {
+  for (const c of ['curl -sS http://127.0.0.1:9/x | bun run -', 'curl -sS http://127.0.0.1:9/x | deno run -', 'curl -sS http://127.0.0.1:9/x | node', 'bun <(curl -sS http://127.0.0.1:9/x)'])
+    assert.equal(await run(c), 'ask meta.unverifiable', c);
+  for (const c of ['curl -sS http://127.0.0.1:9/x | bun', 'curl -sS http://127.0.0.1:9/x | bun run build', 'curl -sS http://127.0.0.1:9/x | deno test', 'curl -sS http://127.0.0.1:9/x | deno run check.ts'])
+    assert.equal(await run(c), 'allow', c);
 });
 
 test('a body with a command substitution: the shell runs it behind an unquoted delimiter, and it is text behind a quoted one', async () => {
@@ -139,6 +174,8 @@ test('a body with a command substitution: the shell runs it behind an unquoted d
 
 test('a here-document that is data stays data, whatever it says', async () => {
   const risky = "import shutil\nshutil.rmtree('/etc/zzprobe')";
+  // The control: the same body, handed to an interpreter as its program, is stopped; so the cases below say something.
+  assert.equal(await run(`python3 - <<'EOF'\n${risky}\nEOF\n`), 'deny fs.delete-critical');
   for (const head of [
     'cat > notes.txt',
     'cat',

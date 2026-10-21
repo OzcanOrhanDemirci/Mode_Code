@@ -15,10 +15,10 @@
 /** How an interpreter's code spells its comments and strings. */
 interface Syntax {
   /**
-   * Where `#` starts a comment: anywhere outside a string (Python); after a blank or at the start only (Ruby, Perl, PHP,
-   * where `$#a`, `s#a#b#` and `/#/` are code); never.
+   * Where `#` starts a comment: anywhere outside a string (Python); at the start of a line only (Ruby, Perl, PHP, where
+   * `$#a`, `s#a#b#`, `/ #/` and `%w[ # ]` are code, and a trailing comment is not told from them); never.
    */
-  hash: 'anywhere' | 'after a blank' | 'never';
+  hash: 'anywhere' | 'line start' | 'never';
   /** `//` and a slash-star block start comments. */
   slash: boolean;
   /** A `/` after an operator starts a regular expression (JavaScript). */
@@ -37,12 +37,12 @@ interface Syntax {
 
 const PYTHON: Syntax = { hash: 'anywhere', slash: false, regex: false, triple: true, oneLine: true, sure: true };
 const SCRIPT: Syntax = { hash: 'never', slash: true, regex: true, triple: false, oneLine: true, sure: true };
-const PHP: Syntax = { hash: 'after a blank', slash: true, regex: false, triple: false, oneLine: false, sure: false };
-const HASHED: Syntax = { hash: 'after a blank', slash: false, regex: false, triple: false, oneLine: false, sure: false };
+const PHP: Syntax = { hash: 'line start', slash: true, regex: false, triple: false, oneLine: false, sure: false };
+const HASHED: Syntax = { hash: 'line start', slash: false, regex: false, triple: false, oneLine: false, sure: false };
 const PLAIN: Syntax = { hash: 'never', slash: false, regex: false, triple: false, oneLine: false, sure: false };
 
 function syntaxOf(program: string): Syntax {
-  const name = program.replace(/[0-9.]+$/, '');
+  const name = program.replace(/[0-9.]+t?$/, '');
   if (name === 'python' || name === 'py' || name === 'pypy') return PYTHON;
   if (name === 'node' || name === 'nodejs' || name === 'bun' || name === 'deno') return SCRIPT;
   if (name === 'php') return PHP;
@@ -50,17 +50,19 @@ function syntaxOf(program: string): Syntax {
 }
 
 const COMMENT_HASH = String.raw`#[^\n]*`;
-const COMMENT_HASH_SPACED = String.raw`(?<=^|\s)#[^\n]*`;
+const COMMENT_HASH_LINE = String.raw`(?<=^|\n)[ \t]*#[^\n]*`;
 const COMMENT_SLASH = String.raw`//[^\n]*|/\*[\s\S]*?(?:\*/|$)`;
 const TRIPLE = String.raw`"""(?:[^\\]|\\[\s\S])*?(?:"""|$)|'''(?:[^\\]|\\[\s\S])*?(?:'''|$)`;
 const QUOTED = String.raw`'(?:[^'\\]|\\[\s\S])*'|"(?:[^"\\]|\\[\s\S])*"`;
 const QUOTED_LINE = String.raw`'(?:[^'\\\n]|\\[\s\S])*'|"(?:[^"\\\n]|\\[\s\S])*"`;
 const TEMPLATE = '`(?:[^`\\\\]|\\\\[\\s\\S])*`';
 /**
- * A regular expression literal: after `(`, `,`, `=`, `=>`, an operator or `return`; never after a name or a closing
- * bracket of any kind, where it is a division.
+ * A regular expression literal: after `(`, `,`, `=`, `=>`, an operator, a keyword a value follows (`return`, `else`) or
+ * the closing bracket of an `if (…)`, `while (…)`, `for (…)`; never after a name or another closing bracket, where it
+ * is a division. A character class is bounded, so that a `[` that closes nowhere costs its line once and not once per slash.
  */
-const REGEX = String.raw`(?<=(?:^|[(,=:\[!&|?{;>]|\breturn|\btypeof)\s*)/(?![/*])(?:\\.|\[(?:\\.|[^\]\\\n])*\]|[^/\\\n\[])+/[a-z]*`;
+const REGEX_AFTER = String.raw`(?:^|[(,=:\[!&|?{;>+*%<^~]|\b(?:return|typeof|else|do|in|of|case|throw|delete|void|yield|await|new)|\b(?:if|while|for|with)\s*\((?:[^()\n]|\([^()\n]*\)){0,200}\))`;
+const REGEX = String.raw`(?<=${REGEX_AFTER}\s*)/(?![/*])(?:\\.|\[(?:\\.|[^\]\\\n]){0,300}\]|[^/\\\n\[])+/[a-z]*`;
 
 const lexers = new Map<Syntax, RegExp>();
 
@@ -68,7 +70,7 @@ const lexers = new Map<Syntax, RegExp>();
 function lexer(s: Syntax): RegExp {
   let re = lexers.get(s);
   if (!re) {
-    const hash = s.hash === 'anywhere' ? COMMENT_HASH : s.hash === 'after a blank' ? COMMENT_HASH_SPACED : '';
+    const hash = s.hash === 'anywhere' ? COMMENT_HASH : s.hash === 'line start' ? COMMENT_HASH_LINE : '';
     const comments = [hash, s.slash ? COMMENT_SLASH : ''].filter(Boolean).join('|');
     const strings = [s.triple ? TRIPLE : '', s.oneLine ? QUOTED_LINE : QUOTED, TEMPLATE].filter(Boolean).join('|');
     re = new RegExp([comments && `(?<comment>${comments})`, `(?<string>${strings})`, s.regex ? `(?<regex>${REGEX})` : ''].filter(Boolean).join('|'), 'g');
@@ -94,13 +96,67 @@ function pieces(code: string, program: string): Piece[] {
 
 const blank = (s: string) => s.replace(/[^\n]/g, ' ');
 
-/** The code with its comments blanked, and the insides of strings and regular expressions too when `strings`; every position kept. */
+/**
+ * The parts of a string that are code, as ranges of its text: a JavaScript template's `${…}`, a Python f-string's `{…}`
+ * (`{{` is a brace; a conversion and a format spec after the expression are no code).
+ */
+function interpolations(piece: string, python: boolean): [number, number][] {
+  const found: [number, number][] = [];
+  for (let i = 1; i < piece.length - 1; i++) {
+    if (piece[i] === '\\') i++;
+    else if (python && piece[i] === '{' && piece[i + 1] === '{') i++;
+    else if (python ? piece[i] === '{' : piece[i] === '$' && piece[i + 1] === '{') {
+      const from = i + (python ? 1 : 2);
+      let depth = 1;
+      let to = from;
+      for (; to < piece.length - 1 && depth; to++) depth += piece[to] === '{' ? 1 : piece[to] === '}' ? -1 : 0;
+      const close = depth ? to : to - 1;
+      let end = close;
+      if (python)
+        for (let k = from, nest = 0; k < close; k++) {
+          const c = piece[k]!;
+          if ('([{'.includes(c)) nest++;
+          else if (')]}'.includes(c)) nest--;
+          else if (nest === 0 && ((c === '!' && piece[k + 1] !== '=') || c === ':')) {
+            end = k;
+            break;
+          }
+        }
+      found.push([from, end]);
+      i = close;
+    }
+  }
+  return found;
+}
+
+/** What precedes an f-string's quote: its prefix letters (`f`, `rf`, `Fr`). */
+const F_PREFIX = /(?<![\w$])(?:[fF][rRbB]?|[rRbB][fF])$/;
+
+/** A string with its inside blanked but for the code in it, which is read as code; `before` is what stands before the string. */
+function inside(piece: string, before: string, program: string): string {
+  const python = syntaxOf(program) === PYTHON;
+  const code = piece[0] === '`' ? interpolations(piece, false) : python && F_PREFIX.test(before) ? interpolations(piece, true) : [];
+  let out = piece[0]!;
+  let at = 1;
+  for (const [from, to] of code) {
+    out += blank(piece.slice(at, from)) + mask(piece.slice(from, to), program, true);
+    at = to;
+  }
+  return out + blank(piece.slice(at, -1)) + piece.slice(-1);
+}
+
+/**
+ * The code with its comments blanked, and the insides of strings and regular expressions too when `strings` (the code in
+ * a template or an f-string stays); every position kept.
+ */
 function mask(code: string, program: string, strings: boolean): string {
   let out = '';
   let at = 0;
   for (const p of pieces(code, program)) {
     const piece = code.slice(p.at, p.end);
-    const text = p.kind === 'comment' ? blank(piece) : strings ? piece[0] + blank(piece.slice(1, -1)) + piece.slice(-1) : piece;
+    let text = piece;
+    if (p.kind === 'comment') text = blank(piece);
+    else if (strings) text = p.kind === 'string' ? inside(piece, code.slice(Math.max(0, p.at - 3), p.at), program) : piece[0] + blank(piece.slice(1, -1)) + piece.slice(-1);
     out += code.slice(at, p.at) + text;
     at = p.end;
   }
@@ -208,15 +264,26 @@ function bindings(code: string, name: string): string[] | null {
 }
 
 /**
- * Whether the code defines a function by this name itself (`def rm(`, `function rm(`, `const rm = (f) =>`): a call
- * of it is the script's own, whatever the system's function of that name would do. `text` is the code as code.
+ * Whether the code defines a function by this name itself, and only once (`def rm(`, `function rm(`, `const rm = (f) =>`):
+ * a call of it by its bare name is the script's own, whatever the system's function of that name would do. A method
+ * (`def rm(self`) is called through an object; a name assigned again or imported may as well be the system's. `text` is
+ * the code as code.
  */
 function defines(text: string, name: string): boolean {
   const n = escape(name);
-  return new RegExp(
-    `\\b(?:def|function)\\s+${n}\\s*\\(|(?:^|[^\\w$.])${n}\\s*=\\s*(?:async\\s+)?(?:function\\b|lambda\\b|\\([^)]*\\)\\s*=>|[\\w$]+\\s*=>)`,
-    'm',
-  ).test(text);
+  const count = (source: string) => text.match(new RegExp(source, 'gm'))?.length ?? 0;
+  const named = count(String.raw`\b(?:def|function)\s+${n}\s*\((?!\s*(?:self|cls)\b)`);
+  const assigned = count(String.raw`(?:^|[^\w$.])${n}\s*(?::[^=\n;]*)?=(?![=>])`);
+  const arrow = count(String.raw`(?:^|[^\w$.])${n}\s*=\s*(?:async\s+)?(?:function\b|lambda\b|\([^)]*\)\s*=>|[\w$]+\s*=>)`);
+  const imported = new RegExp(String.raw`^\s*(?:from\s+\S+\s+)?import\b[^\n;]*\b${n}(?![\w$])|\b(?:const|let|var)\s*\{[^}]*\b${n}\b[^}]*\}`, 'm').test(text);
+  return named + arrow === 1 && named + assigned === 1 && !imported;
+}
+
+/** Where the dot that makes a name a method's stands before `at`, blanks aside, or -1: found by a scan, not by copying the text before. */
+function dotBefore(text: string, at: number): number {
+  let i = at - 1;
+  while (i >= 0 && /\s/.test(text[i]!)) i--;
+  return text[i] === '.' ? i : -1;
 }
 
 /**
@@ -225,27 +292,37 @@ function defines(text: string, name: string): boolean {
  * code counts, as before this was measured. Empty when the code deletes nothing.
  */
 export function deletedLiterals(code: string, program: string): string[] {
-  const python = /^(?:python|py|pypy)[0-9.]*$/.test(program);
+  const python = /^(?:python|py|pypy)[0-9.]*t?$/.test(program);
   // A call is looked for in the code as code: not in a string that holds code, a comment, or a function of the script's own.
   const text = codeOf(code, program);
   const bare = skeletonOf(code, program);
   const literals = codeLiterals(code, program);
-  const scopes: string[] = [];
+  const defined = new Map<string, boolean>();
+  const calls: { scope: string | null; own: boolean }[] = [];
   for (const m of text.matchAll(python ? PYTHON_DELETE : OTHER_DELETE)) {
+    // The header of a definition (`def remove(`, `function rm(`) is no call.
+    if (/\b(?:def|function)\s+$/.test(text.slice(Math.max(0, m.index - 16), m.index))) continue;
     const from = m.index + m[0].length;
     const args = code.slice(from, argsEnd(bare, from));
     // A function the code defines itself, called by its bare name, is no delete of the system's (`os.remove(` and `.unlink(` are named in full).
-    const qualified = python ? m[0].includes('.') : /\.\s*$/.test(text.slice(0, m.index));
-    if (!qualified && defines(text, python ? m[2]! : m[0].replace(/\s*\($/, ''))) continue;
-    // A module's function or a bare one (`os.remove(p)`, `rmtree(p)`): its arguments.
-    if (!python || !m[1]) {
-      scopes.push(args);
-      continue;
+    const name = python ? m[2]! : m[0].replace(/\s*\($/, '');
+    let own = !(python ? m[0].includes('.') : dotBefore(text, m.index) >= 0);
+    if (own) {
+      if (!defined.has(name)) defined.set(name, defines(text, name));
+      own = defined.get(name)!;
     }
-    // A method: a path's own (`Path('/x').unlink()`, `p.rmdir()`) takes no path; one that does is some other
-    // object's (`fs.rm('/x')` of an in-memory filesystem, `list.remove(x)`).
-    if ((m[2] === 'unlink' || m[2] === 'rmdir') && /^\s*(?:missing_ok\s*=[^,]*)?$/.test(args)) scopes.push(statementBefore(code, m.index));
+    // A module's function or a bare one (`os.remove(p)`, `rmtree(p)`): its arguments. A method: a path's own
+    // (`Path('/x').unlink()`, `p.rmdir()`) takes no path; one that does is some other object's (`fs.rm('/x')` of an
+    // in-memory filesystem, `list.remove(x)`).
+    let scope: string | null = null;
+    if (!python || !m[1]) scope = args;
+    else if ((m[2] === 'unlink' || m[2] === 'rmdir') && /^\s*(?:missing_ok\s*=[^,]*)?$/.test(args)) scope = statementBefore(code, m.index);
+    calls.push({ scope, own });
   }
+  // The script's own function of a delete's name deletes nothing of the system's, unless the script also runs commands or
+  // deletes by another call: then it may well wrap them (`rm = (p) => execSync('rm -rf ' + p)`), and its calls count.
+  const wraps = calls.some((c) => c.own) && (runsCommands(code, program) || calls.some((c) => !c.own && c.scope !== null));
+  const scopes = calls.flatMap((c) => (c.scope !== null && (!c.own || wraps) ? [c.scope] : []));
   if (!scopes.length) return [];
   const out = new Set<string>();
   const seen = new Set<string>();
@@ -275,6 +352,8 @@ const WRITE_CALLS =
 const WRITE_MODE = /^(?:[rbtU]*[wax+][rwxabtU+]*|\s*(?:\+?>|\+<)[\s\S]*)$/;
 /** The flags a low-level open gives instead of a mode, when they make it write. */
 const OPEN_FLAGS = /WRONLY|RDWR|APPEND|CREAT|TRUNC/;
+/** Flags of a low-level open that only read (`os.O_RDONLY`, `File::RDONLY`, `fs.constants.O_RDONLY | os.O_NONBLOCK`), a variable aside. */
+const READ_FLAGS = /^(?:(?:[\w$]+\.)*O_[A-Z_]+|(?:\w+::)+[A-Z_]+)(?:\s*\|\s*(?:(?:[\w$]+\.)*O_[A-Z_]+|(?:\w+::)+[A-Z_]+))*$/;
 
 /**
  * The arguments of the call whose `(` just precedes `from`, as written in `code`, split at the commas that are not inside
@@ -306,25 +385,51 @@ function single(arg: string): string | null {
 
 /**
  * Whether an `open(` call may write: the mode it is given (the second argument, or `mode=`; either argument of a
- * method such as `Path.open('w')`) is one that writes, or one the code does not show. Opened with no mode, it reads.
+ * method such as `Path.open('w')`) is one that writes, or one the code does not show, a name it assigns apart. Opened
+ * with no mode, it reads.
  */
 function opensToWrite(code: string, bare: string, at: number, from: number): boolean {
   // Flags in place of a mode (`os.O_WRONLY | os.O_CREAT`, `File::WRONLY`, `fs.constants.O_APPEND`).
   if (OPEN_FLAGS.test(bare.slice(from, argsEnd(bare, from)))) return true;
-  const args = argumentsOf(code, bare, from);
-  const method = /\.\s*$/.test(bare.slice(0, at));
-  const keyword = (a: string) => /^[A-Za-z_]\w*\s*=(?!=)/.test(a);
-  for (const a of args.filter((x, i) => (method || i === 1) && !keyword(x))) {
-    const value = single(a);
-    if (value === null ? !method : WRITE_MODE.test(value)) return true;
+  const dot = dotBefore(bare, at);
+  let receiver = '';
+  for (let r = dot - 1; dot >= 0 && r >= 0; r--)
+    if (!/\s/.test(bare[r]!)) {
+      receiver = bare[r]!;
+      break;
+    }
+  const args = argumentsOf(code, bare, from).filter((a) => a !== '');
+  // `open(*args)`: nothing shows what it is given.
+  if (args.some((a) => a.startsWith('*'))) return true;
+  const keyword = /^[A-Za-z_]\w*\s*(?:=(?!=)|:(?!:))/;
+  for (const [i, a] of args.filter((x) => !keyword.test(x)).entries()) {
+    const literal = single(a);
+    // A literal mode writes by what it says (either argument of a method such as `Path.open('w')`); anything else in the
+    // place of a mode (the second argument, or the first of a method on a call's result, `Path(p).open(m)`) is shown by
+    // what the code binds it to.
+    if (literal !== null) {
+      if ((dot >= 0 || i === 1) && WRITE_MODE.test(literal)) return true;
+    } else if ((i === 1 || (i === 0 && receiver === ')')) && mayWrite(a, code)) return true;
   }
   for (const a of args) {
-    const given = /^mode\s*=\s*([\s\S]*)$/.exec(a)?.[1];
-    if (given === undefined) continue;
-    const value = single(given);
-    if (value === null || WRITE_MODE.test(value)) return true;
+    const given = /^mode\s*[=:]\s*([\s\S]*)$/.exec(a)?.[1];
+    if (given !== undefined && mayWrite(given.trim(), code)) return true;
   }
   return false;
+}
+
+/**
+ * Whether what an open is given as its mode may write: a literal that does, flags that do, or a name the code binds to
+ * one of these or to anything it does not show (a parameter, an expression): what is not shown is taken for a write.
+ */
+function mayWrite(arg: string, code: string, depth = 0): boolean {
+  const value = single(arg);
+  if (value !== null) return WRITE_MODE.test(value);
+  if (OPEN_FLAGS.test(arg)) return true;
+  if (READ_FLAGS.test(arg)) return false;
+  if (!/^[A-Za-z_$][\w$]*$/.test(arg)) return true;
+  const given = depth < 3 ? bindings(code, arg) : null;
+  return given === null || given.some((b) => mayWrite(b.trim(), code, depth + 1));
 }
 
 /** Whether the code calls something that writes a file, an `open` in a mode that writes included. */
@@ -332,7 +437,9 @@ export function writesFiles(code: string, program: string): boolean {
   const text = codeOf(code, program);
   if (WRITE_CALLS.test(text)) return true;
   const bare = skeletonOf(code, program);
-  return [...text.matchAll(/\bopen\s*\(/g)].some((m) => opensToWrite(code, bare, m.index, m.index + m[0].length));
+  // What a mode argument says is read in the code with its comments blanked, as written otherwise.
+  const plain = mask(code, program, false);
+  return [...text.matchAll(/\bopen\s*\(/g)].some((m) => opensToWrite(plain, bare, m.index, m.index + m[0].length));
 }
 
 /**
@@ -343,12 +450,15 @@ export function writesFiles(code: string, program: string): boolean {
  * wherever the code reaches a function by a string or a name, it may be a command's, and the gate stays open.
  */
 const RUNS =
-  /(?<![A-Za-z0-9])(?:system|popen|exec|spawn|subprocess|shell|check_|passthru|proc_open|getoutput|getstatusoutput|Popen|Open3)|\b(?:run|call|[Cc]ommand|cmd|eval|fork|qx|getattr|__import__|importlib|__builtins__|globals|locals|vars|send|method)\b|`|%x|\]\s*\(|\$\w+\s*\(/;
+  /(?<![A-Za-z0-9])(?:system|popen|exec|spawn|subprocess|shell|check_|passthru|proc_open|getoutput|getstatusoutput|Popen|Open3|Shell|System|Exec|Spawn|NSTask|send_keys)|(?<=[a-z0-9])(?:Shell|System|Exec|Spawn|Popen)|\b(?:run|call|[Cc]ommand|cmd|eval|fork|qx|sh|getattr|__import__|importlib|__builtins__|globals|locals|vars|send|method|keystroke)\b|\bdo script\b|\bwrite text\b|\.\s*(?:local|sudo)\s*\(|`|%x|\]\s*\(|\$\w+\s*\(/;
 /** Perl's and Ruby's `open` runs a command when its name ends or begins with a pipe. */
 const OPEN_RUNS = /\bopen\b/;
 
 /** Whether the code runs commands: a string that looks like one is a command only then, not when it is searched for or printed. */
 export function runsCommands(code: string, program: string): boolean {
+  // AppleScript tells applications what to do, a shell among them (`do shell script`, `do script`, `keystroke`): its
+  // strings are not read apart from its code, and any of them may be a command.
+  if (program === 'osascript') return true;
   const text = codeOf(code, program);
   return RUNS.test(text) || (/^(?:perl|ruby)[0-9.]*$/.test(program) && OPEN_RUNS.test(text));
 }
