@@ -87,3 +87,59 @@ test('on Maintenance `u` takes back as everywhere; `i` installs the update', asy
     s.close();
   }
 });
+
+test('an event names its rules as the control center does, and Enter or a click opens the rule that decided it', async () => {
+  const data = new FakeData();
+  data.extraEvents = [
+    {
+      v: 1,
+      at: Date.now() - 60_000,
+      source: 'mod',
+      session: 's',
+      kind: 'belt',
+      tool: 'Bash',
+      verdict: 'deny',
+      rules: ['git.clean'],
+      reasons: ['Deletes untracked files'],
+    },
+  ] as never;
+  const s = await draw(data, { address: 'protection/events', columns: 100, rows: 30 });
+  try {
+    assert.match(flat(s.text()), /Blocked a Bash call · Delete untracked files ›/);
+    assert.doesNotMatch(s.text(), /git\.clean/);
+    assert.match(s.text(), /Enter open its rule/);
+    await s.press(KEY.enter);
+    assert.match(s.text(), /Address: protection\/rules\/git\.clean/);
+  } finally {
+    s.close();
+  }
+  // Two events: ↓ selects the next, and a click on one opens its rule as Enter does; one with no rule leads nowhere.
+  const two = new FakeData();
+  two.extraEvents = [
+    { v: 1, at: Date.now() - 60_000, source: 'mod', session: 's', kind: 'belt', tool: 'Bash', verdict: 'ask', rules: ['git.clean'], reasons: ['x'] },
+    { v: 1, at: Date.now() - 120_000, source: 'mod', session: 's', kind: 'belt', tool: 'Bash', verdict: 'deny', rules: ['publish.package'], reasons: ['y'] },
+    { v: 1, at: Date.now() - 180_000, source: 'mod', session: 's', kind: 'quota', level: 'stop' },
+  ] as never;
+  const k = await draw(two, { address: 'protection/events', columns: 100, rows: 30 });
+  try {
+    await k.press(KEY.down, KEY.up, KEY.down, KEY.enter);
+    assert.match(k.text(), /Address: protection\/rules\/publish\.package/);
+  } finally {
+    k.close();
+  }
+  const c = await draw(two, { address: 'protection/events', columns: 100, rows: 30 });
+  try {
+    await c.clickText('Publish a package');
+    assert.match(c.text(), /Address: protection\/rules\/publish\.package/);
+  } finally {
+    c.close();
+  }
+  const none = await draw(two, { address: 'protection/events', columns: 100, rows: 30 });
+  try {
+    await none.press(KEY.down, KEY.down, KEY.enter);
+    assert.match(none.text(), /Address: protection\/events/);
+    assert.doesNotMatch(none.text(), /Enter open its rule/);
+  } finally {
+    none.close();
+  }
+});

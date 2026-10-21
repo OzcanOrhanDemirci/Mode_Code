@@ -32,6 +32,7 @@ export const enLedger = {
   'page.activity': 'Activity feed',
   'desc.activity': 'What Mode_Code did in the background, and why: what waits for you first, then the newest. Enter goes where it is changed.',
   'act.none': 'Nothing yet. Everything Mode_Code does as Claude works (a call it checked, a note it gave, a sync) is listed here.',
+  'events.key.rule': 'open its rule',
   'act.key.go': 'go where it is changed',
   'act.key.quiet': 'show the routine work too',
   'act.key.quietOff': 'hide the routine work',

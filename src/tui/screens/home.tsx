@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 /** What Now and Activity share: the sessions working in one folder, what happened while you were away, an event's title. */
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Box, Text } from 'ink';
+import { RULES } from '../../core/belt/rules.js';
 import { ago } from '../../core/format.js';
 import type { MessageKey } from '../../core/i18n/index.js';
 import type { ToolEvent } from '../../app/data.js';
 import { workingNow, type ModSessionState } from '../../core/session.js';
 import type { ScreenProps } from '../nav.js';
-import { EmptyState, Muted, useEnv, useT } from '../ui.js';
+import { EmptyState, Muted, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
+import { Pressable } from '../press.js';
 
 /** Folders where more than one session is working right now. */
 export function sameFolderGroups(states: readonly ModSessionState[], now: number): { folder: string; count: number }[] {
@@ -39,9 +41,10 @@ export function inboxEvents(events: ToolEvent[], lastSeen: number | null): ToolE
 }
 
 export function Inbox({ width, open }: ScreenProps) {
-  const { data, theme, lang, now } = useEnv();
+  const { data, lang, now } = useEnv();
   const t = useT();
-  const lastSeen = data.lastSeen();
+  // When it was last looked at, as the page opened: opening it marks it seen, and what is shown stays while it is open.
+  const [lastSeen] = useState(() => data.lastSeen());
   const list = inboxEvents(data.events(14), lastSeen);
   useEffect(() => {
     if (open) data.markSeen(now);
@@ -51,21 +54,80 @@ export function Inbox({ width, open }: ScreenProps) {
   return (
     <Box flexDirection="column" width={width}>
       {lastSeen ? <Muted>{t('inbox.since', { when: ago(lastSeen, now, lang) })}</Muted> : null}
-      {list.slice(0, 60).map((e, i) => (
-        <Box key={i} flexDirection="column" marginTop={i === 0 ? 1 : 0}>
-          <Box>
-            <Box width={14} flexShrink={0}>
-              <Text color={theme.muted}>{ago(e.at, now, lang)}</Text>
+      <Box marginTop={lastSeen ? 1 : 0} flexDirection="column">
+        <EventRows events={list.slice(0, 60)} open={open} />
+      </Box>
+    </Box>
+  );
+}
+
+/** A rule's name as the control center gives it; an id no rule has (an older record's) as it was written. */
+export function ruleNames(ids: readonly string[] | undefined, t: (k: MessageKey) => string): string {
+  return (ids ?? []).map((id) => (Object.hasOwn(RULES, id) ? t(`rulename.${id}` as MessageKey) : id)).join(', ');
+}
+
+/**
+ * Events of the safety belt and the quota, newest first, each with its first reason: ↑↓ (or the pointer) select one,
+ * Enter (or a click) opens the rule that decided it, as the Activity feed's rows lead where a thing is changed.
+ */
+export function EventRows({ events, open }: { events: readonly ToolEvent[]; open: boolean }) {
+  const { theme, lang, now, go } = useEnv();
+  const t = useT();
+  // The selected row held in a ref as well: keys that arrive together (typed fast, pasted) each move from the last.
+  const selRef = useRef(0);
+  const [, redraw] = useState(0);
+  const select = (i: number) => {
+    selRef.current = Math.max(0, Math.min(events.length - 1, i));
+    redraw((n) => n + 1);
+  };
+  const at = Math.min(selRef.current, Math.max(0, events.length - 1));
+  const ruleOf = (i: number) => events[i]?.rules?.find((id) => Object.hasOwn(RULES, id));
+  const follow = (i: number) => {
+    const rule = ruleOf(i);
+    if (rule) go(`protection/rules/${rule}`);
+  };
+  useScreenKeys((input, key) => {
+    if (!events.length) return false;
+    if (key.upArrow || input === 'k') select(selRef.current - 1);
+    else if (key.downArrow || input === 'j') select(selRef.current + 1);
+    else if (key.return || key.rightArrow) follow(Math.min(selRef.current, events.length - 1));
+    else return false;
+    return true;
+  }, open);
+  useHints(ruleOf(at) ? [{ key: 'Enter', label: t('events.key.rule'), run: () => follow(at) }] : [], open);
+  return (
+    <Box flexDirection="column">
+      {events.map((e, i) => {
+        const selected = open && i === at;
+        const names = ruleNames(e.rules, t);
+        return (
+          <Pressable
+            key={i}
+            flexDirection="column"
+            keep={selected}
+            onPress={() => {
+              select(i);
+              if (open) follow(i);
+            }}
+            describe={names || undefined}
+          >
+            <Box>
+              <Box width={14} flexShrink={0}>
+                <Text color={theme.muted} inverse={selected}>{`${selected ? theme.sym.cursor : ' '} ${ago(e.at, now, lang)}`}</Text>
+              </Box>
+              <Text color={e.verdict === 'deny' || e.level === 'stop' ? theme.bad : e.verdict === 'ask' ? theme.warn : undefined} wrap="truncate-end">
+                {eventTitle(e, t)}
+                {names ? <Text color={theme.muted}>{` · ${names}${ruleOf(i) ? ` ${theme.sym.more}` : ''}`}</Text> : null}
+              </Text>
             </Box>
-            <Text color={e.verdict === 'deny' || e.level === 'stop' ? theme.bad : theme.warn}>{eventTitle(e, t)}</Text>
-          </Box>
-          {e.reasons?.[0] ? (
-            <Box marginLeft={14}>
-              <Muted wrap="truncate-end">{e.reasons[0]}</Muted>
-            </Box>
-          ) : null}
-        </Box>
-      ))}
+            {e.reasons?.[0] ? (
+              <Box marginLeft={14}>
+                <Muted wrap="truncate-end">{e.reasons[0]}</Muted>
+              </Box>
+            ) : null}
+          </Pressable>
+        );
+      })}
     </Box>
   );
 }
