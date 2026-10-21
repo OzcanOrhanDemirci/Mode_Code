@@ -254,6 +254,13 @@ test('the flow_step tool is registered at the start of a session', async ($, on)
   expect(w.registered[0].isDeferred).toBe(false);
 });
 
+test('the request tool is registered at the start of a session, for full autonomy to use', async ($, on) => {
+  const w = world(on);
+  on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }));
+  await $.session.start({ source: 'startup', cwd: '/home/ada/dev/app' } as any);
+  expect(w.registered.map((r: any) => r.name)).toContain('request');
+});
+
 test("a plan written to the flow's own file is found while Claude Code's plan mode is on (it may have been switched on later)", async ($, on) => {
   const w = world(on);
   on('prompt.attachment', (_$: any, e: any) => ({ text: e.text }));

@@ -10,11 +10,11 @@ import { world, HOME } from './world.ts';
 const typed = (text: string) => ({ text, wait: false, origin: { kind: 'composer' } }) as any;
 const names = (w: { registered: any[] }) => w.registered.map((t: any) => t.name).sort();
 
-test('the mod registers its five tools: three as a session starts, two once the handoff is asked for', async ($, on) => {
+test('the mod registers its five tools: four as a session starts, one more once the handoff is asked for', async ($, on) => {
   const w = world(on, { config: {} });
   on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }));
   await $.session.start({ source: 'startup', cwd: `${HOME}/dev/app` } as any);
-  expect(names(w)).toEqual(['catalog', 'flow_step', 'why']);
+  expect(names(w)).toEqual(['catalog', 'flow_step', 'request', 'why']);
   await $.prompt.submit(typed('devir'));
   expect(names(w)).toEqual(['catalog', 'flow_step', 'handoff', 'request', 'why']);
 });
