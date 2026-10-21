@@ -112,7 +112,7 @@ test('the help scrolls on a short terminal instead of squeezing its lines into o
   try {
     await s.press('?');
     const first = () => s.text().split('\n')[2]!;
-    assert.match(first(), /Tuşlar her ekranda aynı çalışır/);
+    assert.match(first(), /Her ekranın tuşları; bir sayfanın kendi tuşları alttaki çubukta/);
     assert.match(s.text(), /↑↓ kaydır {2}Esc kapat/);
     await s.press(KEY.down, KEY.down);
     assert.match(first(), /↑ ↓ {2}j k/);

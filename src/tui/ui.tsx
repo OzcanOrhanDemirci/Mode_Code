@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 /** Building blocks every screen uses, so all screens look and behave the same. */
-import { createContext, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
-import { Box, Text } from 'ink';
+import { createContext, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react';
+import { Box, Text, type DOMElement } from 'ink';
+import { KeepInView } from './press.js';
 import type { Key } from 'ink';
 import type { Lang, MessageKey } from '../core/i18n/index.js';
 import { tIn } from '../core/i18n/index.js';
@@ -44,6 +45,16 @@ export interface Env {
 export type LeaveAction = 'memory-setup' | 'sync-setup' | 'update';
 
 export const EnvContext = createContext<Env | null>(null);
+
+/** A ref for what has the focus: while `active`, the open page scrolls so that it stays in view. */
+export function useKeepInView(active: boolean): RefObject<DOMElement | null> {
+  const keep = useContext(KeepInView);
+  const ref = useRef<DOMElement | null>(null);
+  useEffect(() => {
+    if (active) keep(ref.current);
+  });
+  return ref;
+}
 
 export function useEnv(): Env {
   const e = useContext(EnvContext);

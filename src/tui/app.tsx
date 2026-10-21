@@ -6,8 +6,8 @@
  * The mouse does what the keys do (docs/design.md, One way to act): a click acts on what it lands on, pointing at
  * something says what it is, the wheel scrolls what is under the pointer.
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Text, useApp, useInput, useWindowSize, type Key } from 'ink';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Box, measureElement, Text, useApp, useInput, useWindowSize, type DOMElement, type Key } from 'ink';
 import { APP_NAME } from '../core/app.js';
 import { tIn, type MessageKey } from '../core/i18n/index.js';
 import { fold } from '../core/text.js';
@@ -23,7 +23,7 @@ import { jumpLabels, jumpMatch } from './jump.js';
 import { titleSequence, type TerminalCaps } from './terminal.js';
 import { textWidth } from '../node/width.js';
 import type { PointerEvent, PointerHub } from './pointer.js';
-import { PointerContext, PointerRegistry, Pressable } from './press.js';
+import { KeepInView, PointerContext, PointerRegistry, Pressable } from './press.js';
 import {
   dispatchKey,
   EnvContext,
@@ -133,6 +133,49 @@ export function App(props: AppProps) {
   const [helpScroll, setHelpScroll] = useState(0);
   const [flash, setFlash] = useState<Flash | null>(null);
   const [scroll, setScroll] = useState(0);
+  // The open page, measured after each draw: what has the focus is kept in view, and a page that runs on says so.
+  const viewRef = useRef<DOMElement>(null);
+  const contentRef = useRef<DOMElement>(null);
+  const focusNode = useRef<DOMElement | null>(null);
+  const lastFocus = useRef<{ node: DOMElement | null; top: number; height: number } | null>(null);
+  const [more, setMore] = useState(false);
+  const scrollNow = useRef(0);
+  scrollNow.current = scroll;
+  const openNow = useRef(false);
+  openNow.current = open;
+  /**
+   * Measures the open page as drawn: brings the focus into view when it moved (another element, or the same one moved on
+   * the page), the page scrolling up until its last line shows, or down; scrolling by hand is left alone until then. A
+   * page that runs on below says so on its last line.
+   */
+  const measure = useCallback(() => {
+    const view = viewRef.current;
+    const content = contentRef.current;
+    if (!openNow.current || !view || !content) return;
+    const scroll = scrollNow.current;
+    const v = measureElement(view);
+    const c = measureElement(content);
+    const f = focusNode.current ? measureElement(focusNode.current) : null;
+    let next = scroll;
+    const at = f && f.height ? { node: focusNode.current, top: f.y - c.y, height: f.height } : null;
+    const last = lastFocus.current;
+    if (at && f && (!last || last.node !== at.node || last.top !== at.top || last.height !== at.height)) {
+      if (f.y + f.height > v.y + v.height) next = scroll + (f.y + f.height - (v.y + v.height));
+      else if (f.y < v.y) next = scroll - (v.y - f.y);
+    }
+    lastFocus.current = at;
+    next = Math.max(0, Math.min(next, c.height - v.height));
+    if (next !== scroll) setScroll(next);
+    setMore(c.height - next > v.height);
+  }, []);
+  // A widget's focus moves without the page drawing again: it says so, and the page is measured then.
+  const keepInView = useCallback(
+    (node: DOMElement | null) => {
+      focusNode.current = node;
+      measure();
+    },
+    [measure],
+  );
   const keyScope = useRef<KeyScope>({ handlers: [] }).current;
   // What the pointer can reach, and what it rests on; the keys the open screen adds to the bar.
   const pointer = useRef(new PointerRegistry()).current;
@@ -249,7 +292,11 @@ export function App(props: AppProps) {
     if (props.notice) showFlash(props.notice.text, props.notice.kind);
   }, []);
 
-  useEffect(() => setScroll(0), [open, listKey, index]);
+  useEffect(() => {
+    setScroll(0);
+    focusNode.current = null;
+  }, [open, listKey, index]);
+  useEffect(measure);
 
   // Live: what changes on disk shows at once (data.watch), and every 15 seconds besides (a clock, an age); the session
   // index on "r".
@@ -416,7 +463,11 @@ export function App(props: AppProps) {
       return;
     }
     // 4. the same keys everywhere; u takes back the change the bar reports (docs/design.md, Say, do, undo)
-    if (input === 'u' && !key.ctrl && undo()) return;
+    if (input === 'u' && !key.ctrl) {
+      // A u that finds nothing to take back says so, and where any change is taken back.
+      if (!undo()) showFlash(t('undo.none'), 'warn');
+      return;
+    }
     if (input === 'q' && !open) {
       quit();
       return;
@@ -548,7 +599,8 @@ export function App(props: AppProps) {
     : open
       ? [
           ...own,
-          { key: '←/Esc', label: t('keys.back'), onPress: back },
+          // While the screen holds Esc or ← itself (a choice picked, a confirmation, a field typed in), they do not go back.
+          ...(own.some((h) => /Esc|←/.test(h.key)) ? [] : [{ key: '←/Esc', label: t('keys.back'), onPress: back }]),
           { key: '?', label: t('keys.help'), onPress: () => setOverlay('help') },
           { key: 'Ctrl+K', label: t('keys.palette'), onPress: openPalette },
           { key: 'Ctrl+O', label: t('keys.jump'), onPress: startJump },
@@ -655,11 +707,16 @@ export function App(props: AppProps) {
               <Text bold>{selected.label}</Text>
               {selected.description ? <Muted>{selected.description}</Muted> : null}
             </Box>
-            <Box marginTop={1} flexDirection="column" overflow="hidden" flexGrow={1}>
-              <Box flexDirection="column" flexShrink={0} marginTop={-scroll}>
-                {selected.screen({ width: mainW - 4, height: bodyH - 5, open: true })}
+            <Box ref={viewRef} marginTop={1} flexDirection="column" overflow="hidden" flexGrow={1} flexShrink={1} minHeight={0}>
+              <Box ref={contentRef} flexDirection="column" flexShrink={0} marginTop={-scroll}>
+                <KeepInView.Provider value={keepInView}>{selected.screen({ width: mainW - 4, height: bodyH - 5, open: true })}</KeepInView.Provider>
               </Box>
             </Box>
+            {more ? (
+              <Box flexShrink={0}>
+                <Muted>{t('page.more')}</Muted>
+              </Box>
+            ) : null}
           </ProseWidth.Provider>
         </Box>
       </Box>
@@ -839,6 +896,7 @@ function Help({ env, width, height, scroll }: { env: Env; width: number; height:
     ['→ Enter l', 'help.k.open'],
     ['← Esc h', 'help.k.back'],
     ['1 … 8', 'help.k.categories'],
+    ['PgUp PgDn', 'help.k.page'],
     ['/', 'help.k.filter'],
     ['Ctrl+K', 'help.k.palette'],
     ['Ctrl+O', 'help.k.jump'],
@@ -848,7 +906,7 @@ function Help({ env, width, height, scroll }: { env: Env; width: number; height:
     ['?', 'help.k.help'],
     ['q', 'help.k.quit'],
   ];
-  const terms: MessageKey[] = ['term.belt', 'term.mod', 'term.hook', 'term.quota', 'term.cache', 'term.keyword', 'term.view'];
+  const terms: MessageKey[] = ['term.strip', 'term.belt', 'term.mod', 'term.hook', 'term.quota', 'term.cache', 'term.keyword', 'term.view'];
   return (
     <Box flexDirection="column" width={width} height={height} borderStyle={env.theme.border} borderColor={env.theme.accent} paddingX={1} overflow="hidden">
       <Box flexDirection="column" flexShrink={0} marginTop={-Math.max(0, scroll)}>

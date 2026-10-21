@@ -44,7 +44,7 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'feature.mod': 'Claude Code eklentisi',
   'feature.keywords': 'Anahtar kelimeler',
   'feature.quota': 'Kota bekçisi',
-  'feature.footer': 'Alt satırlar',
+  'feature.footer': 'Cevap altı satırları',
   'feature.quietWork': 'Sessiz uzun iş',
   'feature.memory': 'Hafıza klasörü',
   'feature.index': 'Oturum geçmişi',

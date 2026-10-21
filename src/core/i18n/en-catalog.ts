@@ -9,6 +9,7 @@ export const enCatalog = {
   'ux.q.what': 'What it is',
   'ux.q.now': 'Now',
   'ux.q.change': 'If you change it',
+  'ux.q.apply': 'If you apply it',
   'ux.q.back': 'Taking it back',
   'ux.q.who': 'Who changes it',
   'ux.default': 'default',

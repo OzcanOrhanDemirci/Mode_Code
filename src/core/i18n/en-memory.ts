@@ -202,7 +202,7 @@ export const enMemory = {
   'page.memoryHandoffs': 'Handoffs and morning report',
   'desc.memoryHandoffs': 'When handoff notes are written and offered, and when the morning report is told.',
   'page.memoryProtected': 'Protected folders',
-  'desc.memoryProtected': 'Folders kept safe from deletion and shown in the footer.',
+  'desc.memoryProtected': 'Folders kept safe from deletion; their git state shows in the lines under answers.',
   'page.handoffs': 'Handoffs',
   'desc.handoffs': 'Handoff notes: where the work on each project stood when a session ended.',
   'desc.handoff': 'One handoff note, as it is kept in the memory.',

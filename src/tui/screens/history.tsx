@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { Box } from 'ink';
 import { ago } from '../../core/format.js';
 import { problemWords } from '../../core/config-words.js';
-import { asksFirst, confirmText, valueIn, valueText } from '../../core/ux/catalog.js';
+import { asksFirst, confirmText, effectOf, nameOf, valueIn, valueText } from '../../core/ux/catalog.js';
 import { changeText, undoOf, type ChangeRow } from '../../core/ux/changes.js';
 import { confirm } from '../../core/ux/kit.js';
 import type { ScreenProps } from '../nav.js';
@@ -76,7 +76,13 @@ export function History({ width, height, open }: ScreenProps) {
       {asking ? (
         <Box marginBottom={1}>
           {confirm(kit, {
-            text: confirmText(asking.path, asking.from, lang) ?? t('set.confirmLower', { value: valueText(asking.path, asking.from, lang) }),
+            text:
+              confirmText(asking.path, asking.from, lang) ??
+              t('set.confirmLower', {
+                name: nameOf(asking.path, lang),
+                value: valueText(asking.path, asking.from, lang),
+                effect: effectOf(asking.path, asking.from, lang),
+              }),
             width,
             apply: { id: 'apply-undo', label: t('set.key.apply'), keyName: 'Enter', onPress: () => takeBack(rows.indexOf(asking), true) },
             cancel: { id: 'cancel-undo', label: t('set.key.cancel'), keyName: 'Esc', onPress: () => setAsking(null) },

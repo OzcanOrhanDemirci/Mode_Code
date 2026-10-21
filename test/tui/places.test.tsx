@@ -130,7 +130,12 @@ test('the view leaves pages out of the lists, says how many, and never out of re
   const data = new FakeData('en', { view: 'simple' });
   const s = await draw(data, { address: 'work', columns: 110 });
   try {
-    assert.doesNotMatch(s.text(), /Keywords/);
+    // The list (the middle column) leaves the page out; the open page beside it may still name the setting.
+    const list = s
+      .text()
+      .split('\n')
+      .map((l) => l.split('││')[1] ?? '');
+    assert.ok(!list.some((l) => /Keywords/.test(l)), list.join('\n'));
     assert.match(s.text(), /\+1 more in the detailed view/);
     // A click on the count opens where the view is changed.
     await s.clickText('more in the detailed view');

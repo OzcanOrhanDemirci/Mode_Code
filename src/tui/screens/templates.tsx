@@ -8,7 +8,7 @@ import type { MessageKey } from '../../core/i18n/index.js';
 import { shortPath } from '../../core/format.js';
 import { TEMPLATES } from '../../core/templates.js';
 import type { ScreenProps } from '../nav.js';
-import { Muted, Note, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
+import { Muted, Note, useEnv, useHints, useKeepInView, useScreenKeys, useT } from '../ui.js';
 import { Pressable } from '../press.js';
 
 export function Templates({ width, open }: ScreenProps) {
@@ -50,16 +50,22 @@ export function Templates({ width, open }: ScreenProps) {
       setTo(input === 'a');
       return true;
     }
+    // Enter (or Space) does what the row offers: applies one that is off, removes one that is on; asked first.
+    if (key.return || input === ' ') {
+      setTo(pending ? pending.on : !applied.includes(cur.id));
+      return true;
+    }
     return false;
   }, open);
   const isOn = applied.includes(cur.id);
+  const asking = useKeepInView(open && !!pending);
   useHints(
     pending
       ? [
           { key: pending.on ? 'a' : 'x', label: t(pending.on ? 'keys.apply' : 'keys.remove'), run: () => setTo(pending.on) },
           { key: 'Esc', label: t('set.key.cancel'), run: () => setPending(null) },
         ]
-      : [isOn ? { key: 'x', label: t('keys.remove'), run: () => setTo(false) } : { key: 'a', label: t('keys.apply'), run: () => setTo(true) }],
+      : [isOn ? { key: 'Enter/x', label: t('keys.remove'), run: () => setTo(false) } : { key: 'Enter/a', label: t('keys.apply'), run: () => setTo(true) }],
     open,
   );
   return (
@@ -69,19 +75,30 @@ export function Templates({ width, open }: ScreenProps) {
         {TEMPLATES.map((x, i) => {
           const on = applied.includes(x.id);
           const selected = open && i === sel;
+          // A click selects a row; on the selected one it does what Enter does. What a press asks stands under its row.
           return (
-            <Pressable
-              key={x.id}
-              onPress={() => {
-                setSel(i);
-                setPending(null);
-              }}
-            >
-              <Text inverse={selected} wrap="truncate-end">
-                {selected ? theme.sym.cursor : ' '} <Text color={on ? theme.ok : theme.muted}>{on ? theme.sym.ok : theme.sym.off}</Text> {x.name[lang]}
-                {x.needsRemote && !remote ? <Text color={theme.muted}> · {t('templates.needsRemote')}</Text> : null}
-              </Text>
-            </Pressable>
+            <Box key={x.id} flexDirection="column">
+              <Pressable
+                keep={selected && !pending}
+                onPress={() => {
+                  if (i === sel) setTo(pending ? pending.on : !on);
+                  else {
+                    setSel(i);
+                    setPending(null);
+                  }
+                }}
+              >
+                <Text inverse={selected} wrap="truncate-end">
+                  {selected ? theme.sym.cursor : ' '} <Text color={on ? theme.ok : theme.muted}>{on ? theme.sym.ok : theme.sym.off}</Text> {x.name[lang]}
+                  {x.needsRemote && !remote ? <Text color={theme.muted}> · {t('templates.needsRemote')}</Text> : null}
+                </Text>
+              </Pressable>
+              {selected && pending ? (
+                <Box ref={asking} marginLeft={4}>
+                  <Note kind="warn">{t(pending.on ? 'templates.confirmApply' : 'templates.confirmRemove')}</Note>
+                </Box>
+              ) : null}
+            </Box>
           );
         })}
       </Box>
@@ -101,11 +118,6 @@ export function Templates({ width, open }: ScreenProps) {
           </Text>
         ))}
       </Box>
-      {pending ? (
-        <Box marginTop={1}>
-          <Note kind="warn">{t(pending.on ? 'templates.confirmApply' : 'templates.confirmRemove')}</Note>
-        </Box>
-      ) : null}
     </Box>
   );
 }

@@ -7,6 +7,7 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.q.what': 'Bu ne',
   'ux.q.now': 'Şu an',
   'ux.q.change': 'Değiştirirsen',
+  'ux.q.apply': 'Uygularsan',
   'ux.q.back': 'Geri almak',
   'ux.q.who': 'Kim değiştirir',
   'ux.default': 'varsayılan',

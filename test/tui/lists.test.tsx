@@ -24,7 +24,10 @@ test('projects: added by typing, refused in the wrong form, removed only on the 
     await s.type('no colon here');
     await s.press(KEY.enter);
     assert.equal(data.saved.length, 1);
-    assert.match(flat(s.text()), /Write it as: my-app: app/);
+    // Refused: said how to write it, and what was typed is still in the field.
+    assert.match(flat(s.text()), /Not saved\. Write it as my-app: My App, app/);
+    assert.match(flat(s.text()), /Project: no colon here/);
+    await s.press(KEY.esc);
 
     await s.press('a');
     await s.type('blog: Blog');
