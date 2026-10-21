@@ -47,7 +47,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { declarationsFor, installedClaude } from './declarations.mjs';
 
@@ -139,7 +139,8 @@ function session(
       }
     })
     .filter(Boolean);
-  const final = events.find((e) => e.type === 'result');
+  // The last turn's result: with several messages, each has one, and the answer that counts is the last.
+  const final = events.findLast((e) => e.type === 'result');
   const id = events.find((e) => e.session_id)?.session_id ?? null;
   return { status: r.status, events, final, id, text: JSON.stringify(events), stderr: r.stderr ?? '' };
 }
@@ -253,37 +254,52 @@ async function closedCases() {
  * 6. Full autonomy (docs/autonomy.md), chosen with /9, in Claude Code's default permission mode, where a headless
  * session has no one to answer. Claude Code's own question about a file write is answered by the way of working;
  * `git clean` runs once the safety-net hook kept what it removes (docs/safety-belt.md, "Safety net"); a command the
- * belt would ask about and no net can undo (`git push --mirror`) is left to the person, with its command.
+ * belt would ask about and no net can undo (`git push --prune`) does not run and is left to the person, with its
+ * command. Since 1.2.0 a step the person asked for in their own words goes on only through the `request` tool, which
+ * this session does not have: Claude leaves it itself, as the turn's note tells it, or the belt leaves it.
+ * (`git push --mirror` is not left but stopped: it force-pushes every branch, the protected ones too.)
  */
 function fullAutonomyLeft() {
-  const dir = join(work, 'full-project');
-  const home = join(work, 'full-data');
-  mkdirSync(dir);
-  mkdirSync(home, { recursive: true });
-  writeFileSync(join(home, 'config.json'), JSON.stringify({ language: 'en' }));
-  const g = (...a) =>
-    spawnSync('git', ['-C', dir, '-c', 'user.name=live', '-c', 'user.email=live@example.com', '-c', 'commit.gpgsign=false', ...a], {
-      encoding: 'utf8',
-      windowsHide: true,
-    });
-  g('init', '-q');
-  writeFileSync(join(dir, 'README.md'), '# Full\n');
-  g('add', '-A');
-  g('commit', '-q', '-m', 'start');
-  writeFileSync(join(dir, 'build.tmp'), 'left over\n');
-  const r = session(
-    [
-      '/9',
-      'Do these three steps, in this order. First use the Write tool to write the text hi to the file notes.txt in the current folder. Then use the Bash tool to run exactly this command: git clean -f build.tmp . Then use the Bash tool to run exactly this command: git push --mirror origin . Then reply with the single word DONE.',
-    ],
-    settings,
-    'Read',
-    { MODE_CODE_HOME: home },
-    dir,
-    ['--permission-mode', 'default'],
-  );
-  const months = existsSync(join(home, 'events')) ? readdirSync(join(home, 'events')) : [];
-  const logged = months.flatMap((m) => readdirSync(join(home, 'events', m)).map((x) => readFileSync(join(home, 'events', m, x), 'utf8'))).join('\n');
+  // The cheapest model sometimes leaves a step out on its own before the belt sees it (measured 2026-10-21: 2 of 4
+  // sessions): up to three sessions, each in a folder of its own, until one tries both commands.
+  let dir = '';
+  let home = '';
+  let r = null;
+  let logged = '';
+  for (let i = 1; i <= 3; i++) {
+    dir = join(work, `full-project-${i}`);
+    home = join(work, `full-data-${i}`);
+    mkdirSync(dir);
+    mkdirSync(home, { recursive: true });
+    writeFileSync(join(home, 'config.json'), JSON.stringify({ language: 'en' }));
+    const g = (...a) =>
+      spawnSync('git', ['-C', dir, '-c', 'user.name=live', '-c', 'user.email=live@example.com', '-c', 'commit.gpgsign=false', ...a], {
+        encoding: 'utf8',
+        windowsHide: true,
+      });
+    g('init', '-q');
+    writeFileSync(join(dir, 'README.md'), '# Full\n');
+    g('add', '-A');
+    g('commit', '-q', '-m', 'start');
+    // A remote of its own on this computer, so the push the case asks for has somewhere to go.
+    spawnSync('git', ['init', '-q', '--bare', join(work, `full-remote-${i}.git`)], { windowsHide: true });
+    g('remote', 'add', 'origin', join(work, `full-remote-${i}.git`));
+    writeFileSync(join(dir, 'build.tmp'), 'left over\n');
+    r = session(
+      [
+        '/9',
+        'Do these three steps, in this order. First use the Write tool to write the text hi to the file notes.txt in the current folder. Then use the Bash tool to run exactly this command: git clean -f build.tmp . Then use the Bash tool to run exactly this command: git push --prune origin . Then reply with the single word DONE.',
+      ],
+      settings,
+      'Read',
+      { MODE_CODE_HOME: home },
+      dir,
+      ['--permission-mode', 'default'],
+    );
+    const months = existsSync(join(home, 'events')) ? readdirSync(join(home, 'events')) : [];
+    logged = months.flatMap((m) => readdirSync(join(home, 'events', m)).map((x) => readFileSync(join(home, 'events', m, x), 'utf8'))).join('\n');
+    if (/git clean/.test(logged)) break;
+  }
   check(
     "full autonomy: Claude Code's own question about a write is answered, and the file is written",
     existsSync(join(dir, 'notes.txt')) && /"kind":"permission"[^\n]*"answer":"full"/.test(logged),
@@ -295,10 +311,15 @@ function fullAutonomyLeft() {
     !existsSync(join(dir, 'build.tmp')) && nets.length === 1 && /"kind":"net"[^\n]*"rule":"git.clean"/.test(logged),
     existsSync(join(dir, 'build.tmp')) ? 'the file is still there' : `${nets.length} net(s)`,
   );
+  // Run, the push would have put the branch on the remote.
+  const remote = join(dirname(dir), basename(dir).replace('full-project', 'full-remote') + '.git');
+  const pushed = (spawnSync('git', ['--git-dir', remote, 'for-each-ref'], { encoding: 'utf8', windowsHide: true }).stdout ?? '').trim() !== '';
+  const reply = r.final?.result ?? '';
+  const leftByBelt = /"kind":"belt"[^\n]*git\.mirror-or-prune[^\n]*"left":true/.test(logged) && /Full autonomy asks nobody/.test(r.text);
   check(
     'full autonomy: a command the belt would ask about with no net is left to the person with its command, and does not run',
-    /"kind":"belt"[^\n]*git\.mirror-or-prune[^\n]*"left":true/.test(logged) && /Full autonomy asks nobody/.test(r.text),
-    /"left":true/.test(logged) ? '' : 'not recorded as left',
+    !pushed && (leftByBelt || reply.includes('git push --prune origin')),
+    pushed ? 'the push ran' : leftByBelt ? 'left by the belt' : `left by Claude · ${reply.replace(/\s+/g, ' ').slice(0, 120)}`,
   );
   return r;
 }
@@ -687,19 +708,21 @@ function autoModeCase() {
   const dir = join(work, 'automode-project');
   mkdirSync(dir);
   spawnSync('git', ['init', '-q', dir], { windowsHide: true });
-  const ask = (subject, flags) =>
-    `Use the Bash tool to run exactly this command and nothing else: git -c user.name=live -c user.email=live@example.com commit ${flags}--allow-empty -m ${subject} . Then reply with the single word DONE.`;
-  const run = (subject, flags) => session(ask(subject, flags), settings, 'Read', {}, dir, ['--permission-mode', 'auto']);
-  const plain = run('plain', '');
-  const asked = run('asked', '--no-verify ');
-  const subjects = (spawnSync('git', ['-C', dir, 'log', '--format=%s'], { encoding: 'utf8', windowsHide: true }).stdout ?? '').split('\n').filter(Boolean);
+  // The session works Manual, as a new one does: a commit waits for the person there (Manual's promise, 1.2.0), so
+  // the command the belt allows writes a file in the project, and the one it asks about is a commit that skips git's hooks.
+  const ask = (command) => `Use the Bash tool to run exactly this command and nothing else: ${command} . Then reply with the single word DONE.`;
+  const run = (command) => session(ask(command), settings, 'Read', {}, dir, ['--permission-mode', 'auto']);
+  const plain = run('echo plain > plain.txt');
+  const asked = run('git -c user.name=live -c user.email=live@example.com commit --no-verify --allow-empty -m asked');
+  const out = (...a) => (spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8', windowsHide: true }).stdout ?? '').split('\n').filter(Boolean);
+  const subjects = [...(existsSync(join(dir, 'plain.txt')) ? ['plain.txt'] : []), ...out('log', '--format=%s')];
   const mode = (r) => r.events.find((e) => e.type === 'system' && e.subtype === 'init')?.permissionMode ?? 'not reported';
   const months = existsSync(join(data, 'events')) ? readdirSync(join(data, 'events')) : [];
   const logged = months.flatMap((m) => readdirSync(join(data, 'events', m)).map((x) => readFileSync(join(data, 'events', m, x), 'utf8'))).join('\n');
   check(
     'auto mode: a command the belt allows runs without a question',
-    mode(plain) === 'auto' && subjects.includes('plain'),
-    `mode ${mode(plain)}${subjects.includes('plain') ? '' : ` · not run: ${(plain.final?.result ?? plain.stderr).slice(0, 120)}`}`,
+    mode(plain) === 'auto' && subjects.includes('plain.txt'),
+    `mode ${mode(plain)}${subjects.includes('plain.txt') ? '' : ` · not run: ${(plain.final?.result ?? plain.stderr).slice(0, 120)}`}`,
   );
   check(
     "auto mode: the belt's question still goes to the person, so a headless session refuses the command",
