@@ -24,7 +24,7 @@ The published package of mode-code bundles the following open-source packages. E
 - onetime 5.1.2 (MIT)
 - patch-console 2.0.0 (MIT)
 - quick-lru 7.3.0 (MIT)
-- react 19.3.0 (MIT)
+- react 19.3.1 (MIT)
 - react-reconciler 0.34.0 (MIT)
 - restore-cursor 4.0.0 (MIT)
 - scheduler 0.28.0 (MIT)
@@ -507,7 +507,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ---
 
-## react 19.3.0
+## react 19.3.1
 
 License: MIT
 Source: https://github.com/react/react.git
