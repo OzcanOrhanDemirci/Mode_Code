@@ -47,6 +47,8 @@ export interface Analysis {
   invocations: Invocation[];
   /** Why the result may be incomplete. Empty means every part was followed. */
   issues: string[];
+  /** The command as its words are read: a bash script's comments blanked, they say nothing about what runs; the rest as written. */
+  code: string;
 }
 
 const PS_ALIASES: Record<string, string> = {
@@ -192,8 +194,9 @@ export function programName(word: string): string {
 }
 
 export function analyzeCommand(command: string, dialect: Dialect): Analysis {
-  const out: Analysis = { invocations: [], issues: [] };
   const script = dialect === 'powershell' ? parsePowerShell(command) : dialect === 'cmd' ? parseCmd(command) : parseBash(command);
+  const code = dialect === 'bash' ? blank(command, script.comments ?? []) : command;
+  const out: Analysis = { invocations: [], issues: [], code };
   walk(script, [], 0, out, dialect === 'bash' ? straightLineConstants(command, script) : null);
   out.issues = [...new Set(out.issues)];
   return out;
@@ -214,8 +217,28 @@ function walk(script: ParsedScript, via: string[], depth: number, out: Analysis,
 
 /** Anything that can make an assignment conditional, repeated, scoped or computed: then nothing is propagated. */
 const NOT_STRAIGHT =
-  /\b(?:if|case|while|until|for|select|function|read|mapfile|readarray|source|eval|trap|exec|unset)\b|\(\)\s*\{|(?:^|[;&|\n])\s*(?:\.\s|[({])/;
+  /\b(?:if|case|while|until|for|select|function|read|mapfile|readarray|getopts|let|source|eval|trap|exec|unset|coproc)\b|\bprintf\s+-v|\b(?:declare|typeset|local)\s+(?:[-+]\w+\s+)*-\w*n\w*\b|\(\)\s*\{|(?:^|[;&|\n])[^\S\n]*(?:\.\s|[({])/;
+/** The same, read from the parsed words, which a quote inside a name (`pr''intf -v`) does not hide. */
+const ASSIGNS_ELSEWHERE = new Set(['read', 'mapfile', 'readarray', 'getopts', 'let', 'source', '.', 'eval', 'trap', 'exec', 'unset', 'coproc']);
 const DECLARERS = new Set(['export', 'declare', 'typeset', 'local', 'readonly']);
+/** Names bash sets by itself as the script runs (`$_` after each command, `$PWD` at a `cd`): never a constant. */
+const SHELL_SET = new Set(
+  '_ PWD OLDPWD RANDOM SRANDOM SECONDS LINENO BASHPID EPOCHSECONDS EPOCHREALTIME REPLY OPTARG OPTIND PIPESTATUS BASH_COMMAND HISTCMD'.split(' '),
+);
+
+/** A command that may set a variable other than by a plain `NAME=value`: a builtin that assigns, a nameref, a name it computes. */
+function assignsElsewhere(cmd: SimpleCommand): boolean {
+  const words = cmd.argv.map((w) => w.text);
+  // `builtin read X`, `command printf -v X …`: the same builtin.
+  while (words[0] === 'builtin' || words[0] === 'command') words.shift();
+  const [first, ...rest] = words;
+  if (first === undefined) return false;
+  if (ASSIGNS_ELSEWHERE.has(first)) return true;
+  if (first === 'printf') return rest.some((a) => a.startsWith('-v'));
+  if (!DECLARERS.has(first)) return false;
+  // A nameref (`-n`, also after other options) or a name computed when it runs (`declare $N=/`).
+  return rest.some((a) => /^[-+][A-Za-z]*n/.test(a) || /^[^=]*[$`]/.test(a));
+}
 
 /**
  * `T=$(mktemp -d)` alone: a new name in the system's temporary folder. Flags only; a template or `-p` puts it
@@ -224,6 +247,19 @@ const DECLARERS = new Set(['export', 'declare', 'typeset', 'local', 'readonly'])
 const MKTEMP = /^(?:(?:export|local|declare|typeset|readonly)\s+)?[A-Za-z_]\w*=("?)\$\(\s*mktemp(?:\s+-[dqtu]+)*\s*\)\1$/;
 /** The name such a variable stands for: inside the temporary folder (`/tmp` on every system, Git Bash's too). */
 const MKTEMP_PATH = '/tmp/tmp.mktemp';
+
+/** The text with the ranges blanked, every other character where it was (the line breaks too, in what is blanked). */
+function blank(text: string, ranges: readonly (readonly [number, number])[]): string {
+  let out = '';
+  let at = 0;
+  for (const [from, to] of [...ranges].sort((a, b) => a[0] - b[0])) {
+    if (to <= at) continue;
+    const start = Math.max(from, at);
+    out += text.slice(at, start) + text.slice(start, to).replace(/[^\n]/g, ' ');
+    at = to;
+  }
+  return out + text.slice(at);
+}
 
 /** The words that assign in a command: `NAME=value` alone, or after export/declare/…; empty for anything else. */
 function assignmentsOf(cmd: SimpleCommand): string[] {
@@ -239,31 +275,35 @@ function assignmentsOf(cmd: SimpleCommand): string[] {
  * plain literal values of variables assigned exactly once, and only up to the first branch, loop, group,
  * function, read or sourcing. An assignment holds for what follows it in the same `&&` chain, and for the
  * rest of the script only when it is the first element of its list; nothing after a `||` and nothing in a
- * pipeline or in the background counts; a use before the assignment sees the unknown outside value.
+ * pipeline or in the background counts; a use before the assignment sees the unknown outside value. The script is
+ * read without its comments and without the bodies of its here-documents: they are no commands, so they neither
+ * hide a variable nor, by what they say, make the script uncertain.
  */
 export function straightLineConstants(command: string, script: ParsedScript): Map<string, string>[] {
   const none = script.commands.map(() => new Map<string, string>());
+  const code = blank(command, [...(script.comments ?? []), ...(script.bodies ?? [])]);
   // Values only flow forward: the commands before the first branch, loop, group, … are still certain.
-  const stop = command.search(NOT_STRAIGHT);
+  const textStop = code.search(NOT_STRAIGHT);
+  // Every way of assigning counts: `S+=x` and `S[0]=x` change S as `S=x` does, and S is then no constant.
   const count = new Map<string, number>();
   for (const cmd of script.commands)
     for (const a of assignmentsOf(cmd)) {
-      const name = /^([A-Za-z_]\w*)=/.exec(a)?.[1];
+      const name = /^([A-Za-z_]\w*)(?:\[[^\]]*\])?\+?=/.exec(a)?.[1];
       if (name) count.set(name, (count.get(name) ?? 0) + 1);
     }
-  // Where each command sits in the text, and the operators between neighbours.
+  // Where each command sits in the text (the parser says), and the operators between neighbours.
   const spans: { at: number; end: number }[] = [];
-  let cursor = 0;
   for (const cmd of script.commands) {
-    const at = command.indexOf(cmd.raw, cursor);
-    if (at === -1 || cmd.raw === '') return none;
+    if (cmd.at === undefined || cmd.raw === '') return none;
     // The parser's raw text may begin with the operator that joins it to the previous command.
     const lead = /^[\s;&|]*/.exec(cmd.raw)![0].length;
-    spans.push({ at: at + lead, end: at + cmd.raw.length });
-    cursor = at + cmd.raw.length;
+    spans.push({ at: cmd.at + lead, end: cmd.at + cmd.raw.length });
   }
+  const parsedStop = script.commands.findIndex(assignsElsewhere);
+  const stops = [textStop, parsedStop === -1 ? -1 : spans[parsedStop]!.at].filter((s) => s !== -1);
+  const stop = stops.length ? Math.min(...stops) : -1;
   const joiner = (from: number, to: number): 'and' | 'or' | 'pipe' | 'seq' | 'lost' => {
-    const between = command.slice(from, to).replace(/#[^\n]*/g, '');
+    const between = code.slice(from, to);
     if (/[^\s;&|]/.test(between)) return 'lost';
     if (between.includes('||')) return 'or';
     if (between.includes('&&')) return 'and';
@@ -277,8 +317,9 @@ export function straightLineConstants(command: string, script: ParsedScript): Ma
   let afterOr = false;
   let first = true;
   for (let i = 0; i < script.commands.length; i++) {
-    const before = i === 0 ? (command.slice(0, spans[0]!.at).trim() ? 'lost' : 'seq') : joiner(spans[i - 1]!.end, spans[i]!.at);
-    const after = i + 1 < spans.length ? joiner(spans[i]!.end, spans[i + 1]!.at) : /&\s*$/.test(command.slice(spans[i]!.end)) ? 'lost' : 'seq';
+    const before = i === 0 ? (code.slice(0, spans[0]!.at).trim() ? 'lost' : 'seq') : joiner(spans[i - 1]!.end, spans[i]!.at);
+    // Nothing follows the last command, so what it leaves does not matter.
+    const after = i + 1 < spans.length ? joiner(spans[i]!.end, spans[i + 1]!.at) : 'seq';
     if (before === 'lost' || (stop !== -1 && spans[i]!.end > stop)) return [...result, ...none.slice(i)];
     if (before === 'seq') {
       chain = new Map();
@@ -292,13 +333,15 @@ export function straightLineConstants(command: string, script: ParsedScript): Ma
     if (!subshell && !afterOr)
       for (const a of assignmentsOf(script.commands[i]!)) {
         const m = /^([A-Za-z_]\w*)=(.*)$/s.exec(a);
-        if (!m || count.get(m[1]!) !== 1) continue;
-        const made = m[2] === '$(…)' && MKTEMP.test(script.commands[i]!.raw.trim());
+        if (!m || count.get(m[1]!) !== 1 || SHELL_SET.has(m[1]!)) continue;
+        const made = m[2] === '$(…)' && MKTEMP.test(code.slice(spans[i]!.at, spans[i]!.end).trim());
         const value = made
           ? MKTEMP_PATH
           : m[2]!.replace(/\$\{(\w+)\}|\$(\w+)/g, (whole, x: string | undefined, y: string | undefined) => known.get((x ?? y)!) ?? whole);
         // A value with spaces or wildcards is split and globbed where it is used unquoted: not one known word.
-        if (/[$`\s*?[\]]/.test(value)) continue;
+        // With `extglob` on, `@(a|b)` is a wildcard too. An array's elements (`NAME=(…)`) are no value of NAME, which
+        // is the first of them.
+        if (/[$`\s*?[\]()|]/.test(value)) continue;
         (first ? settled : chain).set(m[1]!, value);
       }
     first = false;
