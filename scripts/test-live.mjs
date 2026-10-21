@@ -28,6 +28,8 @@
  *  16. Claude Code's auto mode: a command the belt allows runs unasked, one it asks about still goes to the person;
  *  17. parallel agents: with the mode off a working agent is refused and a read-only helper runs; set to exactly N,
  *      the person's task for a row reaches the agent word for word, whatever Claude wrote for it.
+ *  18. (--only-types, not in the full run) Claude Code's declarations for mods: a session loads its plugin-authoring guide, and Claude Code lays them
+ *      where the mod's type check finds them (scripts/declarations.mjs), for exactly the version installed.
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
  *        add --only-bypass to run case 11 alone (two sessions): a bypass an older version recorded lifts nothing
@@ -37,6 +39,7 @@
  *        add --only-skills to run cases 14 and 15 alone (three sessions): the skills
  *        add --only-automode to run case 16 alone (two sessions): Claude Code's auto mode with the belt
  *        add --only-agents to run case 17 alone (two sessions): parallel agents in the real engine
+ *        add --only-types to run case 18 alone (one session): lay the declarations of a Claude Code just installed
  *        add --only-memory to run case 8 alone (three sessions): the memory, pulled, handed off and told
  *        add --keep to leave the sessions' folders in place
  */
@@ -46,6 +49,7 @@ import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { declarationsFor, installedClaude } from './declarations.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -802,6 +806,22 @@ function agentsCases() {
   return [off, on];
 }
 
+/**
+ * 18. Claude Code's declarations for mods, which it writes itself the first time a session loads its plugin-authoring
+ * guide: a release just installed has none, and the mod's type check (scripts/typecheck-mod.mjs) can only skip.
+ */
+function typesCase() {
+  const version = installedClaude();
+  const r = session('/plugin-authoring', settings, 'Read');
+  const dts = version ? declarationsFor(version) : null;
+  check(
+    `Claude Code ${version ?? '(version unknown)'} laid its declarations for mods`,
+    dts !== null,
+    dts ? fwd(dts) : (r.final?.result?.slice?.(0, 120) ?? r.stderr.slice(0, 200)),
+  );
+  return r;
+}
+
 const results = [];
 const check = (name, ok, detail = '') => {
   results.push({ name, ok, detail });
@@ -843,6 +863,12 @@ try {
     const p = partsCase();
     console.log(
       `test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${(p.final?.total_cost_usd ?? 0).toFixed(3)}`,
+    );
+    process.exitCode = results.every((r) => r.ok) ? 0 : 1;
+  } else if (process.argv.includes('--only-types')) {
+    const t = typesCase();
+    console.log(
+      `test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${(t.final?.total_cost_usd ?? 0).toFixed(3)}`,
     );
     process.exitCode = results.every((r) => r.ok) ? 0 : 1;
   } else if (process.argv.includes('--only-auto')) {

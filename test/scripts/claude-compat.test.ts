@@ -15,6 +15,15 @@ test("a row: the date, the version, each step's result or that it did not run", 
     ]),
     '| 2026-10-18 | 2.1.302 | pass | FAIL | not run |',
   );
+  // The kit passed with no declarations to check its types against: the row says so, not a plain pass.
+  assert.equal(
+    compatRow('2026-10-21', '2.1.306', [
+      { name: 'check', ok: true },
+      { name: 'mod', ok: true, without: 'types' },
+    ]),
+    '| 2026-10-21 | 2.1.306 | pass | pass (no types) | not run |',
+  );
+  assert.equal(compatRow('2026-10-21', '2.1.306', [{ name: 'mod', ok: false, without: 'types' }]), '| 2026-10-21 | 2.1.306 | not run | FAIL | not run |');
 });
 
 test('the table: made under its heading at the end, rows added after the last, a row of the same date and version replaced', () => {

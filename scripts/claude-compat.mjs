@@ -6,6 +6,11 @@
  * test/claude-code-tools.json), and with --live the real sessions (`npm run test:live -- --yes`, a few US cents).
  * The result is added to the table in docs/testing.md ("Claude Code versions checked"), one row per version.
  *
+ * The type check needs the declarations Claude Code lays the first time a session loads its plugin-authoring guide
+ * (scripts/declarations.mjs); a release just installed has none. With --live a short session lays them first
+ * (`test-live.mjs --only-types`); without it, or where they still are not there, the row says the kit ran without
+ * the types: the type check skips, and a row must not say it passed.
+ *
  * It never installs Claude Code: when a newer one is out it says so and stops, unless --installed says to check the
  * installed one anyway. Update with `claude update`, then run this again.
  *
@@ -16,15 +21,16 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { declarationsFor } from './declarations.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const HEADING = '## Claude Code versions checked';
 
-/** The table's row for a run: the date, the version, each step's result. */
+/** The table's row for a run: the date, the version, each step's result, and what a step that passed left out. */
 export function compatRow(date, version, steps) {
   const cell = (name) => {
     const s = steps.find((x) => x.name === name);
-    return s ? (s.ok ? 'pass' : 'FAIL') : 'not run';
+    return s ? (s.ok ? (s.without ? `pass (no ${s.without})` : 'pass') : 'FAIL') : 'not run';
   };
   return `| ${date} | ${version} | ${cell('check')} | ${cell('mod')} | ${cell('live')} |`;
 }
@@ -78,7 +84,13 @@ function main(argv) {
   }
   const steps = [];
   steps.push({ name: 'check', ok: run('npm', ['run', 'check']) });
-  if (steps.every((s) => s.ok)) steps.push({ name: 'mod', ok: run('npm', ['run', 'test:mod']) });
+  if (steps.every((s) => s.ok)) {
+    if (!declarationsFor(installed) && argv.includes('--live')) run('node', ['scripts/test-live.mjs', '--yes', '--only-types']);
+    const types = declarationsFor(installed) !== null;
+    if (!types)
+      console.log(`claude-compat: Claude Code ${installed} has laid no declarations for mods: the kit runs without the type check (--live lays them)`);
+    steps.push({ name: 'mod', ok: run('npm', ['run', 'test:mod']), ...(types ? {} : { without: 'types' }) });
+  }
   if (steps.every((s) => s.ok) && argv.includes('--live')) steps.push({ name: 'live', ok: run('npm', ['run', 'test:live', '--', '--yes']) });
   const row = compatRow(new Date().toISOString().slice(0, 10), installed, steps);
   console.log(`claude-compat: ${row}`);
