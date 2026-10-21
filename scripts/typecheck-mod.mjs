@@ -9,37 +9,23 @@
  * Usage: node scripts/typecheck-mod.mjs
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { declarationsFor, installedClaude } from './declarations.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const env = { ...process.env };
-for (const k of Object.keys(env)) if (k.startsWith('CLAUDE_CODE_') || k === 'CLAUDECODE') delete env[k];
-let v = spawnSync('claude', ['--version'], { encoding: 'utf8', env, windowsHide: true });
-if (v.error && process.platform === 'win32') v = spawnSync('claude --version', { encoding: 'utf8', env, shell: true, windowsHide: true });
-const version = /(\d+\.\d+\.\d+)/.exec(v.stdout ?? '')?.[1];
+const version = installedClaude();
 if (!version) {
   console.log('typecheck-mod: skipped: Claude Code is not installed');
   process.exit(0);
 }
 
-/** The newest declaration file Claude Code laid for this version. */
-function findDeclarations() {
-  const base = join(tmpdir(), 'claude', 'bundled-skills', version);
-  if (!existsSync(base)) return null;
-  const found = readdirSync(base)
-    .map((h) => join(base, h, 'plugin-authoring', 'types', 'claude-code.d.ts'))
-    .filter((p) => existsSync(p))
-    .sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs);
-  return found[0] ?? null;
-}
-
-const dts = findDeclarations();
+const dts = declarationsFor(version);
 if (!dts) {
   console.log(
-    `typecheck-mod: skipped: Claude Code ${version} has not laid its declarations on this machine yet (they appear the first time a session loads its plugin-authoring guide)`,
+    `typecheck-mod: skipped: Claude Code ${version} has not laid its declarations on this machine yet (they appear the first time a session loads its plugin-authoring guide; node scripts/test-live.mjs --yes --only-types runs one)`,
   );
   process.exit(0);
 }
