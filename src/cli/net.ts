@@ -70,6 +70,11 @@ export async function cmdNet(a: Args): Promise<number> {
   }
 
   if (sub === 'show' || sub === 'restore') {
+    // Putting back is named: a net with no id would be the newest, which may not be the one meant.
+    if (sub === 'restore' && !a.positionals[1]) {
+      process.stderr.write(T(ctx, 'net.needId', { cmd: `${CLI_NAME} net restore <id>`, list: `${CLI_NAME} net` }) + '\n');
+      return 2;
+    }
     const r = find(nets, a.positionals[1]);
     if (!r) {
       process.stderr.write(T(ctx, 'net.notFound', { id: a.positionals[1] ?? '' }) + '\n');

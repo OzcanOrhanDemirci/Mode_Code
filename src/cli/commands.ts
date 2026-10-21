@@ -7,7 +7,7 @@
 import { createInterface } from 'node:readline/promises';
 import { homedir } from 'node:os';
 import { APP_NAME, APP_VERSION, CLI_NAME, MIN_CLAUDE_CODE_FOR_HOOKS, REPO_URL } from '../core/app.js';
-import { cloneDefaults, serializeConfig, setConfigValue, type Config } from '../core/config.js';
+import { cloneDefaults, configKeys, configValueAt, serializeConfig, setConfigValue, type Config } from '../core/config.js';
 import { problemWords } from '../core/config-words.js';
 import { readChanges, saveConfig } from '../node/changes.js';
 import { changeText, lastUndoable, undoOf } from '../core/ux/changes.js';
@@ -57,7 +57,8 @@ import { git } from '../node/git.js';
 import { mark2 } from '../core/mo/marks.js';
 import { ansiOf } from '../core/mo/cells.js';
 import { STILL_AT } from '../core/mo/state.js';
-import { flag, intValue, value, values, type Args } from './args.js';
+import { flag, intValue, testedCommand, value, values, type Args } from './args.js';
+import { truncate } from '../core/text.js';
 import { bold, dim, green, red, yellow, gray, cyan, table, colorDepth, colorOn } from './style.js';
 
 type Out = (s?: string) => void;
@@ -749,8 +750,9 @@ export async function cmdBelt(a: Args): Promise<number> {
   if (sub === 'test') {
     const tool = value(a, 'tool') ?? (value(a, 'path') ? 'Write' : 'Bash');
     const input: Record<string, unknown> = {};
-    // `belt test git clean -f` reads as the command it names: before, it judged an empty call and said allow.
-    const words = a.positionals.slice(1).join(' ');
+    // `belt test git clean -f` reads as the command it names, its own options kept: the words as typed, not as parsed
+    // (parsed, `rm -rf /` lost its `-rf` and was judged as `rm /`).
+    const words = a.raw ? testedCommand(a.raw) : a.positionals.slice(1).join(' ');
     if (value(a, 'command') !== undefined) input.command = value(a, 'command');
     else if (words && value(a, 'path') === undefined) input.command = words;
     if (value(a, 'path') !== undefined) input.file_path = value(a, 'path');
@@ -770,6 +772,9 @@ export async function cmdBelt(a: Args): Promise<number> {
       json('belt-test', { tool, input, level, decision: d });
       return 0;
     }
+    // What was judged, and in which way of working: a verdict means nothing without them.
+    const what = typeof input.command === 'string' ? input.command : String(input.file_path);
+    say(dim(T(ctx, 'belt.testWhat', { what: truncate(what, 200), level: T(ctx, `ctl.style.${level === 'auto' ? 'autonomous' : level}` as MessageKey) })));
     say(`${bold(T(ctx, `verdict.${d.verdict}` as MessageKey))}  ${dim(T(ctx, 'belt.testNote'))}`);
     for (const f of d.findings)
       say(`  ${f.verdict === 'deny' ? red('✗') : f.verdict === 'ask' ? yellow('?') : gray('i')} ${f.reason} ${dim('[' + f.rule + ']')}`);
@@ -938,11 +943,17 @@ export async function cmdConfig(a: Args): Promise<number> {
   }
   if (sub === 'get') {
     const key = a.positionals[1];
-    let v: unknown = ctx.config;
-    if (key) for (const k of key.split('.')) v = v && typeof v === 'object' ? (v as Record<string, unknown>)[k] : undefined;
+    const v: unknown = key ? configValueAt(ctx.config, key) : ctx.config;
+    if (key && v === undefined) {
+      // A rule's verdict left as it ships is no unknown setting: its default applies.
+      const rule = configKeys(key)[2];
+      if (!key.startsWith('belt.verdicts.') || rule === undefined || !Object.hasOwn(RULES, rule)) return notASetting(ctx, key);
+      say(dim(T(ctx, 'config.notSet', { key })));
+      return 0;
+    }
     if (flag(a, 'json') || typeof v === 'object') say(JSON.stringify(v, null, 2));
     else say(String(v));
-    return v === undefined ? 1 : 0;
+    return 0;
   }
   if (sub === 'explain') return explainSetting(ctx, a.positionals[1], flag(a, 'json'));
   // The record of changes (src/core/ux/changes.ts): every change, newest first; the newest that can still be taken back.
@@ -995,11 +1006,27 @@ export async function cmdConfig(a: Args): Promise<number> {
       for (const p of mine) say(red(T(ctx, 'cli.doctor.configProblem', { path: p.path, detail: problemWords(p.detail, ctx.lang) })));
       return 1;
     }
+    // A key no setting has is dropped as the file is read: said, not saved as if it had been.
+    if (configValueAt(r.config, key) === undefined) return notASetting(ctx, key);
     saveConfig(ctx.layout, ctx.config, r.config, 'command');
-    say(green(T(ctx, 'config.saved', { key })));
+    const from = configValueAt(ctx.config, key);
+    const to = configValueAt(r.config, key);
+    const change = settingOf(key)
+      ? changeText({ path: key as SettingPath, from, to }, ctx.lang)
+      : `${key}: ${JSON.stringify(from ?? null)} → ${JSON.stringify(to)}`;
+    say(green(T(ctx, 'config.saved', { change, cmd: `${CLI_NAME} config undo` })));
     return 0;
   }
   say(red(T(ctx, 'cli.unknownSub', { sub, cmd: 'config' })));
+  return 2;
+}
+
+/** A name no setting has: the nearest ones and where every setting is listed; exit 2. */
+function notASetting(ctx: AppContext, key: string): number {
+  say(red(T(ctx, 'config.notASetting', { key })));
+  const near = nearestSettings(key);
+  if (near.length) say(T(ctx, 'config.didYouMean', { names: near.join(', ') }));
+  say(dim(T(ctx, 'config.explainList', { cmd: `${CLI_NAME} config explain` })));
   return 2;
 }
 

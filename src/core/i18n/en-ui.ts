@@ -218,6 +218,7 @@ export const enUi = {
   'belt.col.why': 'Why',
   'belt.lockedNote': '🔒 Locked rules protect the protection itself: they cannot be switched off, only made stricter.',
   'belt.testNote': '(evaluated only; nothing was run)',
+  'belt.testWhat': 'Tested: {what} · {level}',
   'belt.testNothing': 'Name what to test: mode-code belt test --command "git clean -f", or --path <file>.',
   'belt.levelUnknown': '--level {value}: name a way of working: manual, autonomous or full.',
   'belt.noEvents': 'Nothing was blocked or asked in the last {n} days.',
@@ -301,7 +302,8 @@ export const enUi = {
 
   // ── config ──
   'config.usage': 'Usage: config set <key> <value>, for example: config set footer.mode check',
-  'config.saved': 'Saved {key}.',
+  'config.saved': '{change}. Take it back: {cmd}',
+  'config.notSet': '{key} is not set: its default applies.',
   'config.notASetting': 'Not a setting: {key}.',
   'config.didYouMean': 'Did you mean: {names}?',
   'config.explainList': 'Every setting: {cmd}',
@@ -368,6 +370,7 @@ export const enUi = {
   'net.none': 'No safety net yet: one is laid when the belt lets a risky call through because what it takes away is kept first.',
   'net.title': 'Safety nets ({n}), newest first',
   'net.hint': 'Put one back with {cmd}: nothing already there is overwritten.',
+  'net.needId': 'Name the net to put back: {cmd} ({list} lists them).',
   'net.notFound': 'No safety net with the id "{id}".',
   'net.kept.branches': '{n} branch tip(s)',
   'net.kept.work': 'the changes not committed',

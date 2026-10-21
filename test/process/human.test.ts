@@ -129,6 +129,24 @@ test('belt test explains a decision in words; config get prints a section as JSO
     assert.match(b.out, /nothing was run/);
     const c = cli(w, ['config', 'get', 'belt']);
     assert.doesNotThrow(() => JSON.parse(c.out));
+    // The command as typed, its own options kept (parsed, `-fdx` was lost and the clean judged harmless).
+    const typed = cli(w, ['belt', 'test', 'git', 'clean', '-fdx', '--level', 'full']);
+    assert.match(typed.out, /^Tested: git clean -fdx · full auto$/m);
+    assert.match(typed.out, /git\.clean/);
+    // A key no setting has is refused, not reported saved; a rule's verdict is set by its dotted id.
+    const typo = cli(w, ['config', 'set', 'footer.mod', 'check']);
+    assert.equal(typo.code, 2);
+    assert.match(typo.out, /Not a setting: footer\.mod\.\s+Did you mean: footer\.mode/);
+    const saved = cli(w, ['config', 'set', 'footer.mode', 'off']);
+    assert.match(saved.out, /→ .*Take it back: mode-code config undo/);
+    assert.match(cli(w, ['config', 'get', 'belt.verdicts.git.clean']).out, /is not set: its default applies/);
+    assert.equal(cli(w, ['config', 'set', 'belt.verdicts.git.clean', 'deny']).code, 0);
+    assert.equal(cli(w, ['config', 'get', 'belt.verdicts.git.clean']).out.trim(), 'deny');
+    assert.equal(cli(w, ['config', 'get', 'nope.x']).code, 2);
+    // Putting a safety net back is named.
+    const net = cli(w, ['net', 'restore']);
+    assert.equal(net.code, 2);
+    assert.match(net.err, /Name the net to put back: mode-code net restore <id>/);
     assert.match(cli(w, ['template', 'list']).out, /measured/);
     assert.match(cli(w, ['uninstall', '--dry-run']).out, /settings|kept/i);
   } finally {
