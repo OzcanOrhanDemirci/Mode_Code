@@ -106,7 +106,9 @@ const CODE_FLAGS: Record<string, string[]> = {
   python: ['-c'],
   python3: ['-c'],
   py: ['-c'],
+  pypy: ['-c'],
   node: ['-e', '--eval', '-p', '--print'],
+  nodejs: ['-e', '--eval', '-p', '--print'],
   bun: ['-e', '--eval'],
   deno: ['eval'],
   ruby: ['-e'],
@@ -128,6 +130,8 @@ const STDIN_CODE = new Set([
   'pypy3',
   'node',
   'nodejs',
+  'bun',
+  'deno',
   'perl',
   'ruby',
   'php',
@@ -139,7 +143,11 @@ const STDIN_CODE = new Set([
 const VALUE_FLAGS: Record<string, readonly string[]> = {
   shell: ['-o', '+o', '-O', '+O', '--rcfile', '--init-file'],
   python: ['-W', '-X', '--check-hash-based-pycs'],
-  node: ['-r', '--require', '--import', '--loader', '--experimental-loader', '-C', '--conditions'],
+  node: ['-r', '--require', '--import', '--loader', '--experimental-loader', '-C', '--conditions', '--env-file', '--input-type', '--title'],
+  ruby: ['-C', '-E', '-I', '-r', '--encoding', '--external-encoding', '--internal-encoding', '--disable', '--enable'],
+  perl: ['-I', '-M', '-m'],
+  php: ['-d', '-c', '-z', '-B', '-R', '-F', '-E'],
+  osascript: ['-l'],
   // PowerShell's are matched in lower case.
   powershell: [
     '-executionpolicy',
@@ -161,12 +169,13 @@ function stdinFamily(name: string): string {
   if (SHELLS.has(name) || name === 'fish') return 'shell';
   if (POWERSHELLS.has(name)) return 'powershell';
   if (name === 'python' || name === 'py' || name === 'pypy') return 'python';
-  return name === 'node' || name === 'nodejs' ? 'node' : 'other';
+  if (name === 'node' || name === 'nodejs') return 'node';
+  return name === 'ruby' || name === 'perl' || name === 'php' || name === 'osascript' ? name : 'other';
 }
 
 /** Whether a program runs the code its standard input brings: see `takesCodeFromStdin`, for the programs that can. */
 function readsCodeFromStdin(program: string, rest: readonly Word[]): boolean {
-  const name = program.replace(/[0-9.]+$/, '');
+  const name = program.replace(/[0-9.]+t?$/, '');
   return (STDIN_CODE.has(program) || STDIN_CODE.has(name)) && takesCodeFromStdin(program, rest);
 }
 
@@ -178,19 +187,19 @@ function readsCodeFromStdin(program: string, rest: readonly Word[]): boolean {
  * name a subcommand first and read standard input only when told to (`deno run -`).
  */
 function takesCodeFromStdin(program: string, rest: readonly Word[]): boolean {
-  const name = program.replace(/[0-9.]+$/, '');
+  const name = program.replace(/[0-9.]+t?$/, '');
   const args = texts(rest);
   const inline = Object.hasOwn(CODE_FLAGS, name) ? CODE_FLAGS[name]! : Object.hasOwn(CODE_FLAGS, program) ? CODE_FLAGS[program]! : [];
   const family = stdinFamily(name);
   const values = VALUE_FLAGS[family] ?? [];
   // PowerShell's options come in any case and in short forms; elsewhere the inline code option is the interpreter's own
-  // (listed above) or a shell's `-c`, and `-E`, `-e`, `-C` and `-f` are options like any other.
-  const names = family === 'powershell' ? /^-(?:c|command|encodedcommand|e|f|file)$/i : /^-c$/;
+  // (listed above) or a shell's `-c`, and `-E`, `-e`, `-C` and `-f` are options like any other (PHP's `-c` names a file).
+  const names = family === 'powershell' ? /^-(?:c|command|encodedcommand|e|f|file)$/i : family === 'shell' ? /^-c$/ : /^(?!)/;
   const subcommands = name === 'bun' || name === 'deno';
   let ran = false;
   for (let i = 0; i < args.length; i++) {
     const a = args[i]!;
-    if (a === '-' || a === '/dev/stdin' || (a === '-s' && family === 'shell')) return true;
+    if (a === '-' || a === '/dev/stdin' || a === '/dev/fd/0' || (a === '-s' && family === 'shell')) return true;
     if (inline.includes(a) || names.test(a)) return args[i + 1] === '-';
     if (family === 'python' && a.startsWith('-m')) return false;
     if (subcommands && !ran && a === 'run') {
@@ -402,7 +411,7 @@ function expand(cmd: SimpleCommand, argv: readonly Word[], via: string[], depth:
 
   // What comes down a pipe into a shell or an interpreter (`curl … | sh`, `… | base64 -d | bash`) runs unseen, as a
   // script handed over by process substitution does (`bash <(curl …)`): asked about, as `… | iex` is.
-  if ((cmd.piped && readsCodeFromStdin(program, rest)) || (STDIN_CODE.has(program.replace(/[0-9.]+$/, '')) && rest[0]?.text === '<(…)'))
+  if ((cmd.piped && readsCodeFromStdin(program, rest)) || (STDIN_CODE.has(program.replace(/[0-9.]+t?$/, '')) && rest[0]?.text === '<(…)'))
     out.issues.push('stdin-code');
 
   // ── interpreters: a string becomes commands ───────────────────────────────────────────────────────
@@ -461,7 +470,8 @@ function expand(cmd: SimpleCommand, argv: readonly Word[], via: string[], depth:
       return k !== -1 && opts[k + 1] && !opts[k + 1]!.dynamic ? opts[k + 1]!.text : null;
     };
     const before = out.invocations.length;
-    if (inner.length) expand({ ...cmd, dialect: 'bash', heredocs: [] }, inner, [...via, 'wsl'], depth + 1, out);
+    // What wsl is given on its standard input reaches the command it runs.
+    if (inner.length) expand({ ...cmd, dialect: 'bash' }, inner, [...via, 'wsl'], depth + 1, out);
     const guest = { distro: valueOf('-d', '--distribution'), cd: valueOf('--cd') };
     for (const inv of out.invocations.slice(before)) inv.guest ??= guest;
     return;
@@ -511,7 +521,7 @@ function record(cmd: SimpleCommand, argv: readonly Word[], program: string, via:
     via,
     raw: cmd.raw,
   };
-  const versionless = program.replace(/[0-9.]+$/, '');
+  const versionless = program.replace(/[0-9.]+t?$/, '');
   const flags = Object.hasOwn(CODE_FLAGS, versionless) ? CODE_FLAGS[versionless] : Object.hasOwn(CODE_FLAGS, program) ? CODE_FLAGS[program] : undefined;
   if (flags) {
     const i = rest.findIndex((w) => flags.includes(w.text));

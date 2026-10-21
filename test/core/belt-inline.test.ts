@@ -6,6 +6,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { performance } from 'node:perf_hooks';
 import { codeLiterals, deletedLiterals, runsCommands, writesFiles } from '../../src/core/belt/inline.js';
 
 const py = (code: string) => deletedLiterals(code, 'python3').sort();
@@ -72,11 +73,11 @@ test('a name the code never assigns leaves the target unknown: every literal of 
   assert.deepEqual(py(deep.replace('e = d\nshutil.rmtree(e)', 'shutil.rmtree(d)')), ['/srv/u']);
 });
 
-test("other languages: Node's fs and rimraf, keyword arguments and object keys no names, f-strings no names", () => {
+test("other languages: Node's fs and rimraf, keyword arguments and object keys no names, an f-string's braces hold names", () => {
   assert.deepEqual(node("require('fs').rmSync('/srv/w', { recursive: true, force: true })"), ['/srv/w']);
   assert.deepEqual(node("const fs = require('fs'); const d = '/srv/x'; fs.rmSync(d, { recursive: true })"), ['/srv/x']);
   assert.deepEqual(deletedLiterals("FileUtils.rm_rf('/srv/y')", 'ruby'), ['/srv/y']);
-  assert.deepEqual(py("import shutil; name = 'z'; shutil.rmtree(f'/srv/{name}', ignore_errors=True)"), ['/srv/{name}']);
+  assert.deepEqual(py("import shutil; name = 'z'; shutil.rmtree(f'/srv/{name}', ignore_errors=True)"), ['/srv/{name}', 'z']);
   // A call ends at its own closing parenthesis, the one right after a literal too.
   assert.deepEqual(node("fs.rmSync('/srv/c'); console.log('/srv/d')"), ['/srv/c']);
   // A callee inside the arguments is no name (`pick(d)`).
@@ -142,8 +143,12 @@ test('where the lexer is unsure it reads code: a hash that is not a comment, a s
   assert.deepEqual(lits("$s =~ s#a#b#; unlink('/x');", 'perl'), ['/x']);
   assert.deepEqual(lits("x = /#/; File.delete('/x')", 'ruby'), ['/x']);
   assert.deepEqual(lits("$#a; unlink('/x')", 'perl'), ['/x']);
-  assert.deepEqual(lits("x = 1 # then 'y'\nz = 'w'", 'ruby'), ['w'], 'after a blank it is a comment');
-  assert.deepEqual(lits("$x = 1; # then 'y'\n$z = 'w';", 'php'), ['w']);
+  assert.deepEqual(lits("# then 'y'\nz = 'w'", 'ruby'), ['w'], 'a line that begins with a hash is a comment');
+  assert.deepEqual(lits("x = 1 # then 'y'\nz = 'w'", 'ruby'), ['y', 'w'], 'a hash after code is not told from the hash of code');
+  assert.deepEqual(lits("$x = 1; # then 'y'\n$z = 'w';", 'php'), ['y', 'w']);
+  // A regular expression with a hash in it hides nothing of what follows on its line.
+  assert.deepEqual(lits("s.sub(/ #.*/, ''); File.delete('/x')", 'ruby'), ['', '/x']);
+  assert.deepEqual(lits("%w[a #b]; File.delete('/x')", 'ruby'), ['/x']);
   assert.equal(deletedLiterals("for my $i (0..$#a) { unlink('/x') }", 'perl')[0], '/x');
   // After a closing bracket a slash divides, whatever follows it: no regular expression there.
   assert.deepEqual(lits("a = {}\n/'q'/.test(x)", 'node'), ['q']);
@@ -175,7 +180,8 @@ test('what stands inside the brackets of an open is one argument, whatever comma
 
 test('other interpreters: Ruby and Perl comments, PHP comments of both kinds, strings that run on', () => {
   assert.deepEqual(lits("# 'a'\nx = 'b'\n", 'ruby'), ['b']);
-  assert.deepEqual(lits("x = 'a\nb' # 'c'", 'perl5.36'), ['a\nb']);
+  assert.deepEqual(lits("x = 'a\nb' # 'c'", 'perl5.36'), ['a\nb', 'c'], 'a trailing comment stays');
+  assert.deepEqual(lits("  # 'a'\n\t# 'b'\nx = 'c'", 'perl5.36'), ['c'], 'an indented line of comment is one');
   assert.deepEqual(lits("// 'a'\n# 'b'\n/* 'c' */ $x = 'd';", 'php8.2'), ['d']);
   assert.deepEqual(lits('do shell script "x" -- "y"', 'osascript'), ['x', 'y'], 'AppleScript has no comment this reads');
   assert.deepEqual(lits("a('x') # 'y'"), ['x', 'y'], 'no interpreter named: strings only');
@@ -350,4 +356,144 @@ test('code runs commands when it calls something that does; a string that looks 
   ])
     assert.equal(r(text), false, text);
   assert.equal(r("console.log('git x'); /* exec(y) */", 'node'), false);
+});
+
+test("a template's ${…} and an f-string's {…} are code: a name in them is followed and a call in them is found, the text around them is no code", () => {
+  // The name in the braces gives the target its value, as a name as an argument does.
+  assert.deepEqual(node("const d = '/srv/a'; fs.rmSync(`${d}/settings.json`)"), ['/srv/a']);
+  assert.deepEqual(node("const d = '/srv/a'; const p = `${d}/x`; fs.unlinkSync(p)"), ['/srv/a']);
+  assert.deepEqual(node("const d = '/srv/a'; for (const f of [1]) fs.rmSync(`${d}/${f}`)"), ['/srv/a']);
+  assert.deepEqual(py("p = '/srv/c'\nos.remove(f'{p}/x')"), ['/srv/c', '{p}/x']);
+  assert.deepEqual(py("p = '/srv/c'\nos.remove(rf'{p}/x')"), ['/srv/c', '{p}/x']);
+  // A conversion and a format spec are no names; nested braces are one expression.
+  assert.deepEqual(py("p = '/srv/e'\nos.remove(f'{p!r:>10}')"), ['/srv/e', '{p!r:>10}']);
+  assert.deepEqual(py("p = '/srv/e'\nos.remove(f'{ {1: p}[1] }')"), ['/srv/e', '{ {1: p}[1] }']);
+  // A call in the braces is a call of the code.
+  assert.deepEqual(node("const p = '/srv/b'; console.log(`gone ${require('fs').rmSync(p)}`)"), ['/srv/b']);
+  assert.deepEqual(py("p = '/srv/d'\nprint(f'gone {os.remove(p)}')"), ['/srv/d']);
+  // The text around them is not: a word and a bracket there make no call, an escaped brace no expression.
+  assert.deepEqual(node("console.log(`remove (see the log) ${1}`); fs.rmSync('/srv/z')"), ['/srv/z']);
+  assert.deepEqual(node("console.log(`unlink(\${x})`); fs.rmSync('/srv/z')"), ['/srv/z']);
+  assert.deepEqual(py("print(f'remove (y/n) {1}')\nos.remove('/srv/z')"), ['/srv/z']);
+  assert.deepEqual(py("print(f'{{remove(x)}}')\nos.remove('/srv/z')"), ['/srv/z'], 'a doubled brace is a brace');
+  // A string that is no f-string has no expressions: its braces are text.
+  assert.deepEqual(py("print('{remove(x)}')\nos.remove('/srv/z')"), ['/srv/z']);
+  // An expression that never closes reads to the end of its template or string.
+  assert.deepEqual(node("const d = '/srv/a'; fs.rmSync(`${d`)"), ['/srv/a']);
+  assert.deepEqual(py("p = '/srv/a'\nos.remove(f'{p')"), ['/srv/a', '{p']);
+});
+
+test('a function the script defines itself is skipped only where it cannot be a wrapper: not beside a command it runs, a delete it makes, a second binding or an import', () => {
+  // The wrappers: its call is a delete of the path it is given, whatever the name.
+  assert.deepEqual(node("const rm = (p) => execSync('rm -rf ' + p); rm('/srv/a')"), ['/srv/a']);
+  assert.deepEqual(node("const rm = (p) => { spawnSync('rm', ['-rf', p]); }; rm('/srv/a')"), ['/srv/a']);
+  assert.deepEqual(node("function remove(p) { child_process.exec('rm ' + p); }\nremove('/srv/a')"), ['/srv/a']);
+  assert.deepEqual(py("def remove(p): os.system('rm -rf ' + p)\nremove('/srv/a')"), ['/srv/a']);
+  assert.deepEqual(py("def remove(p): subprocess.run(['rm', '-rf', p])\nremove('/srv/a')"), ['/srv/a']);
+  assert.deepEqual(node("const rimraf = (p) => fs.rmSync(p, { recursive: true });\nrimraf('/srv/a')"), ['/srv/a']);
+  assert.deepEqual(py("def rmtree(p):\n    shutil.rmtree(p)\nrmtree('/srv/a')"), ['/srv/a']);
+  // A second binding of the name: the first definition may not be the one called.
+  assert.deepEqual(node("let rm = x => x; rm = require('fs').rmSync; rm('/srv/a')"), ['/srv/a']);
+  assert.deepEqual(py("def remove(p): pass\nremove = os.remove\nremove('/srv/a')"), ['/srv/a']);
+  // A method is called through an object; a bare call after an import is the imported function's.
+  assert.deepEqual(py("class A:\n    def remove(self, x): pass\nfrom os import remove\nremove('/srv/a')"), ['/srv/a']);
+  assert.deepEqual(node("const { rmSync: remove } = fs;\nfunction remove(x) {}\nremove('/srv/a')"), ['/srv/a']);
+  // Alone, the helper that does nothing of the sort is still the script's own: a call of it deletes nothing.
+  assert.deepEqual(py("def remove(items, x):\n    return [i for i in items if i != x]\nremove(['/srv/a'], '/srv/a')"), []);
+  assert.deepEqual(node("const rm = (list, f) => list.filter((x) => x !== f);\nrm(['/srv/a'], '/srv/a')"), []);
+  // The header of a definition is no call, beside a delete of the system's or not.
+  assert.deepEqual(py("def remove(x): pass\nimport os\nos.remove('/srv/a')\nprint('/srv/b')"), ['/srv/a']);
+  assert.deepEqual(node("function remove(x) {}\nfs.rmSync('/srv/a');\nconsole.log('/srv/b')"), ['/srv/a']);
+});
+
+test('an open is a write also when the mode is a name, a splat or flags the code assigns apart: what is not shown is taken for a write', () => {
+  const w = (code: string, program = 'python3') => writesFiles(code, program);
+  for (const writes of [
+    'flags = os.O_WRONLY | os.O_CREAT\nos.open(p, flags)',
+    "m = 'w'\nPath(p).open(m)",
+    "m = 'w'\nopen(p, m)",
+    "a = (p, 'w')\nopen(*a)",
+    'open(p, **options)',
+    'def save(p, mode):\n    open(p, mode)',
+    "m = 'r'\nn = m + 'b'\nopen(p, n)",
+    "mode = 'r'\nmode = 'w'\nopen(p, mode)",
+    "m = 'w'\nm2 = m\nopen(p, m2)",
+    'os.open(p, flags)',
+    'open(p, get_mode())',
+  ])
+    assert.equal(w(writes), true, writes);
+  assert.equal(w("File.open(p, mode: 'w')", 'ruby'), true);
+  assert.equal(w("File.open(p, mode: 'r')", 'ruby'), false);
+  assert.equal(w('File.open(p, mode: m)', 'ruby'), true);
+  // A name the code binds to a mode that reads, and flags that only read, are reads.
+  for (const reads of [
+    "m = 'r'\nopen(p, m)",
+    "mode = 'rb'  # binary\nopen(p, mode)",
+    "m = 'r'\nPath(p).open(m)",
+    'os.open(p, os.O_RDONLY | os.O_NONBLOCK)',
+    'Image.open(path)',
+    'zf.open(name)',
+    'webbrowser.open(url)',
+    'Path(p).open()',
+    "open(p, 'r',)",
+  ])
+    assert.equal(w(reads), false, reads);
+});
+
+test('code runs commands through the runners other languages and tools give: the gate stays open for them', () => {
+  const r = (code: string, program = 'python3') => runsCommands(code, program);
+  for (const [program, code] of [
+    ['osascript', 'tell application "Terminal" to do script "x"'],
+    ['osascript', 'tell application "iTerm" to tell current session to write text "x"'],
+    ['osascript', 'tell application "System Events" to keystroke "x"'],
+    ['osascript', 'x'],
+    ['node', "const app = Application.currentApplication(); app.doShellScript('x')"],
+    ['node', 'const t = $.NSTask.alloc.init'],
+    ['python3', "c.local('x')"],
+    ['python3', "c.sudo('x')"],
+    ['ruby', "sh 'x'"],
+    ['python3', "pane.send_keys('x')"],
+    ['python3', "shell = win32com.client.Dispatch('WScript.Shell'); shell.Run('x')"],
+    ['python3', "win32api.ShellExecute(0, 'open', 'x', '', '', 1)"],
+  ] as const)
+    assert.equal(r(code, program), true, `${program}: ${code}`);
+  // A name that only holds such a word, or a string that says it, runs nothing.
+  for (const [program, code] of [
+    ['node', "const filesystem = 1; console.log('x')"],
+    ['python3', "print('git status')"],
+    ['python3', "print('do script')"],
+    ['node', 'const localhost = 1; const scripts = 2;'],
+    ['python3', 'JavaScript = 1'],
+  ] as const)
+    assert.equal(r(code, program), false, `${program}: ${code}`);
+});
+
+test('long code is read in time that grows with its length, not with its square', () => {
+  const took = (f: () => unknown) => {
+    const start = performance.now();
+    f();
+    return performance.now() - start;
+  };
+  // Each took seconds at ten thousand lines before: a slice of the text before each call, or each slash, was copied.
+  const slow = [
+    took(() => deletedLiterals('remove(x)\n'.repeat(20000), 'node')),
+    took(() => deletedLiterals('remove(x)\n'.repeat(20000), 'python3')),
+    took(() => deletedLiterals('items.remove(x);\n'.repeat(20000), 'node')),
+    took(() => writesFiles("open(p, 'r')\n".repeat(20000), 'python3')),
+    took(() => writesFiles("Path(p).open('r')\n".repeat(20000), 'python3')),
+    took(() => codeLiterals('(/['.repeat(14000), 'node')),
+    took(() => codeLiterals('a = /x/\nif (a) /y/.test(b)\n'.repeat(10000), 'node')),
+    took(() => runsCommands('remove(x)\n'.repeat(20000), 'python3')),
+  ];
+  for (const ms of slow) assert.ok(ms < 1500, `${Math.round(ms)} ms`);
+});
+
+test('after if (…), while (…), for (…), else and an operator a slash begins a regular expression; after a name or another bracket it divides', () => {
+  assert.deepEqual(lits("const a = 1;\nif (a) /'/.test('b'); const z = 'z';", 'node'), ['b', 'z']);
+  assert.deepEqual(lits("while (f(a)) /'/.exec(s); const z = 'z';", 'node'), ['z']);
+  assert.deepEqual(lits("for (const x of y) /'/.test(x); const z = 'z';", 'node'), ['z']);
+  assert.deepEqual(lits("if (a) x(); else /'/.test(b); const z = 'z';", 'node'), ['z']);
+  assert.deepEqual(lits("n = 1 + /'/.source.length; const z = 'z';", 'node'), ['z']);
+  assert.deepEqual(lits("const half = total / 2; const z = 'z'; const q = a / 'y' / b;", 'node'), ['z', 'y']);
+  assert.deepEqual(lits("a = (b) / 'y' / c;", 'node'), ['y'], 'a parenthesis that is no condition closes a value: a division');
 });
