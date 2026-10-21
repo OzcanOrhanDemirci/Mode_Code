@@ -206,6 +206,11 @@
       "branches": 79,
       "functions": 78
     },
+    "src/core/belt/tool-words.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
     "src/core/belt/tools.ts": {
       "lines": 94,
       "branches": 92,

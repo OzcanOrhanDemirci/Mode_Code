@@ -77,6 +77,7 @@ Mode_Code says "I protected you" only where it stopped an action with evidence o
 - Several people sharing one account.
 - Text in which Claude talks the person into something (in part: questions say plainly what will happen, not why Claude wants it).
 - Covert channels through tools that are allowed (in part: an outward call is judged by its destination, not by a full reading of what it carries).
+- What a connected service's tool does beyond what its name says (in part: the belt knows such a tool by the words in its name, split at `_`, `-`, a change of case and a digit; a name outside that vocabulary stays unjudged by construction, since no vocabulary is complete, and reserving, booking and changing account or credential data are not among the kinds it asks about).
 - What a script file does once written, beyond what the command that runs it shows (in part: where a written file's content came from is tracked).
 - Data that was encoded or disguised before it left (judged only by where it goes).
 - A hostile MCP server that is named like Mode_Code's and carries a tool named like one of its five (in part: Mode_Code's own tools are known by their exact names, so every other tool such a server carries is judged as a connected service's; Claude Code hands the belt the tool's name alone, so a tool that takes one of the five names cannot be told from ours).

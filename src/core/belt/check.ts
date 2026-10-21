@@ -17,6 +17,7 @@ import { expandVars as expandVarsIn } from '../shell/vars.js';
 import { hitsCritical, protectedPaths, under, claudeDir, type ProtectedPaths } from './protect.js';
 import { codeLiterals, deletedLiterals } from './inline.js';
 import { isProtectedBranch, looksLikeUrl, parseGit, planPush, remoteMatches } from './git.js';
+import { toolWords } from './tool-words.js';
 import type { BeltContext, Finding, RuleId } from './types.js';
 import type { NetPlan } from '../net.js';
 import type { Unit } from '../provenance.js';
@@ -1434,11 +1435,15 @@ function checkGitHub(inv: Invocation, s: Scope): void {
   }
 }
 
-/** What a payment is made of, in a payment service's words (Stripe's resources, its MCP tools' names). */
+/** What a payment is made of, in the Stripe command line's words (its resources). */
 const PAY_RESOURCE = /^(?:charges?|payment_intents?|refunds?|payouts?|transfers?|invoices?|subscriptions?|checkout|payment_links?)$/;
-const PAY_TOOL =
-  /(?:^|_)(?:charges?|payments?|payment_intents?|refunds?|payouts?|transfers?|invoices?|subscriptions?|checkout|payment_links?|purchases?)(?:_|$)/;
-const PAY_ACT = /(?:^|_)(?:create|update|confirm|capture|cancel|pay|finalize|void|send|refund|purchase|buy)(?:_|$)/;
+/**
+ * A connected service's payment tool, by the words of its name: one that names what is paid or the money itself, and one
+ * that acts on it. `get_scheduled_transactions` only reads (scheduled is no `schedule`); reserving or booking and changing
+ * account or credential data are no payment kind the belt asks about.
+ */
+const PAY_NOUN = /^(?:charges?|payments?|refunds?|payouts?|transfers?|invoices?|subscriptions?|checkout|purchases?|transactions?|money)$/;
+const PAY_ACT = /^(?:create|update|confirm|capture|cancel|pay|finalize|void|send|refund|purchase|buy|schedule)$/;
 
 /** A connected service's fields that name who receives: addresses, channels, people. */
 const RECIPIENT = /^(?:to|cc|bcc|recipients?|emails?|attendees|invitees|users?|channels?|channel_(?:id|name)|chat_id|phone(?:_number)?|address(?:es)?)$/i;
@@ -1462,38 +1467,42 @@ function fieldValues(input: unknown, key: RegExp, except?: RegExp, depth = 0): s
 }
 
 /** Verbs of a connected service's tool that reach other people. */
-const OUT_SEND = new Set(['send', 'reply', 'forward', 'share', 'invite', 'respond', 'post', 'publish']);
-const OUT_DELETE = new Set(['delete', 'trash', 'remove', 'destroy', 'purge', 'wipe']);
+const OUT_SEND = /^(?:send|reply|forward|share|invite|respond|post|publish)$/;
+const OUT_DELETE = /^(?:delete|trash|remove|destroy|purge|wipe)$/;
+/** Adding a person to something (a channel, a team, an event) is inviting them: `add_user_to_channel`, `grantMemberAccess`. */
+const GIVES_ACCESS = /^(?:add|grant)$/;
+const PERSON = /^(?:users?|members?|collaborators?|participants?|attendees?|guests?)$/;
 /** Verbs that write something to the service: a secret in what they carry leaves the machine. */
-const OUT_WRITE =
-  /(?:^|_)(?:send|reply|forward|share|post|publish|create|update|write|upload|insert|append|set|put|add|edit|comment|batch|draft|save|import|copy)(?:_|$)/;
+const OUT_WRITE = /^(?:send|reply|forward|share|post|publish|create|update|write|upload|insert|append|set|put|add|edit|comment|batch|draft|save|import|copy)$/;
 
 /**
- * A connected service's tool (MCP: mail, calendars, drives …). Sending, sharing and calendar events reach
- * other people and cannot be taken back: asked. Deleting there is asked too. A secret in what such a tool
- * carries leaves the machine: blocked.
+ * A connected service's tool (MCP: mail, calendars, drives …), known by the words in its name, whatever the style it is
+ * written in (`send_email`, `sendEmail`: src/core/belt/tool-words.ts). Sending, sharing, adding a person and calendar
+ * events reach other people and cannot be taken back: asked. Deleting there is asked too, and so is a payment, always.
+ * A secret in what such a tool carries leaves the machine: blocked. A name that holds none of these words is not
+ * judged: no vocabulary is complete.
  */
 export function checkOutward(tool: string, input: Readonly<Record<string, unknown>>, ctx: BeltContext): Finding[] {
   const s: Scope = { ctx, paths: protectedPaths(ctx), findings: [], inline: false };
-  const action = (tool.split('__').pop() ?? '').toLowerCase();
-  const verbs = action.split(/[_-]+/).filter(Boolean);
-  const event = verbs.includes('event') && verbs.some((v) => v === 'create' || v === 'update' || v === 'delete');
-  // A payment through a connected service (a charge, a refund, a subscription): always the person's.
-  if (PAY_TOOL.test(action) && PAY_ACT.test(action)) add(s, 'outbound.payment', 'belt.reason.payment', { what: tool });
-  if (event || verbs.some((v) => OUT_SEND.has(v))) {
+  const words = toolWords(tool);
+  const has = (word: RegExp) => words.some((w) => word.test(w));
+  const event = words.includes('event') && has(/^(?:create|update|delete)$/);
+  // A payment through a connected service (a charge, a refund, a subscription, money sent): always the person's.
+  if (has(PAY_NOUN) && has(PAY_ACT)) add(s, 'outbound.payment', 'belt.reason.payment', { what: tool });
+  if (event || (has(GIVES_ACCESS) && has(PERSON)) || has(OUT_SEND)) {
     add(s, 'outbound.send', 'belt.reason.outboundSend', { tool });
     const to = fieldValues(input, RECIPIENT);
     actsOn(s, to.length ? { kind: 'recipient', values: to } : undefined);
     // What it carries: read from outside, it is not the person's message, whoever receives it.
     const f = s.findings.at(-1);
     if (f) f.carries = fieldValues(input, /./, RECIPIENT).join('\n');
-  } else if (verbs.some((v) => OUT_DELETE.has(v))) {
+  } else if (has(OUT_DELETE)) {
     add(s, 'outbound.delete', 'belt.reason.outboundDelete', { tool });
     const named = fieldValues(input, NAMED);
     const what = named.length ? named : fieldValues(input, IDENTIFIED);
     actsOn(s, what.length ? { kind: 'object', values: what } : undefined);
   }
-  if (OUT_WRITE.test(action)) {
+  if (has(OUT_WRITE)) {
     let text = '';
     try {
       text = JSON.stringify(input);
