@@ -143,6 +143,15 @@ test('belt test explains a decision in words; config get prints a section as JSO
     assert.equal(cli(w, ['config', 'set', 'belt.verdicts.git.clean', 'deny']).code, 0);
     assert.equal(cli(w, ['config', 'get', 'belt.verdicts.git.clean']).out.trim(), 'deny');
     assert.equal(cli(w, ['config', 'get', 'nope.x']).code, 2);
+    // Help for one command: its lines and where every option is written; a typo gets the nearest command.
+    const help = cli(w, ['help', 'install']);
+    assert.match(help.out, /install \[--dry-run\] \[--yes\]/);
+    assert.doesNotMatch(help.out, /^ {2}status/m);
+    assert.match(help.out, /Every command and option: https:\/\/github\.com\/.+\/docs\/cli\.md/);
+    assert.equal(cli(w, ['belt', '--help']).out, cli(w, ['help', 'belt']).out);
+    const unknown = cli(w, ['instal']);
+    assert.equal(unknown.code, 2);
+    assert.match(unknown.err, /Unknown command "instal"\. Did you mean install\? Every command: mode-code --help/);
     // Putting a safety net back is named.
     const net = cli(w, ['net', 'restore']);
     assert.equal(net.code, 2);
