@@ -49,7 +49,7 @@ import { SYNC_MAX_BYTES, syncCommitMessage, type Pending } from '../core/sync.js
 import { exportMachine, parseSharedRecord, settingsInEffect, syncDue, type SharedRecord, type SyncFs } from '../core/sync-export.js';
 import { isUnder, joinPath, pathKey, resolvePath, type PathAlias, type Platform } from '../core/paths.js';
 import { detectLanguage, tIn, setLanguage, type Lang, type MessageKey } from '../core/i18n/index.js';
-import { CONTROLS, controlOf, controlText, optionLabel, valueIn, WINDOWS, type SettingPath, type WindowDef } from '../core/ux/catalog.js';
+import { CONTROLS, controlOf, controlText, optionLabel, valueIn, WINDOW_IDS, WINDOWS, type SettingPath, type WindowDef } from '../core/ux/catalog.js';
 import { callLine, COCKPIT_COLUMNS, COCKPIT_PANE, COCKPIT_ROWS, cockpitData, type CockpitAct, type CockpitData, type ModeFrom } from '../core/ux/cockpit.js';
 import { cockpitBody, type CockpitActs } from '../core/ux/cockpit-view.js';
 import { appendChanges, changeRows, changeText, type ChangeWho } from '../core/ux/changes.js';
@@ -379,8 +379,11 @@ interface Ctx {
   activity: number;
   /** Those of them that wait for the person: the count under the strip turns to them, in the colour of a question. */
   waiting: number;
-  /** The cockpit (src/core/ux/cockpit.ts) is open in this session: what it shows is worked out while it is. */
-  cockpit: { open: boolean };
+  /**
+   * The cockpit (src/core/ux/cockpit.ts) is open in this session: what it shows is worked out while it is. `away`: the
+   * window it stepped aside for, which brings it back when it closes.
+   */
+  cockpit: { open: boolean; away: string | null };
   /** The main conversation's calls at work, by their tool_use id: the cockpit's line of what runs now. */
   calls: Map<string, { tool: string; what: string; at: number }>;
   /** What Mo shows (src/core/mo/state.ts): the main conversation's calls running now, and when things last happened. */
@@ -614,7 +617,7 @@ async function load($: $): Promise<Ctx> {
     introDue: !(previous && previous.sessionId === sessionId),
     skillsUsed: new Set(),
     ...activityCounts(existing ? existing.split('\n') : [], lang),
-    cockpit: { open: false },
+    cockpit: { open: false, away: null },
     calls: new Map(),
     mo: {
       tools: 0,
@@ -4336,7 +4339,7 @@ async function applyAgentsPane($: $): Promise<void> {
     await update($, agentsPaneAtom, (x) => ({ ...x, error: r.line }));
     return;
   }
-  await $.ui.close({ id: AGENTS_PANE }).catch(() => undefined);
+  await closeWindow($, AGENTS_PANE);
   // Above 20 the window said what decides: the toast keeps to what was set.
   $.ui.toast(r.line, { timeoutMs: 8000 });
 }
@@ -4396,9 +4399,18 @@ function paneWidth(props: unknown): number {
   return Math.max(30, Number((props as { bodyColumns?: number }).bodyColumns ?? 60));
 }
 
-/** Opens a window as a dialog: it takes the keys, Esc closes it, toasts wait behind it. False where none can be shown. */
+/**
+ * Opens a window as a dialog: it takes the keys, Esc closes it, toasts wait behind it. False where none can be shown.
+ *
+ * The cockpit steps aside for it and comes back when it closes. Beside the cockpit the window would be a second tab
+ * that is not shown: Claude Code raises a pane only while the prompt has the keys, and a press in the cockpit or the
+ * strip holds them there, so the window opened and nothing seemed to happen (2.1.305, the person's report).
+ */
 async function openWindow($: $, id: keyof typeof WINDOWS, lang: Lang, rows: number): Promise<boolean> {
   const def = WINDOWS[id];
+  const c = await ctxOf($).catch(() => null);
+  const aside = c !== null && c.cockpit.open;
+  if (aside) await cockpitAside($, c, def.pane);
   try {
     const opened = await $.ui.open({ id: def.pane, title: tIn(lang, def.title), focus: true, closeOnEscape: true, holdToasts: true, rows });
     if (opened.isPlaced) return true;
@@ -4406,7 +4418,29 @@ async function openWindow($: $, id: keyof typeof WINDOWS, lang: Lang, rows: numb
   } catch {
     /* no window here */
   }
+  if (aside) await cockpitBack($, c, false);
   return false;
+}
+
+/** The cockpit closed for the window `pane`, and the strip told: what it showed is kept for its return. */
+async function cockpitAside($: $, c: Ctx, pane: string): Promise<void> {
+  c.cockpit.away = pane;
+  c.cockpit.open = false;
+  await $.ui.close({ id: COCKPIT_PANE }).catch(() => undefined);
+  await refreshStatus($, c);
+}
+
+/** Closes one of the windows; the cockpit, if it stepped aside for it, comes back with the keys the press held. */
+async function closeWindow($: $, pane: string): Promise<void> {
+  await $.ui.close({ id: pane }).catch(() => undefined);
+  const c = await ctxOf($).catch(() => null);
+  if (c && c.cockpit.away === pane) await cockpitBack($, c, true);
+}
+
+/** The cockpit back after the window it stepped aside for: with the keys when the window closed at a press in it. */
+async function cockpitBack($: $, c: Ctx, keys: boolean): Promise<void> {
+  c.cockpit.away = null;
+  if (!c.cockpit.open) await openCockpit($, c, keys);
 }
 
 /**
@@ -4440,7 +4474,7 @@ function windowTree(
     cancel: {
       id: 'cancel',
       label: tIn(p.lang, 'ux.win.cancel'),
-      onPress: () => void $.ui.close({ id: def.pane }).catch(() => undefined),
+      onPress: () => void closeWindow($, def.pane),
       ...(p.cancelFirst ? { autoFocus: true } : {}),
     },
     error: p.error,
@@ -4595,7 +4629,7 @@ function agentsWindow($: $, els: Els, pane: ModeCodeAgentsPane, width: number): 
 
 /** An agent's conversation in the main view, as the person's own switch from the tasks list does; the window goes. */
 async function viewAgent($: $, id: string): Promise<void> {
-  await $.ui.close({ id: AGENTS_PANE }).catch(() => undefined);
+  await closeWindow($, AGENTS_PANE);
   const r = await $.ui.view({ agentId: id }).catch((err: unknown) => ({ deny: String((err as Error)?.message ?? err) }));
   if ('deny' in r && r.deny) $.ui.toast(String(r.deny).slice(0, 200), { timeoutMs: TOAST_MS.result });
 }
@@ -4676,7 +4710,7 @@ async function applyQuotaPane($: $, typed?: string): Promise<void> {
     return;
   }
   quotaDraft.text = '';
-  await $.ui.close({ id: QUOTA_PANE }).catch(() => undefined);
+  await closeWindow($, QUOTA_PANE);
   await press($, commandOfQuota(c.lang), value);
 }
 
@@ -4743,7 +4777,7 @@ async function applyFlowPane($: $, typed?: string): Promise<void> {
   const pane = await read($, flowPaneAtom);
   const task = (typed ?? flowDraft.task).trim();
   flowDraft.task = '';
-  await $.ui.close({ id: FLOW_PANE }).catch(() => undefined);
+  await closeWindow($, FLOW_PANE);
   const steps = flowPresetLine(pane.pick, c.lang);
   if (task) {
     await appendNotes($, await sendAsPerson($, c, `${task}\n\n${flowPhrase(pane.pick, c.lang)}`));
@@ -5586,6 +5620,19 @@ export function register(on: On): void {
     }
     return r;
   });
+  // A window the cockpit stepped aside for, closed by the person (Esc, its close mark): the cockpit comes back, the keys
+  // left with the prompt Esc gave them to. Closed by Apply or Cancel, closeWindow brings it back.
+  for (const id of WINDOW_IDS)
+    on('ui.close', { id: WINDOWS[id].pane }, async ($, e, next) => {
+      const r = await next(e);
+      try {
+        const c = await ctxOf($);
+        if (e.origin.kind !== 'plugin' && c.cockpit.away === WINDOWS[id].pane) await cockpitBack($, c, false);
+      } catch {
+        /* the next press opens it again */
+      }
+      return r;
+    });
   // The keyboard in the cockpit: the element it rests on says itself in the line the cockpit opens with.
   on('ui.focus', { component: 'Pane', requestId: COCKPIT_PANE }, async ($, e, next) => {
     const r = await next(e);

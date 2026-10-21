@@ -12,6 +12,8 @@ const typed = (text: string) => ({ text, wait: false, origin: { kind: 'composer'
 const run = async ($: any, command: string, args = '') => (await $.command.run({ command, args, origin: { kind: 'composer' } })) as any;
 const band = { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 160, scroll: { offset: 0, bodyRows: 10 } } as any;
 const DOCK = { title: 'Cockpit', isFocused: false, bodyColumns: 50, placement: 'dock', scroll: { offset: 0, bodyRows: 40 }, view: {} } as any;
+/** A window's pane (the budget, the agents) as the dock draws it in the cockpit's place. */
+const WINDOW = { title: '', isFocused: true, bodyColumns: 50, placement: 'dock', scroll: { offset: 0, bodyRows: 40 }, view: {} } as any;
 const mount = ($: any, props: any = DOCK, surface = 'terminal') =>
   $.ui.mount({ plugin: 'mode-code', surface, component: 'Pane', requestId: 'cockpit', props } as any) as Promise<any>;
 
@@ -57,6 +59,12 @@ async function cards(ui: any): Promise<Map<string, string>> {
 const flush = async () => {
   for (let i = 0; i < 30; i++) await Promise.resolve();
 };
+
+/** Until the panes `w` holds are `want`: a press's work goes on after the press itself returns. */
+async function panesBecome(w: { panes: string[] }, want: string[]): Promise<string[]> {
+  for (let i = 0; i < 400 && JSON.stringify(w.panes) !== JSON.stringify(want); i++) await new Promise((r) => setTimeout(r, 1));
+  return w.panes;
+}
 
 test('/0 shows the cockpit beside the conversation and lights the strip; /0 again hides it; the next session finds it as it was left', async ($, on) => {
   const w = world(on);
@@ -185,7 +193,12 @@ test("an allowed control is the strip's own press: the agents open their window,
   await run($, '0');
   const ui = await mount($);
   await ui.press({ key: 'quick-agents' });
-  expect(w.panes).toEqual(['cockpit', 'parallel-agents']);
+  // The window in the cockpit's place: beside it, it would be a tab Claude Code does not show.
+  expect(w.panes).toEqual(['parallel-agents']);
+  const win: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'Pane', requestId: 'parallel-agents', props: WINDOW } as any);
+  await win.press({ key: 'cancel' });
+  await win.unmount();
+  expect(await panesBecome(w, ['cockpit'])).toEqual(['cockpit']);
   await ui.press({ key: 'quick-freeze' });
   expect(w.modState().frozen).toBe('/home/ada/dev/app');
   expect(textOf(node(await ui.drawn(), 'quick-freeze'))).toMatch(/^Freeze +● on: app$/);
@@ -278,7 +291,34 @@ test('the quota: two meters with where the work wraps up and when each period st
   expect(all.get('quota-five')).toMatch(/^The 5-hour period: 46% used; it starts over at \d\d:\d\d(?: [AP]M)? \(in 2 h 0 min\)\. The work wraps up at 95%\.$/);
   expect(await words(ui)).toContain('No budget: the week stops at 99%');
   await ui.press({ key: 'budget' });
-  expect(w.panes).toEqual(['cockpit', 'weekly-budget']);
+  expect(w.panes).toEqual(['weekly-budget']);
+  expect(w.opens.at(-1)).toEqual({ id: 'weekly-budget', focus: true });
+  // Applied: the cockpit comes back, with the keys the press held.
+  const win: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'Pane', requestId: 'weekly-budget', props: WINDOW } as any);
+  await win.press({ key: 'apply' });
+  await win.unmount();
+  expect(await panesBecome(w, ['cockpit'])).toEqual(['cockpit']);
+  expect(w.opens.at(-1)).toEqual({ id: 'cockpit', focus: true });
+  expect(w.modState().weeklyTarget).toBe(40);
+  // The cockpit opened again by hand while the window is open: the window's close leaves it as it is.
+  await ui.press({ key: 'budget' });
+  await run($, '0');
+  expect(w.panes).toEqual(['weekly-budget', 'cockpit']);
+  const opened = w.opens.length;
+  const again: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'Pane', requestId: 'weekly-budget', props: WINDOW } as any);
+  await again.press({ key: 'cancel' });
+  await again.unmount();
+  expect(await panesBecome(w, ['cockpit'])).toEqual(['cockpit']);
+  expect(w.opens.length).toBe(opened);
+  await ui.unmount();
+});
+
+test('a window that cannot be shown: the cockpit stays where it was', async ($, on) => {
+  const w = world(on, { paneless: ['weekly-budget'] });
+  await run($, '0');
+  const ui = await mount($);
+  await ui.press({ key: 'budget' });
+  expect(w.panes).toEqual(['cockpit']);
   await ui.unmount();
 });
 
