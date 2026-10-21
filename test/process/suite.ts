@@ -277,7 +277,8 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       assert.equal(cli(w, ['config', 'set', 'language', '"tr"'], opt).code, 0);
       assert.equal(cli(w, ['config', 'get', 'language'], opt).out.trim(), 'tr');
       assert.equal(cli(w, ['config', 'set', 'language', '"klingon"'], opt).code, 1);
-      assert.equal(cli(w, ['config', 'get', 'no.such.key'], opt).code, 1);
+      // A name no setting has is a wrong word, as in config explain: the nearest ones, exit 2.
+      assert.equal(cli(w, ['config', 'get', 'no.such.key'], opt).code, 2);
       assert.equal(cli(w, ['config', 'set', 'view'], opt).code, 2);
       assert.equal(cli(w, ['config', 'frob'], opt).code, 2);
     } finally {

@@ -679,10 +679,26 @@ export function serializeConfig(c: Config): string {
   return JSON.stringify(c, null, 2) + '\n';
 }
 
+/** Settings whose own keys hold dots (a rule id: `git.force-push`): what follows them in a path is one key. */
+const DOTTED_KEYS = ['belt.verdicts'];
+
+/** A dotted path's keys: `belt.verdicts.git.force-push` is belt › verdicts › git.force-push. */
+export function configKeys(path: string): string[] {
+  const map = DOTTED_KEYS.find((m) => path.startsWith(m + '.'));
+  return map ? [...map.split('.'), path.slice(map.length + 1)] : path.split('.');
+}
+
+/** The value at a dotted path, or undefined where there is none (a key no setting has). */
+export function configValueAt(c: Config, path: string): unknown {
+  let v: unknown = c;
+  for (const k of configKeys(path)) v = isObj(v) && Object.hasOwn(v, k) ? v[k] : undefined;
+  return v;
+}
+
 /** Applies a change to one setting by dotted path and returns the new config plus what normalizing it reported. */
 export function setConfigValue(c: Config, path: string, value: unknown): ParsedConfig {
   const next = structuredClone(c) as unknown as Obj;
-  const keys = path.split('.');
+  const keys = configKeys(path);
   let cur: Obj = next;
   for (const k of keys.slice(0, -1)) {
     if (!isObj(cur[k])) cur[k] = {};

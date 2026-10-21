@@ -4,6 +4,8 @@
 export interface Args {
   positionals: string[];
   flags: Record<string, string | boolean | string[]>;
+  /** The words as given, for a command that takes another command's words whole (`belt test rm -rf x`). */
+  raw?: readonly string[];
 }
 
 /** Flags that never take a value, so `--json foo` keeps foo as a positional. */
@@ -63,7 +65,37 @@ export function parseArgs(argv: readonly string[]): Args {
       for (const ch of a.slice(1)) put(ch, true);
     } else positionals.push(a);
   }
-  return { positionals, flags };
+  return { positionals, flags, raw: [...argv] };
+}
+
+/** `belt test`'s own options: they take a value (`--level full`, `--level=full`); `--json` alone. */
+const TEST_OPTIONS = new Set(['--tool', '--path', '--level', '--content', '--command']);
+
+/**
+ * The command `belt test <words>` names, as typed: every word after `test` but belt test's own options, the command's
+ * options kept (`rm -rf /` is not `rm /`). A single word is the whole command (`belt test "git clean -f"`); words with
+ * spaces or shell characters are quoted back as the shell received them. After `--`, every word is the command's.
+ */
+export function testedCommand(raw: readonly string[]): string {
+  const belt = raw.indexOf('belt');
+  const at = belt === -1 ? -1 : raw.indexOf('test', belt + 1);
+  if (at === -1) return '';
+  const words: string[] = [];
+  for (let i = at + 1; i < raw.length; i++) {
+    const w = raw[i]!;
+    if (w === '--') {
+      words.push(...raw.slice(i + 1));
+      break;
+    }
+    if (w === '--json') continue;
+    if (TEST_OPTIONS.has(w.split('=')[0]!)) {
+      if (!w.includes('=')) i++;
+      continue;
+    }
+    words.push(w);
+  }
+  if (words.length === 1) return words[0]!;
+  return words.map((w) => (/^[\w@%+=:,./-]+$/.test(w) ? w : `'${w.replace(/'/g, "'\\''")}'`)).join(' ');
 }
 
 export function flag(a: Args, ...names: string[]): boolean {

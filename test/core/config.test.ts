@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 
 import assert from 'node:assert/strict';
-import { DEFAULT_CONFIG, parseConfig, serializeConfig, setConfigValue } from '../../src/core/config.js';
+import { configKeys, configValueAt, DEFAULT_CONFIG, parseConfig, serializeConfig, setConfigValue } from '../../src/core/config.js';
 
 test('no file or an empty file gives the defaults and no problems', () => {
   assert.deepEqual(parseConfig(null), { config: DEFAULT_CONFIG, problems: [] });
@@ -174,4 +174,18 @@ test('the update check: off unless set, a yes or no only', () => {
     parseConfig(JSON.stringify({ update: 5 })).problems.map((p) => p.path),
     ['update'],
   );
+});
+
+test("a rule's verdict is one key in a path, its id's dots and all; a key no setting has reads as nothing", () => {
+  assert.deepEqual(configKeys('belt.verdicts.git.force-push'), ['belt', 'verdicts', 'git.force-push']);
+  assert.deepEqual(configKeys('footer.mode'), ['footer', 'mode']);
+  assert.deepEqual(configKeys('belt.verdictsx.a'), ['belt', 'verdictsx', 'a']);
+  const r = setConfigValue(DEFAULT_CONFIG, 'belt.verdicts.git.clean', 'deny');
+  assert.deepEqual(r.problems, []);
+  assert.equal(configValueAt(r.config, 'belt.verdicts.git.clean'), 'deny');
+  assert.equal(configValueAt(DEFAULT_CONFIG, 'footer.mode'), 'draw');
+  // A typo is dropped as the file is read: nothing at its path.
+  assert.equal(configValueAt(setConfigValue(DEFAULT_CONFIG, 'footer.mod', 'check').config, 'footer.mod'), undefined);
+  assert.equal(configValueAt(DEFAULT_CONFIG, 'footer.mode.x'), undefined);
+  assert.equal(configValueAt(DEFAULT_CONFIG, 'constructor'), undefined, 'own keys only');
 });
