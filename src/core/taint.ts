@@ -7,6 +7,7 @@
  * writing to the memory. Pure: the plugin keeps the session's state and asks (src/mod/register.ts).
  */
 import { analyzeCommand } from './shell/analyze.js';
+import { bodyNamed, methodsNamed } from './shell/requests.js';
 import { OUTWARD_MCP } from './footer.js';
 import { APP_ID } from './app.js';
 import { packOfTool } from './packs.js';
@@ -58,14 +59,15 @@ export function withoutInvisible(text: string): { text: string; removed: number 
 /** What a call would do that outside content must not steer without the person: send, persist, or write the memory. */
 export type TaintedAct = 'send' | 'persist' | 'memory';
 
-const SEND_FLAGS = /^(?:-d|--data(?:-\w+)?|-F|--form(?:-string)?|-T|--upload-file|--json|--post-data|--post-file|--body-data|--body-file|-body|-infile)$/i;
-const SEND_METHOD = /^(?:post|put|patch|delete)$/i;
-/** A method as a flag and its value (`-X POST`), or joined to it (`-XPOST`, `--request=PUT`, `-Method:Post`). */
-const METHOD_FLAG = /^(?:-X|--request|-method)$/i;
-const METHOD_JOINED = /^(?:-X|--request=|-method:)(\w+)$/i;
-/** httpie and xh: the method is a word of its own (`http POST url`), and `name=value`, `name:=json`, `name@file` are a body. */
-const HTTPIE = new Set(['http', 'https', 'xh']);
-const HTTPIE_ITEM = /^\w[\w.-]*(?::=|=(?!=)|@)/;
+/**
+ * The methods that send nothing: a read. Any other method a call names sends, whatever it is called: the four that change
+ * what is there (POST, PUT, PATCH, DELETE), the extensions (WebDAV's MKCOL, PROPPATCH, MOVE, LOCK …), TRACE (it echoes the
+ * request's headers back) and CONNECT (it opens a tunnel, a raw socket), and one only known when it runs (`-X "$M"`).
+ * The restricted modes read the same three (src/core/shell/effects.ts).
+ */
+const READ_METHOD = /^(?:get|head|options)$/i;
+/** Whether a method a call names is no read. A dangling option names none: the call would not run. */
+const sendingMethod = (method: string): boolean => method !== '' && !READ_METHOD.test(method);
 const SENDERS = new Set(['nc', 'ncat', 'netcat', 'socat', 'telnet', 'ftp', 'sftp', 'scp', 'rsync']);
 const PERSIST_FILE =
   /(?:^|\/)(?:\.claude\/(?:settings(?:\.local)?\.json|hooks\/)|\.mcp\.json$|crontab$|\.bashrc$|\.zshrc$|\.profile$|\.bash_profile$|Microsoft\.PowerShell_profile\.ps1$|\.git\/hooks\/)/i;
@@ -78,23 +80,23 @@ function remote(arg: string): boolean {
   return host.length > 1 && !/[/\\]/.test(host);
 }
 
-/** Whether a call sends data off the computer: a request body or method, an upload, a raw socket, a copy to a host, a comment through gh. */
+/**
+ * Whether a call sends data off the computer: a request body or a method that is no read, an upload, a raw socket, a copy
+ * to a host, a comment through gh. A body and a method are read by their spelling in the program (curl's `-d`, `-X` and
+ * `--request`, wget's `--post-data` and `--method`, PowerShell's `-Body` and `-Method`, httpie's items and first word,
+ * gh's fields and `-X`), not by which are known to send.
+ */
 export function sends(program: string, args: readonly string[]): boolean {
   if (SENDERS.has(program)) return program === 'rsync' || program === 'scp' ? args.some(remote) : true;
-  if (FETCHERS.has(program)) {
-    if (args.some((a) => SEND_FLAGS.test(a.split('=')[0]!))) return true;
-    if (HTTPIE.has(program) && args.some((a) => SEND_METHOD.test(a) || HTTPIE_ITEM.test(a))) return true;
-    return args.some((a, i) => SEND_METHOD.test(METHOD_FLAG.test(a) ? (args[i + 1] ?? '') : (METHOD_JOINED.exec(a)?.[1] ?? '')));
-  }
+  if (FETCHERS.has(program)) return bodyNamed(program, args) || methodsNamed(program, args).some(sendingMethod);
   if (program === 'gh') {
     const [sub, verb] = args;
     if (sub === 'api') {
-      // The method said decides (`-X GET` reads); without one, fields make it a POST, a GraphQL query still a read.
-      const i = args.findIndex((a) => /^(?:-X|--method)$/.test(a));
-      const method = i === -1 ? /^(?:-X|--method=)(\w+)$/.exec(args.find((a) => /^(?:-X|--method=)\w/.test(a)) ?? '')?.[1] : args[i + 1];
-      // A method only known when it runs (`-X "$M"`) may be any.
-      if (method !== undefined) return SEND_METHOD.test(method) || !/^\w+$/.test(method);
-      if (!args.some((a) => /^(?:-f|-F|--field|--raw-field|--input)$/.test(a))) return false;
+      // The method said decides (`-X GET` reads, any other sends, and so does one only known when it runs: `-X "$M"`);
+      // without one, fields make it a POST, a GraphQL query still a read.
+      const methods = methodsNamed(program, args);
+      if (methods.length) return methods.some(sendingMethod);
+      if (!bodyNamed(program, args)) return false;
       return !args.includes('graphql') || args.some((a) => /^query=(?:@|\s*mutation\b)/.test(a) || a === '--input');
     }
     return /^(?:issue|pr|discussion|gist|release)$/.test(sub ?? '') && /^(?:create|comment|edit|review|upload)$/.test(verb ?? '');

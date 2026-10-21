@@ -15,6 +15,7 @@ import type { Dialect, Word } from './types.js';
 import { resolvePath, type PathEnv } from '../paths.js';
 import { parseGit } from '../belt/git.js';
 import { CLI_NAME } from '../app.js';
+import { bodyNamed, curlFlags, methodsNamed } from './requests.js';
 
 export type EffectKind = 'read' | 'write' | 'local' | 'outside' | 'unknown';
 
@@ -751,25 +752,29 @@ function judgeAwk(inv: Invocation, cwd: string | null, env: EffectEnv): Judged {
   return R();
 }
 
+/**
+ * What a request may be and still only read the network, in these modes: GET, HEAD or OPTIONS. What method and body a
+ * command names is read by the belt's reader (src/core/shell/requests.ts), so the two cannot differ on a spelling; what
+ * counts as a read is each one's own rule. A dangling option names no method: the command would not run.
+ */
+const READ_METHOD = /^(?:get|head|options)$/i;
+const changesThere = (program: string, args: readonly string[], read: RegExp = READ_METHOD): boolean =>
+  methodsNamed(program, args).some((m) => m !== '' && !read.test(m));
+
 function judgeCurl(inv: Invocation, cwd: string | null, env: EffectEnv): Judged {
   const ws = words(inv);
-  for (let i = 0; i < ws.length; i++) {
-    const t = ws[i]!.text;
-    if (/^(?:-d|--data|--data-\w+|-F|--form|--form-string|-T|--upload-file|--json)(?:=|$)/.test(t) || /^-[a-zA-Z]*[dFT]$/.test(t)) return O('server');
-    if (/^(?:-X|--request)(?:=|$)/.test(t) || /^-[a-zA-Z]*X$/.test(t)) {
-      const m = t.includes('=') ? t.slice(t.indexOf('=') + 1) : /^-X./.test(t) ? t.slice(2) : (ws[i + 1]?.text ?? '');
-      if (!/^(?:GET|HEAD|OPTIONS)$/i.test(m)) return O('server');
-    }
-  }
+  if (bodyNamed('curl', inv.args) || changesThere('curl', inv.args)) return O('server');
   const out = ws.findIndex((w) => /^(?:-o|--output)$/.test(w.text));
   if (out !== -1) return W([pathOf(ws[out + 1], cwd, env)], 'download');
-  if (hasFlag(ws, /^(?:-O|--remote-name|--remote-name-all|-J|--remote-header-name)$|^-[a-zA-Z]*O[a-zA-Z]*$/)) return L('downloadHere');
+  const flags = curlFlags(inv.args);
+  if (flags.has('O') || flags.has('J') || hasFlag(ws, /^(?:--remote-name|--remote-name-all|--remote-header-name)$/)) return L('downloadHere');
   return R('readsNetwork');
 }
 
 function judgeWget(inv: Invocation, cwd: string | null, env: EffectEnv): Judged {
   const ws = words(inv);
-  if (hasFlag(ws, /^--(?:post-data|post-file|method|body-data|body-file)(?:=|$)/)) return O('server');
+  // This classifier's own rule: a method named at all, even GET, is a change outside; so is a body.
+  if (bodyNamed('wget', inv.args) || methodsNamed('wget', inv.args).length) return O('server');
   if (hasFlag(ws, /^--spider$/)) return R('readsNetwork');
   // -O FILE, -OFILE, bundled (-qO-, -qO FILE) or --output-document[=FILE]; "-" is standard output.
   let target: Word | undefined;
@@ -787,8 +792,7 @@ function judgeWget(inv: Invocation, cwd: string | null, env: EffectEnv): Judged 
 
 function judgeWebCmdlet(inv: Invocation, cwd: string | null, env: EffectEnv): Judged {
   const named = psNamed(words(inv), P('uri method body outfile infile headers contenttype form usebasicparsing websession'), ['uri']);
-  const method = named.method?.text;
-  if (named.body || named.form || named.infile || (method && !/^(?:get|head|options)$/i.test(method))) return O('server');
+  if (bodyNamed(inv.program, inv.args) || changesThere(inv.program, inv.args)) return O('server');
   if (named.outfile) return W([pathOf(named.outfile, cwd, env)], 'download');
   return R('readsNetwork');
 }
@@ -832,7 +836,7 @@ function judgeTool(inv: Invocation): Judged | null {
     const next = positional(ws)[1]?.text.toLowerCase() ?? '';
     if (pair.size === 0 || pair.has(next)) return R();
   }
-  if (p === 'gh' && sub === 'api') return gitHubApi(ws);
+  if (p === 'gh' && sub === 'api') return gitHubApi(args);
   if (p === 'python' || p === 'python3' || p === 'py') {
     const m = args.indexOf('-m');
     if (m !== -1 && /^(?:json\.tool|pydoc|site|platform|sysconfig|this|tokenize)$/.test(args[m + 1] ?? '')) return R();
@@ -842,16 +846,9 @@ function judgeTool(inv: Invocation): Judged | null {
   return L();
 }
 
-/** `gh api` reads with GET; a method, fields or input send. */
-function gitHubApi(ws: readonly Word[]): Judged {
-  for (let i = 0; i < ws.length; i++) {
-    const t = ws[i]!.text;
-    if (/^(?:-f|-F|--field|--raw-field|--input)(?:=|$)/.test(t)) return O('server');
-    if (/^(?:-X|--method)(?:=|$)/.test(t)) {
-      const m = t.includes('=') ? t.slice(t.indexOf('=') + 1) : (ws[i + 1]?.text ?? '');
-      if (!/^GET$/i.test(m)) return O('server');
-    }
-  }
+/** `gh api` reads with GET; a method, fields or input send. Here GET alone is a read (the belt also lets HEAD and OPTIONS through). */
+function gitHubApi(args: readonly string[]): Judged {
+  if (bodyNamed('gh', args) || changesThere('gh', args, /^get$/i)) return O('server');
   return R('readsNetwork');
 }
 

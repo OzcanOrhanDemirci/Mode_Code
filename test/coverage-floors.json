@@ -526,6 +526,11 @@
       "branches": 80,
       "functions": 88
     },
+    "src/core/shell/requests.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
     "src/core/shell/types.ts": {
       "lines": 94,
       "branches": 92,

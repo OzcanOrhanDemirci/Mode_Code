@@ -6,6 +6,7 @@ import { checkFreeze, checkGuards, checkMode, type ModeGuard } from '../../src/c
 import { assessQuota, DEFAULT_BUDGET, fromModRateLimits } from '../../src/core/quota.js';
 import type { ClassifyEnv } from '../../src/core/footer.js';
 import type { WorkMode } from '../../src/core/modes.js';
+import { BODIES, FORMS, guardReads, programOf, READS, SENDING } from '../helpers/requests.js';
 
 const env: ClassifyEnv = { platform: 'linux', home: '/home/u', cwd: '/home/u/proj', memoryRoots: ['/home/u/notes'], ignore: ['/tmp'] };
 const zones = { temp: ['/tmp'], work: ['/home/u/work'], plan: ['/home/u/.claude/plans'] };
@@ -140,4 +141,27 @@ test('edits frozen to one folder: a named write elsewhere is refused; inside, th
   assert.equal(at('Bash', { command: 'npm test' }), null, 'a program that writes what it decides is not judged');
   assert.equal(at('Read', { file_path: '/etc/hosts' }), null);
   assert.match(checkFreeze('Edit', { file_path: '/home/u/proj/x.ts' }, '/home/u/proj/src', [], p, 'tr')!.reason, /donduruldu \(\/dondur\)/);
+});
+
+test('a request is a change outside in chat, research and plan by its method and its body, in every spelling', () => {
+  // The belt's reader (src/core/shell/requests.ts) reads the spelling; the modes' own rule says what may be a read: GET,
+  // HEAD or OPTIONS (gh api: GET alone; wget: no method at all). httpie and xh are not known to the modes.
+  const known = (command: string) => !/^(?:https?|xh) /.test(command);
+  for (const mode of ['chat', 'research', 'plan'] as const) {
+    const at = (command: string, dialect?: 'powershell') => verdict(dialect ? 'PowerShell' : 'Bash', { command }, mode);
+    for (const f of FORMS.filter((x) => known(x.command('M'))))
+      for (const m of [...READS, ...SENDING]) {
+        const command = f.command(m);
+        assert.equal(at(command, f.dialect), guardReads(programOf(command), m) ? 'allow' : 'outside', `${mode}: ${command}`);
+      }
+    for (const b of BODIES.filter((x) => known(x.command))) assert.equal(at(b.command, b.dialect), 'outside', `${mode}: ${b.command}`);
+    // The ones that were read wrong: an attached method made `-XGET` a change and let `-XDELETE` and `-XMKCOL` pass, and
+    // PowerShell's -CustomMethod was not known.
+    assert.equal(at('curl -XGET https://x.example/a'), 'allow');
+    assert.equal(at('curl -XDELETE https://x.example/a'), 'outside');
+    assert.equal(at('curl -XMKCOL https://x.example/a'), 'outside');
+    assert.equal(at('curl -sSX PROPFIND https://x.example/a'), 'outside');
+    assert.equal(at('Invoke-WebRequest -Uri https://x.example/a -CustomMethod MKCOL', 'powershell'), 'outside');
+    assert.equal(at('Invoke-RestMethod https://x.example/a -Method:Options', 'powershell'), 'allow');
+  }
 });

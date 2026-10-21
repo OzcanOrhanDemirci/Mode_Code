@@ -89,6 +89,8 @@ const TARGETS = {
   'src/app/doctor/setup.ts': ['test/doctor/setup.test.ts'],
   // Modes and flows: what a restricted mode lets through, and when a flow's step counts as done.
   'src/core/shell/effects.ts': ['test/core/effects.test.ts', 'test/core/effects-forms.test.ts', 'test/corpus/modes.test.ts', 'test/core/guard.test.ts'],
+  // A request's method and body as a command line spells them (curl, wget, PowerShell, httpie, gh), for the belt and these modes.
+  'src/core/shell/requests.ts': ['test/core/taint.test.ts', 'test/core/effects-forms.test.ts', 'test/core/guard.test.ts'],
   'src/core/modes.ts': ['test/core/guard.test.ts', 'test/core/effects.test.ts', 'test/core/modes.test.ts'],
   'src/core/guard.ts': ['test/core/guard.test.ts', 'test/corpus/modes.test.ts'],
   'src/core/flow.ts': ['test/core/flow.test.ts', 'test/core/guidance.test.ts'],

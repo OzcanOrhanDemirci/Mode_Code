@@ -30,6 +30,8 @@ Each program a command runs (after `&&`, `|`, `$(…)`, `bash -c`, script blocks
 | **changes outside**           | `git push`, `npm publish`, `npm install -g`, `gh pr create`, `curl -X POST`, `docker run`                            | refused                                                                          |
 | **unknown**                   | a program the tool does not know                                                                                     | runs only inside an allowed folder; elsewhere refused, and the refusal says why  |
 
+A request is read by its method and its body the way the safety belt reads them (one reader, [safety-belt.md](safety-belt.md#three-more-families)): `curl` with GET, HEAD or OPTIONS and no body reads, whatever way the options are written (`-X GET`, `-XGET`, `--request GET`, `-sSX GET`); any other method, WebDAV's included, and any body (`-d`, `-F`, `-T`, bundled or not, PowerShell's `-Body`, `-Form`, `-CustomMethod`) changes something outside. The modes are stricter for `wget` (a method named at all) and `gh api` (GET alone).
+
 When the tool cannot tell, it refuses and says so: the refusal names the program and the reason, and tells Claude what to do instead (read with a known command, experiment in a temporary folder, or ask the person to switch modes). Allowed folders: the temporary folders in every restricted mode, the work folder in research and plan, Claude Code's plan file in plan.
 
 After a command runs, Claude Code itself reports whether it held the command read-only. Where the tool said "reads" and Claude Code did not agree, the plugin records it, so a gap in the tool's list shows up in the log instead of going unnoticed.
