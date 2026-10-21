@@ -2968,6 +2968,12 @@ async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.st
     } catch {
       /* flows then answer through the keywords alone; the doctor's live test notices */
     }
+    // Full autonomy's clear request needs its tool from the first prompt, not only after a handoff keyword.
+    try {
+      await $.tool.register(REQUEST_TOOL_DEF);
+    } catch {
+      /* a step left to the person then stays with them */
+    }
     // A paused flow in this folder is said once, so it is not forgotten.
     if (!c.flow) {
       const cwd = await $.session.cwd();
@@ -3403,7 +3409,6 @@ async function onRequestTool($: $, e: any): Promise<any> {
 async function registerHandoffTool($: $): Promise<void> {
   try {
     await $.tool.register(HANDOFF_TOOL_DEF);
-    await $.tool.register(REQUEST_TOOL_DEF);
   } catch {
     /* the keyword then has no tool to write with; Claude says so */
   }
