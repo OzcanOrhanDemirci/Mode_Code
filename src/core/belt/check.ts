@@ -15,7 +15,7 @@ import { MARKETPLACE_NAME, PLUGIN_NAME } from '../app.js';
 import { scanSecrets } from '../secrets/scan.js';
 import { expandVars as expandVarsIn } from '../shell/vars.js';
 import { hitsCritical, protectedPaths, under, claudeDir, type ProtectedPaths } from './protect.js';
-import { codeLiterals, deletedLiterals } from './inline.js';
+import { codeLiterals, deletedLiterals, runsCommands, writesFiles } from './inline.js';
 import { isProtectedBranch, looksLikeUrl, parseGit, planPush, remoteMatches } from './git.js';
 import type { BeltContext, Finding, RuleId } from './types.js';
 import type { NetPlan } from '../net.js';
@@ -1506,21 +1506,23 @@ export function checkOutward(tool: string, input: Readonly<Record<string, unknow
   return s.findings;
 }
 
-/** Best effort for code passed to interpreters (node -e, python -c): string literals that are commands or protected paths. */
+/**
+ * Best effort for code passed to interpreters (`node -e`, `python -c`, a here-document on standard input): string
+ * literals that are commands or protected paths.
+ */
 async function checkInlineCode(inv: Invocation, cwd: string | null, s: Scope): Promise<void> {
   const code = inv.inlineCode ?? '';
-  const literals = codeLiterals(code);
+  const literals = codeLiterals(code, inv.program);
   const inner: Scope = { ...s, inline: true };
-  for (const lit of literals) {
-    if (/^\s*(?:git|rm|del|rd|rmdir|remove-item|docker|claude|schtasks|crontab|sudo|bash|sh|pwsh|powershell|cmd|npm|gh)\s/i.test(lit))
-      await evaluateScript(lit, 'bash', inner, cwd);
-  }
-  // What a delete call is given (src/core/belt/inline.ts), not every path the code names.
+  // A string that begins like a command is one when the code runs commands, not when it is searched for or printed.
+  if (runsCommands(code, inv.program))
+    for (const lit of literals) {
+      if (/^\s*(?:git|rm|del|rd|rmdir|remove-item|docker|claude|schtasks|crontab|sudo|bash|sh|pwsh|powershell|cmd|npm|gh)\s/i.test(lit))
+        await evaluateScript(lit, 'bash', inner, cwd);
+    }
+  // What a delete call is given (src/core/belt/inline.ts), not every path the code names; a write only where one is called.
   const deleted = new Set(deletedLiterals(code, inv.program));
-  const writes =
-    /\b(?:writeFileSync|appendFileSync|writeFile|appendFile|write_text|write_bytes|copyFileSync|copyFile|renameSync|rename|move|copy|copyfile|copy2|copytree|open)\s*\(/.test(
-      code,
-    );
+  const writes = writesFiles(code, inv.program);
   if (!deleted.size && !writes) return;
   for (const lit of literals) {
     if (!/^(?:[A-Za-z]:[\\/]|[\\/]|~|\.{1,2}[\\/])/.test(lit) || lit.length < 2) continue;

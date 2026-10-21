@@ -90,6 +90,15 @@ export function decodeAnsiC(s: string): string {
   return out;
 }
 
+/**
+ * What a here-document hands its command on standard input. Behind an unquoted delimiter the shell takes one level of
+ * backslashes off first (before `$`, a backtick or another backslash, and at a line's end); behind a quoted one the
+ * body goes as written.
+ */
+export function heredocInput(h: { body: string; expands: boolean }): string {
+  return h.expands ? h.body.replace(/\\([$`\\]|\n)/g, (_, c: string) => (c === '\n' ? '' : c)) : h.body;
+}
+
 class BashParser {
   private pos = 0;
   private readonly nested: ParsedScript[] = [];

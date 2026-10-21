@@ -78,6 +78,7 @@ Mode_Code says "I protected you" only where it stopped an action with evidence o
 - Text in which Claude talks the person into something (in part: questions say plainly what will happen, not why Claude wants it).
 - Covert channels through tools that are allowed (in part: an outward call is judged by its destination, not by a full reading of what it carries).
 - What a script file does once written, beyond what the command that runs it shows (in part: where a written file's content came from is tracked).
+- What code handed to an interpreter does beyond what its text shows (in part: an inline option, or a here-document or here-string on standard input, is read for the strings that name a delete, a write or a command; a path built at run time is read as unknown, a string that is itself run as code (`exec`, `eval`) is text to the reader, and a here-document handed to a group or a function (`{ python3 -; } <<EOF`) rather than to the interpreter's own command is not followed).
 - Data that was encoded or disguised before it left (judged only by where it goes).
 
 **On native Windows there is no sandbox under Claude Code, and a script file can do what a single command cannot. There Mode_Code prevents accidents; it is not a security boundary against a determined adversary.** On macOS, Linux and WSL2, Claude Code's sandbox adds a layer Mode_Code does not replace.

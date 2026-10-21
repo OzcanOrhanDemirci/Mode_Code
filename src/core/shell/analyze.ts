@@ -7,7 +7,7 @@
  * `Invoke-Expression`, `Start-Process`, `wsl`), and PowerShell aliases are resolved (`rm` → Remove-Item).
  * Whatever cannot be followed is reported in `issues`, never silently dropped.
  */
-import { parseBash } from './bash.js';
+import { heredocInput, parseBash } from './bash.js';
 import { parseCmd } from './cmd.js';
 import { parsePowerShell } from './powershell.js';
 import { MAX_DEPTH, type Dialect, type ParsedScript, type SimpleCommand, type Word } from './types.js';
@@ -32,7 +32,10 @@ export interface Invocation {
   writeDynamic: boolean[];
   /** Wrappers and interpreters this invocation was reached through, outermost first. */
   via: string[];
-  /** Code handed to an interpreter as a string (python -c, node -e, …); not parsed as shell. */
+  /**
+   * Code handed to an interpreter as a string (python -c, node -e, …), or on its standard input as a here-document's
+   * body or a here-string (`python3 - <<'EOF'`); not parsed as shell.
+   */
   inlineCode?: string;
   /**
    * The command runs inside a WSL distribution (reached through `wsl`): its paths are that distribution's,
@@ -161,28 +164,55 @@ function stdinFamily(name: string): string {
   return name === 'node' || name === 'nodejs' ? 'node' : 'other';
 }
 
-/**
- * Whether a program runs the code its standard input brings: a shell or an interpreter told to read it (`-`,
- * /dev/stdin, a shell's `-s`, `-Command -`), or given neither inline code nor a script to run. The interpreter's
- * own options come first; the first other word is a script (or Python's `-m` a module), and what follows is its
- * own: `… | python -m sqlfluff lint -` and `… | python check.py -` hand the script data, not code.
- */
+/** Whether a program runs the code its standard input brings: see `takesCodeFromStdin`, for the programs that can. */
 function readsCodeFromStdin(program: string, rest: readonly Word[]): boolean {
   const name = program.replace(/[0-9.]+$/, '');
-  if (!STDIN_CODE.has(program) && !STDIN_CODE.has(name)) return false;
+  return (STDIN_CODE.has(program) || STDIN_CODE.has(name)) && takesCodeFromStdin(program, rest);
+}
+
+/**
+ * Whether an interpreter's arguments leave it to run the code its standard input brings: told to read it (`-`,
+ * /dev/stdin, a shell's `-s`, `-Command -`), or given neither inline code nor a script to run. The interpreter's
+ * own options come first; the first other word is a script (or Python's `-m` a module), and what follows is its
+ * own: `… | python -m sqlfluff lint -` and `… | python check.py -` hand the script data, not code. Bun and Deno
+ * name a subcommand first and read standard input only when told to (`deno run -`).
+ */
+function takesCodeFromStdin(program: string, rest: readonly Word[]): boolean {
+  const name = program.replace(/[0-9.]+$/, '');
   const args = texts(rest);
   const inline = Object.hasOwn(CODE_FLAGS, name) ? CODE_FLAGS[name]! : Object.hasOwn(CODE_FLAGS, program) ? CODE_FLAGS[program]! : [];
   const family = stdinFamily(name);
   const values = VALUE_FLAGS[family] ?? [];
+  // PowerShell's options come in any case and in short forms; elsewhere the inline code option is the interpreter's own
+  // (listed above) or a shell's `-c`, and `-E`, `-e`, `-C` and `-f` are options like any other.
+  const names = family === 'powershell' ? /^-(?:c|command|encodedcommand|e|f|file)$/i : /^-c$/;
+  const subcommands = name === 'bun' || name === 'deno';
+  let ran = false;
   for (let i = 0; i < args.length; i++) {
     const a = args[i]!;
     if (a === '-' || a === '/dev/stdin' || (a === '-s' && family === 'shell')) return true;
-    if (inline.includes(a) || /^-(?:c|command|encodedcommand|e|f|file)$/i.test(a)) return args[i + 1] === '-';
+    if (inline.includes(a) || names.test(a)) return args[i + 1] === '-';
     if (family === 'python' && a.startsWith('-m')) return false;
+    if (subcommands && !ran && a === 'run') {
+      ran = true;
+      continue;
+    }
     if (!a.startsWith('-') && !a.startsWith('+')) return false;
     if (values.includes(family === 'powershell' ? a.toLowerCase() : a)) i++;
   }
-  return true;
+  return !subcommands;
+}
+
+/**
+ * The code an interpreter is handed on its standard input as its program (`python3 - <<'EOF'`, `node <<< '…'`): the
+ * bodies of the command's here-documents and its here-strings, as the interpreter receives them. Every one counts,
+ * not the last alone: which one reaches standard input is the redirections' business, and no spelling of it may
+ * hide code. A script named, or a module, makes them its data, as they stay for `cat <<EOF > file`.
+ */
+function stdinProgram(cmd: SimpleCommand, program: string, rest: readonly Word[]): string | undefined {
+  if (!takesCodeFromStdin(program, rest)) return undefined;
+  const given = [...cmd.heredocs.map(heredocInput), ...cmd.redirects.flatMap((r) => (r.op === '<<<' && r.target ? [r.target.text] : []))];
+  return given.length ? given.join('\n') : undefined;
 }
 
 /** `C:\Tools\Git.EXE` → `git`; `./build.sh` → `build.sh`. */
@@ -486,6 +516,11 @@ function record(cmd: SimpleCommand, argv: readonly Word[], program: string, via:
   if (flags) {
     const i = rest.findIndex((w) => flags.includes(w.text));
     if (i !== -1 && rest[i + 1]) inv.inlineCode = rest[i + 1]!.text;
+    // Without a code option, the code may come on standard input: a here-document's body or a here-string.
+    else if (i === -1) {
+      const given = stdinProgram(cmd, program, rest);
+      if (given !== undefined) inv.inlineCode = given;
+    }
   }
   // `"$JAVA_HOME/bin/java"` is still java; only a name that is itself a runtime value is unknown.
   const base = first.text.split(/[\\/]/).pop() ?? first.text;
