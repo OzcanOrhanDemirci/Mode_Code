@@ -156,6 +156,8 @@ Full autonomy leaves to you what Autonomous would ask about. When you clearly as
 
 The belt judges what the model asks for. Plugins and their mods run unsandboxed in Claude Code's own process and can answer its tool calls; hooks run a command on every event they name; an MCP server reads what Claude sends it, and its tools describe themselves to the model in their own words. `mode-code trust` lists all of them with where each is set and marks what is new since you last looked (run in your own terminal: inside a session it only shows). The plugin keeps each MCP tool's description as first seen and tells you when one changes.
 
+Mode_Code's own tools (`flow_step`, `catalog`, `why`, `handoff`, `request`, as `mcp__mode-code__<name>`) are known by their exact names, and only they are left alone: not judged as a connected service's, not a source of outside content, not refused in a restricted mode, their descriptions not pinned. Any MCP server can be named `mode-code`; the other tools it carries are a connected service's like all the rest, judged, pinned and refused as theirs. What the belt cannot tell is a tool of such a server that takes one of the five names: Claude Code hands it the name alone. A test holds the list to the tools the plugin registers, so a tool added without being listed fails the build.
+
 `claude --bare` runs without hooks or plugins, so without the belt: the belt blocks it from inside a session. A run of your own with `--bare` (a script, the Agent SDK) should narrow its tools with `--allowedTools`, or run in a sandbox. On Windows there is no sandbox for Claude Code yet; Anthropic's `sandbox-runtime` is an early option the doctor does not set up.
 
 ## Questions you already answered

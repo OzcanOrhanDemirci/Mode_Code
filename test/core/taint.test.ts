@@ -2,6 +2,7 @@
 // Outside content in a session (src/core/taint.ts): what taints it, and what a tainted session asks about.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { OWN_TOOLS } from '../../src/core/belt/tools.js';
 import { taintedAct, taintSource, withoutInvisible } from '../../src/core/taint.js';
 
 const env = { platform: 'linux' as const, home: '/home/ada', cwd: '/home/ada/dev/app', memoryDirs: ['/home/ada/notes'] };
@@ -32,6 +33,11 @@ test('outside content: the web, connected services, issues and pull requests, fe
     ['Grep', { pattern: 'x' }],
   ] as const)
     assert.equal(taintSource(tool, input), null, tool);
+  // Only its five tools are its own: a tool of another server that takes the same server name is a connected service's, and a source.
+  for (const name of OWN_TOOLS) assert.equal(taintSource(`mcp__mode-code__${name}`, {}), null, name);
+  assert.equal(taintSource('mcp__mode-code__fetch_page', {}), 'mcp__mode-code__fetch_page');
+  assert.equal(taintSource('mcp__mode-code__handoff_all', {}), 'mcp__mode-code__handoff_all');
+  assert.equal(taintSource('mcp__other__handoff', {}), 'mcp__other__handoff');
 });
 
 test('a tainted session asks before it sends data out, persists, or writes the memory', () => {
@@ -121,8 +127,12 @@ test('a tainted session asks before it sends data out, persists, or writes the m
   assert.equal(act('PowerShell', { command: 'scp C:/a.txt D:/b.txt' }), null);
   assert.equal(act('Write', { file_path: '/home/ada/dev/app/src/a.ts', content: 'x' }), null);
   assert.equal(act('mcp__claude_ai_Gmail__get_thread', {}), null);
-  assert.equal(act('mcp__mode-code__handoff', {}), null);
-  assert.equal(act('mcp__mode-code__update_notes', {}), null, "this tool's own, whatever its name");
+  // This tool's own tools, by their names: one of the five is left alone, any other under the same server name is a connected service's.
+  for (const name of OWN_TOOLS) assert.equal(act(`mcp__mode-code__${name}`, {}), null, name);
+  assert.equal(act('mcp__mode-code__update_notes', {}), 'send', 'not one of its own, so judged as any connected service');
+  assert.equal(act('mcp__other__handoff', {}), null, 'a name that reads, whichever server');
+  assert.equal(act('mcp__other__request', {}), null);
+  assert.equal(act('mcp__other__send_request', {}), 'send');
 });
 
 test('invisible characters come out of outside content; an emoji built with a joiner stays whole', () => {

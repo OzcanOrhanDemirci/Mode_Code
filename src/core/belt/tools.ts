@@ -33,10 +33,26 @@ export function isBeltTool(tool: string): boolean {
 }
 
 /**
+ * The tools this plugin registers itself (`$.tool.register`, src/mod/register.ts), each by its name under the plugin's
+ * server (`mcp__<plugin>__<name>`). Exactly these are Mode_Code's own, and only these are left alone as such (not judged
+ * as a connected service's, not a source of outside content, not refused in a restricted mode). A tool added there
+ * is added here: test/core/own-tools.test.ts reads the source and fails on any difference.
+ */
+export const OWN_TOOLS: readonly string[] = ['flow_step', 'catalog', 'why', 'handoff', 'request'];
+
+/**
+ * Whether a tool is one of this plugin's own, by its exact name. The server's name alone is no proof: any MCP server
+ * can be named like this plugin, and the tools it carries are a connected service's like any other.
+ */
+export function isOwnTool(tool: string): boolean {
+  return OWN_TOOLS.some((name) => tool === `mcp__${PLUGIN_NAME}__${name}`);
+}
+
+/**
  * Tools of connected services (MCP servers: mail, calendars, drives …), not this tool's own. The plugin
  * checks what they send, share and delete; the safety-net hook stays on commands and file writes, so a
  * service call does not start a program each time.
  */
 export function isOutwardTool(tool: string): boolean {
-  return tool.startsWith('mcp__') && !tool.startsWith(`mcp__${PLUGIN_NAME}__`);
+  return tool.startsWith('mcp__') && !isOwnTool(tool);
 }
