@@ -104,7 +104,7 @@ import { analyzeCommand } from '../core/shell/analyze.js';
 import { CORE_SKILLS, commandsText, LIST_COMMANDS, memorySetUp, shortCommands, type CoreSkill } from '../core/skills.js';
 import { comparePins, parsePins } from '../core/mcp-pins.js';
 import { partsAllowed, shellRules, type ShellRules } from '../core/permissions.js';
-import { isFileTool, shellOf } from '../core/belt/tools.js';
+import { isFileTool, isOwnTool, shellOf } from '../core/belt/tools.js';
 import type { BeltContext, BeltDecision, GitFacts } from '../core/belt/types.js';
 import { checkFreeze, checkGuards, type ModeGuard } from '../core/guard.js';
 import {
@@ -2758,7 +2758,7 @@ async function onSkillPrompt($: $, e: any, next: any): Promise<any> {
 /** The MCP tools' descriptions against their pins: a changed one told to the person now and to the model with the first prompt. */
 async function pinMcpTools($: $, c: Ctx): Promise<void> {
   try {
-    const tools = (await $.tool.list()).filter((t) => t.mcp && !t.name.startsWith(`mcp__${PLUGIN_NAME}__`));
+    const tools = (await $.tool.list()).filter((t) => t.mcp && !isOwnTool(t.name));
     if (!tools.length) return;
     const r = comparePins(parsePins(await readFile($, c.layout.mcpPins)), tools, await $.clock.now());
     if (r.changed.length) {

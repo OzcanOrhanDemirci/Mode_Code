@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { OWN_TOOLS } from '../../src/core/belt/tools.js';
 import { checkFreeze, checkGuards, checkMode, type ModeGuard } from '../../src/core/guard.js';
 import { assessQuota, DEFAULT_BUDGET, fromModRateLimits } from '../../src/core/quota.js';
 import type { ClassifyEnv } from '../../src/core/footer.js';
@@ -78,9 +79,13 @@ test('outward tools: MCP writes and Claude Code tools that act outside are refus
   assert.equal(verdict('Artifact', { action: 'publish' }, 'plan'), 'tool');
   assert.equal(verdict('Artifact', { action: 'read' }, 'plan'), 'allow');
   assert.equal(verdict('mcp__mode-code__flow_step', { step: 'research' }, 'research'), 'allow');
-  // This tool's own tools are its own, whatever their names say.
-  assert.equal(verdict('mcp__mode-code__update_notes', {}, 'chat'), 'allow');
+  // This tool's own tools are its own, by their names: all five, whatever else their names say; a tool of any other
+  // server is a connected service's, one that takes this tool's server name too.
+  for (const name of OWN_TOOLS) assert.equal(verdict(`mcp__mode-code__${name}`, {}, 'chat'), 'allow', name);
+  assert.equal(verdict('mcp__mode-code__update_notes', {}, 'chat'), 'tool');
+  assert.equal(verdict('mcp__mode-code__send_message', { to: 'x' }, 'plan'), 'tool');
   assert.equal(verdict('mcp__other__update_notes', {}, 'chat'), 'tool');
+  assert.equal(verdict('mcp__other__flow_step', {}, 'chat'), 'allow', 'a name that reads is no outward tool, whichever server');
   assert.equal(verdict('WebSearch', { query: 'x' }, 'research'), 'allow');
   assert.equal(verdict('Agent', { prompt: 'x' }, 'research'), 'allow');
 });

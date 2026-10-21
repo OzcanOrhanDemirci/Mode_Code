@@ -54,6 +54,8 @@ const TARGETS = {
     'test/corpus/automation-parity.test.ts',
     'test/protection/spellings.test.ts',
   ],
+  // Which tools are the tool's own (left alone) and which a connected service's (judged), by exact name.
+  'src/core/belt/tools.ts': ['test/core/own-tools.test.ts', 'test/core/belt-tiers.test.ts', 'test/core/taint.test.ts', 'test/core/guard.test.ts'],
   'src/core/belt/rules.ts': [
     'test/core/belt.test.ts',
     'test/core/belt-edges.test.ts',

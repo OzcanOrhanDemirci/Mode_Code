@@ -6,7 +6,7 @@
  * so it holds even when state cannot be read.
  */
 import { classifyTurn, OUTWARD_MCP, shellChanges, type ClassifyEnv } from './footer.js';
-import { isBeltTool, isFileTool, shellOf } from './belt/tools.js';
+import { isBeltTool, isFileTool, isOwnTool, shellOf } from './belt/tools.js';
 import { commandEffects, hidingIssues, type Effect } from './shell/effects.js';
 import { inZones, isRestricted, MODE_ICON, writableIn, type ModeZones, type WorkMode } from './modes.js';
 import { resolvePath, type PathEnv } from './paths.js';
@@ -97,7 +97,7 @@ export function checkMode(tool: string, input: Readonly<Record<string, unknown>>
       return refuse(g, lang, 'file', 'mode.refuse.file', { path: raw || '?', zones: zoneText(g.mode, g.zones, lang) });
     return null;
   }
-  if (tool.startsWith('mcp__mode-code__')) return null;
+  if (isOwnTool(tool)) return null;
   if ((tool.startsWith('mcp__') && OUTWARD_MCP.test(tool)) || (OUTWARD_TOOLS.test(tool) && !READING_ACTION.test(String(input.action ?? ''))))
     return refuse(g, lang, 'tool', 'mode.refuse.tool', { tool });
   return null;

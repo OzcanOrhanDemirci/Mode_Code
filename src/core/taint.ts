@@ -8,9 +8,9 @@
  */
 import { analyzeCommand } from './shell/analyze.js';
 import { OUTWARD_MCP } from './footer.js';
-import { APP_ID, PLUGIN_NAME } from './app.js';
+import { APP_ID } from './app.js';
 import { packOfTool } from './packs.js';
-import { isFileTool, shellOf } from './belt/tools.js';
+import { isFileTool, isOwnTool, shellOf } from './belt/tools.js';
 import { isUnder, pathKey, resolvePath, type PathEnv } from './paths.js';
 import { carriesOutside, type Provenance } from './provenance.js';
 
@@ -28,7 +28,7 @@ const DEPENDENCY = /\/(?:node_modules|vendor|site-packages|\.pub-cache|Pods|\.ve
 export function taintSource(tool: string, input: Readonly<Record<string, unknown>>): string | null {
   if (tool === 'WebFetch' || tool === 'WebSearch') return tool;
   // A pack's server that works on the project itself (the Dart SDK's) reads no one else's text (core/packs.ts).
-  if (tool.startsWith('mcp__') && !tool.startsWith(`mcp__${PLUGIN_NAME}__`)) return packOfTool(tool)?.outside === false ? null : tool;
+  if (tool.startsWith('mcp__') && !isOwnTool(tool)) return packOfTool(tool)?.outside === false ? null : tool;
   if (tool === 'Read' && DEPENDENCY.test(String(input.file_path ?? '').replace(/\\/g, '/'))) return 'Read (a dependency)';
   const dialect = shellOf(tool);
   if (!dialect) return null;
@@ -148,7 +148,7 @@ export function taintedAct(
     if (PERSIST_FILE.test(path)) return { act: 'persist', what: raw };
     return null;
   }
-  if (tool.startsWith('mcp__') && !tool.startsWith(`mcp__${PLUGIN_NAME}__`)) return OUTWARD_MCP.test(tool) ? { act: 'send', what: tool } : null;
+  if (tool.startsWith('mcp__') && !isOwnTool(tool)) return OUTWARD_MCP.test(tool) ? { act: 'send', what: tool } : null;
   const dialect = shellOf(tool);
   if (!dialect) return null;
   const command = String(input.command ?? '');
