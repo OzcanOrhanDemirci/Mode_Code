@@ -11,6 +11,7 @@ import { analyzeCommand } from './shell/analyze.js';
 import { parseGit } from './belt/git.js';
 import { gitOnlyReads } from './shell/effects.js';
 import { isFileTool, shellOf } from './belt/tools.js';
+import { actsOutside } from './belt/tool-words.js';
 import { resolvePath, isUnder, type PathEnv } from './paths.js';
 import { tIn, type Lang } from './i18n/index.js';
 
@@ -76,8 +77,6 @@ const MUTATING_PROGRAMS = new Set([
 const VERBS = /^(?:i|install|add|rm|remove|uninstall|update|up|upgrade|link|unlink|publish|init|ci|dedupe|prune|reinstall|tap|untap|get)$/;
 const PACKAGE_MANAGERS = new Set(['npm', 'pnpm', 'yarn', 'bun', 'pip', 'pip3', 'winget', 'brew', 'choco', 'apt', 'apt-get', 'cargo', 'go', 'gem']);
 const NULLS = new Set(['/dev/null', 'nul', '$null']);
-/** MCP tools whose names say they act on something outside the machine. */
-export const OUTWARD_MCP = /(?:send|create|update|delete|trash|share|reply|forward|label|mark|write|upload|publish|post)/i;
 const SETTINGS_FILE = /[/][.]claude[/]settings([.]local)?[.]json$/i;
 
 function ignored(path: string, env: ClassifyEnv): boolean {
@@ -139,7 +138,7 @@ export function classifyTurn(uses: readonly ToolUse[], env: ClassifyEnv): TurnAc
       const r = shellChanges(String(u.input.command ?? ''), shell, env);
       if (r.git) acts.git++;
       if (r.other || r.staging) acts.shell++;
-    } else if (u.name.startsWith('mcp__') && OUTWARD_MCP.test(u.name)) {
+    } else if (u.name.startsWith('mcp__') && actsOutside(u.name)) {
       acts.external++;
     }
   }

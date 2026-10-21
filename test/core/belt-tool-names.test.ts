@@ -11,6 +11,7 @@ import { evaluateToolCall } from '../../src/core/belt/evaluate.js';
 import type { Level } from '../../src/core/belt/types.js';
 import { emptyProvenance, withSaid } from '../../src/core/provenance.js';
 import { winCtx } from '../helpers/belt.js';
+import { styles } from '../helpers/tool-names.js';
 
 const TOKEN = 'ghp_' + 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8';
 const judge = async (name: string, input: Record<string, unknown> = {}, level: Level = 'manual', said = '') => {
@@ -18,13 +19,6 @@ const judge = async (name: string, input: Record<string, unknown> = {}, level: L
   const d = await evaluateToolCall(`mcp__shop__${name}`, input, winCtx({ level, prov }));
   return { verdict: d.verdict, rules: d.findings.map((f) => f.rule) };
 };
-
-/** A snake_case name written in each of the other styles. */
-function styles(snake: string): string[] {
-  const parts = snake.split('_');
-  const cap = (w: string) => w[0]!.toUpperCase() + w.slice(1);
-  return [snake, parts.join('-'), parts.map((w, i) => (i ? cap(w) : w)).join(''), parts.map(cap).join(''), snake.toUpperCase()];
-}
 
 test('the same name has the same verdict in snake, kebab, camel, Pascal and upper case', async () => {
   const names: [string, string, string[]][] = [

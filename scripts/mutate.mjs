@@ -135,8 +135,14 @@ const TARGETS = {
   'src/core/news.ts': ['test/core/news.test.ts'],
   // What code handed to an interpreter deletes.
   'src/core/belt/inline.ts': ['test/core/belt-inline.test.ts', 'test/core/belt-measured.test.ts'],
-  // The words of a connected service's tool name: the same words in every style a name is written in.
-  'src/core/belt/tool-words.ts': ['test/core/belt-tool-words.test.ts', 'test/core/belt-tool-names.test.ts'],
+  // The words of a connected service's tool name, and what they say: the same words in every style a name is written in, one list for the belt, the restricted modes and the footer.
+  'src/core/belt/tool-words.ts': [
+    'test/core/belt-tool-words.test.ts',
+    'test/core/belt-tool-names.test.ts',
+    'test/core/outward-tools.test.ts',
+    'test/core/guard.test.ts',
+    'test/core/quota-footer.test.ts',
+  ],
   'src/core/config-words.ts': ['test/core/config-words.test.ts', 'test/doctor/render.test.ts'],
   'src/core/packs.ts': ['test/core/packs.test.ts'],
   'src/core/skills.ts': ['test/core/skills.test.ts'],

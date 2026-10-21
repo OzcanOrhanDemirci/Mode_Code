@@ -5,7 +5,8 @@
  * budget). They answer with a refusal or nothing. The safety belt is separate and never depends on state,
  * so it holds even when state cannot be read.
  */
-import { classifyTurn, OUTWARD_MCP, shellChanges, type ClassifyEnv } from './footer.js';
+import { classifyTurn, shellChanges, type ClassifyEnv } from './footer.js';
+import { actsOutside } from './belt/tool-words.js';
 import { isBeltTool, isFileTool, isOwnTool, shellOf } from './belt/tools.js';
 import { commandEffects, hidingIssues, type Effect } from './shell/effects.js';
 import { inZones, isRestricted, MODE_ICON, writableIn, type ModeZones, type WorkMode } from './modes.js';
@@ -98,7 +99,7 @@ export function checkMode(tool: string, input: Readonly<Record<string, unknown>>
     return null;
   }
   if (isOwnTool(tool)) return null;
-  if ((tool.startsWith('mcp__') && OUTWARD_MCP.test(tool)) || (OUTWARD_TOOLS.test(tool) && !READING_ACTION.test(String(input.action ?? ''))))
+  if ((tool.startsWith('mcp__') && actsOutside(tool)) || (OUTWARD_TOOLS.test(tool) && !READING_ACTION.test(String(input.action ?? ''))))
     return refuse(g, lang, 'tool', 'mode.refuse.tool', { tool });
   return null;
 }
