@@ -5,9 +5,12 @@
  * scripts/replay/cases.ts; the sets live outside this repository.
  *
  *   node --import tsx scripts/belt-replay.ts convert <format> <rows.jsonl> <cases.jsonl> --source <name>
- *        --version <v> --license <spdx> --label attack|benign [--category <c>] [--cwd <dir>] [--platform linux]
+ *        --version <v> --license <spdx> --label attack|benign [--category <c>] [--cwd <dir>] [--platform linux] [--home <dir>]
  *     formats: claude-code (a row's `trajectory` holds Claude Code's records, or the file is a transcript),
  *              openhands (a row's `trajectory` or `messages`), swe-agent-xml (a row's `messages`)
+ *     --platform names the system the calls ran on when it is not this computer's; --home (only with it) is that system's
+ *     home folder, an absolute path there, which its calls are judged with. A case that names none gets a stand-in for its
+ *     platform (cases.ts, homeOf). In Git Bash on Windows a path that starts with / needs MSYS_NO_PATHCONV=1.
  *   node --import tsx scripts/belt-replay.ts run [--sessions] [--set <cases.jsonl>]... [--config mine|default] [--out <dir>]
  *        [--level manual|autonomous|full] [--no-net]
  *
@@ -40,6 +43,8 @@ import {
   fromClaudeCode,
   fromOpenHands,
   fromSweAgentXml,
+  homeOf,
+  homeProblem,
   summarize,
   type CaseMeta,
   type Judged,
@@ -67,6 +72,9 @@ async function convert(): Promise<void> {
   if (!format || !src || !out || (label !== 'attack' && label !== 'benign'))
     throw new Error('usage: convert <format> <rows.jsonl> <cases.jsonl> --source … --label attack|benign');
   const platform = opt('platform') as ReplayPlatform | null;
+  const home = opt('home');
+  const problem = home ? homeProblem(platform, home) : null;
+  if (problem) throw new Error(problem);
   const meta: CaseMeta = {
     source: opt('source') ?? basename(src),
     version: opt('version') ?? 'unknown',
@@ -75,6 +83,7 @@ async function convert(): Promise<void> {
     category: opt('category') ?? 'none',
     ...(opt('cwd') ? { cwd: opt('cwd')! } : {}),
     ...(platform ? { platform } : {}),
+    ...(home ? { home } : {}),
   };
   const w = createWriteStream(out);
   const tools: Record<string, number> = {};
@@ -119,10 +128,10 @@ async function convert(): Promise<void> {
 
 const NO_GIT: GitFacts = { currentBranch: async () => null, remoteUrl: async () => null, alias: async () => null };
 
-/** Where a call of another system ran: its home and folders, no git, nothing on this disk. */
+/** Where a call of another system ran: its home (the case's own, else a stand-in) and folders, no git, nothing on this disk. */
 function foreignContext(c: ReplayCase, start: string | undefined, config: Config): BeltContext {
   const platform = c.platform!;
-  const home = platform === 'win32' ? 'C:/Users/user' : platform === 'darwin' ? '/Users/user' : '/root';
+  const home = homeOf(c);
   const cwd = c.cwd ?? home;
   return {
     platform,

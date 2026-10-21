@@ -26,6 +26,11 @@ export interface ReplayCase {
   cwd?: string;
   /** The system the call was made on, when it is not this computer's (a Linux container in a public set). */
   platform?: ReplayPlatform;
+  /**
+   * That system's home folder, when it is not the stand-in `homeOf` gives its platform (a sandbox's own, `/home/user`
+   * say). Read only with `platform`, for a call of another system.
+   */
+  home?: string;
   payload_sha256: string;
   /** What the person wrote since the call before, as the transcript keeps it: their evidence (src/core/provenance.ts). */
   said?: string[];
@@ -45,6 +50,7 @@ export interface CaseMeta {
   category: string;
   cwd?: string;
   platform?: ReplayPlatform;
+  home?: string;
 }
 
 type Call = { tool: string; input: Record<string, unknown> };
@@ -71,8 +77,30 @@ export function makeCase(meta: CaseMeta, trajectory: string, step: number, call:
     tool_input: call.input,
     ...(where ? { cwd: where } : {}),
     ...(meta.platform ? { platform: meta.platform } : {}),
+    ...(meta.home ? { home: meta.home } : {}),
     payload_sha256: sha256Hex(JSON.stringify(call.input)),
   };
+}
+
+/**
+ * The home folder a call of another system is judged with: the case's own, else a stand-in for its platform (root's
+ * in a Linux container, as the everyday sets' are; a user's on a Mac and on Windows). An empty one counts as none.
+ */
+export function homeOf(c: Pick<ReplayCase, 'platform' | 'home'>): string {
+  return c.home || (c.platform === 'win32' ? 'C:/Users/user' : c.platform === 'darwin' ? '/Users/user' : '/root');
+}
+
+/**
+ * What is wrong with a home given to `convert`, or null: it needs the platform it belongs to (the runner reads it only for a
+ * call of another system) and must be an absolute path there. A Windows shell rewrites an argument that starts with `/` into a
+ * path of its own (Git Bash: `MSYS_NO_PATHCONV=1`), and every call would then be judged in a folder its system does not have.
+ */
+export function homeProblem(platform: string | null | undefined, home: string): string | null {
+  if (!platform) return "--home goes with --platform: the runner reads a case's home only for a call of another system";
+  const absolute = platform === 'win32' ? /^(?:[A-Za-z]:[\\/]|\\\\)/ : /^\//;
+  return absolute.test(home)
+    ? null
+    : `--home ${home} is not an absolute path on ${platform} (a Windows shell rewrites an argument that starts with /: in Git Bash set MSYS_NO_PATHCONV=1)`;
 }
 
 /** A message's text: the string itself, or its text blocks. */

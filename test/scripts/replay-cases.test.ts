@@ -1,14 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
 // The replay's case format and converters (scripts/replay/cases.ts): public trajectory formats as Claude Code's own calls,
-// and a summary that carries counts and digests, never a call's content.
+// and a summary that carries counts and digests, never a call's content; and the runner's use of a case's home
+// (scripts/belt-replay.ts), in a process of its own as a person runs it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { sha256Hex } from '../../src/core/sha256.js';
 import {
   digest,
   fromClaudeCode,
   fromOpenHands,
   fromSweAgentXml,
+  homeOf,
+  homeProblem,
   makeCase,
   mapCall,
   SEEN_CHARS,
@@ -40,6 +48,54 @@ test('a case: where it came from, the call as Claude Code makes it, a digest of 
   const bare = makeCase(META, 't', 0, { tool: 'Bash', input: {} });
   assert.equal('cwd' in bare || 'platform' in bare, false);
   assert.equal(digest('set:t1:3'), sha256Hex('set:t1:3').slice(0, 12));
+});
+
+test("a case may carry its system's home folder; without one the runner judges with a stand-in for the platform", () => {
+  const call = { tool: 'Bash', input: { command: 'ls' } };
+  const own = makeCase({ ...META, cwd: '/testbed', platform: 'linux', home: '/home/sandbox' }, 't', 0, call);
+  assert.equal(own.home, '/home/sandbox');
+  // After the system it belongs to and before the digest; a case made without one has no such field at all.
+  assert.deepEqual(Object.keys(own).slice(-4), ['cwd', 'platform', 'home', 'payload_sha256']);
+  assert.equal('home' in makeCase({ ...META, platform: 'linux' }, 't', 0, call), false);
+  assert.equal('home' in makeCase({ ...META, platform: 'linux', home: '' }, 't', 0, call), false);
+  // The home the runner judges with: the case's own on any platform, else a stand-in (root's in a Linux container).
+  assert.equal(homeOf(own), '/home/sandbox');
+  assert.equal(homeOf({ platform: 'win32', home: 'D:/work/sandbox' }), 'D:/work/sandbox');
+  assert.deepEqual(
+    (['linux', 'darwin', 'win32'] as const).map((platform) => homeOf({ platform })),
+    ['/root', '/Users/user', 'C:/Users/user'],
+  );
+  assert.equal(homeOf({}), '/root');
+  // A home a hand-edited case file left empty is none, as when a case is made.
+  assert.equal(homeOf({ platform: 'darwin', home: '' }), '/Users/user');
+});
+
+test('a home given to convert needs its platform and must be an absolute path there; what a Windows shell makes of one is refused', () => {
+  for (const [platform, home] of [
+    ['linux', '/home/sandbox'],
+    ['linux', '/root'],
+    ['darwin', '/Users/sandbox'],
+    ['win32', 'C:/Users/sandbox'],
+    ['win32', 'D:\\work\\sandbox'],
+    ['win32', '\\\\server\\share\\sandbox'],
+  ] as const)
+    assert.equal(homeProblem(platform, home), null, `${platform} ${home}`);
+  // The runner reads a home only for another system's call: a home with no platform would change nothing.
+  assert.match(homeProblem(null, '/home/sandbox')!, /--home goes with --platform/);
+  assert.match(homeProblem(undefined, '/home/sandbox')!, /--home goes with --platform/);
+  assert.match(homeProblem('', '/home/sandbox')!, /--home goes with --platform/);
+  // A relative path, a path of the wrong kind for its platform, and a POSIX path as Git Bash rewrites it for Windows.
+  for (const [platform, home] of [
+    ['linux', 'home/sandbox'],
+    ['linux', '~'],
+    ['linux', 'C:/Users/sandbox'],
+    ['linux', 'C:/Program Files/Git/home/sandbox'],
+    ['darwin', 'C:/Program Files/Git/Users/sandbox'],
+    ['win32', '/home/sandbox'],
+    ['win32', 'Users/sandbox'],
+    ['win32', 'C:Users'],
+  ] as const)
+    assert.match(homeProblem(platform, home)!, new RegExp(`not an absolute path on ${platform}.*MSYS_NO_PATHCONV=1`), `${platform} ${home}`);
 });
 
 test("Claude Code's records: every tool_use of an assistant record, in order, each once, with the record's folder", () => {
@@ -227,4 +283,60 @@ test('the summary: counts by label, rule and category, digests of attacks let th
   // At most `keep` digests of attacks let through.
   const many = Array.from({ length: 5 }, (_, i) => ({ c: c(`m${i}`, 'attack', 'x'), verdict: 'allow', rules: [] }));
   assert.equal(summarize(many, 3).set!.missed.length, 3);
+});
+
+const root = fileURLToPath(new URL('../..', import.meta.url));
+
+/** The runner as a person runs it: a process of its own, with a data folder of its own (nothing of this computer's is read). */
+function replayer(args: string[], data: string) {
+  return spawnSync(process.execPath, ['--import', 'tsx', join(root, 'scripts', 'belt-replay.ts'), ...args], {
+    cwd: root,
+    encoding: 'utf8',
+    env: { ...process.env, MODE_CODE_HOME: data },
+    timeout: 60_000,
+  });
+}
+
+test("`convert --home` writes the home into each case, and the runner judges another system's call in it", () => {
+  // A system that is not the one these tests run on: the runner takes a call of this computer's own system as it is here.
+  const [platform, home] = process.platform === 'linux' ? (['darwin', '/Users/sandbox'] as const) : (['linux', '/home/sandbox'] as const);
+  const dir = mkdtempSync(join(tmpdir(), 'tc-replay-'));
+  try {
+    const call = (id: string, command: string) => ({ type: 'assistant', message: { content: [{ type: 'tool_use', id, name: 'Bash', input: { command } }] } });
+    const records = join(dir, 'records.jsonl');
+    // A cache deleted in that home, and a key added under its .ssh folder.
+    const lines = [call('a', `rm -rf ${home}/.cache/tool`), call('b', `echo ssh-ed25519 AAAA >> ${home}/.ssh/authorized_keys`)].map((r) => JSON.stringify(r));
+    writeFileSync(records, lines.join('\n') + '\n');
+    const own = join(dir, 'own.jsonl');
+    const meta = ['--version', 'v1', '--license', 'MIT', '--label', 'attack', '--cwd', `${home}/project`, '--platform', platform];
+    const made = replayer(['convert', 'claude-code', records, own, '--source', 'own', ...meta, '--home', home], dir);
+    assert.equal(made.status, 0, made.stderr);
+    const cases = readFileSync(own, 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
+    assert.deepEqual(
+      cases.map((c) => [c.platform, c.home]),
+      [
+        [platform, home],
+        [platform, home],
+      ],
+    );
+    // The same cases as a set converted without a home has them.
+    const without = join(dir, 'without.jsonl');
+    writeFileSync(without, cases.map(({ home: _home, ...c }) => JSON.stringify({ ...c, source: 'without' })).join('\n') + '\n');
+    const run = replayer(['run', '--set', own, '--set', without, '--config', 'default'], dir);
+    assert.equal(run.status, 0, run.stderr);
+    const { sources } = JSON.parse(run.stdout);
+    // In its own home the cache is the person's to delete and the key added under it is persistence. With the stand-in
+    // for the home, the same cache reads as a folder of someone else's beside a system folder, and the key lies outside the home.
+    assert.deepEqual(sources.own.rules, { 'persist.ssh': { deny: 1 } });
+    assert.deepEqual(sources.without.rules, { 'fs.delete-critical': { deny: 1 } });
+    // A home with no platform would change nothing (the runner reads it only for another system's call): refused.
+    const bare = replayer(['convert', 'claude-code', records, join(dir, 'bare.jsonl'), '--label', 'attack', '--home', home], dir);
+    assert.notEqual(bare.status, 0);
+    assert.match(bare.stderr, /--home goes with --platform/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
