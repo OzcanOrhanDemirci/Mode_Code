@@ -21,17 +21,18 @@ async function barShows(s: Screen, keys: RegExp): Promise<void> {
 const flat = (text: string) => text.replace(/[│╭╮╰╯─]/g, '').replace(/\s+/g, ' ');
 
 test('a pointer sequence is read whole: the button, the cell from 0, the modifiers; a release, a move, the wheel', () => {
-  const r = takePointer(`${sgr(0, 9, 4)}${sgr(0, 9, 4, true)}${sgr(32 + 4, 11, 5)}${sgr(64, 0, 0)}${sgr(65 + 16, 2, 3)}${sgr(35, 7, 7)}`);
+  const r = takePointer(`${sgr(0, 9, 4)}${sgr(0, 9, 4, true)}${sgr(32 + 4, 11, 5)}${sgr(64, 0, 0)}${sgr(65 + 16, 2, 3)}${sgr(35, 7, 7)}${sgr(8, 1, 1)}`);
   assert.equal(r.rest, '');
   assert.deepEqual(
-    r.events.map((e) => [e.kind, e.button, e.wheel ?? '', e.x, e.y, e.shift, e.ctrl]),
+    r.events.map((e) => [e.kind, e.button, e.wheel ?? '', e.x, e.y, e.shift, e.alt, e.ctrl]),
     [
-      ['press', 'left', '', 9, 4, false, false],
-      ['release', 'left', '', 9, 4, false, false],
-      ['move', 'left', '', 11, 5, true, false],
-      ['wheel', 'none', 'up', 0, 0, false, false],
-      ['wheel', 'none', 'down', 2, 3, false, true],
-      ['move', 'none', '', 7, 7, false, false],
+      ['press', 'left', '', 9, 4, false, false, false],
+      ['release', 'left', '', 9, 4, false, false, false],
+      ['move', 'left', '', 11, 5, true, false, false],
+      ['wheel', 'none', 'up', 0, 0, false, false, false],
+      ['wheel', 'none', 'down', 2, 3, false, false, true],
+      ['move', 'none', '', 7, 7, false, false, false],
+      ['press', 'left', '', 1, 1, false, true, false],
     ],
   );
 });
@@ -243,6 +244,9 @@ test('the mouse is reported while the control center is drawn and turned off onc
     exit: (code: number) => exits.push(code),
   };
   const m = mouseReporting((x) => written.push(x), proc);
+  // Never turned on: nothing to turn off.
+  m.off();
+  assert.deepEqual(written, []);
   m.on();
   assert.deepEqual(written, [MOUSE_ON]);
   m.off();
