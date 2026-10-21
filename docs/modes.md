@@ -14,7 +14,7 @@ A **mode** says what kind of work a session is doing; a **flow** chains modes in
 
 Chat, research and plan are the **restricted modes**. The safety belt and the project locks hold in every mode; a mode can only add restrictions.
 
-"Outward actions" are tool calls that act on something outside the machine: MCP tools whose names say they send, create, update, delete, publish or post, and Claude Code tools that create worktrees or schedule work.
+"Outward actions" are tool calls that act on something outside the machine: MCP tools whose names say they pay (a charge, a refund, money sent, a transaction scheduled), reach people (send, reply, forward, share, invite, respond, or add a user, a member or a guest), delete, or write (create, update, write, upload, label, mark, publish, post), and Claude Code tools that create worktrees or schedule work. A name is read by its words, in whatever style it is written (`sendEmail` is `send_email`), and the writing words are found as pieces of a longer name too (`sendemail`, `createdAt`): these modes refuse where the [safety belt](safety-belt.md) only asks.
 
 The mode and the way of working are always in view: on the strip above the prompt, and beside Claude Code's own mode labels under it (💬 chat, 🔍 research, 📐 plan, 🔨 code, free; manual, autonomous, full auto), with the flow's progress when a flow runs. They are changed from the keyboard, the strip or a phone alike: see [Session controls](#session-controls). At the strip's left sits [Mo](mo.md), the mascot, who shows at a glance what Claude is doing.
 

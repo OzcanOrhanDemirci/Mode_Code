@@ -8,7 +8,7 @@
  */
 import { analyzeCommand } from './shell/analyze.js';
 import { bodyNamed, methodsNamed } from './shell/requests.js';
-import { OUTWARD_MCP } from './footer.js';
+import { actsOutside } from './belt/tool-words.js';
 import { APP_ID } from './app.js';
 import { packOfTool } from './packs.js';
 import { isFileTool, isOwnTool, shellOf } from './belt/tools.js';
@@ -150,7 +150,7 @@ export function taintedAct(
     if (PERSIST_FILE.test(path)) return { act: 'persist', what: raw };
     return null;
   }
-  if (tool.startsWith('mcp__') && !isOwnTool(tool)) return OUTWARD_MCP.test(tool) ? { act: 'send', what: tool } : null;
+  if (tool.startsWith('mcp__') && !isOwnTool(tool)) return actsOutside(tool) ? { act: 'send', what: tool } : null;
   const dialect = shellOf(tool);
   if (!dialect) return null;
   const command = String(input.command ?? '');
