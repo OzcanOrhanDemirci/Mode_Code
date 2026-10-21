@@ -464,6 +464,22 @@
       "line": "ACT_ORDER[decided] > ACT_ORDER[f.atMost]",
       "kind": "equivalent",
       "why": "equal, the act it would take is the act it has"
+    },
+    {
+      "file": "src/core/belt/inline.ts",
+      "from": "<",
+      "to": "<=",
+      "line": "for (let i = from; i < text.length; i++)",
+      "kind": "equivalent",
+      "why": "one more turn reads past the end, where there is no parenthesis to count"
+    },
+    {
+      "file": "src/core/belt/inline.ts",
+      "from": "<",
+      "to": "<=",
+      "line": "for (let i = from; i < end; i++)",
+      "kind": "equivalent",
+      "why": "one more turn reads the call's closing parenthesis, or the end: nothing is split there, and the last argument is cut at `end` either way"
     }
   ]
 }

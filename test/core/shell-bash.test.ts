@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { decodeAnsiC, parseBash } from '../../src/core/shell/bash.js';
+import { decodeAnsiC, heredocInput, parseBash } from '../../src/core/shell/bash.js';
 import type { ParsedScript } from '../../src/core/shell/types.js';
 
 /** Every command's argv as plain strings, nested scripts included (depth-first), for compact assertions. */
@@ -106,6 +106,20 @@ test('here-documents: quoted delimiters are data, unquoted ones expand', () => {
   assert.deepEqual(all(expanding), [['cat'], ['rm', '-rf', '/']]);
   const stripped = parseBash('bash <<-END\n\tgit push --force\n\tEND\n');
   assert.equal(stripped.commands[0]!.heredocs[0]!.body, '\tgit push --force');
+});
+
+test('what a here-document hands its command: backslashes come off behind an unquoted delimiter only', () => {
+  const given = (src: string) => heredocInput(parseBash(src).commands[0]!.heredocs[0]!);
+  // A quoted delimiter: as written.
+  assert.equal(given("cat <<'E'\na \\$x \\\\ \\` \\n\nE"), 'a \\$x \\\\ \\` \\n');
+  assert.equal(given('cat <<"E"\na \\$x\nE'), 'a \\$x');
+  assert.equal(given('cat <<\\E\na \\$x\nE'), 'a \\$x');
+  // An unquoted one: `\$`, a backtick and `\\` lose their backslash, a backslash at a line's end joins the lines, others stay.
+  assert.equal(given('cat <<E\na \\$x \\\\ \\` \\n\nE'), 'a $x \\ ` \\n');
+  assert.equal(given('cat <<E\none \\\ntwo\nE'), 'one two');
+  assert.equal(given('cat <<E\n\\\\\\$\nE'), '\\$');
+  assert.equal(given('cat <<E\nplain\nE'), 'plain');
+  assert.equal(heredocInput({ body: 'x \\', expands: true }), 'x \\', 'a lone backslash at the very end stays');
 });
 
 test('assignments, comments and process substitution', () => {
