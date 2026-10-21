@@ -428,6 +428,10 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'update.cantCheck': 'En yeni sürüm öğrenilemedi: {detail}',
   'update.newest': 'Mode_Code {version} en yeni sürüm.',
   'update.available': 'Mode_Code {to} çıktı; bu {from}.',
+  'news.title': '{from} sürümünden bu yana yeni:',
+  'news.1_2.short': "Mode_Code 1.2'de yeni: /0 kokpiti gösterir. Kemerin ne kadar soracağını çalışma biçimi belirler; bypass kalktı.",
+  'news.1_2':
+    '1.2: /0 konuşmanın yanında kokpiti gösterir; kontrol merkezi ondan bir tuş uzakta. Emniyet kemerinin ne kadar soracağını çalışma biçimi belirler: Manuel sorar, Otonom bir güvenlik ağı adımın götüreceğini sakladığında sürer, tam otonom üçüncü biçimdir. Bypass ayarı kalktı.',
   'update.notes': 'Yenilikler: {url}',
   'update.how': 'Güncellemek için: {cmd}',
   'update.notInstaller': 'Bu kopyayı kurulum betiği koymadı (deponun bir klonu ya da npm): nasıl kurulduysa öyle güncelle.',

@@ -456,6 +456,11 @@
       "branches": 92,
       "functions": 94
     },
+    "src/core/news.ts": {
+      "lines": 100,
+      "branches": 100,
+      "functions": 100
+    },
     "src/core/provenance.ts": {
       "lines": 100,
       "branches": 100,

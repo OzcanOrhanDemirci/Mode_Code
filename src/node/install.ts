@@ -40,6 +40,7 @@ import { claudeDir } from './env.js';
 import { claudeVersion, pluginsVia, realClaude, type ClaudeRunner } from './claude-env.js';
 import { claudeIn, turnAllOff } from './packs.js';
 import { skillsSource, syncKeptSkills } from './skills.js';
+import { replacedVersion } from '../core/news.js';
 
 export const HOOK_EVENTS = ['PreToolUse', 'UserPromptSubmit', 'Stop', 'SessionStart'] as const;
 import { BELT_MATCHER } from '../core/belt/tools.js';
@@ -70,6 +71,8 @@ export interface Manifest {
   createdConfig: boolean;
   /** The installation under an earlier name this one replaced: where it was, and whether its folder is gone. */
   previous?: { id: string; root: string; removed: boolean };
+  /** The version this installation replaced, when it was another: what changed since is said once (core/news.ts). */
+  updatedFrom?: string;
 }
 
 export type StepKind = 'migrate' | 'data-folder' | 'hook-program' | 'marketplace' | 'plugin' | 'settings-hooks' | 'config' | 'self-test' | 'retire-previous';
@@ -395,6 +398,8 @@ export function applyInstall(l: Layout, plan: InstallPlan, opts: { config?: Part
     });
   const hookHash = fileHash(hook);
   const cli = cliProgram(dist);
+  // The version replaced, kept over a reinstall of the same one until the note it brings is said (core/news.ts).
+  const updatedFrom = replacedVersion(readManifest(l), APP_VERSION);
   const manifest: Manifest = {
     v: 1,
     app: APP_ID,
@@ -410,6 +415,7 @@ export function applyInstall(l: Layout, plan: InstallPlan, opts: { config?: Part
     plugin: { id: PLUGIN_ID, installed: pluginInstalled, marketplaceDir: l.marketplace },
     createdConfig,
     ...(prev ? { previous: { id: prev.id, root: prev.root, removed } } : {}),
+    ...(updatedFrom ? { updatedFrom } : {}),
   };
   try {
     writeJsonAtomic(l.manifest, manifest);
