@@ -12,6 +12,7 @@
 import { analyzeCommand } from './shell/analyze.js';
 import { shellOf } from './belt/tools.js';
 import { resolvePath, type PathEnv } from './paths.js';
+import { maskSecrets } from './secrets/scan.js';
 
 /** What a call acts on, by kind; every value must be the person's for the call to stand on evidence. */
 export interface Unit {
@@ -196,7 +197,8 @@ export function typedText(prompt: string, pastes: readonly string[]): string {
 
 /** The record with a prompt the person wrote: the newest kept, each cut to its limit. */
 export function withSaid(p: Provenance, text: string): Provenance {
-  const t = text.trim();
+  // Kept on disk like everything else Mode_Code stores: a key typed into a prompt is masked first.
+  const t = maskSecrets(text).trim();
   // A new prompt of the person's: the clear requests quoted for the last one are done with.
   if (!t) return p.granted.length ? { ...p, granted: [] } : p;
   return { ...p, granted: [], said: [...p.said, t.slice(0, PROV_SAID_CHARS)].slice(-PROV_SAID_MAX) };
