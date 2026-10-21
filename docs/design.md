@@ -159,6 +159,8 @@ The panel you open beside Claude Code's conversation (`/0`, or `0 ≡ cockpit` o
 
 Only your press changes anything in the cockpit: Claude has no way to press.
 
+A window opened from the cockpit (the weekly budget, the parallel agents, a flow) takes the cockpit's place, and the cockpit comes back when it closes: with the keyboard after **Apply** or **Cancel**, without it after Esc or the close mark, which give the keyboard to the prompt. Claude Code shows one pane at a time beside the conversation, the others as tabs, and raises a new one only while the prompt has the keyboard; beside the cockpit, which a press in it holds, the window would open as a tab nobody sees.
+
 ## When an answer is stopped
 
 A classifier on Anthropic's server can flag a session and stop the answer being written. It is not the model's choice, not Claude Code's and not Mode_Code's, and it sometimes flags harmless work: in October 2026 it did so nine times in three sessions, each in Mode_Code's own work. Claude Code says so in English, as an error, and it was taken for a broken tool.

@@ -48,8 +48,8 @@ export interface WorldOptions {
   promptMode?: string;
   /** Files of the plugin's own folder, by the end of their path (`/skills/verify/SKILL.md`): the world has no disk. */
   pluginFiles?: Record<string, string>;
-  /** No surface places a pane (a headless session): `$.ui.open` answers that it waits undrawn. */
-  paneless?: boolean;
+  /** No surface places a pane (a headless session), or none of these ids: `$.ui.open` answers that it waits undrawn. */
+  paneless?: boolean | string[];
 }
 
 export const HOME = '/home/ada';
@@ -166,9 +166,13 @@ export function world(on: any, opts: WorldOptions = {}) {
   });
   // The panes open, as the engine holds them: one per id, placed at once unless no surface places panes.
   const panes: string[] = [];
+  /** Every open asked for, in order, and whether it asked for the keys. */
+  const opens: { id: string; focus: boolean }[] = [];
   on('ui.open', (_$: any, e: any) => {
+    opens.push({ id: e.id, focus: e.focus === true });
     if (!panes.includes(e.id)) panes.push(e.id);
-    return { value: opts.paneless ? { isPlaced: false, reason: 'no surface places panes' } : { isPlaced: true } };
+    const unplaced = opts.paneless === true || (Array.isArray(opts.paneless) && opts.paneless.includes(e.id));
+    return { value: unplaced ? { isPlaced: false, reason: 'no surface places panes' } : { isPlaced: true } };
   });
   on('ui.close', (_$: any, e: any) => {
     const i = panes.indexOf(e.id);
@@ -253,6 +257,7 @@ export function world(on: any, opts: WorldOptions = {}) {
     asked,
     submitted,
     panes,
+    opens,
     read: (path: string) => files.get(norm(path))?.text ?? null,
     json: (path: string) => {
       const t = files.get(norm(path))?.text;
