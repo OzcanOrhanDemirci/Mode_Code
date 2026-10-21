@@ -221,22 +221,23 @@ async function main() {
   const tour: { address: string | null; type?: string; keys: string[] }[] = [
     { address: null, keys: [] },
     { address: null, keys: ['right'] },
+    { address: 'work/modes', keys: [] },
     { address: 'protection/rules', keys: [] },
     { address: 'protection/test', type: 'git push --force origin main', keys: ['enter'] },
+    { address: 'settings/general', keys: [] },
     { address: 'quota/usage', keys: [] },
-    { address: 'claude-code/templates', keys: [] },
   ];
   mkdirSync(join(root, 'docs', 'images'), { recursive: true });
   for (const [lang, file, title] of [
     [
       'en',
       'control-center.svg',
-      'The Mode_Code control center: Mo greeting on the first screen, home, the safety belt rules, a command tested against the belt, quota and rule templates',
+      'The Mode_Code control center: Mo on the first screen, the Now page, the modes and ways of working, the safety belt rules, a command tested against the belt, a setting explained where it stands, and quota',
     ],
     [
       'tr',
       'control-center-tr.svg',
-      'Mode_Code kontrol merkezi: ilk ekranda karşılayan Mo, ana ekran, emniyet kemeri kuralları, kemerde sınanan bir komut, kota ve kural şablonları',
+      'Mode_Code kontrol merkezi: ilk ekranda Mo, Şimdi sayfası, modlar ve çalışma biçimleri, emniyet kemeri kuralları, kemerde sınanan bir komut, durduğu yerde açıklanan bir ayar ve kota',
     ],
   ] as const) {
     const frames: Run[][][] = [];
