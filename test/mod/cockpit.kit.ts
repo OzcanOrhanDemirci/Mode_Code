@@ -61,8 +61,8 @@ const flush = async () => {
 };
 
 /** Until the panes `w` holds are `want`: a press's work goes on after the press itself returns. */
-async function panesBecome(w: { panes: string[] }, want: string[]): Promise<string[]> {
-  for (let i = 0; i < 400 && JSON.stringify(w.panes) !== JSON.stringify(want); i++) await new Promise((r) => setTimeout(r, 1));
+async function panesBecome(w: { panes: string[]; clock: { advance(ms: number): Promise<unknown> } }, want: string[]): Promise<string[]> {
+  for (let i = 0; i < 400 && JSON.stringify(w.panes) !== JSON.stringify(want); i++) await w.clock.advance(1);
   return w.panes;
 }
 
