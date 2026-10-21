@@ -127,6 +127,8 @@ const TARGETS = {
     'test/core/belt-request.test.ts',
     'test/core/belt-refine.test.ts',
   ],
+  // What changed, for someone who updated.
+  'src/core/news.ts': ['test/core/news.test.ts'],
   // What code handed to an interpreter deletes.
   'src/core/belt/inline.ts': ['test/core/belt-inline.test.ts', 'test/core/belt-measured.test.ts'],
   'src/core/config-words.ts': ['test/core/config-words.test.ts', 'test/doctor/render.test.ts'],

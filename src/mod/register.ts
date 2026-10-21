@@ -154,6 +154,7 @@ import {
 import { ago, compact, percent, shortPath } from '../core/format.js';
 import { centerProgram, commandLine, LAUNCH_ENV, OPENS, terminalLaunch, windowsAppsDir, windowsTerminalProgram } from '../core/launch.js';
 import { checkDue, newerThan, parseUpdateState } from '../core/update.js';
+import { newsToSay } from '../core/news.js';
 import { closeTabArgv, closeTabOutcome, type CloseTab } from '../core/close.js';
 import { fold, truncate } from '../core/text.js';
 import { MARK_W } from '../core/mo/marks.js';
@@ -1781,6 +1782,29 @@ async function askPerson($: $, c: Ctx, tool: string, d: BeltDecision): Promise<'
 }
 
 /**
+ * What changed since the version an update replaced (core/news.ts), once on this computer, as the first session after
+ * the update starts. Kept in state/once.json as the newest note said; a file that does not read says it again.
+ */
+async function newsOnce($: $, c: Ctx): Promise<void> {
+  let from: unknown;
+  let once: Record<string, unknown> = {};
+  try {
+    from = (JSON.parse((await readFile($, c.layout.manifest)) ?? '{}') as { updatedFrom?: unknown }).updatedFrom;
+    once = JSON.parse((await readFile($, c.layout.once)) ?? '{}') as Record<string, unknown>;
+  } catch {
+    /* no installation record, or one that does not read: nothing to compare with */
+  }
+  const news = newsToSay(from, once.news, APP_VERSION);
+  if (!news.length) return;
+  $.ui.toast(news.map((n) => tIn(c.lang, n.short)).join(' '), { timeoutMs: TOAST_MS.attention });
+  try {
+    await $.fs.write(c.layout.once, JSON.stringify({ ...once, news: news.at(-1)!.since }, null, 2) + '\n');
+  } catch {
+    /* said again next time: better twice than never */
+  }
+}
+
+/**
  * Full autonomy's card, the first time it is chosen on this computer (the person, 2026-10-20): it asks nothing, and
  * what cannot be undone it does not do but leaves to them. Kept in state/once.json; a file that does not read shows
  * the card again rather than never.
@@ -2915,6 +2939,8 @@ async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.st
   c.closedStart = c.memStart.then(() => closedNotes($, c));
   // The daily update check, when the person said yes: in the background, the session never waits for it.
   void updateCheck($, c);
+  // What changed since the version an update replaced, once.
+  void newsOnce($, c);
   // The MCP tools' descriptions against the ones first seen: a change is told (core/mcp-pins.ts).
   void pinMcpTools($, c);
   // Tool packs: Automatic use turns on what this folder's files call for; what is on here is kept for the hints.

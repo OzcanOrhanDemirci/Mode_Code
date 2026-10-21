@@ -435,6 +435,10 @@ export const enUi = {
   'update.cantCheck': 'Could not ask the release which version is the newest: {detail}',
   'update.newest': 'Mode_Code {version} is the newest.',
   'update.available': 'Mode_Code {to} is out; this is {from}.',
+  'news.title': 'New since {from}:',
+  'news.1_2.short': 'New in Mode_Code 1.2: /0 shows the cockpit. The way of working sets how much the belt asks; bypass is gone.',
+  'news.1_2':
+    '1.2: /0 shows the cockpit beside the conversation; the control center is one press from it. How much the safety belt asks is the way of working: Manual asks, Autonomous goes on where a safety net keeps what a step takes away, full autonomy is the third way. The bypass setting is gone.',
   'update.notes': 'What is new: {url}',
   'update.how': 'Update with: {cmd}',
   'update.notInstaller': 'This copy was not put here by the installer (a clone of the repository, or npm): update it the way it was installed.',

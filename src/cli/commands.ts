@@ -46,6 +46,7 @@ import { buildReport, reportLines } from '../app/report.js';
 import { confirm, say as sayWrapped, terminalIO, typed } from './ask.js';
 import { sampleFooter } from '../core/footer.js';
 import { replay } from '../app/replay.js';
+import { newsFor } from '../core/news.js';
 import { findFlow, flowFiles, loadFlows } from '../app/flows.js';
 import { progress } from '../core/flow.js';
 import { evidenceText, flowTitle, statusText } from '../core/flow-view.js';
@@ -283,6 +284,7 @@ export async function cmdInstall(a: Args): Promise<number> {
     say(T(ctx, 'cli.cancelled'));
     return 1;
   }
+  const before = readManifest(ctx.layout)?.version ?? null;
   const r = applyInstall(ctx.layout, plan, { config: chosen });
   for (const s of r.steps) say(`  ${s.ok ? green('✓') : red('✗')} ${T(ctx, `install.step.${s.kind}` as MessageKey)}${s.detail ? dim(' · ' + s.detail) : ''}`);
   say();
@@ -295,6 +297,13 @@ export async function cmdInstall(a: Args): Promise<number> {
   const mo = colorOn() && ctx.config.modules.mascot ? ansiOf(mark2('done', STILL_AT.done), colorDepth()) : [];
   say(`${mo[0] ? `${mo[0]}  ` : ''}${green(bold(T(ctx, 'install.done')))}`);
   say(`${mo[1] ? `${mo[1]}  ` : ''}${T(ctx, 'install.next', { cmd: cyan(CLI_NAME) })}`);
+  // An update: what changed since the version it replaced, once here (and once as the next session starts).
+  const news = before && before !== APP_VERSION ? newsFor(before, APP_VERSION) : [];
+  if (news.length) {
+    say();
+    say(bold(T(ctx, 'news.title', { from: before! })));
+    for (const n of news) say(T(ctx, n.key));
+  }
   return 0;
 }
 
