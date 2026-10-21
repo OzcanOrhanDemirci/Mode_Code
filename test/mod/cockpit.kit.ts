@@ -322,6 +322,35 @@ test('a window that cannot be shown: the cockpit stays where it was', async ($, 
   await ui.unmount();
 });
 
+test("the quota at the end of Claude Code's hint line: the numbers alone, no pictograph to cover them", async ($, on) => {
+  const w = world(on);
+  // The engine's own drawing of the line, beneath the plugins: what reaches it is what the terminal draws.
+  let tail: unknown;
+  on('ui.render', { component: 'PromptHint' }, ($: any, e: any) => {
+    tail = e.props.tail;
+    const { Text } = $.ui.resolve(e);
+    return h(Text, null, e.props.hint) as any;
+  });
+  const now = w.clock.now();
+  await $.session.measure({
+    context: { window: 200000 },
+    rateLimits: [
+      { kind: 'five_hour', percentUsed: 46, resetsAt: new Date(now + 2 * 3600_000).toISOString() },
+      { kind: 'seven_day', percentUsed: 30, resetsAt: new Date(now + 4 * 86400_000).toISOString() },
+    ],
+    changed: ['rateLimits'],
+  } as any);
+  await run($, 'durum');
+  const hint: any = await $.ui.mount({
+    plugin: 'mode-code',
+    surface: 'terminal',
+    component: 'PromptHint',
+    props: { isDraft: false, isWorking: false, hint: '? for shortcuts' },
+  } as any);
+  expect(tail).toBe('5h 46% · week 30%');
+  await hint.unmount();
+});
+
 test("Turkish: the cockpit speaks the person's language; a surface that draws no module shows no running time", async ($, on) => {
   world(on, { lang: 'tr' });
   await run($, '0');

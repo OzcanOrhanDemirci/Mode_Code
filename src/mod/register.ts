@@ -1595,7 +1595,9 @@ async function refreshStatus($: $, c: Ctx): Promise<void> {
     );
   await update($, labelsAtom, () => ({
     modes,
-    tail: quota.length ? `🛡 ${quota.join(' · ')}` : '🛡',
+    // The quota alone: a line of text has no room for Mo's colors, and the shield it began with was drawn two cells
+    // wide over a width of one, covering the word after it (the person, 2026-10-21).
+    tail: quota.join(' · '),
     band,
     bandMeaning,
     strip,
@@ -5163,7 +5165,7 @@ async function control(
     }
     case 'cockpit': {
       // The cockpit, shown or not (src/core/ux/cockpit.ts). From the phone, where the session stands and every command.
-      const quota = (await quotaTail($)).replace(/^🛡\s*/, '') || '—';
+      const quota = (await quotaTail($)) || '—';
       const newer = newerThan(APP_VERSION, parseUpdateState(await readFile($, c.layout.updateState))?.latest ?? null);
       const menu = menuText(viewOf(c), lang, quota, newer);
       if (where === 'remote') return say(`${menu}\n\n${tIn(lang, 'ctl.center.remote')}`);

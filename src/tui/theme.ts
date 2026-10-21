@@ -31,7 +31,8 @@ export interface Theme {
     lock: string;
     dot: string;
     sep: string;
-    shield: string;
+    /** The safety belt's mark in words where Mo's badge (src/tui/mo.tsx) cannot be drawn; null where it can. */
+    belt: string | null;
     cursor: string;
   };
 }
@@ -69,7 +70,9 @@ export function makeTheme(opts: { plain?: boolean; highContrast?: boolean; reduc
       lock: mark('lock', plain),
       dot: plain ? '*' : '•',
       sep: plain ? ' / ' : ' › ',
-      shield: plain ? '[belt]' : '🛡',
+      // Mo's face, drawn in colored half blocks: words where there is no color (2026-10-21: the shield it replaced
+      // was drawn two cells wide over a width of one, covering the word after it).
+      belt: plain || noColor ? '[belt]' : null,
       cursor: mark('focus', plain),
     },
   };

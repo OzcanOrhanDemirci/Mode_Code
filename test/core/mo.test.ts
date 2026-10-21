@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ART_H, ART_W, GLASS, frame, mix, MO_STATES, type MoState, type Picture, type Rgb } from '../../src/core/mo/art.js';
-import { MARK_W, mark1, mark2 } from '../../src/core/mo/marks.js';
+import { badge, MARK_W, mark1, mark2 } from '../../src/core/mo/marks.js';
 import { moState, NO_FACTS, SHOW_FOR, STILL_AT, type MoFacts } from '../../src/core/mo/state.js';
 import { ansiOf, hexOf, runsOf, xterm256 } from '../../src/core/mo/cells.js';
 
@@ -133,6 +133,27 @@ test('what just happened gives way after its time; a time ahead of the clock is 
     assert.equal(moState(f({ [key]: now - ms }), now), 'idle');
     assert.equal(moState(f({ [key]: now + 1 }), now), 'idle');
   }
+});
+
+test("the badge: Mo's face in one row of five cells, a steel frame over the glass, its eyes in the look's color", () => {
+  const eyes = (b: Picture) => [hexOf(b.px[1]![1]!), hexOf(b.px[1]![3]!)];
+  for (const look of ['ok', 'look', 'bad', 'off'] as const) {
+    const b = badge(look);
+    assert.deepEqual([b.w, b.h, b.px.length, b.px.every((r) => r.length === 5)], [5, 2, 2, true]);
+    // Every pixel drawn, so each cell is an upper half block of two colors: one cell wide in any terminal.
+    assert.deepEqual(
+      runsOf(b)[0]!
+        .map((r) => r.text)
+        .join(''),
+      '▀▀▀▀▀',
+    );
+    assert.equal(hexOf(b.px[1]![2]!), hexOf(GLASS));
+    assert.equal(eyes(b)[0], eyes(b)[1]);
+  }
+  assert.deepEqual(
+    (['ok', 'look', 'bad', 'off'] as const).map((l) => eyes(badge(l))[0]),
+    ['#39c5cf', '#f5b53d', '#ff4d4d', '#394656'],
+  );
 });
 
 test('every state has a still moment for reduced motion', () => {

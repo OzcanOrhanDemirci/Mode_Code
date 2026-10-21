@@ -24,6 +24,7 @@ import { titleSequence, type TerminalCaps } from './terminal.js';
 import { textWidth } from '../node/width.js';
 import type { PointerEvent, PointerHub } from './pointer.js';
 import { KeepInView, PointerContext, PointerRegistry, Pressable } from './press.js';
+import { BADGE_CELLS, badgeLook, MoBadge } from './mo.js';
 import {
   dispatchKey,
   EnvContext,
@@ -541,8 +542,10 @@ export function App(props: AppProps) {
 
   // Each crumb of the location bar leads back to its level with a click; the screen open now is where you are. The
   // crumbs are fitted to the room the protection and the quota leave them, so neither is ever cut into the other.
+  // The belt's mark: Mo's badge, or `[belt]` where it is not drawn (plain text, no color, Mo turned off).
+  const beltMark = theme.sym.belt ?? (config.modules.mascot ? null : '[belt]');
   const status = [
-    belt ? `${theme.sym.shield} ${t(`health.state.${belt.state}` as MessageKey)}` : '',
+    belt ? `${beltMark ?? ' '.repeat(BADGE_CELLS)} ${t(`health.state.${belt.state}` as MessageKey)}` : '',
     q.assessment.week ? `  ${t('nav.week')} ${percent(q.assessment.week.used, lang)}` : '',
     q.assessment.five ? `  ${t('nav.five')} ${percent(q.assessment.five.used, lang)}` : '',
   ];
@@ -574,7 +577,11 @@ export function App(props: AppProps) {
       </Box>
       <Box flexShrink={0}>
         <Text color={theme.muted}>
-          {belt ? <Text color={stateColor(theme, belt.state)}>{status[0]}</Text> : null}
+          {belt ? (
+            <Text color={stateColor(theme, belt.state)}>
+              {beltMark ?? <MoBadge look={badgeLook(belt.state)} />} {t(`health.state.${belt.state}` as MessageKey)}
+            </Text>
+          ) : null}
           {status[1]}
           {status[2]}
         </Text>

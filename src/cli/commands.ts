@@ -54,7 +54,7 @@ import { stepName, stepsLine } from '../core/guidance.js';
 import { claudeDir as claudeDirOf } from '../node/env.js';
 import { appliedTemplates, repoKey, TEMPLATES, templateById, withTemplates } from '../core/templates.js';
 import { git } from '../node/git.js';
-import { mark2 } from '../core/mo/marks.js';
+import { badge, mark2 } from '../core/mo/marks.js';
 import { ansiOf } from '../core/mo/cells.js';
 import { STILL_AT } from '../core/mo/state.js';
 import { flag, intValue, testedCommand, value, values, type Args } from './args.js';
@@ -160,7 +160,11 @@ export async function cmdStatus(a: Args): Promise<number> {
       );
     say(dim(`  ${T(ctx, 'cli.measured', { when: ago(q.reading.measuredAt, now, ctx.lang) })}`));
   }
-  if (events.length) say(`  ${red('🛡')} ${T(ctx, 'cli.status.blockedToday', { n: events.length })}`);
+  if (events.length) {
+    // Mo's badge, its eyes red, where color is drawn; the shield it replaced covered the word after it.
+    const mo = colorOn() && ctx.config.modules.mascot ? `${ansiOf(badge('bad'), colorDepth())[0]} ` : '';
+    say(`  ${mo}${red(T(ctx, 'cli.status.blockedToday', { n: events.length }))}`);
+  }
   if (ctx.problems.length) say(yellow(`  ${T(ctx, 'cli.status.configProblems', { n: ctx.problems.length, file: shortPath(ctx.layout.config, homedir()) })}`));
   if (c.red) say(red(`\n${T(ctx, 'cli.status.redHint', { cmd: `${CLI_NAME} doctor` })}`));
   return c.red ? 1 : 0;

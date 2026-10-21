@@ -163,7 +163,7 @@ Bir cevabın altındaki satırlar, Claude Code'un kendi modlarının yanında ot
 ──────────────────────────────────────────────────────────────────────────────
 ❯
 ──────────────────────────────────────────────────────────────────────────────
-  ⏵⏵ auto mode on (shift+tab to cycle) · 🛡 5h 31% · week 28%        autonomous
+  ⏵⏵ auto mode on (shift+tab to cycle) · 5h 31% · week 28%          autonomous
 ```
 
 Türkçe kurulumda aynı satırlar "Hafıza İtildi", "İşlem Yapıldı", "otonom" ve "5s %31 · hafta %28" olarak görünür.
