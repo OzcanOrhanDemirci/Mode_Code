@@ -280,8 +280,10 @@ fetch_package() {
     if [ -n "${MODE_CODE_RELEASE_URL:-}" ]; then base="${MODE_CODE_RELEASE_URL%/}"; fi
     SOURCE="$base/$asset"
     step "$(t "Downloading $NAME${VERSION:+ $VERSION}" "$NAME${VERSION:+ $VERSION} indiriliyor")"
-    download "$base/SHA256SUMS" "$STAGE/SHA256SUMS" ||
+    if ! download "$base/SHA256SUMS" "$STAGE/SHA256SUMS"; then
+      [ -n "$VERSION" ] && die "$(t "Could not download release v$VERSION: it may not exist, or the network is down. The releases: https://github.com/$REPO/releases" "v$VERSION sürümü indirilemedi: böyle bir sürüm olmayabilir ya da ağ kapalı olabilir. Sürümler: https://github.com/$REPO/releases")"
       die "$(t "Could not reach the release at $base." "$base adresindeki sürüme ulaşılamadı.")"
+    fi
     download "$SOURCE" "$STAGE/package.tgz" || die "$(t "Could not download $SOURCE." "$SOURCE indirilemedi.")"
     want=$(awk -v f="$asset" '$2 == f || $2 == "*" f { print $1 }' "$STAGE/SHA256SUMS" | head -n 1)
     [ -n "$want" ] || die "$(t "The release lists no checksum for $asset." "Sürüm $asset için sağlama toplamı vermiyor.")"
@@ -489,6 +491,9 @@ main() {
   say
   if [ "$status" -ne 0 ]; then
     say "${R}$(t "The program is installed, but connecting it to Claude Code did not finish. Run $APP install to try again." "Program kuruldu ama Claude Code'a bağlanması tamamlanmadı. Yeniden denemek için $APP install çalıştır.")$N"
+    if [ "$NEW_SHELL" = 1 ]; then
+      say "${D}$(t "Open a new terminal to use the $APP command (or run: export PATH=\"$BIN_DIR:\$PATH\")." "$APP komutunu kullanmak için yeni bir terminal aç (ya da şunu çalıştır: export PATH=\"$BIN_DIR:\$PATH\").")$N"
+    fi
     exit "$status"
   fi
   if [ -n "$NEXT" ]; then
@@ -497,9 +502,9 @@ main() {
     say "${G}${B}$(t "$NAME $PKG_VERSION is ready." "$NAME $PKG_VERSION hazır.")$N"
     # This terminal reaches the command only when its PATH already held the folder; else a new one does.
     if [ "$NEW_SHELL" = 1 ]; then
-      say "$(t 'Start a new Claude Code session: the mode strip shows above the prompt. Type /0 there for the control center; in a new terminal, mode-code opens it too.' "Yeni bir Claude Code oturumu başlat: mod şeridi istem satırının üstünde görünür. Kontrol merkezi için orada /0 yaz; yeni bir terminalde mode-code da açar.")"
+      say "$(t 'Start a new Claude Code session: the mode strip shows above the prompt. Type /0 there for the cockpit, the control center one press from it; in a new terminal, mode-code opens the control center too.' "Yeni bir Claude Code oturumu başlat: mod şeridi istem satırının üstünde görünür. Kokpit için orada /0 yaz, kontrol merkezi ondan bir tuş uzakta; yeni bir terminalde mode-code kontrol merkezini de açar.")"
     else
-      say "$(t 'Start a new Claude Code session: the mode strip shows above the prompt. Type /0 there, or run mode-code here, for the control center.' "Yeni bir Claude Code oturumu başlat: mod şeridi istem satırının üstünde görünür. Kontrol merkezi için orada /0 yaz ya da burada mode-code çalıştır.")"
+      say "$(t 'Start a new Claude Code session: the mode strip shows above the prompt. Type /0 there for the cockpit, the control center one press from it; or run mode-code here for the control center.' "Yeni bir Claude Code oturumu başlat: mod şeridi istem satırının üstünde görünür. Kokpit için orada /0 yaz, kontrol merkezi ondan bir tuş uzakta; ya da kontrol merkezi için burada mode-code çalıştır.")"
     fi
   fi
   if [ "$NEW_SHELL" = 1 ]; then

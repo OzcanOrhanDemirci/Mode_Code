@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { flag, intValue, parseArgs, testedCommand, value, values } from '../../src/cli/args.js';
+import { flag, intValue, nearest, parseArgs, testedCommand, value, values } from '../../src/cli/args.js';
 
 test('positionals, flags and values', () => {
   const a = parseArgs(['belt', 'test', '--command', 'git status', '--json', '--days=3', '-y']);
@@ -38,6 +38,16 @@ test("belt test's command is the words as typed, its options kept; belt test's o
   assert.equal(t('belt', 'rules'), '');
   assert.equal(t('test', 'x'), '');
   assert.deepEqual(parseArgs(['a', '-b']).raw, ['a', '-b']);
+});
+
+test('the words nearest a typo: those it starts or ends first, then one or two edits away, at most three', () => {
+  const words = ['install', 'uninstall', 'status', 'sessions', 'secrets', 'sync', 'skills', 'measure'];
+  assert.deepEqual(nearest('instal', words), ['install']);
+  assert.deepEqual(nearest('Statsu', words), ['status']);
+  assert.deepEqual(nearest('s', words), ['status', 'sessions', 'secrets']);
+  assert.deepEqual(nearest('measures', words), ['measure']);
+  assert.deepEqual(nearest('', words), []);
+  assert.deepEqual(nearest('zzzzzz', words), []);
 });
 
 test('numbers are clamped to the allowed range', () => {

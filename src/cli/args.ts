@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /** A small argument reader: positionals, --flag, --key value, --key=value, repeated keys collect into lists. */
+import { editDistance } from '../core/text.js';
 
 export interface Args {
   positionals: string[];
@@ -119,4 +120,13 @@ export function intValue(a: Args, name: string, fallback: number, min = 1, max =
   if (v === undefined) return fallback;
   const n = parseInt(v, 10);
   return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+}
+
+/** The words nearest to a mistyped one: those it starts or ends, then those one or two edits away; at most three. */
+export function nearest(word: string, words: readonly string[]): string[] {
+  const w = word.toLowerCase();
+  if (!w) return [];
+  const close = words.filter((x) => x.startsWith(w) || w.startsWith(x));
+  const typo = words.filter((x) => !close.includes(x) && editDistance(x, w, 2) <= 2);
+  return [...close, ...typo].slice(0, 3);
 }

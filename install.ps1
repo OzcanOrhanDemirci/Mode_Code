@@ -268,7 +268,11 @@ param(
       if ($S.Wanted) { $label = "$Name $($S.Wanted)" }
       Step (T "Downloading $label" "$label indiriliyor")
       $sums = Join-Path $S.Stage 'SHA256SUMS'
-      try { Get-File "$base/SHA256SUMS" $sums } catch { Fail (T "Could not reach the release at $base." "$base adresindeki s\u00fcr\u00fcme ula\u015f\u0131lamad\u0131.") }
+      try { Get-File "$base/SHA256SUMS" $sums } catch {
+        # A version that does not exist is said so, with where the releases are.
+        if ($S.Wanted) { Fail (T "Could not download release v$($S.Wanted): it may not exist, or the network is down. The releases: https://github.com/$Repo/releases" "v$($S.Wanted) s\u00fcr\u00fcm\u00fc indirilemedi: b\u00f6yle bir s\u00fcr\u00fcm olmayabilir ya da a\u011f kapal\u0131 olabilir. S\u00fcr\u00fcmler: https://github.com/$Repo/releases") }
+        Fail (T "Could not reach the release at $base." "$base adresindeki s\u00fcr\u00fcme ula\u015f\u0131lamad\u0131.")
+      }
       try { Get-File $S.Source $tgz } catch { Fail (T "Could not download $($S.Source)." "$($S.Source) indirilemedi.") }
       $want = $null
       foreach ($line in Get-Content -LiteralPath $sums) {
@@ -520,7 +524,7 @@ param(
       Out-Line (T "$Name $($S.Version) is installed. Next: $($S.Next)" "$Name $($S.Version) kuruldu. S\u0131radaki: $($S.Next)") 'White'
     } else {
       Out-Line (T "$Name $($S.Version) is ready." "$Name $($S.Version) haz\u0131r.") 'Green'
-      Say (T 'Start a new Claude Code session: the mode strip shows above the prompt. Type /0 there, or run mode-code here, for the control center.' "Yeni bir Claude Code oturumu ba\u015flat: mod \u015feridi istem sat\u0131r\u0131n\u0131n \u00fcst\u00fcnde g\u00f6r\u00fcn\u00fcr. Kontrol merkezi i\u00e7in orada /0 yaz ya da burada mode-code \u00e7al\u0131\u015ft\u0131r.")
+      Say (T 'Start a new Claude Code session: the mode strip shows above the prompt. Type /0 there for the cockpit, the control center one press from it; or run mode-code here for the control center.' "Yeni bir Claude Code oturumu ba\u015flat: mod \u015feridi istem sat\u0131r\u0131n\u0131n \u00fcst\u00fcnde g\u00f6r\u00fcn\u00fcr. Kokpit i\u00e7in orada /0 yaz, kontrol merkezi ondan bir tu\u015f uzakta; ya da kontrol merkezi i\u00e7in burada mode-code \u00e7al\u0131\u015ft\u0131r.")
     }
     if ($S.NewShell) {
       Note (T "This window can run $App now; windows opened before the installation need to be opened again." "Bu pencere $App komutunu hemen \u00e7al\u0131\u015ft\u0131rabilir; kurulumdan \u00f6nce a\u00e7\u0131lan pencereler yeniden a\u00e7\u0131lmal\u0131.")

@@ -3,7 +3,8 @@
 import type { enTui } from './en-tui.js';
 
 export const trTui: Record<keyof typeof enTui, string> = {
-  'cli.unknownCommand': 'Bilinmeyen komut: "{cmd}". --help ile bak.',
+  'cli.didYouMean': ' Şunu mu demek istedin: {names}?',
+  'cli.unknownCommand': 'Bilinmeyen komut: "{cmd}".{near} Komutların hepsi: {help}',
   'tui.needsTerminal': 'Kontrol merkezi etkileşimli bir terminal ister. Onun yerine "mode-code status" dene.',
   'tui.indexing': 'Claude Code geçmişin okunuyor (yalnız ilk açılışta): {done}/{total} dosya, {mb} MB',
   'tui.indexFailed': 'Oturum geçmişi okunamadı: {error}',

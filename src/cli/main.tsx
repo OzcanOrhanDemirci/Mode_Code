@@ -3,11 +3,11 @@
  * Entry point of the `mode-code` command. With no command in a terminal it opens the control center;
  * piped or in CI it prints the status instead, so it never hangs waiting for keys that will not come.
  */
-import { APP_NAME, APP_VERSION } from '../core/app.js';
+import { APP_NAME, APP_VERSION, CLI_NAME } from '../core/app.js';
 import { tIn } from '../core/i18n/index.js';
 import { appContext } from '../app/context.js';
 import { noProgramsFromWorkingFolder } from '../node/env.js';
-import { parseArgs, flag } from './args.js';
+import { parseArgs, flag, nearest } from './args.js';
 import { setColor } from './style.js';
 import {
   cmdBelt,
@@ -38,6 +38,36 @@ import { cmdMeasure } from './measure.js';
 
 const MIN_NODE = [22, 13];
 
+/** The commands `main` knows, for the nearest ones to a typo. */
+const COMMANDS = [
+  'open',
+  'status',
+  'doctor',
+  'install',
+  'try',
+  'uninstall',
+  'quota',
+  'tokens',
+  'measure',
+  'template',
+  'report',
+  'sessions',
+  'flow',
+  'memory',
+  'morning',
+  'sync',
+  'belt',
+  'secrets',
+  'config',
+  'update',
+  'trust',
+  'net',
+  'packs',
+  'skills',
+  'version',
+  'help',
+];
+
 async function main(argv: string[]): Promise<number> {
   noProgramsFromWorkingFolder();
   const [major = 0, minor = 0] = process.versions.node.split('.').map((x) => parseInt(x, 10));
@@ -55,8 +85,9 @@ async function main(argv: string[]): Promise<number> {
     process.stdout.write(`${APP_VERSION}\n`);
     return 0;
   }
+  // `help install` and `install --help`: that command's lines; `help` alone: every command.
   if (flag(a, 'help', 'h') || cmd === 'help') {
-    process.stdout.write(helpText(appContext().lang) + '\n');
+    process.stdout.write(helpText(appContext().lang, cmd === 'help' ? rest[0] : cmd) + '\n');
     return 0;
   }
   switch (cmd) {
@@ -120,9 +151,14 @@ async function main(argv: string[]): Promise<number> {
     case 'version':
       process.stdout.write(`${APP_VERSION}\n`);
       return 0;
-    default:
-      process.stderr.write(tIn(appContext().lang, 'cli.unknownCommand', { cmd }) + '\n');
+    default: {
+      // A typo gets the nearest commands, and where every command is.
+      const lang = appContext().lang;
+      const near = nearest(cmd, COMMANDS);
+      const said = near.length ? tIn(lang, 'cli.didYouMean', { names: near.join(', ') }) : '';
+      process.stderr.write(tIn(lang, 'cli.unknownCommand', { cmd, near: said, help: `${CLI_NAME} --help` }) + '\n');
       return 2;
+    }
   }
 }
 

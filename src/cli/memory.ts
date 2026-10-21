@@ -134,7 +134,7 @@ export async function cmdMemory(a: Args): Promise<number> {
   }
 
   if (sub !== 'status') {
-    say(red(T(ctx, 'cli.unknownCommand', { cmd: `memory ${sub}` })));
+    say(red(T(ctx, 'cli.unknownCommand', { cmd: `memory ${sub}`, near: '', help: `${CLI_NAME} help memory` })));
     return 2;
   }
 

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 /** English messages of the control center's screens. Part of the English source dictionary. */
 export const enTui = {
-  'cli.unknownCommand': 'Unknown command "{cmd}". See --help.',
+  'cli.didYouMean': ' Did you mean {names}?',
+  'cli.unknownCommand': 'Unknown command "{cmd}".{near} Every command: {help}',
   'tui.needsTerminal': 'The control center needs an interactive terminal. Try "mode-code status" instead.',
   'tui.indexing': 'Reading your Claude Code history (first run only): {done}/{total} files, {mb} MB',
   'tui.indexFailed': 'The session history could not be read: {error}',

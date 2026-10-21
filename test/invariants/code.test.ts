@@ -151,7 +151,8 @@ test('every command is in the help text and in docs/cli.md', () => {
   const doc = read(join(ROOT, 'docs/cli.md'));
   assert.ok(commands.length >= 14);
   for (const c of commands) {
-    assert.match(help, new RegExp(`c\\('${c}\\b`), `help text lacks ${c}`);
+    // A row of the help: `['status', …]`, or `[`open ${address}`, …]`.
+    assert.match(help, new RegExp(`\\[\\s*['\`]${c}\\b`), `help text lacks ${c}`);
     assert.match(doc, new RegExp(`\\\`${c}\\b`), `docs/cli.md lacks ${c}`);
   }
 });

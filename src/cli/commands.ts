@@ -73,8 +73,9 @@ function T(ctx: AppContext, key: MessageKey, params?: Record<string, string | nu
   return tIn(ctx.lang, key, params);
 }
 
-function stateMark(ctx: AppContext, s: FeatureHealth['state']): string {
-  const word = T(ctx, `health.state.${s}` as MessageKey);
+function stateMark(ctx: AppContext, s: FeatureHealth['state'], width = 0): string {
+  // Padded to the longest state word shown, so the feature names stand in one column.
+  const word = T(ctx, `health.state.${s}` as MessageKey).padEnd(width);
   if (s === 'ok') return green(`✓ ${word}`);
   if (s === 'red') return red(`✗ ${word}`);
   if (s === 'gray') return yellow(`◌ ${word}`);
@@ -140,9 +141,10 @@ export async function cmdStatus(a: Args): Promise<number> {
     say(T(ctx, 'cli.status.installHint', { cmd: cyan(`${CLI_NAME} install`) }));
     return 0;
   }
+  const stateW = Math.max(...h.features.map((f) => T(ctx, `health.state.${f.state}` as MessageKey).length), 0);
   for (const f of h.features) {
     const reason = f.reason ? dim(' · ' + T(ctx, f.reason.key as MessageKey, f.reason.params)) : '';
-    say(`  ${stateMark(ctx, f.state)}  ${T(ctx, `feature.${f.id}` as MessageKey)}${reason}`);
+    say(`  ${stateMark(ctx, f.state, stateW)}  ${T(ctx, `feature.${f.id}` as MessageKey)}${reason}`);
   }
   say();
   if (q.reading) {
@@ -291,7 +293,7 @@ export async function cmdInstall(a: Args): Promise<number> {
   say();
   if (!r.ok) {
     say(red(T(ctx, 'install.failed')));
-    say(T(ctx, 'install.failedHint', { cmd: `${CLI_NAME} uninstall`, repo: `${REPO_URL}/issues` }));
+    say(T(ctx, 'install.failedHint', { cmd: `${CLI_NAME} install`, undo: `${CLI_NAME} uninstall --keep-program`, repo: `${REPO_URL}/issues` }));
     return 1;
   }
   // Mo greets the new install, a still picture beside the two lines, where the terminal draws colors.
@@ -454,7 +456,7 @@ export async function cmdTokens(a: Args): Promise<number> {
   const days = intValue(a, 'days', 7, 1, 3650);
   const by = (value(a, 'by') ?? 'day') as 'day' | 'model' | 'cwd';
   const since = Date.now() - days * 86400_000;
-  const idx = openIndex(ctx);
+  const idx = indexWithProgress(ctx, a);
   try {
     const total = idx.totals(since);
     const rows = idx.breakdown(by === 'model' || by === 'cwd' ? by : 'day', since);
@@ -575,7 +577,7 @@ export async function cmdReport(a: Args): Promise<number> {
   const days = flag(a, 'week') ? 7 : intValue(a, 'days', 1, 1, 365);
   const to = Date.now();
   const from = to - days * 86400_000;
-  const idx = openIndex(ctx);
+  const idx = indexWithProgress(ctx, a);
   try {
     const r = buildReport(idx, loadEvents(ctx, days + 1), from, to);
     if (flag(a, 'json')) {
@@ -593,9 +595,20 @@ export async function cmdReport(a: Args): Promise<number> {
   }
 }
 
+/**
+ * The session index brought up to date, saying how far it is on a terminal: the first run reads every transcript, and
+ * a command that printed nothing for a long while would look stuck.
+ */
+function indexWithProgress(ctx: AppContext, a: Args): ReturnType<typeof openIndex> {
+  const tty = process.stderr.isTTY && !flag(a, 'json');
+  const idx = openIndex(ctx, tty ? { onProgress: (done, total) => process.stderr.write(`\r${T(ctx, 'belt.replay.progress', { done, total })}   `) } : {});
+  if (tty) process.stderr.write(`\r${' '.repeat(60)}\r`);
+  return idx;
+}
+
 export async function cmdSessions(a: Args): Promise<number> {
   const ctx = appContext();
-  const idx = openIndex(ctx);
+  const idx = indexWithProgress(ctx, a);
   try {
     const search = value(a, 'search') ?? (a.positionals.length ? a.positionals.join(' ') : undefined);
     const list = idx.sessions({ limit: intValue(a, 'limit', 20, 1, 1000), ...(search ? { search } : {}) });
@@ -675,7 +688,7 @@ export async function cmdFlow(a: Args): Promise<number> {
     return 0;
   }
   if (sub !== 'list') {
-    process.stderr.write(T(ctx, 'cli.unknownCommand', { cmd: `flow ${sub}` }) + '\n');
+    process.stderr.write(T(ctx, 'cli.unknownCommand', { cmd: `flow ${sub}`, near: '', help: `${CLI_NAME} help flow` }) + '\n');
     return 2;
   }
   const open = flag(a, 'all')
@@ -1104,46 +1117,72 @@ export function maskedLine(s: string): string {
   return maskSecrets(s);
 }
 
-export function helpText(lang: Lang): string {
+/** The commands as the help lists them: what is typed, and what it does. */
+function helpRows(lang: Lang): [string, string][] {
+  const L = (k: MessageKey) => tIn(lang, k);
+  const tr = lang === 'tr';
+  // The words a person types stay English; what stands for their own words is in their language.
+  const address = tr ? '<adres>' : '<address>';
+  const search = tr ? '[arama]' : '[search]';
+  const path = tr ? '[yol…]' : '[path…]';
+  const setting = tr ? '[ayar]' : '[setting]';
+  const skill = tr ? '<beceri>' : '<skill>';
+  return [
+    [CLI_NAME, L('help.open')],
+    [`open ${address}`, L('help.openAt')],
+    ['status', L('help.status')],
+    ['doctor [--fix] [--quick] [--report]', L('help.doctor')],
+    ['install [--dry-run] [--yes]', L('help.install')],
+    ['uninstall [--purge]', L('help.uninstall')],
+    ['  [--keep-program]', L('help.uninstallKeep')],
+    ['try', L('help.try')],
+    ['quota', L('help.quota')],
+    ['tokens [--days N] [--by …]', L('help.tokens')],
+    ['measure [--days N] [--project …]', L('help.measure')],
+    [`sessions ${search}`, L('help.sessions')],
+    ['report [--week]', L('help.report')],
+    ['flow [show <id>] [--all]', L('help.flow')],
+    ['memory [setup|sync|…]', L('help.memory')],
+    ['morning [--hours N]', L('help.morning')],
+    ['sync [setup|now|approve|…]', L('help.sync')],
+    ['template list|apply|remove', L('help.template')],
+    ['belt rules|events|test|replay', L('help.belt')],
+    ['  test --command "<cmd>" | --path <file> [--level …]', L('help.beltTest')],
+    [`secrets ${path}`, L('help.secrets')],
+    ['config get|set|path', L('help.config')],
+    [`config explain ${setting}`, L('help.configExplain')],
+    ['config history|undo', L('help.configHistory')],
+    ['update [--check] [--yes]', L('help.update')],
+    ['trust', L('help.trust')],
+    ['net [show|restore <id>]', L('help.net')],
+    ['packs [on|off|set|auto|guide]', L('help.packs')],
+    [`skills [on|me|off ${skill}]`, L('help.skills')],
+  ];
+}
+
+/** Where every command and option is written out. */
+export const CLI_DOCS = `${REPO_URL}/blob/main/docs/cli.md`;
+
+/**
+ * The help: every command, or with `topic` (`help install`, `install --help`) that command's lines only; and where
+ * every command and option is written out.
+ */
+export function helpText(lang: Lang, topic?: string): string {
   const c = (s: string) => cyan(s);
   const L = (k: MessageKey) => tIn(lang, k);
+  const rows = helpRows(lang);
+  const own = topic ? rows.filter(([usage], i) => usage.split(' ')[0] === topic || (usage.startsWith('  ') && rows[i - 1]?.[0].split(' ')[0] === topic)) : [];
+  const shown = own.length ? own : rows;
+  // The column fits the commands; an option line under one (indented) may run past it.
+  const width = Math.max(...shown.filter(([usage]) => !usage.startsWith('  ')).map(([usage]) => usage.length), 0) + 2;
   return [
     `${bold(APP_NAME)} ${APP_VERSION}  ${dim(L('help.tagline'))}`,
     '',
     `${bold(L('help.usage'))}  ${CLI_NAME} ${dim('[' + L('help.command') + ']')}`,
     '',
-    `  ${c(CLI_NAME.padEnd(31))}${L('help.open')}`,
-    `  ${c('open <address>'.padEnd(31))}${L('help.openAt')}`,
-    `  ${c('status'.padEnd(31))}${L('help.status')}`,
-    `  ${c('doctor'.padEnd(31))}${L('help.doctor')}`,
-    `  ${c('install [--dry-run]'.padEnd(31))}${L('help.install')}`,
-    `  ${c('uninstall [--purge]'.padEnd(31))}${L('help.uninstall')}`,
-    `  ${c('  [--keep-program]'.padEnd(31))}${L('help.uninstallKeep')}`,
-    `  ${c('try'.padEnd(31))}${L('help.try')}`,
-    `  ${c('quota'.padEnd(31))}${L('help.quota')}`,
-    `  ${c('tokens [--days N] [--by …]'.padEnd(31))}${L('help.tokens')}`,
-    `  ${c('measure [--days N] [--project …]'.padEnd(31))}${L('help.measure')}`,
-    `  ${c('sessions [search]'.padEnd(31))}${L('help.sessions')}`,
-    `  ${c('report [--week]'.padEnd(31))}${L('help.report')}`,
-    `  ${c('flow [show <id>] [--all]'.padEnd(31))}${L('help.flow')}`,
-    `  ${c('memory [setup|sync|…]'.padEnd(31))}${L('help.memory')}`,
-    `  ${c('morning [--hours N]'.padEnd(31))}${L('help.morning')}`,
-    `  ${c('sync [setup|now|approve|…]'.padEnd(31))}${L('help.sync')}`,
-    `  ${c('template list|apply|remove'.padEnd(31))}${L('help.template')}`,
-    `  ${c('belt rules|events|test|replay'.padEnd(31))}${L('help.belt')}`,
-    `  ${c('secrets [path…]'.padEnd(31))}${L('help.secrets')}`,
-    `  ${c('config get|set|path'.padEnd(31))}${L('help.config')}`,
-    `  ${c('config explain [setting]'.padEnd(31))}${L('help.configExplain')}`,
-    `  ${c('config history|undo'.padEnd(31))}${L('help.configHistory')}`,
-    `  ${c('update [--check] [--yes]'.padEnd(31))}${L('help.update')}`,
-    `  ${c('trust'.padEnd(31))}${L('help.trust')}`,
-    `  ${c('net [show|restore <id>]'.padEnd(31))}${L('help.net')}`,
-    `  ${c('packs [on|off|set|auto|guide]'.padEnd(31))}${L('help.packs')}`,
-    `  ${c('skills [on|me|off <skill>]'.padEnd(31))}${L('help.skills')}`,
+    ...shown.map(([usage, what]) => `  ${c(usage.padEnd(width))}${usage.length >= width ? '  ' : ''}${what}`),
     '',
-    dim(L('help.json')),
-    dim(L('help.look')),
-    dim(L('help.privacy')),
-    dim(`${REPO_URL}`),
+    ...(own.length ? [] : [dim(L('help.json')), dim(L('help.look')), dim(L('help.privacy'))]),
+    dim(tIn(lang, 'help.everything', { url: CLI_DOCS })),
   ].join('\n');
 }

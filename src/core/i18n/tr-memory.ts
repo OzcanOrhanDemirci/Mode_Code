@@ -130,7 +130,7 @@ export const trMemory: Record<keyof typeof enMemory, string> = {
   'mod.handoff.local': 'Mode_Code klasöründe (hafıza deposu kurulmamış: mode-code memory setup).',
   'mod.handoff.toast': '📝 Devir notu yazıldı: sonraki oturum buradan sürer.',
 
-  'help.memory': 'Hafızanın nerede durduğu, kurulumu ve eşitlemesi, devir notları, tam otonom işlerden gelen notlar',
+  'help.memory': 'Hafızanın nerede durduğu, kurulumu ve eşitlemesi, devir notları',
   'help.morning': 'Sen yokken neler oldu',
   'mcli.default': 'Enter',
   'handoff.lastRequest': 'son istek',

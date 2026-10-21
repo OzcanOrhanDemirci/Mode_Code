@@ -133,7 +133,7 @@ export const enMemory = {
   'mod.handoff.toast': '📝 Handoff note written: the next session goes on from it.',
 
   // ── the command line ──
-  'help.memory': 'Where your memory lives, its setup and sync, handoff notes, notes from runs',
+  'help.memory': 'Where your memory lives, its setup and sync, handoff notes',
   'help.morning': 'What happened while you were away',
   'mcli.default': 'Enter',
   'handoff.lastRequest': 'last request',
