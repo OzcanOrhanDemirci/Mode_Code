@@ -30,6 +30,40 @@ test('data sent off the computer names its hosts; reading is free; this computer
   assert.deepEqual(await rules('curl -d x "$URL"'), [['outbound.network', null]]);
 });
 
+test('a request sends by its method, with no body: every one that is no read', async () => {
+  const host = (h: string[]) => ({ kind: 'host', values: h });
+  const to = [['outbound.network', host(['api.example.org'])]];
+  // WebDAV's, other extensions, TRACE and CONNECT, in each spelling.
+  for (const c of [
+    'curl -sS -X MKCOL https://api.example.org/a/',
+    'curl --request=PROPFIND https://api.example.org/a/',
+    'curl -sSXmove https://api.example.org/a/',
+    'curl -X TRACE https://api.example.org/',
+    'curl -X CONNECT https://api.example.org/',
+    'wget --method=MKCOL https://api.example.org/a/',
+    'http COPY https://api.example.org/a/',
+  ])
+    assert.deepEqual(await rules(c), to, c);
+  const power = async (command: string) => (await evaluateToolCall('PowerShell', { command }, winCtx())).findings.map((f) => [f.rule, f.unit ?? null]);
+  assert.deepEqual(await power('Invoke-WebRequest -Uri https://api.example.org/a/ -CustomMethod MKCOL'), to);
+  assert.deepEqual(await power('Invoke-RestMethod https://api.example.org/a/ -Method Merge'), to);
+  // A method only known when it runs may be any: asked as unknown, whatever the host.
+  assert.deepEqual(await rules('curl -X "$M" "$URL"'), [['outbound.network', null]]);
+  // Reads, this computer, and options that only look like a method.
+  for (const c of [
+    'curl -X GET https://api.example.org/a',
+    'curl -sS -X head https://api.example.org/a',
+    'curl --request OPTIONS https://api.example.org/a',
+    'curl -X MKCOL http://localhost:8080/a/',
+    'curl -x http://proxy.example.net:3128 https://api.example.org/a',
+    'wget -r -X /logs https://api.example.org/',
+    'wget --method=GET https://api.example.org/a',
+    'http --print HB https://api.example.org/a',
+  ])
+    assert.deepEqual(await rules(c), [], c);
+  assert.deepEqual(await power('Invoke-WebRequest -Uri https://api.example.org/a/ -Method Get'), []);
+});
+
 test("where the data goes decides: a host the person named or the project's remote goes on with a note; any other is asked or left", () => {
   const f = { rule: 'outbound.network' as const, verdict: 'allow' as const, reason: 'sends', unit: { kind: 'host' as const, values: ['status.example.com'] } };
   const at = (level: Level, prov = emptyProvenance()) =>

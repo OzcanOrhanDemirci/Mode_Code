@@ -3,7 +3,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { OWN_TOOLS } from '../../src/core/belt/tools.js';
-import { taintedAct, taintSource, withoutInvisible } from '../../src/core/taint.js';
+import { analyzeCommand } from '../../src/core/shell/analyze.js';
+import { commandEffects, type EffectEnv } from '../../src/core/shell/effects.js';
+import { sends, taintedAct, taintSource, withoutInvisible } from '../../src/core/taint.js';
+import { BODIES, FORMS, guardReads, programOf, READS, SENDING } from '../helpers/requests.js';
 
 const env = { platform: 'linux' as const, home: '/home/ada', cwd: '/home/ada/dev/app', memoryDirs: ['/home/ada/notes'] };
 const bash = (command: string) => ({ command });
@@ -141,4 +144,200 @@ test('invisible characters come out of outside content; an emoji built with a jo
   assert.deepEqual(withoutInvisible('a\u200Bb\u202Ec\u2066d\uFEFFe'), { text: 'abcde', removed: 4 });
   const family = '\u{1F468}\u200D\u{1F469}\u200D\u{1F467}';
   assert.deepEqual(withoutInvisible(`team ${family}`), { text: `team ${family}`, removed: 0 });
+});
+
+/** Whether any program of a command sends, the command read the way the belt reads it. */
+const sendsBy = (command: string, dialect: 'bash' | 'powershell' = 'bash') =>
+  analyzeCommand(command, dialect).invocations.some((i) => sends(i.program, i.args));
+
+test('a request sends by its method: every one that is no read, in every form the programs take it', () => {
+  for (const f of FORMS) {
+    const only = (list: string[]) => list.filter((m) => !f.letters || /^[A-Za-z]+$/.test(m));
+    for (const m of READS) assert.equal(sendsBy(f.command(m), f.dialect), false, `${f.form} ${m}`);
+    for (const m of only(SENDING)) assert.equal(sendsBy(f.command(m), f.dialect), true, `${f.form} ${m}`);
+  }
+});
+
+test('several methods named: one that is no read sends, whichever comes first or in whatever spelling', () => {
+  for (const c of [
+    'curl -X GET -X POST https://x.example/a',
+    'curl -X POST -X GET https://x.example/a',
+    'curl --request GET -XPUT https://x.example/a',
+    'curl -sSX HEAD --request=MKCOL https://x.example/a',
+    'wget --method=GET --method=MKCOL https://x.example/a',
+    'gh api -X GET -X POST repos/a/b',
+    'gh api -X POST -X GET repos/a/b',
+    'gh api --method GET --method=PATCH repos/a/b',
+  ])
+    assert.equal(sendsBy(c), true, c);
+  for (const c of [
+    'curl -X GET --request HEAD https://x.example/a',
+    'gh api -X GET -X OPTIONS repos/a/b',
+    'wget --method=GET --method=head https://x.example/a',
+  ])
+    assert.equal(sendsBy(c), false, c);
+});
+
+test('a method only known when it runs may be any, so it may send; a dangling option names none', () => {
+  for (const c of [
+    'curl -X "$M" https://x.example/a',
+    'curl --request "$M" https://x.example/a',
+    'curl -sSX "$M" https://x.example/a',
+    'wget --method="$M" https://x.example/a',
+    'gh api -X "$M" repos/a/b',
+  ])
+    assert.equal(sendsBy(c), true, c);
+  assert.equal(sendsBy('Invoke-WebRequest -Uri https://x.example/a -Method $m', 'powershell'), true);
+  // Nothing runs for these: the option has no value, or an empty one.
+  for (const c of [
+    'curl https://x.example/a -X',
+    'curl -X ""',
+    'curl -sSX',
+    'curl --request',
+    'curl --request=',
+    'wget https://x.example/a --method',
+    'gh api repos/a/b -X',
+    'gh api -X "" repos/a/b',
+  ])
+    assert.equal(sendsBy(c), false, c);
+  assert.equal(sendsBy('Invoke-WebRequest -Uri https://x.example/a -Method', 'powershell'), false);
+});
+
+test('an option counts only as the program that sends spells it: another letter, a value, a cluster that holds no method', () => {
+  for (const c of [
+    // curl: -x is the proxy, -m the time; a letter that takes a value ends a cluster, so an X after it belongs to that value.
+    'curl -x http://proxy.example:3128 https://x.example/a',
+    'curl -m 30 https://x.example/a',
+    'curl -oX https://x.example/a',
+    'curl -uXavier https://x.example/a',
+    'curl -sLoX https://x.example/a',
+    'curl -H "X-HTTP-Method-Override: PUT" https://x.example/a',
+    'curl -A "x -X PUT" https://x.example/a',
+    'curl --request-target /a https://x.example',
+    'curl --request-target=/a https://x.example',
+    'curl -I https://x.example/a',
+    'curl -sSL https://x.example/a',
+    // wget: -X lists folders not to follow, -m mirrors.
+    'wget -r -X /logs https://x.example/',
+    'wget -m https://x.example/',
+    'wget -O - https://x.example/a',
+    // httpie and xh: what an option takes is no method (HB is what to print), nor is a URL or an item.
+    'http --print HB https://x.example/a',
+    'http -p HBhb https://x.example/a',
+    'http --pretty all https://x.example/a',
+    'http --auth bob GET https://x.example/a',
+    'http --verify no --timeout 5 https://x.example/a',
+    'http example.org',
+    // Nothing but options (and what they take): no word at all is left to be a method.
+    'http --print HB',
+    'http --offline',
+    'xh -A bearer --bearer t',
+    'http :3000/a',
+    'xh x.example/a Accept:application/json q==1',
+    // gh: an option's value is no method, and a read method decides over fields.
+    'gh api repos/a/b -q .name',
+    'gh api -H "Accept: x" repos/a/b',
+    'gh api -X GET repos/a/b -f state=open',
+    'gh api -XHEAD repos/a/b -F n=1',
+  ])
+    assert.equal(sendsBy(c), false, c);
+  for (const c of [
+    'Invoke-WebRequest -Uri https://x.example/a -UseBasicParsing',
+    'iwr https://x.example/a -OutFile a.zip',
+    'Invoke-RestMethod -Uri https://x.example/a -Headers @{a="b"}',
+  ])
+    assert.equal(sendsBy(c, 'powershell'), false, c);
+  // The body sends whatever the method says; fields without a method are a POST.
+  for (const c of [
+    'curl -X GET -d a=1 https://x.example/a',
+    'wget --method=GET --body-data=a https://x.example/a',
+    'http GET x.example/a a=1',
+    'gh api repos/a/b -f title=x',
+  ])
+    assert.equal(sendsBy(c), true, c);
+  assert.equal(sendsBy('iwr https://x.example/a -Method Get -InFile a.bin', 'powershell'), true);
+});
+
+test('the belt and the restricted modes read a request alike: what the belt sends, the modes take for a change outside', () => {
+  const where: EffectEnv = { platform: 'linux', home: '/home/ada', cwd: '/home/ada/dev/app', env: {} };
+  const outside = (command: string, dialect: 'bash' | 'powershell') => commandEffects(command, dialect, where).effects.some((e) => e.kind === 'outside');
+  // One reader of a request's method and body (src/core/shell/requests.ts); each has its own rule for a read. For curl and
+  // PowerShell the rules are one, and the two answers are one. The modes are stricter for wget (a method named at all) and
+  // for gh api (GET alone), never laxer. They do not know httpie.
+  const known = (command: string) => !/^(?:https?|xh) /.test(command);
+  for (const f of FORMS.filter((x) => known(x.command('M'))))
+    for (const m of [...READS, ...SENDING]) {
+      const command = f.command(m);
+      const program = programOf(command);
+      if (program === 'curl' || program.startsWith('invoke-'))
+        assert.equal(outside(command, f.dialect ?? 'bash'), sendsBy(command, f.dialect), `${f.form} ${m}`);
+      else assert.equal(outside(command, f.dialect ?? 'bash'), !guardReads(program, m), `${f.form} ${m}`);
+      if (sendsBy(command, f.dialect)) assert.equal(outside(command, f.dialect ?? 'bash'), true, `${f.form} ${m}`);
+    }
+  for (const b of BODIES.filter((x) => known(x.command))) assert.equal(outside(b.command, b.dialect ?? 'bash'), sendsBy(b.command, b.dialect), b.form);
+});
+
+test('a request body is read where each program spells it: a one-letter option whole, attached or bundled, and the long ones', () => {
+  for (const b of BODIES) assert.equal(sendsBy(b.command, b.dialect), true, b.form);
+});
+
+test('what only looks like a body option is none: another program, a value, a letter after a value, an option of its own', () => {
+  for (const c of [
+    // curl: -f fails, -D dumps the headers, -t is a telnet option; a letter that takes a value ends its word, so what
+    // follows is that value's (a file named F, a user named Tom), and a value is no option.
+    'curl -f https://x.example/a',
+    'curl -fsSL https://x.example/a',
+    'curl -D - https://x.example/a',
+    'curl -sSD headers.txt https://x.example/a',
+    'curl -t x https://x.example/a',
+    'curl -oF https://x.example/a',
+    'curl -u' + 'Tom' + ':' + 'pw https://x.example/a',
+    'curl -sSLoT https://x.example/a',
+    'curl -H "d: 1" https://x.example/a',
+    'curl -A -d https://x.example/a',
+    'curl -e -F https://x.example/a',
+    'curl -o -T https://x.example/a',
+    'curl --datum x https://x.example/a',
+    'curl --form-data https://x.example/a',
+    // wget has no one-letter body option: -d debugs, -F forces html, -T times out, -t retries.
+    'wget -d https://x.example/a',
+    'wget -F https://x.example/a',
+    'wget -T 30 https://x.example/a',
+    'wget -t 3 https://x.example/a',
+    'wget -qT 30 https://x.example/a',
+    'wget --timeout=30 https://x.example/a',
+    'wget --post https://x.example/a',
+    // httpie and xh: -d downloads, -F follows, -f and -j set how items are coded, --json says so too.
+    'http -d x.example/a',
+    'http -F x.example/a',
+    'http -f x.example/a',
+    'http -j x.example/a',
+    'http --json x.example/a',
+    'xh -f x.example/a',
+    'xh --form x.example/a',
+    // gh api: -q takes a jq filter, -t a template, -H a header, -i includes headers.
+    'gh api repos/a/b -q .name',
+    'gh api repos/a/b -t x',
+    'gh api repos/a/b -H "Accept: x"',
+    'gh api repos/a/b -i',
+    'gh api repos/a/b --jq .name',
+  ])
+    assert.equal(sendsBy(c), false, c);
+  for (const c of [
+    'Invoke-WebRequest -Uri https://x.example/a -d',
+    'Invoke-WebRequest -Uri https://x.example/a -Debug',
+    'Invoke-WebRequest -Uri https://x.example/a -InformationAction Ignore',
+    'iwr https://x.example/a -Headers @{a="b"} -Verbose',
+    'curl https://x.example/a -Headers @{a="b"}',
+  ])
+    assert.equal(sendsBy(c, 'powershell'), false, c);
+});
+
+test("gh's shorthand takes an = as a separator: -X=GET reads, -X=POST sends", () => {
+  assert.equal(sendsBy('gh api -X=GET repos/a/b'), false);
+  assert.equal(sendsBy('gh api -X=head repos/a/b'), false);
+  assert.equal(sendsBy('gh api -X=POST repos/a/b'), true);
+  assert.equal(sendsBy('gh api -iX=MKCOL repos/a/b'), true);
+  // curl keeps it: -X=GET names the method "=GET".
+  assert.equal(sendsBy('curl -X=GET https://x.example/a'), true);
 });
