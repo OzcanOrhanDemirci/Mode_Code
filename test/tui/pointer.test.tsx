@@ -174,10 +174,10 @@ test('the keys in the bar are clicks too: help opens, Esc closes it; a screen ad
     // With no memory folder the page leads to where one is added (Enter), then its own key, then the usual ones.
     await barShows(s, /^Enter open {2}s scan again {2}←\/Esc back/);
     await s.clickText('? help');
-    assert.match(s.text(), /Keys work the same on every screen/);
+    assert.match(s.text(), /The keys of every screen; a page's own keys are in the bar at the bottom/);
     assert.match(s.text(), /A click does what Enter does/);
     await s.clickText('Esc close');
-    assert.doesNotMatch(s.text(), /Keys work the same on every screen/);
+    assert.doesNotMatch(s.text(), /The keys of every screen; a page's own keys are in the bar at the bottom/);
   } finally {
     s.close();
   }
@@ -189,10 +189,10 @@ test("each screen's own keys in the bar do what the key does, and its rows take 
   let s = await draw(tpl, { address: 'claude-code/templates' });
   try {
     await s.clickText('a apply');
-    assert.match(s.text(), /Press a again to apply it/);
+    assert.match(s.text(), /Press Enter \(or a\) again to apply it/);
     await s.clickText('a apply');
     assert.deepEqual(tpl.applied, ['public-repo']);
-    await barShows(s, /^x remove/);
+    await barShows(s, /^Enter\/x remove/);
     await s.clickText('x remove');
     await s.clickText('Esc cancel');
     assert.deepEqual(tpl.applied, ['public-repo']);

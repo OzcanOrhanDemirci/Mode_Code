@@ -47,7 +47,7 @@ export const enUi = {
   'feature.mod': 'Claude Code plugin',
   'feature.keywords': 'Keywords',
   'feature.quota': 'Quota guard',
-  'feature.footer': 'Footer lines',
+  'feature.footer': 'Lines under answers',
   'feature.quietWork': 'Quiet long work',
   'feature.memory': 'Memory folder',
   'feature.index': 'Session history',

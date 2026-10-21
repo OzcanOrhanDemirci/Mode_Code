@@ -25,7 +25,7 @@ import { action, card, choiceValue, confirm, switchValue } from '../core/ux/kit.
 import { mark } from '../core/ux/tokens.js';
 import { fitWidth, textWidth } from '../node/width.js';
 import { Pressable } from './press.js';
-import { useEnv, useHints, useKit, useScreenKeys, useT, ListView, Muted, Row, type ListItem } from './ui.js';
+import { useEnv, useHints, useKeepInView, useKit, useScreenKeys, useT, ListView, Muted, Row, type ListItem } from './ui.js';
 
 export interface Link extends ListItem {
   address: string;
@@ -157,10 +157,14 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
   const [sel, setSel] = useState(0);
   const [pending, setPending] = useState<{ path: string; value: unknown } | null>(null);
   const [typing, setTyping] = useState<string | null>(null);
+  // A choice of more than two being picked: its options stand out, ←→ move the mark, Enter applies the one marked.
+  const [choosing, setChoosing] = useState<{ path: string; value: unknown } | null>(null);
   // Back to the defaults: what would change, shown before it does.
   const [reset, setReset] = useState<{ path: SettingPath; from: unknown; to: unknown }[] | null>(null);
   const cur = fields[Math.min(sel, fields.length - 1)];
   const kindOf = (f: Field) => settingOf(f.path)!.def.kind;
+  // What has the focus stays in view on a long page: the selected row, or what a press asks before it acts.
+  const keepRef = useKeepInView(open);
 
   /** Saves a value; the bar says what changed and offers to take it back (u), to the value it had. */
   const save = (f: Field, value: unknown) => {
@@ -187,13 +191,31 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
     save(f, v);
   };
 
-  /** Enter or Space on a setting: a number opens for typing; any other value moves to the next (asking first where it must). */
+  /**
+   * Enter or Space on a setting: a number opens for typing; a choice of more than two shows its options, and a second
+   * Enter applies the one marked; a switch or a choice of two moves to the other value. Asking first where it must.
+   */
   const change = (f: Field) => {
-    if (kindOf(f).kind === 'number') {
+    const k = kindOf(f);
+    if (k.kind === 'number') {
       setTyping(String(f.value ?? ''));
       return;
     }
-    offer(f, pending && pending.path === f.path ? pending.value : nextValue(f.path, f.value));
+    if (pending && pending.path === f.path) return offer(f, pending.value);
+    if (k.kind === 'choice' && k.options.length > 2) {
+      if (!choosing || choosing.path !== f.path) return setChoosing({ path: f.path, value: f.value });
+      setChoosing(null);
+      if (JSON.stringify(choosing.value) !== JSON.stringify(f.value)) offer(f, choosing.value);
+      return;
+    }
+    offer(f, nextValue(f.path, f.value));
+  };
+  /** ← or → while picking: the mark moves to the option before or after, round. */
+  const step = (f: Field, by: 1 | -1) => {
+    const k = kindOf(f);
+    if (k.kind !== 'choice' || !choosing) return;
+    const i = k.options.indexOf(choosing.value as never);
+    setChoosing({ path: f.path, value: k.options[(i + by + k.options.length) % k.options.length] });
   };
   const submitTyped = () => {
     if (!cur || typing === null) return;
@@ -206,6 +228,7 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
     setTyping(null);
     setPending(null);
     setReset(null);
+    setChoosing(null);
   };
   /** d (one) or D (the list): what goes back to its default, held for Enter; nothing to do is said so. */
   const askReset = (list: Field[]) => {
@@ -258,6 +281,17 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
       }
       return true;
     }
+    if (choosing) {
+      // Picking: the arrows move the mark (← does not leave the page), Enter applies, Esc keeps the value as it was.
+      if (key.leftArrow || input === 'h') step(cur, -1);
+      else if (key.rightArrow || input === 'l') step(cur, 1);
+      else if (key.return || input === ' ') change(cur);
+      else if (key.escape) setChoosing(null);
+      else if (!key.upArrow && !key.downArrow) return false;
+      // ↑ or ↓ leave the choice as it was and move to the next setting, as they do otherwise.
+      if (!key.upArrow && !key.downArrow) return true;
+      setChoosing(null);
+    }
     if (key.upArrow || input === 'k') {
       setSel((s) => Math.max(0, s - 1));
       setPending(null);
@@ -303,8 +337,9 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
             { key: 'Enter', label: t('set.key.apply'), run: applyReset },
             { key: 'Esc', label: t('set.key.cancel'), run: cancel },
           ]
-        : pending
+        : pending || choosing
           ? [
+              ...(choosing ? [{ key: '←→', label: t('set.key.choose') }] : []),
               { key: 'Enter', label: t('set.key.apply'), run: () => cur && change(cur) },
               { key: 'Esc', label: t('set.key.cancel'), run: cancel },
             ]
@@ -342,7 +377,19 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
   const muted = env.theme.muted ? { color: env.theme.muted } : {};
   const valueOf = (f: Field, i: number, idle: boolean) => {
     if (typing !== null && i === sel) return <Text bold>{typing + '▏'}</Text>;
-    const k = kindOf(f).kind;
+    const kind = kindOf(f);
+    // Picking: every option, the one marked ◉ and the others ○, as the contract's other look of a choice.
+    if (choosing && choosing.path === f.path && kind.kind === 'choice')
+      return (
+        <Text wrap="wrap">
+          {kind.options.map((o, n) => (
+            <Text key={String(o)} bold={o === choosing.value} {...(o === choosing.value ? {} : muted)}>
+              {`${n ? '  ' : ''}${mark(o === choosing.value ? 'chosen' : 'option', env.theme.plain)} ${valueText(f.path, o, lang)}`}
+            </Text>
+          ))}
+        </Text>
+      );
+    const k = kind.kind;
     const word = valueText(f.path, f.value, lang);
     // Of no effect now, it is drawn dimmed: still a control, its mark and word still there.
     if (idle) return <Text {...muted}>{k === 'switch' ? `${mark(f.value === true ? 'on' : 'off', env.theme.plain)} ${word}` : word}</Text>;
@@ -374,32 +421,33 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
         const at = idle ? 'idle' : changed.includes(f) ? 'changed' : 'default';
         // A click selects the setting and changes it, as Enter does; pointing at it says what it is.
         return (
-          <Pressable
-            key={f.path}
-            width={width}
-            onPress={() => {
-              setSel(i);
-              if (open) change(f);
-            }}
-            describe={`${nameOf(f.path, lang)}: ${explain(config, f.path, lang, env.place).what}`}
-          >
-            {(hovered) => (
-              <>
-                <Text inverse={selected} underline={hovered} {...(idle ? muted : {})}>
-                  {(selected ? env.theme.sym.cursor : ' ') +
-                    ' ' +
-                    indent +
-                    fitWidth(nameOf(f.path, lang), labelW - 2 - indent.length).padEnd(labelW - indent.length)}
-                </Text>
-                <Box flexGrow={1}>{valueOf(f, i, idle)}</Box>
-                <Text {...(at === 'changed' ? {} : muted)}>{trail[at].padStart(trailW)}</Text>
-              </>
-            )}
-          </Pressable>
+          <Box key={f.path} ref={i === sel && !reset && !pending && !choosing ? keepRef : undefined} flexShrink={0} width={width}>
+            <Pressable
+              width={width}
+              onPress={() => {
+                setSel(i);
+                if (open) change(f);
+              }}
+              describe={`${nameOf(f.path, lang)}: ${explain(config, f.path, lang, env.place).what}`}
+            >
+              {(hovered) => (
+                <>
+                  <Text inverse={selected} underline={hovered} {...(idle ? muted : {})}>
+                    {(selected ? env.theme.sym.cursor : ' ') +
+                      ' ' +
+                      indent +
+                      fitWidth(nameOf(f.path, lang), labelW - 2 - indent.length).padEnd(labelW - indent.length)}
+                  </Text>
+                  <Box flexGrow={1}>{valueOf(f, i, idle)}</Box>
+                  <Text {...(at === 'changed' ? {} : muted)}>{trail[at].padStart(trailW)}</Text>
+                </>
+              )}
+            </Pressable>
+          </Box>
         );
       })}
       {reset ? (
-        <Box marginTop={1}>
+        <Box marginTop={1} ref={keepRef}>
           {confirm(kit, {
             text:
               reset.length === 1
@@ -412,15 +460,18 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
         </Box>
       ) : null}
       {cur ? (
-        <SettingCard
-          field={cur}
-          typed={typing === null ? null : typedNumber(typing, cur)}
-          pending={pending && pending.path === cur.path ? { value: pending.value } : null}
-          open={open}
-          width={width}
-          onApply={() => change(cur)}
-          onCancel={cancel}
-        />
+        <Box ref={pending || choosing ? keepRef : undefined} flexDirection="column" flexShrink={0}>
+          <SettingCard
+            field={cur}
+            typed={typing === null ? null : typedNumber(typing, cur)}
+            pending={pending && pending.path === cur.path ? { value: pending.value } : null}
+            chosen={choosing && choosing.path === cur.path ? { value: choosing.value } : null}
+            open={open}
+            width={width}
+            onApply={() => change(cur)}
+            onCancel={cancel}
+          />
+        </Box>
       ) : null}
     </Box>
   );
@@ -428,7 +479,7 @@ export function SettingsEditor({ fields, open, width }: { fields: Field[]; open:
 
 /** The label column of a setting's card, and of the line above the settings that says what the page holds now. */
 function cardLabelW(t: (k: MessageKey) => string): number {
-  return Math.max(...(['ux.q.what', 'ux.q.now', 'ux.q.change', 'ux.q.back', 'ux.q.who'] as const).map((q) => textWidth(t(q)))) + 2;
+  return Math.max(...(['ux.q.what', 'ux.q.now', 'ux.q.change', 'ux.q.apply', 'ux.q.back', 'ux.q.who'] as const).map((q) => textWidth(t(q)))) + 2;
 }
 
 /** A typed number when it is one the setting takes, else null. */
@@ -446,6 +497,7 @@ function SettingCard({
   field,
   typed,
   pending,
+  chosen,
   open,
   width,
   onApply,
@@ -454,6 +506,8 @@ function SettingCard({
   field: Field;
   typed: number | null;
   pending: { value: unknown } | null;
+  /** The option marked while a choice is picked: what applying it does stands first. */
+  chosen?: { value: unknown } | null;
   open: boolean;
   width: number;
   onApply(): void;
@@ -467,9 +521,16 @@ function SettingCard({
   const k = settingOf(field.path)!.def.kind;
   const w = cardLabelW(t);
   const now = `${e.now} (${e.isDefault ? t('ux.default') : t('ux.defaultIs', { value: e.defaultText })})`;
+  // What a press that lowers a protection would do, said with its effect before Enter applies it.
   const warning = pending
-    ? (confirmText(field.path, pending.value, lang) ?? t('set.confirmLower', { value: valueText(field.path, pending.value, lang) }))
+    ? (confirmText(field.path, pending.value, lang) ??
+      t('set.confirmLower', {
+        name: nameOf(field.path, lang),
+        value: valueText(field.path, pending.value, lang),
+        effect: effectOf(field.path, pending.value, lang),
+      }))
     : null;
+  const changes = chosen ? [...e.changes].sort((a, b) => Number(b.value === chosen.value) - Number(a.value === chosen.value)) : e.changes;
   // A press that asks first says so before anything else: on a short terminal the card's end may fall below the pane.
   return (
     <Box marginTop={1} flexDirection="column">
@@ -504,8 +565,13 @@ function SettingCard({
           {typed !== null ? `${amount(typed, k.unit, lang)}: ${effectOf(field.path, typed, lang)}` : t('ux.range', { min: e.range!.min, max: e.range!.max })}
         </Row>
       ) : (
-        e.changes.map((c, i) => (
-          <Row key={String(c.value)} label={i === 0 ? t('ux.q.change') : ''} width={w} {...(i === 0 ? {} : { color: env.theme.muted })}>
+        changes.map((c, i) => (
+          <Row
+            key={String(c.value)}
+            label={i === 0 ? t(chosen && c.value === chosen.value ? 'ux.q.apply' : 'ux.q.change') : ''}
+            width={w}
+            {...(i === 0 ? {} : { color: env.theme.muted })}
+          >
             {`${c.text}: ${c.effect}`}
           </Row>
         ))

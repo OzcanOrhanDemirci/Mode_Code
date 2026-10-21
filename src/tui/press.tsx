@@ -5,7 +5,7 @@
  * cut by the panes they scroll in. Click = Enter (on the innermost box under the pointer), pointing = its sentence in
  * the bar at the bottom, the wheel = scrolling what is under the pointer. Pointing only explains; it never acts.
  */
-import { Children, cloneElement, createContext, Fragment, isValidElement, useContext, useId, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { Children, cloneElement, createContext, Fragment, isValidElement, useContext, useEffect, useId, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { Box, measureElement, Text, type DOMElement } from 'ink';
 import type { PointerEvent } from './pointer.js';
 
@@ -131,6 +131,9 @@ export class PointerRegistry {
 
 export const PointerContext = createContext<{ registry: PointerRegistry; hovered: string | null } | null>(null);
 
+/** The open page keeps in view the element that has the focus: a widget hands over its focused box (src/tui/app.tsx). */
+export const KeepInView = createContext<(node: DOMElement | null) => void>(() => {});
+
 /**
  * Registers a box as a target while it is drawn. `spec` is read when the pointer comes, so it is always current. A
  * layout effect: it runs in the same commit that draws the box, so no click can land between the frame that shows it
@@ -172,13 +175,21 @@ export function underlined(node: ReactNode, on = true): ReactNode {
 export function Pressable({
   onPress,
   describe,
+  keep,
   children,
   ...box
-}: { onPress: () => void; describe?: string | undefined; children?: ReactNode | ((hovered: boolean) => ReactNode) } & Omit<
-  React.ComponentProps<typeof Box>,
-  'children'
->) {
+}: {
+  onPress: () => void;
+  describe?: string | undefined;
+  /** It has the focus: the open page keeps it in view. */
+  keep?: boolean;
+  children?: ReactNode | ((hovered: boolean) => ReactNode);
+} & Omit<React.ComponentProps<typeof Box>, 'children'>) {
   const { ref, hovered } = usePointerTarget({ onPress, describe: describe ?? null });
+  const keepInView = useContext(KeepInView);
+  useEffect(() => {
+    if (keep) keepInView(ref.current);
+  });
   return (
     <Box ref={ref} flexShrink={0} {...box}>
       {typeof children === 'function' ? children(hovered) : underlined(children, hovered)}

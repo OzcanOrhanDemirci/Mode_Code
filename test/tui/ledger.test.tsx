@@ -73,7 +73,7 @@ test('Activity › History of changes: every change newest first; Enter or a cli
   const g = await draw(guarded, { address: 'activity/changes', rows: 40, columns: 100 });
   try {
     await g.clickText('Enter take it back');
-    assert.match(flat(g.text()), /! This lowers a protection \(off\)/);
+    assert.match(flat(g.text()), /! Quota guard: off lowers a protection\. Nothing holds the work back/);
     await g.press(KEY.esc);
     assert.equal(guarded.rows.length, 2);
     await g.press(KEY.enter);

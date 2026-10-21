@@ -84,7 +84,8 @@ test('lowering a protection asks with the value in words, before anything else i
   try {
     await s.press(KEY.down, KEY.down, KEY.down, KEY.enter); // quota guard
     assert.equal(data.saved.length, 0);
-    assert.match(flat(s.text()), /This lowers a protection \(off\)/);
+    // What it does is said before Enter applies it.
+    assert.match(flat(s.text()), /! Quota guard: off lowers a protection\. Nothing holds the work back: Claude can use the quota to its end/);
     assert.doesNotMatch(s.text(), /false/);
   } finally {
     s.close();
@@ -144,7 +145,15 @@ test("a pack's card says what that pack does and its size; choosing always asks 
     assert.match(t, /Flutter ve Dart/);
     assert.match(t, /Bu ne Flutter ve Dart: Dart araçlarıyla analiz, test ve paketler/);
     assert.match(t, /Açıkken oturum başına ~\d+ token\./);
-    await s.press(KEY.enter); // automatic → always on
+    // A choice of four shows its options; → marks the next, and nothing is saved until Enter.
+    await s.press(KEY.enter);
+    assert.match(flat(s.text()), /◉ otomatik ○ hep açık ○ yalnız ben açınca ○ asla/);
+    await s.press(KEY.right);
+    assert.match(flat(s.text()), /○ otomatik ◉ hep açık/);
+    assert.match(flat(s.text()), /Uygularsan hep açık: Dosyaları ne olursa olsun çalıştığın her projede açık\./);
+    assert.equal(data.saved.length, 0);
+    // Applying it still asks first.
+    await s.press(KEY.enter);
     assert.equal(data.saved.length, 0);
     assert.match(flat(s.text()), /Hep açık: dosyaları ne olursa olsun çalıştığın her projede açık\. Enter tuşuna bir kez daha bas\./);
     await s.press(KEY.enter);

@@ -113,6 +113,7 @@ export function Now({ width, open }: ScreenProps) {
       <Pressable
         key={id}
         width={o.w}
+        keep={focused}
         onPress={() => {
           setFocus(id);
           press();
@@ -352,6 +353,7 @@ export function Now({ width, open }: ScreenProps) {
         <Pressable
           key={`quota-${m.id}`}
           width={w}
+          keep={focused}
           onPress={() => {
             setFocus(`quota-${m.id}`);
             go('quota/usage');
@@ -409,6 +411,7 @@ export function Now({ width, open }: ScreenProps) {
             <Pressable
               key={id}
               marginRight={2}
+              keep={focused}
               onPress={() => {
                 setFocus(id);
                 press(goal.id, goal.address)();
@@ -501,7 +504,7 @@ export function Now({ width, open }: ScreenProps) {
       {withMo ? <MoPicture state={g.mo} size="small" still={still} /> : null}
       {withMo ? <Box width={1} /> : null}
       {moLine ? (
-        <Pressable onPress={moLine.press} describe={moLine.card} flexDirection="column" width={sayW}>
+        <Pressable onPress={moLine.press} describe={moLine.card} keep={open && focus === 'mo'} flexDirection="column" width={sayW}>
           {(hovered) =>
             sayLines.map((l, i) => (
               <Text key={i} inverse={open && focus === 'mo'} underline={hovered} wrap="truncate-end">

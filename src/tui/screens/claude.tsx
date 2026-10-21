@@ -285,7 +285,7 @@ export function Skills({ width, open }: ScreenProps) {
   const own = CORE_SKILLS.filter((s) => s.kind === 'skill').map((s) => s.id);
   return (
     <Box flexDirection="column" width={width}>
-      <Muted>{t('skills.own', { n: CORE_SKILLS.length, skills: own.join(', ') })}</Muted>
+      <Muted>{t('skills.own', { n: own.length, skills: own.join(', ') })}</Muted>
       <Box marginTop={1}>
         <SettingsEditor fields={fields} open={open} width={width} />
       </Box>

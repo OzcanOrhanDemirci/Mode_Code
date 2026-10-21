@@ -42,7 +42,7 @@ irm https://raw.githubusercontent.com/OzcanOrhanDemirci/Mode_Code/main/install.p
 
 Then start a new Claude Code session (`claude`). The strip above the prompt shows the mode and the way of working: Mode_Code is on. Type `/0` there for the cockpit beside the conversation; the control center is one press from it.
 
-- **Update:** `mode-code update` (or `u` under Settings › Maintenance in the control center) runs the newest release's own installer, checked against its checksums; running the same line again does the same. If you said yes at install, Mode_Code checks once a day whether a newer release is out and says so in the doctor, under `/0` when it opens the cockpit, and in the morning report.
+- **Update:** `mode-code update` (or `i` under Settings › Maintenance in the control center) runs the newest release's own installer, checked against its checksums; running the same line again does the same. If you said yes at install, Mode_Code checks once a day whether a newer release is out and says so in the doctor, under `/0` when it opens the cockpit, and in the morning report.
 - **Remove:** `mode-code uninstall`. It takes out exactly what was installed, the program and its command included; add `--purge` to delete your settings and history too.
 
 <details>

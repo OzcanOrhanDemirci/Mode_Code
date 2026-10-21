@@ -57,14 +57,15 @@ export function Modes({ width, open }: ScreenProps) {
       </Box>
     );
   };
+  // The two switches first: what Enter changes is where the focus is, in view, before the tables that only inform.
   return (
     <Box flexDirection="column" width={width}>
-      <Section title={t('modes.page.modes')}>{modes.map(row)}</Section>
-      <Section title={t('modes.page.ways')}>{ways.map(row)}</Section>
       <Muted>{t('modes.page.pick')}</Muted>
-      <Box marginTop={1} flexDirection="column">
+      <Box marginTop={1} marginBottom={1} flexDirection="column">
         <SettingsEditor fields={fieldsOf(data.config(), ['modules.modes', 'modules.keywords'])} open={open} width={width} />
       </Box>
+      <Section title={t('modes.page.modes')}>{modes.map(row)}</Section>
+      <Section title={t('modes.page.ways')}>{ways.map(row)}</Section>
     </Box>
   );
 }

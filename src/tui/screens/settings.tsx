@@ -92,7 +92,8 @@ function StringList({
   open: boolean;
   width: number;
   addLabel: string;
-  onAdd(v: string): void;
+  /** Adds an entry; false when it was refused, and the field stays open with what was typed. */
+  onAdd(v: string): boolean;
   onRemove(i: number): void;
   render?(s: string): string;
   emptyText: string;
@@ -142,13 +143,18 @@ function StringList({
     open && adding === null,
   );
   useHints(
-    confirmRemove
+    adding !== null
       ? [
-          { key: 'x', label: t('list.key.removeNow'), run: remove },
-          { key: 'Esc', label: t('list.key.keep'), run: () => setConfirmRemove(false) },
+          { key: 'Enter', label: t('set.key.save') },
+          { key: 'Esc', label: t('set.key.cancel'), run: () => setAdding(null) },
         ]
-      : [{ key: 'a', label: t('list.key.add'), run: () => setAdding('') }, ...(items.length ? [{ key: 'x', label: t('list.key.remove'), run: remove }] : [])],
-    open && adding === null,
+      : confirmRemove
+        ? [
+            { key: 'x', label: t('list.key.removeNow'), run: remove },
+            { key: 'Esc', label: t('list.key.keep'), run: () => setConfirmRemove(false) },
+          ]
+        : [{ key: 'a', label: t('list.key.add'), run: () => setAdding('') }, ...(items.length ? [{ key: 'x', label: t('list.key.remove'), run: remove }] : [])],
+    open,
   );
   // A click on a row selects it (removing stays x, asked twice).
   return (
@@ -178,8 +184,7 @@ function StringList({
             value={adding}
             onChange={setAdding}
             onSubmit={(v) => {
-              if (v.trim()) onAdd(v.trim());
-              setAdding(null);
+              if (!v.trim() || onAdd(v.trim())) setAdding(null);
             }}
             onCancel={() => setAdding(null)}
             active={open}
@@ -337,6 +342,7 @@ export function Memory({ width, open }: ScreenProps) {
   const save = (next: string[]) => {
     const problems = data.setConfig('memory.dirs', next);
     flash(problems.length ? t('set.rejected', { detail: problemWords(problems[0]!.detail, lang) }) : t('set.saved'), problems.length ? 'bad' : 'ok');
+    return !problems.length;
   };
   return (
     <Box flexDirection="column" width={width}>
@@ -364,6 +370,7 @@ export function Projects({ width, open }: ScreenProps) {
   const save = (next: unknown[]) => {
     const problems = data.setConfig('projects', next);
     flash(problems.length ? t('set.rejected', { detail: problemWords(problems[0]!.detail, lang) }) : t('set.saved'), problems.length ? 'bad' : 'ok');
+    return !problems.length;
   };
   return (
     <Box flexDirection="column" width={width}>
@@ -378,13 +385,13 @@ export function Projects({ width, open }: ScreenProps) {
             const m = /^([a-z0-9][a-z0-9-]{0,47})\s*:\s*([^|]+?)(?:\|\s*(.+))?$/.exec(v.trim());
             if (!m) {
               flash(t('projects.addFormat'), 'warn');
-              return;
+              return false;
             }
             const names = m[2]!
               .split(',')
               .map((x) => x.trim())
               .filter(Boolean);
-            save([...list, { id: m[1], names, ...(m[3] ? { path: m[3].trim() } : {}) }]);
+            return save([...list, { id: m[1], names, ...(m[3] ? { path: m[3].trim() } : {}) }]);
           }}
           onRemove={(i) => save(list.filter((_, j) => j !== i))}
           emptyText={t('projects.none')}
@@ -438,12 +445,13 @@ export function Maintenance({ width, open }: ScreenProps) {
     if (leave) leave('update', 'settings/maintenance');
     else flash(t('maint.updateCli', { cmd: `${CLI_NAME} update` }), 'warn');
   };
+  // `i` installs: `u` takes back the last change on every screen, this one too.
   useScreenKeys((input) => {
-    if (input !== 'u') return false;
+    if (input !== 'i') return false;
     runUpdate();
     return true;
   }, open);
-  useHints([{ key: 'u', label: t('keys.update'), run: runUpdate }], open);
+  useHints([{ key: 'i', label: t('keys.update'), run: runUpdate }], open);
   return (
     <Box flexDirection="column" width={width}>
       <Section title={t('maint.update')}>

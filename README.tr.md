@@ -42,7 +42,7 @@ irm https://raw.githubusercontent.com/OzcanOrhanDemirci/Mode_Code/main/install.p
 
 Sonra yeni bir Claude Code oturumu başlat (`claude`). İstem satırının üstündeki şerit modu ve çalışma biçimini gösterir: Mode_Code açık. Konuşmanın yanındaki kokpit için orada `/0` yaz; kontrol merkezi ondan bir tuş uzakta.
 
-- **Güncellemek:** `mode-code update` (ya da kontrol merkezinde Ayarlar › Bakım altında `u`) en yeni sürümün kendi kurulum betiğini, sağlama toplamlarına karşı doğrulayıp çalıştırır; aynı satırı yeniden çalıştırmak da aynı işi görür. Kurulumda evet dediysen Mode_Code günde bir kez yeni sürüm çıkmış mı diye bakar ve bunu doktorda, `/0` kokpiti açtığında altında ve sabah raporunda söyler.
+- **Güncellemek:** `mode-code update` (ya da kontrol merkezinde Ayarlar › Bakım altında `i`) en yeni sürümün kendi kurulum betiğini, sağlama toplamlarına karşı doğrulayıp çalıştırır; aynı satırı yeniden çalıştırmak da aynı işi görür. Kurulumda evet dediysen Mode_Code günde bir kez yeni sürüm çıkmış mı diye bakar ve bunu doktorda, `/0` kokpiti açtığında altında ve sabah raporunda söyler.
 - **Kaldırmak:** `mode-code uninstall`. Kurulanı tam olarak kaldırır, program ve komutu dahil; ayarlarını ve geçmişini de silmek için `--purge` ekle.
 
 <details>

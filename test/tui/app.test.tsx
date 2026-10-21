@@ -154,7 +154,7 @@ test('a rule template is applied only after a second press', async () => {
   try {
     assert.match(s.text(), /Public repository/);
     await s.press('a');
-    assert.match(s.text(), /Press a again to apply it/);
+    assert.match(s.text(), /Press Enter \(or a\) again to apply it/);
     assert.deepEqual(data.applied, []);
     await s.press('a');
     assert.deepEqual(data.applied, ['public-repo']);
@@ -202,10 +202,10 @@ test('the help explains keys and terms and closes with Esc', async () => {
   const s = await draw(new FakeData());
   try {
     await s.press('?');
-    assert.match(s.text(), /Keys work the same on every screen/);
+    assert.match(s.text(), /The keys of every screen; a page's own keys are in the bar at the bottom/);
     assert.match(s.text(), /Safety belt:/);
     await s.press(KEY.esc);
-    assert.doesNotMatch(s.text(), /Keys work the same on every screen/);
+    assert.doesNotMatch(s.text(), /The keys of every screen; a page's own keys are in the bar at the bottom/);
   } finally {
     s.close();
   }
