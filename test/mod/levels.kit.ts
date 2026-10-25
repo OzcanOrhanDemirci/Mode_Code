@@ -9,6 +9,8 @@ import { DATA, HOME, PROJECT, SESSION, world } from './world.ts';
 
 const check = ($: any, input: object, id = 'toolu_c') => ($.tool as any).check({ tool: 'Edit', input, tool_use_id: id }) as Promise<any>;
 const style = ($: any, n: '7' | '8') => $.command.run({ command: n, args: '' } as any);
+/** Put to the person, never to a classifier: by `decider` up to Claude Code 2.1.307, by the engine's stamp of the plugin that answered from 2.1.308. */
+const toPerson = (v: any) => v.decider === 'person' || v.plugin === 'mode-code';
 
 test("Manual leaves Claude Code's own question to the person; a question of the person's own goes to them, never to a classifier", async ($, on) => {
   const w = world(on);
@@ -16,9 +18,11 @@ test("Manual leaves Claude Code's own question to the person; a question of the 
   on('tool.check', () => ({ decision: 'ask', reason: 'Edit a file', ...(rule ? { rule } : {}) }));
   const mode = await check($, { file_path: `${PROJECT}/a.ts` });
   expect(mode).toMatchObject({ decision: 'ask' });
-  expect(mode.decider).toBeUndefined();
+  expect(toPerson(mode)).toBe(false);
   rule = 'Edit(src/**)';
-  expect(await check($, { file_path: `${PROJECT}/src/a.ts` }, 'toolu_r')).toMatchObject({ decision: 'ask', decider: 'person', rule: 'Edit(src/**)' });
+  const own = await check($, { file_path: `${PROJECT}/src/a.ts` }, 'toolu_r');
+  expect(own).toMatchObject({ decision: 'ask', rule: 'Edit(src/**)' });
+  expect(toPerson(own)).toBe(true);
   expect(w.events().filter((e: any) => e.kind === 'permission')).toEqual([]);
 });
 
@@ -30,7 +34,9 @@ test("Autonomous answers the question Claude Code's mode asks, and records it; a
   expect(await check($, { file_path: `${PROJECT}/a.ts` })).toMatchObject({ decision: 'allow' });
   expect(w.events().find((e: any) => e.kind === 'permission')).toMatchObject({ tool: 'Edit', answer: 'auto' });
   rule = 'Edit(src/**)';
-  expect(await check($, { file_path: `${PROJECT}/src/a.ts` }, 'toolu_r')).toMatchObject({ decision: 'ask', decider: 'person' });
+  const own = await check($, { file_path: `${PROJECT}/src/a.ts` }, 'toolu_r');
+  expect(own).toMatchObject({ decision: 'ask' });
+  expect(toPerson(own)).toBe(true);
   // A query carries no call: the verdict beneath stands.
   expect(await ($.tool as any).check({ tool: 'Edit', input: { file_path: `${PROJECT}/a.ts` } })).toMatchObject({ decision: 'ask' });
   // Back to Manual: the person answers again.
