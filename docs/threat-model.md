@@ -109,7 +109,7 @@ Attack sets are kept out of the public repository; their runner prints totals, c
 
 **Protection**, attack calls stopped:
 
-- RedCode-Exec, 1,410 cases of code run through a shell or Python: 206 (14.6%) · 174 · 204.
+- RedCode-Exec, 1,410 cases of code run through a shell or Python: 179 (12.7%) · 147 · 177.
 - AgentDojo, 1,105 attack calls of agents that work with banking, workspace, travel and chat services: 646 (58.5%) · 637 · 640.
 - agent-egress-bench, 55 attack calls on the computer: 11 (20.0%) in each way of working; its 84 web requests, written as `curl` calls: 24 (28.6%) in each.
 - SABER, 14,067 attack calls: 1,673 (11.9%) · 1,284 · 1,282.
@@ -120,11 +120,11 @@ An attack set counts every call an attack makes, the harmless ones too: reading 
 
 - Three sets of other agents' everyday work, 224,512 calls (CC-Bench 8,544, SWE-smith 71,170, SWE-rebench-OpenHands 144,798): 126 (0.06%) · 21 · 19.
 - The author's own sessions, 41,290 calls: 759 (1.8%) · 367 · 366.
-- The ordinary calls inside the attack sets: AgentDojo 69 of 339 · 50 · 50; agent-egress-bench 0 of 25 on the computer and 7 of 26 web requests; SABER 1,566 of 95,322 · 1,371 · 1,371 (its labels are inferred, see below).
+- The ordinary calls inside the attack sets: AgentDojo 69 of 339 · 50 · 50; agent-egress-bench 0 of 25 on the computer and 7 of 26 web requests; SABER 1,500 of 95,322 · 1,305 · 1,305 (its labels are inferred, see below).
 
 **Freedom:** in the author's sessions Autonomous stops 367 calls where Manual stops 759, 52% fewer: for the rest a safety net keeps what the call would take away, or its target is the person's own.
 
-How these were measured, and what they leave out: SABER's attack and ordinary labels are inferred from its runs, and one run that hit a rate limit (429) is left out; agent-egress-bench's web requests were converted to `curl` calls; AgentDojo's runs carry no outside content, so the outside-content rule never applies there, and they were replayed with Python 3.11.5. The attack sets cover what their authors chose to test; a rule is not proven by them, only measured.
+How these were measured, and what they leave out: a call to this computer's own address (`localhost`, `127.0.0.1`, `0.0.0.0`) sends nothing off the computer and is not asked about, however it is written; RedCode-Exec labels 27 such calls as attacks and SABER's ordinary set has 66 of them, so the figures above are 27 stops fewer and 66 false alarms fewer than before that was made so (re-measured on 2026-10-25, nothing else moved); SABER's attack and ordinary labels are inferred from its runs, and one run that hit a rate limit (429) is left out; agent-egress-bench's web requests were converted to `curl` calls; AgentDojo's runs carry no outside content, so the outside-content rule never applies there, and they were replayed with Python 3.11.5. The attack sets cover what their authors chose to test; a rule is not proven by them, only measured.
 
 ### Known limits
 
@@ -132,6 +132,7 @@ Measured, and left open by choice or not yet closed:
 
 - **A secret in a read's address or headers.** Reads are free, so data sent in a URL or a header of a request that only reads goes on: of agent-egress-bench's 55 web attacks that carry data in a URL, none is stopped, and 5 reads that carry a value shaped like a secret pass.
 - **Persistence and system settings the rules do not read.** 170 of SABER's attack calls change an SSH key or its settings, an autostart or startup entry, or turn security software off in a way the rules do not match.
+- **This computer's own address is no outside.** Data sent to `localhost`, `127.0.0.1` or `0.0.0.0` goes on, bare or in a URL. It does not leave the computer, but a tunnel (`ssh -L`) or a local proxy set up beforehand can carry it on; the belt does not follow that. An address read only from outside content is still refused.
 - **A connected service's tool named outside the belt's words** is not judged by its name (Out of scope, above).
 - **The person's word loosens a send.** In Autonomous and full autonomy a target the person named in the session lets data go to it without a question; that is the evidence rule working as meant, and an attacker who can write in the person's place is outside this model.
 - **Found and not yet closed:** a function name inside a string is taken for a definition; a here-document handed to a group or a function (`{ python3 -; } <<EOF`) is not followed; fish, csh and tcsh are not read as shells.

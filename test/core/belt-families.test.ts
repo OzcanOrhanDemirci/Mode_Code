@@ -28,8 +28,11 @@ test('data sent off the computer names its hosts; reading is free; this computer
   assert.deepEqual(await rules('curl -d x http://192.168.1.7:8080/collect'), [['outbound.network', host(['192.168.1.7'])]]);
   assert.deepEqual(await rules('nc 192.168.1.7 9000'), [['outbound.network', host(['192.168.1.7'])]]);
   assert.deepEqual(await rules('curl -d x 192.168.1.7:8080/collect'), [['outbound.network', host(['192.168.1.7'])]]);
-  // This computer's own address, bare, is left as it was: a host not told from the call, asked as unknown.
-  assert.deepEqual(await rules('nc 127.0.0.1 9000'), [['outbound.network', null]]);
+  // This computer's own address, bare, is a host on this computer like `localhost`: what is sent there does not leave it.
+  assert.deepEqual(await rules('nc 127.0.0.1 9000'), []);
+  assert.deepEqual(await rules('nc 0.0.0.0 9000'), []);
+  assert.deepEqual(await rules('curl -d x 127.0.0.1:8080/collect'), []);
+  assert.deepEqual(await rules('nc localhost 9000'), []);
   // gh's host is GitHub's own, written nowhere in the call.
   assert.deepEqual(await rules('gh issue comment 12 --body done'), [['outbound.network', { ...host(['github.com']), implicit: true }]]);
   // A host only known when it runs: asked as unknown.
@@ -111,6 +114,9 @@ test('the hosts of a send, and what is this computer', () => {
   assert.deepEqual(sendHosts('curl', ['-d', 'x', 'http://192.168.1.7:8080/collect']), ['192.168.1.7']);
   assert.deepEqual(sendHosts('curl', ['-d', 'x', '192.168.1.7:8080/collect']), ['192.168.1.7']);
   assert.deepEqual(sendHosts('nc', ['192.168.1.7', '9000']), ['192.168.1.7']);
+  assert.deepEqual(sendHosts('nc', ['127.0.0.1', '9000']), ['127.0.0.1']);
+  assert.deepEqual(sendHosts('nc', ['0.0.0.0', '9000']), ['0.0.0.0']);
+  assert.deepEqual(sendHosts('curl', ['-d', 'x', '127.0.0.1:8080/collect']), ['127.0.0.1']);
   assert.deepEqual(sendHosts('curl', ['-d', 'x', '$URL'], [false, false, true]), []);
   assert.deepEqual(sendHosts('gh', ['pr', 'create']), ['github.com']);
   assert.deepEqual(sendHosts('scp', ['a', 'C:/b']), []);
