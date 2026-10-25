@@ -127,6 +127,13 @@ const TLDS = new Set(
   ).split(' '),
 );
 const URL_HOST = /\b[a-z][a-z0-9+.-]*:\/\/(?:[^@/\s]*@)?([a-z][a-z0-9-]*(?:\.[a-z0-9-]+)+)/gi;
+/**
+ * An address is a host too, and the likeliest one for a request somebody else steered: four numbers up to 255 that stand
+ * alone (not inside a longer run of numbers, so a version such as `10.0.26200.1` is none), and an IPv6 address in the
+ * brackets of a URL, the only place it is told from other text with colons.
+ */
+const IPV4 = /(?<![\w.])(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?![\w]|\.\w)/g;
+const URL_IPV6 = /\b[a-z][a-z0-9+.-]*:\/\/(?:[^@/\s]*@)?\[([0-9a-f:.]+)\]/gi;
 const EMAIL = /\b[\w.+-]{1,64}@(?:[a-z0-9-]{1,63}\.)+[a-z]{2,24}\b/gi;
 const REPO = /\b(?:github\.com|gitlab\.com|bitbucket\.org)[/:]([\w.-]{1,100}\/[\w.-]{1,100}?)(?:\.git)?(?=[\s/#?"')\]]|$)/gi;
 const PATH = /(?:(?<![\w/])[A-Za-z]:[\\/]|(?<![\w/])~\/|(?<![\w/.:])\/(?:home|Users|tmp|var|etc|opt|srv|mnt)\/)[^\s"'`<>|]{1,240}/g;
@@ -140,6 +147,8 @@ export function unitsIn(text: string): string[] {
     if (!/^\d/.test(m[0]) && !FILE_END.test(m[0]) && (tld.length === 2 || TLDS.has(tld))) out.add(norm(m[0]));
   }
   for (const m of text.matchAll(URL_HOST)) out.add(norm(m[1]!));
+  for (const m of text.matchAll(IPV4)) out.add(m[0]);
+  for (const m of text.matchAll(URL_IPV6)) out.add(norm(m[1]!));
   for (const m of text.matchAll(REPO)) out.add(norm(m[1]!));
   for (const m of text.matchAll(PATH)) out.add(norm(m[0]).replace(/[.,;:)\]]+$/, ''));
   return [...out];
