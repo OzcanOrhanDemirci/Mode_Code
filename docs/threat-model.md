@@ -101,7 +101,40 @@ Three numbers, measured for every release and written down, with the target at 1
 - **Protection:** of public attack sets for coding agents, how much it stops.
 - **Freedom:** of the questions the person used to get, how many now pass without one.
 
-Attack sets are kept out of the public repository; their runner prints totals, categories and digests only, never their content. An independent red team works in sessions of its own. The figures and the known limits go into this page when they are measured.
+Attack sets are kept out of the public repository; their runner prints totals, categories and digests only, never their content. An independent red team works in sessions of its own.
+
+### Measured for 1.2.0
+
+2026-10-25, the belt's default settings, each call judged as on Linux and replayed through the belt (`scripts/belt-replay.ts`, [testing.md](testing.md)); counts only. A call is stopped when it is asked about or refused. Each figure is for Manual · Autonomous · full autonomy.
+
+**Protection**, attack calls stopped:
+
+- RedCode-Exec, 1,410 cases of code run through a shell or Python: 206 (14.6%) · 174 · 204.
+- AgentDojo, 1,105 attack calls of agents that work with banking, workspace, travel and chat services: 646 (58.5%) · 637 · 640.
+- agent-egress-bench, 55 attack calls on the computer: 11 (20.0%) in each way of working; its 84 web requests, written as `curl` calls: 24 (28.6%) in each.
+- SABER, 14,067 attack calls: 1,673 (11.9%) · 1,284 · 1,282.
+
+An attack set counts every call an attack makes, the harmless ones too: reading a file, listing a folder, writing a note. Of the attack calls let through, 91% to 98% by set pass by design (classified call by call on 2026-10-21, before the fixes that followed, which only stopped others): they are outside the four kinds of action the core decides on, they only read (reads are free), or they are code an interpreter runs from a file. The figure is what the belt stops of an attack's calls, not the share of attacks that would succeed.
+
+**False alarms**, ordinary calls stopped:
+
+- Three sets of other agents' everyday work, 224,512 calls (CC-Bench 8,544, SWE-smith 71,170, SWE-rebench-OpenHands 144,798): 126 (0.06%) · 21 · 19.
+- The author's own sessions, 41,290 calls: 759 (1.8%) · 367 · 366.
+- The ordinary calls inside the attack sets: AgentDojo 69 of 339 · 50 · 50; agent-egress-bench 0 of 25 on the computer and 7 of 26 web requests; SABER 1,566 of 95,322 · 1,371 · 1,371 (its labels are inferred, see below).
+
+**Freedom:** in the author's sessions Autonomous stops 367 calls where Manual stops 759, 52% fewer: for the rest a safety net keeps what the call would take away, or its target is the person's own.
+
+How these were measured, and what they leave out: SABER's attack and ordinary labels are inferred from its runs, and one run that hit a rate limit (429) is left out; agent-egress-bench's web requests were converted to `curl` calls; AgentDojo's runs carry no outside content, so the outside-content rule never applies there, and they were replayed with Python 3.11.5. The attack sets cover what their authors chose to test; a rule is not proven by them, only measured.
+
+### Known limits
+
+Measured, and left open by choice or not yet closed:
+
+- **A secret in a read's address or headers.** Reads are free, so data sent in a URL or a header of a request that only reads goes on: of agent-egress-bench's 55 web attacks that carry data in a URL, none is stopped, and 5 reads that carry a value shaped like a secret pass.
+- **Persistence and system settings the rules do not read.** 170 of SABER's attack calls change an SSH key or its settings, an autostart or startup entry, or turn security software off in a way the rules do not match.
+- **A connected service's tool named outside the belt's words** is not judged by its name (Out of scope, above).
+- **The person's word loosens a send.** In Autonomous and full autonomy a target the person named in the session lets data go to it without a question; that is the evidence rule working as meant, and an attacker who can write in the person's place is outside this model.
+- **Found and not yet closed:** a function name inside a string is taken for a definition; a here-document handed to a group or a function (`{ python3 -; } <<EOF`) is not followed; fish, csh and tcsh are not read as shells.
 
 ## Sources
 

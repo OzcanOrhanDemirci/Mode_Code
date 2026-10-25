@@ -132,6 +132,8 @@ A night or week that fails sends the repository owner GitHub's failure mail; not
 
 Also measured: the everyday corpus is 197 commands (165 Bash, 32 PowerShell), each judged on Windows, macOS and Linux with not one question; `belt replay` over the author's last 30 days read 40,251 tool calls and would have asked 201 times (6.7 a day; 139 of them recursive deletes outside a project, in sessions started in the home folder) and blocked 95; of the 32,809 shell commands among them, 43% only read and would run in every mode, 4% write named files, 44% change things around their folder, 6% reach outside and 3% are unknown or not readable in full. The property tests passed with four fresh seeds at 200,000 cases each, and the modes properties with 20,000. The doctor has 53 checks, 17 repairs and 9 self-test suites. CI runs the same suite on Linux and macOS, where the 2 skipped tests run and the Windows-only ones skip.
 
+For 1.2.0 the belt was replayed against four public attack sets and three sets of other agents' everyday work, with the author's own sessions, in each way of working (2026-10-25): the figures, what they leave out and the limits found are in [threat-model.md](threat-model.md#measured-for-120).
+
 ## What the tests found
 
 Every one of these was a real defect in code that already had tests, found while building the layers above and fixed with a test that keeps it fixed:
