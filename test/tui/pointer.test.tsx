@@ -11,12 +11,14 @@ import { MOUSE_OFF, MOUSE_ON, mouseReporting, PointerHub, pointerInput, takePoin
 import { noColorAsked } from '../../src/tui/theme.js';
 import { draw, FakeData, KEY, sgr, type Screen } from './harness.js';
 
-/** The keys in the bar reach it a frame after the screen that adds them: waits a while for them. */
-async function barShows(s: Screen, keys: RegExp): Promise<void> {
-  const bar = () => s.text().split('\n').at(-2)!;
-  for (let i = 0; i < 100 && !keys.test(bar()); i++) await new Promise((r) => setTimeout(r, 15));
-  assert.match(bar(), keys);
+/** What comes a frame or more after the screen that causes it (the whole screen, or the part `of` picks): waits a while for it. */
+async function shows(s: Screen, what: RegExp, of = (text: string) => text): Promise<void> {
+  for (let i = 0; i < 100 && !what.test(of(s.text())); i++) await new Promise((r) => setTimeout(r, 15));
+  assert.match(of(s.text()), what);
 }
+
+/** The keys in the bar reach it a frame after the screen that adds them. */
+const barShows = (s: Screen, keys: RegExp) => shows(s, keys, (text) => text.split('\n').at(-2)!);
 
 const flat = (text: string) => text.replace(/[│╭╮╰╯─]/g, '').replace(/\s+/g, ' ');
 
@@ -294,8 +296,9 @@ test('a target the pane has scrolled out of view cannot be clicked', async () =>
   // Ten rows: the settings list runs past the pane, and what lies under the bar is no target.
   const s = await draw(data, { address: 'memory/notes', rows: 12 });
   try {
+    // The page scrolls its focus into view after it opens: the test reads the screen once it has.
+    await shows(s, /▸ Handoff notes/);
     assert.equal(s.find('Away after'), null);
-    assert.match(s.text(), /▸ Handoff notes/);
     // The rows the pane cut are laid out where the bar is drawn: a click there reaches none of them.
     const bar = s.text().split('\n').length - 3;
     for (const x of [10, 40, 70]) await s.click(x, bar);
