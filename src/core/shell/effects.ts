@@ -1026,7 +1026,8 @@ const CD = wordSet(`cd pushd set-location chdir sl push-location`);
 /** The effects of a command, program by program, in source order. */
 export function commandEffects(command: string, dialect: Dialect, env: EffectEnv): CommandEffects {
   const analysis = analyzeCommand(command, dialect);
-  const functions = definedFunctions(command);
+  // A function named in a comment is defined nowhere.
+  const functions = definedFunctions(analysis.code);
   let cwd: string | null = env.cwd;
   const effects: Effect[] = [];
   for (const inv of analysis.invocations) {

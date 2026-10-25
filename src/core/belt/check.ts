@@ -39,6 +39,7 @@ const WEAK_UNCERTAIN = new Set([
   'unbalanced-bracket',
   'wrapper-string-complex',
   'heredoc-unterminated',
+  'expansion-ambiguous',
 ]);
 
 /** Words whose presence makes an unverifiable command worth asking about. */
@@ -1593,6 +1594,8 @@ async function evaluateScript(command: string, dialect: Dialect, s: Scope, start
   checkDisableHooks(command, analysis.invocations, s);
   checkPipedSecret(analysis.invocations, s);
   const strong = analysis.issues.filter((i) => STRONG_UNCERTAIN.has(i));
+  // Whether it looks risky is read from the whole text, comments too: a text that did not parse cleanly may hold
+  // its commands where the parser saw a comment.
   const weak = RISKY_SIGNAL.test(command) ? analysis.issues.filter((i) => WEAK_UNCERTAIN.has(i)) : [];
   const dynamic = analysis.invocations.some((inv) => inv.programDynamic && DYNAMIC_PROGRAM_RISK.test(inv.args.join(' '))) ? ['dynamic-program'] : [];
   const uncertain = [...strong, ...dynamic, ...weak];

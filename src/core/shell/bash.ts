@@ -14,6 +14,23 @@ import { LEADING_OPERATOR, MAX_DEPTH, type ParsedScript, type Redirect, type Sim
 const RESERVED = new Set(['if', 'then', 'else', 'elif', 'fi', 'do', 'done', 'while', 'until', '!', '{', '}', 'coproc', 'esac']);
 const REDIRECT_RE = /^(\d+|\{[A-Za-z_]\w*\})?(&>>|&>|>>|>\||>&|>|<<<|<<-|<<|<&|<>|<)/;
 const WRITE_OPS = new Set(['>', '>>', '>|', '&>', '&>>', '<>']);
+/** What a word reads like up to the parenthesis of an array: `NAME=`, `NAME+=`, `NAME[i]=`. */
+const ARRAY_NAME = /^[A-Za-z_]\w*(?:\[[^\]]*\])?\+?=$/;
+
+/** The word before was `=~` (inside `[[ … ]]`, where a regular expression comes next). */
+function regexNext(d: Draft): boolean {
+  const last = d.argv.length - 1;
+  return last >= 0 && !d.quotedFirst[last] && d.argv[last]!.text === '=~';
+}
+
+/** The words after bash's `time` keyword are what may stand before the command it times: `-p`, `--`, `!`, unquoted, in that order. */
+function timePrefix(words: readonly Word[], quoted: readonly boolean[]): boolean {
+  let i = 1;
+  if (words[i]?.text === '-p' && !quoted[i]) i++;
+  if (words[i]?.text === '--' && !quoted[i]) i++;
+  while (words[i]?.text === '!' && !quoted[i]) i++;
+  return i === words.length;
+}
 
 interface Draft {
   start: number;
@@ -24,6 +41,10 @@ interface Draft {
   heredocs: { body: string; expands: boolean }[];
   skip: boolean;
   piped?: boolean;
+  /** Its first word is bash's `time` keyword: unquoted, where a command begins, no assignment before it. */
+  timed?: boolean;
+  /** It follows bash's `coproc` keyword. */
+  coproc?: boolean;
 }
 
 interface PendingHeredoc {
@@ -33,8 +54,26 @@ interface PendingHeredoc {
   owner: Draft;
 }
 
+/** How a `${…}` is closed: with the quotes in it honoured (as bash mostly does) or at its first `}`; and whether the two differed. */
+interface ReadMode {
+  readonly quotes: boolean;
+  differ: boolean;
+}
+
 export function parseBash(src: string, depth = 0): ParsedScript {
-  return new BashParser(src, depth).parse(0, false).script;
+  const mode: ReadMode = { quotes: true, differ: false };
+  const script = new BashParser(src, depth, mode).parse(0, false).script;
+  if (!mode.differ) return script;
+  // A `${…}` whose end depends on quotes the parser cannot be sure of (a pattern's quotes inside double quotes): the
+  // script is read the other way too, and the commands of both readings are judged. Where each stands and where the
+  // comments are is then not one answer, so neither is said, and no value is carried from one command to the next.
+  const other = new BashParser(src, depth, { quotes: false, differ: false }).parse(0, false).script;
+  return {
+    dialect: 'bash',
+    commands: [...script.commands, ...other.commands].map(({ at: _at, ...cmd }) => cmd),
+    nested: [...script.nested, ...other.nested],
+    issues: [...new Set([...script.issues, ...other.issues, 'expansion-ambiguous'])],
+  };
 }
 
 /** Decodes ANSI-C quoting ($'...') escapes. */
@@ -94,14 +133,24 @@ class BashParser {
   private pos = 0;
   private readonly nested: ParsedScript[] = [];
   private readonly issues: string[] = [];
+  private readonly comments: (readonly [number, number])[] = [];
+  private readonly bodies: (readonly [number, number])[] = [];
 
   constructor(
     private readonly src: string,
     private readonly depth: number,
+    private readonly mode: ReadMode = { quotes: true, differ: false },
   ) {}
 
   parse(start: number, stopAtParen: boolean): { script: ParsedScript; end: number } {
-    const script: ParsedScript = { dialect: 'bash', commands: [], nested: this.nested, issues: this.issues };
+    const script: ParsedScript = {
+      dialect: 'bash',
+      commands: [],
+      nested: this.nested,
+      issues: this.issues,
+      comments: this.comments,
+      bodies: this.bodies,
+    };
     if (this.depth > MAX_DEPTH) {
       this.issues.push('too-deep');
       return { script, end: this.src.length };
@@ -114,16 +163,24 @@ class BashParser {
     let caseDepth = 0;
     let expectPattern = false;
     let dropNextWord = false;
+    // Whether a `[[ … ]]` conditional is open: inside one, the word after `=~` is a regular expression. They do not
+    // nest: a `[[` inside one is a word (`[[ a && [[ ]]` is closed by that `]]`).
+    let cond = false;
 
     const finish = () => {
       if (!draft.skip && (draft.argv.length || draft.assigns.length || draft.redirects.length)) {
+        const text = src.slice(draft.start, this.pos);
+        const trimmed = text.trim();
+        const raw = trimmed.replace(LEADING_OPERATOR, '');
         const cmd: SimpleCommand = {
           dialect: 'bash',
           assigns: draft.assigns,
           argv: draft.argv,
           redirects: draft.redirects,
           heredocs: draft.heredocs,
-          raw: src.slice(draft.start, this.pos).trim().replace(LEADING_OPERATOR, ''),
+          raw,
+          // Where raw stands: after the blanks, and after the operator that joined it to the command before.
+          at: draft.start + (text.length - text.trimStart().length) + (trimmed.length - raw.length),
           ...(draft.piped ? { piped: true } : {}),
         };
         // cmd.heredocs is the draft's own array, so bodies read at the next newline land on the stored command.
@@ -150,30 +207,48 @@ class BashParser {
         this.pos += 2;
         continue;
       }
-      if (c === '#') {
-        while (this.pos < src.length && src[this.pos] !== '\n') this.pos++;
+      if (this.atComment()) {
+        this.readComment();
         continue;
       }
       if (c === '\n') {
+        // A pipe at the end of a line goes on to the next command, past blank and comment lines.
+        const piped = draft.piped && !draft.argv.length && !draft.assigns.length && !draft.redirects.length;
         finish();
+        if (piped) draft.piped = true;
         this.pos++;
-        if (pending.length) this.readHeredocs(pending.splice(0));
+        if (pending.length) {
+          this.readHeredocs(pending.splice(0));
+          // The next command begins after the bodies, which are text of this one's.
+          draft.start = this.pos;
+        }
+        continue;
+      }
+      // After `=~` in `[[ … ]]` comes a regular expression: its parentheses and bars are its own, and a `#` is no comment.
+      if (cond && !/[;&<>)#]/.test(c) && regexNext(draft)) {
+        const r = this.readWord(true);
+        draft.argv.push(r.word);
+        draft.quotedFirst.push(r.quoted);
         continue;
       }
       if (c === ';') {
         const two = src.slice(this.pos, this.pos + 3);
         const len = two.startsWith(';;&') ? 3 : two.startsWith(';;') || two.startsWith(';&') ? 2 : 1;
         if (len > 1 && caseDepth > 0) expectPattern = true;
+        // `;`, a lone `&` and a lone `|` end a command; inside `[[ … ]]` bash refuses them, so none is left open.
+        cond = false;
         finish();
         this.pos += len;
         continue;
       }
       if (c === '&' && src[this.pos + 1] !== '>') {
+        if (src[this.pos + 1] !== '&') cond = false;
         finish();
         this.pos += src[this.pos + 1] === '&' ? 2 : 1;
         continue;
       }
       if (c === '|') {
+        if (src[this.pos + 1] !== '|') cond = false;
         finish();
         // `|` and `|&` hand the output on; `||` runs the next command only when this one failed.
         draft.piped = src[this.pos + 1] !== '|';
@@ -218,6 +293,7 @@ class BashParser {
         }
         if (stopAtParen) {
           if (pending.length) this.issues.push('heredoc-unterminated');
+          if (cond) this.issues.push('unbalanced-bracket');
           return { script, end: this.pos + 1 };
         }
         this.issues.push('unbalanced-paren');
@@ -280,6 +356,7 @@ class BashParser {
       if (atCommandStart && !quoted) {
         if (RESERVED.has(word.text)) {
           if (word.text === 'esac') caseDepth = Math.max(0, caseDepth - 1);
+          if (word.text === 'coproc') draft.coproc = true;
           continue;
         }
         if (word.text === 'function') {
@@ -296,6 +373,16 @@ class BashParser {
         }
         if (word.text === 'for' || word.text === 'select') draft.skip = true;
       }
+      if (!quoted) {
+        // `[[` opens a conditional where a command may begin, also after the `time` keyword and what may follow it
+        // (not after a quoted `time`, one with an assignment before it, a quoted or another option: that is the
+        // program, and `[[` its argument); `]]` closes it.
+        const timed = draft.timed === true && timePrefix(draft.argv, draft.quotedFirst);
+        if (word.text === '[[' && !cond && (atCommandStart || timed)) cond = true;
+        else if (word.text === ']]' && cond) cond = false;
+        // `time` is the keyword only where a pipeline begins: after a `|` or `coproc` it is the program of that name.
+        if (atCommandStart && word.text === 'time' && !draft.piped && !draft.coproc) draft.timed = true;
+      }
       draft.argv.push(word);
       draft.quotedFirst.push(quoted);
     }
@@ -303,6 +390,12 @@ class BashParser {
     if (pending.length) {
       this.issues.push('heredoc-unterminated');
     }
+    // A conditional still open at the end is one bash refused, or one the parser took for a conditional wrongly: what
+    // it read as a regular expression may have held commands, so the result is not trusted.
+    if (cond) this.issues.push('unbalanced-bracket');
+    // So is a group still open: a `(` the parser took for one may have been bash's regular expression, and the `#`
+    // after it a comment that hid the line.
+    if (parenDepth > 0) this.issues.push('unbalanced-paren');
     if (stopAtParen) this.issues.push('unterminated-substitution');
     return { script, end: this.pos };
   }
@@ -317,8 +410,72 @@ class BashParser {
     for (const issue of script.issues) if (!this.issues.includes(issue)) this.issues.push(issue);
   }
 
+  /**
+   * Reads the commands inside `$(…)`, `<(…)` or `>(…)` at this.pos, in this same text, and moves past them. They are
+   * a nested script of their own, and the comments and here-document bodies they hold stand in this text too.
+   */
+  private readGroup(): void {
+    const r = new BashParser(this.src, this.depth + 1, this.mode).parse(this.pos + 2, true);
+    this.addNested(r.script);
+    // A loop, not push(...): a script of a hundred thousand comments must not overflow the call.
+    for (const c of r.script.comments ?? []) this.comments.push(c);
+    for (const b of r.script.bodies ?? []) this.bodies.push(b);
+    this.pos = r.end;
+  }
+
   private skipBlanks(): void {
     while (this.pos < this.src.length && (this.src[this.pos] === ' ' || this.src[this.pos] === '\t')) this.pos++;
+  }
+
+  /**
+   * A `#` where a word would begin starts a comment. A lone carriage return is no blank to bash on Linux and macOS but a
+   * letter of the word it ends (`a\r#x` is one word), so a `#` right after one starts none; the parser skips such a
+   * return as a blank. Git Bash drops the return first, so there the `#` does start one: read as a word, it hides nothing.
+   * Nor does one right after `!(`: with `extglob` on that is a pattern and the `#` is its own, with it off a group of
+   * commands, and the parser cannot tell which. It reads the hash as a word, so no command after it is hidden.
+   */
+  private atComment(): boolean {
+    const before = this.src[this.pos - 1];
+    return this.src[this.pos] === '#' && before !== '\r' && !(before === '(' && this.src[this.pos - 2] === '!');
+  }
+
+  /** Moves past the comment at this.pos, up to its line end, and tells where it stood. */
+  private readComment(): void {
+    const at = this.pos;
+    while (this.pos < this.src.length && this.src[this.pos] !== '\n') this.pos++;
+    this.comments.push([at, this.pos]);
+  }
+
+  /**
+   * Reads the elements of an array's `(…)` at this.pos, in `NAME=(a b "c" $(d))`, and moves past it. They are words, not
+   * commands (a command substitution among them is read as one); line ends and comments may stand between them. The
+   * word the assignment is goes on after the parenthesis: `a=(1)#x` is one word, and no comment.
+   */
+  private readArray(): string {
+    const src = this.src;
+    this.pos++;
+    while (this.pos < src.length) {
+      const c = src[this.pos]!;
+      if (c === ')') {
+        this.pos++;
+        return '(…)';
+      }
+      if (c === ' ' || c === '\t' || c === '\r' || c === '\n') this.pos++;
+      else if (c === '\\' && src[this.pos + 1] === '\n') this.pos += 2;
+      else if (this.atComment()) this.readComment();
+      else {
+        const before = this.pos;
+        this.readWord();
+        // A character no word takes here (`;`, `&`, `|`, `<`, `>`, `(`) is a syntax error to bash, which drops that
+        // line and runs the next ones: the array ends here, and what follows is read as commands.
+        if (this.pos === before) {
+          this.issues.push('unbalanced-paren');
+          return '(…)';
+        }
+      }
+    }
+    this.issues.push('unbalanced-paren');
+    return '(…)';
   }
 
   /** After `case`, consume the subject and the `in` keyword (collecting substitutions in the subject). */
@@ -333,6 +490,7 @@ class BashParser {
   private readHeredocs(list: PendingHeredoc[]): void {
     const src = this.src;
     for (const h of list) {
+      const from = this.pos;
       const lines: string[] = [];
       let closed = false;
       while (this.pos < src.length) {
@@ -349,6 +507,8 @@ class BashParser {
         lines.push(line);
       }
       if (!closed) this.issues.push('heredoc-unterminated');
+      // The body and its closing line, where they stand in the text.
+      this.bodies.push([from, this.pos]);
       const body = lines.join('\n');
       h.owner.heredocs.push({ body, expands: h.expands });
       if (h.expands) this.collectSubstitutions(body);
@@ -364,7 +524,7 @@ class BashParser {
         continue;
       }
       if (c === '$' && text[i + 1] === '(') {
-        const sub = new BashParser(text, this.depth + 1);
+        const sub = new BashParser(text, this.depth + 1, this.mode);
         const r = sub.parse(i + 2, true);
         this.addNested(r.script);
         i = r.end - 1;
@@ -392,24 +552,53 @@ class BashParser {
     this.pos = i;
   }
 
-  private readWord(): { word: Word; quoted: boolean; quoteAt: number } {
+  /**
+   * Reads one word at this.pos. `regex` is the operand of `=~`, where bash takes parentheses and bars as the
+   * expression's own. Parentheses are part of a word also after an extended-pattern sign (`@(a|b)`, `+(x)`, `*(y)`,
+   * `?(z)`; the `!(` of a negation is left alone, see atComment: it begins a group of commands when `extglob` is off) and as the
+   * elements of an array (`NAME=(…)`). Inside such parentheses blanks, line ends and the shell's operators are the
+   * word's too, and a `#` is no comment.
+   */
+  private readWord(regex = false): { word: Word; quoted: boolean; quoteAt: number } {
     const src = this.src;
     let text = '';
     let dynamic = false;
     let glob = false;
     let quoted = false;
     let quoteAt = -1;
+    let group = 0;
     while (this.pos < src.length) {
       const c = src[this.pos]!;
       if ((c === '<' || c === '>') && src[this.pos + 1] === '(') {
-        const r = new BashParser(src, this.depth + 1).parse(this.pos + 2, true);
-        this.addNested(r.script);
-        this.pos = r.end;
+        this.readGroup();
         text += `${c}(…)`;
         dynamic = true;
         continue;
       }
-      if (c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === ';' || c === '&' || c === '|' || c === '<' || c === '>' || c === '(' || c === ')') break;
+      if (c === '(' && !regex && group === 0 && !quoted && ARRAY_NAME.test(text)) {
+        text += this.readArray();
+        dynamic = true;
+        continue;
+      }
+      if (c === '(' && (regex || group > 0 || (!quoted && /[?*+@]$/.test(text)))) {
+        group++;
+        glob ||= !regex;
+        text += c;
+        this.pos++;
+        continue;
+      }
+      if (c === ')' && group > 0) {
+        group--;
+        text += c;
+        this.pos++;
+        continue;
+      }
+      if (
+        group === 0 &&
+        !(regex && c === '|') &&
+        (c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === ';' || c === '&' || c === '|' || c === '<' || c === '>' || c === '(' || c === ')')
+      )
+        break;
       if (c === '\\') {
         const n = src[this.pos + 1];
         if (n === '\n') {
@@ -494,6 +683,7 @@ class BashParser {
       text += c;
       this.pos++;
     }
+    if (group > 0) this.issues.push('unbalanced-paren');
     return { word: { text, dynamic, glob }, quoted, quoteAt };
   }
 
@@ -544,6 +734,34 @@ class BashParser {
     return { text, dynamic };
   }
 
+  /**
+   * Where the `${…}` whose text starts at `from` ends, just past its `}`; -1 where it does not. Only another `${` nests
+   * (`${x:-{}` ends at its first `}`, as bash ends it). With `quotes`, a `}` in quotes closes nothing (`${x:-"}"}`,
+   * `"${x:-'}'}"`: bash honours single quotes there inside double quotes too).
+   */
+  private braceEnd(from: number, quotes: boolean): number {
+    const src = this.src;
+    let depth = 1;
+    let i = from;
+    let dollar = false;
+    while (i < src.length && depth > 0) {
+      const c = src[i];
+      if (c === '\\') i++;
+      else if (quotes && c === "'") {
+        const end = src.indexOf("'", i + 1);
+        i = end === -1 ? src.length : end;
+      } else if (quotes && c === '"') {
+        for (i++; i < src.length && src[i] !== '"'; i++) if (src[i] === '\\') i++;
+      } else if (c === '{' && dollar) depth++;
+      else if (c === '}') depth--;
+      // An escaped `$` is stepped over with its backslash, so a `$` met here is the shell's; but `$$` is the process's
+      // number, and the `{` after it nests nothing.
+      dollar = c === '$' && !dollar;
+      i++;
+    }
+    return depth > 0 ? -1 : i;
+  }
+
   /** Reads $name, ${…}, $(…), $((…)) or a special parameter at this.pos; returns its text for the word. */
   private readExpansion(): string {
     const src = this.src;
@@ -553,22 +771,18 @@ class BashParser {
         this.readArithmetic(this.pos + 3);
         return '$((…))';
       }
-      const r = new BashParser(src, this.depth + 1).parse(this.pos + 2, true);
-      this.addNested(r.script);
-      this.pos = r.end;
+      this.readGroup();
       return '$(…)';
     }
     if (n === '{') {
-      let depth = 1;
-      let i = this.pos + 2;
-      while (i < src.length && depth > 0) {
-        const c = src[i];
-        if (c === '\\') i++;
-        else if (c === '{') depth++;
-        else if (c === '}') depth--;
-        i++;
-      }
-      if (depth > 0) this.issues.push('unterminated-expansion');
+      const quoted = this.braceEnd(this.pos + 2, true);
+      const plain = this.braceEnd(this.pos + 2, false);
+      // Which quotes bash honours in it depends on its mode and the operator: where the two readings end it in different
+      // places, the script is read both ways (parseBash).
+      if (quoted !== plain) this.mode.differ = true;
+      const end = this.mode.quotes ? quoted : plain;
+      if (end === -1) this.issues.push('unterminated-expansion');
+      const i = end === -1 ? src.length : end;
       const whole = src.slice(this.pos, i);
       this.collectSubstitutions(whole.slice(2, -1));
       this.pos = i;

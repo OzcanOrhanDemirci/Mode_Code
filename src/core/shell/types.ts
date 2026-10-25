@@ -34,6 +34,8 @@ export interface SimpleCommand {
   heredocs: { body: string; expands: boolean }[];
   /** The source text of this command, for messages. */
   raw: string;
+  /** Where `raw` stands in the text parsed (bash only), so the text between commands can be read as what it is. */
+  at?: number;
   /** It reads the output of the command before it (`a | b`, not `a || b`). */
   piped?: boolean;
 }
@@ -46,6 +48,14 @@ export interface ParsedScript {
   nested: ParsedScript[];
   /** Problems that may make the parse incomplete. A non-empty list means "do not trust a clean result". */
   issues: string[];
+  /**
+   * Where comments (each from its `#` to the end of its line) and here-document bodies (each with its closing line)
+   * stand in the text this script was parsed from, as offsets (bash only). Those inside `$(…)`, `<(…)` and `>(…)` are
+   * listed here too: they are read in the same text. A script parsed from a piece of text (backticks, a `${…}`
+   * operand, the body of a here-document) has offsets into that piece, in its `at`, `comments` and `bodies` alike.
+   */
+  comments?: readonly (readonly [number, number])[];
+  bodies?: readonly (readonly [number, number])[];
 }
 
 export const MAX_DEPTH = 12;
