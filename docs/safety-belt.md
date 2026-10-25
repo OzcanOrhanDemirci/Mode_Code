@@ -102,7 +102,7 @@ Measured on the author's own sessions, replayed with what each was told and read
 - **A folder from `mktemp`** (`T=$(mktemp -d)`, flags only): a new name in the temporary folder, so deleting it is free. A template, `-p` or `--tmpdir` keeps it unknown.
 - **A read through `gh api`** (`-X GET`, `--method GET`, a GraphQL query) sends nothing; any other method, a field without one, a GraphQL mutation or a query from a file still does.
 - **gh's own host:** GitHub, named nowhere in a `gh` call, is never taken for a host read from outside; named by you or the project's remote, it is still evidence.
-- **A name with a dot is a host only with a real ending** (`example.com`, `api.dev`, any two letters; `tool.check` or `prov.seen` are not), a URL's host always: a rule's or a field's name in a note was taken for a host read from outside. An address is a host as a name is (four numbers up to 255 standing alone, or an IPv6 address in a URL's brackets): an address found only in what the session read is refused like a name, and a version such as `10.0.26200.1` is none.
+- **A name with a dot is a host only with a real ending** (`example.com`, `api.dev`, any two letters; `tool.check` or `prov.seen` are not), a URL's host always: a rule's or a field's name in a note was taken for a host read from outside. An address is a host as a name is (four numbers up to 255 standing alone, or an IPv6 address in a URL's brackets): an address found only in what the session read is refused like a name, and a version such as `10.0.26200.1` is none. This computer's own address (`127.0.0.1`, `0.0.0.0`) is a host on this computer like `localhost`, bare or in a URL: what is sent there does not leave it.
 
 A verdict you gave a rule holds over all of them.
 
