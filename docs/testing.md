@@ -193,3 +193,4 @@ Each Claude Code release Mode_Code was checked against with `node scripts/claude
 | ---------- | ----------- | ----- | ---------------- | ------- |
 | 2026-10-18 | 2.1.302     | pass  | pass             | not run |
 | 2026-10-21 | 2.1.306     | pass  | pass             | FAIL    |
+| 2026-10-25 | 2.1.310     | pass  | pass             | pass    |

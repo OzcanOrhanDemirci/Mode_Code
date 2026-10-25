@@ -1508,7 +1508,9 @@ async function onToolCheck($: $, e: In<'tool.check'>, next: Nx<'tool.check'>): O
   const input = (typeof e.input === 'object' && e.input !== null ? e.input : {}) as Record<string, unknown>;
   const level = levelOf(c.state.interaction);
   if (v.rule || v.hook || v.setting) {
-    if (level !== 'full') return { ...v, decider: 'person' };
+    // Up to Claude Code 2.1.307 an ask went to the person by its `decider`; from 2.1.308 an ask a hook answers is
+    // theirs by itself (the engine stamps the plugin on it) and the field is dropped, so it is no longer in the type.
+    if (level !== 'full') return { ...v, decider: 'person' } as typeof v;
     const what = callSummary(tool, input);
     const reason = maskSecrets(v.reason ?? v.rule ?? v.hook ?? v.setting ?? '');
     c.leftThisTurn++;
