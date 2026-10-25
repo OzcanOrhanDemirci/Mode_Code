@@ -7,7 +7,7 @@
  * `Invoke-Expression`, `Start-Process`, `wsl`), and PowerShell aliases are resolved (`rm` → Remove-Item).
  * Whatever cannot be followed is reported in `issues`, never silently dropped.
  */
-import { parseBash } from './bash.js';
+import { heredocInput, parseBash } from './bash.js';
 import { parseCmd } from './cmd.js';
 import { parsePowerShell } from './powershell.js';
 import { MAX_DEPTH, type Dialect, type ParsedScript, type SimpleCommand, type Word } from './types.js';
@@ -32,7 +32,10 @@ export interface Invocation {
   writeDynamic: boolean[];
   /** Wrappers and interpreters this invocation was reached through, outermost first. */
   via: string[];
-  /** Code handed to an interpreter as a string (python -c, node -e, …); not parsed as shell. */
+  /**
+   * Code handed to an interpreter as a string (python -c, node -e, …), or on its standard input as a here-document's
+   * body or a here-string (`python3 - <<'EOF'`); not parsed as shell.
+   */
   inlineCode?: string;
   /**
    * The command runs inside a WSL distribution (reached through `wsl`): its paths are that distribution's,
@@ -105,13 +108,16 @@ const CODE_FLAGS: Record<string, string[]> = {
   python: ['-c'],
   python3: ['-c'],
   py: ['-c'],
+  pypy: ['-c'],
   node: ['-e', '--eval', '-p', '--print'],
+  nodejs: ['-e', '--eval', '-p', '--print'],
   bun: ['-e', '--eval'],
   deno: ['eval'],
   ruby: ['-e'],
   perl: ['-e', '-E'],
   php: ['-r'],
   osascript: ['-e'],
+  lua: ['-e'],
 };
 
 /** Programs that run code read from their standard input when no script is named (`curl … | sh`, `… | python3 -`). */
@@ -127,18 +133,27 @@ const STDIN_CODE = new Set([
   'pypy3',
   'node',
   'nodejs',
+  'bun',
+  'deno',
   'perl',
   'ruby',
   'php',
   'lua',
   'tclsh',
+  'osascript',
 ]);
 
 /** Options that take the next word as their value (`bash -o pipefail`, `python -W ignore`), by kind of program. */
 const VALUE_FLAGS: Record<string, readonly string[]> = {
   shell: ['-o', '+o', '-O', '+O', '--rcfile', '--init-file'],
   python: ['-W', '-X', '--check-hash-based-pycs'],
-  node: ['-r', '--require', '--import', '--loader', '--experimental-loader', '-C', '--conditions'],
+  node: ['-r', '--require', '--import', '--loader', '--experimental-loader', '-C', '--conditions', '--env-file', '--input-type', '--title'],
+  ruby: ['-C', '-E', '-I', '-r', '--encoding', '--external-encoding', '--internal-encoding', '--disable', '--enable'],
+  perl: ['-I', '-M', '-m'],
+  php: ['-d', '-c', '-z', '-B', '-R', '-F', '-E'],
+  osascript: ['-l'],
+  bun: ['--cwd', '--config', '-c', '--env-file', '--preload', '-r', '--define', '-d', '--loader', '-l', '--tsconfig-override', '--conditions'],
+  deno: ['--config', '-c', '--import-map', '--lock', '--cert', '--location', '--seed', '--env-file', '--ext'],
   // PowerShell's are matched in lower case.
   powershell: [
     '-executionpolicy',
@@ -160,31 +175,61 @@ function stdinFamily(name: string): string {
   if (SHELLS.has(name) || name === 'fish') return 'shell';
   if (POWERSHELLS.has(name)) return 'powershell';
   if (name === 'python' || name === 'py' || name === 'pypy') return 'python';
-  return name === 'node' || name === 'nodejs' ? 'node' : 'other';
+  if (name === 'node' || name === 'nodejs') return 'node';
+  return ['ruby', 'perl', 'php', 'osascript', 'bun', 'deno'].includes(name) ? name : 'other';
+}
+
+/** Whether a program runs the code its standard input brings: see `takesCodeFromStdin`, for the programs that can. */
+function readsCodeFromStdin(program: string, rest: readonly Word[]): boolean {
+  const name = program.replace(/[0-9.]+t?$/, '');
+  return (STDIN_CODE.has(program) || STDIN_CODE.has(name)) && takesCodeFromStdin(program, rest);
 }
 
 /**
- * Whether a program runs the code its standard input brings: a shell or an interpreter told to read it (`-`,
+ * Whether an interpreter's arguments leave it to run the code its standard input brings: told to read it (`-`,
  * /dev/stdin, a shell's `-s`, `-Command -`), or given neither inline code nor a script to run. The interpreter's
  * own options come first; the first other word is a script (or Python's `-m` a module), and what follows is its
- * own: `… | python -m sqlfluff lint -` and `… | python check.py -` hand the script data, not code.
+ * own: `… | python -m sqlfluff lint -` and `… | python check.py -` hand the script data, not code. Bun and Deno
+ * name a subcommand first and read standard input only when told to (`deno run -`).
  */
-function readsCodeFromStdin(program: string, rest: readonly Word[]): boolean {
-  const name = program.replace(/[0-9.]+$/, '');
-  if (!STDIN_CODE.has(program) && !STDIN_CODE.has(name)) return false;
+function takesCodeFromStdin(program: string, rest: readonly Word[]): boolean {
+  const name = program.replace(/[0-9.]+t?$/, '');
   const args = texts(rest);
   const inline = Object.hasOwn(CODE_FLAGS, name) ? CODE_FLAGS[name]! : Object.hasOwn(CODE_FLAGS, program) ? CODE_FLAGS[program]! : [];
   const family = stdinFamily(name);
   const values = VALUE_FLAGS[family] ?? [];
+  // PowerShell's options come in any case and in short forms; elsewhere the inline code option is the interpreter's own
+  // (listed above) or a shell's `-c`, and `-E`, `-e`, `-C` and `-f` are options like any other (PHP's `-c` names a file).
+  const names = family === 'powershell' ? /^-(?:c|command|encodedcommand|e|f|file)$/i : family === 'shell' ? /^-c$/ : /^(?!)/;
+  const subcommands = name === 'bun' || name === 'deno';
+  let ran = false;
   for (let i = 0; i < args.length; i++) {
     const a = args[i]!;
-    if (a === '-' || a === '/dev/stdin' || (a === '-s' && family === 'shell')) return true;
-    if (inline.includes(a) || /^-(?:c|command|encodedcommand|e|f|file)$/i.test(a)) return args[i + 1] === '-';
+    if (a === '-' || a === '/dev/stdin' || a === '/dev/fd/0' || (a === '-s' && family === 'shell')) return true;
+    if (inline.includes(a) || names.test(a)) return args[i + 1] === '-';
     if (family === 'python' && a.startsWith('-m')) return false;
+    // PHP's -R and -F run their code for each line of standard input: the input is data.
+    if (family === 'php' && (a === '-R' || a === '-F')) return false;
+    if (subcommands && !ran && a === 'run') {
+      ran = true;
+      continue;
+    }
     if (!a.startsWith('-') && !a.startsWith('+')) return false;
     if (values.includes(family === 'powershell' ? a.toLowerCase() : a)) i++;
   }
-  return true;
+  return !subcommands;
+}
+
+/**
+ * The code an interpreter is handed on its standard input as its program (`python3 - <<'EOF'`, `node <<< '…'`): the
+ * bodies of the command's here-documents and its here-strings, as the interpreter receives them. Every one counts,
+ * not the last alone: which one reaches standard input is the redirections' business, and no spelling of it may
+ * hide code. A script named, or a module, makes them its data, as they stay for `cat <<EOF > file`.
+ */
+function stdinProgram(cmd: SimpleCommand, program: string, rest: readonly Word[]): string | undefined {
+  if (!takesCodeFromStdin(program, rest)) return undefined;
+  const given = [...cmd.heredocs.map(heredocInput), ...cmd.redirects.flatMap((r) => (r.op === '<<<' && r.target ? [r.target.text] : []))];
+  return given.length ? given.join('\n') : undefined;
 }
 
 /** `C:\Tools\Git.EXE` → `git`; `./build.sh` → `build.sh`. */
@@ -210,7 +255,9 @@ function walk(script: ParsedScript, via: string[], depth: number, out: Analysis,
   }
   script.commands.forEach((cmd, i) => {
     const k = known?.[i];
-    expand(cmd, k?.size ? substituteKnown(cmd.argv, k) : cmd.argv, via, depth, out);
+    // Behind an unquoted delimiter the shell fills the variables in a here-document's body too (not one behind `\$`).
+    const filled = k?.size ? { ...cmd, heredocs: cmd.heredocs.map((h) => (h.expands ? { body: fillKnown(h.body, k), expands: false } : h)) } : cmd;
+    expand(filled, k?.size ? substituteKnown(cmd.argv, k) : cmd.argv, via, depth, out);
   });
   for (const n of script.nested) walk(n, via, depth + 1, out);
 }
@@ -358,6 +405,17 @@ export function substituteKnown(words: readonly Word[], known: ReadonlyMap<strin
   });
 }
 
+/**
+ * A here-document's body as the shell hands it on behind an unquoted delimiter, with the known variables filled in: one
+ * pass, so a backslash takes off one level (`\\$D` is a backslash and the value, `\$D` the text `$D`) and a value's own
+ * backslashes stay.
+ */
+function fillKnown(body: string, known: ReadonlyMap<string, string>): string {
+  return body.replace(/\\([$`\\]|\n)|\$\{(\w+)\}|\$(\w+)/g, (whole, esc: string | undefined, a: string | undefined, b: string | undefined) =>
+    esc !== undefined ? (esc === '\n' ? '' : esc) : (known.get((a ?? b)!) ?? whole),
+  );
+}
+
 function texts(words: readonly Word[]): string[] {
   return words.map((w) => w.text);
 }
@@ -415,7 +473,7 @@ function expand(cmd: SimpleCommand, argv: readonly Word[], via: string[], depth:
 
   // What comes down a pipe into a shell or an interpreter (`curl … | sh`, `… | base64 -d | bash`) runs unseen, as a
   // script handed over by process substitution does (`bash <(curl …)`): asked about, as `… | iex` is.
-  if ((cmd.piped && readsCodeFromStdin(program, rest)) || (STDIN_CODE.has(program.replace(/[0-9.]+$/, '')) && rest[0]?.text === '<(…)'))
+  if ((cmd.piped && readsCodeFromStdin(program, rest)) || (STDIN_CODE.has(program.replace(/[0-9.]+t?$/, '')) && rest[0]?.text === '<(…)'))
     out.issues.push('stdin-code');
 
   // ── interpreters: a string becomes commands ───────────────────────────────────────────────────────
@@ -474,7 +532,8 @@ function expand(cmd: SimpleCommand, argv: readonly Word[], via: string[], depth:
       return k !== -1 && opts[k + 1] && !opts[k + 1]!.dynamic ? opts[k + 1]!.text : null;
     };
     const before = out.invocations.length;
-    if (inner.length) expand({ ...cmd, dialect: 'bash', heredocs: [] }, inner, [...via, 'wsl'], depth + 1, out);
+    // What wsl is given on its standard input reaches the command it runs.
+    if (inner.length) expand({ ...cmd, dialect: 'bash' }, inner, [...via, 'wsl'], depth + 1, out);
     const guest = { distro: valueOf('-d', '--distribution'), cd: valueOf('--cd') };
     for (const inv of out.invocations.slice(before)) inv.guest ??= guest;
     return;
@@ -524,11 +583,15 @@ function record(cmd: SimpleCommand, argv: readonly Word[], program: string, via:
     via,
     raw: cmd.raw,
   };
-  const versionless = program.replace(/[0-9.]+$/, '');
+  const versionless = program.replace(/[0-9.]+t?$/, '');
   const flags = Object.hasOwn(CODE_FLAGS, versionless) ? CODE_FLAGS[versionless] : Object.hasOwn(CODE_FLAGS, program) ? CODE_FLAGS[program] : undefined;
   if (flags) {
     const i = rest.findIndex((w) => flags.includes(w.text));
     if (i !== -1 && rest[i + 1]) inv.inlineCode = rest[i + 1]!.text;
+    // The code may come on standard input instead: a here-document's body or a here-string. Where the option's word
+    // stands among the script's own arguments (`python3 - x -c y <<EOF`), the body is the program and both are read.
+    const given = stdinProgram(cmd, program, rest);
+    if (given !== undefined) inv.inlineCode = inv.inlineCode === undefined ? given : `${inv.inlineCode}\n${given}`;
   }
   // `"$JAVA_HOME/bin/java"` is still java; only a name that is itself a runtime value is unknown.
   const base = first.text.split(/[\\/]/).pop() ?? first.text;

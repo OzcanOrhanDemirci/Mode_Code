@@ -175,3 +175,123 @@ test('names every JavaScript object has are ordinary words to the parsers and th
       assert.ok(['allow', 'ask', 'warn', 'deny'].includes((await evaluateToolCall('Bash', { command: cmd }, winCtx())).verdict), cmd);
   }
 });
+
+/** Each invocation's inline code (undefined when it has none), for compact assertions. */
+const codes = (command: string) => analyzeCommand(command, 'bash').invocations.map((i) => i.inlineCode);
+
+test('what an interpreter is handed on standard input as its program is its inline code: a here-document, a here-string', () => {
+  const body = 'print(1)';
+  // Every interpreter the belt reads inline, told to read its program from standard input, or given no script.
+  for (const head of [
+    'python3 -',
+    'python -',
+    'python3.12 -',
+    'py -3 -',
+    'python3',
+    'node -',
+    'node',
+    'ruby -',
+    'ruby',
+    'perl -',
+    'perl',
+    'php',
+    'osascript -',
+    'osascript',
+    'bun run -',
+    'bun -',
+    'deno run -',
+    'deno -',
+  ])
+    assert.deepEqual(codes(`${head} <<'EOF'\n${body}\nEOF\n`), [body], head);
+  assert.deepEqual(codes(`python3 - <<< 'print(2)'`), ['print(2)'], 'a here-string');
+  assert.deepEqual(codes('node <<< "console.log(2)"'), ['console.log(2)']);
+  // Options come first, and standard input may be named by its file.
+  for (const head of [
+    'python3 -u -',
+    'python3 -W ignore -',
+    'python3 -I -',
+    'python3 -E',
+    'python3 -E -',
+    'python3 -B -X utf8',
+    'node --input-type=module -',
+    'node -r ./a.js -',
+    'perl -w -',
+    'ruby -w',
+    'python3 /dev/stdin',
+    'node /dev/stdin',
+    'deno run --allow-all -',
+  ])
+    assert.deepEqual(codes(`${head} <<'EOF'\n${body}\nEOF\n`), [body], head);
+  // Through the wrappers, the paths and the versions the program goes by.
+  for (const head of [
+    'sudo python3 -',
+    'sudo -u ada python3 -',
+    'env A=1 python3 -',
+    'nohup python3 -',
+    'time python3 -',
+    'timeout 5 python3 -',
+    '/usr/bin/python3 -',
+    'C:/Python/python.exe -',
+  ])
+    assert.deepEqual(codes(`${head} <<'EOF'\n${body}\nEOF\n`), [body], head);
+});
+
+test('a here-document that is data, or code an option carries, is not the interpreter’s program', () => {
+  const doc = "<<'EOF'\nprint(1)\nEOF\n";
+  for (const command of [
+    `python3 check.py ${doc}`,
+    `python3 -m json.tool ${doc}`,
+    `python3 -mjson.tool ${doc}`,
+    `node check.js ${doc}`,
+    `node --require ./a.js check.js ${doc}`,
+    `ruby run.rb ${doc}`,
+    `perl check.pl ${doc}`,
+    `bun ${doc}`,
+    `bun run run - ${doc}`,
+    `python3 run ${doc}`,
+    `bun run build ${doc}`,
+    `bun test ${doc}`,
+    `deno ${doc}`,
+    `deno test ${doc}`,
+    `php artisan x ${doc}`,
+    `cat ${doc}`,
+    `tee out.txt ${doc}`,
+    `git commit -F - ${doc}`,
+    `curl -d @- https://example.com ${doc}`,
+    `psql ${doc}`,
+    `sort ${doc}`,
+    `grep x ${doc}`,
+  ])
+    assert.deepEqual(codes(command), [undefined], command);
+  // Inline code is the program, and a here-document beside it is its input.
+  assert.deepEqual(codes(`python3 -c 'print(2)' ${doc}`), ['print(2)']);
+  assert.deepEqual(codes(`node -e 'x' ${doc}`), ['x']);
+  assert.deepEqual(codes(`ruby -e 'x' -`), ['x'], 'a dash beside inline code is an argument of it');
+  // A here-document of another command in a pipeline or a list stays that command's.
+  assert.deepEqual(codes(`cat <<'EOF' | python3 check.py\nx\nEOF\n`), [undefined, undefined]);
+  assert.deepEqual(codes(`cat <<'EOF' && python3 - <<'PY'\nx\nEOF\nprint(3)\nPY\n`), [undefined, 'print(3)']);
+});
+
+test('the code is what the interpreter receives: an unquoted delimiter lets the shell take backslashes off, a quoted one does not', () => {
+  assert.deepEqual(codes("python3 - <<'EOF'\nprint('\\\\$HOME \\n')\nEOF"), ["print('\\\\$HOME \\n')"]);
+  assert.deepEqual(codes('python3 - <<EOF\nprint("\\\\ \\$HOME \\` \\n")\nEOF'), ['print("\\ $HOME ` \\n")']);
+  assert.deepEqual(codes('python3 - <<EOF\nx = 1 + \\\n2\nEOF'), ['x = 1 + 2'], 'a backslash at a line end joins the lines');
+  assert.deepEqual(codes('python3 - <<"EOF"\nx = 1 + \\\n2\nEOF'), ['x = 1 + \\\n2'], 'a quoted delimiter of either kind');
+  assert.deepEqual(codes('python3 - <<\\EOF\nx = 1 + \\\n2\nEOF'), ['x = 1 + \\\n2'], 'a backslash before the delimiter quotes it');
+  // The delimiter's own text, the dash form, the line ending, a body never closed.
+  assert.deepEqual(codes("python3 - <<'EOF'\nEOF2\n EOF\nEOF \nx\nEOF\n"), ['EOF2\n EOF\nEOF \nx']);
+  assert.deepEqual(codes('python3 - <<-EOF\n\tx = 1\n\tEOF\n'), ['\tx = 1'], 'the dash form: a tab before the delimiter ends it');
+  assert.deepEqual(codes("python3 - <<'EOF'\r\nx = 1\r\ny = 2\r\nEOF\r\n"), ['x = 1\ny = 2'], 'a line ending of two characters');
+  assert.deepEqual(codes("python3 - <<'EOF'\nx = 1\ny = 2"), ['x = 1\ny = 2'], 'never closed: all that follows');
+  assert.deepEqual(analyzeCommand("python3 - <<'EOF'\nx = 1", 'bash').issues, ['heredoc-unterminated']);
+  assert.deepEqual(codes("python3 - <<'EOF'\nEOF\n"), [''], 'an empty body');
+});
+
+test('every here-document and here-string of the command counts, whichever one reaches the input', () => {
+  assert.deepEqual(codes("python3 - <<'A' <<'B'\none\nA\ntwo\nB\n"), ['one\ntwo']);
+  assert.deepEqual(codes("python3 - 3<<'A' <<'B'\none\nA\ntwo\nB\n"), ['one\ntwo'], 'one for another file descriptor does not hide the other');
+  assert.deepEqual(codes("python3 - <<'A' <<< 'two'\none\nA\n"), ['one\ntwo']);
+  assert.deepEqual(codes("python3 - <<'A' && python3 - <<'B'\none\nA\ntwo\nB\n"), ['one', 'two'], 'each command has its own');
+  assert.deepEqual(codes("echo x | python3 - <<'A'\none\nA\n"), [undefined, 'one'], 'after a pipe');
+  assert.deepEqual(codes("cd app && python3 - <<'A' || true\none\nA\n"), [undefined, 'one', undefined], 'inside a list');
+});
