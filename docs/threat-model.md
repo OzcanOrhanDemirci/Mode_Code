@@ -101,7 +101,7 @@ Three numbers, measured for every release and written down, with the target at 1
 - **Protection:** of public attack sets for coding agents, how much it stops.
 - **Freedom:** of the questions the person used to get, how many now pass without one.
 
-Attack sets are kept out of the public repository; their runner prints totals, categories and digests only, never their content. An independent red team works in sessions of its own.
+Attack sets are kept out of the public repository; their runner prints totals, categories and digests only, never their content.
 
 ### Measured for 1.2.0
 
