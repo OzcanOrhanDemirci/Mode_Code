@@ -127,9 +127,7 @@ export function sendHosts(program: string, args: readonly string[], dynamic: rea
     // A bare host: `nc host 9000`, `curl -d x example.com/api`.
     const bare = args.find(
       (a, i) =>
-        !dynamic[i] &&
-        !a.startsWith('-') &&
-        /^(?:[a-z0-9-]+\.)+[a-z]{2,}(?:[:/].*)?$|^localhost(?:[:/].*)?$|^(?!127\.|0\.0\.0\.0(?:[:/]|$))(?:\d{1,3}\.){3}\d{1,3}(?:[:/].*)?$/i.test(a),
+        !dynamic[i] && !a.startsWith('-') && /^(?:[a-z0-9-]+\.)+[a-z]{2,}(?:[:/].*)?$|^localhost(?:[:/].*)?$|^(?:\d{1,3}\.){3}\d{1,3}(?:[:/].*)?$/i.test(a),
     );
     if (bare) hosts.push(bare.split(/[:/]/)[0]!.toLowerCase());
   }
