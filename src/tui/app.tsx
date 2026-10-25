@@ -138,7 +138,7 @@ export function App(props: AppProps) {
   const viewRef = useRef<DOMElement>(null);
   const contentRef = useRef<DOMElement>(null);
   const focusNode = useRef<DOMElement | null>(null);
-  const lastFocus = useRef<{ node: DOMElement | null; top: number; height: number } | null>(null);
+  const lastFocus = useRef<{ node: DOMElement | null; top: number; height: number; seen: boolean; view: number } | null>(null);
   const [more, setMore] = useState(false);
   const scrollNow = useRef(0);
   scrollNow.current = scroll;
@@ -146,8 +146,9 @@ export function App(props: AppProps) {
   openNow.current = open;
   /**
    * Measures the open page as drawn: brings the focus into view when it moved (another element, or the same one moved on
-   * the page), the page scrolling up until its last line shows, or down; scrolling by hand is left alone until then. A
-   * page that runs on below says so on its last line.
+   * the page) or when the view shrank under it (the line saying the page runs on came below), the page scrolling up
+   * until its last line shows, or down; scrolling by hand is left alone until then. A page that runs on below says so on
+   * its last line.
    */
   const measure = useCallback(() => {
     const view = viewRef.current;
@@ -158,14 +159,19 @@ export function App(props: AppProps) {
     const c = measureElement(content);
     const f = focusNode.current ? measureElement(focusNode.current) : null;
     let next = scroll;
+    const seen = !!f && f.y >= v.y && f.y + f.height <= v.y + v.height;
     const at = f && f.height ? { node: focusNode.current, top: f.y - c.y, height: f.height } : null;
     const last = lastFocus.current;
-    if (at && f && (!last || last.node !== at.node || last.top !== at.top || last.height !== at.height)) {
+    const moved = !last || last.node !== at?.node || last.top !== at.top || last.height !== at.height;
+    // The view shrank and hid a focus it showed (not a scroll by hand: that leaves the view as it was).
+    const hidden = !moved && last.seen && !seen && last.view !== v.height;
+    if (at && f && (moved || hidden)) {
       if (f.y + f.height > v.y + v.height) next = scroll + (f.y + f.height - (v.y + v.height));
       else if (f.y < v.y) next = scroll - (v.y - f.y);
     }
-    lastFocus.current = at;
     next = Math.max(0, Math.min(next, c.height - v.height));
+    // Whether it is in view once this measure's scroll is drawn: kept so, unless the person scrolls it away.
+    lastFocus.current = at ? { ...at, seen: seen || next !== scroll, view: v.height } : null;
     if (next !== scroll) setScroll(next);
     setMore(c.height - next > v.height);
   }, []);
@@ -214,6 +220,19 @@ export function App(props: AppProps) {
   }, [rawList, filter]);
   const index = Math.min(sel[listKey] ?? 0, Math.max(0, list.length - 1));
   const selected = list[index] ?? null;
+
+  // Another page (opened or closed, another list or item) starts at its top with nothing focused on it yet. Reset as
+  // it draws, not in an effect: the focused element's effect runs before the page's, so the page's reset wiped the
+  // scroll and the focus that element had just kept in view, and when nothing else drew again the focus stayed out of
+  // view (a 12-row terminal in CI, now and then).
+  const page = `${open}\u0000${listKey}\u0000${index}`;
+  const pageNow = useRef(page);
+  if (pageNow.current !== page) {
+    pageNow.current = page;
+    focusNode.current = null;
+    lastFocus.current = null;
+    if (scroll !== 0) setScroll(0);
+  }
 
   const go = (address: string) => {
     // An old address (the map before 1.2) leads where its page went.
@@ -293,10 +312,6 @@ export function App(props: AppProps) {
     if (props.notice) showFlash(props.notice.text, props.notice.kind);
   }, []);
 
-  useEffect(() => {
-    setScroll(0);
-    focusNode.current = null;
-  }, [open, listKey, index]);
   useEffect(measure);
 
   // Live: what changes on disk shows at once (data.watch), and every 15 seconds besides (a clock, an age); the session

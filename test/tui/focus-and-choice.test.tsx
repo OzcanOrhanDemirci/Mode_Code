@@ -25,6 +25,16 @@ test('the focus stays in view on a long page, and a page that runs on says so; s
   } finally {
     s.close();
   }
+  // Opened at its address on a short terminal, the page shows its focus, also once the line saying it runs on has taken
+  // a row from the view (that row hid the focus, now and then, in CI).
+  const short = await draw(new FakeData(), { address: 'memory/notes', rows: 12 });
+  try {
+    for (let i = 0; i < 100 && !/▸ Handoff notes/.test(short.text()); i++) await new Promise((r) => setTimeout(r, 15));
+    assert.match(short.text(), /▸ Handoff notes/);
+    assert.match(short.text(), /More below · PgDn/);
+  } finally {
+    short.close();
+  }
   // A page that fits says nothing.
   const fits = await draw(new FakeData(), { address: 'settings/general', columns: 100, rows: 40 });
   try {
