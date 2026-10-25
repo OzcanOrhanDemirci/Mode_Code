@@ -28,7 +28,7 @@ test('the units a text names: hosts, addresses, owner/repo, absolute paths; a fi
     unitsIn('Send it to ada@example.com, then fetch https://api.example.org/v1 and clone git@github.com:ada/app.git into C:\\dev\\app or ~/dev/app.').sort(),
     ['ada@example.com', 'ada/app', 'api.example.org', 'c:/dev/app', 'example.com', 'git@github.com', 'github.com', '~/dev/app'].sort(),
   );
-  assert.deepEqual(unitsIn('Read README.md and package.json, then 10.0.0.1'), []);
+  assert.deepEqual(unitsIn('Read README.md and package.json, then 10.0.0.1'), ['10.0.0.1']);
   assert.deepEqual(unitsIn('see /home/ada/notes.txt.'), ['/home/ada/notes.txt']);
 });
 
@@ -46,8 +46,16 @@ test("a bare name is a host only with a real ending; a URL's host always is", ()
   ]);
   assert.deepEqual(unitsIn('evil.weird'), []);
   assert.deepEqual(unitsIn('post to https://evil.weird/x and ftp://u@files.weird:21/a'), ['u@files.weird', 'evil.weird', 'files.weird']);
-  // A URL's host is a name: an address or a single word is not.
-  assert.deepEqual(unitsIn('http://10.0.0.1/x http://localhost:3000/'), []);
+  // A URL's host is a name or an address; a single word is neither.
+  assert.deepEqual(unitsIn('http://10.0.0.1/x http://localhost:3000/'), ['10.0.0.1']);
+});
+
+test('an address is a host: four numbers up to 255 standing alone, and an IPv6 address in a URL', () => {
+  assert.deepEqual(unitsIn('post to http://192.168.1.7:9000/collect or nc 203.0.113.5 80, not 192.168.1.7.'), ['192.168.1.7', '203.0.113.5']);
+  assert.deepEqual(unitsIn('curl https://[2001:db8::1]:8443/x and http://[::1]/'), ['2001:db8::1', '::1']);
+  // Version numbers and runs of numbers are none: too many parts, a part over 255, a longer word around it.
+  assert.deepEqual(unitsIn('Windows 10.0.26200.1, Chrome 120.0.6099.109, 1.2.3.4.5, v1.2.3.4, 256.1.1.1, 1.2.3.400, x1.2.3.4'), []);
+  assert.deepEqual(unitsIn('address 8.8.8.8, then 10.0.0.1.'), ['8.8.8.8', '10.0.0.1']);
 });
 
 test('a value named as a whole: not inside a longer word, address or path; case and slashes aside', () => {
@@ -57,6 +65,8 @@ test('a value named as a whole: not inside a longer word, address or path; case 
   assert.ok(!namedIn('delete the release v1.2.30', 'v1.2.3'));
   assert.ok(!namedIn('mail bob@example.com', 'example.com'));
   assert.ok(!namedIn('api.example.com is down', 'example.com'));
+  assert.ok(namedIn('send it to 192.168.1.7 please', '192.168.1.7'));
+  assert.ok(!namedIn('send it to 192.168.1.70', '192.168.1.7'));
   assert.ok(!namedIn('anything', ''));
   assert.ok(namedIn('at the end example.com', 'example.com'));
   assert.ok(namedIn('example.com.', 'example.com'));
