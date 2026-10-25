@@ -327,7 +327,7 @@ function makeWorker(i) {
 
 function runTests(dir, tests, timeoutMs = 120_000) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, ['--import', 'tsx', '--import', './test/helpers/clean-env.mjs', '--test', '--test-reporter=dot', ...tests], {
+    const child = spawn(process.execPath, ['--import', 'tsx', '--test', '--test-reporter=dot', ...tests], {
       cwd: dir,
       windowsHide: true,
       stdio: 'ignore',

@@ -39,7 +39,7 @@ test('a new session, as it starts: free, its own mode, manual, nothing attached'
   assert.equal(f.style, 'manual');
   assert.equal(f.flow, null);
   // What only a running session knows is left empty: no turn at work, the belt as the settings have it.
-  assert.deepEqual([f.working, f.beltOff, f.mo, f.calls.length, f.agents.length], [false, false, 'idle', 0, 0]);
+  assert.deepEqual([f.working, f.mo, f.calls.length, f.agents.length], [false, 'idle', 0, 0]);
   // The cockpit's lines come from these facts as they do inside a session.
   assert.deepEqual(
     canNow(f, 'en').map((r) => r.id),

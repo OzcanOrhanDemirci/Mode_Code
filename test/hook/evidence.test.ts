@@ -21,7 +21,7 @@ function run(input: object, home: string): Record<string, any> | null {
     cwd: root,
     input: JSON.stringify(input),
     encoding: 'utf8',
-    env: { ...process.env, MODE_CODE_HOME: home, MODE_CODE_LANG: 'en', MODE_CODE_DEV_BELT_OFF: '' },
+    env: { ...process.env, MODE_CODE_HOME: home, MODE_CODE_LANG: 'en' },
     timeout: 30_000,
   });
   const text = (r.stdout ?? '').trim();

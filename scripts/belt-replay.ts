@@ -289,7 +289,6 @@ async function run(): Promise<void> {
   console.log(JSON.stringify({ seconds: Math.round((Date.now() - started) / 1000), config: opt('config') ?? 'mine', sources: summarize(judged) }, null, 1));
 }
 
-delete process.env.MODE_CODE_DEV_BELT_OFF;
 if (argv[0] === 'convert') await convert();
 else if (argv[0] === 'run') await run();
 else throw new Error('usage: belt-replay.ts convert … | run …');

@@ -203,8 +203,6 @@ export const en = {
   'status.free': 'free',
   'status.wrapUp': 'wrapping up',
   'quota.boundary': '{kind}: a good moment for /clear before the next task; every call reads the {tokens} of context again.',
-  // TEMPORARY (src/core/dev-switch.ts).
-  'dev.beltOff.band': '🛑 Development: the safety belt is off in this session (MODE_CODE_DEV_BELT_OFF). Nothing is asked or blocked.',
   'status.five': '5h {n}%',
   'status.week': 'week {n}%',
   'status.weekTarget': 'week {n}/{target}%',

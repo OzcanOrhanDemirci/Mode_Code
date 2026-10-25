@@ -47,8 +47,6 @@ export interface CockpitFacts {
   modeFrom: ModeFrom;
   style: Style;
   now: number;
-  /** The development switch has the belt off (src/core/dev-switch.ts). */
-  beltOff: boolean;
   quota: QuotaAssessment;
   /** A model turn of the main conversation runs. */
   working: boolean;
@@ -175,7 +173,7 @@ const t = (lang: Lang, key: string, p?: Record<string, string | number>) => tIn(
 
 /** The cockpit's facts, as the why engine reads them. */
 function whyFacts(f: CockpitFacts): WhyFacts {
-  return { config: f.config, session: f.session, now: f.now, beltOff: f.beltOff };
+  return { config: f.config, session: f.session, now: f.now };
 }
 
 /**
@@ -247,10 +245,9 @@ export function canNow(f: CockpitFacts, lang: Lang): CanRow[] {
     );
   else add({ id: 'write', mark: 'ok', meaning: 'on', text: t(lang, 'ck.can.write.yes'), act: null }, mode, [t(lang, 'ck.r.beltWatches')]);
 
-  // Risky steps: the safety belt asks, or in full autonomy leaves them to you; the development switch has the belt off.
+  // Risky steps: the safety belt asks, or in full autonomy leaves them to you.
   const level = levelOf(f.style);
-  if (f.beltOff) add({ id: 'risky', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.risky.devOff'), act: null }, why('belt', wf, lang));
-  else if (restricted) add({ id: 'risky', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.risky.mode'), act: null }, mode);
+  if (restricted) add({ id: 'risky', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.risky.mode'), act: null }, mode);
   else if (level === 'full') add({ id: 'risky', mark: 'none', meaning: 'off', text: t(lang, 'ck.can.risky.full'), act: null }, why('style', wf, lang));
   else add({ id: 'risky', mark: 'ask', meaning: 'ask', text: t(lang, 'ck.can.risky.ask'), act: null }, why('belt', wf, lang));
 
@@ -264,8 +261,7 @@ export function canNow(f: CockpitFacts, lang: Lang): CanRow[] {
     card: t(lang, 'ck.act.ruleCard'),
     opens: true,
   };
-  if (f.beltOff) add({ id: 'delete', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.delete.devOff'), act: null }, why('belt', wf, lang));
-  else if (restricted) add({ id: 'delete', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.delete.no'), act: null }, mode);
+  if (restricted) add({ id: 'delete', mark: 'bad', meaning: 'bad', text: t(lang, 'ck.can.delete.no'), act: null }, mode);
   else if (act === 'self' && level === 'full')
     add({ id: 'delete', mark: 'none', meaning: 'off', text: t(lang, 'ck.can.delete.left'), act: rule }, whyRule(delId, wf, lang));
   else if (act === 'self' || act === 'stop')
@@ -324,7 +320,7 @@ export function canNow(f: CockpitFacts, lang: Lang): CanRow[] {
     );
 
   // Outside content read: what an instruction hidden in it would ask for is asked from then on.
-  if (f.session?.tainted && !f.beltOff)
+  if (f.session?.tainted)
     add({ id: 'taint', mark: 'ask', meaning: 'ask', text: t(lang, 'ck.can.taint'), act: null }, why('taint', wf, lang), [t(lang, 'ck.r.taintClean')]);
 
   // The quota: near its limit the work wraps up; at it, the work stops until the period starts over.

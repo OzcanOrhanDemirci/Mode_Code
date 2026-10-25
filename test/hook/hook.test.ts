@@ -62,26 +62,6 @@ test('a write into the tool data folder is denied, with the reason in the person
   }
 });
 
-test('the development switch: a session started with the belt off passes what the belt denies (temporary)', () => {
-  const home = fresh();
-  try {
-    const call = {
-      ...base(home),
-      hook_event_name: 'PreToolUse',
-      tool_name: 'Write',
-      tool_use_id: 'toolu_dev',
-      tool_input: { file_path: join(home, 'x.txt'), content: 'hi' },
-    };
-    const off = run('PreToolUse', call, home, { MODE_CODE_DEV_BELT_OFF: '1' });
-    assert.equal(off.status, 0, off.stderr);
-    assert.equal(off.out, null);
-    const on = run('PreToolUse', call, home, { MODE_CODE_DEV_BELT_OFF: '0' });
-    assert.equal(on.out?.hookSpecificOutput?.permissionDecision, 'deny');
-  } finally {
-    rmSync(home, { recursive: true, force: true });
-  }
-});
-
 test('a Monitor script is read like a Bash command: a write into the data folder is denied, a log watch passes', () => {
   const home = fresh();
   try {

@@ -52,7 +52,6 @@ export function centerFacts(i: {
     modeFrom,
     style: styleOf(s?.interaction ?? 'default'),
     now: i.now,
-    beltOff: false,
     quota: i.quota,
     working: false,
     mo: 'idle',
