@@ -33,8 +33,6 @@ export interface WhyFacts {
   config: Readonly<Config>;
   session: Pick<ModSessionState, 'mode' | 'interaction' | 'tainted' | 'frozen' | 'agents'> | null;
   now: number;
-  /** Mode_Code's development switch has the belt off in this session (temporary, src/core/dev-switch.ts). */
-  beltOff?: boolean;
 }
 
 export const WHY_SUBJECTS = [
@@ -101,7 +99,6 @@ export function why(subject: WhySubject, f: WhyFacts, lang: Lang): WhyAnswer {
   const s = f.session;
   switch (subject) {
     case 'belt':
-      if (f.beltOff) return answer(t('why.belt.devOff'), [said('why.r.devSwitch')]);
       return answer(t('why.belt.on'), [said('why.r.beltAlways')]);
     case 'mode': {
       if (!on('modules.modes')) return answer(t('why.mode.off'), [setting('modules.modes')]);

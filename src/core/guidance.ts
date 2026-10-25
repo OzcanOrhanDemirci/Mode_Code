@@ -378,11 +378,6 @@ export function nearKeywordNote(keyword: string): string {
   return `${P} The person's message looks like the keyword "${keyword}" with a typo; it was not applied. If they meant it, they type it exactly as "${keyword}"; otherwise read the message as it is.`;
 }
 
-/** TEMPORARY (src/core/dev-switch.ts): told with every prompt of a session the person started with the belt off. */
-export function devBeltOffNote(): string {
-  return `${P} The safety belt is off in this session: the person started it so (MODE_CODE_DEV_BELT_OFF) to develop Mode_Code. Nothing is asked or blocked, Mode_Code's own files included. Take the care the belt would: the reversible path, nothing outside the task.`;
-}
-
 /** What Mode_Code adds by itself to a session's first prompt, together, at most: about 1,500 tokens (A8 of 1.2.0). */
 export const START_CHARS = 6000;
 

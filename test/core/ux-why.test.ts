@@ -52,7 +52,6 @@ const CASES: [string, WhySubject, WhyFacts, RegExp, (string | null)[]][] = [
   ['packs automatic', 'packs', facts({ 'packs.autoUse': true }), /where a project needs them/, ['packs.autoUse']],
   ['update check off', 'update', facts({ 'update.check': false }), /^never by itself$/, ['update.check']],
   ['memory not set up', 'memory', facts(), /^not set up$/, [null]],
-  ['belt off for development', 'belt', facts({}, {}, { beltOff: true }), /development switch/, [null]],
   ['outside a session', 'agents', facts({ 'agents.enabled': true }, null), /^none in this session/, ['agents.enabled', null]],
 ];
 

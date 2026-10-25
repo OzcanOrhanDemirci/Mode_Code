@@ -41,7 +41,6 @@ import { newestHandoffAt, projectKeyAt, pruneHandoffs } from '../node/handoffs.j
 import { withHost } from '../node/host.js';
 import { layNet, pruneNets } from '../node/net.js';
 import type { BeltDecision } from '../core/belt/types.js';
-import { beltOffForDevelopment } from '../core/dev-switch.js';
 
 type Input = Record<string, unknown>;
 
@@ -72,7 +71,6 @@ async function preToolUse(input: Input, lang: Lang): Promise<void> {
   const modFile = sessionFile(l, sessionId, 'mod');
   const mod = modFile ? parseModState(readText(modFile)) : null;
   recordPermissionMode(l, sessionId, str(input.permission_mode), now);
-  if (beltOffForDevelopment(process.env)) return; // TEMPORARY (src/core/dev-switch.ts): the person turned the belt off to develop Mode_Code
 
   // The way of working the plugin recorded for the session says how much is asked (Manual without one). The safety
   // net is laid here, in a process of its own, before the call runs (src/core/net.ts); the doctor's samples lay none.

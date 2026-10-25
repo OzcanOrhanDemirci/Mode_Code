@@ -66,7 +66,6 @@ import { promisedIn } from '../core/manual.js';
 import type { RuleId } from '../core/belt/types.js';
 import { claudeHost } from './kit-host.js';
 import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
-import { beltOffForDevelopment } from '../core/dev-switch.js';
 import { taintedAct, taintMatters, taintSource, withoutInvisible } from '../core/taint.js';
 import {
   madePaths,
@@ -168,7 +167,6 @@ import {
   flowTurnContext,
   keywordContext,
   nearKeywordNote,
-  devBeltOffNote,
   freezeNote,
   fullTurnNote,
   verifyNote,
@@ -457,7 +455,6 @@ async function readEnv($: $): Promise<Record<string, string | undefined>> {
     WSL_DISTRO_NAME,
     COMPUTERNAME,
     HOSTNAME,
-    MODE_CODE_DEV_BELT_OFF,
   ] = await Promise.all([
     $.env.get('HOME'),
     $.env.get('USERPROFILE'),
@@ -481,8 +478,6 @@ async function readEnv($: $): Promise<Record<string, string | undefined>> {
     $.env.get('WSL_DISTRO_NAME'),
     $.env.get('COMPUTERNAME'),
     $.env.get('HOSTNAME'),
-    // TEMPORARY (src/core/dev-switch.ts).
-    $.env.get('MODE_CODE_DEV_BELT_OFF'),
   ]);
   return {
     HOME,
@@ -507,7 +502,6 @@ async function readEnv($: $): Promise<Record<string, string | undefined>> {
     WSL_DISTRO_NAME,
     COMPUTERNAME,
     HOSTNAME,
-    MODE_CODE_DEV_BELT_OFF,
   };
 }
 
@@ -1571,11 +1565,6 @@ async function refreshStatus($: $, c: Ctx): Promise<void> {
       }
     }
   }
-  // TEMPORARY (src/core/dev-switch.ts): in view for as long as the belt is off.
-  if (beltOffForDevelopment(c.env)) {
-    band = tIn(c.lang, 'dev.beltOff.band');
-    bandMeaning = null;
-  }
   if (!band && c.boundary) {
     band = tIn(c.lang, 'quota.boundary', { kind: c.boundary.kind, tokens: compact(c.boundary.tokens, c.lang) });
     bandMeaning = 'on';
@@ -1882,8 +1871,6 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
     const reason = tIn(c.lang, 'belt.reason.tainted', { source: c.state.tainted.source, act, what: truncate(maskSecrets(tainted.what), 160) });
     d = mergeDecisions(d, decide([{ rule: 'inject.tainted-act', verdict: 'ask', reason }], [], ctx));
   }
-  // TEMPORARY (src/core/dev-switch.ts): the person started this session with the belt off to develop Mode_Code.
-  if (beltOffForDevelopment(c.env)) d = { verdict: 'allow', findings: [], issues: [] };
   const rules = d.findings.map((f) => f.rule);
 
   if (d.verdict === 'deny') {
@@ -2101,7 +2088,6 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
     if (c.state.turnMode) c.state = { ...c.state, turnMode: null };
     await heartbeat($, c);
     extra.push(...own(await sameFolderNotes($, c)));
-    if (beltOffForDevelopment(c.env)) extra.push(devBeltOffNote());
   }
   let flowSaid = false;
   // The first prompt after the session took up the folder's last choice: the model is told what holds,
@@ -4011,7 +3997,7 @@ async function onCommand($: $, e: In<'command.run'>, next: Nx<'command.run'>): O
  * or one rule of the belt with one, and "last" for the last call this session refused, with its rule's reasons.
  */
 async function whyAnswer($: $, c: Ctx, word: string): Promise<string> {
-  const facts: WhyFacts = { config: c.config, session: c.state, now: await $.clock.now(), beltOff: beltOffForDevelopment(c.env) };
+  const facts: WhyFacts = { config: c.config, session: c.state, now: await $.clock.now() };
   const w = word.trim();
   if (!w) return whyAll(facts, c.lang).map(whyText).join('\n');
   if ((RULE_IDS as readonly string[]).includes(w)) return whyText(whyRule(w as RuleId, facts, c.lang));
@@ -4846,7 +4832,6 @@ async function publishCockpit($: $, c: Ctx): Promise<void> {
         modeFrom: modeFromOf(c),
         style: styleOf(c.state.interaction),
         now,
-        beltOff: beltOffForDevelopment(c.env),
         quota: await quotaNow($, c),
         working,
         mo: moState(
