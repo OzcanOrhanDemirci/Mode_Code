@@ -154,7 +154,7 @@ export const tr: Record<MessageKey, string> = {
   'guard.quota.heavy': 'Kota bütçesi doldu: yeni ajan, iş akışı ya da web araştırması yok. Elindeki adımı toparla ve raporla.',
   'guard.quota.stop': 'Kotanın kesin sınırına gelindi: yalnız okuma, not ya da hafıza kaydı ve commit serbest. Raporla ve dur.',
 
-  'footer.check.head': 'Cevabının altındaki satırlar gerçekle uyuşmuyor: {problems}.',
+  'footer.check.head': 'Cevap sonu özetin gerçekle uyuşmuyor: {problems}.',
   'footer.check.tail': 'Yalnız şu satırlarla yeniden cevap ver, başka hiçbir şey yazma:',
 
   'belt.ask.question': 'Emniyet kemeri bir {tool} çağrısını durdurdu. {reasons} Bu seferlik izin verilsin mi?',

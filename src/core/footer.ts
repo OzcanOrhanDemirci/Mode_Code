@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
- * The footer lines under each answer: whether memory was pushed, whether anything changed, and quota
+ * The answer summary under each answer: whether memory was pushed, whether anything changed, and quota
  * when it matters. Computed by code from facts, never guessed by the model.
  *
  * Two ways to show them (a setting): the mod draws them under the answer (`turn.complete`), or the model
@@ -239,7 +239,7 @@ export function buildFooter(f: FooterFacts, lang: Lang): Footer {
 }
 
 /**
- * Checks footer lines the model wrote against the computed ones. Returns the problems found ([] = right).
+ * Checks an answer summary the model wrote against the computed ones. Returns the problems found ([] = right).
  * Memory must match exactly · "changed" must say yes when something changed (when nothing was seen, either
  * answer passes: scripts are a blind spot) · quota lines are required only when shown, within 2 points.
  * The lines must be among the last 8 non-empty lines; markdown emphasis around them is ignored.

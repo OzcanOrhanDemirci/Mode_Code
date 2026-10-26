@@ -148,7 +148,7 @@ export function keywordSuite(): Promise<SuiteResult> {
   );
 }
 
-/** Footer lines: what is built is what the check accepts, in both languages. */
+/** The answer summary: what is built is what the check accepts, in both languages. */
 export function footerSuite(): Promise<SuiteResult> {
   const langs = Object.keys(LANGUAGES) as Lang[];
   return runSuite(

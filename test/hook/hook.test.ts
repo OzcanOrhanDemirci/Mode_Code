@@ -191,7 +191,7 @@ test('a keyword adds its context when the mod is not running', () => {
   }
 });
 
-test('in check mode the Stop hook sends wrong footer lines back once', () => {
+test('in check mode the Stop hook sends a wrong answer summary back once', () => {
   const home = fresh({ footer: { mode: 'check' } });
   try {
     const transcript = join(home, 't.jsonl');

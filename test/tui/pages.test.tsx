@@ -37,11 +37,11 @@ test('a setting that matters only under another stands under it; while that one 
   const data = new FakeData('tr');
   const s = await draw(data, { address: 'settings/footer', rows: 44, columns: 100 });
   try {
-    assert.match(s.text(), / {4}Satırları kim yazar/);
+    assert.match(s.text(), / {4}Özeti kim yazar/);
     assert.doesNotMatch(s.text(), /şu an etkisiz/);
-    await s.press(KEY.enter); // the lines under answers off
-    assert.match(s.text(), /Satırları kim yazar.*şu an etkisiz/);
-    assert.match(s.text(), /Cevap altı satırları\s+○ kapalı\s+• değişti/);
+    await s.press(KEY.enter); // the answer summary off
+    assert.match(s.text(), /Özeti kim yazar.*şu an etkisiz/);
+    assert.match(s.text(), /Cevap sonu özeti\s+○ kapalı\s+• değişti/);
   } finally {
     s.close();
   }

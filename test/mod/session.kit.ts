@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * The behavior layer inside Claude Code's engine, beyond the belt: keywords, the quota guard and its
- * resume timer on a mocked clock, the session state kept through a compaction, the footer lines, quiet
+ * resume timer on a mocked clock, the session state kept through a compaction, the answer summary, quiet
  * long work. The world beneath is in memory (see world.ts).
  */
 import { test, expect, mock } from 'claude-code/testing';
@@ -231,7 +231,7 @@ test('quiet long work: the "user has not heard from you" reminder is left out wh
   expect(r.text).toBe(null);
 });
 
-test('the footer lines are drawn under the answer just finished, on every surface, never into the transcript', async ($, on) => {
+test('the answer summary is drawn under the answer just finished, on every surface, never into the transcript', async ($, on) => {
   world(on, { config: { footer: { mode: 'draw' } } });
   on('turn.complete', (_$: any, e: any) => ({ text: e.answer }));
   // Beneath the plugin, the engine's own drawing of an answer: its text.

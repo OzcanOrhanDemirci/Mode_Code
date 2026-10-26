@@ -18,7 +18,7 @@ export const CONFIG_VERSION = 1;
 /** How much of the interface is shown. Protections are the same at every level. */
 export type ViewLevel = 'simple' | 'recommended' | 'detailed';
 
-/** Where the footer lines come from: drawn by the mod under the answer, written by the model and checked, or none. */
+/** Where the answer summary comes from: drawn by the mod under the answer, written by the model and checked, or none. */
 export type FooterMode = 'draw' | 'check' | 'off';
 
 export interface ProjectEntry {
@@ -97,7 +97,7 @@ export interface Config {
   modules: {
     /** Keyword detection and the context it adds. */
     keywords: boolean;
-    /** Footer lines under each answer. */
+    /** The answer summary under each answer. */
     footer: boolean;
     /** Quota guard: wrap up and stop at the budget. */
     quota: boolean;

@@ -36,14 +36,14 @@ or in the control center: Memory and projects › Sync, then `s`. It is a short 
 
 ## What travels
 
-|                                                                                                                          | Travels                                                        |
-| ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| Settings: language, view, modules, footer, quota, keywords, the belt, handoff and morning-report settings, notifications | yes, as described below                                        |
-| Projects: their ids, names and definition of done                                                                        | yes; a project's **folder** is each computer's own (see below) |
-| Where things are on this computer: project folders, the memory folder, flows' work folder, the sync itself               | no                                                             |
-| History: the belt's and the keywords' events, and flows (their summaries)                                                | yes: each computer adds its own; the others read it            |
-| Handoff notes, when the memory does not keep them                                                                        | yes, in `handoffs/<project>/`                                  |
-| The session index, the quota reading, sessions' live state, backups, installed programs                                  | no                                                             |
+|                                                                                                                                  | Travels                                                        |
+| -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Settings: language, view, modules, answer summary, quota, keywords, the belt, handoff and morning-report settings, notifications | yes, as described below                                        |
+| Projects: their ids, names and definition of done                                                                                | yes; a project's **folder** is each computer's own (see below) |
+| Where things are on this computer: project folders, the memory folder, flows' work folder, the sync itself                       | no                                                             |
+| History: the belt's and the keywords' events, and flows (their summaries)                                                        | yes: each computer adds its own; the others read it            |
+| Handoff notes, when the memory does not keep them                                                                                | yes, in `handoffs/<project>/`                                  |
+| The session index, the quota reading, sessions' live state, backups, installed programs                                          | no                                                             |
 
 **The quota reading is not shared.** Rate limits belong to an account, and a reading does not say whose it is: two computers may well use two accounts. Each computer measures its own with its first answer.
 

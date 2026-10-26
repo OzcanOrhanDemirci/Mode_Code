@@ -123,7 +123,7 @@ Projelerine Hafıza ve projeler › Proje adları altından ad ver; geri kalan h
 - **Araç paketleri.** Flutter ve Dart, Firebase, uygulama mağazaları, gerçek bir tarayıcı, Typst belgeleri, TypeScript ve Python kod zekâsı, OpenSCAD, ffmpeg: her biri yalnız gerektiren projelerde açık olan, sürümü sabitlenmiş ve sekiz güven kuralına karşı denetlenmiş bir eklenti. Otomatik kullan açıkken bir proje dosyalarının gerektirdiğini açar, Claude gerisini tek satırlık bir ipucuyla ya da katalogla bulur; mağazaya yükleme ve ödeme senin kalır ([docs/packs.md](docs/packs.md)).
 - **Beceriler.** Mode_Code'un kendi becerileri, sen çalıştırana kadar oturuma hiçbir bedel eklemeden (taze kanıtla doğrula, bağımsız bir ajandan ikinci görüş, sürüm ya da pull request hazırla, Claude Code'da çalışanları denetle, kota raporu, uygulama mağazalara hazır mı, canlıda çalışan deponun söylediği mi …), her biri kısa bir Türkçe komutla (`/dogrula`); ikisini Claude kendisi kullanır (`commit`, `measure`). Ve başkalarının 33 becerisi, sabit bir commit'ten lisanslarıyla alınmış, sen açana kadar kapalı. `/komutlar` her anahtar kelimeyi, komutu ve beceriyi listeler ([docs/skills.md](docs/skills.md)).
 - **Kota bekçisi.** Claude Code'un bildirdiği 5 saatlik ve haftalık pencereleri okur; bütçende işi toparlar, sınırda durdurur ve iş otonomsa pencere sıfırlandıktan bir dakika sonra kendiliğinden sürdürür. Otonom çalışmada bir commit ya da push 200 bin token ve üstü bağlam bıraktıysa sonraki iş, işin nerede durduğunu söyleyen bir notla ve çalışma biçimi korunarak yeni bir konuşmada başlar: yazarın bir aylık kullanımında ölçülen kazanç kotanın tamamının %14-19'u (Manuel'de şerit `/clear` önerir). `mode-code measure` bu bilgisayarda her görevin kotadan ne aldığını ve işin nasıl gittiğini gösterir ([docs/quota.md](docs/quota.md), İngilizce).
-- **Alt satırlar.** Her cevabın altında: hafıza deposu itildi mi, bir şey değişti mi, gerektiğinde kota. Git'ten, turun araç çağrılarından ve ölçülen kotadan hesaplanır, asla tahmin edilmez.
+- **Cevap sonu özeti.** Her cevabın altında: hafıza deposu itildi mi, bir şey değişti mi, gerektiğinde kota. Git'ten, turun araç çağrılarından ve ölçülen kotadan hesaplanır, asla tahmin edilmez.
 - **Sessiz uzun iş.** Claude Code'un "kullanıcı uzun süredir haber alamadı" hatırlatmalarını dışarıda bırakır; uzun otonom iş ekranını durum satırlarıyla doldurmaz.
 
 **Terminalinde** (`mode-code`): sekiz kategorili, Türkçe ve İngilizce bir kontrol merkezi; bir de kurulumu ve çevresindeki makineyi sınayıp güvenle onarabileceğini onaran bakım denetimi (`mode-code doctor`).
@@ -153,7 +153,7 @@ Mode_Code 1.1.0 ile gerçek Claude Code oturumlarından alındı (Windows, Claud
   2. Block
 ```
 
-Bir cevabın altındaki satırlar, Claude Code'un kendi modlarının yanında oturumun modu ve ipucu satırının sonunda kota:
+Bir cevabın altındaki cevap sonu özeti, Claude Code'un kendi modlarının yanında oturumun modu ve ipucu satırının sonunda kota:
 
 ```
 ● ready
@@ -278,7 +278,7 @@ Kendi makinende `mode-code doctor` aynı denetimleri yapar: Node.js, Claude Code
 - **Kemer bir saldırının yaptığı her şeyi durdurmaz.** Okuma serbest olduğundan, yalnız okuyan bir isteğin adresinde ya da başlıklarında giden bir sır geçer; kuralların okumadığı kalıcılık (bir SSH anahtarı, bir otomatik başlatma kaydı) ve adı kemerin sözcüklerinin dışında kalan bir bağlı servis aracı da geçer. Ölçülen rakamlar ve bilinen her sınır [docs/threat-model.md](docs/threat-model.md#known-limits) sayfasında (İngilizce).
 - **Eklenti Claude Code'un erken erişimdeki mod API'sini kullanır**; sürümler arasında değişebilir. Yüklenmediğinde kemeri hook yürütmeye devam eder; kontrol merkezi hangi özelliklerin duraklatıldığını söyler.
 - **Kota rakamları Claude Code'dan gelir**; eklenti her cevaptan sonra kaydeder. Eklenti olmadan kota ölçümü olmaz; token kota değildir.
-- **Eklentinin çizdiği alt satırlar** konuşmanın değil, cevabın çiziminin parçasıdır: model onları okumaz, dışa aktarılan kayıtta yer almazlar. Cevapların içine yazılmalarını istiyorsan "Denetlenir" kipini seç: satırları Claude yazar, bir hook denetler.
+- **Eklentinin çizdiği cevap sonu özeti** konuşmanın değil, cevabın çiziminin parçasıdır: model onu okumaz, dışa aktarılan kayıtta yer almaz. Cevapların içine yazılmasını istiyorsan Ayarlar › Cevap sonu özeti altında "Claude yazar"ı seç: özeti Claude yazar, bir hook denetler.
 
 ## Sık sorulanlar
 
@@ -286,7 +286,7 @@ Kendi makinende `mode-code doctor` aynı denetimleri yapar: Node.js, Claude Code
 
 **Antivirüsüm onu tehdit sayar mı?** Saymamalı. Her sürümden önce deponun ve paketin bütün dosyaları, Windows antivirüslerinin en sıkı taradığı yere yazılıp geri okunur (`npm run test:av`); Bitdefender hiçbirine dokunmuyor. Bir zamanlar, örnek komutları bir arada bir saldırganın betiğine benzeyen bir test dosyasını karantinaya alıyordu; o örnekler yeniden yazıldı ve sorun fark edilmeden geri gelemesin diye bu denetim eklendi. Antivirüsün bir dosyayı işaretlerse bu, düzeltmek istediğimiz bir yanlış alarmdır: dosyanın ve tespitin adıyla [bir kayıt aç](https://github.com/OzcanOrhanDemirci/Mode_Code/issues/new/choose).
 
-**Claude Code'un çalışma biçimini değiştirir mi?** Yalnız gördüğün yerlerde: kemerin kararları, bir anahtar kelimenin eklediği bağlam, alt satırlar ve durum satırı. Herhangi bir özelliği Ayarlar › Özellikler altından kapatabilirsin; kemer kalır.
+**Claude Code'un çalışma biçimini değiştirir mi?** Yalnız gördüğün yerlerde: kemerin kararları, bir anahtar kelimenin eklediği bağlam, cevap sonu özeti ve durum satırı. Herhangi bir özelliği Ayarlar › Özellikler altından kapatabilirsin; kemer kalır.
 
 **Claude Code'u yavaşlatır mı?** Hook, Windows'ta denetlenen her araç çağrısına yaklaşık 0,1 saniye ekler (başka sistemlerde daha az); eklentinin denetimi süreç içinde yapılır.
 

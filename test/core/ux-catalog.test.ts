@@ -203,11 +203,11 @@ test('a setting another one keeps from mattering says which and where', () => {
   assert.equal(explain(c, 'agents.helpers', 'en', place).blocked, 'No effect now, because "I set the number of agents" is off (<work/agents>).');
   c = setConfigValue(c, 'agents.enabled', true).config;
   assert.equal(explain(c, 'agents.helpers', 'en', place).blocked, null);
-  // Two gates in a row: the lines are off, so how they are made and from when the quota shows do not matter.
+  // Two gates in a row: the summary is off, so how it is made and from when the quota shows do not matter.
   c = setConfigValue(c, 'modules.footer', false).config;
-  assert.match(explain(c, 'footer.showFiveFrom', 'tr', place).blocked ?? '', /"Cevap altı satırları" ayarı: kapalı \(<settings\/modules>\)/);
+  assert.match(explain(c, 'footer.showFiveFrom', 'tr', place).blocked ?? '', /"Cevap sonu özeti" ayarı: kapalı \(<settings\/modules>\)/);
   c = setConfigValue(setConfigValue(c, 'modules.footer', true).config, 'footer.mode', 'off').config;
-  assert.match(explain(c, 'footer.showFiveFrom', 'en', place).blocked ?? '', /"Who writes the lines" is Off/);
+  assert.match(explain(c, 'footer.showFiveFrom', 'en', place).blocked ?? '', /"Who writes the summary" is Off/);
 });
 
 test('a choice offers its other options in order, and a number its range', () => {

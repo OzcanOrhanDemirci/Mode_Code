@@ -4,7 +4,7 @@
             ┌──────────────────────────── Claude Code ─────────────────────────────┐
   you  ───► │  prompt ─► plugin (in-process mod) ─► tool call ─► settings hook ─► tool │
             │              keywords · belt · quota       (safety net: same belt)       │
-            │              footer · quiet work · modes · flows (the flow_step tool)    │
+            │              answer summary · quiet work · modes · flows (flow_step)     │
             └──────────────┬───────────────────────────────────┬──────────────────────┘
                            │ writes                             │ writes
                            ▼                                    ▼
@@ -27,7 +27,7 @@
 | App services           | the CLI and the control center                         | `src/app`            |                                                |
 | CLI and control center | your terminal (Ink + React)                            | `src/cli`, `src/tui` | `dist/cli.mjs`                                 |
 
-The core holds every decision: the shell parsers and the belt, keywords, quota assessment, footer lines, settings parsing, session state transitions, messages in both languages. The mod and the hook only adapt it to their environment, so they decide identically.
+The core holds every decision: the shell parsers and the belt, keywords, quota assessment, the answer summary, settings parsing, session state transitions, messages in both languages. The mod and the hook only adapt it to their environment, so they decide identically.
 
 Claude Code does not read a hooks module over 1 MiB, and then the plugin does nothing at all, with no error shown. So the build gives the plugin only the messages its own code names (`scripts/plugin-words.mjs`: about four in ten, since most belong to the control center and the command line), refuses a module over the limit and warns above 90%. `test/dist/plugin-words.test.ts` holds the built plugin to its sources.
 
@@ -62,7 +62,7 @@ Every runtime file has exactly one writer, so no two processes race on a file; w
 - **Mod first, hooks as a net.** Claude Code's mods API runs the plugin in-process (no process start per call, direct quota figures, dialogs, notices). Settings hooks are slower and simpler, so they carry only what must survive when the plugin is missing: the belt, keyword context, the footer check.
 - **Exec-form hooks with an absolute Node path and `onFailure: "block"`.** No shell in between (faster, no quoting), and a hook that cannot start blocks instead of letting the call through.
 - **Approvals by `tool_use_id`.** When you allow a call the belt asked about, the approval names that call's id, which the model cannot choose; it expires in ten minutes.
-- **Drawn, not written.** Footer lines are added to the drawing of the answer (a render hook) and the mode and quota to the prompt footer, so they cost no tokens and carry no notice prefix. The session state (autonomous work, project, budget, chat mode) is restated through a compaction and reset by /clear.
+- **Drawn, not written.** The answer summary is added to the drawing of the answer (a render hook) and the mode and quota to the prompt footer, so they cost no tokens and carry no notice prefix. The session state (autonomous work, project, budget, chat mode) is restated through a compaction and reset by /clear.
 - **Modes are judged before the call, in the plugin.** A restricted mode's guard runs after the safety belt in the plugin's tool hook: the same command analysis, then a classifier that sorts each program into reads, writes named files, changes around its folder, changes outside, or unknown. What it cannot place, it refuses. After the call, Claude Code's own read-only verdict is compared with the classifier's and a disagreement is logged.
 - **One protection, three ways of working.** The belt's rules are the same in manual, autonomous and full autonomy; the way of working only says how much is asked (`src/core/belt/rules.ts`: each rule's act in each). Full autonomy asks nobody: a step the belt or the person's own rules would ask about is refused, recorded with its command and left to the person, in the plugin's tool hook, and Claude Code's own questions are answered once the belt let the call through. See [autonomy.md](autonomy.md).
 - **The safety net is laid by the hook, in a process of its own.** A rule that has a net lets its call through in Autonomous and full autonomy only where the safety-net hook runs in the session; the plugin counts on it once the hook has recorded the session. The hook keeps what the call takes away before it runs (git with nothing the repository names and its hooks off; files by hard link), and if it cannot, decides the call as without a net. See [safety-belt.md](safety-belt.md#safety-net).

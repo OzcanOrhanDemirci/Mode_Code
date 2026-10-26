@@ -68,7 +68,7 @@ const S = {
   'modules.notifications': { page: 'settings/modules', kind: sw, takes: 'nextPrompt', risk: 'none' },
   'modules.quietWork': { page: 'settings/modules', kind: sw, takes: 'nextPrompt', risk: 'none' },
   'modules.mascot': { page: 'settings/modules', kind: sw, takes: 'nextPrompt', risk: 'none' },
-  // Settings › Lines under answers; Quota › Budget and limits
+  // Settings › Answer summary; Quota › Budget and limits
   'footer.mode': {
     page: 'settings/footer',
     kind: { kind: 'choice', options: ['draw', 'check', 'off'] },

@@ -128,9 +128,9 @@ test('the same four answers in the other language: a Turkish switch and number, 
   try {
     await ch.press(KEY.down); // the feature's own switch first, then who writes the lines
     const t = flat(ch.text());
-    assert.match(t, /What it is How the lines under each answer are made\./);
-    assert.match(t, /Now Mode_Code draws them \(default\)\. Mode_Code draws them under the answer/);
-    assert.match(t, /If you change it Claude writes them: Claude writes them at the end of each answer .* Off: No lines under the answers\./);
+    assert.match(t, /What it is How the summary under each answer is made\./);
+    assert.match(t, /Now Mode_Code draws it \(default\)\. Mode_Code draws it under the answer/);
+    assert.match(t, /If you change it Claude writes it: Claude writes it at the end of each answer .* Off: No summary under the answers\./);
   } finally {
     ch.close();
   }
