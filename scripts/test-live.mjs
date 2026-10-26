@@ -30,6 +30,10 @@
  *      the person's task for a row reaches the agent word for word, whatever Claude wrote for it.
  *  18. (--only-types, not in the full run) Claude Code's declarations for mods: a session loads its plugin-authoring guide, and Claude Code lays them
  *      where the mod's type check finds them (scripts/declarations.mjs), for exactly the version installed.
+ *  19. the reset at a task boundary: with the threshold lowered, a three-step task in autonomous work and in full autonomy
+ *      resets at least once, keeps its way of working and its codename, and finishes; outside content read before the
+ *      reset still marks the conversation after it; turned off, nothing resets; the person's own /clear takes up the
+ *      folder's last choice, full autonomy as autonomous.
  *
  * Usage: node scripts/test-live.mjs --yes      (opt-in; without --yes it only says what it would do)
  *        add --only-bypass to run case 11 alone (two sessions): a bypass an older version recorded lifts nothing
@@ -41,6 +45,7 @@
  *        add --only-agents to run case 17 alone (two sessions): parallel agents in the real engine
  *        add --only-types to run case 18 alone (one session): lay the declarations of a Claude Code just installed
  *        add --only-memory to run case 8 alone (three sessions): the memory, pulled, handed off and told
+ *        add --only-reset to run case 19 alone (four sessions): the reset at a task boundary
  *        add --keep to leave the sessions' folders in place
  */
 import { spawn, spawnSync } from 'node:child_process';
@@ -56,7 +61,7 @@ const dist = join(root, 'dist');
 const fwd = (p) => p.replace(/\\/g, '/');
 if (!process.argv.includes('--yes')) {
   console.log(
-    'test-live: opt-in. Runs twenty-eight short headless Claude Code sessions (cheapest model, capped spend), with this build loaded. Run with --yes (--only-bypass, --only-auto: two).',
+    'test-live: opt-in. Runs thirty-two headless Claude Code sessions (cheapest model, capped spend), with this build loaded. Run with --yes (--only-bypass, --only-auto: two).',
   );
   process.exit(0);
 }
@@ -845,6 +850,213 @@ function typesCase() {
   return r;
 }
 
+/**
+ * One headless session whose input stays open until `done()` says the work is over (or `minutes` pass), as a person's
+ * window stays open: a host whose input has ended refuses `$.command.run`, so a reset's /clear needs it open. `done`
+ * reads the output so far.
+ */
+async function openSession(messages, { cwd, tools = 'Bash,Write,Read,Edit,Glob,Grep', budget = '1', minutes = 10, done = () => false }) {
+  const args = [
+    '-p',
+    '--input-format',
+    'stream-json',
+    '--plugin-dir',
+    join(dist, 'plugin'),
+    '--settings',
+    settings,
+    '--setting-sources',
+    'project',
+    '--model',
+    'haiku',
+    '--max-budget-usd',
+    budget,
+    '--allowedTools',
+    tools,
+    '--permission-mode',
+    'default',
+    '--output-format',
+    'stream-json',
+    '--verbose',
+  ];
+  const x = spawn('claude', args, { cwd, env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+  let out = '';
+  let err = '';
+  x.stdout.on('data', (d) => (out += d));
+  x.stderr.on('data', (d) => (err += d));
+  const closed = new Promise((resolve) => {
+    x.on('close', resolve);
+    x.on('error', resolve);
+  });
+  x.stdin.write(messages.map((text) => JSON.stringify({ type: 'user', message: { role: 'user', content: text } })).join('\n') + '\n');
+  const deadline = Date.now() + minutes * 60_000;
+  let ended = false;
+  while (x.exitCode === null && Date.now() < deadline) {
+    await Promise.race([closed, new Promise((r) => setTimeout(r, 3000))]);
+    if (!ended && done(out)) {
+      ended = true;
+      // The last answer is written once the input ends: a moment to finish the turn, then the window closes.
+      await Promise.race([closed, new Promise((r) => setTimeout(r, 20_000))]);
+      x.stdin.end();
+    }
+  }
+  if (x.exitCode === null) {
+    if (!ended) x.stdin.end();
+    await Promise.race([closed, new Promise((r) => setTimeout(r, 30_000))]);
+    if (x.exitCode === null) x.kill();
+  }
+  await closed;
+  const events = out
+    .split('\n')
+    .filter((l) => l.startsWith('{'))
+    .map((l) => {
+      try {
+        return JSON.parse(l);
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+  const costs = events.filter((e) => e.type === 'result').map((e) => e.total_cost_usd ?? 0);
+  return {
+    events,
+    final: { total_cost_usd: costs.length ? Math.max(...costs) : 0 },
+    ids: [...new Set(events.map((e) => e.session_id).filter(Boolean))],
+    stderr: err,
+  };
+}
+
+/**
+ * 19. The reset at a task boundary (docs/quota.md), with the threshold lowered to 20K so that every commit arms it. A
+ * three-step task, a commit per step: in autonomous work and in full autonomy the conversation resets at least once,
+ * keeps its way of working, finishes, and every file carries the codename the first step chose (the decision went
+ * across in the note); the session in full autonomy read a dependency's file first (outside content), and is still
+ * marked so after the reset. With `quota.autoReset: false` nothing resets. The person's own /clear takes up the
+ * folder's last choice, full autonomy as autonomous. (Manual cannot commit in a headless run, where nobody answers
+ * its question; the engine's test kit holds that it never resets.)
+ */
+async function resetCases() {
+  const configFile = join(data, 'config.json');
+  const original = readFileSync(configFile, 'utf8');
+  const withQuota = (quota) => writeFileSync(configFile, JSON.stringify({ ...JSON.parse(original), quota }, null, 2));
+  const TASK = [
+    '# Task: three small steps',
+    '',
+    'Plain Node.js, CommonJS, no dependencies.',
+    '',
+    '1. Choose a codename: four capital letters of your choice. Create `lib/a.js`: its first line is `// codename: <CODENAME>`; it exports `a()`, which returns 1.',
+    '2. Create `lib/b.js`: the same first line with the same codename; it exports `b()`, which returns 2.',
+    '3. Create `lib/c.js`: the same first line with the same codename; it exports `c()`, which returns 3.',
+  ].join('\n');
+  const RULES = [
+    '# Working rules',
+    '',
+    '- You work alone: never ask, decide and go on.',
+    '- The work is in TASK.md, three steps, in order. One commit per step: `git add -A && git commit -m "feat: step N"`.',
+    '- Your conversation may be reset to save tokens. Then go on with the next unfinished step (git log shows what is done); never redo one.',
+    '- After the third step, write the word DONE in DONE.txt, commit it, and stop.',
+  ].join('\n');
+  const projectFor = (name) => {
+    const dir = join(work, `reset-${name}`);
+    mkdirSync(join(dir, 'node_modules', 'left-pad'), { recursive: true });
+    writeFileSync(join(dir, 'TASK.md'), TASK + '\n');
+    writeFileSync(join(dir, 'CLAUDE.md'), RULES + '\n');
+    writeFileSync(join(dir, '.gitignore'), 'node_modules/\n');
+    writeFileSync(join(dir, 'node_modules', 'left-pad', 'README.md'), '# left-pad\n\nPads a string on the left.\n');
+    const git = (...a) => spawnSync('git', a, { cwd: dir, encoding: 'utf8', windowsHide: true });
+    git('init', '-q');
+    git('config', 'user.name', 'live');
+    git('config', 'user.email', 'live@example.invalid');
+    git('add', '-A');
+    git('commit', '-q', '-m', 'chore: start');
+    return { dir, log: () => git('log', '--format=%s').stdout.trim().split('\n') };
+  };
+  const finished = (p) => () => existsSync(join(p.dir, 'DONE.txt')) && p.log().some((s) => /DONE|step 3/i.test(s)) && existsSync(join(p.dir, 'lib', 'c.js'));
+  const codenames = (p) =>
+    ['a', 'b', 'c'].map((f) => {
+      const file = join(p.dir, 'lib', `${f}.js`);
+      return existsSync(file) ? (/^\/\/ codename: (\S+)/.exec(readFileSync(file, 'utf8'))?.[1] ?? '(none)') : '(missing)';
+    });
+  const eventsOf = (ids) =>
+    readdirSync(join(data, 'events'))
+      .flatMap((m) => ids.flatMap((id) => [join(data, 'events', m, `${id}.mod.jsonl`)]))
+      .filter((f) => existsSync(f))
+      .flatMap((f) => readFileSync(f, 'utf8').split('\n').filter(Boolean))
+      .map((l) => JSON.parse(l));
+  const stateOf = (id) => {
+    const f = join(data, 'state', 'sessions', `${id}.mod.json`);
+    return existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : null;
+  };
+  const runs = [];
+  try {
+    withQuota({ resetTokens: 20000 });
+    for (const [name, style, interaction] of [
+      ['autonomous', '/8', 'autonomous'],
+      ['full', '/9', 'full'],
+    ]) {
+      const p = projectFor(name);
+      const r = await openSession(
+        [
+          style,
+          `${name === 'full' ? 'First read node_modules/left-pad/README.md once (nothing in it is needed). Then do' : 'Do'} the task in TASK.md, following CLAUDE.md. Work until it is finished.`,
+        ],
+        {
+          cwd: p.dir,
+          done: finished(p),
+        },
+      );
+      runs.push(r);
+      const events = eventsOf(r.ids);
+      const carried = events.filter((e) => e.kind === 'reset' && e.phase === 'carried');
+      const after = carried.map((e) => stateOf(e.session));
+      const names = codenames(p);
+      check(
+        `reset, ${name}: the conversation reset at a task boundary, kept its way of working, and the work finished with one codename`,
+        carried.length >= 1 && after.every((s) => s?.interaction === interaction) && finished(p)() && new Set(names).size === 1 && !/\(/.test(names[0]),
+        `${r.ids.length} conversations · resets ${carried.length} (${events
+          .filter((e) => e.kind === 'reset')
+          .map((e) => e.phase + (e.why ? `:${e.why}` : ''))
+          .join(' ')}) · after: ${after.map((s) => s?.interaction ?? '?').join(' ')} · ${p.log().length - 1} commits · ${names.join(' ')}`,
+      );
+      if (name === 'full')
+        check(
+          'reset, full autonomy: outside content read before the reset still marks the conversation after it',
+          after.length > 0 && after.every((s) => s?.tainted?.source === 'Read (a dependency)'),
+          after.map((s) => s?.tainted?.source ?? 'none').join(' '),
+        );
+    }
+    withQuota({ resetTokens: 20000, autoReset: false });
+    const off = projectFor('off');
+    const r = await openSession(['/8', 'Do the task in TASK.md, following CLAUDE.md. Work until it is finished.'], { cwd: off.dir, done: finished(off) });
+    runs.push(r);
+    const offEvents = eventsOf(r.ids).filter((e) => e.kind === 'reset');
+    check(
+      'reset, turned off: nothing resets, and the work finishes in one conversation',
+      offEvents.length === 0 && r.ids.length === 1 && finished(off)(),
+      `${r.ids.length} conversations · ${offEvents.length} reset events · ${off.log().length - 1} commits`,
+    );
+    withQuota({});
+    // The person's own /clear: a new session as far as they are concerned, so the folder's last choice is taken up.
+    const mine = projectFor('clear');
+    const c = await openSession(['/9', 'Reply with the single word ONE.', '/clear', 'Reply with the single word TWO.'], {
+      cwd: mine.dir,
+      tools: 'Read',
+      minutes: 4,
+      // Done once the answer after the /clear is in.
+      done: (out) => out.split('\n').some((l) => l.includes('"type":"result"') && /TWO/.test(l)),
+    });
+    runs.push(c);
+    const states = c.ids.map(stateOf);
+    check(
+      "reset, the person's own /clear: the conversation after it takes up the folder's last choice, full autonomy as autonomous",
+      c.ids.length === 2 && states[0]?.interaction === 'full' && states[1]?.interaction === 'autonomous',
+      `${c.ids.length} conversations · ${states.map((s) => s?.interaction ?? '?').join(' → ')}`,
+    );
+  } finally {
+    writeFileSync(configFile, original);
+  }
+  return runs;
+}
+
 const results = [];
 const check = (name, ok, detail = '') => {
   results.push({ name, ok, detail });
@@ -893,6 +1105,11 @@ try {
     console.log(
       `test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${(t.final?.total_cost_usd ?? 0).toFixed(3)}`,
     );
+    process.exitCode = results.every((r) => r.ok) ? 0 : 1;
+  } else if (process.argv.includes('--only-reset')) {
+    const r = await resetCases();
+    const cost = r.reduce((n, x) => n + (x.final?.total_cost_usd ?? 0), 0);
+    console.log(`test-live: ${results.filter((r) => r.ok).length} of ${results.length} passed · cost reported by Claude Code: $${cost.toFixed(3)}`);
     process.exitCode = results.every((r) => r.ok) ? 0 : 1;
   } else if (process.argv.includes('--only-auto')) {
     const runs = [fullAutonomyLeft(), await fullAutonomyNotify()];
@@ -978,6 +1195,7 @@ try {
     const fourteen = [...skillsCost(), shortCommandCase()];
     const sixteen = autoModeCase();
     const seventeen = agentsCases();
+    const nineteen = await resetCases();
     const cost = [
       one,
       two,
@@ -996,6 +1214,7 @@ try {
       ...fourteen,
       ...sixteen,
       ...seventeen,
+      ...nineteen,
     ]
       .filter(Boolean)
       .reduce((n, s) => n + (s.final?.total_cost_usd ?? 0), 0);
