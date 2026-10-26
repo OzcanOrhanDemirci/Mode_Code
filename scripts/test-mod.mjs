@@ -112,6 +112,10 @@ const ALLOWED = new Set([
   // window, as the person's own switch from the tasks list does, and the way back to the main one under the strip.
   // It moves the view only, and only on the person's press.
   'ui.view',
+  // The reset at a task boundary (docs/quota.md): in autonomous work, the note of where the work stands is asked of the
+  // conversation itself, from its cache, every tool denied (one model call through Claude Code's own client, to the
+  // session's provider); /clear then runs through command.run, as the person would type it.
+  'model.fork',
 ]);
 const notes = (report.contents ?? []).flatMap((c) => c.notes ?? []);
 const callsNote = notes.find((n) => / calls: /.test(n)) ?? '';

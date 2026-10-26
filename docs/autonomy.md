@@ -15,7 +15,7 @@ Like the other ways of working, on the strip, at any time:
 
 The keyword works as the others do ([keywords.md](keywords.md)): a project name before it, and a budget after it (`quota N`, `quota +N`) if you want one for the week ([quota.md](quota.md)). The first time on a computer, one line says what it means: _Full autonomy asks nothing. What cannot be undone it does not do: it leaves it to you, with the command._
 
-Only the person chooses a way of working; Claude cannot press the strip. A new session in the same folder never comes back in full autonomy by itself: it takes up autonomous ([modes.md](modes.md)).
+Only the person chooses a way of working; Claude cannot press the strip. A new session in the same folder never comes back in full autonomy by itself: it takes up autonomous ([modes.md](modes.md)). The one exception is Mode_Code's own reset at a task boundary, which goes on with the same work in a fresh conversation and keeps full autonomy ([quota.md](quota.md#reset-at-a-task-boundary)); your own `/clear` takes up autonomous.
 
 ## What changes
 

@@ -212,6 +212,11 @@ export const en = {
   'quota.window.five_hour': '5-hour',
   'quota.window.seven_day': 'weekly',
   'quota.notify.resume': 'The quota period reset. Work resumes now.',
+  'reset.deny':
+    '[Mode_Code] Stop here: the piece of work is committed, and Mode_Code resets the conversation now to save tokens. The note of where the work stands is written; the work goes on at once in a new conversation. Call no other tool and write nothing more.',
+  'reset.toast': '♻ Reset at a task boundary ({tokens} of context): the work goes on, with a note.',
+  'reset.failed': '♻ No reset at this task boundary ({why}): the work goes on in this conversation.',
+  'reset.goOn': '[Mode_Code] The reset did not go through ({why}); this conversation goes on. Continue with the next step.',
 } as const;
 
 export type MessageKey = keyof typeof en;

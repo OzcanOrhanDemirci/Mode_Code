@@ -6,7 +6,7 @@
  * kind of event that has no line here fails test/core/ux-activity.test.ts. Pure.
  */
 import { tIn, type Lang, type MessageKey } from '../i18n/index.js';
-import { ago } from '../format.js';
+import { ago, compact } from '../format.js';
 import { nameOf, type SettingPath } from './catalog.js';
 import type { Meaning } from './tokens.js';
 
@@ -51,6 +51,8 @@ export const ACTIVITY_KINDS = [
   'keyword',
   'reading',
   'resume',
+  'reset',
+  'resetRead',
   'skill',
   'mcpChanged',
   'packs',
@@ -134,6 +136,21 @@ export function activityOf(e: ActivityEvent, lang: Lang): ActivityLine {
       return line('note', t('act.reading', { five: num(e.five), week: num(e.week) }), null, 'quota/usage', true);
     case 'resume':
       return line('done', t('act.resume'), on('quota.autoResume'), 'quota/limits');
+    case 'reset': {
+      // The conversation reset at a task boundary (src/core/reset.ts), or why it was not; a failure is read, the rest is quiet.
+      const why = on('quota.autoReset');
+      if (e.phase === 'carried') return line('done', t('act.reset', { tokens: compact(num(e.tokens), lang) }), why, 'quota/limits');
+      const reason = str(e.why, 20);
+      return line('note', t('act.reset.skip', { why: t(`act.reset.why.${reason}`) }), why, 'quota/limits', !['fork', 'note', 'clear'].includes(reason));
+    }
+    case 'resetRead':
+      return line(
+        'note',
+        t('act.resetRead', { first: compact(num(e.first), lang), ready: compact(num(e.ready), lang), calls: num(e.calls) }),
+        null,
+        'quota/limits',
+        true,
+      );
     case 'skill':
       return line('done', t('act.skill', { skill: str(e.skill, 80) }), null, 'claude-code/skills');
     case 'mcpChanged':

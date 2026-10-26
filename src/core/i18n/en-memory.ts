@@ -228,6 +228,7 @@ export const enMemory = {
   'handoff.trigger.end': 'when the session ended, from what code measured',
   'handoff.trigger.closed': 'the session was closed without ending; the next one wrote it from what code measured',
   'handoff.trigger.run': 'a full-autonomy run paused or ended',
+  'handoff.trigger.reset': 'at a task boundary, just before the conversation was reset, from the conversation itself',
   'handoff.empty': 'No handoff note yet. A handoff note says where the work on a project stands, so that the next session goes on from there.',
   'handoff.howTo':
     'Type "handoff" (or "<project> handoff") at the end of a message, or "wrap up"; notes are also written before a compaction and when a session that changed something ends.',

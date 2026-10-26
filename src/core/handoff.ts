@@ -19,12 +19,13 @@ const MEASURED_ANY = [...new Set([APP_NAME, APP_ID, ...PREVIOUS_NAMES.flatMap((p
 export const HANDOFF_TOOL = 'mcp__mode-code__handoff';
 
 /**
- * What made the note: the person's keyword or wrap-up, a compaction, a /clear or the session's end, a run; or
- * the session was closed without ending (its window shut) and the next session wrote its end note.
+ * What made the note: the person's keyword or wrap-up, a compaction, a /clear or the session's end, a run, a reset at
+ * a task boundary (src/core/reset.ts); or the session was closed without ending (its window shut) and the next session
+ * wrote its end note.
  */
-export type HandoffTrigger = 'keyword' | 'wrapUp' | 'compact' | 'clear' | 'end' | 'closed' | 'run';
+export type HandoffTrigger = 'keyword' | 'wrapUp' | 'compact' | 'clear' | 'end' | 'closed' | 'run' | 'reset';
 
-export const HANDOFF_TRIGGERS: readonly HandoffTrigger[] = ['keyword', 'wrapUp', 'compact', 'clear', 'end', 'closed', 'run'];
+export const HANDOFF_TRIGGERS: readonly HandoffTrigger[] = ['keyword', 'wrapUp', 'compact', 'clear', 'end', 'closed', 'run', 'reset'];
 
 /** What code measures for a note. */
 export interface HandoffFacts {
@@ -220,6 +221,7 @@ const TRIGGER_WORDS: Record<HandoffTrigger, string> = {
   end: 'when the session ended, from what code measured',
   closed: 'after its session was closed without ending, by the next session, from what code measured',
   run: 'by a full-autonomy run',
+  reset: 'at a task boundary, just before the conversation was reset',
 };
 
 /** A note is offered while it is younger than `maxAgeDays`. */

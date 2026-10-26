@@ -150,6 +150,13 @@ export interface Config {
     autoResume: boolean;
     /** After a commit or a push with a large context, the strip says /clear would start the next task small. */
     clearHint: boolean;
+    /**
+     * In autonomous work and full autonomy, the conversation resets itself at the next task once a commit or a push
+     * ended a piece of work with `resetTokens` of context or more (src/core/reset.ts, docs/quota.md).
+     */
+    autoReset: boolean;
+    /** The context, in tokens, from which a commit or a push resets the conversation (autoReset) or says /clear (clearHint). */
+    resetTokens: number;
   };
   keywords: {
     /** Extra phrases per language, added to the built-in ones. */
@@ -208,6 +215,15 @@ export interface Config {
   sync: SyncSetting | null;
 }
 
+/**
+ * The context from which a task boundary resets (or says /clear): 200K by default, the one value that lost at most 0.32
+ * points of the best saving at every cost of reading again measured (docs/quota.md); under 20K a reset reads more
+ * again than it saves, and 900K is past every context window there is.
+ */
+export const RESET_TOKENS = 200_000;
+export const RESET_TOKENS_MIN = 20_000;
+export const RESET_TOKENS_MAX = 900_000;
+
 export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
   version: CONFIG_VERSION,
   language: 'auto',
@@ -228,7 +244,17 @@ export const DEFAULT_CONFIG: Readonly<Config> = Object.freeze({
     morning: { enabled: true, afterHours: 6 },
   },
   footer: { mode: 'draw', showFiveFrom: 70, showWeekFrom: 85 },
-  quota: { fiveHourWrapUp: 95, fiveHourStop: 99, defaultWeeklyTarget: 99, defaultWeeklyWrapUp: 97, staleMinutes: 360, autoResume: true, clearHint: true },
+  quota: {
+    fiveHourWrapUp: 95,
+    fiveHourStop: 99,
+    defaultWeeklyTarget: 99,
+    defaultWeeklyWrapUp: 97,
+    staleMinutes: 360,
+    autoResume: true,
+    clearHint: true,
+    autoReset: true,
+    resetTokens: RESET_TOKENS,
+  },
   keywords: { extra: {} },
   projects: [],
   modes: { workDir: null },
@@ -337,7 +363,12 @@ export function normalizeConfig(raw: unknown): ParsedConfig {
       if (typeof q.staleMinutes === 'number' && q.staleMinutes >= 5 && q.staleMinutes <= 1440) c.quota.staleMinutes = Math.round(q.staleMinutes);
       else problems.push({ path: 'quota.staleMinutes', kind: 'range', detail: 'expected 5 to 1440' });
     }
-    for (const k of ['autoResume', 'clearHint'] as const)
+    if (q.resetTokens !== undefined) {
+      if (typeof q.resetTokens === 'number' && Number.isFinite(q.resetTokens) && q.resetTokens >= RESET_TOKENS_MIN && q.resetTokens <= RESET_TOKENS_MAX)
+        c.quota.resetTokens = Math.round(q.resetTokens);
+      else problems.push({ path: 'quota.resetTokens', kind: 'range', detail: `expected ${RESET_TOKENS_MIN} to ${RESET_TOKENS_MAX}` });
+    }
+    for (const k of ['autoResume', 'clearHint', 'autoReset'] as const)
       if (q[k] !== undefined) {
         if (typeof q[k] === 'boolean') c.quota[k] = q[k];
         else problems.push({ path: `quota.${k}`, kind: 'type', detail: 'expected true or false' });

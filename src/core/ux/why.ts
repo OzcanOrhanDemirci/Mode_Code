@@ -45,6 +45,7 @@ export const WHY_SUBJECTS = [
   'taint',
   'quota',
   'clearHint',
+  'autoReset',
   'footer',
   'strip',
   'keywords',
@@ -139,6 +140,16 @@ export function why(subject: WhySubject, f: WhyFacts, lang: Lang): WhyAnswer {
     }
     case 'clearHint':
       return sw('quota.clearHint', 'why.clearHint.on', 'why.clearHint.off');
+    case 'autoReset': {
+      if (!on('quota.autoReset')) return answer(t('why.autoReset.off'), [setting('quota.autoReset')]);
+      const from = valueText('quota.resetTokens', valueIn(f.config, 'quota.resetTokens'), lang);
+      const working = s?.interaction === 'autonomous' || s?.interaction === 'full';
+      return answer(t(working ? 'why.autoReset.on' : 'why.autoReset.manual', { from }), [
+        setting('quota.autoReset'),
+        setting('quota.resetTokens'),
+        said('why.r.autoResetStyle'),
+      ]);
+    }
     case 'footer':
       if (!on('modules.footer')) return answer(t('why.footer.off'), [setting('modules.footer')]);
       return answer(t('why.footer.on', { mode: valueText('footer.mode', valueIn(f.config, 'footer.mode'), lang) }), [

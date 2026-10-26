@@ -51,6 +51,10 @@ const SAMPLES: ActivityEvent[] = [
   { at: 1, kind: 'keyword', keyword: 'continue', project: 'app' },
   { at: 1, kind: 'reading', five: 21, week: 27 },
   { at: 1, kind: 'resume', project: 'app' },
+  { at: 1, kind: 'reset', phase: 'carried', from: 's1', tokens: 246_000, resets: 1, note: '/h/n.md' },
+  { at: 1, kind: 'reset', phase: 'skip', why: 'busy', tokens: 246_000 },
+  { at: 1, kind: 'reset', phase: 'skip', why: 'note', tokens: 246_000, problems: ['next missing'] },
+  { at: 1, kind: 'resetRead', before: 246_000, first: 41_000, ready: 63_000, calls: 7 },
   { at: 1, kind: 'skill', skill: 'mode-code:verify' },
   { at: 1, kind: 'mcpChanged', tools: ['db__query'] },
   { at: 1, kind: 'packs', on: ['flutter'], by: 'auto' },
@@ -86,6 +90,20 @@ const SAMPLES: ActivityEvent[] = [
   { at: 1, kind: 'net', tool: 'Bash', id: '20261020-210709-abd', what: 'rm -rf x' },
   { at: 1, kind: 'request', target: 'Q3 plan', quote: 'delete the file named Q3 plan' },
 ];
+
+test('a reset at a task boundary reads as what happened, a failure to reset as read, a skip as quiet', () => {
+  const of = (e: Partial<ActivityEvent>, lang: 'en' | 'tr' = 'en') => activityOf({ at: 1, kind: 'reset', ...e } as ActivityEvent, lang);
+  const carried = of({ phase: 'carried', tokens: 246_000 });
+  assert.equal(carried.text, 'The conversation was reset at a task boundary (246 K of context): the work went on in a new one');
+  assert.deepEqual([carried.cls, carried.quiet, carried.address, carried.why], ['done', false, 'quota/limits', '"Reset at a task boundary" is on']);
+  assert.equal(of({ phase: 'carried', tokens: 246_000 }, 'tr').text, 'Konuşma bir görev sınırında sıfırlandı (246 bin bağlam): iş yenisinde sürdü');
+  for (const why of ['busy', 'recent', 'quota', 'wrapUp']) assert.equal(of({ phase: 'skip', why }).quiet, true, why);
+  for (const why of ['fork', 'note', 'clear']) assert.equal(of({ phase: 'skip', why }).quiet, false, why);
+  assert.equal(of({ phase: 'skip', why: 'clear' }).text, 'No reset at a task boundary: Claude Code did not clear the conversation');
+  const read = activityOf({ at: 1, kind: 'resetRead', before: 246_000, first: 41_000, ready: 63_000, calls: 7 }, 'en');
+  assert.equal(read.text, 'After the reset, 41 K at the first call and 63 K at the first change, 7 calls in between');
+  assert.equal(read.quiet, true);
+});
 
 test("a clear request reads as the person's words, quoted for its target", () => {
   assert.equal(
@@ -194,6 +212,10 @@ test('every sample: its class, whether it is routine, where it is changed, and w
     ['done', false, 'work/keywords', false],
     ['note', true, 'quota/usage', false],
     ['done', false, 'quota/limits', true],
+    ['done', false, 'quota/limits', true],
+    ['note', true, 'quota/limits', true],
+    ['note', false, 'quota/limits', true],
+    ['note', true, 'quota/limits', false],
     ['done', false, 'claude-code/skills', false],
     ['waiting', false, 'claude-code/mcp', false],
     ['done', false, 'claude-code/packs', true],

@@ -264,6 +264,20 @@ import {
   type HandoffTrigger,
 } from '../core/handoff.js';
 import { morningSummary, nextActivity, parseActivity, type MorningFacts } from '../core/morning.js';
+import {
+  armOnBoundary,
+  carriedState,
+  carryFits,
+  continuationPrompt,
+  forkPrompt,
+  inCluster,
+  parseForkParts,
+  resetVerdict,
+  withCarried,
+  type Carry,
+  type ResetArm,
+  type ResetSkip,
+} from '../core/reset.js';
 type $ = EngineInterface;
 /** The input, `next` and result of a hook on event N, for handlers written as top-level functions. */
 type In<N extends EventName> = Parameters<Hook<N>>[1];
@@ -329,6 +343,21 @@ interface Ctx {
   hinted: Set<string>;
   /** A commit or a push ended a piece of work with a large context: the strip says /clear, until the next prompt. */
   boundary: { kind: 'commit' | 'push'; tokens: number } | null;
+  /** In autonomous work, a commit or a push past quota.resetTokens: the next task starts in a new conversation (src/core/reset.ts). */
+  resetArm: ResetArm | null;
+  /** The reset runs: the session's end is the reset's, which wrote the note and keeps the flow going. */
+  resetting: boolean;
+  /** When the work last reset, carried from conversation to conversation, and how many resets in a row it has had. */
+  lastResetAt: number;
+  resets: number;
+  /**
+   * This conversation began with a reset: the prompt it began with (Mode_Code's, never the person's words), the note's
+   * file, and what it read again before its first change (the measure of a reset's cost).
+   */
+  carried: { prompt: string | null; note: string | null; read: { before: number; first: number | null; calls: number } | null } | null;
+  /** Work the main conversation left running in the background (a shell, a monitor) not reported back, and a wake-up it scheduled. */
+  background: number;
+  scheduled: boolean;
   /** Ultracode, as the person set it with /effort (null: not this session), the settings say, or their prompt asks. */
   ultracode: { command: boolean | null; settings: boolean; prompt: boolean };
   /** Agents at work now that count toward a free mode's N, for the strip. */
@@ -400,10 +429,17 @@ interface Ctx {
 
 let ctxPromise: Promise<Ctx> | null = null;
 /**
- * A /clear ended the conversation: Claude Code goes on under a new session id and fires no `session.start` for it,
- * so the next load takes up what a new session's start would (afterClear).
+ * A /clear ended the conversation `from`: Claude Code goes on under a new session id and fires no `session.start` for
+ * it, so the next load under that id takes up what a new session's start would (afterClear).
  */
-let cleared = false;
+let cleared: { from: string; at: number } | null = null;
+/** How long a prompt may still find the cleared session's id: past it, the host kept the id, and there is nothing to take up. */
+const CLEAR_WAIT_MS = 10_000;
+/**
+ * What a reset at a task boundary hands to the conversation after its /clear (src/core/reset.ts). Kept in this module,
+ * which the /clear does not reload: only the conversation it clears to takes it up, never another session.
+ */
+let pendingCarry: Carry | null = null;
 
 /** Session state the drawings read (kept by Claude Code across reloads of this module). */
 const footersAtom = atom({ plugin: 'mode-code', key: 'footers' } as const, {} as ModeCodeFooters);
@@ -608,6 +644,13 @@ async function load($: $): Promise<Ctx> {
     sharedWarned: new Set(),
     hinted: new Set(),
     boundary: null,
+    resetArm: null,
+    resetting: false,
+    lastResetAt: 0,
+    resets: 0,
+    carried: null,
+    background: 0,
+    scheduled: false,
     ultracode: { command: null, settings: false, prompt: false },
     agentsRunning: 0,
     startNotes: [],
@@ -660,9 +703,8 @@ async function ctxOf($: $): Promise<Ctx> {
   const fresh = !ctxPromise;
   if (!ctxPromise) {
     const clear = cleared;
-    cleared = false;
     // Inside the load, so that no hook works with the new session before it took up what it should.
-    ctxPromise = clear ? load($).then((c) => afterClear($, c)) : load($);
+    ctxPromise = clear ? load($).then((c) => afterClear($, c, clear)) : load($);
   }
   try {
     const c = await ctxPromise;
@@ -673,6 +715,23 @@ async function ctxOf($: $): Promise<Ctx> {
     ctxPromise = null;
     throw err;
   }
+}
+
+/**
+ * The context for a prompt. After a /clear a hook may have loaded the session between its end and the new id; the
+ * conversation's first prompt then finds the new id and loads it, taking up what it should (afterClear).
+ */
+async function promptCtx($: $): Promise<Ctx> {
+  if (cleared && ctxPromise) {
+    try {
+      const c = await ctxPromise;
+      if ((await $.session.id()) !== c.sessionId) ctxPromise = null;
+      else if ((await $.clock.now()) - cleared.at >= CLEAR_WAIT_MS) cleared = null;
+    } catch {
+      ctxPromise = null;
+    }
+  }
+  return ctxOf($);
 }
 
 /** Marks this session as working now (other sessions and the control center read it). */
@@ -1705,6 +1764,12 @@ async function sessionStateText($: $): Promise<string> {
   } catch {
     return '';
   }
+  const parts = sessionStateParts(c);
+  return parts.length ? `[${APP_NAME}] Session state, kept across compaction: ${parts.join('; ')}.` : '';
+}
+
+/** The session's state in short clauses for the model, beyond the defaults: kept across a compaction, carried by a reset. */
+function sessionStateParts(c: Ctx): string[] {
   const s = c.state;
   const parts: string[] = [];
   const label = s.project ? (c.config.projects.find((p) => p.id === s.project)?.names[0] ?? s.project) : null;
@@ -1727,7 +1792,7 @@ async function sessionStateText($: $): Promise<string> {
           : `finish the ${step?.kind ?? ''} step and call mcp__mode-code__flow_step with its name; drafts are in ${c.flow.workDir}`),
     );
   }
-  return parts.length ? `[${APP_NAME}] Session state, kept across compaction: ${parts.join('; ')}.` : '';
+  return parts;
 }
 
 /** Adds the state note to the conversation as a row the model reads and the person does not see as typed. */
@@ -1861,6 +1926,11 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   void [_t, _a, _c, _m];
   const cwd = await $.session.cwd();
 
+  // In autonomous work a commit or a push with a large context armed a reset: the next task's first call starts it.
+  if (e.agentId === undefined && c.resetArm) {
+    const reset = await resetAtBoundary($, c, tool, input, cwd);
+    if (reset) return { deny: reset };
+  }
   // Full autonomy asks nobody: a question to the person, or Claude Code's plan mode, which waits for their approval,
   // is answered with what to do instead (docs/autonomy.md).
   if (c.state.interaction === 'full' && (tool === 'AskUserQuestion' || tool === 'EnterPlanMode')) {
@@ -1957,6 +2027,12 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
     if (made.length) await saveProv($, c, (p) => withMade(p, made));
   }
   if (ran && e.agentId === undefined) {
+    // Work left running in the background reports to this conversation: no reset until it has (busyNow).
+    if ((shellOf(tool) && input.run_in_background === true) || tool === 'Monitor') c.background++;
+    if (tool === 'CronCreate' || tool === 'ScheduleWakeup') c.scheduled = true;
+    if (c.carried?.read) await measureReread($, c, tool, input);
+  }
+  if (ran && e.agentId === undefined) {
     c.turn.uses.push({ name: tool, input });
     // The turn's first change is kept at once: a session whose window is shut mid-turn still owes its note.
     if (!c.turn.changed) {
@@ -2024,15 +2100,14 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
   return extra.length && result.deny === undefined ? { ...result, context: [...(result.context ?? []), ...extra] } : result;
 }
 
-/** Below this much context a /clear saves too little to say so. */
-const CLEAR_HINT_TOKENS = 100_000;
-
 /**
  * A commit or a push ran: a piece of work is done, and the next starts on whatever context this one left (A7 of
- * 1.2.0). With a large context the strip says /clear would start it small; the person types it, as a hook cannot.
+ * 1.2.0). With a context of quota.resetTokens or more, autonomous work resets at the next task (src/core/reset.ts);
+ * otherwise the strip says /clear would start it small, and the person types it.
  */
 async function workBoundary($: $, c: Ctx, tool: string, input: Readonly<Record<string, unknown>>): Promise<void> {
-  if (!c.config.quota.clearHint || !shellOf(tool)) return;
+  const q = c.config.quota;
+  if ((!q.clearHint && !q.autoReset) || !shellOf(tool)) return;
   const kinds = gitSubcommands(String(input.command ?? '')).filter((k) => k === 'commit' || k === 'push');
   if (!kinds.length) return;
   let tokens = 0;
@@ -2041,13 +2116,156 @@ async function workBoundary($: $, c: Ctx, tool: string, input: Readonly<Record<s
   } catch {
     return;
   }
-  if (tokens < CLEAR_HINT_TOKENS) return;
-  c.boundary = { kind: kinds.includes('push') ? 'push' : 'commit', tokens };
+  if (tokens < q.resetTokens) return;
+  const arm = armOnBoundary({ kinds, tokens, interaction: c.state.interaction, autoReset: q.autoReset, threshold: q.resetTokens, now: await $.clock.now() });
+  // Armed, the strip says nothing yet: the hint comes only if the reset does not (the turn ends first, or it cannot).
+  if (arm) c.resetArm = arm;
+  else if (q.clearHint) await hintClear($, c, { kind: kinds.includes('push') ? 'push' : 'commit', tokens });
+}
+
+/** The strip's /clear hint, after a commit or a push with a large context, until the person types again. */
+async function hintClear($: $, c: Ctx, at: { kind: 'commit' | 'push'; tokens: number }): Promise<void> {
+  c.boundary = { kind: at.kind, tokens: at.tokens };
   await refreshStatus($, c);
 }
 
+/** The places a call that finishes a piece of work may write or read (src/core/reset.ts inCluster). */
+function clusterEnvOf(c: Ctx, cwd: string) {
+  const env = pathEnv(c, cwd);
+  const store = c.config.memory.store?.dir;
+  return { ...env, memoryDirs: [...memoryDirs(c, cwd), ...(store ? [resolvePath(store, env)] : [])], handoffDir: handoffRoot(c.config, c.layout.handoffsDir) };
+}
+
+/** Agents or background work that report to this conversation: a reset now would lose where they report. */
+async function busyNow($: $, c: Ctx): Promise<boolean> {
+  if (c.background > 0 || c.scheduled) return true;
+  return (await agentList($)).some((a) => AT_WORK.has(a.status));
+}
+
+/**
+ * The reset at a task boundary (src/core/reset.ts, docs/quota.md), at the main conversation's first call after the
+ * armed commit or push that does not finish that work. The note is asked of the conversation itself and kept, what
+ * is carried waits for the conversation after the /clear, and this call is refused; a timer then ends the turn, clears
+ * and goes on (runReset). A reset that cannot go on leaves the conversation as it is, with the strip's hint. The
+ * refusal's text, or null.
+ */
+async function resetAtBoundary($: $, c: Ctx, tool: string, input: Readonly<Record<string, unknown>>, cwd: string): Promise<string | null> {
+  const arm = c.resetArm;
+  if (!arm || c.resetting || inCluster(tool, input, clusterEnvOf(c, cwd))) return null;
+  c.resetArm = null;
+  const now = await $.clock.now();
+  const quotaStop = c.config.modules.quota && (await quotaNow($, c)).level === 'stop';
+  const v = resetVerdict({ busy: await busyNow($, c), lastResetAt: c.lastResetAt, now, quotaStop, wrapUp: c.state.wrapUp });
+  if (!v.go) return noReset($, c, arm, v.why);
+  let reply: Awaited<ReturnType<$['model']['fork']>>;
+  try {
+    reply = await $.model.fork({ prompt: forkPrompt() });
+  } catch (err) {
+    return noReset($, c, arm, 'fork', { reason: String((err as Error)?.message ?? err).slice(0, 120) });
+  }
+  if (!reply.isAnswered) return noReset($, c, arm, 'fork', { reason: reply.reason });
+  const parts = parseForkParts(reply.text);
+  const problems = partProblems(parts ?? {}, (t) => scanSecrets(t).length);
+  if (!parts || problems.length) return noReset($, c, arm, 'note', { problems: problems.map((p) => `${p.part} ${p.kind}`) });
+  const note = await handoffNote($, c, 'reset', { parts: parts as HandoffParts });
+  const state = sessionStateParts(c);
+  pendingCarry = {
+    from: c.sessionId,
+    cwd: c.state.cwd ?? pathEnv(c, cwd).cwd,
+    at: now,
+    state: carriedState(c.state),
+    prov: await provOf($, c),
+    request: c.lastPrompt,
+    note: note.path,
+    tokens: arm.tokens,
+    resets: c.resets + 1,
+    prompt: continuationPrompt({
+      tokens: compact(arm.tokens, c.lang),
+      note: note.text,
+      path: note.path,
+      state: state.length ? `[${APP_NAME}] Session state, carried over: ${state.join('; ')}.` : '',
+      lang: c.lang,
+    }),
+  };
+  c.resetting = true;
+  const u = reply.usage;
+  await logEvent($, c, {
+    kind: 'reset',
+    phase: 'start',
+    tokens: arm.tokens,
+    tool,
+    noteChars: note.text.length,
+    fork: { in: u.input_tokens, out: u.output_tokens, cached: u.cache_read_input_tokens ?? 0 },
+  });
+  // From a timer: the turn is ended and the command run once this hook has answered (a command run inside it is refused).
+  $.clock.after(1, () => {
+    void runReset($, c);
+  });
+  return tIn(c.lang, 'reset.deny');
+}
+
+/**
+ * What the conversation after a reset read before its first change (a file written, a commit): the context at its first
+ * call and at that change, logged once. A reset's real cost, and the data a threshold of a project's own would need.
+ */
+async function measureReread($: $, c: Ctx, tool: string, input: Readonly<Record<string, unknown>>): Promise<void> {
+  const r = c.carried?.read;
+  if (!r) return;
+  r.calls++;
+  const change = WRITES.has(tool) || (!!shellOf(tool) && gitSubcommands(String(input.command ?? '')).includes('commit'));
+  if (r.first !== null && !change) return;
+  let tokens = 0;
+  try {
+    tokens = (await $.session.usage()).context.tokens ?? 0;
+  } catch {
+    /* counted as nothing read */
+  }
+  if (r.first === null) r.first = tokens;
+  if (!change) return;
+  c.carried = { ...c.carried!, read: null };
+  await logEvent($, c, { kind: 'resetRead', before: r.before, first: r.first, ready: tokens, calls: r.calls });
+}
+
+const WRITES: ReadonlySet<string> = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
+
+/** A reset that does not go on: why, in the activity (a failure in a toast too), and the strip's hint as at any large commit. */
+async function noReset($: $, c: Ctx, arm: ResetArm, why: ResetSkip | 'fork' | 'note', extra: Record<string, unknown> = {}): Promise<null> {
+  await logEvent($, c, { kind: 'reset', phase: 'skip', why, tokens: arm.tokens, ...extra });
+  if (why === 'fork' || why === 'note')
+    $.ui.toast(tIn(c.lang, 'reset.failed', { why: tIn(c.lang, `act.reset.why.${why}` as MessageKey) }), { timeoutMs: TOAST_MS.result });
+  if (c.config.quota.clearHint) await hintClear($, c, arm);
+  return null;
+}
+
+/**
+ * The reset's steps once the call is refused: the turn ends, the conversation clears (its end writes no other note and
+ * keeps the flow going), and the work goes on with the prompt the new conversation takes up with what was carried
+ * (afterClear). A /clear that fails goes on here instead, as the turn was ended for it.
+ */
+async function runReset($: $, c: Ctx): Promise<void> {
+  const carry = pendingCarry;
+  if (c.turnId !== null) await $.turn.abort({ turnId: c.turnId }).catch(() => undefined);
+  try {
+    await $.command.run({ command: 'clear' });
+  } catch (err) {
+    pendingCarry = null;
+    c.resetting = false;
+    await logEvent($, c, { kind: 'reset', phase: 'skip', why: 'clear', detail: String((err as Error)?.message ?? err).slice(0, 200) });
+    const why = tIn(c.lang, 'act.reset.why.clear');
+    $.ui.toast(tIn(c.lang, 'reset.failed', { why }), { timeoutMs: TOAST_MS.result });
+    const text = tIn(c.lang, 'reset.goOn', { why });
+    c.selfSent = text;
+    await $.prompt.submit({ text }).catch(() => undefined);
+    return;
+  }
+  // The conversation it cleared to takes up what was carried at once, whichever hook its prompt reaches (afterClear).
+  await ctxOf($).catch(() => undefined);
+  if (carry)
+    await $.prompt.submit({ text: carry.prompt }).catch((err: unknown) => $.ui.toast(`${APP_NAME}: ${String((err as Error)?.message ?? err).slice(0, 300)}`));
+}
+
 async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.submit'>): Out<'prompt.submit'> {
-  const c = await ctxOf($);
+  const c = await promptCtx($);
   const kind = e.origin?.kind;
   // Typing at the prompt: the keyboard has left the strip, and the card of the control it was on goes.
   if (kind === 'composer') await update($, stripFocusAtom, (x) => (x.id ? { id: null, at: x.at } : x)).catch(() => undefined);
@@ -2057,6 +2275,11 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   // A text this plugin sent for the person was applied when it was sent (sendAsPerson): a start it asked for stands.
   const applied = ours && c.selfSent !== null && String(e.text ?? '') === c.selfSent;
   if (ours) c.selfSent = null;
+  // The prompt a reset started this conversation with (src/core/reset.ts): Mode_Code's, so no keyword is read in its note.
+  const resumed = ours && c.carried?.prompt != null && String(e.text ?? '') === c.carried.prompt;
+  if (resumed) c.carried = { ...c.carried!, prompt: null };
+  // Background work reported back: a reset need not wait for it any more.
+  if (kind === 'task-notification' && c.background > 0) c.background--;
   // Another session's message is outside content: the session is tainted from now on (src/core/taint.ts).
   if (kind === 'peer' && !c.state.tainted) {
     c.state = { ...c.state, tainted: { source: 'peer', at: await $.clock.now() } };
@@ -2080,8 +2303,9 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   if (human) {
     c.turn = { startedAt: await $.clock.now(), uses: [], changed: false };
     c.leftThisTurn = 0;
-    // The person has typed what comes next: the /clear moment has passed.
+    // The person has typed what comes next: the /clear moment has passed, and the reset's with it.
     c.boundary = null;
+    c.resetArm = null;
     c.prompts++;
     if (kind !== 'plugin') c.lastPrompt = maskSecrets(String(e.text ?? '')).slice(0, 2000);
     // What the person wrote is their evidence for what a call acts on; what they pasted is not (src/core/provenance.ts).
@@ -2137,7 +2361,7 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
     c.armed = null;
     if (!detectKeyword(typed, projectRefs(c.config), keywordTables(c.config))) typed = `${typed}\n\n${flowPhrase(a.variant, c.lang)}`;
   }
-  if (human && !applied && (c.config.modules.keywords || typed !== String(e.text ?? ''))) {
+  if (human && !applied && !resumed && (c.config.modules.keywords || typed !== String(e.text ?? ''))) {
     const turn = await keywordTurn($, c, typed);
     extra.push(...turn.context);
     flowSaid = turn.flow;
@@ -2552,6 +2776,12 @@ async function onTurnComplete($: $, e: In<'turn.complete'>, next: Nx<'turn.compl
     /* the next prompt checks */
   }
   if (c.turnId === e.turnId) c.turnId = null;
+  // The turn ended by itself after an armed commit: the person is waited for, so no reset; the strip says /clear.
+  if (c.resetArm && !c.resetting) {
+    const arm = c.resetArm;
+    c.resetArm = null;
+    if (c.config.quota.clearHint) await hintClear($, c, arm);
+  }
   // The turn is over, so none of its calls runs any more; Mo shows how it ended for a few seconds.
   c.mo = { ...c.mo, tools: 0, agents: 0, asking: 0 };
   await moMark($, c, e.reason === 'answer' ? 'doneAt' : e.reason === 'error' ? 'errorAt' : 'stoppedAt');
@@ -2933,7 +3163,7 @@ async function updateCheck($: $, c: Ctx): Promise<void> {
 
 async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.start'>): Out<'session.start'> {
   ctxPromise = null;
-  cleared = false;
+  cleared = null;
   const c = await ctxOf($);
   // What changed in the memory elsewhere comes in as the session starts (docs/memory.md), then the sync across
   // computers (docs/sync.md). Both start first, so that a prompt typed at once finds them and waits: Claude Code
@@ -3028,14 +3258,16 @@ async function onSessionEnd($: $, e: In<'session.end'>, next: Nx<'session.end'>)
     // First, as the rest takes time Claude Code may not give: other sessions no longer count this one as working.
     c.state = { ...c.state, endedAt: await $.clock.now() };
     await saveState($, c);
-    if (c.flow && isRunning(c.flow) && c.config.modules.modes) {
+    // A reset's own /clear: its note is written, and its flow goes on in the conversation it clears to (takeCarry).
+    const reset = c.resetting && e.reason === 'clear';
+    if (c.flow && isRunning(c.flow) && c.config.modules.modes && !reset) {
       const p = pauseFlow(c.flow, `session ${String(e.reason ?? 'ended')}`, await $.clock.now());
       if (p.ok) await saveFlow($, c, p.flow);
     }
     // A session closed with /00 handed off and synced before it asked to exit, with no clock running (closeSession).
     if (!c.closed) {
       // The work of a session that changed something is handed off, even without a note asked for (docs/memory.md).
-      if (e.reason !== 'resume') await endHandoff($, c, e.reason === 'clear' ? 'clear' : 'end');
+      if (e.reason !== 'resume' && !reset) await endHandoff($, c, e.reason === 'clear' ? 'clear' : 'end');
       await sharedSync($, c, 'end');
     }
   } catch {
@@ -3044,7 +3276,7 @@ async function onSessionEnd($: $, e: In<'session.end'>, next: Nx<'session.end'>)
   const r = await next(e);
   if (e.reason === 'clear') {
     ctxPromise = null;
-    cleared = true;
+    cleared = { from: e.sessionId, at: await $.clock.now() };
   }
   return r;
 }
@@ -3324,18 +3556,29 @@ async function handoffFacts($: $, c: Ctx, trigger: HandoffTrigger): Promise<Hand
 
 /** Writes a handoff note into the memory (or mode-code's folder without one); its path, or null when turned off. */
 async function writeHandoff($: $, c: Ctx, trigger: HandoffTrigger, body: { parts?: HandoffParts; summary?: string }): Promise<string | null> {
-  if (!c.config.memory.handoff.enabled) return null;
+  return c.config.memory.handoff.enabled ? (await handoffNote($, c, trigger, body)).path : null;
+}
+
+/** A handoff note's text, kept as writeHandoff keeps it; its path is null when notes are off or it could not be written. */
+async function handoffNote(
+  $: $,
+  c: Ctx,
+  trigger: HandoffTrigger,
+  body: { parts?: HandoffParts; summary?: string },
+): Promise<{ text: string; path: string | null }> {
   const f = await handoffFacts($, c, trigger);
+  const text = composeHandoff(f, body);
+  if (!c.config.memory.handoff.enabled) return { text, path: null };
   const path = joinPath(handoffRoot(c.config, c.layout.handoffsDir), f.project, handoffName(f.at, c.sessionId));
   try {
-    await $.fs.write(path, composeHandoff(f, body));
+    await $.fs.write(path, text);
   } catch {
-    return null;
+    return { text, path: null };
   }
   c.handoffAt = f.at;
   await saveState($, c);
   await logEvent($, c, { kind: 'handoff', trigger, project: f.project });
-  return path;
+  return { text, path };
 }
 
 /** The newest handoff note of the session's project that this session did not write, read back. */
@@ -3620,7 +3863,9 @@ async function memoryPromptContext($: $, c: Ctx, kw: KeywordMatch | null, own: (
     c.closedStart = null;
   }
   if (kw?.kind === 'continue' || (first && c.config.memory.handoff.enabled)) {
-    const h = await waitingHandoff($, c);
+    const found = await waitingHandoff($, c);
+    // The note a reset started this conversation with is in its prompt already, whole.
+    const h = found && found.path === c.carried?.note ? null : found;
     if (h && kw?.kind === 'continue') out.push(handoffFull(h.text, h.path));
     else if (h && first) out.push(...own([handoffLine(h.note, h.path)]));
   }
@@ -5337,16 +5582,51 @@ async function closeSession($: $, c: Ctx, via: 'command' | 'strip'): Promise<voi
 }
 
 /**
- * The conversation after a /clear: a new session as far as the person is concerned, so it takes up the folder's last
- * choice as a new session's start does (docs/modes.md): the one just cleared, full autonomy as autonomous.
+ * The conversation after a /clear. After a reset at a task boundary it takes up what the reset carried; after the
+ * person's own /clear it is a new session as far as they are concerned, so it takes up the folder's last choice as a
+ * new session's start does (docs/modes.md): the one just cleared, full autonomy as autonomous.
  */
-async function afterClear($: $, c: Ctx): Promise<Ctx> {
+async function afterClear($: $, c: Ctx, clear: { from: string; at: number }): Promise<Ctx> {
+  // Loaded in the moment between the end and the new id: still the cleared session. The next prompt takes up (promptCtx).
+  if (c.sessionId === clear.from) return c;
+  cleared = null;
+  const carry = pendingCarry;
+  pendingCarry = null;
   try {
-    if (c.fresh && c.config.modules.modes) await restoreLast($, c);
+    const now = await $.clock.now();
+    if (carry && c.fresh && c.state.cwd && carryFits(carry, { sessionId: c.sessionId, cwd: c.state.cwd, now, platform: c.platform }))
+      await takeCarry($, c, carry);
+    else if (c.fresh && c.config.modules.modes) await restoreLast($, c);
   } catch {
     /* the session starts as a new one does with nothing to take up */
   }
   return c;
+}
+
+/**
+ * The conversation a reset cleared to takes up what it carried (src/core/reset.ts): the way of working and the rest of
+ * the state, the record of where things came from (the safety-net hook reads it before the first call), the person's
+ * last request, and the flow, which goes on here at its step; one the person had paused stays paused.
+ */
+async function takeCarry($: $, c: Ctx, carry: Carry): Promise<void> {
+  const now = await $.clock.now();
+  c.state = withCarried(c.state, carry.state);
+  c.lastPrompt = carry.request;
+  c.lastResetAt = carry.at;
+  c.resets = carry.resets;
+  c.carried = { prompt: carry.prompt, note: carry.note, read: { before: carry.tokens, first: null, calls: 0 } };
+  await saveProv($, c, () => carry.prov);
+  const dir = c.state.flowId ? flowDir(c.layout, c.state.flowId) : null;
+  const flow = dir ? parseFlow(await readFile($, joinPath(dir, 'flow.json'))) : null;
+  if (flow && isOpen(flow)) {
+    const r = isRunning(flow) ? resumeFlow(flow, c.sessionId, now) : null;
+    if (r?.ok) await saveFlow($, c, r.flow);
+    else c.flow = flow;
+  } else c.state = { ...c.state, flowId: null };
+  await saveState($, c);
+  if (c.state.resumeAt) await scheduleResume($, c);
+  await logEvent($, c, { kind: 'reset', phase: 'carried', from: carry.from, tokens: carry.tokens, resets: carry.resets, note: carry.note });
+  $.ui.toast(tIn(c.lang, 'reset.toast', { tokens: compact(carry.tokens, c.lang) }), { timeoutMs: TOAST_MS.result });
 }
 
 /** On a fresh session, the mode and way of working the person last used in this folder (see lastChoice). */

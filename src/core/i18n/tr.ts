@@ -205,4 +205,9 @@ export const tr: Record<MessageKey, string> = {
   'quota.window.five_hour': '5 saatlik',
   'quota.window.seven_day': 'haftalık',
   'quota.notify.resume': 'Kota dönemi sıfırlandı. Çalışma şimdi sürüyor.',
+  'reset.deny':
+    "[Mode_Code] Burada dur: iş parçası commit'lendi ve Mode_Code token tasarrufu için konuşmayı şimdi sıfırlıyor. İşin nerede durduğunu söyleyen not yazıldı; iş hemen yeni bir konuşmada sürüyor. Başka araç çağırma, bir şey yazma.",
+  'reset.toast': '♻ Görev sınırında sıfırlandı ({tokens} bağlam): iş bir notla sürüyor.',
+  'reset.failed': '♻ Bu görev sınırında sıfırlama olmadı ({why}): iş bu konuşmada sürüyor.',
+  'reset.goOn': '[Mode_Code] Sıfırlama olmadı ({why}); bu konuşma sürüyor. Sonraki adımla devam et.',
 };

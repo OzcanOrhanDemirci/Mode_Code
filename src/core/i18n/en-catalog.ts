@@ -27,6 +27,7 @@ export const enCatalog = {
   'ux.unit.days.one': '{n} day',
   'ux.unit.count': '{n}',
   'ux.unit.count.one': '{n}',
+  'ux.unit.tokens': '{n} tokens',
 
   // ── Settings › Language and view ──
   'ux.language.name': 'Language',
@@ -121,8 +122,18 @@ export const enCatalog = {
   'ux.quota.clearHint.name': 'Suggest /clear after a commit',
   'ux.quota.clearHint.what': 'A suggestion on the strip when a long conversation reaches a natural break.',
   'ux.quota.clearHint.on':
-    'After a commit or a push in a conversation of more than 100 thousand tokens, the strip says /clear would start the next task small. Nothing is cleared for you.',
+    'After a commit or a push in a conversation past "Reset from", the strip says /clear would start the next task small. Nothing is cleared for you.',
   'ux.quota.clearHint.off': 'No suggestion.',
+  'ux.quota.autoReset.name': 'Reset at a task boundary',
+  'ux.quota.autoReset.what':
+    'In autonomous work and full autonomy, a long conversation starts the next task in a fresh one, with a note of where the work stands, so that every call stops reading all of the old one.',
+  'ux.quota.autoReset.on':
+    'After a commit or a push past "Reset from", the next task starts in a new conversation: a note is written from the old one, and the way of working, the flow and what the belt knows go with it. Manual never resets.',
+  'ux.quota.autoReset.off': 'The conversation goes on as it is; the strip may suggest /clear.',
+  'ux.quota.resetTokens.name': 'Reset from',
+  'ux.quota.resetTokens.what': 'How large the conversation must be at a commit or a push for the reset, or the /clear suggestion.',
+  'ux.quota.resetTokens.eff':
+    'From {n} of context. 200 thousand saved the most at every cost of reading again measured; under 150 thousand and over 300 thousand clearly less.',
 
   // ── Settings › Accessibility ──
   'ux.accessibility.plain.name': 'Plain text',

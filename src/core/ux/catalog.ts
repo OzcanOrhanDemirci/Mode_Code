@@ -7,15 +7,15 @@
  * `ux.<setting>.*` (src/core/i18n/en-catalog.ts), so both languages are checked by the type system and the tests.
  * Pure: the in-process plugin may use it.
  */
-import { DEFAULT_CONFIG, type Config } from '../config.js';
+import { DEFAULT_CONFIG, RESET_TOKENS_MAX, RESET_TOKENS_MIN, type Config } from '../config.js';
 import type { ControlAction } from '../controls.js';
 import { LANGUAGES, tIn, type Lang, type MessageKey } from '../i18n/index.js';
-import { percent } from '../format.js';
+import { compact, percent } from '../format.js';
 import { PACKS } from '../packs.js';
 import { EXTERNAL_SKILLS } from '../skills-external.js';
 import { editDistance, fold } from '../text.js';
 
-export type Unit = 'percent' | 'hours' | 'minutes' | 'days' | 'count';
+export type Unit = 'percent' | 'hours' | 'minutes' | 'days' | 'count' | 'tokens';
 
 export type SettingKind = { kind: 'switch' } | { kind: 'choice'; options: readonly string[] } | { kind: 'number'; min: number; max: number; unit: Unit };
 
@@ -83,6 +83,13 @@ const S = {
   'quota.defaultWeeklyTarget': { page: 'quota/limits', kind: pct, takes: 'nextPrompt', risk: 'none', gate: { id: 'modules.quota', when: [true] } },
   'quota.autoResume': { page: 'quota/limits', kind: sw, takes: 'nextPrompt', risk: 'none', gate: { id: 'modules.quota', when: [true] } },
   'quota.clearHint': { page: 'quota/limits', kind: sw, takes: 'nextPrompt', risk: 'none' },
+  'quota.autoReset': { page: 'quota/limits', kind: sw, takes: 'nextPrompt', risk: 'none' },
+  'quota.resetTokens': {
+    page: 'quota/limits',
+    kind: { kind: 'number', min: RESET_TOKENS_MIN, max: RESET_TOKENS_MAX, unit: 'tokens' },
+    takes: 'nextPrompt',
+    risk: 'none',
+  },
   // Settings › Accessibility
   'accessibility.plain': { page: 'settings/accessibility', kind: sw, takes: 'nextPrompt', risk: 'none' },
   'accessibility.highContrast': { page: 'settings/accessibility', kind: sw, takes: 'now', risk: 'none' },
@@ -231,6 +238,7 @@ export function valueText(path: SettingPath, value: unknown, lang: Lang): string
 
 export function amount(n: number, unit: Unit, lang: Lang): string {
   if (unit === 'percent') return percent(n, lang);
+  if (unit === 'tokens') return tIn(lang, 'ux.unit.tokens', { n: compact(n, lang) });
   return tIn(lang, `ux.unit.${unit}${n === 1 ? '.one' : ''}` as MessageKey, { n });
 }
 
