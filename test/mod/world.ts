@@ -50,6 +50,8 @@ export interface WorldOptions {
   pluginFiles?: Record<string, string>;
   /** No surface places a pane (a headless session), or none of these ids: `$.ui.open` answers that it waits undrawn. */
   paneless?: boolean | string[];
+  /** The session's id, which a test changes as /clear does (Claude Code goes on under a new one); SESSION unless given. */
+  session?: { id: string };
 }
 
 export const HOME = '/home/ada';
@@ -95,7 +97,7 @@ export function world(on: any, opts: WorldOptions = {}) {
     return { value: opts.startedAtHome ? at.HOME : at.PROJECT };
   });
   on('session.root', () => ({ value: opts.startedAtHome ? at.HOME : at.PROJECT }));
-  on('session.id', () => ({ value: SESSION }));
+  on('session.id', () => ({ value: opts.session?.id ?? SESSION }));
   on('fs.read', (_$: any, e: any) => {
     const p = norm(e.path);
     if (files.has(p)) return { value: files.get(p)!.text };
@@ -265,8 +267,8 @@ export function world(on: any, opts: WorldOptions = {}) {
     },
     write,
     link: (path: string) => links.add(norm(path)),
-    modState: () => {
-      const t = files.get(norm(`${at.DATA}/state/sessions/${SESSION}.mod.json`))?.text;
+    modState: (id = opts.session?.id ?? SESSION) => {
+      const t = files.get(norm(`${at.DATA}/state/sessions/${id}.mod.json`))?.text;
       return t ? JSON.parse(t) : null;
     },
     events: () =>

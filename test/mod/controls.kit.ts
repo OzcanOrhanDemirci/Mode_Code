@@ -818,6 +818,29 @@ test("a new session takes up this folder's last choice, says so, and tells the m
   expect(again.context.join('\n')).not.toMatch(/last used in this folder/);
 });
 
+test('after /clear the conversation goes on as a new session would: the last choice taken up, full autonomy as autonomous', async ($, on) => {
+  // Claude Code goes on under a new session id after /clear and fires no session.start for it.
+  const session = { id: SESSION };
+  const w = world(on, { session });
+  on('session.end', (_$: any, e: any) => ({ sessionId: e.sessionId }));
+  await $.prompt.submit(typed('plan'));
+  await $.prompt.submit(typed('full auto'));
+  expect(w.modState()).toMatchObject({ mode: 'plan', interaction: 'full' });
+  await $.session.end({ reason: 'clear', sessionId: SESSION, resume: {} } as any);
+  session.id = 'kit-session-2';
+  const r: any = await $.prompt.submit(typed('hello'));
+  expect(w.modState('kit-session-2')).toMatchObject({ sessionId: 'kit-session-2', mode: 'plan', interaction: 'autonomous' });
+  expect(w.toasts).toContain("This folder's last choice: 📐 plan · autonomous");
+  expect(r.context.join('\n')).toMatch(/last used in this folder\. What holds now.*Mode, plan mode.*Way of working, autonomous/);
+  // The next /clear takes up this conversation's own choice.
+  await w.clock.advance(1000);
+  await $.prompt.submit(typed('manual'));
+  await $.session.end({ reason: 'clear', sessionId: 'kit-session-2', resume: {} } as any);
+  session.id = 'kit-session-3';
+  await $.prompt.submit(typed('hello again'));
+  expect(w.modState('kit-session-3')).toMatchObject({ mode: 'plan', interaction: 'manual' });
+});
+
 test('a manual the person picked is their last choice too; free with nothing picked is not one', async ($, on) => {
   const w = world(on);
   const now = w.clock.now();

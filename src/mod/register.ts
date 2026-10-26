@@ -399,6 +399,11 @@ interface Ctx {
 }
 
 let ctxPromise: Promise<Ctx> | null = null;
+/**
+ * A /clear ended the conversation: Claude Code goes on under a new session id and fires no `session.start` for it,
+ * so the next load takes up what a new session's start would (afterClear).
+ */
+let cleared = false;
 
 /** Session state the drawings read (kept by Claude Code across reloads of this module). */
 const footersAtom = atom({ plugin: 'mode-code', key: 'footers' } as const, {} as ModeCodeFooters);
@@ -653,7 +658,12 @@ function parseReading(text: string | null): QuotaReading | null {
 
 async function ctxOf($: $): Promise<Ctx> {
   const fresh = !ctxPromise;
-  if (!ctxPromise) ctxPromise = load($);
+  if (!ctxPromise) {
+    const clear = cleared;
+    cleared = false;
+    // Inside the load, so that no hook works with the new session before it took up what it should.
+    ctxPromise = clear ? load($).then((c) => afterClear($, c)) : load($);
+  }
   try {
     const c = await ctxPromise;
     // A fresh state (a new session, or a /clear) redraws the mode labels from it.
@@ -2923,6 +2933,7 @@ async function updateCheck($: $, c: Ctx): Promise<void> {
 
 async function onSessionStart($: $, e: In<'session.start'>, next: Nx<'session.start'>): Out<'session.start'> {
   ctxPromise = null;
+  cleared = false;
   const c = await ctxOf($);
   // What changed in the memory elsewhere comes in as the session starts (docs/memory.md), then the sync across
   // computers (docs/sync.md). Both start first, so that a prompt typed at once finds them and waits: Claude Code
@@ -3031,7 +3042,10 @@ async function onSessionEnd($: $, e: In<'session.end'>, next: Nx<'session.end'>)
     /* the flow and the run stay as they were; "continue" in the next session takes them over */
   }
   const r = await next(e);
-  if (e.reason === 'clear') ctxPromise = null;
+  if (e.reason === 'clear') {
+    ctxPromise = null;
+    cleared = true;
+  }
   return r;
 }
 
@@ -5320,6 +5334,19 @@ async function closeSession($: $, c: Ctx, via: 'command' | 'strip'): Promise<voi
     c.closed = false;
     $.ui.toast(tIn(c.lang, 'ctl.close.failed', { reason: String((err as Error)?.message ?? err).slice(0, 160) }), { timeoutMs: 15_000 });
   }
+}
+
+/**
+ * The conversation after a /clear: a new session as far as the person is concerned, so it takes up the folder's last
+ * choice as a new session's start does (docs/modes.md): the one just cleared, full autonomy as autonomous.
+ */
+async function afterClear($: $, c: Ctx): Promise<Ctx> {
+  try {
+    if (c.fresh && c.config.modules.modes) await restoreLast($, c);
+  } catch {
+    /* the session starts as a new one does with nothing to take up */
+  }
+  return c;
 }
 
 /** On a fresh session, the mode and way of working the person last used in this folder (see lastChoice). */
