@@ -69,11 +69,35 @@ colors() {
 }
 
 say() { printf '%s\n' "$*"; }
-step() { printf '%s›%s %s\n' "$C" "$N" "$*"; }
-ok() { printf '  %s✓%s %s\n' "$G" "$N" "$*"; }
-note() { printf '  %s%s%s\n' "$D" "$*" "$N"; }
-warn() { printf '  %s!%s %s\n' "$Y" "$N" "$*" >&2; }
+# busy <text>: what is under way, on a line the next ok writes over in a terminal; a log gets it as a line.
+busy() {
+  if [ -t 1 ]; then
+    printf '  %s›%s %s…' "$C" "$N" "$*"
+    BUSY=1
+  else
+    printf '  › %s...\n' "$*"
+  fi
+}
+# The line busy left open: written over by its outcome, or ended (unbusy keep) when something else comes first.
+unbusy() {
+  [ "${BUSY:-0}" = 1 ] || return 0
+  if [ "${1:-}" = keep ]; then printf '\n'; else printf '\r\033[K'; fi
+  BUSY=0
+}
+ok() {
+  unbusy
+  printf '  %s✓%s %s\n' "$G" "$N" "$*"
+}
+note() {
+  unbusy keep
+  printf '  %s%s%s\n' "$D" "$*" "$N"
+}
+warn() {
+  unbusy keep
+  printf '  %s!%s %s\n' "$Y" "$N" "$*" >&2
+}
 die() {
+  unbusy keep
   printf '%s✗ %s%s\n' "$R" "$*" "$N" >&2
   exit 1
 }
@@ -224,10 +248,10 @@ private_node() {
   version=${file#node-v}
   version=${version%%-*}
   if [ "$PRIVATE_NODE" = 1 ] && [ "${NODE_VERSION:-}" = "$version" ]; then
-    ok "$(t "Node.js $version (kept for Mode_Code)" "Node.js $version (Mode_Code için tutulan)")"
+    ok "$(t "Node.js $version found (used by $NAME alone)" "Node.js $version bulundu (yalnız $NAME kullanır)")"
     return 0
   fi
-  step "$(t "Downloading Node.js $version for Mode_Code" "Mode_Code için Node.js $version indiriliyor")"
+  busy "$(t 'Downloading Node.js' 'Node.js indiriliyor')"
   download "$mirror/$file" "$STAGE/$file" || die "$(t 'The Node.js download failed.' 'Node.js indirilemedi.')"
   got=$(sha256 "$STAGE/$file")
   [ "$got" = "$want" ] || die "$(t "The Node.js download does not match nodejs.org's checksum; nothing was installed." "İndirilen Node.js, nodejs.org'un sağlama toplamıyla eşleşmiyor; hiçbir şey kurulmadı.")"
@@ -241,7 +265,7 @@ private_node() {
   NODE="$INSTALL_DIR/node/bin/node"
   NODE_VERSION="$version"
   PRIVATE_NODE=1
-  ok "$(t "Node.js $version, checksum verified, in $INSTALL_DIR/node" "Node.js $version, sağlama toplamı doğrulandı, $INSTALL_DIR/node içinde")"
+  ok "$(t "Node.js downloaded and verified (used by $NAME alone)" "Node.js indirildi ve doğrulandı (yalnız $NAME kullanır)")"
 }
 
 # replace_dir <new> <old>: the new folder takes the old one's place; the old one is removed after.
@@ -276,7 +300,7 @@ fetch_package() {
     # A release's files elsewhere (a mirror, a fork, a rehearsal): checked against its SHA256SUMS the same way.
     if [ -n "${MODE_CODE_RELEASE_URL:-}" ]; then base="${MODE_CODE_RELEASE_URL%/}"; fi
     SOURCE="$base/$asset"
-    step "$(t "Downloading $NAME${VERSION:+ $VERSION}" "$NAME${VERSION:+ $VERSION} indiriliyor")"
+    busy "$(t "Downloading $NAME${VERSION:+ $VERSION}" "$NAME${VERSION:+ $VERSION} indiriliyor")"
     if ! download "$base/SHA256SUMS" "$STAGE/SHA256SUMS"; then
       [ -n "$VERSION" ] && die "$(t "Could not download release v$VERSION: it may not exist, or the network is down. The releases: https://github.com/$REPO/releases" "v$VERSION sürümü indirilemedi: böyle bir sürüm olmayabilir ya da ağ kapalı olabilir. Sürümler: https://github.com/$REPO/releases")"
       die "$(t "Could not reach the release at $base." "$base adresindeki sürüme ulaşılamadı.")"
@@ -293,7 +317,7 @@ fetch_package() {
     [ -f "$STAGE/pkg/package/dist/$f" ] || die "$(t 'That is not a Mode_Code package.' 'Bu bir Mode_Code paketi değil.')"
   done
   PKG_VERSION=$("$NODE" -p 'require(process.argv[1]).version' "$STAGE/pkg/package/package.json")
-  [ -n "$SHA" ] && ok "$(t "$NAME $PKG_VERSION, checksum verified" "$NAME $PKG_VERSION, sağlama toplamı doğrulandı")"
+  [ -n "$SHA" ] && ok "$(t "$NAME $PKG_VERSION downloaded and verified" "$NAME $PKG_VERSION indirildi ve doğrulandı")"
   return 0
 }
 
@@ -314,7 +338,7 @@ write_command() {
   } >"$COMMAND.new"
   chmod 755 "$COMMAND.new"
   mv "$COMMAND.new" "$COMMAND"
-  ok "$(t "The $APP command: $COMMAND" "$APP komutu: $COMMAND")"
+  ok "$(t "The $APP command is added" "$APP komutu eklendi")"
 }
 
 on_path() {
@@ -349,7 +373,6 @@ setup_path() {
     mkdir -p "$(dirname "$rc")"
     printf '\n%s\n%s\n' "$MARK" "$line" >>"$rc"
     PATH_FILE="$rc" PATH_LINE="$line"
-    ok "$(t "$BIN_DIR added to PATH in $rc" "$BIN_DIR, $rc içinde PATH'e eklendi")"
   fi
   NEW_SHELL=1
   PATH="$BIN_DIR:$PATH"
@@ -383,16 +406,34 @@ find_claude() {
   return 1
 }
 
+# The version Claude Code says it is, "2.1.310 (Claude Code)" read as 2.1.310; nothing when it does not say.
+claude_version() {
+  claude --version 2>/dev/null | awk 'NR == 1 && $1 ~ /^[0-9]+\.[0-9]+\.[0-9]+/ { print $1 }'
+}
+
 install_claude() {
   say
-  say "$(t "$NAME works inside Claude Code, which was not found on this computer." "$NAME, Claude Code'un içinde çalışır ve Claude Code bu bilgisayarda bulunamadı.")"
-  if ! ask_no "$(t "Install Claude Code now with Anthropic's official installer (claude.ai/install.sh)?" "Claude Code şimdi Anthropic'in resmî kurulum betiğiyle (claude.ai/install.sh) kurulsun mu?")"; then
+  say "  $(t "$NAME works inside Claude Code; Claude Code was not found on this computer." "$NAME, Claude Code'un içinde çalışır; bu bilgisayarda Claude Code bulunamadı.")"
+  say
+  if ! ask_no "  $(t "Install Claude Code now with Anthropic's official installer?" "Claude Code, Anthropic'in resmî kurulumuyla şimdi kurulsun mu?")"; then
     return 1
   fi
+  say
   has bash || die "$(t "Anthropic's installer needs bash, which is not installed." "Anthropic'in kurulum betiği bash istiyor ve bash kurulu değil.")"
+  busy "$(t 'Installing Claude Code' 'Claude Code kuruluyor')"
   download https://claude.ai/install.sh "$STAGE/claude-install.sh" || die "$(t 'Could not reach claude.ai.' "claude.ai'ye ulaşılamadı.")"
-  bash "$STAGE/claude-install.sh" </dev/null || die "$(t "Anthropic's installer did not finish." "Anthropic'in kurulum betiği tamamlanmadı.")"
-  find_claude
+  # What it says is kept and shown only when it fails: its lines are its own, in English.
+  if ! bash "$STAGE/claude-install.sh" </dev/null >"$STAGE/claude-install.log" 2>&1; then
+    unbusy keep
+    cat "$STAGE/claude-install.log"
+    die "$(t "Anthropic's installer did not finish." "Anthropic'in kurulum betiği tamamlanmadı.")"
+  fi
+  if ! find_claude; then
+    unbusy keep
+    return 1
+  fi
+  v=$(claude_version)
+  ok "$(t "Claude Code${v:+ $v} installed" "Claude Code${v:+ $v} kuruldu")"
 }
 
 # `mode-code install`: shows every change to Claude Code and asks once (or not at all with --yes).
@@ -402,17 +443,21 @@ setup() {
     NEXT="$APP install"
     return 0
   fi
-  if ! find_claude && ! install_claude; then
+  if find_claude; then
+    v=$(claude_version)
+    ok "$(t "Claude Code${v:+ $v} found" "Claude Code${v:+ $v} bulundu")"
+  elif ! install_claude; then
     NEXT="$APP install"
     say "$(t "Install Claude Code (https://code.claude.com/docs/en/setup), then run: $APP install" "Claude Code'u kur (https://code.claude.com/docs/en/setup), sonra şunu çalıştır: $APP install")"
     [ "$TTY" = 1 ] && return 0
     return 1
   fi
   say
+  # The program leaves its title out, as this installer's stands for both.
   if [ "$YES" = 1 ]; then
-    "$NODE" "$CLI" install --yes </dev/null || return 1
+    MODE_CODE_INSTALLER=1 "$NODE" "$CLI" install --yes </dev/null || return 1
   elif [ "$TTY" = 1 ]; then
-    "$NODE" "$CLI" install </dev/tty || return 1
+    MODE_CODE_INSTALLER=1 "$NODE" "$CLI" install </dev/tty || return 1
   else
     NEXT="$APP install"
     say "$(t "Nobody is at a terminal to confirm the changes to Claude Code: run $APP install in one (or pass --yes)." "Claude Code'daki değişiklikleri onaylayacak bir terminal yok: $APP install komutunu bir terminalde çalıştır (ya da --yes ver).")"
@@ -457,6 +502,7 @@ main() {
   INSTALL_DIR="${INSTALL_DIR%/}" BIN_DIR="${BIN_DIR%/}"
 
   say "${B}$NAME$N $(t 'installer' 'kurulumu')"
+  say
   platform
   has tar || die "$(t 'tar is not installed.' 'tar kurulu değil.')"
   mkdir -p "$INSTALL_DIR"
@@ -472,7 +518,7 @@ main() {
     fi
     private_node
   else
-    ok "Node.js $NODE_VERSION ($NODE)"
+    ok "$(t "Node.js $NODE_VERSION found" "Node.js $NODE_VERSION bulundu")"
   fi
 
   fetch_package
@@ -481,7 +527,6 @@ main() {
   write_command
   setup_path
   write_receipt
-  ok "$(t "$NAME $PKG_VERSION is in $INSTALL_DIR" "$NAME $PKG_VERSION, $INSTALL_DIR içinde")"
 
   status=0
   setup || status=$?
@@ -493,19 +538,13 @@ main() {
     fi
     exit "$status"
   fi
+  # Connected to Claude Code, the program has said it is ready and what comes next.
   if [ -n "$NEXT" ]; then
     say "${B}$(t "$NAME $PKG_VERSION is installed. Next: $NEXT" "$NAME $PKG_VERSION kuruldu. Sıradaki: $NEXT")$N"
-  else
-    say "${G}${B}$(t "$NAME $PKG_VERSION is ready." "$NAME $PKG_VERSION hazır.")$N"
-    # This terminal reaches the command only when its PATH already held the folder; else a new one does.
-    if [ "$NEW_SHELL" = 1 ]; then
-      say "$(t 'Start a new Claude Code session: the mode strip shows above the prompt. Type /0 there for the cockpit, the control center one press from it; in a new terminal, mode-code opens the control center too.' "Yeni bir Claude Code oturumu başlat: mod şeridi istem satırının üstünde görünür. Kokpit için orada /0 yaz, kontrol merkezi ondan bir tuş uzakta; yeni bir terminalde mode-code kontrol merkezini de açar.")"
-    else
-      say "$(t 'Start a new Claude Code session: the mode strip shows above the prompt. Type /0 there for the cockpit, the control center one press from it; or run mode-code here for the control center.' "Yeni bir Claude Code oturumu başlat: mod şeridi istem satırının üstünde görünür. Kokpit için orada /0 yaz, kontrol merkezi ondan bir tuş uzakta; ya da kontrol merkezi için burada mode-code çalıştır.")"
-    fi
   fi
+  # This terminal reaches the command only when its PATH already held the folder; else a new one does.
   if [ "$NEW_SHELL" = 1 ]; then
-    say "${D}$(t "Open a new terminal to use the $APP command (or run: export PATH=\"$BIN_DIR:\$PATH\")." "$APP komutunu kullanmak için yeni bir terminal aç (ya da şunu çalıştır: export PATH=\"$BIN_DIR:\$PATH\").")$N"
+    say "  ${D}$(t "Open a new terminal to use the $APP command (or run: export PATH=\"$BIN_DIR:\$PATH\")." "$APP komutunu kullanmak için yeni bir terminal aç (ya da şunu çalıştır: export PATH=\"$BIN_DIR:\$PATH\").")$N"
   fi
 }
 

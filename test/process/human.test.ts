@@ -24,9 +24,17 @@ test('before installing: status and doctor point to install; install --dry-run l
     assert.match(d.out, /\d+ checks in [\d.]+ s/);
     const i = cli(w, ['install', '--dry-run']);
     assert.equal(i.code, 0, i.err);
-    for (const step of ['data folder', 'hook program', 'marketplace', 'plugin', 'hooks', 'settings file', 'harmless tries that the protection works'])
-      assert.match(i.out, new RegExp(step, 'i'));
-    assert.match(i.out, /Nothing is changed until you confirm|dry run/i);
+    // Said in what it changes, for someone who has not met hooks or plugins' marketplaces: four parts.
+    for (const part of [
+      /\+ Mode_Code's files go in a folder of their own \(.+\)/,
+      /\+ Mode_Code's plugin is added to Claude Code/,
+      /\+ The protection is connected to Claude Code; Claude Code's settings are backed up first/,
+      /\+ Two harmless tries check that the protection works/,
+    ])
+      assert.match(i.out, part);
+    assert.doesNotMatch(i.out, /PreToolUse|marketplace|Hook command/);
+    assert.match(i.out, /nothing changes until you confirm/i);
+    assert.match(i.out, /Dry run: nothing was changed/);
   } finally {
     w.done();
   }

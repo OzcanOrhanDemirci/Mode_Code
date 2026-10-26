@@ -130,6 +130,7 @@ The control center is arranged by what you come for (1.2): `mode-code <address>`
 | `MODE_CODE_LANG`          | Interface language, `en` or `tr`                                              |
 | `CLAUDE_CONFIG_DIR`       | Where Claude Code's configuration is (read the same way Claude Code reads it) |
 | `NO_COLOR`, `FORCE_COLOR` | Colors in command output                                                      |
+| `MODE_CODE_INSTALLER`     | `1` when a one-line installer runs `mode-code install`: its title is left out |
 
 The one-line installers (`install.sh`, `install.ps1`) read these too:
 
