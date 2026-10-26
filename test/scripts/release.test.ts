@@ -71,6 +71,17 @@ test('the notes say how to install before what changed, and how to check the dow
   assert.match(notes, /gh attestation verify tool-1\.2\.0\.tgz --repo Someone\/Tool/);
 });
 
+test("the notes' links to the repository's files lead to them as the tag has them", () => {
+  const changelog = CHANGELOG.replace(
+    '- A thing.',
+    '- A thing ([docs/x.md](docs/x.md#part), [the guide](https://example.invalid/guide), [below](#more), [mail](mailto:a@b.c)).',
+  );
+  const notes: string = releaseNotes({ pkg, changelog });
+  assert.match(notes, /\[docs\/x\.md\]\(https:\/\/github\.com\/Someone\/Tool\/blob\/v1\.2\.0\/docs\/x\.md#part\)/);
+  assert.match(notes, /\[the guide\]\(https:\/\/example\.invalid\/guide\), \[below\]\(#more\), \[mail\]\(mailto:a@b\.c\)/);
+  assert.match(notes, /\[the README\]\(https:\/\/github\.com\/Someone\/Tool#install\)/);
+});
+
 test('this repository is ready to release its version, but for the tag', () => {
   const read = (f: string) => readFileSync(join(ROOT, f), 'utf8');
   const problems = releaseProblems({
