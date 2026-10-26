@@ -62,7 +62,7 @@ Sonra yeni bir Claude Code oturumu başlat (`claude`). İstem satırının üst�
 | seçenek vermek                  | `curl -fsSL <adres> \| sh -s -- <seçenekler>` | `& ([scriptblock]::Create((irm <adres>))) <seçenekler>` |
 | her soruya evet (betikler için) | `--yes`                                       | `-Yes`                                                  |
 | eksikse Claude Code'u da kurmak | `--install-claude`                            | `-InstallClaude`                                        |
-| belirli bir sürümü kurmak       | `--version 1.1.0`                             | `-Version 1.1.0`                                        |
+| belirli bir sürümü kurmak       | `--version 1.2.0`                             | `-Version 1.2.0`                                        |
 | PATH'e dokunmamak               | `--no-modify-path`                            | `-NoModifyPath`                                         |
 | yalnız programı kurmak          | `--no-setup`                                  | `-NoSetup`                                              |
 
@@ -122,7 +122,7 @@ Projelerine Hafıza ve projeler › Proje adları altından ad ver; geri kalan h
 - **Bilgisayarlar arası eşitleme.** `mode-code sync setup`, Mode_Code'un ayarlarını, geçmişini ve devir notlarını çalıştığın bilgisayarlar arasında, adını senin koyduğun GitHub'ındaki özel bir depo ya da başka bir servisin eşitlediği bir klasör üzerinden paylaştırır. Her bilgisayar orada yalnız kendi klasörüne yazar. Bir ayarın en yeni değişikliği her bilgisayarda geçerli olur; ama bir korumayı azaltacak olanı seni bekler. Zaten kendin eşitlediğin bir hafıza olduğu gibi kullanılır: Mode_Code yalnız değişiklikleri alır, kaydetmek ve göndermek sende kalır. Ayrıntı: [docs/sync.md](docs/sync.md) (İngilizce).
 - **Araç paketleri.** Flutter ve Dart, Firebase, uygulama mağazaları, gerçek bir tarayıcı, Typst belgeleri, TypeScript ve Python kod zekâsı, OpenSCAD, ffmpeg: her biri yalnız gerektiren projelerde açık olan, sürümü sabitlenmiş ve sekiz güven kuralına karşı denetlenmiş bir eklenti. Otomatik kullan açıkken bir proje dosyalarının gerektirdiğini açar, Claude gerisini tek satırlık bir ipucuyla ya da katalogla bulur; mağazaya yükleme ve ödeme senin kalır ([docs/packs.md](docs/packs.md)).
 - **Beceriler.** Mode_Code'un kendi becerileri, sen çalıştırana kadar oturuma hiçbir bedel eklemeden (taze kanıtla doğrula, bağımsız bir ajandan ikinci görüş, sürüm ya da pull request hazırla, Claude Code'da çalışanları denetle, kota raporu, uygulama mağazalara hazır mı, canlıda çalışan deponun söylediği mi …), her biri kısa bir Türkçe komutla (`/dogrula`); ikisini Claude kendisi kullanır (`commit`, `measure`). Ve başkalarının 33 becerisi, sabit bir commit'ten lisanslarıyla alınmış, sen açana kadar kapalı. `/komutlar` her anahtar kelimeyi, komutu ve beceriyi listeler ([docs/skills.md](docs/skills.md)).
-- **Kota bekçisi.** Claude Code'un bildirdiği 5 saatlik ve haftalık pencereleri okur; bütçende işi toparlar, sınırda durdurur ve iş otonomsa pencere sıfırlandıktan bir dakika sonra kendiliğinden sürdürür. Otonom çalışmada bir commit ya da push 200 bin token ve üstü bağlam bıraktıysa sonraki iş, işin nerede durduğunu söyleyen bir notla ve çalışma biçimi korunarak yeni bir konuşmada başlar: yazarın bir aylık kullanımında ölçülen kazanç kotanın tamamının %14-19'u (Manuel'de şerit `/clear` önerir). `mode-code measure` bu bilgisayarda her görevin kotadan ne aldığını ve işin nasıl gittiğini gösterir ([docs/quota.md](docs/quota.md), İngilizce).
+- **Kota bekçisi.** Claude Code'un bildirdiği 5 saatlik ve haftalık kota dönemlerini okur; bütçende işi toparlar, sınırda durdurur ve iş otonomsa dönem sıfırlandıktan bir dakika sonra kendiliğinden sürdürür. Otonom çalışmada bir commit ya da push 200 bin token ve üstü bağlam bıraktıysa sonraki iş, işin nerede durduğunu söyleyen bir notla ve çalışma biçimi korunarak yeni bir konuşmada başlar: yazarın bir aylık kullanımında ölçülen kazanç kotanın tamamının %14-19'u (Manuel'de şerit `/clear` önerir). `mode-code measure` bu bilgisayarda her görevin kotadan ne aldığını ve işin nasıl gittiğini gösterir ([docs/quota.md](docs/quota.md), İngilizce).
 - **Cevap sonu özeti.** Her cevabın altında: hafıza deposu itildi mi, bir şey değişti mi, gerektiğinde kota. Git'ten, turun araç çağrılarından ve ölçülen kotadan hesaplanır, asla tahmin edilmez.
 - **Sessiz uzun iş.** Claude Code'un "kullanıcı uzun süredir haber alamadı" hatırlatmalarını dışarıda bırakır; uzun otonom iş ekranını durum satırlarıyla doldurmaz.
 
@@ -135,50 +135,83 @@ Projelerine Hafıza ve projeler › Proje adları altından ad ver; geri kalan h
 | **Çalışma**            | Modlar ve çalışma biçimleri, her akış (adımları ve her denetimin bulduğu), anahtar kelimeler, paralel ajanlar                                                                                                                             |
 | **Koruma**             | Her korumanın çalışıp çalışmadığı, 54 kemer kuralı ve her birinin her çalışma biçiminde ne yaptığı, yakaladıkları, bir sınayıcı, hafızadaki sırlar                                                                                        |
 | **Hafıza ve projeler** | Hafızanın nerede durduğu ve eşitlenmesi, devir notları, çalıştığın her klasör ve her oturum (aranabilir, sırları maskeleyerek Markdown olarak dışa aktarılır), proje adları, bilgisayarlar arası eşitleme                                 |
-| **Kota**               | 5 saatlik ve haftalık pencereler ve bütçen, işin nerede toparlanıp durduğu, güne ve modele göre token, araç hata oranları                                                                                                                 |
+| **Kota**               | 5 saatlik ve haftalık dönemler ve bütçen, işin nerede toparlanıp durduğu, güne ve modele göre token, araç hata oranları                                                                                                                   |
 | **Claude Code**        | Kurulumunun salt okunur haritası: talimat dosyaları ve hafıza sınırı, ayar kaynakları, hook'lar, izin kuralları, MCP sunucuları, eklentiler, araç paketleri; ve kural şablonları (herkese açık depo, üretim sunucusu, Flutter, tek dal …) |
 | **Ayarlar**            | Aracın kendi ayarları; her biri, değiştirmeden önce ne yaptığını ve öteki değerlerin ne yapacağını söyler                                                                                                                                 |
 
 ### Claude Code'un içinde
 
-Mode_Code 1.1.0 ile gerçek Claude Code oturumlarından alındı (Windows, Claude Code 2.1.296; oturum İngilizceydi). Kemer, izlenmeyen dosyaları silen bir temizlikten önce soruyor (1.2.0'da Manuel'de; Otonom, bir güvenlik ağı dosyaları sakladıktan sonra çalıştırır):
+Mode_Code 1.2.0 ile gerçek Claude Code oturumlarından alındı (Windows, Claude Code 2.1.311, en ucuz model, Manuel'de; oturum İngilizceydi). Kemer, izlenmeyen dosyaları silen bir temizlikten önce soruyor; Otonom'da bir güvenlik ağı dosyaları sakladıktan sonra çalıştırır:
 
 ```
 ● Bash(git clean -f)
   ⎿  Waiting…
-──────────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────
  ☐ Safety belt
-│ The safety belt stopped a Bash call. Deletes untracked files (git clean -f): git clean -f Allow it this once?
+
+│ The safety belt stopped a Bash call. Deletes untracked files (git clean -f):
+│ git clean -f. Allow it this once?
+
 ❯ 1. Allow once
   2. Block
+  3. Type something.
+────────────────────────────────────────────────────────────────────────────────
+  4. Chat about this
 ```
 
-Bir cevabın altındaki cevap sonu özeti, Claude Code'un kendi modlarının yanında oturumun modu ve ipucu satırının sonunda kota:
+Engellenince çağrı, Claude'a söylenenle birlikte hata verir; Claude başka bir yol denemek yerine ne istediğini söyler. Cevabının altında cevap sonu özeti; sonra şerit (renkli çizilen Mo, solundaki çubuk; 1-6 modlar, 7-9 çalışma biçimleri, 0 kokpit), kokpitin Claude'un şu an ne yapabileceğini sözle söyleyen satırı ve Claude Code'un kendi satırının sonunda kota ile mod ve çalışma biçimi:
 
 ```
-● ready
+● Bash(git clean -f)
+  ⎿  Error: 🛡 Declined when the safety belt asked:
+     • Deletes untracked files (git clean -f): git clean -f [git.clean]
+     Do not work around this (no other spelling, tool or script). Tell the user
+     what you wanted to do and why. If it is really needed, they can run it
+     themselves by typing ! followed by the command.
+
+● Not ready. The safety belt declined git clean -f (it deletes untracked files),
+  so nothing was removed. I won't try another way to delete them.
+
+  The untracked files at the start of the session were build.log and notes.tmp.
+  If you want them removed, type ! git clean -f in the prompt to run it
+  yourself. If you'd rather keep them, nothing needs to change.
+
   Memory pushed: No (the memory repository has no remote branch)
+
   Changes made: No
-✻ Baked for 1s
-──────────────────────────────────────────────────────────────────────────────
+
+✻ Baked for 5s · done 2:07
+   ▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 1💬 2🔍 3📐 4🔨 5F 6⇢…  7M 8A 9F                  0≡○ 00✕ [-]
+
+free: no mode's limits; the safety belt alone · manual: one     activity 1…
+step, then it waits for you
+
+────────────────────────────────────────────────────────────────────────────────
 ❯
-──────────────────────────────────────────────────────────────────────────────
-  ⏵⏵ auto mode on (shift+tab to cycle) · 5h 31% · week 28%          autonomous
+────────────────────────────────────────────────────────────────────────────────
+  ⏵⏵ auto mode on (shift+tab to cycle) · 5h 17% · week 22% /rc · free & manual
 ```
 
-Türkçe kurulumda aynı satırlar "Hafıza İtildi", "İşlem Yapıldı", "otonom" ve "5s %31 · hafta %28" olarak görünür.
+Türkçe kurulumda aynı satırlar "Hafıza İtildi", "İşlem Yapıldı", "serbest & manuel" ve "5s %17 · hafta %22" olarak görünür.
 
 Bir akışın planı onay bekliyor: eklenti onu önce denetledi; akışı kod adımına yalnız kişinin cevabı geçirir (oturum İngilizceydi):
 
 ```
 ● mode-code - flow_step (MCP)(step: "plan")
-──────────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────
  ☐ Plan
-│ The plan is ready: 1 step, verified by `cat hello.txt`, `git status --short`.
-│ Plan: …/flows/20261013-0044-plan-a-tiny-change-add/plan.md. Approve it?
+
+│ The plan is ready: 1 step, verified by `cd C:/dev/.mc-demo/project && test
+│ "$(cat hello.txt)" = "hello" && echo OK`, `cd C:/dev/.mc-demo/project && git
+│ status --short`. Plan: C:/dev/.mc-demo/tmp/mode-code/flows/20261027-0212-add-a
+│ -file-hello-txt/plan.md. Approve it?
+
 ❯ 1. Approve, start coding
   2. Change the plan
   3. Pause the flow
+  4. Type something.
+────────────────────────────────────────────────────────────────────────────────
+  5. Chat about this
 ```
 
 ## Neden
@@ -263,7 +296,7 @@ Bir güvenlik açığı mı buldun? Lütfen gizli bildir: [SECURITY.md](SECURITY
 Bir ajanla makinen arasında duran bir araç güveni kanıtla kazanmalı. Kodun kendisiyle ilgili kurallardan gerçek Claude Code oturumlarına ve tek satırlık kuruluma kadar on altı katman var; her biri neyi kanıtladığını ve neyi kanıtlayamadığını söylüyor ([docs/testing.md](docs/testing.md), İngilizce). 2026-10-26 ölçümü, 1.2.0 için:
 
 - **1.350 test**, Windows 11'de ve CI'da Windows, Linux ve macOS'ta Node.js 22 ve 24 ile hepsi geçiyor. Koda dönüşen satırlarda ortalama satır kapsamı **%96,3**, her dosya bir tabana bağlı.
-- **Yanlış alarm da hata sayılır.** 201 günlük komut her platformda kemerden tek bir soru sorulmadan geçmek, 172 okuma komutu da sohbet, araştırma ve plan modunda çalışmak zorunda. Yazarın son 30 gününde, 1.1.0 için ölçüldü (40.251 araç çağrısı), kemer günde 6,7 kez sorardı; çoğu, ana klasörde başlatılan oturumlarda proje dışındaki özyinelemeli silmeler.
+- **Yanlış alarm da hata sayılır.** 201 günlük komut her platformda kemerden tek bir soru sorulmadan geçmek, 172 okuma komutu da sohbet, araştırma ve plan modunda çalışmak zorunda.
 - **Saldırılara ve gündelik işe karşı ölçüldü** (1.2.0, 2026-10-25, yalnız sayılar, [docs/threat-model.md](docs/threat-model.md#measured-for-120), İngilizce). Kemerden yeniden geçirildiğinde başka ajanların gündelik işi (üç açık sette 224.512 çağrı) Manuel'de 126, Otonom'da 21 kez soruluyor; yazarın kendi 41.290 çağrısı 759 ve 367 kez. Dört açık setteki saldırı çağrılarının Manuel'de %12,7'sini (RedCode-Exec), %58,5'ini (AgentDojo), %20 ile %29'unu (agent-egress-bench) ve %11,9'unu (SABER) durduruyor; kalanların çoğu yalnız okuyor ya da karar verdiği eylem türlerinin dışında, tasarım gereği. Bulunan sınırlar listeleniyor.
 - **Testlerin kendisi de test ediliyor.** Mutasyon testi karar veren koda, kemere, modlara, tam otonoma, hafızanın eşitlemesine ve bilgisayarlar arası eşitlemeye 3.677 küçük, bilerek yapılmış değişiklik uygular; testler 3.677'sini de yakalıyor. Bakım denetimi bir deneme ortamını 15 şekilde bozar; 15'ini de fark etmesi ve onarılabilecek 14'ünü onarması gerekir.
 - **Gerçek motorun içinde.** Eklenti Claude Code'un kendi test takımıyla, her gece en yeni Claude Code sürümüne karşı ve gerçek başsız oturumlarda sınanıyor; bunların arasında Claude Code'un dört izin kipinin her biri her çalışma biçiminde ve Claude'un okuduğu bir sayfaya gömülü bir talimat da var ([docs/testing.md](docs/testing.md#live-claude-codes-permission-modes-and-the-ways-of-working)).
