@@ -118,7 +118,7 @@ export const trLedger: Record<keyof typeof enLedger, string> = {
   'why.title.quota': 'Kota bütçesi',
   'why.title.clearHint': '/clear önerisi',
   'why.title.autoReset': 'Görev sınırında sıfırlama',
-  'why.title.footer': 'Cevap altı satırlar',
+  'why.title.footer': 'Cevap sonu özeti',
   'why.title.strip': 'Şerit',
   'why.title.keywords': 'Anahtar kelimeler',
   'why.title.notifications': 'Bildirimler',

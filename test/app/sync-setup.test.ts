@@ -124,7 +124,7 @@ test(
       assert.match(said, /differ from the other computers' in 2 place\(s\)/);
       assert.match(said, /belt\.verdicts: \{\} → \{"git\.clean":"warn"\} \(Windows\) · lowers a protection here/);
       // A setting the catalog names is said in words: its name and its values.
-      assert.match(said, /Who writes the lines: Mode_Code draws them → Off \(Windows\)/);
+      assert.match(said, /Who writes the summary: Mode_Code draws it → Off \(Windows\)/);
       assert.deepEqual(
         s.steps.map((x) => x.replace(/ ·.*/, '')),
         [

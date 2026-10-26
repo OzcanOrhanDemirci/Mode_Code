@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // The values the plugin keeps in Claude Code's session state ($.state), read while drawing.
 
-/** Footer lines per answer, keyed by a hash of the answer's text. */
+/** The answer summary per answer, keyed by a hash of the answer's text. */
 export type ModeCodeFooters = Record<string, string[]>;
 
 /**

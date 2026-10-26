@@ -27,4 +27,12 @@ export const GLOSSARY: readonly Term[] = [
     notTr: /(?:saatlik|haftalık|kota|abonelik)\s+pencere|pencere(?:si|ler)?\s+sıfırlan/iu,
   },
   { idea: 'thousands of tokens', en: '250K tokens', tr: '250 bin token', notTr: /\d\s?B\s+token|\}\s?B\b/u },
+  // Its old names said where it stands ("footer", "under answers"), not what it is.
+  {
+    idea: "the summary under each of Claude's answers",
+    en: 'answer summary',
+    tr: 'cevap sonu özeti',
+    notEn: /\bfooter lines?\b|\bthe footer\b|\blines under (?:the |each |your )?answers?\b/i,
+    notTr: /cevap altı satır|cevab(?:ın|ının|ların) altındaki satır|\balt satır/iu,
+  },
 ];

@@ -45,7 +45,7 @@ export function Modules({ width, open }: ScreenProps) {
   );
 }
 
-/** Settings › Lines under answers: the feature's own switch first, then what it decides. */
+/** Settings › Answer summary: the feature's own switch first, then what it decides. */
 export function Footer({ width, open }: ScreenProps) {
   const { data } = useEnv();
   const fields = fieldsOf(data.config(), ['modules.footer', 'footer.mode', 'footer.showFiveFrom', 'footer.showWeekFrom']);

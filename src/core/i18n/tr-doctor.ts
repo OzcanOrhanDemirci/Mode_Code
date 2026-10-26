@@ -103,7 +103,7 @@ export const trDoctor: Record<keyof typeof enDoctor, string> = {
   'doc.protect.memory.ok': '{n} hafıza klasörü korunuyor ve git deposu.',
   'doc.protect.memory.none': 'Kayıtlı hafıza klasörü yok. Korumak için bir tane ekle.',
   'doc.protect.memory.missing': 'Kayıtlı bir hafıza klasörü yok: {path}.',
-  'doc.protect.memory.noGit': 'Hafıza klasörleri korunuyor, ama hepsi git deposu değil; alt satır neyin itildiğini söyleyemez.',
+  'doc.protect.memory.noGit': 'Hafıza klasörleri korunuyor, ama hepsi git deposu değil; cevap sonu özeti neyin itildiğini söyleyemez.',
 
   // ── kabuklar ve terminal ──
   'doc.shell.gitBash.ok': "Git Bash ({path}), kemerin varsaydığı gibi /tmp'yi Temp klasörüne bağlıyor.",

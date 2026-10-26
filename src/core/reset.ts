@@ -141,7 +141,7 @@ export function resetVerdict(o: { busy: boolean; lastResetAt: number; now: numbe
 /**
  * What the conversation is asked for its note, just before the reset: the four parts of a handoff note, as JSON, in
  * the person's language. Asked of the conversation itself, from its cache, with every tool denied; never taken from
- * its last answer (a stop hook may have cut that answer to its footer lines).
+ * its last answer (a stop hook may have cut that answer to its answer summary).
  */
 export function forkPrompt(): string {
   return [

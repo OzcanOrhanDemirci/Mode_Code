@@ -102,7 +102,7 @@ export const enDoctor = {
   'doc.protect.memory.ok': 'Memory folders are protected and are git repositories ({n}).',
   'doc.protect.memory.none': 'No memory folder is registered. Add one to protect it.',
   'doc.protect.memory.missing': 'A registered memory folder does not exist: {path}.',
-  'doc.protect.memory.noGit': 'The memory folders are protected, but not all are git repositories, so the footer cannot say what was pushed.',
+  'doc.protect.memory.noGit': 'The memory folders are protected, but not all are git repositories, so the answer summary cannot say what was pushed.',
 
   // ── shells and terminal ──
   'doc.shell.gitBash.ok': 'Git Bash ({path}) maps /tmp to your Temp folder, as the belt assumes.',

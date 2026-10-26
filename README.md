@@ -123,7 +123,7 @@ Name your projects under Memory and projects › Project names; everything else 
 - **Tool packs.** Flutter and Dart, Firebase, the app stores, a real browser, Typst documents, TypeScript and Python code intelligence, OpenSCAD, ffmpeg: each a plugin that is on only in the projects that need it, pinned and checked against eight trust rules. With Automatic use on, a project turns on what its files call for and Claude finds the rest through a one-line hint or the catalog; store uploads and payments stay yours ([docs/packs.md](docs/packs.md)).
 - **Skills.** Mode_Code's own, run by you at no cost to the session until you do (verify with fresh evidence, a second opinion from an independent agent, prepare a release or a pull request, audit what runs in Claude Code, a quota report, whether an app is ready for the stores, whether production runs what the repository says …), each with a short Turkish command (`/dogrula`); two Claude uses itself (`commit`, `measure`). And 33 skills by others, copied at a pinned commit with their licences, off until you turn one on. `/komutlar` lists every keyword, command and skill ([docs/skills.md](docs/skills.md)).
 - **Quota guard.** Reads the 5-hour and weekly windows that Claude Code reports, wraps up work at your budget, stops at the limit and, when the work was autonomous, resumes by itself one minute after the window resets. In autonomous work, once a commit or a push leaves a context of 200K tokens or more, the next task starts in a fresh conversation, with a note of where the work stands and the way of working carried over: measured on the author's month of use, 14 to 19% of the whole quota (in Manual the strip says `/clear` instead). `mode-code measure` shows what each task took of the quota on your computer, with how the work went ([docs/quota.md](docs/quota.md)).
-- **Footer lines.** Under each answer: whether your memory repository was pushed, whether anything changed, and the quota when it matters. Computed from git, the turn's tool calls and the measured quota, never guessed.
+- **Answer summary.** Under each answer: whether your memory repository was pushed, whether anything changed, and the quota when it matters. Computed from git, the turn's tool calls and the measured quota, never guessed.
 - **Quiet long work.** Leaves out Claude Code's "the user has not heard from you" reminders, so long autonomous work does not fill your screen with status lines.
 
 **In your terminal** (`mode-code`): a control center with eight categories, in English and Turkish, and a maintenance check (`mode-code doctor`) that tests the installation and the machine around it and repairs what it safely can.
@@ -153,7 +153,7 @@ Captured from real Claude Code sessions with Mode_Code 1.1.0 (Windows, Claude Co
   2. Block
 ```
 
-The footer lines under an answer, the mode beside Claude Code's own, and the quota at the end of the hint line:
+The answer summary under an answer, the mode beside Claude Code's own, and the quota at the end of the hint line:
 
 ```
 ● ready
@@ -276,7 +276,7 @@ On your machine, `mode-code doctor` runs the same checks: Node.js, Claude Code a
 - **The belt does not stop everything an attack does.** Reads are free, so a secret sent in the address or headers of a request that only reads goes on; so do persistence the rules do not read (an SSH key, an autostart entry) and a connected service's tool named outside the belt's words. The measured figures and each known limit are in [docs/threat-model.md](docs/threat-model.md#known-limits).
 - **The plugin uses Claude Code's early-access mods API**, which can change between releases. When it does not load, the hook keeps the belt running and the control center says which features are paused.
 - **Quota figures come from Claude Code**, recorded by the plugin after each answer. Without the plugin there is no quota reading; tokens are not quota.
-- **Footer lines drawn by the plugin** are part of how the answer is drawn, not of the conversation: the model never reads them and a transcript export does not contain them. If you want them written into the answers themselves, choose the "Checked" footer mode: Claude writes them and a hook checks them.
+- **The answer summary drawn by the plugin** is part of how the answer is drawn, not of the conversation: the model never reads it and a transcript export does not contain it. If you want it written into the answers themselves, choose "Claude writes it" under Settings › Answer summary: Claude writes it and a hook checks it.
 
 ## FAQ
 
@@ -284,7 +284,7 @@ On your machine, `mode-code doctor` runs the same checks: Node.js, Claude Code a
 
 **Will my antivirus flag it?** It should not. Before a release, every file of the repository and of the package is written where Windows antivirus programs look hardest and read back (`npm run test:av`); Bitdefender leaves every one alone. It once quarantined a test file whose sample commands, together, read like an attacker's script; those samples were rewritten and the check was added so it cannot come back unnoticed. If your antivirus flags a file, it is a false alarm we want to fix: [open an issue](https://github.com/OzcanOrhanDemirci/Mode_Code/issues/new/choose) with the file's name and the detection's name.
 
-**Does it change how Claude Code works?** Only where you see it: the belt's decisions, the context a keyword adds, the footer and the status line entry. Turn any feature off under Settings › Features; the belt stays.
+**Does it change how Claude Code works?** Only where you see it: the belt's decisions, the context a keyword adds, the answer summary and the status line entry. Turn any feature off under Settings › Features; the belt stays.
 
 **Will it slow Claude Code down?** The hook adds about 0.1 s per checked tool call on Windows (less elsewhere); the plugin's checks run in-process.
 

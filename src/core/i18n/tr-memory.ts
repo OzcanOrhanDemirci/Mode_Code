@@ -197,7 +197,7 @@ export const trMemory: Record<keyof typeof enMemory, string> = {
   'page.memoryHandoffs': 'Devir notları ve sabah raporu',
   'desc.memoryHandoffs': 'Devir notlarının ne zaman yazılıp sunulduğu, sabah raporunun ne zaman söylendiği.',
   'page.memoryProtected': 'Korunan klasörler',
-  'desc.memoryProtected': 'Silinmeye karşı korunan klasörler; git durumları cevap altı satırlarında görünür.',
+  'desc.memoryProtected': 'Silinmeye karşı korunan klasörler; git durumları cevap sonu özetinde görünür.',
   'page.handoffs': 'Devir notları',
   'desc.handoffs': 'Devir notları: her projede bir oturum biterken işin nerede durduğu.',
   'desc.handoff': 'Hafızada tutulduğu hâliyle bir devir notu.',

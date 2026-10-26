@@ -11,7 +11,9 @@ import { tr } from '../../src/core/i18n/tr.js';
 import { GLOSSARY } from '../../src/core/ux/glossary.js';
 
 /** Messages that may use a ruled-out form, and why. Keep it short: each line is an exception the person reads. */
-const ALLOWED: readonly { key: MessageKey; lang: 'en' | 'tr'; why: string }[] = [];
+const ALLOWED: readonly { key: MessageKey; lang: 'en' | 'tr'; why: string }[] = [
+  { key: 'page.footerQuota', lang: 'tr', why: 'the old page, found by its old name in the palette' },
+];
 
 test('no message uses a form the glossary rules out, in either language', () => {
   const found: string[] = [];
@@ -41,6 +43,11 @@ test('the glossary catches what it is meant to, and not the words that only look
   assert.ok(enOf('helper').test('a subagent cannot'));
   assert.ok(tr('thousands').test('250 B token'));
   assert.ok(!tr('thousands').test('250 bin token'));
+  for (const s of ['Lines under answers', 'the lines under the answers', 'the footer lines', 'so the footer cannot say'])
+    assert.ok(enOf('the summary').test(s), s);
+  for (const s of ['config set footer.mode check', 'the line under the strip', 'Answer summary']) assert.ok(!enOf('the summary').test(s), s);
+  for (const s of ['Cevap altı satırları', 'Her cevabın altındaki satırlar', 'alt satır neyin itildiğini']) assert.ok(tr('the summary').test(s), s);
+  for (const s of ['şeridin altındaki satır', 'altında satır yer kaplamaz', 'Cevap sonu özeti']) assert.ok(!tr('the summary').test(s), s);
 });
 
 test('the glossary on docs/design.md is the one the code holds', () => {

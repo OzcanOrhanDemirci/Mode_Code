@@ -4,7 +4,7 @@
 
 **Mo** is Mode_Code's mascot: a small armored robot that keeps watch while Claude works. It sits at the left of the strip above the prompt in Claude Code and shows, at a glance and before you read a word, what Claude is doing and what just happened. It greets you on the first screen of the control center, and once more when the installation finishes.
 
-Mo is a picture, never the only way something is said: every refusal, question and warning it shows also comes as words (the belt's message, Claude Code's own dialog, the strip, the footer lines). Turning Mo off changes nothing else.
+Mo is a picture, never the only way something is said: every refusal, question and warning it shows also comes as words (the belt's message, Claude Code's own dialog, the strip, the answer summary). Turning Mo off changes nothing else.
 
 ## What each look means
 

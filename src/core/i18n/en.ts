@@ -120,7 +120,7 @@ export const en = {
   'belt.tail.stop':
     'This stays blocked in every way of working, and it is not something to hand to the user to run. Do not work around it (no other spelling, tool or script): tell the user what you were doing.',
 
-  // ── footer lines under each answer ──
+  // ── the answer summary under each answer ──
   'footer.yes': 'Yes',
   'footer.no': 'No',
   'footer.unknown': 'unknown (git could not be read)',
@@ -156,8 +156,8 @@ export const en = {
   'guard.quota.heavy': 'The quota budget is reached: no new agents, workflows or web research. Wrap up the current step and report.',
   'guard.quota.stop': 'The hard quota limit is reached: only reading, saving notes or memory, and committing are allowed. Report and stop.',
 
-  // ── footer check (the model wrote the lines, the Stop hook compares) ──
-  'footer.check.head': 'The lines under your answer do not match the facts: {problems}.',
+  // ── the answer summary checked (the model wrote it, the Stop hook compares) ──
+  'footer.check.head': 'Your answer summary does not match the facts: {problems}.',
   'footer.check.tail': 'Reply again with only these lines, nothing else:',
 
   // ── belt: asking the person, failures ──

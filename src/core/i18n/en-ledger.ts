@@ -119,7 +119,7 @@ export const enLedger = {
   'why.title.quota': 'Quota budget',
   'why.title.clearHint': 'The /clear hint',
   'why.title.autoReset': 'Reset at a task boundary',
-  'why.title.footer': 'Lines under answers',
+  'why.title.footer': 'Answer summary',
   'why.title.strip': 'The strip',
   'why.title.keywords': 'Keywords',
   'why.title.notifications': 'Notifications',

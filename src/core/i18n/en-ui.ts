@@ -36,9 +36,9 @@ export const enUi = {
   'health.fallback': 'Running through the safety-net hook, because the plugin is not active.',
   'health.needsMod': 'Needs the Claude Code plugin, which is not active.',
   'health.quota.noReading': 'No quota reading yet. One arrives after the first answer in a Claude Code session.',
-  'health.memory.none': 'No memory folder is set. Add one to protect it and to see its git status in the footer.',
+  'health.memory.none': 'No memory folder is set. Add one to protect it and to see its git status in the answer summary.',
   'health.memory.missing': 'The memory folder does not exist: {path}',
-  'health.memory.noGit': 'The memory folder is not a git repository, so the footer has no "pushed" line.',
+  'health.memory.noGit': 'The memory folder is not a git repository, so the answer summary has no "pushed" line.',
   'health.index.noTranscripts': "Claude Code's session transcripts were not found.",
 
   // ── features ──
@@ -47,7 +47,7 @@ export const enUi = {
   'feature.mod': 'Claude Code plugin',
   'feature.keywords': 'Keywords',
   'feature.quota': 'Quota guard',
-  'feature.footer': 'Lines under answers',
+  'feature.footer': 'Answer summary',
   'feature.quietWork': 'Quiet long work',
   'feature.memory': 'Memory folder',
   'feature.index': 'Session history',

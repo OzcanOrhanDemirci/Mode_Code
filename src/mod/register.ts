@@ -2,7 +2,7 @@
 /**
  * The behavior layer inside Claude Code: a hooks module (a "mod") that Claude Code runs in its own
  * process. It guards tool calls with the safety belt, asks the person when a rule says so, reads the
- * keywords the person types, keeps the quota budget, draws the footer lines under each answer and keeps
+ * keywords the person types, keeps the quota budget, draws the answer summary under each answer and keeps
  * long work quiet. The safety-net settings hook (src/hook) repeats the belt on every call, so protection
  * holds even when this module is not loaded.
  *
@@ -5960,7 +5960,7 @@ export function register(on: On): void {
       const tree = h(Box, { flexDirection: 'column' }, ...rows);
       return tree && typeof tree === 'object' ? (tree as Awaited<ReturnType<typeof next>>) : next(e);
     });
-  // The footer lines, as part of the answer's drawing (every surface, the phone included).
+  // The answer summary, as part of the answer's drawing (every surface, the phone included).
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
     const lines = await footerFor($, e.props.text, e.props.isSummary === true);
     return lines?.length ? next({ ...e, props: { ...e.props, text: `${e.props.text}\n\n${lines.join('\n\n')}` } }) : next(e);

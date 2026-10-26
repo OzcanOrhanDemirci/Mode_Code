@@ -136,7 +136,7 @@ const cockpitClock = await build({
 const manifest = {
   name: pkg.name,
   version: pkg.version,
-  description: 'Behavior layer of mode-code: safety belt, keywords, quota budget, footer lines, quiet long work.',
+  description: 'Behavior layer of mode-code: safety belt, keywords, quota budget, answer summary, quiet long work.',
   author: { name: pkg.author },
   homepage: pkg.homepage,
   repository: pkg.repository.url.replace(/^git\+/, ''),
