@@ -509,7 +509,7 @@ export const trTui: Record<keyof typeof enTui, string> = {
   'rulename.secrets.stage': 'Sır dosyasını commit etmek',
   'rulename.secrets.write': 'Dosyaya sır yazmak',
   'rulename.quality.check-config': 'Lint ya da biçim ayarlarını değiştirmek',
-  'rulename.inject.tainted-act': 'Dış içerik okuduktan sonra harekete geçmek',
+  'rulename.inject.tainted-act': 'Dış içeriği hafızaya yazmak',
   'rulename.meta.unverifiable': 'Kemerin izleyemediği komut',
   'rulename.data.delete-cloud': 'Buluttaki veriyi silmek',
   'rulename.data.write-cloud': 'Canlı Firebase verisini değiştirmek',
