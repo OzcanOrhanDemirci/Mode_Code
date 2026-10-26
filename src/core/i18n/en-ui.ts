@@ -318,7 +318,7 @@ export const enUi = {
   'rule.secrets.stage': 'Staging files that usually hold secrets (.env, key files) for a commit.',
   'rule.secrets.write': 'Writing what looks like a secret into a file.',
   'rule.inject.tainted-act':
-    'After the session read outside content (a web page, an issue, a connected service, another session): sending data out, writing what starts by itself or configures Claude Code, and writing the memory are asked about.',
+    'After the session read outside content (a web page, an issue, a connected service, another session): writing into the memory what was read there is asked about. Sending data out and writing what starts by itself are rules of their own, for every session.',
   'rule.quality.check-config':
     "Changing the project's lint or format settings (ESLint, Prettier, Biome, analysis_options.yaml …): loosening a rule is how a failing check is made to pass.",
   'rule.meta.unverifiable': 'Commands the belt cannot follow all the way (code built at run time), so it cannot confirm they are safe.',

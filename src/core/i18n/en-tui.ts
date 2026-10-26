@@ -520,7 +520,7 @@ export const enTui = {
   'rulename.secrets.stage': 'Commit a secrets file',
   'rulename.secrets.write': 'Write a secret into a file',
   'rulename.quality.check-config': 'Change lint or format settings',
-  'rulename.inject.tainted-act': 'Act after reading outside content',
+  'rulename.inject.tainted-act': 'Write outside content into the memory',
   'rulename.meta.unverifiable': 'Command the belt cannot follow',
   'rulename.data.delete-cloud': 'Delete data in the cloud',
   'rulename.data.write-cloud': 'Overwrite live Firebase data',
