@@ -302,6 +302,15 @@ export interface Traces {
   files: string[];
   /** Of those, the ones a later task wrote again within 48 hours (filled by measureTasks). */
   touchedAgain: string[];
+  /** The commands that committed, as written (the first 600 characters): what tells the task's own commits by their subject. */
+  committed: string[];
+  /** The task began a conversation that a reset at a task boundary started: what it read again before its first change. */
+  reset: { before: number; ready: number | null } | null;
+  /**
+   * A later commit fixed or took back what the task committed (a `fix:` or `revert:` sharing a code file) within 48
+   * hours, and within 14 days; null where the task committed nothing found or the time has not passed yet.
+   */
+  fixed: { in48h: boolean | null; in14d: boolean | null };
 }
 
 export interface Task {
@@ -330,6 +339,9 @@ const emptyTraces = (): Traces => ({
   output: {},
   files: [],
   touchedAgain: [],
+  committed: [],
+  reset: null,
+  fixed: { in48h: null, in14d: null },
 });
 
 /** A model id without its date or bracket (`claude-opus-5-5`), for grouping. */
@@ -393,6 +405,8 @@ export function tasksOf(calls: readonly Call[], boundaries: readonly Boundary[],
           if (!t.traces.files.includes(file)) t.traces.files.push(file);
         }
         if (COMMAND_TOOLS.has(u.name) && TESTS.test(String(u.input.command ?? ''))) t.traces.tested = true;
+        if (COMMAND_TOOLS.has(u.name) && !r?.refused && gitSubcommands(String(u.input.command ?? '')).includes('commit'))
+          t.traces.committed.push(String(u.input.command).slice(0, 600));
       }
       // The command is in the call's answer, so the call is the task's last.
       const kind = ends.get(c.key);
@@ -469,6 +483,131 @@ export function serversUsed(uses: readonly ToolUse[]): Record<string, number> {
   for (const u of uses) {
     const m = /^mcp__(.+?)__/.exec(u.name);
     if (m) out[m[1]!] = Math.max(out[m[1]!] ?? 0, u.at);
+  }
+  return out;
+}
+
+/** A reset at a task boundary (src/core/reset.ts), as Mode_Code's events keep it. */
+export interface Reset {
+  at: number;
+  /** The conversation the work went on in, and the one it was reset from. */
+  session: string;
+  from: string;
+  /** The context it was reset from; in the new conversation, the context at its first call and at its first change. */
+  before: number;
+  first: number | null;
+  ready: number | null;
+}
+
+/** The resets in Mode_Code's event lines, oldest first: each one carried into a new conversation, with what that read again. */
+export function resetsOf(lines: readonly (Line | null)[]): Reset[] {
+  const reads = new Map<string, Line>();
+  for (const o of lines) if (o?.kind === 'resetRead' && typeof o.session === 'string') reads.set(o.session, o);
+  const found = new Map<string, Reset>();
+  for (const o of lines)
+    if (o?.kind === 'reset' && o.phase === 'carried' && typeof o.session === 'string' && Number.isFinite(o.at)) {
+      const r = reads.get(o.session);
+      found.set(o.session, {
+        at: o.at as number,
+        session: o.session,
+        from: typeof o.from === 'string' ? o.from : '',
+        before: num(o.tokens),
+        first: r ? num(r.first) : null,
+        ready: r ? num(r.ready) : null,
+      });
+    }
+  return [...found.values()].sort((a, b) => a.at - b.at);
+}
+
+/**
+ * What a reset saved, in quota units: an estimate. Each call of the new conversation's own no longer read what the
+ * reset left behind (the context it was reset from, less the new start), at its model's cache read rate; the new
+ * conversation wrote its start into the cache once instead of reading it. Null where its start was not measured.
+ */
+export function resetSaving(r: Reset, calls: readonly Call[]): number | null {
+  if (r.first === null) return null;
+  const own = calls.filter((c) => c.session === r.session && !c.sidechain);
+  let units = 0;
+  for (const c of own) {
+    const p = priceOf(c.model);
+    if (p) units += ((Math.max(0, r.before - r.first) * p.read) / 1e6) * WEIGHTS.read;
+  }
+  const p = own.length ? priceOf(own[0]!.model) : null;
+  if (p) units -= (r.first * (p.input * 1.25 * WEIGHTS.write - p.read * WEIGHTS.read)) / 1e6;
+  return units;
+}
+
+/** A commit as `git log` lists it, with the files it changed. */
+export interface Commit {
+  hash: string;
+  at: number;
+  subject: string;
+  files: string[];
+}
+
+/** The format commitsOf reads, with `--name-only`: a record per commit, its files after it. */
+export const LOG_FORMAT = '--format=%x1e%H%x1f%ct%x1f%s';
+
+/** The commits in `git log --name-only` output written with LOG_FORMAT, oldest first. */
+export function commitsOf(text: string): Commit[] {
+  const out: Commit[] = [];
+  for (const record of text.split('\x1e').slice(1)) {
+    const [head = '', ...files] = record.split('\n');
+    const [hash = '', ct = '', ...subject] = head.split('\x1f');
+    if (!/^[0-9a-f]{7,64}$/.test(hash) || !/^\d+$/.test(ct)) continue;
+    out.push({ hash, at: Number(ct) * 1000, subject: subject.join('\x1f'), files: files.map((f) => f.trim()).filter(Boolean) });
+  }
+  return out.sort((a, b) => a.at - b.at);
+}
+
+/** A commit that fixes or takes back an earlier one: `fix:`, `fix(scope):`, `fix!:`, `revert:`, git's own "Revert …". */
+const FIX = /^(?:fix|revert)[(:!]|^revert\b/i;
+/** Files nearly every commit touches (notes, logs, lock files, the changelog): sharing one ties two commits to nothing. */
+const NOT_CODE = /\.(?:md|txt|lock|log)$|(?:^|\/)package(?:-lock)?\.json$|changelog/i;
+
+/** Whether a later commit within `windowMs` fixed or took back what `c` changed: a fix that shares a code file with it. */
+export function fixedWithin(c: Commit, commits: readonly Commit[], windowMs: number): boolean {
+  const code = c.files.filter((f) => !NOT_CODE.test(f));
+  return commits.some((n) => n.at > c.at && n.at - c.at <= windowMs && FIX.test(n.subject) && n.files.some((f) => code.includes(f)));
+}
+
+/**
+ * The commits a task made in its repository: those whose subject one of its commit commands spells, from a minute
+ * before its first call (clocks differ) until a quarter of an hour past its last (a commit lands after the call that
+ * ran it), never into the next task (`until`). Another session's commits in the same minutes are not the task's.
+ */
+export function commitsOfTask(t: { from: number; to: number; committed: readonly string[] }, commits: readonly Commit[], until = Infinity): Commit[] {
+  return commits.filter(
+    (c) =>
+      c.at >= t.from - 60_000 &&
+      c.at <= Math.min(t.to + 15 * 60_000, until) &&
+      c.subject.trim() !== '' &&
+      t.committed.some((cmd) => cmd.includes(c.subject.slice(0, 30))),
+  );
+}
+
+/** Whether what a task committed was fixed within `windowMs`: true, false once that long has passed (at `now`), else null. */
+export function fixedAfter(own: readonly Commit[], commits: readonly Commit[], windowMs: number, now: number): boolean | null {
+  if (!own.length) return null;
+  if (own.some((c) => fixedWithin(c, commits, windowMs))) return true;
+  return own.every((c) => now - c.at >= windowMs) ? false : null;
+}
+
+/** Several repositories' answers as one: a fix in any is a fix; any not known yet leaves it unknown; none at all is null. */
+export function fixedAnywhere(answers: readonly (boolean | null)[]): boolean | null {
+  if (answers.includes(true)) return true;
+  return answers.length && !answers.includes(null) ? false : null;
+}
+
+/**
+ * The folders a commit command works in, as written: `git -C <dir>` and `cd <dir>` (a session opened in the home folder
+ * commits elsewhere that way). Quotes are taken off; the caller resolves the folders against the session's own.
+ */
+export function commandDirs(command: string): string[] {
+  const out: string[] = [];
+  for (const m of command.matchAll(/\bgit[ \t]+-C[ \t]+("[^"]+"|'[^']+'|[^\s;&|]+)|(?:^|&&|;|\|\||\n)[ \t]*cd[ \t]+("[^"]+"|'[^']+'|[^\s;&|]+)/g)) {
+    const dir = (m[1] ?? m[2]!).replace(/^(["'])(.*)\1$/, '$2');
+    if (!out.includes(dir)) out.push(dir);
   }
   return out;
 }

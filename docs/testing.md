@@ -101,7 +101,7 @@ A property test that fails prints its seed and the smallest input that fails; `T
 
 ### What a task costs of the quota
 
-`mode-code measure` ([quota.md](quota.md)) reads the transcripts and the quota readings on the computer and writes nothing: each session cut into tasks at its commits and pushes, each call priced and weighed by what the quota was measured to count, with the traces of how the work went. The pure part, `src/core/measure.ts`, is tested in `test/core/measure.test.ts`; the disk side in `test/node/measure.test.ts`. A change meant to save quota is compared with it as [quota.md](quota.md) describes, the cost and the traces together.
+`mode-code measure` ([quota.md](quota.md)) reads the transcripts and the quota readings on the computer and writes nothing: each session cut into tasks at its commits and pushes, each call priced and weighed by what the quota was measured to count, with the traces of how the work went, how the committed work held (a later fix found in the repository's history) and what the resets at a task boundary read again and saved. The pure part, `src/core/measure.ts`, is tested in `test/core/measure.test.ts` and `test/core/measure-held.test.ts`; the disk side in `test/node/measure.test.ts`, the history from a repository the test makes. A change meant to save quota is compared with it as [quota.md](quota.md) describes, the cost and the traces together.
 
 ## Where each layer runs
 

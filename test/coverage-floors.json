@@ -117,8 +117,8 @@
       "functions": 69
     },
     "src/cli/measure.ts": {
-      "lines": 82,
-      "branches": 10,
+      "lines": 88,
+      "branches": 35,
       "functions": 72
     },
     "src/cli/memory.ts": {
@@ -422,9 +422,9 @@
       "functions": 94
     },
     "src/core/measure.ts": {
-      "lines": 93,
-      "branches": 86,
-      "functions": 94
+      "lines": 96,
+      "branches": 92,
+      "functions": 98
     },
     "src/core/memory-sync.ts": {
       "lines": 93,
@@ -712,9 +712,9 @@
       "functions": 94
     },
     "src/node/measure.ts": {
-      "lines": 88,
-      "branches": 68,
-      "functions": 71
+      "lines": 95,
+      "branches": 80,
+      "functions": 78
     },
     "src/node/memory-store.ts": {
       "lines": 89,

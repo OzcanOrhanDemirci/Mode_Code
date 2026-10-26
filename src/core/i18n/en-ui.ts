@@ -105,6 +105,9 @@ export const enUi = {
   'measure.trace.cache': '{n} cache rebuilt',
   'measure.trace.large': '{n} past 400k',
   'measure.trace.again': '{n} file changed again within 48 h',
+  'measure.trace.fixed48': 'fixed by a later commit within 48 h',
+  'measure.trace.fixed14': 'fixed by a later commit within 14 days',
+  'measure.trace.reset': 'after a reset ({n} read again)',
   'measure.total': 'In all: {units} units in {tasks} tasks, {calls} calls. A unit is a weighed API dollar: a cache read counts 0.76, output 1.92.',
   'measure.unpriced': '{n} calls of a model with no price are left out.',
   'measure.point': 'A weekly point took {perPoint} units here ({points} points over {units} units; work on other computers raises the readings too).',
@@ -113,6 +116,10 @@ export const enUi = {
   'measure.modelItem': '{model} {share} (agents {sub})',
   'measure.output': 'Tool output: {list}.',
   'measure.unused': 'MCP servers not called in these days: {list}.',
+  'measure.held':
+    'How the committed work held: {fixed48} of {judged48} tasks were fixed or taken back by a later commit on the same code within 48 hours, {fixed14} of {judged14} within 14 days.',
+  'measure.success': 'Per task that held (closed, no fix within 48 hours; {n} tasks): {units} units, {points} weekly points, all the units over them.',
+  'measure.resets': 'Resets at a task boundary: {n}, a median of {reread} read again before the first change; saved about {saved} units (an estimate).',
   'cli.sessions.none': 'No sessions found.',
 
   // ── install ──
