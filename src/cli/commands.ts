@@ -31,7 +31,7 @@ import { loadEvents, loadQuota, openIndex, scanPaths } from '../app/data.js';
 import { checkHealth, healthCounts, type FeatureHealth } from '../app/health.js';
 import { buildReport, reportLines } from '../app/report.js';
 import { columns, confirm, say as sayWrapped, terminalIO, typed } from './ask.js';
-import { askInstall, installSummary } from './install-ask.js';
+import { askInstall, installSummary, planLines, resultLines } from './install-ask.js';
 import { replay } from '../app/replay.js';
 import { newsFor } from '../core/news.js';
 import { findFlow, flowFiles, loadFlows } from '../app/flows.js';
@@ -46,7 +46,7 @@ import { ansiOf } from '../core/mo/cells.js';
 import { STILL_AT } from '../core/mo/state.js';
 import { flag, intValue, testedCommand, value, values, type Args } from './args.js';
 import { truncate } from '../core/text.js';
-import { bold, dim, green, red, yellow, gray, cyan, table, colorDepth, colorOn } from './style.js';
+import { bold, dim, green, red, yellow, gray, cyan, table, colorDepth, colorOn, width } from './style.js';
 
 type Out = (s?: string) => void;
 // Said wrapped to the terminal's width (src/cli/ask.ts); --json goes out whole through json().
@@ -168,19 +168,14 @@ export async function cmdInstall(a: Args): Promise<number> {
     json('install', { ok: r.ok, steps: r.steps, manifest: r.manifest });
     return r.ok ? 0 : 1;
   }
-  say(bold(T(ctx, 'install.title', { app: APP_NAME, version: APP_VERSION })));
+  // Run by the one-line installer (MODE_CODE_INSTALLER), the installer's title stands for both.
+  if (process.env.MODE_CODE_INSTALLER !== '1') say(bold(T(ctx, 'install.title', { app: APP_NAME, version: APP_VERSION })));
   say();
-  say(T(ctx, 'install.intro'));
+  // What changes, in what it means rather than in its parts; the paths, hooks and hook command are in --json.
+  say(`  ${T(ctx, 'install.intro')}`);
   say();
-  for (const s of plan.steps) {
-    const mark = s.done ? gray('✓') : cyan('+');
-    say(`  ${mark} ${T(ctx, `install.step.${s.kind}` as MessageKey)}`);
-    for (const t of s.targets) say(dim(`      ${shortPath(t, homedir(), 90)}`));
-  }
+  for (const l of planLines(ctx.lang, plan.steps, shortPath(ctx.layout.root, homedir(), 70))) say(l);
   say();
-  // The hook's program and its file, each shortened from the home folder (the full paths are in --json).
-  const short = (p: string) => shortPath(p, homedir(), 70);
-  say(dim(T(ctx, 'install.hookCommand', { cmd: [plan.hookCommand.command, ...plan.hookCommand.args].map(short).join(' ') })));
   for (const w of plan.warnings) say(yellow(`  ! ${T(ctx, w.key, w.params)}`));
   for (const b of plan.blockers) say(red(`  ✗ ${T(ctx, b.key, b.params)}`));
   if (plan.blockers.length) return 1;
@@ -227,17 +222,23 @@ export async function cmdInstall(a: Args): Promise<number> {
   const before = readManifest(ctx.layout)?.version ?? null;
   const r = applyInstall(ctx.layout, plan, { config: chosen });
   say();
-  for (const s of r.steps) say(`  ${s.ok ? green('✓') : red('✗')} ${T(ctx, `install.step.${s.kind}` as MessageKey)}${s.detail ? dim(' · ' + s.detail) : ''}`);
+  for (const l of resultLines(ctx.lang, r.steps)) say(l);
   say();
   if (!r.ok) {
     say(red(T(ctx, 'install.failed')));
     say(T(ctx, 'install.failedHint', { cmd: `${CLI_NAME} install`, undo: `${CLI_NAME} uninstall --keep-program`, repo: `${REPO_URL}/issues` }));
     return 1;
   }
-  // Mo greets the new install, a still picture beside the two lines, where the terminal draws colors.
+  // The one ending, the installer's too: Mo greets the new install, a still picture beside the first two lines, where
+  // the terminal draws colors.
   const mo = colorOn() && ctx.config.modules.mascot ? ansiOf(mark2('done', STILL_AT.done), colorDepth()) : [];
-  say(`${mo[0] ? `${mo[0]}  ` : ''}${green(bold(T(ctx, 'install.done')))}`);
-  say(`${mo[1] ? `${mo[1]}  ` : ''}${T(ctx, 'install.next', { cmd: cyan(CLI_NAME) })}`);
+  const ending = [
+    green(bold(T(ctx, 'install.done', { app: APP_NAME, version: APP_VERSION }))),
+    `  ${T(ctx, 'install.next', { claude: cyan('claude') })}`,
+    `  ${T(ctx, 'install.next.center', { cmd: cyan(CLI_NAME) })}`,
+  ];
+  const beside = mo[0] ? ' '.repeat(width(mo[0]) + 2) : '';
+  ending.forEach((l, i) => say(`${mo[i] ? `${mo[i]}  ` : beside}${l}`));
   // An update: what changed since the version it replaced, once here (and once as the next session starts).
   const news = before && before !== APP_VERSION ? newsFor(before, APP_VERSION) : [];
   if (news.length) {

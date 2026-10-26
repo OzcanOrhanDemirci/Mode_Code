@@ -83,10 +83,23 @@ param(
     if ($color -and -not $S.NoColor) { Write-Host $text -ForegroundColor $color } else { Write-Host $text }
   }
   function Say([string]$text = '') { Write-Host $text }
-  function Step([string]$text) { Out-Line ("$([char]0x203A) " + $text) 'Cyan' }
-  function Ok([string]$text) { Out-Line ("  $([char]0x2713) " + $text) 'Green' }
-  function Note([string]$text) { Out-Line ('  ' + $text) 'DarkGray' }
-  function Warn([string]$text) { Out-Line ('  ! ' + $text) 'Yellow' }
+  # Busy <text>: what is under way, on a line the next Ok writes over in a terminal; a log gets it as a line.
+  function Busy([string]$text) {
+    # A log may not take the ellipsis in its code page: three dots there.
+    if ([Console]::IsOutputRedirected) { Out-Line "  $([char]0x203A) $text..." 'Cyan'; return }
+    $line = "  $([char]0x203A) $text$([char]0x2026)"
+    if ($S.NoColor) { Write-Host $line -NoNewline } else { Write-Host $line -ForegroundColor Cyan -NoNewline }
+    $S.Busy = $line.Length
+  }
+  # The line Busy left open: written over by its outcome, or ended when something else comes first.
+  function Close-Busy([switch]$Keep) {
+    if (-not $S.Busy) { return }
+    if ($Keep) { Write-Host '' } else { Write-Host ("`r" + (' ' * $S.Busy) + "`r") -NoNewline }
+    $S.Busy = 0
+  }
+  function Ok([string]$text) { Close-Busy; Out-Line ("  $([char]0x2713) " + $text) 'Green' }
+  function Note([string]$text) { Close-Busy -Keep; Out-Line ('  ' + $text) 'DarkGray' }
+  function Warn([string]$text) { Close-Busy -Keep; Out-Line ('  ! ' + $text) 'Yellow' }
   # Stops the installation with a message; caught once, at the end.
   function Fail([string]$text) { throw (New-Object System.Exception ("MODECODE:" + $text)) }
 
@@ -210,10 +223,10 @@ param(
     $folder = $file -replace '\.zip$', ''
     $version = [version](($folder -replace '^node-v', '') -replace '-.*$', '')
     if ($S.PrivateNode -and $S.NodeVersion -eq $version) {
-      Ok (T "Node.js $version (kept for $Name)" "Node.js $version ($Name i\u00e7in tutulan)")
+      Ok (T "Node.js $version found (used by $Name alone)" "Node.js $version bulundu (yaln\u0131z $Name kullan\u0131r)")
       return
     }
-    Step (T "Downloading Node.js $version for $Name" "$Name i\u00e7in Node.js $version indiriliyor")
+    Busy (T 'Downloading Node.js' 'Node.js indiriliyor')
     $zip = Join-Path $S.Stage $file
     try { Get-File "$base/$file" $zip } catch { Fail (T 'The Node.js download failed.' 'Node.js indirilemedi.') }
     if ((Get-Sha256 $zip) -ne $want) { Fail (T "The Node.js download does not match nodejs.org's checksum; nothing was installed." "\u0130ndirilen Node.js, nodejs.org'un sa\u011flama toplam\u0131yla e\u015fle\u015fmiyor; hi\u00e7bir \u015fey kurulmad\u0131.") }
@@ -244,7 +257,7 @@ param(
     $S.Node = Join-Path $target 'node.exe'
     $S.NodeVersion = $version
     $S.PrivateNode = $true
-    Ok (T "Node.js $version, checksum verified, in $target" "Node.js $version, sa\u011flama toplam\u0131 do\u011fruland\u0131, $target i\u00e7inde")
+    Ok (T "Node.js downloaded and verified (used by $Name alone)" "Node.js indirildi ve do\u011fruland\u0131 (yaln\u0131z $Name kullan\u0131r)")
   }
 
   # The package: from the release (checksum verified) or from MODE_CODE_PACKAGE; unpacked into the stage.
@@ -268,7 +281,7 @@ param(
       $S.Source = "$base/$asset"
       $label = $Name
       if ($S.Wanted) { $label = "$Name $($S.Wanted)" }
-      Step (T "Downloading $label" "$label indiriliyor")
+      Busy (T "Downloading $label" "$label indiriliyor")
       $sums = Join-Path $S.Stage 'SHA256SUMS'
       try { Get-File "$base/SHA256SUMS" $sums } catch {
         # A version that does not exist is said so, with where the releases are.
@@ -294,7 +307,7 @@ param(
       Fail (T 'That is not a Mode_Code package.' "Bu bir Mode_Code paketi de\u011fil.")
     }
     $S.Version = (Get-Content -LiteralPath (Join-Path $S.Package 'package.json') -Raw | ConvertFrom-Json).version
-    if ($S.Sha) { Ok (T "$Name $($S.Version), checksum verified" "$Name $($S.Version), sa\u011flama toplam\u0131 do\u011fruland\u0131") }
+    if ($S.Sha) { Ok (T "$Name $($S.Version) downloaded and verified" "$Name $($S.Version) indirildi ve do\u011fruland\u0131") }
   }
 
   # A path for the command file, with the person's folders written as variables: cmd.exe reads the file in
@@ -324,7 +337,7 @@ param(
     if ($cp -eq 65001) { $encoding = New-Object System.Text.UTF8Encoding $false } else { $encoding = [System.Text.Encoding]::GetEncoding($cp) }
     [System.IO.File]::WriteAllText("$($S.Command).new", $text, $encoding)
     Move-Item -LiteralPath "$($S.Command).new" -Destination $S.Command -Force
-    Ok (T "The $App command: $($S.Command)" "$App komutu: $($S.Command)")
+    Ok (T "The $App command is added" "$App komutu eklendi")
   }
 
   function Test-OnPath([string]$list, [string]$dir) {
@@ -366,7 +379,6 @@ param(
     } finally {
       if ($key) { $key.Close() }
     }
-    Ok (T "$($S.BinDir) added to your user PATH" "$($S.BinDir) kullan\u0131c\u0131 PATH'ine eklendi")
     if (-not $env:MODE_CODE_TEST_ENV_KEY) {
       try {
         if (-not ('ModeCodeInstaller.Native' -as [type])) {
@@ -401,16 +413,35 @@ param(
     return $false
   }
 
+  # The version Claude Code says it is, "2.1.310 (Claude Code)" read as 2.1.310; nothing when it does not say.
+  function Get-ClaudeVersion {
+    try {
+      $said = [string](Invoke-Native 'claude' @('--version') 2>$null | Select-Object -First 1)
+      if ($said -match '^\s*(\d+\.\d+\.\d+)') { return $Matches[1] }
+    } catch { $null = $_ }
+    return ''
+  }
+
   function Install-Claude {
     Say ''
-    Say (T "$Name works inside Claude Code, which was not found on this computer." "$Name, Claude Code'un i\u00e7inde \u00e7al\u0131\u015f\u0131r ve Claude Code bu bilgisayarda bulunamad\u0131.")
-    if (-not (AskNo (T "Install Claude Code now with Anthropic's official installer (claude.ai/install.ps1)?" "Claude Code \u015fimdi Anthropic'in resm\u00ee kurulum beti\u011fiyle (claude.ai/install.ps1) kurulsun mu?"))) { return $false }
-    # In a PowerShell of its own, so nothing it does can end this one.
+    Say ('  ' + (T "$Name works inside Claude Code; Claude Code was not found on this computer." "$Name, Claude Code'un i\u00e7inde \u00e7al\u0131\u015f\u0131r; bu bilgisayarda Claude Code bulunamad\u0131."))
+    Say ''
+    if (-not (AskNo ('  ' + (T "Install Claude Code now with Anthropic's official installer?" "Claude Code, Anthropic'in resm\u00ee kurulumuyla \u015fimdi kurulsun mu?")))) { return $false }
+    Say ''
+    Busy (T 'Installing Claude Code' 'Claude Code kuruluyor')
+    # In a PowerShell of its own, so nothing it does can end this one. What it says is kept and shown only when it
+    # fails: its lines are its own, in English, and Windows PowerShell draws its check mark wrong.
     $shell = (Get-Process -Id $PID).Path
-    # Shown as it goes, and kept out of this function's answer.
-    Invoke-Native $shell @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'irm https://claude.ai/install.ps1 | iex') | Out-Host
-    if ($LASTEXITCODE -ne 0) { Fail (T "Anthropic's installer did not finish." "Anthropic'in kurulum beti\u011fi tamamlanmad\u0131.") }
-    return (Find-Claude)
+    $said = Invoke-Native $shell @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'irm https://claude.ai/install.ps1 | iex') 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) {
+      Close-Busy -Keep
+      Say $said.TrimEnd()
+      Fail (T "Anthropic's installer did not finish." "Anthropic'in kurulum beti\u011fi tamamlanmad\u0131.")
+    }
+    if (-not (Find-Claude)) { Close-Busy -Keep; return $false }
+    $cc = ('Claude Code ' + (Get-ClaudeVersion)).Trim()
+    Ok (T "$cc installed" "$cc kuruldu")
+    return $true
   }
 
   # `mode-code install`: shows every change to Claude Code and asks once (or not at all with -Yes). Its answer
@@ -420,22 +451,27 @@ param(
     $S.Next = $null
     $S.SetupOk = $true
     if ($NoSetup) { $S.Next = "$App install"; return }
-    if (-not (Find-Claude) -and -not (Install-Claude)) {
+    if (Find-Claude) {
+      $cc = ('Claude Code ' + (Get-ClaudeVersion)).Trim()
+      Ok (T "$cc found" "$cc bulundu")
+    } elseif (-not (Install-Claude)) {
       $S.Next = "$App install"
       Say (T "Install Claude Code (https://code.claude.com/docs/en/setup), then run: $App install" "Claude Code'u kur (https://code.claude.com/docs/en/setup), sonra \u015funu \u00e7al\u0131\u015ft\u0131r: $App install")
       $S.SetupOk = [bool]$S.Interactive
       return
     }
     Say ''
-    if ($Yes) {
-      Invoke-Native $S.Node @($S.Cli, 'install', '--yes')
-    } elseif ($S.Interactive) {
-      Invoke-Native $S.Node @($S.Cli, 'install')
-    } else {
+    if (-not $Yes -and -not $S.Interactive) {
       $S.Next = "$App install"
       Say (T "Nobody is at a terminal to confirm the changes to Claude Code: run $App install in one (or pass -Yes)." "Claude Code'daki de\u011fi\u015fiklikleri onaylayacak bir terminal yok: $App install komutunu bir terminalde \u00e7al\u0131\u015ft\u0131r (ya da -Yes ver).")
       return
     }
+    $arguments = @($S.Cli, 'install')
+    if ($Yes) { $arguments += '--yes' }
+    # The program leaves its title out, as this installer's stands for both: told so for this run alone.
+    $was = $env:MODE_CODE_INSTALLER
+    $env:MODE_CODE_INSTALLER = '1'
+    try { Invoke-Native $S.Node $arguments } finally { $env:MODE_CODE_INSTALLER = $was }
     $S.SetupOk = ($LASTEXITCODE -eq 0)
   }
 
@@ -480,6 +516,7 @@ param(
     }
 
     Out-Line "$Name $(T 'installer' 'kurulumu')" 'White'
+    Say ''
     # TLS 1.2 for Windows PowerShell 5.1 on older .NET defaults.
     try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072 } catch { $null = $_ }
     $S.Tar = Join-Path $env:SystemRoot 'System32\tar.exe'
@@ -498,7 +535,7 @@ param(
         if ($S.OldNode) { Note (T "Node.js $($S.OldNode) is too old for $Name (22.13 or newer); a newer one is kept for $Name alone." "Node.js $($S.OldNode), $Name i\u00e7in eski (22.13 ya da sonras\u0131 gerekli); yaln\u0131z $Name i\u00e7in yenisi tutulacak.") }
         Install-PrivateNode
       } else {
-        Ok "Node.js $($S.NodeVersion) ($($S.Node))"
+        Ok (T "Node.js $($S.NodeVersion) found" "Node.js $($S.NodeVersion) bulundu")
       }
       Get-ModeCodePackage
       $S.Cli = Join-Path $S.Home 'app\dist\cli.mjs'
@@ -510,7 +547,6 @@ param(
       Write-Command
       Add-ToUserPath
       Write-Receipt
-      Ok (T "$Name $($S.Version) is in $($S.Home)" "$Name $($S.Version), $($S.Home) i\u00e7inde")
     } finally {
       Remove-Item -LiteralPath $S.Stage -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -522,11 +558,9 @@ param(
       $S.Code = 1
       return
     }
+    # Connected to Claude Code, the program has said it is ready and what comes next.
     if ($S.Next) {
       Out-Line (T "$Name $($S.Version) is installed. Next: $($S.Next)" "$Name $($S.Version) kuruldu. S\u0131radaki: $($S.Next)") 'White'
-    } else {
-      Out-Line (T "$Name $($S.Version) is ready." "$Name $($S.Version) haz\u0131r.") 'Green'
-      Say (T 'Start a new Claude Code session: the mode strip shows above the prompt. Type /0 there for the cockpit, the control center one press from it; or run mode-code here for the control center.' "Yeni bir Claude Code oturumu ba\u015flat: mod \u015feridi istem sat\u0131r\u0131n\u0131n \u00fcst\u00fcnde g\u00f6r\u00fcn\u00fcr. Kokpit i\u00e7in orada /0 yaz, kontrol merkezi ondan bir tu\u015f uzakta; ya da kontrol merkezi i\u00e7in burada mode-code \u00e7al\u0131\u015ft\u0131r.")
     }
     if ($S.NewShell) {
       Note (T "This window can run $App now; windows opened before the installation need to be opened again." "Bu pencere $App komutunu hemen \u00e7al\u0131\u015ft\u0131rabilir; kurulumdan \u00f6nce a\u00e7\u0131lan pencereler yeniden a\u00e7\u0131lmal\u0131.")
@@ -536,6 +570,7 @@ param(
   try {
     Install-ModeCode
   } catch {
+    Close-Busy -Keep
     $message = $_.Exception.Message
     if ($message.StartsWith('MODECODE:')) { $message = $message.Substring(9) } else { $message = (T 'The installation stopped: ' "Kurulum durdu: ") + $message }
     Out-Line ("$([char]0x2717) " + $message) 'Red'

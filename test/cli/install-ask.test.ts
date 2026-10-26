@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * The first installation's choices (src/cli/install-ask.ts): five steps said with their place, each explained before
- * its question, the simple view's two skipped steps said so; and the summary the one yes rests on.
+ * its question, the simple view's two skipped steps said so; the summary the one yes rests on; and the plan and its
+ * outcome said in four parts.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { askInstall, installSummary, type InstallAsk } from '../../src/cli/install-ask.js';
+import { askInstall, installSummary, planLines, resultLines, type InstallAsk } from '../../src/cli/install-ask.js';
 import { setColor } from '../../src/cli/style.js';
 import { cloneDefaults } from '../../src/core/config.js';
+import type { PlanStep } from '../../src/node/install.js';
 import { scripted } from '../helpers/setup.js';
 
 setColor(false);
@@ -131,4 +133,44 @@ test('the summary of the simple view says where the memory is set up later; a na
   assert.match(text, /Answer summary {4}Show: Mode_Code adds it/, 'the default where it was not asked');
   // Asked and answered "-": no folder, said so.
   assert.match(installSummary({ view: 'recommended' }, opts('en', true)).join('\n'), /Memory {12}No folder protected/);
+});
+
+const steps: PlanStep[] = [
+  { kind: 'data-folder', targets: ['/home/ada/.mode-code'], done: false },
+  { kind: 'hook-program', targets: [], done: false },
+  { kind: 'marketplace', targets: [], done: false },
+  { kind: 'plugin', targets: [], done: false },
+  { kind: 'settings-hooks', targets: [], done: false },
+  { kind: 'config', targets: [], done: true },
+  { kind: 'self-test', targets: [], done: false },
+];
+
+test('the plan is said in four parts, in what each changes; a part wholly in place is marked so', () => {
+  assert.deepEqual(planLines('tr', [...steps], '~/.mode-code'), [
+    "    + Mode_Code'un dosyaları kendi klasörüne konur (~/.mode-code)",
+    "    + Claude Code'a Mode_Code eklentisi eklenir",
+    "    + Koruma Claude Code'a bağlanır; Claude Code ayarları önce yedeklenir",
+    '    + Korumanın çalıştığı iki zararsız denemeyle doğrulanır',
+  ]);
+  const again = planLines('en', [...steps.map((s) => ({ ...s, done: s.kind !== 'self-test' }))], '~/.mode-code');
+  assert.equal(again[0], "    ✓ Mode_Code's files go in a folder of their own (~/.mode-code)");
+  assert.equal(again[3], '    + Two harmless tries check that the protection works');
+  // Moving from an earlier name keeps its own words.
+  assert.match(
+    planLines('en', [{ kind: 'migrate', targets: [], done: false }, ...steps], '~/x')[0]!,
+    /^ {4}\+ Bring over what the installation under the tool's earlier name kept/,
+  );
+});
+
+test('the outcome: a line for each part that went well; a failed step in its own words, with why', () => {
+  const ok = steps.map((s) => ({ kind: s.kind, ok: true, detail: 'read passed, protected write refused' }));
+  assert.deepEqual(resultLines('tr', ok), [
+    "  ✓ Mode_Code'un dosyaları yerinde",
+    '  ✓ Eklenti eklendi',
+    '  ✓ Koruma bağlandı, ayarların yedeklendi',
+    '  ✓ Koruma iki zararsız denemeyle doğrulandı',
+  ]);
+  const failed = ok.map((s) => (s.kind === 'plugin' ? { kind: s.kind, ok: false, detail: 'claude plugin install: exit 1' } : s));
+  assert.deepEqual(resultLines('en', failed)[1], '  ✗ Install the Claude Code plugin (user scope) · claude plugin install: exit 1');
+  assert.equal(resultLines('en', failed).length, 4);
 });

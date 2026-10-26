@@ -299,14 +299,14 @@ ${u.out}`,
 }
 
 function casePrivateNode(shell, pkg, mirror) {
-  // In Turkish: its messages carry paths, and a Windows path must come through them as it is.
+  // In Turkish, as the messages whose letters the installer unescapes on Windows.
   const w = world(`${shell}-node`, { pkg, mirror, node: false, lang: 'tr' });
   try {
     const r = install(shell, w, isUnixShell(shell) ? ['--yes'] : ['-Yes']);
     check(r.code === 0, `the installer failed (exit ${r.code}):\n${r.out}`);
     const rec = w.receipt();
     check(rec.privateNode === true, 'the record does not say Node.js was downloaded');
-    check(r.out.includes(`Node.js ${NODE_VERSION}, sağlama toplamı doğrulandı, ${join(w.programHome, 'node')}`), `no checksum line:\n${r.out}`);
+    check(r.out.includes('Node.js indirildi ve doğrulandı (yalnız Mode_Code kullanır)'), `no checksum line:\n${r.out}`);
     const v = command(w, ['--version']);
     check(v.code === 0, `the command failed with the downloaded Node.js (exit ${v.code}): ${v.out}`);
     // The hooks run on that Node.js too.
@@ -314,7 +314,10 @@ function casePrivateNode(shell, pkg, mirror) {
     check(m && placeKey(m.node).startsWith(placeKey(w.programHome)), `the hooks run on ${m?.node}`);
     // A second run keeps the Node.js it has when it is the newest.
     const again = install(shell, w, isUnixShell(shell) ? ['--yes'] : ['-Yes']);
-    check(again.code === 0 && again.out.includes(`Node.js ${NODE_VERSION} (Mode_Code için tutulan)`), `the second run did not keep Node.js:\n${again.out}`);
+    check(
+      again.code === 0 && again.out.includes(`Node.js ${NODE_VERSION} bulundu (yalnız Mode_Code kullanır)`),
+      `the second run did not keep Node.js:\n${again.out}`,
+    );
     // Uninstall runs on the downloaded Node.js, which Windows can delete only after it ends.
     const u = command(w, ['uninstall', '--yes']);
     check(u.code === 0, `uninstall failed (exit ${u.code}):\n${u.out}`);
@@ -346,7 +349,7 @@ ${sha256(join(rel, `mode-code-${version}.tgz`))}  mode-code-${version}.tgz
     const flags = isUnixShell(shell) ? ['--no-setup'] : ['-NoSetup'];
     const r = install(shell, w, flags);
     check(
-      r.code === 0 && r.out.includes(`Mode_Code ${version}, checksum verified`),
+      r.code === 0 && r.out.includes(`Mode_Code ${version} downloaded and verified`),
       `the newest release: exit ${r.code}:
 ${r.out}`,
     );
@@ -462,7 +465,7 @@ function caseNoClaude(shell, pkg, mirror) {
     // Nobody to answer and no --yes: Claude Code is not installed for the person, the program is.
     const r = isUnixShell(shell) ? install(shell, w, []) : install(shell, w, [], { pasted: true });
     check(r.code === 1, `exit ${r.code}, not 1:\n${r.out}`);
-    check(r.out.includes('which was not found on this computer'), `no word about Claude Code:\n${r.out}`);
+    check(r.out.includes('Claude Code was not found on this computer'), `no word about Claude Code:\n${r.out}`);
     check(existsSync(w.command), 'the program was not installed');
     check(w.manifest() === null, 'Claude Code was changed without Claude Code');
     return `no Claude Code: program only, says so, exit 1${isUnixShell(shell) ? '' : ' (pasted)'}`;
@@ -487,10 +490,14 @@ ${r.out}`,
     else check(!existsSync(w.rc), '--no-modify-path wrote a startup file');
     check(w.receipt().path === null, 'the record names a PATH entry that was not made');
 
-    // A command file the installer did not write is never replaced.
+    // A command file the installer did not write is never replaced. Said in Turkish: a Windows path must come
+    // through a message whose letters are unescaped as it is.
     writeFileSync(w.command, isWin ? '@echo someone else\r\n' : '#!/bin/sh\necho someone else\n');
-    const foreign = install(shell, w, flags);
-    check(foreign.code === 1 && foreign.out.includes('was not written by this installer'), `a foreign command: exit ${foreign.code}:\n${foreign.out}`);
+    const foreign = install(shell, { ...w, env: { ...w.env, MODE_CODE_LANG: 'tr' } }, flags);
+    check(
+      foreign.code === 1 && foreign.out.includes(`${w.command} var ve bu kurulumun yazdığı değil`),
+      `a foreign command: exit ${foreign.code}:\n${foreign.out}`,
+    );
     check(readFileSync(w.command, 'utf8').includes('someone else'), 'the foreign command was replaced');
 
     // Inside a Claude Code session it refuses before anything happens.

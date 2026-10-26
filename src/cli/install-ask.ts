@@ -10,7 +10,52 @@ import type { SetupIO } from '../app/memory-setup.js';
 import { cloneDefaults, type Config, type FooterMode, type ViewLevel } from '../core/config.js';
 import { sampleFooter } from '../core/footer.js';
 import { tIn, type Lang, type MessageKey } from '../core/i18n/index.js';
-import { bold, dim, padEnd, width } from './style.js';
+import type { PlanStep, StepKind } from '../node/install.js';
+import { bold, cyan, dim, gray, green, padEnd, red, width } from './style.js';
+
+/**
+ * The installation's steps said in what they change rather than in their parts: Mode_Code's files, its plugin, the
+ * protection connected to Claude Code, the self-test. Moving from an earlier name keeps the words of its own steps.
+ */
+const PART: Record<StepKind, 'files' | 'plugin' | 'settings' | 'test' | null> = {
+  'data-folder': 'files',
+  'hook-program': 'files',
+  config: 'files',
+  marketplace: 'plugin',
+  plugin: 'plugin',
+  'settings-hooks': 'settings',
+  'self-test': 'test',
+  migrate: null,
+  'retire-previous': null,
+};
+
+function parts<S extends { kind: StepKind }>(steps: readonly S[]): { part: string; steps: S[] }[] {
+  const out: { part: string; steps: S[] }[] = [];
+  for (const s of steps) {
+    const part = PART[s.kind] ?? s.kind;
+    const found = out.find((p) => p.part === part);
+    if (found) found.steps.push(s);
+    else out.push({ part, steps: [s] });
+  }
+  return out;
+}
+
+/** What the installation will do, a line for each part; a part already in place is marked so. */
+export function planLines(lang: Lang, steps: readonly PlanStep[], dataDir: string): string[] {
+  return parts(steps).map(({ part, steps: s }) => {
+    const text = PART[s[0]!.kind] ? tIn(lang, `install.plan.${part}` as MessageKey, { dir: dataDir }) : tIn(lang, `install.step.${part}` as MessageKey);
+    return `    ${s.every((x) => x.done) ? gray('✓') : cyan('+')} ${text}`;
+  });
+}
+
+/** What the installation did: a line for each part that went well; each step that failed in its own words, with why. */
+export function resultLines(lang: Lang, steps: readonly { kind: StepKind; ok: boolean; detail?: string }[]): string[] {
+  return parts(steps).flatMap(({ part, steps: s }) => {
+    const failed = s.filter((x) => !x.ok);
+    if (failed.length) return failed.map((x) => `  ${red('✗')} ${tIn(lang, `install.step.${x.kind}` as MessageKey)}${x.detail ? dim(` · ${x.detail}`) : ''}`);
+    return [`  ${green('✓')} ${PART[s[0]!.kind] ? tIn(lang, `install.did.${part}` as MessageKey) : tIn(lang, `install.step.${part}` as MessageKey)}`];
+  });
+}
 
 const STEPS = 5;
 const VIEWS: readonly ViewLevel[] = ['simple', 'recommended', 'detailed'];
