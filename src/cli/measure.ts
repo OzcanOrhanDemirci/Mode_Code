@@ -22,7 +22,9 @@ export async function cmdMeasure(a: Args): Promise<number> {
   const T = (k: MessageKey, p?: Record<string, string | number>) => tIn(ctx.lang, k, p);
   const days = intValue(a, 'days', 7, 1, 90);
   const servers = readClaudeEnv(ctx.cwd, { version: null }).mcp.map((s) => s.name);
-  const r = measure({ claudeDir: claudeDir(), dataDir: ctx.layout.root, days, project: value(a, 'project') ?? null, servers });
+  // The memory's own repository is no project: its commits are not judged.
+  const memory = [...ctx.config.memory.dirs, ...(ctx.config.memory.store ? [ctx.config.memory.store.dir] : [])];
+  const r = measure({ claudeDir: claudeDir(), dataDir: ctx.layout.root, days, project: value(a, 'project') ?? null, servers, exclude: memory });
   if (flag(a, 'json')) {
     say(JSON.stringify({ schema: `${APP_ID}.measure/1`, version: APP_VERSION, ...r }, null, 2));
     return 0;
@@ -41,6 +43,8 @@ export async function cmdMeasure(a: Args): Promise<number> {
       t.traces.cacheRebuilds ? T('measure.trace.cache', { n: t.traces.cacheRebuilds }) : null,
       t.traces.large ? T('measure.trace.large', { n: t.traces.large }) : null,
       t.traces.touchedAgain.length ? T('measure.trace.again', { n: t.traces.touchedAgain.length }) : null,
+      t.traces.fixed.in48h ? T('measure.trace.fixed48') : t.traces.fixed.in14d ? T('measure.trace.fixed14') : null,
+      t.traces.reset ? T('measure.trace.reset', { n: t.traces.reset.ready === null ? '?' : compact(t.traces.reset.ready, ctx.lang) }) : null,
     ]
       .filter(Boolean)
       .join(' · ');
@@ -98,5 +102,23 @@ export async function cmdMeasure(a: Args): Promise<number> {
       }),
     );
   if (r.unusedServers.length) say(T('measure.unused', { list: r.unusedServers.join(', ') }));
+  if (r.held.judged48 || r.held.judged14)
+    say(T('measure.held', { fixed48: r.held.fixed48, judged48: r.held.judged48, fixed14: r.held.fixed14, judged14: r.held.judged14 }));
+  if (r.held.perSuccess !== null)
+    say(
+      T('measure.success', {
+        n: r.held.succeeded,
+        units: units(r.held.perSuccess),
+        points: r.point ? units(r.held.perSuccess / r.point.perPoint) : '-',
+      }),
+    );
+  if (r.resets.count)
+    say(
+      T('measure.resets', {
+        n: r.resets.count,
+        reread: r.resets.reread === null ? '?' : compact(r.resets.reread, ctx.lang),
+        saved: r.resets.saved === null ? '?' : units(r.resets.saved),
+      }),
+    );
   return 0;
 }

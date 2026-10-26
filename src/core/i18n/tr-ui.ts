@@ -101,6 +101,9 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'measure.trace.cache': '{n} önbellek yeniden kuruldu',
   'measure.trace.large': '{n} kez 400k üstü',
   'measure.trace.again': '{n} dosya 48 saatte yeniden değişti',
+  'measure.trace.fixed48': '48 saatte sonraki bir commit düzeltti',
+  'measure.trace.fixed14': '14 günde sonraki bir commit düzeltti',
+  'measure.trace.reset': 'sıfırlamadan sonra ({n} yeniden okundu)',
   'measure.total': 'Toplam: {tasks} görevde {units} birim, {calls} çağrı. Birim tartılmış bir API dolarıdır: önbellek okuması 0,76, çıktı 1,92 sayılır.',
   'measure.unpriced': 'Fiyatı olmayan bir modelin {n} çağrısı dışarıda kaldı.',
   'measure.point': 'Burada bir haftalık puan {perPoint} birim aldı ({units} birimde {points} puan; başka bilgisayarlardaki iş de ölçümleri yükseltir).',
@@ -109,6 +112,11 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'measure.modelItem': '{model} {share} (ajanlar {sub})',
   'measure.output': 'Araç çıktısı: {list}.',
   'measure.unused': 'Bu günlerde çağrılmayan MCP sunucuları: {list}.',
+  'measure.held':
+    "Commit'lenen iş nasıl dayandı: {judged48} görevden {fixed48} tanesini 48 saat içinde aynı koda yapılan sonraki bir commit düzeltti ya da geri aldı; 14 günde {judged14} görevden {fixed14}.",
+  'measure.success':
+    'Dayanan görev başına (kapanmış, 48 saatte düzeltme yok; {n} görev): {units} birim, {points} haftalık puan; bütün birimler onlara bölünür.',
+  'measure.resets': 'Görev sınırında sıfırlama: {n}; ilk değişiklikten önce ortanca {reread} yeniden okundu; yaklaşık {saved} birim kazandırdı (tahmin).',
   'cli.sessions.none': 'Oturum bulunamadı.',
 
   'install.title': '{app} {version} kurulumu',

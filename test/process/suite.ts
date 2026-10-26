@@ -505,6 +505,64 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       const rep = cli(w, ['report', '--json'], opt);
       assert.equal(rep.code, 0);
       assert.equal(rep.json?.schema, 'mode-code.report/1');
+      // A task that committed in a repository, fixed by a later commit; a reset that started another conversation.
+      const repo = join(w.root, 'app');
+      mkdirSync(repo);
+      const git = (args: string[], at?: number) =>
+        spawnSync('git', args, {
+          cwd: repo,
+          env: { ...process.env, ...(at ? { GIT_AUTHOR_DATE: new Date(at).toISOString(), GIT_COMMITTER_DATE: new Date(at).toISOString() } : {}) },
+          windowsHide: true,
+        });
+      const day = now - 3 * 86_400_000;
+      git(['init', '-q']);
+      git(['config', 'user.name', 'ada']);
+      git(['config', 'user.email', 'ada@example.invalid']);
+      for (const [file, subject, at] of [
+        ['parser.ts', 'feat: add the parser', day + 30_000],
+        ['readme.ts', 'docs: the readme', day + 160_000],
+        ['parser.ts', 'fix: the parser', day + 3_600_000],
+      ] as const) {
+        writeFileSync(join(repo, file), subject);
+        git(['add', '-A']);
+        git(['commit', '-q', '-m', subject], at);
+      }
+      const call = (session: string, at: number, id: string, content: unknown[]) =>
+        JSON.stringify({
+          type: 'assistant',
+          sessionId: session,
+          cwd: repo,
+          timestamp: new Date(at).toISOString(),
+          requestId: id,
+          message: { id, role: 'assistant', model: 'claude-opus-5-5', usage: { cache_read_input_tokens: 300, output_tokens: 20 }, content },
+        });
+      writeFileSync(
+        join(proj, 's2.jsonl'),
+        [
+          call('s2', day, 'm2', [{ type: 'tool_use', id: 'u2', name: 'Bash', input: { command: 'git commit -m "feat: add the parser"' } }]),
+          call('s3', day + 120_000, 'm3', []),
+          call('s3', day + 150_000, 'm4', [{ type: 'tool_use', id: 'u4', name: 'Bash', input: { command: 'git commit -m "docs: the readme"' } }]),
+        ].join('\n') + '\n',
+      );
+      mkdirSync(join(w.data, 'events', '2026-10'), { recursive: true });
+      writeFileSync(
+        join(w.data, 'events', '2026-10', 's3.mod.jsonl'),
+        [
+          { kind: 'reset', phase: 'carried', session: 's3', from: 's2', at: day + 100_000, tokens: 250_000 },
+          { kind: 'resetRead', session: 's3', at: day + 120_000, before: 250_000, first: 40_000, ready: 52_000, calls: 1 },
+        ]
+          .map((e) => JSON.stringify(e))
+          .join('\n') + '\n',
+      );
+      const held = cli(w, ['measure'], opt).out;
+      assert.match(held, /fixed by a later commit within 48 h/);
+      assert.match(
+        held,
+        /How the committed work held: 1 of 2 tasks were fixed or taken back by a later commit on the same code within 48 hours, 1 of 1 within 14 days\./,
+      );
+      assert.match(held, /Per task that held \(closed, no fix within 48 hours; 1 tasks\): [\d.]+ units, - weekly points/);
+      assert.match(held, /after a reset \(52 K read again\)/);
+      assert.match(held, /Resets at a task boundary: 1, a median of 52 K read again/);
     } finally {
       w.done();
     }

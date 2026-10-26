@@ -39,16 +39,22 @@ Reads what is already on the computer and writes nothing: Claude Code's transcri
 
 How the work went, as far as the transcript shows it, beside each task:
 
-| Trace              | What it counts                                                                                                 |
-| ------------------ | -------------------------------------------------------------------------------------------------------------- |
-| tested             | a test or check command ran in the task (`npm test`, `pytest`, `flutter test`, `node --test` …)                |
-| read again         | the same part of a file read again with no write to it in between                                              |
-| refused            | tool calls refused by a hook, a permission or a mode                                                           |
-| cache rebuilt      | a call past the session's first that wrote most of a large prompt anew (the cache had run out, or was cleared) |
-| past 400k          | calls whose prompt was past 400K tokens                                                                        |
-| file changed again | a file the task wrote that a later task wrote again within 48 hours                                            |
+| Trace              | What it counts                                                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| tested             | a test or check command ran in the task (`npm test`, `pytest`, `flutter test`, `node --test` …)                               |
+| read again         | the same part of a file read again with no write to it in between                                                             |
+| refused            | tool calls refused by a hook, a permission or a mode                                                                          |
+| cache rebuilt      | a call past the session's first that wrote most of a large prompt anew (the cache had run out, or was cleared)                |
+| past 400k          | calls whose prompt was past 400K tokens                                                                                       |
+| file changed again | a file the task wrote that a later task wrote again within 48 hours                                                           |
+| fixed later        | what the task committed was fixed or taken back by a later `fix:` or `revert:` on the same code, within 48 hours (or 14 days) |
+| after a reset      | the task began a conversation that a reset at a task boundary started, with what it read again before its first change        |
 
-Under the table: the units by model with the subagents' share, tool output by tool (what fills the context), and the MCP servers configured but not called in these days (each one's tool list rides in every session unless tool search defers it; `mode-code doctor` says whether it does).
+Under the table: the units by model with the subagents' share, tool output by tool (what fills the context), and the MCP servers configured but not called in these days (each one's tool list rides in every session unless tool search defers it; `mode-code doctor` says whether it does). Then how the committed work held, the units per task that held, and the resets:
+
+- **How the work held.** A task's own commits are those whose subject its commit command wrote, in the repository that command worked in (`git -C`, `cd`, else the session's folder), read from `git log` of every local branch. Another commit within 48 hours (and 14 days) whose subject starts `fix:` or `revert:` (git's own `Revert` too) and that shares a code file with one of them marks it fixed; notes, logs, lock files and the changelog tie nothing. A task too recent for the window is not judged, and the memory's own repository is left out.
+- **Per task that held.** All the units over the closed tasks not fixed within 48 hours: the quota a piece of work that stood took, the measure a saving has to lower without the work holding less.
+- **Resets** at a task boundary: how many, the median context read again before the new conversation's first change, and the units they saved, an estimate (what each call of the new conversation no longer read, less the new start written once).
 
 ## Comparing two ways of working
 
