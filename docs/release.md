@@ -13,7 +13,7 @@ A GitHub release, made by [.github/workflows/release.yml](../.github/workflows/r
 | `install.sh`, `install.ps1` | the installers of that version                                                                   |
 | `SHA256SUMS`                | the SHA-256 of each file above; the installers refuse a download that does not match             |
 
-Each file also gets a build provenance attestation, so anyone can check it was built by this workflow from this repository: `gh attestation verify mode-code.tgz --repo OzcanOrhanDemirci/Mode_Code`. The release notes are the changelog's section for the version, after how to install it (`node scripts/release.mjs notes`).
+Each file also gets a build provenance attestation, so anyone can check it was built by this workflow from this repository: `gh attestation verify mode-code.tgz --repo OzcanOrhanDemirci/Mode_Code`. The release notes are the changelog's section for the version, after how to install it, its links to the repository's files pointing at them as the tag has them (`node scripts/release.mjs notes`).
 
 The installers are always fetched from `main` (`raw.githubusercontent.com/…/main/install.sh`); they download `releases/latest/download/mode-code.tgz`, or `releases/download/v<version>/mode-code-<version>.tgz` with `--version`.
 

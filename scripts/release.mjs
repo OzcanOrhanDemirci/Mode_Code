@@ -67,6 +67,14 @@ export function releaseProblems({ tag, pkg, changelog, installSh, installPs1, to
 }
 
 /** The release notes: how to install, then the changelog's section, then how to check the download. */
+/**
+ * The changelog's links to the repository's own files (`docs/x.md#part`), made to point at them as the tag has them:
+ * a release's page has no files beside it, so a relative link there leads nowhere.
+ */
+export function absoluteLinks(text, repo, tag) {
+  return text.replace(/\]\((?!https?:|mailto:|#)([^)\s]+)\)/g, (_, path) => `](https://github.com/${repo}/blob/${tag}/${path})`);
+}
+
 export function releaseNotes({ pkg, changelog }) {
   const repo = /github\.com\/([^/]+\/[^/.#]+)/.exec(pkg.repository.url)[1];
   const section = changelogSection(changelog, pkg.version);
@@ -88,7 +96,7 @@ export function releaseNotes({ pkg, changelog }) {
     '',
     `Already installed? The same command updates it. Details: [the README](https://github.com/${repo}#install).`,
     '',
-    section?.body ?? '',
+    absoluteLinks(section?.body ?? '', repo, `v${pkg.version}`),
     '',
     '## Verify the download',
     '',
