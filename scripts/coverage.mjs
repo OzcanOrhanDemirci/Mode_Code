@@ -2,8 +2,8 @@
 /**
  * Test coverage, per file, with floors. Runs the test suite with V8 recording what each test process ran,
  * joins the records, prints every source file's line, branch and function coverage, and fails when a file
- * falls below its floor in test/coverage-floors.json. `--update` writes the floors from what was measured
- * (rounded down, with a margin), so coverage can be ratcheted up and never quietly slide back.
+ * falls below its floor in test/coverage-floors.json, or has none. `--update` writes the floors from what was
+ * measured (rounded down, with a margin), so coverage can be ratcheted up and never quietly slide back.
  *
  * Why not Node's own table (--experimental-test-coverage): it merges the test processes in the order it
  * reads their records, and the merge overwrites, so a file several processes load gets numbers that
@@ -219,8 +219,10 @@ for (const f of src) {
   const low = floor && (f.lines < floor.lines || f.branches < floor.branches || f.functions < floor.functions);
   if (low)
     below.push(`${f.file}: ${f.lines.toFixed(1)}/${f.branches.toFixed(1)}/${f.functions.toFixed(1)} < ${floor.lines}/${floor.branches}/${floor.functions}`);
+  // A file with no floor would be held to nothing: a new file gets one in the same commit.
+  if (!floor) below.push(`${f.file}: no floor in ${relative(root, floorsPath)}`);
   table.push(
-    `${f.lines.toFixed(1).padStart(6)} ${f.branches.toFixed(1).padStart(6)} ${f.functions.toFixed(1).padStart(6)}  ${f.file}${low ? '  ✗ below its floor' : ''}`,
+    `${f.lines.toFixed(1).padStart(6)} ${f.branches.toFixed(1).padStart(6)} ${f.functions.toFixed(1).padStart(6)}  ${f.file}${low ? '  ✗ below its floor' : !floor ? '  ✗ no floor' : ''}`,
   );
 }
 const mean = src.reduce((t, f) => t + f.lines, 0) / src.length;

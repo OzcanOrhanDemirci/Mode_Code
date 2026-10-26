@@ -241,10 +241,70 @@
       "branches": 91,
       "functions": 94
     },
+    "src/core/controls.ts": {
+      "lines": 94,
+      "branches": 86,
+      "functions": 94
+    },
     "src/core/flagged.ts": {
       "lines": 100,
       "branches": 90,
       "functions": 100
+    },
+    "src/core/i18n/en-catalog.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/i18n/en-controls.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/i18n/en-ledger.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/i18n/tr-catalog.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/i18n/tr-controls.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/i18n/tr-ledger.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/launch.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/mo/art.ts": {
+      "lines": 94,
+      "branches": 87,
+      "functions": 94
+    },
+    "src/core/mo/cells.ts": {
+      "lines": 94,
+      "branches": 89,
+      "functions": 94
+    },
+    "src/core/mo/marks.ts": {
+      "lines": 94,
+      "branches": 89,
+      "functions": 94
+    },
+    "src/core/mo/state.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
     },
     "src/core/reset.ts": {
       "lines": 100,
@@ -611,6 +671,11 @@
       "branches": 76,
       "functions": 87
     },
+    "src/core/ux/catalog.ts": {
+      "lines": 94,
+      "branches": 84,
+      "functions": 94
+    },
     "src/core/ux/changes.ts": {
       "lines": 94,
       "branches": 92,
@@ -631,6 +696,11 @@
       "branches": 92,
       "functions": 94
     },
+    "src/core/ux/glossary.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
     "src/core/ux/kit.ts": {
       "lines": 94,
       "branches": 70,
@@ -642,6 +712,11 @@
       "functions": 100
     },
     "src/core/ux/say.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
+    "src/core/ux/text.ts": {
       "lines": 94,
       "branches": 92,
       "functions": 94
@@ -675,6 +750,11 @@
       "lines": 80,
       "branches": 55,
       "functions": 76
+    },
+    "src/node/clipboard.ts": {
+      "lines": 89,
+      "branches": 92,
+      "functions": 81
     },
     "src/node/context.ts": {
       "lines": 94,
@@ -746,6 +826,11 @@
       "branches": 79,
       "functions": 87
     },
+    "src/node/previous.ts": {
+      "lines": 94,
+      "branches": 84,
+      "functions": 94
+    },
     "src/node/program.ts": {
       "lines": 76,
       "branches": 77,
@@ -790,6 +875,11 @@
       "lines": 87,
       "branches": 75,
       "functions": 94
+    },
+    "src/tui/mo.tsx": {
+      "lines": 89,
+      "branches": 34,
+      "functions": 71
     },
     "src/tui/nav.ts": {
       "lines": 86,
