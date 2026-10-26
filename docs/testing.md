@@ -86,7 +86,7 @@ When an agent runs `doctor`, the repairs that would put code or a program into t
 ```sh
 npm run build          # first: the process tests also run the shipped bundles in dist/
 npm test               # L1–L7 and L9: invariants, unit, properties, corpus, protection, processes, bundles, assumptions
-npm run test:coverage  # the same, holding each file to its coverage floor (test/coverage-floors.json)
+npm run test:coverage  # the same, holding each file to its coverage floor (test/coverage-floors.json; a file with none fails)
 npm run test:mod       # L8, needs Claude Code on PATH (says "skipped" without it)
 npm run test:mutation  # L11, about seventeen minutes on 12 threads
 npm run test:live      # L10, opt-in, uses a little quota
