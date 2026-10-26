@@ -21,6 +21,8 @@ import { findTool, ghCreatePrivate, ghRepo, ghUser, installPlan, noreplyEmail, t
 /** How the setup talks to the person. */
 export interface SetupIO {
   say(text?: string): void;
+  /** A line that explains, said more quietly than a question (dim where the terminal draws it). */
+  note?(text: string): void;
   /** One of the options by its index; Enter takes `def`. */
   choose(question: string, options: string[], def: number): Promise<number>;
   /** A line of text; Enter takes `def`. */

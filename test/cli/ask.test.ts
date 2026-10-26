@@ -119,3 +119,24 @@ test("a setup's step is said with where it stands, in the person's language, and
   const tr = await captured(80, () => terminalIO('tr').step!(4, 7, "GitHub'daki depo", 'bu seçimde gerekmiyor'));
   assert.equal(tr, "\nAdım 4/7 · GitHub'daki depo · bu seçimde gerekmiyor\n");
 });
+
+test("an indented question keeps its options and prompt under it, an option's further lines under its words, and a note wraps under itself", async () => {
+  setColor(true);
+  try {
+    const io = terminalIO('en');
+    const pick = await answered([''], () => io.choose('  Show this summary?', ['Show\nRecommended. It costs none of your quota.', 'Do not show'], 0));
+    // Styles stay inside the indent, so the plain text lines up whatever the colors.
+    const plain = pick.asked.replace(/\u001B\[\d+m/g, '');
+    assert.equal(
+      plain,
+      '  Show this summary?\n    1  Show (Enter)\n       Recommended. It costs none of your quota.\n    2  Do not show\n  Choose 1-2 (Enter = 1): ',
+    );
+    assert.match(pick.asked, /^ {2}\u001B\[1mShow this summary\?/, 'the question bold after its indent');
+    const note = await captured(30, () => io.note!('  Once a day, one small file is downloaded from GitHub.'));
+    assert.equal(note.replace(/\u001B\[\d+m/g, ''), '  Once a day, one small file\n  is downloaded from GitHub.\n');
+    const yes = await answered(['e'], () => io.confirm('  Yeni sürüm çıkınca haber verilsin mi?', false));
+    assert.match(yes.asked, /^ {2}\u001B\[1mYeni sürüm/);
+  } finally {
+    setColor(false);
+  }
+});

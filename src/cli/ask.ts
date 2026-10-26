@@ -62,27 +62,40 @@ export async function typed(question: string, word: string): Promise<boolean> {
   return (await line(`${question} `)) === word;
 }
 
-/** The setup's questions, asked in this terminal (src/app/memory-setup.ts, src/app/sync-setup.ts). */
+/** A styled line that keeps its indent outside the style, so `say` still wraps it under itself. */
+function styled(style: (s: string) => string, s: string): string {
+  const indent = /^ */.exec(s)![0];
+  return indent + style(s.slice(indent.length));
+}
+
+/** The setup's questions, asked in this terminal (src/app/memory-setup.ts, src/app/sync-setup.ts, src/cli/install-ask.ts). */
 export function terminalIO(lang: Lang): SetupIO {
   const T = (k: MessageKey, p?: Record<string, string | number>) => tIn(lang, k, p);
   return {
     say,
+    note: (text) => say(styled(dim, text)),
     async choose(question, options, def) {
-      say(bold(question));
-      options.forEach((o, i) => say(`  ${cyan(String(i + 1))}  ${o}${i === def ? dim(` (${T('mcli.default')})`) : ''}`));
+      // The options and the prompt keep the question's indent; an option's further lines explain it, under its words.
+      const indent = /^ */.exec(question)![0];
+      say(styled(bold, question));
+      options.forEach((o, i) => {
+        const [label, ...about] = o.split('\n');
+        say(`${indent}  ${cyan(String(i + 1))}  ${label}${i === def ? dim(` (${T('mcli.default')})`) : ''}`);
+        for (const l of about) say(`${indent}     ${dim(l)}`);
+      });
       for (;;) {
         // The prompt names the option Enter takes: the one marked above, not always the first.
-        const a = await line(`${T('mcli.pick', { n: options.length, def: def + 1 })} `);
+        const a = await line(`${indent}${T('mcli.pick', { n: options.length, def: def + 1 })} `);
         if (a === null || a === '') return def;
         const n = parseInt(a, 10);
         if (n >= 1 && n <= options.length) return n - 1;
       }
     },
     async ask(question, def) {
-      const a = await line(`${bold(question)}${def ? dim(` [${def}]`) : ''}: `);
+      const a = await line(`${styled(bold, question)}${def ? dim(` [${def}]`) : ''}: `);
       return a === null || a === '' ? def : a;
     },
-    confirm: (question, def) => confirm(lang, question, def),
+    confirm: (question, def) => confirm(lang, styled(bold, question), def),
     async interactive(argv) {
       say(dim(`$ ${argv.join(' ')}`));
       const r = spawnSync(argv[0]!, argv.slice(1), { stdio: 'inherit', windowsHide: false });
