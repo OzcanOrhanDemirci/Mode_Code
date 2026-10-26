@@ -24,7 +24,7 @@ test('before installing: status and doctor point to install; install --dry-run l
     assert.match(d.out, /\d+ checks in [\d.]+ s/);
     const i = cli(w, ['install', '--dry-run']);
     assert.equal(i.code, 0, i.err);
-    for (const step of ['data folder', 'hook program', 'marketplace', 'plugin', 'hooks', 'settings file', 'safety belt'])
+    for (const step of ['data folder', 'hook program', 'marketplace', 'plugin', 'hooks', 'settings file', 'harmless tries that the protection works'])
       assert.match(i.out, new RegExp(step, 'i'));
     assert.match(i.out, /Nothing is changed until you confirm|dry run/i);
   } finally {

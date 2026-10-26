@@ -173,10 +173,13 @@ export interface Footer {
   expect: FooterExpect;
 }
 
-/** What the lines look like after a turn that wrote two files, committed and pushed memory: shown where the person chooses them. */
+/**
+ * What the lines look like after a turn that wrote two files with the five-hour quota at 83: shown where the person
+ * chooses them. No memory line, as a first installation has no memory repository to push.
+ */
 export function sampleFooter(lang: Lang): string[] {
-  const acts: TurnActs = { files: 2, memoryFiles: 0, settings: 0, git: 1, shell: 0, external: 0 };
-  return buildFooter({ memory: { state: 'pushed' }, acts, five: null, week: null, weeklyTarget: null, showFiveFrom: 70, showWeekFrom: 85 }, lang).lines;
+  const acts: TurnActs = { files: 2, memoryFiles: 0, settings: 0, git: 0, shell: 0, external: 0 };
+  return buildFooter({ memory: { state: null }, acts, five: 83, week: null, weeklyTarget: null, showFiveFrom: 70, showWeekFrom: 85 }, lang).lines;
 }
 
 export function buildFooter(f: FooterFacts, lang: Lang): Footer {

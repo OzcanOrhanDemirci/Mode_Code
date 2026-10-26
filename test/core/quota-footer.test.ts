@@ -154,6 +154,7 @@ test('checkFooter accepts right lines and names wrong ones', () => {
 });
 
 test('the sample shown where the footer is chosen is drawn by the footer itself', () => {
-  assert.deepEqual(sampleFooter('tr'), ['Hafıza İtildi: Evet', 'İşlem Yapıldı: Evet (2 dosya yazıldı, git commit/push)']);
-  assert.deepEqual(sampleFooter('en'), ['Memory pushed: Yes', 'Changes made: Yes (2 files written, git commit/push)']);
+  // What a first installation will see: no memory repository to push, the five-hour quota past where it shows.
+  assert.deepEqual(sampleFooter('tr'), ['İşlem Yapıldı: Evet (2 dosya yazıldı)', '5 Saatlik Kota: 83']);
+  assert.deepEqual(sampleFooter('en'), ['Changes made: Yes (2 files written)', '5-hour quota: 83']);
 });

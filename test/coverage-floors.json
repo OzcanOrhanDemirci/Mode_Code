@@ -111,6 +111,11 @@
       "branches": 65,
       "functions": 74
     },
+    "src/cli/install-ask.ts": {
+      "lines": 94,
+      "branches": 82,
+      "functions": 94
+    },
     "src/cli/main.tsx": {
       "lines": 84,
       "branches": 73,

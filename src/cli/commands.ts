@@ -4,26 +4,13 @@
  * shape is versioned in its "schema" field ("mode-code.<command>/1"): fields are only ever added
  * within a version, so scripts keep working.
  */
-import { createInterface } from 'node:readline/promises';
 import { homedir } from 'node:os';
 import { APP_NAME, APP_VERSION, CLI_NAME, MIN_CLAUDE_CODE_FOR_HOOKS, REPO_URL } from '../core/app.js';
 import { cloneDefaults, configKeys, configValueAt, serializeConfig, setConfigValue, type Config } from '../core/config.js';
 import { problemWords } from '../core/config-words.js';
 import { readChanges, saveConfig } from '../node/changes.js';
 import { changeText, lastUndoable, undoOf } from '../core/ux/changes.js';
-import {
-  allSettingPaths,
-  effectOf,
-  explain,
-  nameOf,
-  nearestSettings,
-  personOnly,
-  placeOf,
-  settingOf,
-  valueIn,
-  valueText,
-  type SettingPath,
-} from '../core/ux/catalog.js';
+import { allSettingPaths, explain, nameOf, nearestSettings, personOnly, placeOf, settingOf, valueIn, valueText, type SettingPath } from '../core/ux/catalog.js';
 import { wrapText } from '../core/ux/text.js';
 import { evaluateToolCall } from '../core/belt/evaluate.js';
 import { levelNamed, RULES, RULE_IDS } from '../core/belt/rules.js';
@@ -43,8 +30,8 @@ import { appContext, type AppContext } from '../app/context.js';
 import { loadEvents, loadQuota, openIndex, scanPaths } from '../app/data.js';
 import { checkHealth, healthCounts, type FeatureHealth } from '../app/health.js';
 import { buildReport, reportLines } from '../app/report.js';
-import { confirm, say as sayWrapped, terminalIO, typed } from './ask.js';
-import { sampleFooter } from '../core/footer.js';
+import { columns, confirm, say as sayWrapped, terminalIO, typed } from './ask.js';
+import { askInstall, installSummary } from './install-ask.js';
 import { replay } from '../app/replay.js';
 import { newsFor } from '../core/news.js';
 import { findFlow, flowFiles, loadFlows } from '../app/flows.js';
@@ -80,33 +67,6 @@ function stateMark(ctx: AppContext, s: FeatureHealth['state'], width = 0): strin
   if (s === 'red') return red(`✗ ${word}`);
   if (s === 'gray') return yellow(`◌ ${word}`);
   return gray(`○ ${word}`);
-}
-
-/** Asks the person to pick one of a few options by number; Enter picks the first. A note, dimmed, comes before the options. */
-async function choose(ctx: AppContext, question: string, options: string[], note: string[] = []): Promise<number> {
-  say(bold(question));
-  for (const l of note) say(dim(l));
-  options.forEach((o, i) => say(`  ${cyan(String(i + 1))}  ${o}`));
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  try {
-    for (;;) {
-      const answer = (await rl.question(`${T(ctx, 'install.ask.pick', { n: options.length })} `)).trim();
-      if (answer === '') return 0;
-      const n = parseInt(answer, 10);
-      if (n >= 1 && n <= options.length) return n - 1;
-    }
-  } finally {
-    rl.close();
-  }
-}
-
-async function askText(question: string): Promise<string> {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  try {
-    return (await rl.question(`${bold(question)} `)).trim();
-  } finally {
-    rl.close();
-  }
 }
 
 // ── status ──
@@ -241,58 +201,32 @@ export async function cmdInstall(a: Args): Promise<number> {
   const firstTime = !plan.steps.find((s) => s.kind === 'config')?.done;
   const asking = firstTime && !flag(a, 'yes', 'y') && process.stdin.isTTY && !chosen.view;
   let memoryAsked = false;
+  const show = (dir: string) => shortPath(dir, homedir(), 70);
   if (asking) {
-    const v = await choose(ctx, T(ctx, 'install.ask.view'), [T(ctx, 'install.ask.simple'), T(ctx, 'install.ask.recommended'), T(ctx, 'install.ask.detailed')]);
-    chosen.view = (['simple', 'recommended', 'detailed'] as const)[v];
-    // Asked in every view: it is the one thing that reaches the network unasked, so it is never on without a yes.
-    // Off until the person says yes (help.privacy): Enter is no.
-    chosen.update = { check: await terminalIO(ctx.lang).confirm(T(ctx, 'install.ask.update'), false) };
-    // Automatic use of the tool packs (docs/packs.md): on unless the person says no (K5 of 1.2.0).
-    chosen.packs = { autoUse: await terminalIO(ctx.lang).confirm(T(ctx, 'install.ask.packs'), true), items: {} };
-    if (chosen.view !== 'simple') {
-      if (!chosen.memory) {
-        memoryAsked = true;
-        const suggestion = readClaudeEnv(ctx.cwd).memoryDir;
-        const m = await askText(T(ctx, 'install.ask.memory', { suggestion: shortPath(suggestion, homedir(), 70) }));
-        const dir = m === '' ? suggestion : m === '-' ? null : m;
-        if (dir) chosen.memory = { ...cloneDefaults().memory, dirs: [dir] };
-      }
-      const modes = ['draw', 'check', 'off'] as const;
-      const note = [
-        ...modes.map((m) => `${valueText('footer.mode', m, ctx.lang)}: ${effectOf('footer.mode', m, ctx.lang)}`),
-        T(ctx, 'install.ask.footerExample'),
-        ...sampleFooter(ctx.lang).map((l) => `    ${l}`),
-      ];
-      const f = await choose(
-        ctx,
-        T(ctx, 'install.ask.footer'),
-        modes.map((m) => valueText('footer.mode', m, ctx.lang)),
-        note,
-      );
-      chosen.footer = { ...cloneDefaults().footer, mode: modes[f]! };
-    }
+    const suggestion = readClaudeEnv(ctx.cwd).memoryDir;
+    const asked = await askInstall(terminalIO(ctx.lang), {
+      lang: ctx.lang,
+      cli: CLI_NAME,
+      memory: { dir: suggestion, shown: show(suggestion) },
+      memoryGiven: !!chosen.memory,
+    });
+    Object.assign(chosen, asked.chosen);
+    memoryAsked = asked.memoryAsked;
   }
   // Nobody chose a memory folder (the simple view, --yes): the one Claude Code is set to keep is protected.
   if (firstTime && !chosen.memory && !memoryAsked) {
     const memory = memoryBySetting(ctx.cwd);
     if (memory) chosen.memory = memory;
   }
-  if (asking) {
-    say();
-    say(bold(T(ctx, 'install.summary')));
-    say(`  ${nameOf('view', ctx.lang)}: ${valueText('view', chosen.view ?? 'recommended', ctx.lang)}`);
-    if (chosen.memory) say(`  ${T(ctx, 'page.memory')}: ${chosen.memory.dirs.map((d) => shortPath(d, homedir(), 70)).join(', ')}`);
-    if (chosen.footer) say(`  ${nameOf('footer.mode', ctx.lang)}: ${valueText('footer.mode', chosen.footer.mode, ctx.lang)}`);
-    if (chosen.update) say(`  ${nameOf('update.check', ctx.lang)}: ${valueText('update.check', chosen.update.check, ctx.lang)}`);
-    if (chosen.packs) say(`  ${nameOf('packs.autoUse', ctx.lang)}: ${valueText('packs.autoUse', chosen.packs.autoUse, ctx.lang)}`);
-    say();
-  }
-  if (!flag(a, 'yes', 'y') && !(await confirm(ctx.lang, T(ctx, 'install.confirm'), false))) {
+  if (asking) for (const l of installSummary(chosen, { lang: ctx.lang, cli: CLI_NAME, show, memoryAsked, columns: columns() })) say(l);
+  const question = asking ? `  ${T(ctx, 'install.confirm')}` : T(ctx, 'install.confirm');
+  if (!flag(a, 'yes', 'y') && !(await confirm(ctx.lang, bold(question), false))) {
     say(T(ctx, 'cli.cancelled'));
     return 1;
   }
   const before = readManifest(ctx.layout)?.version ?? null;
   const r = applyInstall(ctx.layout, plan, { config: chosen });
+  say();
   for (const s of r.steps) say(`  ${s.ok ? green('✓') : red('✗')} ${T(ctx, `install.step.${s.kind}` as MessageKey)}${s.detail ? dim(' · ' + s.detail) : ''}`);
   say();
   if (!r.ok) {
