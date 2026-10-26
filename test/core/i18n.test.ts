@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { en } from '../../src/core/i18n/en.js';
 import { tr } from '../../src/core/i18n/tr.js';
 import { RULES, RULE_IDS } from '../../src/core/belt/rules.js';
 import { CATEGORY_IDS } from '../../src/tui/nav.js';
 import { DEFAULT_CONFIG } from '../../src/core/config.js';
 
+const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const keys = Object.keys(en) as (keyof typeof en)[];
 const placeholders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 
@@ -54,5 +58,19 @@ test("yes/no questions: the language's own letters in one case, and the words fo
     // The asker adds the hint once (src/cli/ask.ts): a question that carried its own would show two.
     for (const k of ['install.confirm', 'uninstall.confirm', 'template.confirm', 'doc.repairs.ask'] as const) assert.ok(!dict[k].includes('Enter ='), k);
     for (const k of keys) assert.doesNotMatch(dict[k], /\[(?:Y\/n|y\/N|E\/h|e\/H|E\/H)\]/, k);
+  }
+});
+
+test('the installers ask their question as the command line does', () => {
+  const sh = readFileSync(join(root, 'install.sh'), 'utf8');
+  // install.ps1 is ASCII: its Turkish letters are written as \u escapes.
+  const ps1 = readFileSync(join(root, 'install.ps1'), 'utf8');
+  const ascii = (s: string) => s.replace(/[^\x00-\x7F]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
+  for (const [name, text, form] of [
+    ['install.sh', sh, (s: string) => s],
+    ['install.ps1', ps1, ascii],
+  ] as const) {
+    assert.ok(text.includes(form(en['mcli.no'])) && text.includes(form(tr['mcli.no'])), `${name} says what Enter answers`);
+    assert.doesNotMatch(text, /\[(?:Y\/n|y\/N|E\/h|e\/H|E\/H)\]/, name);
   }
 });

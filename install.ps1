@@ -90,19 +90,21 @@ param(
   # Stops the installation with a message; caught once, at the end.
   function Fail([string]$text) { throw (New-Object System.Exception ("MODECODE:" + $text)) }
 
-  function Ask([string]$question) {
-    if ($Yes) { return $true }
-    if (-not $S.Interactive) { return $false }
-    $answer = Read-Host ($question + ' ' + (T '[Y/n]' '[E/h]'))
-    return ($answer -eq '' -or $answer -match '^(y|yes|e|evet)$')
-  }
-
   # For a program of another maker: Enter means no, and -Yes does not answer it; only -InstallClaude does.
+  # Asked as every question of Mode_Code's is (docs/design.md): the hint says what Enter answers, and another
+  # word asks again. Read-Host gets no prompt of its own, which it would end with a colon.
   function AskNo([string]$question) {
     if ($InstallClaude) { return $true }
     if (-not $S.Interactive) { return $false }
-    $answer = Read-Host ($question + ' ' + (T '[y/N]' '[e/H]'))
-    return ($answer -match '^(y|yes|e|evet)$')
+    while ($true) {
+      Write-Host "$question " -NoNewline
+      if ($S.NoColor) { Write-Host (T '[y/n, Enter = no] ' "[e/h, Enter = hay\u0131r] ") -NoNewline }
+      else { Write-Host (T '[y/n, Enter = no] ' "[e/h, Enter = hay\u0131r] ") -ForegroundColor DarkGray -NoNewline }
+      # Lowered without the culture's rules: in Turkish ones HAYIR would not lower to hayir.
+      $answer = ([string](Read-Host)).Trim().ToLowerInvariant()
+      if ($answer -cmatch '^(|n|no|h|hayir|hay\u0131r)$') { return $false }
+      if ($answer -cmatch '^(y|yes|e|evet)$') { return $true }
+    }
   }
 
   # Downloads an address, or copies a local file (a mirror or a package you named). Three tries.
