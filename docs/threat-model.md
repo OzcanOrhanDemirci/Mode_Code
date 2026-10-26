@@ -93,6 +93,8 @@ Adaptive and patient: they try many times and change what they try, and they can
 
 Mode_Code runs programs too (git for the facts it decides on, the status line, the control center), often before anyone has looked at the folder. It must not become a way in: a repository's own settings never choose a program for it, and on Windows no program is taken from the working folder ([architecture.md](architecture.md), "The folder never chooses what Mode_Code runs").
 
+It also resets the conversation at a task boundary in autonomous work ([quota.md](quota.md#reset-at-a-task-boundary)), and a reset must not wash away what the protection knows. What the session read from outside, and the record of where things came from (the person's words, the project's remotes, what was read from outside, the clear requests) go into the new conversation whole. The prompt it starts with is Mode_Code's: the note in it is model-written, so it is never taken for the person's words and grants nothing a call could stand on. The approvals do not go: each was for one call.
+
 ## How it is measured
 
 Three numbers, measured for every release and written down, with the target at 100% and the real figure as it is:

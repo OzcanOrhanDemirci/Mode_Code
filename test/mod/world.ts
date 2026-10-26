@@ -76,6 +76,8 @@ export function world(on: any, opts: WorldOptions = {}) {
   const notes: string[] = [];
   const asked: string[] = [];
   const submitted: string[] = [];
+  /** What went to the model with each submitted prompt, the hooks above having added their notes. */
+  const contexts: string[][] = [];
   const clock = mock.clock(on, { now: opts.now ?? Date.parse('2026-10-12T10:00:00Z') });
   /** Every program other than uname and git the plugin ran, as it asked. */
   const ran: string[][] = [];
@@ -220,6 +222,7 @@ export function world(on: any, opts: WorldOptions = {}) {
   const hook = { mode: opts.promptMode ?? null, prompts: 0 };
   on('prompt.submit', (_$: any, e: any) => {
     submitted.push(e.text);
+    contexts.push(e.context ?? []);
     if (hook.mode !== null) {
       const path = `${at.DATA}/state/sessions/${SESSION}.hook.json`;
       const prev = files.get(norm(path));
@@ -258,6 +261,7 @@ export function world(on: any, opts: WorldOptions = {}) {
     notes,
     asked,
     submitted,
+    contexts,
     panes,
     opens,
     read: (path: string) => files.get(norm(path))?.text ?? null,

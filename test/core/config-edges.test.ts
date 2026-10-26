@@ -34,6 +34,17 @@ test('stale readings: 5 to 1440 minutes, both ends included', () => {
   assert.deepEqual(problems({ quota: { clearHint: 1 } }), ['quota.clearHint type']);
   assert.equal(config({ quota: { clearHint: false } }).quota.clearHint, false);
   assert.equal(config({}).quota.clearHint, true);
+  // The reset at a task boundary: on by default, from 200K; 20K to 900K, both ends included.
+  assert.equal(config({}).quota.autoReset, true);
+  assert.equal(config({ quota: { autoReset: false } }).quota.autoReset, false);
+  assert.deepEqual(problems({ quota: { autoReset: 'no' } }), ['quota.autoReset type']);
+  assert.equal(config({}).quota.resetTokens, 200_000);
+  assert.equal(config({ quota: { resetTokens: 20_000 } }).quota.resetTokens, 20_000);
+  assert.equal(config({ quota: { resetTokens: 900_000 } }).quota.resetTokens, 900_000);
+  assert.equal(config({ quota: { resetTokens: 150_000.6 } }).quota.resetTokens, 150_001);
+  for (const bad of [19_999, 900_001, Number.NaN, '200000', null])
+    assert.deepEqual(problems({ quota: { resetTokens: bad } }), ['quota.resetTokens range'], String(bad));
+  assert.equal(config({ quota: { resetTokens: 5 } }).quota.resetTokens, 200_000);
   // Full autonomy's old settings (1.1) read without a problem and do nothing.
   assert.deepEqual(problems({ autonomy: { atTimeLimit: 'stop', enabled: 1 } }), []);
   assert.equal(config({}).notify.ntfy, null);

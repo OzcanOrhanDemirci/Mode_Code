@@ -25,6 +25,7 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.unit.days.one': '{n} gün',
   'ux.unit.count': '{n}',
   'ux.unit.count.one': '{n}',
+  'ux.unit.tokens': '{n} token',
 
   // ── Ayarlar › Dil ve görünüm ──
   'ux.language.name': 'Dil',
@@ -117,8 +118,18 @@ export const trCatalog: Record<keyof typeof enCatalog, string> = {
   'ux.quota.clearHint.name': 'Commit sonrası /clear öner',
   'ux.quota.clearHint.what': 'Uzun bir konuşma doğal bir araya gelince şeritte bir öneri.',
   'ux.quota.clearHint.on':
-    "100 bin tokenı aşan bir konuşmada commit ya da push'tan sonra şerit, /clear ile sonraki işin küçük başlayacağını söyler. Senin yerine hiçbir şey temizlenmez.",
+    '"Şu bağlamdan sıfırla" değerini aşan bir konuşmada commit ya da push\'tan sonra şerit, /clear ile sonraki işin küçük başlayacağını söyler. Senin yerine hiçbir şey temizlenmez.',
   'ux.quota.clearHint.off': 'Öneri yok.',
+  'ux.quota.autoReset.name': 'Görev sınırında sıfırla',
+  'ux.quota.autoReset.what':
+    'Otonom ve tam otonom çalışmada uzun bir konuşma, sonraki işe işin nerede durduğunu söyleyen bir notla yeni bir konuşmada başlar; böylece her çağrı eskisinin tamamını okumayı bırakır.',
+  'ux.quota.autoReset.on':
+    'Commit ya da push "Şu bağlamdan sıfırla" değerini aştıysa sonraki iş yeni bir konuşmada başlar: eskisinden bir not yazılır; çalışma biçimi, akış ve kemerin bildikleri onunla gider. Manuel hiç sıfırlamaz.',
+  'ux.quota.autoReset.off': 'Konuşma olduğu gibi sürer; şerit /clear önerebilir.',
+  'ux.quota.resetTokens.name': 'Şu bağlamdan sıfırla',
+  'ux.quota.resetTokens.what': 'Sıfırlama ya da /clear önerisi için konuşmanın commit ya da push anında ne kadar büyük olması gerektiği.',
+  'ux.quota.resetTokens.eff':
+    '{n} bağlamdan itibaren. Ölçülen her yeniden okuma bedelinde en çok 200 bin kazandırdı; 150 binin altı ve 300 binin üstü belirgin daha az.',
 
   // ── Ayarlar › Erişilebilirlik ──
   'ux.accessibility.plain.name': 'Düz metin',

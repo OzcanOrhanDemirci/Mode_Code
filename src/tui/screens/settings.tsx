@@ -61,6 +61,8 @@ export function Limits({ width, open }: ScreenProps) {
     'quota.fiveHourWrapUp',
     'quota.fiveHourStop',
     'quota.autoResume',
+    'quota.autoReset',
+    'quota.resetTokens',
     'quota.clearHint',
   ]);
   return <SettingsEditor fields={fields} open={open} width={width} />;

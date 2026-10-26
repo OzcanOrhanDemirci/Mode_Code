@@ -223,6 +223,7 @@ export const trMemory: Record<keyof typeof enMemory, string> = {
   'handoff.trigger.end': 'oturum biterken, kodun ölçtüklerinden',
   'handoff.trigger.closed': 'oturum bitmeden kapatıldı; sonraki oturum kodun ölçtüklerinden yazdı',
   'handoff.trigger.run': 'bir tam otonom iş duraklatıldı ya da bitti',
+  'handoff.trigger.reset': 'bir görev sınırında, konuşma sıfırlanmadan hemen önce, konuşmanın kendisinden',
   'handoff.empty': 'Henüz devir notu yok. Devir notu bir projede işin nerede durduğunu söyler; sonraki oturum oradan sürer.',
   'handoff.howTo':
     'Bir mesajın sonuna "devir" (ya da "<proje> devir") ya da "toparla" yaz; notlar sıkıştırmadan önce ve bir şey değiştiren oturum bittiğinde de yazılır.',

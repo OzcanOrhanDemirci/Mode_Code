@@ -54,7 +54,9 @@
     "defaultWeeklyWrapUp": 97,
     "staleMinutes": 360,
     "autoResume": true,
-    "clearHint": true
+    "clearHint": true,
+    "autoReset": true,
+    "resetTokens": 200000
   },
   "keywords": {
     "extra": {}

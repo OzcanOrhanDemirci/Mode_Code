@@ -106,7 +106,9 @@ The control center is arranged by what you come for (1.2): `mode-code <address>`
     "defaultWeeklyWrapUp": 97,
     "staleMinutes": 360,
     "autoResume": true,
-    "clearHint": true
+    "clearHint": true,
+    "autoReset": true,
+    "resetTokens": 200000
   },
   "keywords": { "extra": { "en": { "continue": ["go on"] } } },
   "projects": [{ "id": "my-app", "names": ["app"], "path": "~/dev/my-app", "verify": ["npm run check"] }],

@@ -120,6 +120,7 @@ const TARGETS = {
   'src/core/mcp-pins.ts': ['test/core/mcp-pins.test.ts'],
   'src/core/trust.ts': ['test/core/trust.test.ts'],
   'src/core/flagged.ts': ['test/core/flagged.test.ts'],
+  'src/core/reset.ts': ['test/core/reset.test.ts'],
   // What Manual promises before a commit or a push.
   'src/core/manual.ts': ['test/core/belt-levels.test.ts'],
   // The safety net: what is kept before a call, read back, and the steps back.
