@@ -62,7 +62,7 @@ Read them before you run them: [install.sh](install.sh) · [install.ps1](install
 | pass options                               | `curl -fsSL <address> \| sh -s -- <options>` | `& ([scriptblock]::Create((irm <address>))) <options>` |
 | answer yes to every question (scripts)     | `--yes`                                      | `-Yes`                                                 |
 | install Claude Code too when it is missing | `--install-claude`                           | `-InstallClaude`                                       |
-| install a given version                    | `--version 1.1.0`                            | `-Version 1.1.0`                                       |
+| install a given version                    | `--version 1.2.0`                            | `-Version 1.2.0`                                       |
 | leave PATH alone                           | `--no-modify-path`                           | `-NoModifyPath`                                        |
 | install the program only                   | `--no-setup`                                 | `-NoSetup`                                             |
 
@@ -122,7 +122,7 @@ Name your projects under Memory and projects › Project names; everything else 
 - **Sync across computers.** `mode-code sync setup` shares Mode_Code's settings, history and handoff notes between the computers you work on, through a private repository on your GitHub that you name, or a folder another service keeps in sync. Each computer writes only its own folder there. The newest change of a setting wins on every computer, but one that would lower a protection waits for you. A memory you already keep in sync yourself is adopted as it is: Mode_Code only brings in changes, and you commit and push. See [docs/sync.md](docs/sync.md).
 - **Tool packs.** Flutter and Dart, Firebase, the app stores, a real browser, Typst documents, TypeScript and Python code intelligence, OpenSCAD, ffmpeg: each a plugin that is on only in the projects that need it, pinned and checked against eight trust rules. With Automatic use on, a project turns on what its files call for and Claude finds the rest through a one-line hint or the catalog; store uploads and payments stay yours ([docs/packs.md](docs/packs.md)).
 - **Skills.** Mode_Code's own, run by you at no cost to the session until you do (verify with fresh evidence, a second opinion from an independent agent, prepare a release or a pull request, audit what runs in Claude Code, a quota report, whether an app is ready for the stores, whether production runs what the repository says …), each with a short Turkish command (`/dogrula`); two Claude uses itself (`commit`, `measure`). And 33 skills by others, copied at a pinned commit with their licences, off until you turn one on. `/komutlar` lists every keyword, command and skill ([docs/skills.md](docs/skills.md)).
-- **Quota guard.** Reads the 5-hour and weekly windows that Claude Code reports, wraps up work at your budget, stops at the limit and, when the work was autonomous, resumes by itself one minute after the window resets. In autonomous work, once a commit or a push leaves a context of 200K tokens or more, the next task starts in a fresh conversation, with a note of where the work stands and the way of working carried over: measured on the author's month of use, 14 to 19% of the whole quota (in Manual the strip says `/clear` instead). `mode-code measure` shows what each task took of the quota on your computer, with how the work went ([docs/quota.md](docs/quota.md)).
+- **Quota guard.** Reads the 5-hour and weekly periods of the quota that Claude Code reports, wraps up work at your budget, stops at the limit and, when the work was autonomous, resumes by itself one minute after the period resets. In autonomous work, once a commit or a push leaves a context of 200K tokens or more, the next task starts in a fresh conversation, with a note of where the work stands and the way of working carried over: measured on the author's month of use, 14 to 19% of the whole quota (in Manual the strip says `/clear` instead). `mode-code measure` shows what each task took of the quota on your computer, with how the work went ([docs/quota.md](docs/quota.md)).
 - **Answer summary.** Under each answer: whether your memory repository was pushed, whether anything changed, and the quota when it matters. Computed from git, the turn's tool calls and the measured quota, never guessed.
 - **Quiet long work.** Leaves out Claude Code's "the user has not heard from you" reminders, so long autonomous work does not fill your screen with status lines.
 
@@ -135,48 +135,81 @@ Name your projects under Memory and projects › Project names; everything else 
 | **Working**             | The modes and ways of working, every flow with its steps and what each check found, the keywords, parallel agents                                                                                                                        |
 | **Protection**          | Whether each protection runs, all 54 belt rules and what each does in each way of working, what they caught, a tester, secrets in memory                                                                                                 |
 | **Memory and projects** | Where the memory lives and its sync, handoff notes, every folder you worked in and every session (searchable, exported as Markdown with secrets masked), project names, sync across computers                                            |
-| **Quota**               | The 5-hour and weekly windows and your budget, where work wraps up and stops, tokens by day and model, tool error rates                                                                                                                  |
+| **Quota**               | The 5-hour and weekly periods and your budget, where work wraps up and stops, tokens by day and model, tool error rates                                                                                                                  |
 | **Claude Code**         | A read-only map of your setup: instruction files and the memory limit, settings sources, hooks, permission rules, MCP servers, plugins, the tool packs; and rule templates (public repository, production server, Flutter, one branch …) |
 | **Settings**            | The tool's own settings, each saying what it does and what the other values would do before you change it                                                                                                                                |
 
 ### Inside Claude Code
 
-Captured from real Claude Code sessions with Mode_Code 1.1.0 (Windows, Claude Code 2.1.296). The belt asks before an untracked-files cleanup (in 1.2.0, in Manual; Autonomous runs it once a safety net keeps the files):
+Captured from real Claude Code sessions with Mode_Code 1.2.0 (Windows, Claude Code 2.1.311, the cheapest model, in Manual). The belt asks before an untracked-files cleanup; in Autonomous it runs once a safety net keeps the files:
 
 ```
 ● Bash(git clean -f)
   ⎿  Waiting…
-──────────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────
  ☐ Safety belt
-│ The safety belt stopped a Bash call. Deletes untracked files (git clean -f): git clean -f Allow it this once?
+
+│ The safety belt stopped a Bash call. Deletes untracked files (git clean -f):
+│ git clean -f. Allow it this once?
+
 ❯ 1. Allow once
   2. Block
+  3. Type something.
+────────────────────────────────────────────────────────────────────────────────
+  4. Chat about this
 ```
 
-The answer summary under an answer, the mode beside Claude Code's own, and the quota at the end of the hint line:
+Blocked, the call fails with what Claude is told, and Claude says what it wanted instead of trying another way. Under its answer, the answer summary; then the strip (Mo, drawn in colour, is the bar at its left; the modes 1 to 6, the ways of working 7 to 9, the cockpit 0), the cockpit's line saying in words what Claude may do now, and, at the end of Claude Code's own line, the quota and the mode with the way of working:
 
 ```
-● ready
+● Bash(git clean -f)
+  ⎿  Error: 🛡 Declined when the safety belt asked:
+     • Deletes untracked files (git clean -f): git clean -f [git.clean]
+     Do not work around this (no other spelling, tool or script). Tell the user
+     what you wanted to do and why. If it is really needed, they can run it
+     themselves by typing ! followed by the command.
+
+● Not ready. The safety belt declined git clean -f (it deletes untracked files),
+  so nothing was removed. I won't try another way to delete them.
+
+  The untracked files at the start of the session were build.log and notes.tmp.
+  If you want them removed, type ! git clean -f in the prompt to run it
+  yourself. If you'd rather keep them, nothing needs to change.
+
   Memory pushed: No (the memory repository has no remote branch)
+
   Changes made: No
-✻ Baked for 1s
-──────────────────────────────────────────────────────────────────────────────
+
+✻ Baked for 5s · done 2:07
+   ▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 1💬 2🔍 3📐 4🔨 5F 6⇢…  7M 8A 9F                  0≡○ 00✕ [-]
+
+free: no mode's limits; the safety belt alone · manual: one     activity 1…
+step, then it waits for you
+
+────────────────────────────────────────────────────────────────────────────────
 ❯
-──────────────────────────────────────────────────────────────────────────────
-  ⏵⏵ auto mode on (shift+tab to cycle) · 5h 31% · week 28%          autonomous
+────────────────────────────────────────────────────────────────────────────────
+  ⏵⏵ auto mode on (shift+tab to cycle) · 5h 17% · week 22% /rc · free & manual
 ```
 
 A flow's plan waits for approval: the plugin checked it first, and only the person's answer moves the flow to its code step:
 
 ```
 ● mode-code - flow_step (MCP)(step: "plan")
-──────────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────
  ☐ Plan
-│ The plan is ready: 1 step, verified by `cat hello.txt`, `git status --short`.
-│ Plan: …/flows/20261013-0044-plan-a-tiny-change-add/plan.md. Approve it?
+
+│ The plan is ready: 1 step, verified by `cd C:/dev/.mc-demo/project && test
+│ "$(cat hello.txt)" = "hello" && echo OK`, `cd C:/dev/.mc-demo/project && git
+│ status --short`. Plan: C:/dev/.mc-demo/tmp/mode-code/flows/20261027-0212-add-a
+│ -file-hello-txt/plan.md. Approve it?
+
 ❯ 1. Approve, start coding
   2. Change the plan
   3. Pause the flow
+  4. Type something.
+────────────────────────────────────────────────────────────────────────────────
+  5. Chat about this
 ```
 
 ## Why
@@ -261,7 +294,7 @@ Found a vulnerability? Please report it privately: see [SECURITY.md](SECURITY.md
 A tool that stands between an agent and your machine has to earn trust with evidence. Sixteen layers, from rules about the code itself to real Claude Code sessions and the one-line installer, each saying what it proves and what it cannot ([docs/testing.md](docs/testing.md)). Measured on 2026-10-26, for 1.2.0:
 
 - **1,350 tests**, passing on Windows 11 and, in CI, on Windows, Linux and macOS with Node.js 22 and 24. Mean line coverage **96.3%** of the lines that compile to code, every file held to a floor.
-- **False alarms count as bugs.** 201 everyday commands must pass the belt without a single question on every platform, and 172 reading commands must run in chat, research and plan mode. Over the author's last 30 days, measured for 1.1.0 (40,251 tool calls), the belt would have asked 6.7 times a day, most of it recursive deletes outside a project in sessions started in the home folder.
+- **False alarms count as bugs.** 201 everyday commands must pass the belt without a single question on every platform, and 172 reading commands must run in chat, research and plan mode.
 - **Measured against attacks and against ordinary work** (1.2.0, 2026-10-25, counts only, [docs/threat-model.md](docs/threat-model.md#measured-for-120)). Replayed through the belt, other agents' everyday work (224,512 calls in three public sets) is asked about 126 times in Manual and 21 in Autonomous, the author's own 41,290 calls 759 and 367 times. Of the attack calls in four public sets it stops 12.7% (RedCode-Exec), 58.5% (AgentDojo), 20% to 29% (agent-egress-bench) and 11.9% (SABER) in Manual; most of the rest only read or are outside the kinds of action it decides on, by design, and the limits found are listed.
 - **The tests are tested.** Mutation testing makes 3,677 small deliberate changes to the code that decides, the belt, the modes, full autonomy, the memory's sync and sync across computers alike; the tests catch all 3,677. The maintenance check breaks a sandbox in 15 ways and must notice all 15 and repair the 14 that can be repaired.
 - **Inside the real engine.** The plugin is tested with Claude Code's own test kit, every night against the newest Claude Code release, and in live headless sessions, among them one for each of Claude Code's four permission modes in each way of working, with an instruction hidden in a page Claude reads ([docs/testing.md](docs/testing.md#live-claude-codes-permission-modes-and-the-ways-of-working)).
