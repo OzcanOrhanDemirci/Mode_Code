@@ -78,23 +78,20 @@ die() {
   exit 1
 }
 
-# ask <question>: yes (0) or no (1). Enter means yes. Without a terminal to answer from, no, unless --yes.
-ask() {
-  [ "$YES" = 1 ] && return 0
-  [ "$TTY" = 1 ] || return 1
-  printf '%s %s ' "$1" "$(t '[Y/n]' '[E/h]')"
-  read -r answer </dev/tty || answer=n
-  case "$answer" in '' | y | Y | yes | Yes | YES | e | E | evet | Evet | EVET) return 0 ;; *) return 1 ;; esac
-}
-
 # ask_no <question>: for a program of another maker. Enter means no, and --yes does not answer it: only
-# --install-claude does (a script that wants Claude Code too says so).
+# --install-claude does (a script that wants Claude Code too says so). Asked as every question of Mode_Code's
+# is (docs/design.md): the hint says what Enter answers, and another word asks again.
 ask_no() {
   [ "$CLAUDE" = 1 ] && return 0
   [ "$TTY" = 1 ] || return 1
-  printf '%s %s ' "$1" "$(t '[y/N]' '[e/H]')"
-  read -r answer </dev/tty || answer=n
-  case "$answer" in y | Y | yes | Yes | YES | e | E | evet | Evet | EVET) return 0 ;; *) return 1 ;; esac
+  while :; do
+    printf '%s %s%s%s ' "$1" "$D" "$(t '[y/n, Enter = no]' '[e/h, Enter = hayır]')" "$N"
+    read -r answer </dev/tty || return 1
+    case "$answer" in
+      '' | n | N | no | No | NO | h | H | hayir | Hayir | HAYIR | hayır | Hayır) return 1 ;;
+      y | Y | yes | Yes | YES | e | E | evet | Evet | EVET) return 0 ;;
+    esac
+  done
 }
 
 usage() {
