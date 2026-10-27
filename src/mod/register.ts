@@ -347,6 +347,8 @@ interface Ctx {
   resetArm: ResetArm | null;
   /** The reset runs: the session's end is the reset's, which wrote the note and keeps the flow going. */
   resetting: boolean;
+  /** The turn a reset ended, whose end runs the reset's /clear (runReset); null when none is awaited. */
+  resetTurn: string | null;
   /** When the work last reset, carried from conversation to conversation, and how many resets in a row it has had. */
   lastResetAt: number;
   resets: number;
@@ -646,6 +648,7 @@ async function load($: $): Promise<Ctx> {
     boundary: null,
     resetArm: null,
     resetting: false,
+    resetTurn: null,
     lastResetAt: 0,
     resets: 0,
     carried: null,
@@ -2145,9 +2148,9 @@ async function busyNow($: $, c: Ctx): Promise<boolean> {
 /**
  * The reset at a task boundary (src/core/reset.ts, docs/quota.md), at the main conversation's first call after the
  * armed commit or push that does not finish that work. The note is asked of the conversation itself and kept, what
- * is carried waits for the conversation after the /clear, and this call is refused; a timer then ends the turn, clears
- * and goes on (runReset). A reset that cannot go on leaves the conversation as it is, with the strip's hint. The
- * refusal's text, or null.
+ * is carried waits for the conversation after the /clear, and this call is refused; a timer then ends the turn, and
+ * its end clears and goes on (runReset). A reset that cannot go on leaves the conversation as it is, with the strip's
+ * hint. The refusal's text, or null.
  */
 async function resetAtBoundary($: $, c: Ctx, tool: string, input: Readonly<Record<string, unknown>>, cwd: string): Promise<string | null> {
   const arm = c.resetArm;
@@ -2197,7 +2200,7 @@ async function resetAtBoundary($: $, c: Ctx, tool: string, input: Readonly<Recor
     noteChars: note.text.length,
     fork: { in: u.input_tokens, out: u.output_tokens, cached: u.cache_read_input_tokens ?? 0 },
   });
-  // From a timer: the turn is ended and the command run once this hook has answered (a command run inside it is refused).
+  // From a timer: the turn is ended once this hook has answered, and the /clear waits for that end (runReset).
   $.clock.after(1, () => {
     void runReset($, c);
   });
@@ -2238,13 +2241,41 @@ async function noReset($: $, c: Ctx, arm: ResetArm, why: ResetSkip | 'fork' | 'n
 }
 
 /**
- * The reset's steps once the call is refused: the turn ends, the conversation clears (its end writes no other note and
- * keeps the flow going), and the work goes on with the prompt the new conversation takes up with what was carried
- * (afterClear). A /clear that fails goes on here instead, as the turn was ended for it.
+ * The reset's steps once the call is refused: the turn ends, and its end (onTurnComplete) runs the /clear. Claude Code
+ * refuses a command run while the tool call's hook still holds the turn, and this timer, a moment after the refusal,
+ * could fire before that hook had answered: three resets in one evening went on without their /clear (2026-10-27).
+ * With no turn to end, or one that cannot be ended, the /clear runs now.
  */
 async function runReset($: $, c: Ctx): Promise<void> {
+  const turnId = c.turnId;
+  if (turnId === null) return clearAndGoOn($, c);
+  c.resetTurn = turnId;
+  try {
+    await $.turn.abort({ turnId });
+  } catch {
+    // Not the running turn any more: it has ended, or its end is on the way.
+    if (c.resetTurn !== turnId) return;
+    c.resetTurn = null;
+    await clearAndGoOn($, c);
+  }
+}
+
+/** The turn a reset ended is over: the /clear runs from a timer of this event, which no turn waits on. */
+function resetTurnEnded($: $, c: Ctx, turnId: string): void {
+  if (c.resetTurn !== turnId) return;
+  c.resetTurn = null;
+  $.clock.after(1, () => {
+    void clearAndGoOn($, c);
+  });
+}
+
+/**
+ * The conversation clears (its end writes no other note and keeps the flow going), and the work goes on with the
+ * prompt the new conversation takes up with what was carried (afterClear). A /clear that fails goes on here instead,
+ * as the turn was ended for it.
+ */
+async function clearAndGoOn($: $, c: Ctx): Promise<void> {
   const carry = pendingCarry;
-  if (c.turnId !== null) await $.turn.abort({ turnId: c.turnId }).catch(() => undefined);
   try {
     await $.command.run({ command: 'clear' });
   } catch (err) {
@@ -2776,6 +2807,7 @@ async function onTurnComplete($: $, e: In<'turn.complete'>, next: Nx<'turn.compl
     /* the next prompt checks */
   }
   if (c.turnId === e.turnId) c.turnId = null;
+  resetTurnEnded($, c, e.turnId);
   // The turn ended by itself after an armed commit: the person is waited for, so no reset; the strip says /clear.
   if (c.resetArm && !c.resetting) {
     const arm = c.resetArm;
