@@ -21,6 +21,28 @@ const FETCHERS = new Set(['curl', 'wget', 'invoke-webrequest', 'invoke-restmetho
 const GH_READS = /^(?:issue|pr|discussion|release|gist|api|search|run)$/;
 /** Folders that hold other people's code: a package's files can say anything. */
 const DEPENDENCY = /\/(?:node_modules|vendor|site-packages|\.pub-cache|Pods|\.venv|bower_components)\//i;
+/** Programs that print what a file holds: through them a dependency's text reaches the model as through Read. */
+const PRINTERS = new Set([
+  'cat',
+  'tac',
+  'nl',
+  'head',
+  'tail',
+  'less',
+  'more',
+  'bat',
+  'get-content',
+  'grep',
+  'egrep',
+  'fgrep',
+  'rg',
+  'select-string',
+  'sed',
+  'awk',
+]);
+
+/** A path, relative or absolute, in a dependency's folder; with `folder`, the folder named alone too. */
+const inDependency = (path: unknown, folder: boolean) => DEPENDENCY.test(`/${String(path ?? '').replace(/\\/g, '/')}${folder ? '/' : ''}`);
 
 /**
  * The outside source a call reads, when it reads one: what taints the session from now on. Null for the
@@ -30,12 +52,15 @@ export function taintSource(tool: string, input: Readonly<Record<string, unknown
   if (tool === 'WebFetch' || tool === 'WebSearch') return tool;
   // A pack's server that works on the project itself (the Dart SDK's) reads no one else's text (core/packs.ts).
   if (tool.startsWith('mcp__') && !isOwnTool(tool)) return packOfTool(tool)?.outside === false ? null : tool;
-  if (tool === 'Read' && DEPENDENCY.test(String(input.file_path ?? '').replace(/\\/g, '/'))) return 'Read (a dependency)';
+  if (tool === 'Read' && inDependency(input.file_path, false)) return 'Read (a dependency)';
+  if (tool === 'Grep' && inDependency(input.path, true)) return 'Grep (a dependency)';
   const dialect = shellOf(tool);
   if (!dialect) return null;
   for (const inv of analyzeCommand(String(input.command ?? ''), dialect).invocations) {
     if (FETCHERS.has(inv.program)) return inv.program;
     if (inv.program === 'gh' && GH_READS.test(inv.args[0] ?? '')) return `gh ${inv.args[0]}`;
+    // A folder named alone is left out here: in `grep --exclude-dir node_modules` it is the folder not read.
+    if (PRINTERS.has(inv.program) && inv.args.some((a) => inDependency(a, false))) return `${inv.program} (a dependency)`;
   }
   return null;
 }

@@ -1020,7 +1020,8 @@ async function resetCases() {
       if (name === 'full')
         check(
           'reset, full autonomy: outside content read before the reset still marks the conversation after it',
-          after.length > 0 && after.every((s) => s?.tainted?.source === 'Read (a dependency)'),
+          // Read, Grep or a command that prints it: the model picks (haiku used cat on Claude Code 2.1.311).
+          after.length > 0 && after.every((s) => / \(a dependency\)$/.test(s?.tainted?.source ?? '')),
           after.map((s) => s?.tainted?.source ?? 'none').join(' '),
         );
     }
