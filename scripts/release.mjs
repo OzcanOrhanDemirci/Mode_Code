@@ -22,7 +22,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 /** The changelog's section for a version: its date and its text, or null when there is none. */
 export function changelogSection(changelog, version) {
   const lines = changelog.split(/\r?\n/);
-  const head = new RegExp(`^## \\[${version.replace(/\./g, '\\.')}\\](?: - (\\d{4}-\\d{2}-\\d{2}))?\\s*$`);
+  const head = new RegExp(`^## \\[${version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\](?: - (\\d{4}-\\d{2}-\\d{2}))?\\s*$`);
   const start = lines.findIndex((l) => head.test(l));
   if (start < 0) return null;
   const date = head.exec(lines[start])[1] ?? null;

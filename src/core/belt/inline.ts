@@ -90,16 +90,33 @@ function bindings(code: string, name: string): string[] | null {
   return bound ? found : null;
 }
 
+/** Comments, by the language: JavaScript's `//` and `/* … *\/`, Python's `#`. */
+const COMMENTS = { js: String.raw`\/\/[^\n]*|\/\*[\s\S]*?\*\/`, python: '#[^\\n]*' };
+
+/** A stretch of the code that holds text of its own, a string literal (its text unescaped) or a comment. */
+interface Span {
+  start: number;
+  end: number;
+  text: string;
+}
+
+/** The code's string literals and, in a language whose comments are known, its comments, in order. */
+function textSpans(code: string, lang: keyof typeof COMMENTS | null): Span[] {
+  const re = new RegExp(lang ? `${LITERAL.source}|${COMMENTS[lang]}` : LITERAL.source, 'g');
+  return [...code.matchAll(re)].map((m) => {
+    const literal = m[1] ?? m[2] ?? m[3];
+    return { start: m.index, end: m.index + m[0].length, text: literal === undefined ? m[0] : literal.replace(/\\(.)/g, '$1') };
+  });
+}
+
 /**
- * The literals the code's delete calls are given, directly or through the names they use (followed a few
- * assignments deep). A name the code never assigns leaves a delete's target unknown: then every literal of the
- * code counts, as before this was measured. Empty when the code deletes nothing.
+ * What the delete calls written in the code are given, those `at` lets in: a call's arguments, or for a path's own
+ * method the statement it stands in.
  */
-export function deletedLiterals(code: string, program: string): string[] {
-  const python = /^(?:python|py|pypy)[0-9.]*$/.test(program);
-  const literals = codeLiterals(code);
+function deleteScopes(code: string, python: boolean, at: (index: number) => boolean): string[] {
   const scopes: string[] = [];
   for (const m of code.matchAll(python ? PYTHON_DELETE : OTHER_DELETE)) {
+    if (!at(m.index)) continue;
     const args = argsFrom(code, m.index + m[0].length);
     // A module's function or a bare one (`os.remove(p)`, `rmtree(p)`): its arguments.
     if (!python || !m[1]) {
@@ -110,21 +127,45 @@ export function deletedLiterals(code: string, program: string): string[] {
     // object's (`fs.rm('/x')` of an in-memory filesystem, `list.remove(x)`).
     if ((m[2] === 'unlink' || m[2] === 'rmdir') && /^\s*(?:missing_ok\s*=[^,]*)?$/.test(args)) scopes.push(statementBefore(code, m.index));
   }
+  return scopes;
+}
+
+/**
+ * The literals the code's delete calls are given, directly or through the names they use (followed a few
+ * assignments deep). A name the code never assigns leaves a delete's target unknown: then every literal of the
+ * code counts, as before this was measured. Empty when the code deletes nothing.
+ *
+ * A delete written inside a string or a comment (a script that edits another one's `rmSync(dir, …)` line, a usage
+ * text) is no call of this code: what it is given counts, as code a string may yet become, but a name it leaves
+ * unknown counts only that string's own literals, not every path the code names (measured 2026-10-26: a script
+ * that wrote a file into the scratchpad read as a recursive delete of it).
+ */
+export function deletedLiterals(code: string, program: string): string[] {
+  const python = /^(?:python|py|pypy)[0-9.]*$/.test(program);
+  const spans = textSpans(code, python ? 'python' : /^(?:node|nodejs|bun|deno)$/.test(program) ? 'js' : null);
+  const outside = (at: number) => !spans.some((s) => s.start <= at && at < s.end);
+  // What a name left unknown counts: every literal of the code (null), or a string's or a comment's own.
+  const scopes: { text: string; unknown: string[] | null }[] = deleteScopes(code, python, outside).map((text) => ({ text, unknown: null }));
+  for (const s of spans) scopes.push(...deleteScopes(s.text, python, () => true).map((text) => ({ text, unknown: codeLiterals(s.text) })));
   if (!scopes.length) return [];
+  const literals = codeLiterals(code);
   const out = new Set<string>();
-  const seen = new Set<string>();
+  // The names read, apart for the code's own calls and each string's: one left unknown counts differently in each.
+  const seen = new Map<string[] | null, Set<string>>();
   let pending = scopes;
   // Each name is read once, so this ends; a name still to read four assignments deep is as unknown as a parameter.
   for (let depth = 0; pending.length; depth++) {
-    const next: string[] = [];
-    for (const text of pending) {
+    const next: typeof scopes = [];
+    for (const { text, unknown } of pending) {
       for (const l of codeLiterals(text)) out.add(l);
+      const read = seen.get(unknown) ?? seen.set(unknown, new Set()).get(unknown)!;
       for (const name of namesIn(text)) {
-        if (seen.has(name)) continue;
-        seen.add(name);
+        if (read.has(name)) continue;
+        read.add(name);
         const values = depth < 4 ? bindings(code, name) : null;
-        if (values === null) return literals;
-        next.push(...values);
+        if (values === null && unknown === null) return literals;
+        if (values === null) for (const l of unknown!) out.add(l);
+        else next.push(...values.map((v) => ({ text: v, unknown })));
       }
     }
     pending = next;

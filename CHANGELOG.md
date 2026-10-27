@@ -6,6 +6,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Fixed
 
+- A reset at a task boundary could go on without its `/clear`: it ran the command a moment after refusing the call, and Claude Code refuses a command while that call's hook still holds the turn. The conversation went on with "the reset did not go through" and the refused call had to run again (three times in one evening). The `/clear` now runs once the turn it ended is over.
+- In a repository that takes changes only through pull requests, pushing a branch such as `release/1.2.1` was stopped as a push past them: the belt counted every protected branch, the default `release/*` pattern too, where pull requests merge only into the branches named whole (`main`, `master`). A force-push to `release/*` is still blocked.
+- A script handed to an interpreter that only mentioned a delete in a string, such as one editing another script's `rmSync(dir, { recursive: true })` line, made every path it named count as deleted, and its own output file read as a recursive delete outside the project. A delete in a string or a comment is no call of the code's own now: what it is given still counts, a name it leaves unknown only that string's own paths.
 - Where Claude Code is installed with npm on Windows, `claude` is a .cmd file that only cmd.exe starts, and the tool and its scripts quoted the arguments they passed it only in part: a `%NAME%` in one was expanded, a trailing backslash ate the closing quote, and a quote followed by `&` started a second command. Each argument is now escaped for both of cmd's readings and reaches the program as given; one holding a line break, which cmd cannot carry, is refused. `npm pack` in the release and installer scripts runs without a shell, so a folder whose path holds a space or a `&` no longer breaks it.
 
 ## [1.2.0] - 2026-10-27

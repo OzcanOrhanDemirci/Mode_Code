@@ -704,6 +704,7 @@ async function checkGit(inv: Invocation, ws: Word[], cwd: string | null, s: Scop
   const a = call.args;
   const has = (...flags: string[]) => a.some((x) => flags.includes(x));
   const protectedBranches = cfg.protectedBranches?.length ? cfg.protectedBranches : ['main', 'master'];
+  const namedBranches = protectedBranches.filter((p) => !p.endsWith('*'));
   // What a safety net keeps before a call that rewrites what the repository holds: every tip, and what is not committed.
   const refsNet: NetPlan | undefined = dir === null ? undefined : { kind: 'refs', repo: dir };
 
@@ -734,7 +735,10 @@ async function checkGit(inv: Invocation, ws: Word[], cwd: string | null, s: Scop
           if (prot || t.dst === null) add(s, 'git.force-push-protected', 'belt.reason.forcePushProtected', { branch: branchLabel });
           else add(s, 'git.force-push', 'belt.reason.forcePush', { branch: branchLabel }, remoteNet(t.dst));
         }
-        if (prOnly && (prot || t.dst === null)) add(s, 'git.push-pr-only', 'belt.reason.prOnly', { branch: branchLabel, remote: remoteUrl ?? '?' });
+        // Pull requests merge into the branches named whole (main, master). A pattern's (release/*) are where a
+        // release's pull request starts from, so pushing one is no push past them (release/1.2.0 was stopped, 2026-10-27).
+        if (prOnly && (t.dst === null || isProtectedBranch(t.dst, namedBranches)))
+          add(s, 'git.push-pr-only', 'belt.reason.prOnly', { branch: branchLabel, remote: remoteUrl ?? '?' });
       }
       break;
     }

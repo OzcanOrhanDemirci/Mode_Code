@@ -25,26 +25,45 @@ const forked = (note: Record<string, unknown> = NOTE) => ({
   usage: { input_tokens: 10, output_tokens: 200, cache_read_input_tokens: 240_000 },
 });
 
-/** Claude Code beneath: the context's size, the fork, the turn and its end, the agents, and /clear: the session ends, then goes on under a new id. */
-function engine($: any, on: any, session: { id: string }, o: { tokens?: number; fork?: () => any; clearFails?: boolean; agents?: any[] } = {}) {
+/**
+ * Claude Code beneath: the context's size, the fork, the turn and its end, the agents, and /clear: the session ends,
+ * then goes on under a new id. An aborted turn ends a moment later, and a /clear while a turn runs is refused, as the
+ * engine refuses a command the turn's own hook would wait on (the three resets of 2026-10-27 that went without one).
+ */
+function engine(
+  $: any,
+  on: any,
+  clock: { sleep: (ms: number) => Promise<void> },
+  session: { id: string },
+  o: { tokens?: number; fork?: () => any; clearFails?: boolean; agents?: any[] } = {},
+) {
   const size = { tokens: o.tokens ?? 250_000 };
   const forks: string[] = [];
   const aborted: string[] = [];
+  const running = new Set<string>();
   let clears = 0;
   on('session.usage', () => ({ value: { startedAt: 0, context: { tokens: size.tokens, window: 1_000_000, percent: 25 }, rateLimits: [] } }));
   on('model.fork', (_$: any, e: any) => {
     forks.push(e.prompt);
     return { value: o.fork ? o.fork() : forked() };
   });
-  on('turn.start', (_$: any, e: any) => ({ turnId: e.turnId }));
-  on('turn.complete', (_$: any, e: any) => ({ text: e.answer }));
+  on('turn.start', (_$: any, e: any) => {
+    running.add(e.turnId);
+    return { turnId: e.turnId };
+  });
+  on('turn.complete', (_$: any, e: any) => {
+    running.delete(e.turnId);
+    return { text: e.answer };
+  });
   on('turn.abort', (_$: any, e: any) => {
     aborted.push(e.turnId);
+    void clock.sleep(1).then(() => $.turn.complete({ answer: '', durationMs: 1, isAborted: true, turnId: e.turnId, reason: 'aborted' }));
     return { value: undefined };
   });
   on('agent.list', () => ({ value: o.agents ?? [] }));
   on('session.end', (_$: any, e: any) => ({ sessionId: e.sessionId }));
   on('command.run', { command: 'clear' }, async () => {
+    if (running.size) throw new Error('command.run: called from a tool.call hook, it would wait on the turn this hook is holding (host check)');
     clears++;
     if (o.clearFails) throw new Error('the host has ended its input');
     await $.session.end({ reason: 'clear', sessionId: session.id, resume: {} });
@@ -80,7 +99,7 @@ const resets = (w: ReturnType<typeof world>) => w.events().filter((e: any) => e.
 test("autonomous: the work's own calls pass, the next task's first call resets, and the work goes on in a new conversation", async ($, on) => {
   const session = { id: SESSION };
   const w = world(on, { session });
-  const cc = engine($, on, session);
+  const cc = engine($, on, w.clock, session);
   await $.prompt.submit(typed('autonomous'));
   await $.prompt.submit(typed('Add the parser.'));
   await $.turn.start({ text: 'Add the parser.', turnId: 't1' } as any);
@@ -143,7 +162,7 @@ test("autonomous: the work's own calls pass, the next task's first call resets, 
 test("full autonomy: the reset carries full autonomy, the outside content read, the person's words and the quota resume", async ($, on) => {
   const session = { id: SESSION };
   const w = world(on, { session });
-  engine($, on, session);
+  engine($, on, w.clock, session);
   await $.prompt.submit(typed('full auto'));
   await $.prompt.submit(typed('Fix the login bug on example.org.'));
   await $.turn.start({ text: 'Fix it.', turnId: 't1' } as any);
@@ -163,7 +182,7 @@ test("full autonomy: the reset carries full autonomy, the outside content read, 
 test('a running flow goes on in the new conversation at its step', async ($, on) => {
   const session = { id: SESSION };
   const w = world(on, { session });
-  engine($, on, session);
+  engine($, on, w.clock, session);
   const now = w.clock.now();
   const flow = {
     v: 1,
@@ -208,7 +227,7 @@ test('a running flow goes on in the new conversation at its step', async ($, on)
 test('no reset in manual, with the setting off, or under the threshold: the strip says /clear instead, or nothing', async ($, on) => {
   const session = { id: SESSION };
   const w = world(on, { session, answer: 'allow' });
-  const cc = engine($, on, session);
+  const cc = engine($, on, w.clock, session);
   await $.prompt.submit(typed('manual'));
   await call($, 'Bash', { command: 'git commit -m one' }, 'b1');
   expect(await band($)).toMatch(/^✓ commit: a good moment for \/clear before the next task; every call reads the 250 K of context again\./);
@@ -236,7 +255,7 @@ test('no reset in manual, with the setting off, or under the threshold: the stri
 test('the turn that ends by itself waits for the person: no reset, the strip says /clear', async ($, on) => {
   const session = { id: SESSION };
   const w = world(on, { session });
-  const cc = engine($, on, session);
+  const cc = engine($, on, w.clock, session);
   await $.prompt.submit(typed('autonomous'));
   await $.turn.start({ text: 'x', turnId: 't1' } as any);
   await call($, 'Bash', { command: 'git commit -m done' }, 'b1');
@@ -253,7 +272,7 @@ test('agents at work, background work, a wrap-up or a reset a moment ago: no res
   const session = { id: SESSION };
   const w = world(on, { session });
   const agents: any[] = [{ id: 'a1', status: 'running', type: 'Explore', description: 'look' }];
-  const cc = engine($, on, session, { agents });
+  const cc = engine($, on, w.clock, session, { agents });
   await $.prompt.submit(typed('autonomous'));
   const boundary = async (id: string) => {
     await call($, 'Bash', { command: `git commit -m ${id}` }, `c-${id}`);
@@ -288,7 +307,7 @@ test('a note that cannot be had leaves the conversation as it is: the call goes 
     forked({ summary: 'x', open: 'y', decisions: 'z' }),
     forked({ ...NOTE, next: `push with ghp_${'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8'}` }),
   ];
-  const cc = engine($, on, session, { fork: () => answers.shift() });
+  const cc = engine($, on, w.clock, session, { fork: () => answers.shift() });
   await $.prompt.submit(typed('autonomous'));
   for (const id of ['api', 'missing', 'secret']) {
     await call($, 'Bash', { command: `git commit -m ${id}` }, `c-${id}`);
@@ -311,7 +330,7 @@ test('a note that cannot be had leaves the conversation as it is: the call goes 
 test('a /clear Claude Code refuses: the turn was ended for it, so the work goes on in this conversation', async ($, on) => {
   const session = { id: SESSION };
   const w = world(on, { session, lang: 'tr' });
-  const cc = engine($, on, session, { clearFails: true });
+  const cc = engine($, on, w.clock, session, { clearFails: true });
   await $.prompt.submit(typed('otonom'));
   await $.turn.start({ text: 'x', turnId: 't1' } as any);
   await call($, 'Bash', { command: 'git commit -m bir' }, 'b1');
