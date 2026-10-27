@@ -52,6 +52,9 @@ export function spellings(id: string): { kebab: string; upper: string; pascal: s
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+/** A single-quoted string literal: its backslashes escaped first, then its quotes. */
+const quoted = (s: string) => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+
 /**
  * A kebab-case `id` written in the case of `like`, another id as some text spells it: lower, UPPER, or with
  * capitals where `like` has them (tests spell the data folder `.Mode-Code` on purpose).
@@ -126,11 +129,11 @@ export function renameApp(text: string, plan: RenamePlan): { text: string; count
   const named = text.replace(m[0], marker).replace(/export const APP_NAME = '(?:[^'\\]|\\.)*';/, nameMarker);
   const r = renameText(named, plan);
   const list = [{ id: plan.from.id, name: plan.from.name }, ...earlier.filter((e) => e.id !== plan.to.id)];
-  const literal = `[${list.map((e) => `{ id: '${e.id}', name: '${e.name.replace(/'/g, "\\'")}' }`).join(', ')}]`;
+  const literal = `[${list.map((e) => `{ id: '${e.id}', name: ${quoted(e.name)} }`).join(', ')}]`;
   // The value is the statement's end: the first "[]" in it is the type's.
   const statement = `${m[0].slice(0, m[0].length - m[1]!.length - 1)}${literal};`;
   let out = r.text.replace(marker, () => statement);
-  out = out.replace(nameMarker, () => `export const APP_NAME = '${plan.to.name.replace(/'/g, "\\'")}';`);
+  out = out.replace(nameMarker, () => `export const APP_NAME = ${quoted(plan.to.name)};`);
   out = out.replace(/export const NAME_IS_FINAL = (?:true|false);/, `export const NAME_IS_FINAL = ${plan.final};`);
   return { text: out, count: r.count };
 }

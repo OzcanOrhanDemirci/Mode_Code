@@ -53,6 +53,9 @@ test('Windows Terminal: a new tab in the window the session runs in, the folder 
   // A ";" would start Windows Terminal's next command: it goes escaped, in every argument it reads.
   const odd = terminalLaunch(win({ WT_SESSION: 'x' }, { cwd: 'C:/a;b', title: 't;1', program: ['C:/n;ode.exe', 'C:/c;li.mjs'] }))!;
   assert.deepEqual(odd.argv.slice(4), ['--title', 't\\;1', '-d', 'C:/a\\;b', 'C:/n\\;ode.exe', 'C:/c\\;li.mjs']);
+  // Backslashes stay as they are: Windows Terminal drops only the one right before a ";".
+  const slashed = terminalLaunch(win({ WT_SESSION: 'x' }, { cwd: 'C:\\x\\;y' }))!;
+  assert.deepEqual(slashed.argv.slice(6, 8), ['-d', 'C:\\x\\\\;y']);
   assert.equal(OPENS['windows-terminal'], 'tab');
   // The program the plugin found goes first, as it is.
   const alias = 'C:\\Users\\ada\\AppData\\Local\\Microsoft\\WindowsApps\\wt.exe';

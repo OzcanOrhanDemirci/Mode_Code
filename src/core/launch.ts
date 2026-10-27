@@ -125,7 +125,12 @@ function shellLine(input: LaunchInput): string {
   return `cd ${shQuote(input.cwd)} && exec ${input.program.map(shQuote).join(' ')}`;
 }
 
-/** Windows Terminal reads `;` as the start of its next command, anywhere in its arguments; `\;` is the character. */
+/**
+ * Windows Terminal reads `;` as the start of its next command, anywhere in its arguments; `\;` is the
+ * character. Backslashes are not escaped: Windows Terminal drops only the one right before a `;` and keeps
+ * every other as it is (AppCommandlineArgs::BuildCommands), so `C:\x\;y` goes as `C:\x\\;y` and arrives
+ * whole. Escaping them, as code scanning suggests, would add a backslash to every Windows path.
+ */
 const wtArg = (s: string) => s.replace(/;/g, '\\;');
 
 /**

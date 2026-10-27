@@ -105,6 +105,17 @@ test('the identity file: the old name recorded first, earlier ones kept as they 
   assert.match(twice, /export const NAME_IS_FINAL = false;/);
   const back = renameApp(twice, { ...second, from: second.to, to: { id: 'harbor-light', name: 'Harbor Light', repo: 'o/h' } }).text;
   assert.match(back, /= \[\{ id: 'beacon', name: 'Bea\\'con' \}, \{ id: 'old-tool', name: 'old-tool' \}\];/, 'a name taken back is no longer an earlier one');
+  // A backslash in a name, before a quote too, is written so that the literal reads back as that name.
+  const slashed: RenamePlan = { from: second.to, to: { id: 'slash', name: "Sla\\sh\\'s", repo: 'o/slash' }, final: true };
+  const third = renameApp(twice, slashed).text;
+  const value = (src: string) => new Function(`return ${src}`)() as unknown;
+  assert.equal(value(/export const APP_NAME = (.*);/.exec(third)![1]!), "Sla\\sh\\'s");
+  const fourth = renameApp(third, { from: slashed.to, to: { id: 'beacon', name: 'Beacon', repo: 'o/b' }, final: true }).text;
+  assert.deepEqual(value(/PREVIOUS_NAMES[^=]*= (\[.*\]);/.exec(fourth)![1]!), [
+    { id: 'slash', name: "Sla\\sh\\'s" },
+    { id: 'harbor-light', name: 'Harbor Light' },
+    { id: 'old-tool', name: 'old-tool' },
+  ]);
   assert.throws(() => renameApp('nothing here', plan), /PREVIOUS_NAMES not found/);
   // The real identity file has the statement the rename looks for.
   assert.doesNotThrow(() => renameApp(readFileSync(join(ROOT, 'src', 'core', 'app.ts'), 'utf8'), plan));

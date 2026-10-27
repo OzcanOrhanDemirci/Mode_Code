@@ -151,6 +151,8 @@ function parse(ansi: string, width: (s: string) => number): Run[][] {
 }
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+/** A double-quoted attribute's value: its quotes escaped too. */
+const escAttr = (s: string) => esc(s).replace(/"/g, '&quot;');
 
 function frameSvg(lines: Run[][]): string {
   const out: string[] = [];
@@ -202,7 +204,7 @@ function svg(frames: Run[][][], title: string, seconds: number): string {
       : '',
   ].join('');
   return [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${w.toFixed(0)}" height="${h}" viewBox="0 0 ${w.toFixed(1)} ${h}" role="img" aria-label="${esc(title)}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w.toFixed(0)}" height="${h}" viewBox="0 0 ${w.toFixed(1)} ${h}" role="img" aria-label="${escAttr(title)}">`,
     `<title>${esc(title)}</title>`,
     `<style>${css}</style>`,
     `<rect width="100%" height="100%" rx="10" fill="${BACKGROUND}" stroke="#30363d"/>`,
