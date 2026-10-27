@@ -95,9 +95,11 @@ function makePackage() {
   const given = opt('--package');
   if (given) return resolve(given);
   check(existsSync(join(root, 'dist', 'cli.mjs')), 'no build (run npm run build first)');
-  // Without a shell: the temporary folder's path would otherwise be read by cmd.exe on Windows.
+  // Without a shell: the temporary folder's path would otherwise be read by cmd.exe on Windows. Not through
+  // run() either, which also starts cmd.exe and sh lines: code scanning reads every call of it as a shell's.
   const npm = npmCommand(['pack', '--json', '--pack-destination', tmp]);
-  const packed = run(npm.command, npm.args, { cwd: root });
+  const r = spawnSync(npm.command, npm.args, { cwd: root, encoding: 'utf8', windowsHide: true, timeout: 600_000, stdio: ['ignore', 'pipe', 'pipe'] });
+  const packed = { code: r.status, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
   check(packed.code === 0, `npm pack failed: ${packed.out.slice(0, 2000)}`);
   const info = JSON.parse(packed.out.slice(packed.out.indexOf('['), packed.out.lastIndexOf(']') + 1))[0];
   return join(tmp, info.filename);
