@@ -27,6 +27,7 @@ function files(dir: string, ext = /\.(?:ts|tsx|mjs|js|cjs)$/): string[] {
 
 const rel = (p: string) => relative(ROOT, p).replace(/\\/g, '/');
 const read = (p: string) => readFileSync(p, 'utf8');
+const literally = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** The module specifiers a file imports (static imports and re-exports; dynamic import() too). */
 function imports(source: string): string[] {
@@ -136,7 +137,7 @@ test('the minimum versions agree everywhere they are written', () => {
   const pkg = JSON.parse(read(join(ROOT, 'package.json'))) as { engines: { node: string }; version: string };
   const min = pkg.engines.node.replace(/^>=/, '');
   assert.match(read(join(ROOT, 'src/cli/main.tsx')), new RegExp(`MIN_NODE = \\[${min.split('.').slice(0, 2).join(', ')}\\]`));
-  assert.match(read(join(ROOT, 'src/app/doctor/checks.ts')), new RegExp(`MIN_NODE = '${min.replace(/\./g, '\\.')}'`));
+  assert.match(read(join(ROOT, 'src/app/doctor/checks.ts')), new RegExp(`MIN_NODE = '${literally(min)}'`));
   for (const readme of ['README.md', 'README.tr.md'])
     assert.match(read(join(ROOT, readme)), new RegExp(min.split('.').slice(0, 2).join('\\.')), `${readme} names Node.js ${min}`);
   const app = read(join(ROOT, 'src/core/app.ts'));
