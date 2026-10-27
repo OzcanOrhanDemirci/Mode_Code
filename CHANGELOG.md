@@ -7,6 +7,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ### Fixed
 
 - A reset at a task boundary could go on without its `/clear`: it ran the command a moment after refusing the call, and Claude Code refuses a command while that call's hook still holds the turn. The conversation went on with "the reset did not go through" and the refused call had to run again (three times in one evening). The `/clear` now runs once the turn it ended is over.
+- In a repository that takes changes only through pull requests, pushing a branch such as `release/1.2.1` was stopped as a push past them: the belt counted every protected branch, the default `release/*` pattern too, where pull requests merge only into the branches named whole (`main`, `master`). A force-push to `release/*` is still blocked.
 
 ## [1.2.0] - 2026-10-27
 

@@ -105,6 +105,17 @@ describe('git', () => {
     assert.equal(await verdict('git push origin main', pr), 'deny');
     assert.equal(await verdict('git push origin feature', pr), 'allow');
     assert.deepEqual(await rules('git push origin main', pr), ['git.push-pr-only']);
+    // A branch a pattern protects is where a pull request starts: pushing it is no push past one; forcing it still is.
+    const release = win({}, { prOnlyRepos: ['github.com/ada/app'], protectedBranches: ['main', 'master', 'release/*'] });
+    assert.equal(await verdict('git push -u origin release/1.2.1', release), 'allow');
+    assert.equal(await verdict('git push origin HEAD:release/1.2.1', release), 'allow');
+    assert.equal(
+      await verdict('git push', win({ git: fakeGit({ branch: 'release/1.2.1' }) }, { prOnlyRepos: ['github.com/ada/app'], protectedBranches: ['release/*'] })),
+      'allow',
+    );
+    assert.equal(await verdict('git push --force origin release/1.2.1', release), 'deny');
+    assert.deepEqual(await rules('git push origin master', release), ['git.push-pr-only']);
+    assert.deepEqual(await rules('git push origin HEAD:main', release), ['git.push-pr-only']);
     const single = win({}, { singleBranchRepos: ['github.com/ada/app'] });
     assert.equal(await verdict('git checkout -b wip', single), 'deny');
     assert.equal(await verdict('git switch -c wip', single), 'deny');
