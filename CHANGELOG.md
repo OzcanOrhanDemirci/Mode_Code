@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- In a repository that takes changes only through pull requests, pushing a branch such as `release/1.2.1` was stopped as a push past them: the belt counted every protected branch, the default `release/*` pattern too, where pull requests merge only into the branches named whole (`main`, `master`). A force-push to `release/*` is still blocked.
+
 ## [1.2.0] - 2026-10-27
 
 One protection, three ways of working: the safety belt decides by how you chose to work, keeps what a risky step takes away before it runs, and weighs a step's target by where it came from. Full autonomy becomes an ordinary way of working in place of 1.1's runs and bypass, a cockpit beside the conversation says what Claude may do right now, and the control center is arranged by what you come for, every setting saying what it does where it stands.
