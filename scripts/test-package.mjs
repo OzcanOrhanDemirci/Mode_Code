@@ -14,6 +14,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync }
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cmdShimLine } from './cmd-line.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const isWin = process.platform === 'win32';
@@ -99,10 +100,9 @@ if (!existsSync(join(root, 'dist', 'cli.mjs')) || !existsSync(join(root, 'dist',
 const env = { ...process.env, NO_COLOR: '1' };
 for (const k of Object.keys(env)) if (k.startsWith('CLAUDE_CODE_') || k === 'CLAUDECODE' || k === 'NODE_OPTIONS' || k === 'FORCE_COLOR') delete env[k];
 
-/** Runs a command through the shell on Windows (npm and its shims are .cmd files there), quoting each argument. */
+/** Runs a command through the shell on Windows (npm and its shims are .cmd files there), escaping each argument. */
 function sh(cmd, args, opts = {}) {
-  const quote = (a) => (/^[\w@%+=:,./\\-]+$/.test(a) ? a : `"${a.replace(/"/g, '\\"')}"`);
-  return spawnSync(isWin ? [cmd, ...args].map(quote).join(' ') : cmd, isWin ? [] : args, {
+  return spawnSync(isWin ? cmdShimLine(cmd, args) : cmd, isWin ? [] : args, {
     encoding: 'utf8',
     windowsHide: true,
     shell: isWin,

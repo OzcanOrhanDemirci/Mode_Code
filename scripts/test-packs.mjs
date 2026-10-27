@@ -15,6 +15,7 @@ import { createHash } from 'node:crypto';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cmdShimLine } from './cmd-line.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const packs = join(root, 'dist', 'packs', 'plugins');
@@ -51,8 +52,7 @@ const claude = (args, cwd = project) => {
   const base = { cwd, env, encoding: 'utf8', timeout: 120_000, windowsHide: true };
   let r = spawnSync('claude', args, base);
   // Where claude is a script (npm's claude.cmd), Windows starts it only through the shell.
-  if (r.error && process.platform === 'win32')
-    r = spawnSync(['claude', ...args.map((a) => (/^[\w@./:=-]+$/.test(a) ? a : `"${a}"`))].join(' '), { ...base, shell: true });
+  if (r.error && process.platform === 'win32') r = spawnSync(cmdShimLine('claude', args), { ...base, shell: true });
   return { ok: r.status === 0, out: `${r.stdout ?? ''}${r.stderr ?? ''}`.trim() };
 };
 const results = [];

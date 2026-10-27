@@ -13,6 +13,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, 
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cmdShimLine } from './cmd-line.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const plugin = join(root, 'dist', 'plugin');
@@ -26,7 +27,7 @@ for (const k of Object.keys(env)) if (k.startsWith('CLAUDE_CODE_') || k === 'CLA
 const claude = (args, opts = {}) => {
   let r = spawnSync('claude', args, { encoding: 'utf8', env, windowsHide: true, timeout: 300_000, ...opts });
   if (r.error && process.platform === 'win32')
-    r = spawnSync(['claude', ...args].join(' '), { encoding: 'utf8', env, shell: true, windowsHide: true, timeout: 300_000, ...opts });
+    r = spawnSync(cmdShimLine('claude', args), { encoding: 'utf8', env, shell: true, windowsHide: true, timeout: 300_000, ...opts });
   return r;
 };
 

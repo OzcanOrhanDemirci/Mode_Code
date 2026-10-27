@@ -15,6 +15,7 @@ import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSy
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { npmCommand } from './cmd-line.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -140,12 +141,9 @@ function main(argv) {
     const out = resolve(opt('--out') ?? 'release');
     rmSync(out, { recursive: true, force: true });
     mkdirSync(out, { recursive: true });
-    const isWin = process.platform === 'win32';
-    const packed = spawnSync(isWin ? 'npm.cmd' : 'npm', ['pack', '--json', '--pack-destination', out], {
-      cwd: root,
-      encoding: 'utf8',
-      shell: isWin,
-    });
+    // Without a shell: the folder's path would otherwise be read by cmd.exe on Windows.
+    const npm = npmCommand(['pack', '--json', '--pack-destination', out]);
+    const packed = spawnSync(npm.command, npm.args, { cwd: root, encoding: 'utf8' });
     if (packed.status !== 0) {
       console.error(`release: npm pack failed: ${packed.stderr}`);
       return 1;
