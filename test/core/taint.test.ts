@@ -26,9 +26,19 @@ test('outside content: the web, connected services, issues and pull requests, fe
   assert.equal(taintSource('PowerShell', { command: 'Invoke-RestMethod https://example.com/api' }), 'invoke-restmethod');
   assert.equal(taintSource('Read', { file_path: '/home/ada/dev/app/node_modules/left-pad/README.md' }), 'Read (a dependency)');
   assert.equal(taintSource('Read', { file_path: 'C:\\dev\\app\\vendor\\x\\y.php' }), 'Read (a dependency)');
+  // A dependency's text reached another way taints as Read does (measured live on Claude Code 2.1.311: haiku read it with cat).
+  assert.equal(taintSource('Grep', { pattern: 'x', path: '/home/ada/dev/app/node_modules' }), 'Grep (a dependency)');
+  assert.equal(taintSource('Bash', bash('cat node_modules/left-pad/README.md; echo ---; cat TASK.md')), 'cat (a dependency)');
+  assert.equal(taintSource('Bash', bash('git log -1 && sed -n 1,40p ./vendor/acme/lib.php')), 'sed (a dependency)');
+  assert.equal(taintSource('PowerShell', { command: 'Get-Content node_modules\\left-pad\\README.md' }), 'get-content (a dependency)');
   // The session's own work: its files, its commands, this tool's own.
   for (const [tool, input] of [
     ['Read', { file_path: '/home/ada/dev/app/src/a.ts' }],
+    // A file named as a dependency's folder is no folder; a folder left out of a search is not read; a listing prints names.
+    ['Read', { file_path: '/home/ada/dev/app/bin/vendor' }],
+    ['Grep', { pattern: 'x', path: '/home/ada/dev/app/src' }],
+    ['Bash', bash('grep -rn TODO --exclude-dir node_modules .')],
+    ['Bash', bash('ls node_modules/left-pad && cat src/node_modules.ts')],
     ['Bash', bash('git status && npm test')],
     ['Bash', bash('gh auth status')],
     ['mcp__mode-code__handoff', {}],
