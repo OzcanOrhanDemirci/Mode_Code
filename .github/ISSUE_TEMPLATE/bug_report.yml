@@ -48,7 +48,7 @@ body:
     attributes:
       label: Versions
       description: '`mode-code --version`, `claude --version`, `node --version`'
-      placeholder: 1.2.0 · Claude Code 2.1.311 · Node 24.22
+      placeholder: 1.2.1 · Claude Code 2.1.311 · Node 24.22
     validations:
       required: true
   - type: textarea

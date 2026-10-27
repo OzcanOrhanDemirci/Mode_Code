@@ -62,7 +62,7 @@ Read them before you run them: [install.sh](install.sh) · [install.ps1](install
 | pass options                               | `curl -fsSL <address> \| sh -s -- <options>` | `& ([scriptblock]::Create((irm <address>))) <options>` |
 | answer yes to every question (scripts)     | `--yes`                                      | `-Yes`                                                 |
 | install Claude Code too when it is missing | `--install-claude`                           | `-InstallClaude`                                       |
-| install a given version                    | `--version 1.2.0`                            | `-Version 1.2.0`                                       |
+| install a given version                    | `--version 1.2.1`                            | `-Version 1.2.1`                                       |
 | leave PATH alone                           | `--no-modify-path`                           | `-NoModifyPath`                                        |
 | install the program only                   | `--no-setup`                                 | `-NoSetup`                                             |
 
@@ -291,12 +291,12 @@ Found a vulnerability? Please report it privately: see [SECURITY.md](SECURITY.md
 
 ## How it is tested
 
-A tool that stands between an agent and your machine has to earn trust with evidence. Sixteen layers, from rules about the code itself to real Claude Code sessions and the one-line installer, each saying what it proves and what it cannot ([docs/testing.md](docs/testing.md)). Measured on 2026-10-27, for 1.2.0:
+A tool that stands between an agent and your machine has to earn trust with evidence. Sixteen layers, from rules about the code itself to real Claude Code sessions and the one-line installer, each saying what it proves and what it cannot ([docs/testing.md](docs/testing.md)). Measured on 2026-10-27, for 1.2.1:
 
-- **1,360 tests**, passing on Windows 11 and, in CI, on Windows, Linux and macOS with Node.js 22 and 24. Mean line coverage **96.4%** of the lines that compile to code, every file held to a floor.
+- **1,368 tests**, passing on Windows 11 and, in CI, on Windows, Linux and macOS with Node.js 22 and 24. Mean line coverage **96.4%** of the lines that compile to code, every file held to a floor.
 - **False alarms count as bugs.** 201 everyday commands must pass the belt without a single question on every platform, and 172 reading commands must run in chat, research and plan mode.
 - **Measured against attacks and against ordinary work** (1.2.0, 2026-10-25, counts only, [docs/threat-model.md](docs/threat-model.md#measured-for-120)). Replayed through the belt, other agents' everyday work (224,512 calls in three public sets) is asked about 126 times in Manual and 21 in Autonomous, the author's own 41,290 calls 759 and 367 times. Of the attack calls in four public sets it stops 12.7% (RedCode-Exec), 58.5% (AgentDojo), 20% to 29% (agent-egress-bench) and 11.9% (SABER) in Manual; most of the rest only read or are outside the kinds of action it decides on, by design, and the limits found are listed.
-- **The tests are tested.** Mutation testing makes 3,684 small deliberate changes to the code that decides, the belt, the modes, full autonomy, the memory's sync and sync across computers alike; the tests catch all of them (the whole tree on 2026-10-26, the one file changed since again on 2026-10-27). The maintenance check breaks a sandbox in 15 ways and must notice all 15 and repair the 14 that can be repaired.
+- **The tests are tested.** Mutation testing makes 3,697 small deliberate changes to the code that decides, the belt, the modes, full autonomy, the memory's sync and sync across computers alike; the tests catch all of them (the whole tree, 2026-10-27). The maintenance check breaks a sandbox in 15 ways and must notice all 15 and repair the 14 that can be repaired.
 - **Inside the real engine.** The plugin is tested with Claude Code's own test kit, every night against the newest Claude Code release, and in live headless sessions, among them one for each of Claude Code's four permission modes in each way of working, with an instruction hidden in a page Claude reads ([docs/testing.md](docs/testing.md#live-claude-codes-permission-modes-and-the-ways-of-working)).
 - **The installer is tested as you run it.** In sh, bash, Windows PowerShell 5.1 and PowerShell 7, each in a home of its own: with and without Node.js, from a release whose checksum must match, then updated, run and removed. A release is made only after the installer it carries has installed the very package it publishes on Linux, macOS and Windows.
 - **The tests found real bugs**, each fixed with a test that keeps it fixed: protected files reachable under Windows short names (`MODECO~1`) or with a trailing dot, every recursive delete under the home folder blocked on macOS, a parser crash on `__proto__`.

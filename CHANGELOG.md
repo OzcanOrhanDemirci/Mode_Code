@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-27
+
+Fixes for 1.2.0: the reset at a task boundary goes through, the safety belt no longer stops two kinds of harmless work, and on Windows each argument reaches a Claude Code that npm installed as it was given. Checked against Claude Code 2.1.311.
+
 ### Fixed
 
 - A reset at a task boundary could go on without its `/clear`: it ran the command a moment after refusing the call, and Claude Code refuses a command while that call's hook still holds the turn. The conversation went on with "the reset did not go through" and the refused call had to run again (three times in one evening). The `/clear` now runs once the turn it ended is over.
@@ -320,7 +324,8 @@ The first public release: the safety belt, keywords, modes and flows, full auton
 - A session started in the home folder counted the user's own settings twice, as user and as project settings, and the doctor reported the safety-net hooks as duplicated.
 - The doctor called a hook program from an earlier build of the same version "changed after installation". The installation now records the program's fingerprint, so an earlier build and a change are told apart; an older hook matcher is named as such, with the tools it does not check.
 
-[Unreleased]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/OzcanOrhanDemirci/Mode_Code/releases/tag/v1.0.0
