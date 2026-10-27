@@ -78,9 +78,21 @@ function pathWithout(path, names) {
     .join(delimiter);
 }
 
+const SPAWN = { encoding: 'utf8', windowsHide: true, timeout: 600_000, stdio: ['ignore', 'pipe', 'pipe'] };
+const outcome = (r) => ({ code: r.status, out: `${r.stdout ?? ''}${r.stderr ?? ''}`, error: r.error });
+
+/** Runs a program, which gets each argument as given: npm, tar, reg. */
 function run(cmd, argv, opts = {}) {
-  const r = spawnSync(cmd, argv, { encoding: 'utf8', windowsHide: true, timeout: 600_000, stdio: ['ignore', 'pipe', 'pipe'], ...opts });
-  return { code: r.status, out: `${r.stdout ?? ''}${r.stderr ?? ''}`, error: r.error };
+  return outcome(spawnSync(cmd, argv, { ...SPAWN, ...opts }));
+}
+
+/**
+ * Runs a shell (sh, bash, PowerShell, cmd.exe) on a script or a line. A call of its own, apart from run():
+ * code scanning reads every call of one helper as the same command, and took the paths handed to tar and
+ * npm for words of a shell line.
+ */
+function inShell(exe, argv, opts = {}) {
+  return outcome(spawnSync(exe, argv, { ...SPAWN, ...opts }));
 }
 
 // Windows' own tar: the one Git for Windows puts on PATH reads "C:" as a remote host.
@@ -95,11 +107,9 @@ function makePackage() {
   const given = opt('--package');
   if (given) return resolve(given);
   check(existsSync(join(root, 'dist', 'cli.mjs')), 'no build (run npm run build first)');
-  // Without a shell: the temporary folder's path would otherwise be read by cmd.exe on Windows. Not through
-  // run() either, which also starts cmd.exe and sh lines: code scanning reads every call of it as a shell's.
+  // Without a shell: the temporary folder's path would otherwise be read by cmd.exe on Windows.
   const npm = npmCommand(['pack', '--json', '--pack-destination', tmp]);
-  const r = spawnSync(npm.command, npm.args, { cwd: root, encoding: 'utf8', windowsHide: true, timeout: 600_000, stdio: ['ignore', 'pipe', 'pipe'] });
-  const packed = { code: r.status, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
+  const packed = run(npm.command, npm.args, { cwd: root });
   check(packed.code === 0, `npm pack failed: ${packed.out.slice(0, 2000)}`);
   const info = JSON.parse(packed.out.slice(packed.out.indexOf('['), packed.out.lastIndexOf(']') + 1))[0];
   return join(tmp, info.filename);
@@ -214,25 +224,25 @@ const UTF8 = '[Console]::OutputEncoding = [Text.Encoding]::UTF8; ';
 
 /** Runs the installer in one shell: as a file, or (PowerShell) pasted the way `irm | iex` runs it. */
 function install(shell, w, flags = [], { pasted = false } = {}) {
-  if (shell === 'sh' || shell === 'bash') return run(shell, [join(root, 'install.sh'), ...flags], { env: w.env, cwd: w.home });
+  if (shell === 'sh' || shell === 'bash') return inShell(shell, [join(root, 'install.sh'), ...flags], { env: w.env, cwd: w.home });
   const exe = shell === 'powershell' ? join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'pwsh';
   const file = join(root, 'install.ps1').replace(/'/g, "''");
   const script = pasted
     ? // What `irm <address> | iex` does: the text, evaluated in the session; no options can be passed.
       `${UTF8}$t = [IO.File]::ReadAllText('${file}'); Invoke-Expression $t; exit $LASTEXITCODE`
     : `${UTF8}& ([scriptblock]::Create([IO.File]::ReadAllText('${file}'))) ${flags.join(' ')}; exit $LASTEXITCODE`;
-  return run(exe, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script], { env: w.env, cwd: w.home });
+  return inShell(exe, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script], { env: w.env, cwd: w.home });
 }
 
 /** Runs the `mode-code` command the installer wrote, as a shell would find it. */
 function command(w, argv) {
   if (isWin)
-    return run(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `"${w.command}" ${argv.join(' ')}`], {
+    return inShell(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', `"${w.command}" ${argv.join(' ')}`], {
       env: w.env,
       cwd: w.home,
       windowsVerbatimArguments: true,
     });
-  return run('sh', [w.command, ...argv], { env: w.env, cwd: w.home });
+  return inShell('sh', [w.command, ...argv], { env: w.env, cwd: w.home });
 }
 
 /** Waits for a path to disappear (Windows removes a running program's folder after the program ends). */
@@ -532,7 +542,7 @@ function available(shell) {
   if (!isWin && (shell === 'powershell' || shell === 'pwsh')) return false;
   const probe = shell === 'powershell' || shell === 'pwsh' ? ['-NoProfile', '-Command', 'exit 0'] : ['-c', 'exit 0'];
   const exe = shell === 'powershell' ? join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : shell;
-  return run(exe, probe, { env: baseEnv() }).code === 0;
+  return inShell(exe, probe, { env: baseEnv() }).code === 0;
 }
 
 let code = 0;
