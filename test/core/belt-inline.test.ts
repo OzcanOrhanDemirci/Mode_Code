@@ -72,6 +72,34 @@ test('a name the code never assigns leaves the target unknown: every literal of 
   assert.deepEqual(py(deep.replace('e = d\nshutil.rmtree(e)', 'shutil.rmtree(d)')), ['/srv/u']);
 });
 
+test("a delete written in a string or a comment is no call of the code's own: a name it leaves unknown counts only its own text", () => {
+  // The measured case (2026-10-26): a script that edits another script's rmSync line and writes a file of its own.
+  const edit = [
+    "const fs=require('fs');const sp=process.argv[2];",
+    "let s=fs.readFileSync('scripts/coverage.mjs','utf8');",
+    's=s.replace("rmSync(recordsDir, { recursive: true, force: true });\\n","");',
+    "fs.writeFileSync(sp+'/floors-minus.json',JSON.stringify({}));",
+  ].join('\n');
+  assert.deepEqual(node(edit), []);
+  assert.deepEqual(node("// fs.rmSync(dir, { recursive: true })\nconsole.log('/srv/a')"), []);
+  assert.deepEqual(node("/* rimraf(dir) */ console.log('/srv/a')"), []);
+  assert.deepEqual(py("# shutil.rmtree(d)\nprint('/srv/b')"), []);
+  assert.deepEqual(py("print('shutil.rmtree(d)', '/srv/b')"), []);
+  // What it is given still counts, as code a string may become: a path written in it, a name the code assigns.
+  assert.deepEqual(node(`eval("require('fs').rmSync('/srv/c', { recursive: true })")`), ['/srv/c']);
+  assert.deepEqual(node(`const d = '/srv/d'; eval("fs.rmSync(d)")`), ['/srv/d']);
+  assert.deepEqual(py(`exec("import shutil; shutil.rmtree('/srv/e')")`), ['/srv/e']);
+  assert.deepEqual(node("// fs.rmSync('/srv/g')\nconsole.log('/srv/h')"), ['/srv/g']);
+  // A name such a string leaves unknown: its own paths count, the code's others do not.
+  assert.deepEqual(node(`const usage = "rmSync(dir) empties '/srv/k'"; console.log('/srv/l')`), ['/srv/k']);
+  // A call right after a comment is the code's own.
+  assert.deepEqual(node("const { rmSync } = require('fs'); /* go */rmSync('/srv/j')"), ['/srv/j']);
+  // The code's own call beside such a string: every literal when its name is unknown, as before.
+  assert.deepEqual(node(`const note = "rmSync(x)"; fs.rmSync(process.argv[1]); console.log('/srv/f')`), ['/srv/f', 'rmSync(x)']);
+  // A language whose comments are not read here: its # is code (Ruby's interpolation, Perl's $#).
+  assert.deepEqual(deletedLiterals("FileUtils.rm_rf(d) # '/srv/i'", 'ruby'), ['/srv/i']);
+});
+
 test("other languages: Node's fs and rimraf, keyword arguments and object keys no names, f-strings no names", () => {
   assert.deepEqual(node("require('fs').rmSync('/srv/w', { recursive: true, force: true })"), ['/srv/w']);
   assert.deepEqual(node("const fs = require('fs'); const d = '/srv/x'; fs.rmSync(d, { recursive: true })"), ['/srv/x']);

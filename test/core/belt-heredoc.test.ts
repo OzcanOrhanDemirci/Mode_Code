@@ -305,3 +305,18 @@ test('a variable the script set is filled in behind an unquoted delimiter; the d
   // PHP's -R runs its code for each line it is given: those lines are data.
   assert.equal(await run("php -R 'echo $argn;' <<'EOF'\nunlink('/etc/zzprobe');\nEOF\n"), 'allow');
 });
+
+test("a script that edits another one's delete line deletes nothing: the measured false alarm of 2026-10-26", async () => {
+  const edit = [
+    "node - /tmp/scratch <<'EOF'",
+    "const fs=require('fs');const sp=process.argv[2];",
+    "let s=fs.readFileSync('scripts/coverage.mjs','utf8');",
+    's=s.replace("rmSync(recordsDir, { recursive: true, force: true });\n","");',
+    "fs.writeFileSync(sp+'/floors-minus.json',JSON.stringify({}));",
+    'EOF',
+    '',
+  ].join('\n');
+  assert.equal(await run(edit), 'allow');
+  // The same script deleting for real is still read so.
+  assert.equal(await run(edit.replace('s=s.replace(', "fs.rmSync('/etc/zzprobe', { recursive: true });s=s.replace(")), 'deny fs.delete-critical');
+});
