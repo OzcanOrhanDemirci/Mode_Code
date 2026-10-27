@@ -112,6 +112,8 @@ const TARGETS = {
   'src/node/clipboard.ts': ['test/node/clipboard.test.ts'],
   // `/0` (docs/modes.md, "Session controls"): which terminal opens the control center, with which arguments.
   'src/core/launch.ts': ['test/core/launch.test.ts'],
+  // The cmd.exe line that starts npm's .cmd shims: each argument arrives as given, through a real shim.
+  'src/core/cmd-line.ts': ['test/core/cmd-line.test.ts'],
   'src/core/update.ts': ['test/core/update.test.ts'],
   'src/core/taint.ts': ['test/core/taint.test.ts', 'test/core/belt-evidence.test.ts', 'test/core/belt-families.test.ts'],
   'src/core/hygiene.ts': ['test/core/hygiene.test.ts'],

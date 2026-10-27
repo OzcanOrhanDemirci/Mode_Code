@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- Where Claude Code is installed with npm on Windows, `claude` is a .cmd file that only cmd.exe starts, and the tool and its scripts quoted the arguments they passed it only in part: a `%NAME%` in one was expanded, a trailing backslash ate the closing quote, and a quote followed by `&` started a second command. Each argument is now escaped for both of cmd's readings and reaches the program as given; one holding a line break, which cmd cannot carry, is refused. `npm pack` in the release and installer scripts runs without a shell, so a folder whose path holds a space or a `&` no longer breaks it.
+
 ## [1.2.0] - 2026-10-27
 
 One protection, three ways of working: the safety belt decides by how you chose to work, keeps what a risky step takes away before it runs, and weighs a step's target by where it came from. Full autonomy becomes an ordinary way of working in place of 1.1's runs and bypass, a cockpit beside the conversation says what Claude may do right now, and the control center is arranged by what you come for, every setting saying what it does where it stands.

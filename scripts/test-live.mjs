@@ -54,6 +54,7 @@ import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cmdShimLine } from './cmd-line.mjs';
 import { declarationsFor, installedClaude } from './declarations.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -122,8 +123,7 @@ function session(
   const runEnv = { ...env, ...extraEnv };
   let r = spawnSync('claude', args, { cwd, env: runEnv, encoding: 'utf8', timeout: 240_000, windowsHide: true, input });
   if (r.error && process.platform === 'win32') {
-    const q = (a) => (/^[\w@./:=,-]+$/.test(a) ? a : `"${a.replace(/"/g, '\\"')}"`);
-    r = spawnSync(['claude', ...args.map(q)].join(' '), {
+    r = spawnSync(cmdShimLine('claude', args), {
       cwd,
       env: runEnv,
       encoding: 'utf8',

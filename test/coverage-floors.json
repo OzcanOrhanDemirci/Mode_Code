@@ -231,6 +231,11 @@
       "branches": 75,
       "functions": 94
     },
+    "src/core/cmd-line.ts": {
+      "lines": 94,
+      "branches": 92,
+      "functions": 94
+    },
     "src/core/config-words.ts": {
       "lines": 100,
       "branches": 85,

@@ -18,6 +18,7 @@ import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { npmCommand } from './cmd-line.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const isWin = process.platform === 'win32';
@@ -94,7 +95,9 @@ function makePackage() {
   const given = opt('--package');
   if (given) return resolve(given);
   check(existsSync(join(root, 'dist', 'cli.mjs')), 'no build (run npm run build first)');
-  const packed = run(isWin ? 'npm.cmd' : 'npm', ['pack', '--json', '--pack-destination', tmp], { cwd: root, shell: isWin });
+  // Without a shell: the temporary folder's path would otherwise be read by cmd.exe on Windows.
+  const npm = npmCommand(['pack', '--json', '--pack-destination', tmp]);
+  const packed = run(npm.command, npm.args, { cwd: root });
   check(packed.code === 0, `npm pack failed: ${packed.out.slice(0, 2000)}`);
   const info = JSON.parse(packed.out.slice(packed.out.indexOf('['), packed.out.lastIndexOf(']') + 1))[0];
   return join(tmp, info.filename);

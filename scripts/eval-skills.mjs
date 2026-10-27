@@ -12,6 +12,7 @@ import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cmdShimLine } from './cmd-line.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -57,7 +58,7 @@ try {
   for (const k of Object.keys(env)) if (k.startsWith('CLAUDE_CODE_') || k === 'CLAUDECODE') delete env[k];
   let r = spawnSync('claude', evalArgs, { cwd: work, env, encoding: 'utf8', timeout: 3_600_000, windowsHide: true });
   if (r.error && process.platform === 'win32')
-    r = spawnSync(['claude', ...evalArgs.map((a) => (/^[\w@./:=,-]+$/.test(a) ? a : `"${a}"`))].join(' '), {
+    r = spawnSync(cmdShimLine('claude', evalArgs), {
       cwd: work,
       env,
       encoding: 'utf8',

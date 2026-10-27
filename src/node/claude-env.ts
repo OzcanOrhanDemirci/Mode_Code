@@ -10,6 +10,7 @@ import { join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { readText } from './fsx.js';
 import { claudeDir, managedSettingsFiles } from './env.js';
+import { cmdShimLine } from '../core/cmd-line.js';
 import { compareVersions } from '../core/version.js';
 
 export type SettingsScope = 'managed' | 'user' | 'project' | 'local';
@@ -116,8 +117,8 @@ export function projectSlug(cwd: string): string {
 
 /**
  * Runs the `claude` command with fixed arguments and no shell where possible. A native install is an
- * executable; an npm install on Windows is a .cmd shim, which only a shell can start: then the fixed
- * command line is passed as one string (nothing in it comes from outside).
+ * executable; an npm install on Windows is a .cmd shim, which only a shell can start: then the arguments
+ * are escaped so that cmd hands each one over as given.
  */
 export function runClaude(
   args: readonly string[],
@@ -131,20 +132,14 @@ export function runClaude(
     ...(opts.cwd ? { cwd: opts.cwd } : {}),
   };
   let r = spawnSync('claude', [...args], base);
-  if (r.error && process.platform === 'win32') {
-    const line = ['claude', ...args.map((a) => (/^[\w@./:=-]+$/.test(a) ? a : `"${a.replace(/"/g, '\\"')}"`))].join(' ');
-    r = spawnSync(line, { ...base, shell: true });
-  }
+  if (r.error && process.platform === 'win32') r = spawnSync(cmdShimLine('claude', args), { ...base, shell: true });
   return { status: r.status, stdout: r.stdout ?? '', stderr: r.stderr ?? '' };
 }
 
 /** Runs `claude` attached to this terminal and returns its exit code, or null when it cannot be started. */
 export function runClaudeInteractive(args: readonly string[]): number | null {
   let r = spawnSync('claude', [...args], { stdio: 'inherit' });
-  if (r.error && process.platform === 'win32') {
-    const line = ['claude', ...args.map((a) => (/^[\w@./:=-]+$/.test(a) ? a : `"${a.replace(/"/g, '\\"')}"`))].join(' ');
-    r = spawnSync(line, { stdio: 'inherit', shell: true });
-  }
+  if (r.error && process.platform === 'win32') r = spawnSync(cmdShimLine('claude', args), { stdio: 'inherit', shell: true });
   return r.error ? null : (r.status ?? 0);
 }
 
