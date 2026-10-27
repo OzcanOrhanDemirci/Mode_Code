@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- A reset at a task boundary could go on without its `/clear`: it ran the command a moment after refusing the call, and Claude Code refuses a command while that call's hook still holds the turn. The conversation went on with "the reset did not go through" and the refused call had to run again (three times in one evening). The `/clear` now runs once the turn it ended is over.
+
 ## [1.2.0] - 2026-10-27
 
 One protection, three ways of working: the safety belt decides by how you chose to work, keeps what a risky step takes away before it runs, and weighs a step's target by where it came from. Full autonomy becomes an ordinary way of working in place of 1.1's runs and bypass, a cockpit beside the conversation says what Claude may do right now, and the control center is arranged by what you come for, every setting saying what it does where it stands.
