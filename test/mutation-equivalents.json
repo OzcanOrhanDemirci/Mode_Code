@@ -2,6 +2,14 @@
   "about": "Survivors of mutation testing that are not gaps in the tests. Each is matched by file, the change, and a piece of the line; each says why. scripts/mutate.mjs reports them apart and leaves them out of the score.",
   "entries": [
     {
+      "file": "src/core/belt/inline.ts",
+      "from": "<=",
+      "to": "<",
+      "line": "spans.some((s) => s.start <= at",
+      "kind": "equivalent",
+      "why": "no delete call starts where a string or a comment does: a quote, a slash or a # starts no name"
+    },
+    {
       "file": "src/core/version.ts",
       "from": "<",
       "to": "<=",

@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- A script handed to an interpreter that only mentioned a delete in a string, such as one editing another script's `rmSync(dir, { recursive: true })` line, made every path it named count as deleted, and its own output file read as a recursive delete outside the project. A delete in a string or a comment is no call of the code's own now: what it is given still counts, a name it leaves unknown only that string's own paths.
+
 ## [1.2.0] - 2026-10-27
 
 One protection, three ways of working: the safety belt decides by how you chose to work, keeps what a risky step takes away before it runs, and weighs a step's target by where it came from. Full autonomy becomes an ordinary way of working in place of 1.1's runs and bypass, a cockpit beside the conversation says what Claude may do right now, and the control center is arranged by what you come for, every setting saying what it does where it stands.

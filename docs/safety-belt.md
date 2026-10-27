@@ -95,7 +95,7 @@ Measured again on other agents' everyday work (`docs/testing.md`, Evaluation set
 - **A setting read** (`git config core.hooksPath`, `git config get core.hooksPath`): reading git's hooks path changes nothing; setting or unsetting it is still asked.
 - **A cache** (`~/.cache`, macOS's `~/Library/Caches`, `$XDG_CACHE_HOME`) is deleted freely, as a temporary folder is: what is kept there is made again.
 - **A language's package folder** inside a system folder (`site-packages`, `dist-packages`, `node_modules` under `/opt` or `/usr`): what a package manager installs again is no system file, so deleting or moving inside it follows the ordinary rules; the folder itself stays critical.
-- **Code that deletes** (`python -c`, `node -e`, a here-document): the paths a delete call is given, directly or through a name the code assigns, are checked as deleted, not every path the code names (an XPath beside `os.unlink(tmp)`, a test of an in-memory filesystem). A name the code never assigns (a parameter) still makes every path it names count.
+- **Code that deletes** (`python -c`, `node -e`, a here-document): the paths a delete call is given, directly or through a name the code assigns, are checked as deleted, not every path the code names (an XPath beside `os.unlink(tmp)`, a test of an in-memory filesystem). A name the code never assigns (a parameter) still makes every path it names count. A delete written in a string or a comment (a script that edits another one's `rmSync(dir, …)` line, a usage text) is no call of the code's own: what it is given still counts, as code a string may become, but a name it leaves unknown counts only that string's own paths.
 
 Measured on the author's own sessions, replayed with what each was told and read, four more:
 
