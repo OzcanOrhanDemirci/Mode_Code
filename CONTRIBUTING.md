@@ -96,7 +96,7 @@ Only a person signs off. This project is built with Claude Code: its commits car
 ## Pull requests
 
 - Keep them focused; describe what changed and why, and how you tested it.
-- `npm run check` must pass on your machine; CI runs it on Windows, macOS and Linux, and runs the installer on all three.
+- `npm run check` must pass on your machine; CI runs it on Windows and Linux, and runs the installer on both.
 - The main branch only changes through pull requests, merged as one commit whose title is the pull request's.
 
 ## Releases

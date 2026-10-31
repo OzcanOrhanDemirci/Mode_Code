@@ -28,7 +28,7 @@ The installers are always fetched from `main` (`raw.githubusercontent.com/…/ma
    git push origin vx.y.z
    ```
 
-3. The release workflow does the rest, and stops at the first thing that fails: the tag, `package.json`, the changelog and the installers agree; type check, format, build, tests and the package test pass; the package is built once; the installers install that very package, update it, run it and remove it on Linux, macOS and Windows (L14); only then the release is created with its files and attestation. Run it again for an existing tag from the Actions tab (`workflow_dispatch`): it replaces the release's files.
+3. The release workflow does the rest, and stops at the first thing that fails: the tag, `package.json`, the changelog and the installers agree; type check, format, build, tests and the package test pass; the package is built once; the installers install that very package, update it, run it and remove it on Linux and Windows (L14); only then the release is created with its files and attestation. Run it again for an existing tag from the Actions tab (`workflow_dispatch`): it replaces the release's files.
 
 To rehearse on your own machine, without GitHub:
 
