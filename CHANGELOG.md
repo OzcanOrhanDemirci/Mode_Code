@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Changed
+
+- CI and the release workflow no longer run on macOS, whose runner minutes cost ten times Linux's. Mode_Code still supports macOS, but no automated test checks it there.
+
 ## [1.2.1] - 2026-10-27
 
 Fixes for 1.2.0: the reset at a task boundary goes through, the safety belt no longer stops two kinds of harmless work, and on Windows each argument reaches a Claude Code that npm installed as it was given. Checked against Claude Code 2.1.311.

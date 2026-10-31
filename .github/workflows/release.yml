@@ -2,7 +2,7 @@ name: Release
 
 # A version tag (v1.2.3) becomes a GitHub release (docs/release.md). The tag, package.json, the changelog and
 # the installers must agree; every check passes; the package is built once; the one-line installer installs
-# that very package on Linux, macOS and Windows, update and removal included; only then is the release made,
+# that very package on Linux and Windows, update and removal included; only then is the release made,
 # with the package, the two installers, their SHA-256 sums and a build provenance attestation. Publishing to
 # npm is a job of its own, off until the repository variable NPM_PUBLISH is "true".
 on:
@@ -59,7 +59,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7

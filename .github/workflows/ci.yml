@@ -52,14 +52,14 @@ jobs:
           if-no-files-found: ignore
 
   # The one-line installer (install.sh, install.ps1) installing, updating and removing the package this commit
-  # builds, in every shell it supports (docs/release.md). macOS joins when the repository is public.
+  # builds, in every shell it supports (docs/release.md). Not on macOS: its minutes cost ten times Linux's.
   installer:
     name: installer · ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(github.event.repository.private && '["ubuntu-latest", "windows-latest"]' || '["ubuntu-latest", "macos-latest", "windows-latest"]') }}
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -108,19 +108,3 @@ jobs:
           echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz" | sha256sum -c -
           tar -xzf gitleaks.tar.gz gitleaks
           ./gitleaks git --redact --no-banner .
-
-  # macOS minutes are expensive on private repositories: there it runs on demand; on a public repository on every change.
-  macos:
-    name: macos-latest · Node 24.x
-    if: ${{ !github.event.repository.private || github.event_name == 'workflow_dispatch' }}
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24.x
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: npm test
-      - run: npm run test:package
