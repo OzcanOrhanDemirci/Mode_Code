@@ -151,6 +151,29 @@ export function differences(have, want) {
   return Object.keys(want).filter((k) => JSON.stringify(have?.[k]) !== JSON.stringify(want[k]));
 }
 
+/**
+ * How the rule set GitHub holds (`have`, one rule set as `GET rulesets/{id}` answers) differs from `want`: its
+ * enforcement, the kinds of rule it has, and the checks it requires. A rule's other parameters are not compared:
+ * GitHub answers them with defaults of its own. Pure.
+ */
+export function rulesetDifferences(have, want) {
+  const kinds = (r) => (r?.rules ?? []).map((rule) => rule.type);
+  const checks = (r) =>
+    (r?.rules ?? []).find((rule) => rule.type === 'required_status_checks')?.parameters?.required_status_checks?.map((c) => c.context) ?? [];
+  const without = (a, b) => a.filter((x) => !b.includes(x));
+  const out = [];
+  if (have?.enforcement !== want.enforcement) out.push(`enforcement is ${have?.enforcement ?? 'unknown'}`);
+  const rulesMissing = without(kinds(want), kinds(have));
+  const rulesExtra = without(kinds(have), kinds(want));
+  const checksMissing = without(checks(want), checks(have));
+  const checksExtra = without(checks(have), checks(want));
+  if (rulesMissing.length) out.push(`rules missing: ${rulesMissing.join(', ')}`);
+  if (rulesExtra.length) out.push(`rules not wanted: ${rulesExtra.join(', ')}`);
+  if (checksMissing.length) out.push(`required checks missing: ${checksMissing.join(', ')}`);
+  if (checksExtra.length) out.push(`required checks not wanted: ${checksExtra.join(', ')}`);
+  return out;
+}
+
 // ── GitHub, through gh ──
 
 function gh(args, input) {
@@ -265,8 +288,13 @@ async function main(argv) {
   const existing = rulesets.find((r) => r.name === 'main');
   const wanted = mainRuleset(!isPrivate);
   if (!apply) {
-    if (!existing || existing.enforcement !== wanted.enforcement) differs(existing ? `rule set "main" is ${existing.enforcement}` : 'rule set "main" missing');
-    else say(null, `rule set "main" ${existing.enforcement}`);
+    // The list answers each rule set without its rules, so the one named main is read on its own.
+    const full = existing ? api('GET', `repos/${name}/rulesets/${existing.id}`) : null;
+    const gaps = full?.ok ? rulesetDifferences(full.json, wanted) : [];
+    if (!existing) differs('rule set "main" missing');
+    else if (!full.ok) differs(`rule set "main" not readable: ${full.err}`);
+    else if (gaps.length) differs(`rule set "main" differs: ${gaps.join('; ')}`);
+    else say(null, `rule set "main" ${existing.enforcement}, ${REQUIRED_CHECKS.length} checks as wanted`);
   } else {
     const r = existing ? api('PUT', `repos/${name}/rulesets/${existing.id}`, wanted) : api('POST', `repos/${name}/rulesets`, wanted);
     say(
