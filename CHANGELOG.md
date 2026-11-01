@@ -7,6 +7,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ### Changed
 
 - CI and the release workflow no longer run on macOS, whose runner minutes cost ten times Linux's. Mode_Code still supports macOS, but no automated test checks it there.
+- CI runs each check once and every job has a time limit. A push to `main` runs one Linux job, since the pull request already ran the full set; Node.js 22 on Windows is tested by the nightly run instead of on every pull request.
 
 ## [1.2.1] - 2026-10-27
 
