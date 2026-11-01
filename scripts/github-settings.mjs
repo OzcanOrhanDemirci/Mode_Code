@@ -81,11 +81,13 @@ export const LABELS = [
   { name: 'question', color: 'd876e3', description: 'Better asked in Discussions; kept for questions that become issues' },
 ];
 
-/** The checks a pull request into main must pass: the CI jobs as GitHub names them (ci.yml, dco.yml). */
+/**
+ * The checks a pull request into main must pass: the CI jobs as GitHub names them (ci.yml, dco.yml). Node.js 22
+ * on Windows runs at night (nightly.yml), not on a pull request, so it cannot be required here.
+ */
 export const REQUIRED_CHECKS = [
   'ubuntu-latest · Node 22.x',
   'ubuntu-latest · Node 24.x',
-  'windows-latest · Node 22.x',
   'windows-latest · Node 24.x',
   'installer · ubuntu-latest',
   'installer · windows-latest',

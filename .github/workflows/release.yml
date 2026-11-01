@@ -28,6 +28,7 @@ jobs:
   build:
     name: check and build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
@@ -61,6 +62,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
@@ -78,6 +80,7 @@ jobs:
     name: GitHub release
     needs: [build, installer]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
       id-token: write
@@ -107,6 +110,7 @@ jobs:
     needs: publish
     if: ${{ vars.NPM_PUBLISH == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       id-token: write

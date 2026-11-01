@@ -6,10 +6,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: dco-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   sign-off:
     name: Every commit is signed off
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
