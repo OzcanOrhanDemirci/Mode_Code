@@ -98,7 +98,43 @@ test('what each check names for the net to keep', async () => {
   // A pattern that empties a folder keeps the folder; one still to be matched keeps nothing.
   assert.deepEqual(await plans('rm -rf ../other/*'), [['fs.delete-outside-project', { kind: 'paths', paths: ['C:/dev/other'] }]]);
   assert.deepEqual(await plans('rm -rf ../other/*.log'), [['fs.delete-outside-project', null]]);
+  // A target only known when it runs keeps the folder its known part names, relative or not.
+  const folder = (paths: string) => [['fs.delete-outside-project', { kind: 'paths', paths: [paths] }]];
+  assert.deepEqual(await plans('rm -rf "cc0/$id"'), folder('C:/dev/app/cc0'));
+  assert.deepEqual(await plans('rm -rf "out/a/run_$n"'), folder('C:/dev/app/out/a'));
+  assert.deepEqual(await plans('rm -rf "C:/data/runs/$id/old"'), folder('C:/data/runs'));
+  assert.deepEqual(await plans('rm -rf "../other/$(date)"'), folder('C:/dev/other'));
+  // Nothing certain to keep: no folder is named, `..` may lead out of it, or the folder is the home, a system folder,
+  // the memory, or a protected place: still decided as without a net.
+  const none = [['fs.delete-outside-project', null]];
+  assert.deepEqual(await plans('rm -rf "$S"'), none);
+  assert.deepEqual(await plans('rm -rf "$S/p"'), none);
+  assert.deepEqual(await plans('rm -rf "name_$n"'), none);
+  assert.deepEqual(await plans('rm -rf "cc0/$id/../.."'), none);
+  assert.deepEqual(await plans('rm -rf "C:/Users/ada/$x"'), none);
+  assert.deepEqual(await plans('rm -rf "C:/Windows/$x"'), none);
+  assert.deepEqual(await plans('rm -rf "C:/Users/ada/.claude/x/$y"'), none);
+  assert.deepEqual(await plans('rm -rf "C:/Users/ada/.mode-code/x/$y"'), none);
+  assert.deepEqual(await plans('rm -rf "C:/dev/memory/x/$y"', { memoryDirs: ['C:/dev/memory'] }), none);
+  // After a `cd` nobody can follow, a relative word names nothing; an absolute one still does.
+  assert.deepEqual(await plans('cd "$D" && rm -rf "cc0/$id"'), none);
+  assert.deepEqual(await plans('cd "$D" && rm -rf "C:/data/runs/$id"'), folder('C:/data/runs'));
   assert.deepEqual(await plans('rm -rf .git'), [['fs.delete-git-dir', { kind: 'paths', paths: ['C:/dev/app/.git'] }]]);
   // A git call whose arguments are known only when it runs names nothing to keep.
   assert.deepEqual(await plans('git clean -f $DIR'), [['git.clean', null]]);
+});
+
+test('a delete only known when it runs: copied first and on with a line, asked in Manual, asked when nothing can be kept', async () => {
+  const verdict = async (command: string, level: 'manual' | 'auto' | 'full', net = true) =>
+    (await evaluateToolCall('Bash', { command }, winCtx({ level, net }))).verdict;
+  const named = 'rm -rf "cc0/$id"';
+  assert.equal(await verdict(named, 'auto'), 'warn');
+  assert.equal(await verdict(named, 'full'), 'warn');
+  assert.equal(await verdict(named, 'manual'), 'ask');
+  // No net could be laid: the question comes back.
+  assert.equal(await verdict(named, 'auto', false), 'ask');
+  assert.equal(await verdict(named, 'full', false), 'deny');
+  // No folder named: nothing to keep.
+  assert.equal(await verdict('rm -rf "$S"', 'auto'), 'ask');
+  assert.equal(await verdict('rm -rf "$S"', 'full'), 'deny');
 });

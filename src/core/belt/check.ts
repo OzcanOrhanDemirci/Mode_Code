@@ -132,6 +132,24 @@ interface Target {
   path: string | null;
   glob: boolean;
   raw: string;
+  /** With no path: the folder the unknown part stands in (`cc0/$id`: `<cwd>/cc0`), the most that can be kept first. */
+  folder?: string;
+}
+
+/**
+ * The folder a word with an unknown part names for certain, resolved, or undefined: the text up to the last separator
+ * before the first unknown or pattern character. Nothing is named when no separator stands there (`$X/p`), nor when
+ * `..` follows the unknown part, which may lead out of it.
+ */
+function knownFolder(text: string, cwd: string | null, s: Scope): string | undefined {
+  const unknownAt = text.search(/[$`%…*?[]/);
+  if (unknownAt === -1 || /(?:^|[\\/])\.\.(?:[\\/]|$)/.test(text.slice(unknownAt))) return undefined;
+  const head = text.slice(0, unknownAt);
+  const separator = Math.max(head.lastIndexOf('/'), head.lastIndexOf('\\'));
+  if (separator <= 0) return undefined;
+  const folder = head.slice(0, separator);
+  if (cwd === null && !/^(?:[A-Za-z]:[\\/]|[\\/]|~)/.test(folder)) return undefined;
+  return s.paths.canonical(resolvePath(folder, { platform: s.ctx.platform, home: s.ctx.home, cwd: cwd ?? s.ctx.cwd }));
 }
 
 function target(word: { text: string; dynamic: boolean; glob: boolean }, cwd: string | null, s: Scope): Target {
@@ -150,7 +168,10 @@ function target(word: { text: string; dynamic: boolean; glob: boolean }, cwd: st
   }
   if (word.dynamic) {
     const e = expandVars(text, s.ctx);
-    if (e === null) return { path: null, glob: word.glob, raw: word.text };
+    if (e === null) {
+      const folder = knownFolder(text, cwd, s);
+      return { path: null, glob: word.glob, raw: word.text, ...(folder ? { folder } : {}) };
+    }
     text = e;
   }
   if (cwd === null && !/^(?:[A-Za-z]:[\\/]|[\\/]|~|\$HOME|%USERPROFILE%)/i.test(text)) return { path: null, glob: word.glob, raw: word.text };
@@ -176,10 +197,23 @@ function words(inv: Invocation): Word[] {
 
 // ── deletion, move, write ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * What a safety net keeps of a delete whose target is only known when it runs: the folder its known part names. Under
+ * the home folder itself, a system folder, the memory or a protected place nothing can be promised (a value may reach
+ * anything there, and a net of it would not fit): the call stays asked.
+ */
+function unclearNet(t: Target, s: Scope): NetPlan | undefined {
+  const { ctx, paths } = s;
+  const folder = t.folder;
+  if (!folder || hitsCritical(folder, paths, ctx.platform) || under(folder, [...paths.memoryDirs, ...paths.toolDirs, ...paths.claudeConfig], ctx.platform))
+    return undefined;
+  return isUnder(folder, paths.canonical(claudeDir(ctx)), ctx.platform) ? undefined : { kind: 'paths', paths: [folder] };
+}
+
 function checkDelete(t: Target, recursive: boolean, s: Scope): void {
   const { ctx, paths } = s;
   if (t.path === null) {
-    if (recursive) add(s, 'fs.delete-outside-project', 'belt.reason.deleteUnknown', { target: show(t.raw) });
+    if (recursive) add(s, 'fs.delete-outside-project', 'belt.reason.deleteUnknown', { target: show(t.raw) }, unclearNet(t, s));
     return;
   }
   const inGuest = guestCritical(t.path);
