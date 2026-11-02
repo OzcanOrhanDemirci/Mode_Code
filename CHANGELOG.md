@@ -13,6 +13,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - A pull request, an issue or a release through `gh` on a repository of your own goes on with a line in Autonomous and full autonomy, also in a session started outside the project and after the session read its own `gh` output. Own means its owner is the account `gh` is signed in to: named with `-R`, or every GitHub remote of the folder the call runs in. Someone else's repository is asked as before, and Manual still asks. Replaying the author's last seven days: 62 stops to 57, each of the five a false alarm.
 - What a `gh` call carries is read for secrets: a body or a title holding a key, `--body-file .env`, `--body "$(cat .env)"` and `cat .env | gh pr create --body-file -` are stopped in every way of working, as `curl` is.
 - After reading outside content, a note in the session's own words goes into the memory unasked, whatever hosts or paths it names; a line of what was read is still asked. Replaying the author's last seven days, the question came up eight times, each for a name in a note, and no line pasted.
+- A here-document piped through `cat` into an interpreter or a shell (`cat <<'EOF' | node -`) is read as if given to it directly, where it was asked about as code nobody could see.
 
 ### Changed
 
