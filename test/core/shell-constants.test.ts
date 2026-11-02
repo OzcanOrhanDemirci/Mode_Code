@@ -7,6 +7,12 @@ import { parseBash } from '../../src/core/shell/bash.js';
 
 const run = (cmd: string) => analyzeCommand(cmd, 'bash');
 
+/** What the analysis finds of the `rm` in a command: its arguments, and which of them are only known when it runs. */
+const found = (cmd: string) =>
+  run(cmd)
+    .invocations.filter((i) => i.program === 'rm')
+    .map((i) => [i.args, i.dynamic, i.programDynamic]);
+
 test('a variable assigned once, before anything conditional, names the program', () => {
   const a = run('S="C:/work/tools/run.sh"; $S --check');
   assert.deepEqual(a.issues, []);
@@ -20,10 +26,49 @@ test('a variable assigned once, before anything conditional, names the program',
   // Later in the same && chain the assignment has certainly run.
   const d = run('cd /opt && S=/opt/run.sh && $S --check');
   assert.equal(d.invocations.find((i) => i.program === 'run.sh')?.programDynamic, false);
-  // Before a loop the value is certain; inside it, not.
+  // Set before a loop and nowhere else: inside it the value is still the value.
   const e = run('S=/opt/run.sh; $S --check; for x in 1 2; do $S; done');
-  assert.equal(e.invocations[0]?.programDynamic, false);
-  assert.ok(e.issues.includes('dynamic-program'));
+  assert.equal(e.invocations[1]?.program, 'run.sh');
+  assert.deepEqual(e.issues, []);
+});
+
+test('a value settled before a branch, a loop, a group or a function still holds past it', () => {
+  const rm = (cmd: string) => found(cmd)[0]?.[0];
+  for (const cmd of [
+    'S=/opt/zz\nif true; then rm -rf "$S/x"; fi',
+    'S=/opt/zz\nfor i in 1 2; do rm -rf "$S/x"; done',
+    'S=/opt/zz\nwhile false; do :; done\nrm -rf "$S/x"',
+    'S=/opt/zz\n{ rm -rf "$S/x"; }',
+    'S=/opt/zz\n( rm -rf "$S/x" )',
+    'S=/opt/zz\nm() { rm -rf "$S/x"; }\nm',
+    'S=/opt/zz; function m { rm -rf "$S/x"; }; m',
+    'T=/opt/zz; S=$T\nm() { rm -rf "$S/x"; }\nm',
+  ])
+    assert.deepEqual(rm(cmd), ['-rf', '/opt/zz/x'], cmd);
+  assert.deepEqual(rm('T=$(mktemp -d)\nm() { rm -rf "$T/x"; }\nm'), ['-rf', '/tmp/tmp.mktemp/x']);
+  // A word of the list inside a value, a path or a string ends nothing.
+  for (const cmd of ['S=/opt/eval-try; rm -rf "$S/x"', 'echo "for if while read"; S=/opt/zz; rm -rf "$S/x"', 'cat /opt/read/x.txt; S=/opt/zz; rm -rf "$S/x"'])
+    assert.notDeepEqual(rm(cmd), ['-rf', '$S/x'], cmd);
+  // These words in a string or in code handed to a program are no commands of the script's.
+  assert.deepEqual(rm(`S=/opt/zz\nm() { rm -rf "$S/x"; }\nnode -e 'let a = 1; exec(); read()'; m`), ['-rf', '/opt/zz/x']);
+  for (const [why, cmd] of Object.entries({
+    'assigned again in the branch': 'S=/opt/zz\nif true; then S=/opt/yy; fi\nrm -rf "$S/x"',
+    'assigned again in the function': 'S=/opt/zz\nm() { S=/opt/yy; }\nm\nrm -rf "$S/x"',
+    'local in the function': 'S=/opt/zz\nm() { local S=/opt/yy; rm -rf "$S/x"; }\nm',
+    'the loop variable': 'S=/opt/zz\nfor S in a b; do rm -rf "$S/x"; done',
+    'the select variable': 'S=/opt/zz\nselect S in a b; do rm -rf "$S/x"; done',
+    'read in the loop': 'S=/opt/zz\nwhile read -r S; do rm -rf "$S/x"; done',
+    'read later, in a function': 'S=/opt/zz\nm() { rm -rf "$S/x"; }\nread -r S\nm',
+    'set for one call': 'S=/opt/zz\nm() { rm -rf "$S/x"; }\nS=/opt/yy m',
+    'sourced later': 'S=/opt/zz\nm() { rm -rf "$S/x"; }\n. ./x.sh\nm',
+    arithmetic: 'S=1\nm() { rm -rf "$S/x"; }\n((S=2))\nm',
+    'a nameref in the function': 'S=/opt/zz\nm() { declare -n R=S; R=/opt/yy; }\nm\nrm -rf "$S/x"',
+    'unset in the branch': 'S=/opt/zz\nif true; then unset S; fi\nrm -rf "$S/x"',
+    'a trap': `S=/opt/zz\ntrap 'S=/opt/yy' USR1\nfor i in 1; do :; done\nrm -rf "$S/x"`,
+    'after the first branch': 'if true; then :; fi\nS=/opt/zz\nrm -rf "$S/x"',
+    'set after &&, so maybe not at all': 'cd /opt && S=/opt/zz\nif true; then rm -rf "$S/x"; fi',
+  }))
+    assert.deepEqual(rm(cmd), ['-rf', '$S/x'], why);
 });
 
 test('anything that can make the value uncertain keeps it unknown', () => {
@@ -74,12 +119,6 @@ test('single-quoted text stays literal and is not substituted', () => {
   const a = run("S=/opt; echo '$S/x'");
   assert.deepEqual(a.invocations[0]?.args, ['$S/x']);
 });
-
-/** What the analysis finds of the `rm` in a command: its arguments, and which of them are only known when it runs. */
-const found = (cmd: string) =>
-  run(cmd)
-    .invocations.filter((i) => i.program === 'rm')
-    .map((i) => [i.args, i.dynamic, i.programDynamic]);
 
 test('a comment, wherever it stands, changes nothing about the values a variable holds', () => {
   const body = 'S=/opt/zz\nrm -rf "$S/x"';
@@ -152,16 +191,18 @@ test('a comment hides nothing that is uncertain, and what is uncertain stays so 
     assert.ok(run(`# note\n${cmd}`).issues.includes('dynamic-program'), `# note\n${cmd}`);
     assert.ok(run(`${cmd.replace('; ', ' # note\n')}`).issues.includes('dynamic-program'), cmd.replace('; ', ' # note\n'));
   }
-  // A group, a block or a sourced file that begins its line after a line with a comment on it ends what is known: the
-  // comment's own line end is a line end still.
-  for (const group of ['( true )', '{ true; }', '. ./x.sh', '(true)']) {
-    assert.ok(run(`S=/opt/a\n${group}\n$S`).issues.includes('dynamic-program'), group);
-    assert.ok(run(`S=/opt/a # note\n${group}\n$S`).issues.includes('dynamic-program'), `a comment, then ${group}`);
-    assert.ok(run(`S=/opt/a;# note\n${group}\n$S`).issues.includes('dynamic-program'), `a glued comment, then ${group}`);
+  // A sourced file that begins its line after a line with a comment on it ends what is known: the comment's own line
+  // end is a line end still. A value set after a group is no settled value, with a comment beside the group or not.
+  assert.ok(run(`S=/opt/a\n. ./x.sh\n$S`).issues.includes('dynamic-program'));
+  assert.ok(run(`S=/opt/a # note\n. ./x.sh\n$S`).issues.includes('dynamic-program'));
+  assert.ok(run(`S=/opt/a;# note\n. ./x.sh\n$S`).issues.includes('dynamic-program'));
+  for (const group of ['( true )', '{ true; }', '(true)']) {
+    assert.ok(run(`${group}\nS=/opt/a\n$S`).issues.includes('dynamic-program'), group);
+    assert.ok(run(`${group} # note\nS=/opt/a\n$S`).issues.includes('dynamic-program'), `${group}, then a comment`);
   }
-  // A loop written in the script itself, not in a comment, still ends what is known, with a comment beside it or not.
-  assert.deepEqual(found('S=/opt/zz\nfor i in 1; do :; done # note\nrm -rf "$S/x"')[0]?.[0], ['-rf', '$S/x']);
-  assert.deepEqual(found('S=/opt/zz\nfor i in 1; do :; done\nrm -rf "$S/x"')[0]?.[0], ['-rf', '$S/x']);
+  // A loop's words in a comment end nothing, and a value holds past a real one, with a comment beside it or not.
+  assert.deepEqual(found('S=/opt/zz\nfor i in 1; do :; done # note\nrm -rf "$S/x"')[0]?.[0], ['-rf', '/opt/zz/x']);
+  assert.deepEqual(found('S=/opt/zz\nfor i in 1; do :; done\nrm -rf "$S/x"')[0]?.[0], ['-rf', '/opt/zz/x']);
 });
 
 test('an array is no value of its name, and every other way of assigning counts as an assignment', () => {

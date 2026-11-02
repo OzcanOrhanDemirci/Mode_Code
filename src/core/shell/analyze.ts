@@ -265,6 +265,8 @@ function walk(script: ParsedScript, via: string[], depth: number, out: Analysis,
 /** Anything that can make an assignment conditional, repeated, scoped or computed: then nothing is propagated. */
 const NOT_STRAIGHT =
   /\b(?:if|case|while|until|for|select|function|read|mapfile|readarray|getopts|let|source|eval|trap|exec|unset|coproc)\b|\bprintf\s+-v|\b(?:declare|typeset|local)\s+(?:[-+]\w+\s+)*-\w*n\w*\b|\(\)\s*\{|(?:^|[;&|\n])[^\S\n]*(?:\.\s|[({])/;
+/** How a command's text begins when a branch, a loop, a group or a function stands at its head (`then S=x`, `{ S=x`). */
+const CONTROL_HEAD = /^(?:(?:if|elif|then|else|do|while|until|function|coproc)\b|[(){}])/;
 /** The same, read from the parsed words, which a quote inside a name (`pr''intf -v`) does not hide. */
 const ASSIGNS_ELSEWHERE = new Set(['read', 'mapfile', 'readarray', 'getopts', 'let', 'source', '.', 'eval', 'trap', 'exec', 'unset', 'coproc']);
 const DECLARERS = new Set(['export', 'declare', 'typeset', 'local', 'readonly']);
@@ -316,21 +318,21 @@ function assignmentsOf(cmd: SimpleCommand): string[] {
 }
 
 /**
- * Per command, the values shell variables certainly hold when it runs, in a script that runs straight
- * through: `S=C:/x; $S/run.sh` runs C:/x/run.sh. Agents write commands this way all the time, and an
- * unknown program name or delete target would otherwise be asked about on every call. Conservative: only
- * plain literal values of variables assigned exactly once, and only up to the first branch, loop, group,
- * function, read or sourcing. An assignment holds for what follows it in the same `&&` chain, and for the
- * rest of the script only when it is the first element of its list; nothing after a `||` and nothing in a
- * pipeline or in the background counts; a use before the assignment sees the unknown outside value. The script is
- * read without its comments and without the bodies of its here-documents: they are no commands, so they neither
- * hide a variable nor, by what they say, make the script uncertain.
+ * Per command, the values shell variables certainly hold when it runs: `S=C:/x; $S/run.sh` runs C:/x/run.sh. Agents
+ * write commands this way all the time, and an unknown program name or delete target would otherwise be asked about on
+ * every call. Conservative: only plain literal values of variables assigned exactly once, and only assignments made up
+ * to the first branch, loop, group, function, read or sourcing. An assignment holds for what follows it in the same
+ * `&&` chain, and for the rest of the script only when it is the first element of its list; nothing after a `||` and
+ * nothing in a pipeline or in the background counts; a use before the assignment sees the unknown outside value. Past
+ * that first branch, loop, group or function a settled value still holds, in their bodies too, unless a command in the
+ * script could set a variable some other way (`read`, `eval`, a sourced file): its only assignment has already run, so
+ * a function called later reads the same value. A loop's own variable, a name in `((…))` and `S=x f`, which sets it for
+ * the call, are left out. The script is read without its comments and without the bodies of its here-documents: they are
+ * no commands, so they neither hide a variable nor, by what they say, make the script uncertain.
  */
 export function straightLineConstants(command: string, script: ParsedScript): Map<string, string>[] {
   const none = script.commands.map(() => new Map<string, string>());
   const code = blank(command, [...(script.comments ?? []), ...(script.bodies ?? [])]);
-  // Values only flow forward: the commands before the first branch, loop, group, … are still certain.
-  const textStop = code.search(NOT_STRAIGHT);
   // Every way of assigning counts: `S+=x` and `S[0]=x` change S as `S=x` does, and S is then no constant.
   const count = new Map<string, number>();
   for (const cmd of script.commands)
@@ -346,8 +348,15 @@ export function straightLineConstants(command: string, script: ParsedScript): Ma
     const lead = /^[\s;&|]*/.exec(cmd.raw)![0].length;
     spans.push({ at: cmd.at + lead, end: cmd.at + cmd.raw.length });
   }
+  // Values only flow forward: the commands before the first branch, loop, group, … are still certain. Looked for between
+  // the commands and at their heads, never in their words: a path or a string that holds `eval` or `for` ends nothing.
+  const textStop = blank(
+    code,
+    spans.map((s) => [s.at, s.end]),
+  ).search(NOT_STRAIGHT);
+  const headStop = spans.find((s) => CONTROL_HEAD.test(code.slice(s.at, s.end)))?.at ?? -1;
   const parsedStop = script.commands.findIndex(assignsElsewhere);
-  const stops = [textStop, parsedStop === -1 ? -1 : spans[parsedStop]!.at].filter((s) => s !== -1);
+  const stops = [textStop, headStop, parsedStop === -1 ? -1 : spans[parsedStop]!.at].filter((s) => s !== -1);
   const stop = stops.length ? Math.min(...stops) : -1;
   const joiner = (from: number, to: number): 'and' | 'or' | 'pipe' | 'seq' | 'lost' => {
     const between = code.slice(from, to);
@@ -366,8 +375,15 @@ export function straightLineConstants(command: string, script: ParsedScript): Ma
   for (let i = 0; i < script.commands.length; i++) {
     const before = i === 0 ? (code.slice(0, spans[0]!.at).trim() ? 'lost' : 'seq') : joiner(spans[i - 1]!.end, spans[i]!.at);
     // Nothing follows the last command, so what it leaves does not matter.
-    const after = i + 1 < spans.length ? joiner(spans[i]!.end, spans[i + 1]!.at) : 'seq';
-    if (before === 'lost' || (stop !== -1 && spans[i]!.end > stop)) return [...result, ...none.slice(i)];
+    const apart = i + 1 < spans.length && /^\s*(?:\|(?!\|)|&(?!&))/.test(code.slice(spans[i]!.end, spans[i + 1]!.at));
+    if (before === 'lost' || (stop !== -1 && spans[i]!.end > stop)) {
+      if (parsedStop !== -1) return [...result, ...none.slice(i)];
+      const lasting = new Map(settled);
+      for (const m of code.matchAll(/\b(?:for|select)\s+([A-Za-z_]\w*)/g)) lasting.delete(m[1]!);
+      for (const m of code.matchAll(/\(\(([^)]*)/g)) for (const name of m[1]!.match(/[A-Za-z_]\w*/g) ?? []) lasting.delete(name);
+      for (const cmd of script.commands) if (cmd.argv.length) for (const a of cmd.assigns) lasting.delete(/^[A-Za-z_]\w*/.exec(a)?.[0] ?? '');
+      return [...result, ...none.slice(i).map(() => new Map(lasting))];
+    }
     if (before === 'seq') {
       chain = new Map();
       afterOr = false;
@@ -376,7 +392,7 @@ export function straightLineConstants(command: string, script: ParsedScript): Ma
     const known = afterOr ? new Map(settled) : new Map([...settled, ...chain]);
     result.push(known);
     // In a pipeline or in the background the command runs in a subshell: its assignments do not stay.
-    const subshell = before === 'pipe' || after === 'pipe' || after === 'lost';
+    const subshell = before === 'pipe' || apart;
     if (!subshell && !afterOr)
       for (const a of assignmentsOf(script.commands[i]!)) {
         const m = /^([A-Za-z_]\w*)=(.*)$/s.exec(a);
