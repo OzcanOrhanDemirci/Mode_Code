@@ -57,6 +57,13 @@ const DYNAMIC_PROGRAM_RISK = new RegExp(
   'i',
 );
 
+/**
+ * PowerShell drives that hold no files and the person's own or this session's values: the current user's registry,
+ * the environment, variables, aliases, functions. `HKCU:\\x` read as a file was a folder under the working folder.
+ * The machine's registry (`HKLM:`) stays asked.
+ */
+const SESSION_DRIVE = /^(?:HKCU|Env|Variable|Alias|Function):/i;
+
 const NULL_TARGETS = new Set(['/dev/null', 'nul', '$null', 'nul:', '/dev/stdout', '/dev/stderr']);
 
 /** The Windows auto-start registry keys; separators may already be stripped by bash quoting. */
@@ -448,7 +455,8 @@ async function checkInvocation(inv: Invocation, cwd: string | null, s0: Scope, d
       if (psSwitch(ws, 'whatif', 2)) break;
       const named = psNamed(ws, { path: 'Path', literalpath: 'LiteralPath' }, ['path']);
       const recursive = psSwitch(ws, 'recurse', 1);
-      for (const w of [...psPaths(named.path), ...psPaths(named.literalpath)]) checkDelete(target(w, cwd, s), recursive || w.glob, s);
+      for (const w of [...psPaths(named.path), ...psPaths(named.literalpath)])
+        if (!SESSION_DRIVE.test(w.text)) checkDelete(target(w, cwd, s), recursive || w.glob, s);
       break;
     }
     case 'del':
