@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- The belt reads a variable whose value has blanks as bash does: a nested session or any other command spelled through one (`C="claude --bare"; $C`) is judged as the command it is, where it used to pass as an unknown program with harmless arguments.
+
 ### Changed
 
 - CI and the release workflow no longer run on macOS, whose runner minutes cost ten times Linux's. Mode_Code still supports macOS, but no automated test checks it there.

@@ -13,6 +13,8 @@ export interface Word {
   dynamic: boolean;
   /** True when the value has an unquoted glob character (* ? [). */
   glob: boolean;
+  /** True when a `$NAME` in it stands outside quotes, where bash splits its value at blanks (bash only). */
+  bare?: true;
 }
 
 export interface Redirect {
