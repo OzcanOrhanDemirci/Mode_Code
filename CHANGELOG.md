@@ -13,6 +13,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
+- Shrinking or overwriting a memory file keeps a copy first and then runs with a line in Autonomous and full autonomy. It was the second most common stop on the author's sessions (16 of 93 in seven days), each approved. Manual still asks, and with no copy it is asked or left to the person as before.
 - CI and the release workflow no longer run on macOS, whose runner minutes cost ten times Linux's. Mode_Code still supports macOS, but no automated test checks it there.
 
 ## [1.2.1] - 2026-10-27

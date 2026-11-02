@@ -19,15 +19,17 @@ const WITH_NET: Partial<Record<RuleId, string>> = {
   'git.discard-work': 'ask pass pass',
   'git.branch-force-delete': 'ask note note',
   'fs.delete-outside-project': 'ask note note',
+  'self.memory-shrink': 'ask note note',
   'fs.delete-git-dir': 'ask note note',
 };
 
 test('the rules a net makes undoable, and what each does with it; no other rule has one', () => {
   for (const id of RULE_IDS) assert.equal(RULES[id].net?.join(' '), WITH_NET[id], id);
-  // A net never makes a level stricter than without it, and never touches a locked rule.
+  // A net never makes a level stricter than without it, and touches one locked rule: shrinking the memory, which is a
+  // git repository and takes away only what the net copies.
   for (const id of RULE_IDS)
     if (RULES[id].net) {
-      assert.ok(!RULES[id].locked, id);
+      assert.ok(!RULES[id].locked || id === 'self.memory-shrink', id);
       assert.equal(RULES[id].net![0], RULES[id].acts[0], `${id}: Manual is the same with a net`);
     }
 });
@@ -137,4 +139,27 @@ test('a delete only known when it runs: copied first and on with a line, asked i
   // No folder named: nothing to keep.
   assert.equal(await verdict('rm -rf "$S"', 'auto'), 'ask');
   assert.equal(await verdict('rm -rf "$S"', 'full'), 'deny');
+});
+
+test('shrinking the memory, with a copy made first: on with a line; with none, asked or left to the person', async () => {
+  const memory = 'C:/dev/memory';
+  const big = 8000;
+  const at = async (level: 'manual' | 'auto' | 'full', net: boolean, call: { tool: string; input: Record<string, unknown> }) => {
+    const d = await evaluateToolCall(call.tool, call.input, winCtx({ level, net, memoryDirs: [memory], fileSize: async () => big }));
+    return [d.verdict, d.nets?.map((n) => n.plan) ?? []];
+  };
+  const write = { tool: 'Write', input: { file_path: `${memory}/note.md`, content: 'short' } };
+  const overwrite = { tool: 'Bash', input: { command: `printf short > ${memory}/note.md` } };
+  const kept = [{ kind: 'paths', paths: [`${memory}/note.md`], copy: true }];
+  for (const call of [write, overwrite]) {
+    assert.deepEqual(await at('auto', true, call), ['warn', kept], call.tool);
+    assert.deepEqual(await at('full', true, call), ['warn', kept], call.tool);
+    assert.deepEqual(await at('manual', true, call), ['ask', []], call.tool);
+    assert.deepEqual(await at('auto', false, call), ['ask', []], call.tool);
+    assert.deepEqual(await at('full', false, call), ['deny', []], call.tool);
+  }
+  // Deleting the memory is another matter: no net lets it through by itself.
+  const del = { tool: 'Bash', input: { command: `rm -rf ${memory}/note.md` } };
+  assert.equal((await at('auto', true, del))[0], 'ask');
+  assert.equal((await at('full', true, del))[0], 'deny');
 });

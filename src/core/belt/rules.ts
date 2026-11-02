@@ -117,9 +117,10 @@ export const RULES: Readonly<Record<RuleId, RuleInfo>> = Object.freeze({
   'self.plugin-cli': r('self.plugin-cli', 'self', SELF, true),
   'self.nested-session': r('self.nested-session', 'self', SELF, true),
   'claude.config-change': r('claude.config-change', 'claude', ASK),
-  // The memory is a git repository: deleting or shrinking it is asked, never left unseen (the decision table, answer 2).
+  // The memory is a git repository: deleting it is asked, never left unseen (the decision table, answer 2). Shrinking it
+  // takes away only what a copy keeps: with the copy made it runs with a line, as every net does.
   'self.memory-delete': r('self.memory-delete', 'self', ASK, true, undefined, undefined, { acts: ['ask', 'note', 'self'], withNet: true }),
-  'self.memory-shrink': r('self.memory-shrink', 'self', ASK, true, undefined, undefined, { acts: ['ask', 'note', 'self'], withNet: true }),
+  'self.memory-shrink': r('self.memory-shrink', 'self', ASK, true, undefined, NET_NOTE, { acts: ['ask', 'note', 'self'], withNet: true }),
   'self.memory-history': r('self.memory-history', 'self', SELF, true),
   'persist.scheduled-task': r('persist.scheduled-task', 'persist', ASK, false, undefined, undefined, EVIDENCE_AUTO),
   'persist.startup': r('persist.startup', 'persist', ASK, false, undefined, undefined, EVIDENCE_AUTO),
