@@ -10,6 +10,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - A variable set once before a branch, a loop, a group or a function keeps its value inside and after them: `S=/tmp/x; m() { rm -rf "$S/p"; }` no longer asks about a target "only known at run time". A path or a string holding `eval` or `for` no longer ends what is known either. Replaying the author's last seven days: 93 stops to 81.
 - A recursive delete whose target is only known when it runs keeps the folder its known part names first (`rm -rf "cc0/$id"` keeps `cc0`), then runs with a line in Autonomous and full autonomy. With no folder to keep it is asked as before.
 - `Remove-Item` on `HKCU:`, `Env:`, `Variable:`, `Alias:` or `Function:` is no file delete: a key of the current user was read as a folder under the working folder and asked about. The machine's registry is still asked.
+- After reading outside content, a note in the session's own words goes into the memory unasked, whatever hosts or paths it names; a line of what was read is still asked. Replaying the author's last seven days, the question came up eight times, each for a name in a note, and no line pasted.
 
 ### Changed
 

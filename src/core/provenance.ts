@@ -193,8 +193,15 @@ export function unitOrigin(u: Unit, p: Provenance): Origin {
 
 /** Whether a text carries what was read from outside: one of its lines, or a unit it names that the person did not. */
 export function carriesOutside(text: string, p: Provenance): boolean {
-  if (lineKeys(text).some((k) => p.seenLines.includes(k))) return true;
-  return unitsIn(text).some((u) => originOf(u, 'host', p) === 'content');
+  return pastesOutside(text, p) || unitsIn(text).some((u) => originOf(u, 'host', p) === 'content');
+}
+
+/**
+ * Whether a text repeats a line read from outside: pasted, not written. A host or a path it merely names is how a note
+ * says where it looked (`carriesOutside` counts those, for what is sent to others).
+ */
+export function pastesOutside(text: string, p: Provenance): boolean {
+  return lineKeys(text).some((k) => p.seenLines.includes(k));
 }
 
 /** What the person typed: the prompt without what they pasted into it, each paste where it stands. */
