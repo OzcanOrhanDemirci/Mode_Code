@@ -501,6 +501,9 @@ export const enUi = {
   'news.1_2.short': 'New in Mode_Code 1.2: /0 shows the cockpit. The way of working sets how much the belt asks; bypass is gone.',
   'news.1_2':
     '1.2: /0 shows the cockpit beside the conversation; the control center is one press from it. How much the safety belt asks is the way of working: Manual asks, Autonomous goes on where a safety net keeps what a step takes away, full autonomy is the third way. The bypass setting is gone.',
+  'news.1_3.short': 'New in Mode_Code 1.3: the belt stops less. In Autonomous a memory shrink or an unclear delete keeps a copy, then runs.',
+  'news.1_3':
+    '1.3: The safety belt stops two fifths less on the same work. In Autonomous and full autonomy, shrinking a memory file and a delete only known when it runs keep a copy and then run with a line (mode-code net lists the copies and puts them back), and what goes to your own GitHub repositories goes on with a line; Manual still asks. After reading outside content, only a line of what was read is asked about before it goes into the memory. Background work no longer holds the reset at a task boundary: it goes on and reports to the new conversation.',
   'update.notes': 'What is new: {url}',
   'update.how': 'Update with: {cmd}',
   'update.notInstaller': 'This copy was not put here by the installer (a clone of the repository, or npm): update it the way it was installed.',

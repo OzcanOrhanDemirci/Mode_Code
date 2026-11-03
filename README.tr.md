@@ -62,7 +62,7 @@ Sonra yeni bir Claude Code oturumu başlat (`claude`). İstem satırının üst�
 | seçenek vermek                  | `curl -fsSL <adres> \| sh -s -- <seçenekler>` | `& ([scriptblock]::Create((irm <adres>))) <seçenekler>` |
 | her soruya evet (betikler için) | `--yes`                                       | `-Yes`                                                  |
 | eksikse Claude Code'u da kurmak | `--install-claude`                            | `-InstallClaude`                                        |
-| belirli bir sürümü kurmak       | `--version 1.2.1`                             | `-Version 1.2.1`                                        |
+| belirli bir sürümü kurmak       | `--version 1.3.0`                             | `-Version 1.3.0`                                        |
 | PATH'e dokunmamak               | `--no-modify-path`                            | `-NoModifyPath`                                         |
 | yalnız programı kurmak          | `--no-setup`                                  | `-NoSetup`                                              |
 
@@ -227,7 +227,7 @@ Yazarın Windows 11 makinesinde, Claude Code 2.1.296 ve Node.js 24.15 ile ölç�
 
 - Güvenlik ağı hook'u için **Claude Code 2.1.295 ya da sonrası**; süreç içi eklenti **2.1.290 ve sonrasında** çalışır. Daha eski bir Claude Code'da kemeri ve anahtar kelimeleri hook tek başına yürütür.
 - **Node.js 22.13 ya da sonrası** (oturum dizini Node'un yerleşik SQLite'ını kullanır). Yoksa kurulum kendi Node.js'ini getirir.
-- Windows 10 (1803) ya da sonrası, macOS ya da Linux (glibc; Alpine'de önce `apk add nodejs` ile Node.js kur). Windows 11'de geliştirildi; testler Windows ve Linux'ta (Node.js 22 ve 24) ve macOS'ta (Node.js 24) geçiyor.
+- Windows 10 (1803) ya da sonrası, macOS ya da Linux (glibc; Alpine'de önce `apk add nodejs` ile Node.js kur). Windows 11'de geliştirildi; testler Windows ve Linux'ta (Node.js 22 ve 24) geçiyor. CI macOS'ta çalışmıyor.
 
 ## Kontrol merkezi
 
@@ -293,14 +293,14 @@ Bir güvenlik açığı mı buldun? Lütfen gizli bildir: [SECURITY.md](SECURITY
 
 ## Nasıl test ediliyor
 
-Bir ajanla makinen arasında duran bir araç güveni kanıtla kazanmalı. Kodun kendisiyle ilgili kurallardan gerçek Claude Code oturumlarına ve tek satırlık kuruluma kadar on altı katman var; her biri neyi kanıtladığını ve neyi kanıtlayamadığını söylüyor ([docs/testing.md](docs/testing.md), İngilizce). 2026-10-27 ölçümü, 1.2.1 için:
+Bir ajanla makinen arasında duran bir araç güveni kanıtla kazanmalı. Kodun kendisiyle ilgili kurallardan gerçek Claude Code oturumlarına ve tek satırlık kuruluma kadar on altı katman var; her biri neyi kanıtladığını ve neyi kanıtlayamadığını söylüyor ([docs/testing.md](docs/testing.md), İngilizce). 2026-11-03 ölçümü, 1.3.0 için:
 
-- **1.368 test**, Windows 11'de ve CI'da Windows, Linux ve macOS'ta Node.js 22 ve 24 ile hepsi geçiyor. Koda dönüşen satırlarda ortalama satır kapsamı **%96,4**, her dosya bir tabana bağlı.
+- **1.391 test**, Windows 11'de ve CI'da Windows ve Linux'ta Node.js 22 ve 24 ile hepsi geçiyor. Koda dönüşen satırlarda ortalama satır kapsamı **%96,4**, her dosya bir tabana bağlı.
 - **Yanlış alarm da hata sayılır.** 201 günlük komut her platformda kemerden tek bir soru sorulmadan geçmek, 172 okuma komutu da sohbet, araştırma ve plan modunda çalışmak zorunda.
-- **Saldırılara ve gündelik işe karşı ölçüldü** (1.2.0, 2026-10-25, yalnız sayılar, [docs/threat-model.md](docs/threat-model.md#measured-for-120), İngilizce). Kemerden yeniden geçirildiğinde başka ajanların gündelik işi (üç açık sette 224.512 çağrı) Manuel'de 126, Otonom'da 21 kez soruluyor; yazarın kendi 41.290 çağrısı 759 ve 367 kez. Dört açık setteki saldırı çağrılarının Manuel'de %12,7'sini (RedCode-Exec), %58,5'ini (AgentDojo), %20 ile %29'unu (agent-egress-bench) ve %11,9'unu (SABER) durduruyor; kalanların çoğu yalnız okuyor ya da karar verdiği eylem türlerinin dışında, tasarım gereği. Bulunan sınırlar listeleniyor.
-- **Testlerin kendisi de test ediliyor.** Mutasyon testi karar veren koda, kemere, modlara, tam otonoma, hafızanın eşitlemesine ve bilgisayarlar arası eşitlemeye 3.697 küçük, bilerek yapılmış değişiklik uygular; testler hepsini yakalıyor (bütün ağaç, 2026-10-27). Bakım denetimi bir deneme ortamını 15 şekilde bozar; 15'ini de fark etmesi ve onarılabilecek 14'ünü onarması gerekir.
+- **Saldırılara ve gündelik işe karşı ölçüldü** (1.3.0, 2026-11-03, yalnız sayılar, [docs/threat-model.md](docs/threat-model.md#measured-for-130), İngilizce). Kemerden yeniden geçirildiğinde başka ajanların gündelik işi (üç açık sette 224.512 çağrı) Manuel'de 126, Otonom'da 21 kez soruluyor; yazarın kendi 48.610 çağrısı 729 ve 251 kez. Yazarın aynı haftası 1.2.1'den ve 1.3.0'dan, her oturum kendi çalışma biçiminde: 93 duruştan 55'e. Dört açık setteki saldırı çağrılarının Manuel'de %12,7'sini (RedCode-Exec), %58,5'ini (AgentDojo), %20 ile %29'unu (agent-egress-bench) ve %11,9'unu (SABER) durduruyor; kalanların çoğu yalnız okuyor ya da karar verdiği eylem türlerinin dışında, tasarım gereği. Bulunan sınırlar listeleniyor.
+- **Testlerin kendisi de test ediliyor.** Mutasyon testi karar veren koda, kemere, modlara, tam otonoma, hafızanın eşitlemesine ve bilgisayarlar arası eşitlemeye 3.721 küçük, bilerek yapılmış değişiklik uygular; testler hepsini yakalıyor (bütün ağaç, 2026-11-03). Bakım denetimi bir deneme ortamını 15 şekilde bozar; 15'ini de fark etmesi ve onarılabilecek 14'ünü onarması gerekir.
 - **Gerçek motorun içinde.** Eklenti Claude Code'un kendi test takımıyla, her gece en yeni Claude Code sürümüne karşı ve gerçek başsız oturumlarda sınanıyor; bunların arasında Claude Code'un dört izin kipinin her biri her çalışma biçiminde ve Claude'un okuduğu bir sayfaya gömülü bir talimat da var ([docs/testing.md](docs/testing.md#live-claude-codes-permission-modes-and-the-ways-of-working)).
-- **Kurulum, senin çalıştırdığın gibi sınanıyor.** sh, bash, Windows PowerShell 5.1 ve PowerShell 7'de, her biri kendine ait bir ev klasöründe: Node.js varken ve yokken, sağlama toplamı tutması gereken bir sürümden; sonra güncellenir, çalıştırılır ve kaldırılır. Bir sürüm ancak taşıdığı kurulum betiği yayınlayacağı paketin ta kendisini Linux, macOS ve Windows'ta kurduktan sonra yayınlanır.
+- **Kurulum, senin çalıştırdığın gibi sınanıyor.** sh, bash, Windows PowerShell 5.1 ve PowerShell 7'de, her biri kendine ait bir ev klasöründe: Node.js varken ve yokken, sağlama toplamı tutması gereken bir sürümden; sonra güncellenir, çalıştırılır ve kaldırılır. Bir sürüm ancak taşıdığı kurulum betiği yayınlayacağı paketin ta kendisini Linux ve Windows'ta kurduktan sonra yayınlanır.
 - **Testler gerçek hatalar buldu**, her biri düzeltildi ve bir testle düzeltilmiş kalıyor: Windows kısa adlarıyla (`MODECO~1`) ya da sonda bir noktayla erişilebilen korumalı dosyalar, macOS'ta ev klasörü altındaki her özyinelemeli silmenin engellenmesi, `__proto__` sözcüğünde ayrıştırıcının çökmesi.
 
 Kendi makinende `mode-code doctor` aynı denetimleri yapar: Node.js, Claude Code ve ayarları (çalışamayan ya da her seferinde model başlatan başka hook'lar, projenin paylaşılan ayarları, sürüme sabitlenmemiş MCP sunucuları, ayarlara yazılmış sırlar, hafıza indeksi), hook'lar ve eklenti, Git Bash, PowerShell ve zsh, terminal, dosya sistemi, git ve aracın kendi verisi. Güvenle onarabileceğini onarır, önce yedek alır, sonra yeniden denetler, sana kalanı tam olarak söyler. `npm run verify` bir makinede çalışabilen her katmanı koşar ve her katman için tek satır yazar.
@@ -337,6 +337,8 @@ Sıradakiler:
 - **Daha çok kural şablonu**: Python ve Go'dan Docker Compose'a yaygın yığınlar.
 - **Daha çok dil**: arayüz için İngilizce ve Türkçenin yanına.
 - Tek satırlık kurulumda **musl Linux** (Alpine).
+
+1.3.0'da tamamlananlar: aynı işte beşte iki daha az durduran emniyet kemeri, bedeli bir açık sette 14.067 saldırı çağrısından ikisi: komutları daha iyi okuyor, bir silmenin ya da hafıza küçültmenin götüreceğinin kopyasını saklayıp devam ediyor, kendi GitHub depolarına gideni geçiriyor ve hafıza için yalnız okunandan alınmış bir satırda soruyor ([docs/threat-model.md](docs/threat-model.md#measured-for-130), İngilizce). Arka plan işinin artık tutmadığı görev sınırı sıfırlaması ([docs/quota.md](docs/quota.md#reset-at-a-task-boundary), İngilizce).
 
 1.2.0'da tamamlananlar: çalışma biçimine göre karar veren emniyet kemeri; bir adımın götüreceğini saklayan güvenlik ağı, kanıt olarak senin sözün ve kendi kuralı olarak bilgisayardan dışarı giden veri ([docs/safety-belt.md](docs/safety-belt.md), İngilizce); sıradan bir çalışma biçimi olarak tam otonom ([docs/autonomy.md](docs/autonomy.md)); konuşmanın yanındaki kokpit ([docs/modes.md](docs/modes.md#session-controls)) ve ne için geldiğine göre düzenlenmiş, her ayarın durduğu yerde ne yaptığını söylediği kontrol merkezi ([docs/design.md](docs/design.md)).
 

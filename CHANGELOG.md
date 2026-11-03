@@ -4,17 +4,38 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-03
+
+The safety belt stops two fifths less often on the same work, for a cost measured and named, and a conversation resets at its next task boundary where background work used to hold it. The belt reads commands better, keeps a copy of what a delete or a memory shrink takes away and goes on, lets through what goes to your own GitHub repositories, and asks about the memory only for a line copied from what was read. Checked against Claude Code 2.1.317.
+
+### Highlights
+
+- **Two fifths fewer stops, measured on real work** ([docs/threat-model.md](docs/threat-model.md#measured-for-130)). The author's seven days (12,750 calls the belt judged), replayed each in its session's own way of working: 93 stops to 55, from 13.3 a day to 7.9. The week before, the same way: 79 to 46. Eight a day is still many; what is left is mostly deletes outside the project and memory shrinks in Manual, commands that cannot be read in full, and deploys.
+- **What it costs in protection: two attack calls.** Four public attack sets, in each way of working, with a safety net and without: each stops what it stopped in 1.2.0, but SABER, two fewer of 14,067 (1,673 to 1,671 in Manual). Those two were stopped only because their code could not be read: a here-document piped through `cat`. Read, they trip no rule, the same as those bodies given directly do. Three sets of other agents' everyday work are asked exactly as often. The sets hold no memory folder, so the change to memory files below is not measured against an attack.
+- **A command spelled through a variable is judged as what it is.** `C="claude --bare"; $C` and `C="firebase deploy --only hosting"; $C` used to pass as an unknown program with harmless arguments.
+- **Copy first, then go on.** In Autonomous and full autonomy, a delete only known when it runs keeps the folder its known part names, and shrinking a memory file keeps the file; each then runs with a line, and `mode-code net` lists what was kept and puts it back. Manual still asks.
+- **The memory after reading outside content.** A note in the session's own words goes in unasked; a line of what was read is still asked about. A host planted by a page can reach the memory that way, if the model writes it in its own words ([Known limits](docs/threat-model.md#known-limits)).
+- **Your own repository.** A pull request, an issue or a release through `gh` on a repository whose owner is the account `gh` is signed in to goes on with a line in Autonomous and full autonomy. Letting those through showed that what `gh` carries was never read for secrets: it is now, in every way of working.
+- **Background work no longer holds the reset at a task boundary** ([docs/quota.md](docs/quota.md#reset-at-a-task-boundary)). One running shell held it, and one stuck or stopped held it for good: 196 skipped resets on the author's sessions, at a median of 429K tokens, against 56 made. Measured, a shell, a monitor and a schedule go on through a `/clear` and report to the new conversation, so the note names them and the new conversation is told they belong to the work. Agents at work still hold it.
+
+### Upgrading from 1.2
+
+- **How:** `mode-code update`, from your own terminal rather than inside a Claude Code session. Settings, history and handoff notes are kept. What changed is said once, at the end of the update and as the next Claude Code session starts.
+- **Autonomous and full autonomy ask less about memory files and about your own repositories.** To have a shrink asked as before: `mode-code config set belt.verdicts '{"self.memory-shrink":"ask"}'`. A verdict of your own holds as it is, with no safety net or evidence for that rule, so `"outbound.network":"ask"` asks about every send, to your own repositories too.
+- **A reset can now come while a shell runs.** The shell goes on; what it reports reaches the new conversation.
+- **Unchanged:** Manual's questions about deletes and memory files; Claude Code 2.1.290 or newer for the plugin (2.1.295 for the safety-net hook) and Node.js 22.13 or newer.
+
 ### Fixed
 
 - The belt reads a variable whose value has blanks as bash does: a nested session or any other command spelled through one (`C="claude --bare"; $C`) is judged as the command it is, where it used to pass as an unknown program with harmless arguments.
-- A variable set once before a branch, a loop, a group or a function keeps its value inside and after them: `S=/tmp/x; m() { rm -rf "$S/p"; }` no longer asks about a target "only known at run time". A path or a string holding `eval` or `for` no longer ends what is known either. Replaying the author's last seven days: 93 stops to 81.
+- A variable set once before a branch, a loop, a group or a function keeps its value inside and after them: `S=/tmp/x; m() { rm -rf "$S/p"; }` no longer asks about a target "only known at run time". A path or a string holding `eval` or `for` no longer ends what is known either. Replaying the author's last seven days, this alone: 93 stops to 81.
 - A recursive delete whose target is only known when it runs keeps the folder its known part names first (`rm -rf "cc0/$id"` keeps `cc0`), then runs with a line in Autonomous and full autonomy. With no folder to keep it is asked as before.
 - `Remove-Item` on `HKCU:`, `Env:`, `Variable:`, `Alias:` or `Function:` is no file delete: a key of the current user was read as a folder under the working folder and asked about. The machine's registry is still asked.
 - A pull request, an issue or a release through `gh` on a repository of your own goes on with a line in Autonomous and full autonomy, also in a session started outside the project and after the session read its own `gh` output. Own means its owner is the account `gh` is signed in to: named with `-R`, or every GitHub remote of the folder the call runs in. Someone else's repository is asked as before, and Manual still asks. Replaying the author's last seven days: 62 stops to 57, each of the five a false alarm.
 - What a `gh` call carries is read for secrets: a body or a title holding a key, `--body-file .env`, `--body "$(cat .env)"` and `cat .env | gh pr create --body-file -` are stopped in every way of working, as `curl` is.
 - Work left in the background no longer holds the reset at a task boundary. Every background shell held it until it reported back, one stopped or stuck held it for the rest of the conversation, and a schedule held it for good. On the author's sessions 196 boundaries were skipped this way, at a median context of 429K tokens, against 56 resets: 150 for a shell, 36 for a schedule, 10 for agents. Measured, a shell, a monitor and a schedule all go on through a `/clear` and report to the new conversation ([testing.md](docs/testing.md#what-a-clear-leaves-running)), so the note now names them, and the new conversation is told they belong to the work. Agents at work still hold it.
 - After reading outside content, a note in the session's own words goes into the memory unasked, whatever hosts or paths it names; a line of what was read is still asked. Replaying the author's last seven days, the question came up eight times, each for a name in a note, and no line pasted.
-- A here-document piped through `cat` into an interpreter or a shell (`cat <<'EOF' | node -`) is read as if given to it directly, where it was asked about as code nobody could see.
+- A here-document piped through `cat` into an interpreter or a shell (`cat <<'EOF' | node -`) is read as if given to it directly, where it was asked about as code nobody could see. Replaying the author's last seven days: 57 stops to 55. Two calls of the SABER attack set were stopped only because they could not be read; read, they trip no rule ([docs/threat-model.md](docs/threat-model.md#measured-for-130)).
 
 ### Changed
 
@@ -341,7 +362,8 @@ The first public release: the safety belt, keywords, modes and flows, full auton
 - A session started in the home folder counted the user's own settings twice, as user and as project settings, and the doctor reported the safety-net hooks as duplicated.
 - The doctor called a hook program from an earlier build of the same version "changed after installation". The installation now records the program's fingerprint, so an earlier build and a change are told apart; an older hook matcher is named as such, with the tools it does not check.
 
-[Unreleased]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.0.0...v1.1.0
