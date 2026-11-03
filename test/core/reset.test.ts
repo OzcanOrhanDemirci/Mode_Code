@@ -137,7 +137,7 @@ test('the next task is out of it: its first read, an edit of the project, a test
   assert.equal(inCluster('Bash', {}, env), false);
 });
 
-test('the reset goes on unless work runs in the background, the quota stops, the work wraps up, or one was just made', () => {
+test('the reset goes on unless agents are at work, the quota stops, the work wraps up, or one was just made', () => {
   const v = (over: Partial<Parameters<typeof resetVerdict>[0]> = {}) =>
     resetVerdict({ busy: false, lastResetAt: 0, now: NOW, quotaStop: false, wrapUp: false, ...over });
   assert.deepEqual(v(), { go: true });
@@ -159,6 +159,7 @@ test("the note's prompt asks for the four parts as JSON, no tool, the person's l
   for (const part of ['summary', 'open', 'decisions', 'next']) assert.match(p, new RegExp(`\\n${part}: `));
   assert.match(p, /in their own words where they gave them/);
   assert.match(p, /concrete enough to start on at once/);
+  assert.match(p, /anything still running in the background \(a shell, a monitor, a schedule\)/);
   assert.match(p, /No keys, tokens or passwords\.$/);
 });
 
@@ -275,11 +276,12 @@ test('the new conversation starts with why, what not to redo, the state and the 
   });
   assert.equal(
     en,
-    "[Mode_Code] The conversation was reset at a task boundary to save tokens: it had 246 K of context, and every call read all of it again. The work goes on here, in a new conversation. The note below was written from that conversation just before the reset (its file: /h/n.md). Do not redo finished steps (git shows what is committed); read the rules and the memory only as far as the next step needs. Then go on with the note's next step.\n\n[Mode_Code] Session state: autonomous.\n\n## Next\n\nRun the tests.",
+    "[Mode_Code] The conversation was reset at a task boundary to save tokens: it had 246 K of context, and every call read all of it again. The work goes on here, in a new conversation. The note below was written from that conversation just before the reset (its file: /h/n.md). Do not redo finished steps (git shows what is committed); read the rules and the memory only as far as the next step needs. What the note says runs in the background goes on and reports here: it is part of this work, so when it does, act as the note says. Then go on with the note's next step.\n\n[Mode_Code] Session state: autonomous.\n\n## Next\n\nRun the tests.",
   );
   const tr = continuationPrompt({ tokens: '246 B', note: 'not', path: null, state: '', lang: 'tr' });
   assert.match(tr, /^\[Mode_Code\] Konuşma, token tasarrufu için bir görev sınırında sıfırlandı: bağlam 246 B idi/);
   assert.match(tr, /hemen önce bu konuşmadan yazıldı\. Biten adımları yeniden yapma/);
   assert.doesNotMatch(tr, /dosyası/);
   assert.match(tr, /sonraki adımla devam et\.\n\nnot$/);
+  assert.match(tr, /arka planda çalıştığı yazan iş sürüyor ve buraya haber verecek/);
 });

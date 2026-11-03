@@ -137,6 +137,10 @@ Also measured: the everyday corpus is 201 commands (169 Bash, 32 PowerShell), ea
 
 For 1.2.0 the belt was replayed against four public attack sets and three sets of other agents' everyday work, with the author's own sessions, in each way of working (2026-10-25): the figures, what they leave out and the limits found are in [threat-model.md](threat-model.md#measured-for-120).
 
+## What a /clear leaves running
+
+Measured on 2026-11-03 with Claude Code 2.1.317 on Windows 11, the cheapest model, in an interactive session in a temporary folder: a background shell, a monitor, a one-off schedule and a background agent were each started, then `/clear` was typed. All four went on and reported to the new conversation. Without being told, that conversation took the report as none of its business ("not started in this session"), which is why the reset's note names what still runs and its first prompt says it belongs to the work.
+
 ## Live: Claude Code's permission modes and the ways of working
 
 Measured on 2026-10-25 with Claude Code 2.1.310 on Windows 11, the cheapest model (haiku), the hooks and the plugin loaded from a build of `1cc3729`. One headless session for each of the four permission modes (`--permission-mode default`, `acceptEdits`, `auto`, `bypassPermissions`) in each way of working (`/7` Manual, `/8` Autonomous, `/9` full autonomy, sent as the first message): twelve cells, each in a temporary project with a git repository of its own, a bare repository on the same computer as its remote and a data folder of its own. Every cell was given the same seven steps, each with its exact command, in this order:

@@ -58,7 +58,7 @@ export const enLedger = {
   'act.resume': 'The quota period reset: the work picked up again',
   'act.reset': 'The conversation was reset at a task boundary ({tokens} of context): the work went on in a new one',
   'act.reset.skip': 'No reset at a task boundary: {why}',
-  'act.reset.why.busy': 'agents or background tasks were at work',
+  'act.reset.why.busy': 'agents were at work',
   'act.reset.why.recent': 'one was made less than 15 minutes before',
   'act.reset.why.quota': 'the quota stops the work',
   'act.reset.why.wrapUp': 'the work was wrapping up',

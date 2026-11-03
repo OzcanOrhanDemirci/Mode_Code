@@ -358,9 +358,6 @@ interface Ctx {
    * file, and what it read again before its first change (the measure of a reset's cost).
    */
   carried: { prompt: string | null; note: string | null; read: { before: number; first: number | null; calls: number } | null } | null;
-  /** Work the main conversation left running in the background (a shell, a monitor) not reported back, and a wake-up it scheduled. */
-  background: number;
-  scheduled: boolean;
   /** Ultracode, as the person set it with /effort (null: not this session), the settings say, or their prompt asks. */
   ultracode: { command: boolean | null; settings: boolean; prompt: boolean };
   /** Agents at work now that count toward a free mode's N, for the strip. */
@@ -662,8 +659,6 @@ async function load($: $): Promise<Ctx> {
     lastResetAt: 0,
     resets: 0,
     carried: null,
-    background: 0,
-    scheduled: false,
     ultracode: { command: null, settings: false, prompt: false },
     agentsRunning: 0,
     startNotes: [],
@@ -2047,12 +2042,7 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
     const made = madePaths(tool, input, pathEnv(c, cwd), newFile);
     if (made.length) await saveProv($, c, (p) => withMade(p, made));
   }
-  if (ran && e.agentId === undefined) {
-    // Work left running in the background reports to this conversation: no reset until it has (busyNow).
-    if ((shellOf(tool) && input.run_in_background === true) || tool === 'Monitor') c.background++;
-    if (tool === 'CronCreate' || tool === 'ScheduleWakeup') c.scheduled = true;
-    if (c.carried?.read) await measureReread($, c, tool, input);
-  }
+  if (ran && e.agentId === undefined && c.carried?.read) await measureReread($, c, tool, input);
   if (ran && e.agentId === undefined) {
     c.turn.uses.push({ name: tool, input });
     // The turn's first change is kept at once: a session whose window is shut mid-turn still owes its note.
@@ -2157,9 +2147,12 @@ function clusterEnvOf(c: Ctx, cwd: string) {
   return { ...env, memoryDirs: [...memoryDirs(c, cwd), ...(store ? [resolvePath(store, env)] : [])], handoffDir: handoffRoot(c.config, c.layout.handoffsDir) };
 }
 
-/** Agents or background work that report to this conversation: a reset now would lose where they report. */
-async function busyNow($: $, c: Ctx): Promise<boolean> {
-  if (c.background > 0 || c.scheduled) return true;
+/**
+ * Agents at work: what they bring back is the work itself, and it rests on what this conversation asked them. A shell,
+ * a monitor or a schedule holds nothing: measured on Claude Code 2.1.317 (docs/testing.md), each goes on through a
+ * /clear and reports to the new conversation, whose note names it.
+ */
+async function busyNow($: $): Promise<boolean> {
   return (await agentList($)).some((a) => AT_WORK.has(a.status));
 }
 
@@ -2176,7 +2169,7 @@ async function resetAtBoundary($: $, c: Ctx, tool: string, input: Readonly<Recor
   c.resetArm = null;
   const now = await $.clock.now();
   const quotaStop = c.config.modules.quota && (await quotaNow($, c)).level === 'stop';
-  const v = resetVerdict({ busy: await busyNow($, c), lastResetAt: c.lastResetAt, now, quotaStop, wrapUp: c.state.wrapUp });
+  const v = resetVerdict({ busy: await busyNow($), lastResetAt: c.lastResetAt, now, quotaStop, wrapUp: c.state.wrapUp });
   if (!v.go) return noReset($, c, arm, v.why);
   let reply: Awaited<ReturnType<$['model']['fork']>>;
   try {
@@ -2327,8 +2320,6 @@ async function onPromptSubmit($: $, e: In<'prompt.submit'>, next: Nx<'prompt.sub
   // The prompt a reset started this conversation with (src/core/reset.ts): Mode_Code's, so no keyword is read in its note.
   const resumed = ours && c.carried?.prompt != null && String(e.text ?? '') === c.carried.prompt;
   if (resumed) c.carried = { ...c.carried!, prompt: null };
-  // Background work reported back: a reset need not wait for it any more.
-  if (kind === 'task-notification' && c.background > 0) c.background--;
   // Another session's message is outside content: the session is tainted from now on (src/core/taint.ts).
   if (kind === 'peer' && !c.state.tainted) {
     c.state = { ...c.state, tainted: { source: 'peer', at: await $.clock.now() } };

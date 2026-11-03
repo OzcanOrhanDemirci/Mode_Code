@@ -57,7 +57,7 @@ export const trLedger: Record<keyof typeof enLedger, string> = {
   'act.resume': 'Kota dönemi sıfırlandı: iş kaldığı yerden sürdü',
   'act.reset': 'Konuşma bir görev sınırında sıfırlandı ({tokens} bağlam): iş yenisinde sürdü',
   'act.reset.skip': 'Görev sınırında sıfırlama olmadı: {why}',
-  'act.reset.why.busy': 'çalışan ajanlar ya da arka plan görevleri vardı',
+  'act.reset.why.busy': 'çalışan ajanlar vardı',
   'act.reset.why.recent': '15 dakikadan kısa süre önce bir sıfırlama yapılmıştı',
   'act.reset.why.quota': 'kota işi durduruyor',
   'act.reset.why.wrapUp': 'iş toparlanıyordu',

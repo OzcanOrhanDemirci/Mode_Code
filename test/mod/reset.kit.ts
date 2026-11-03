@@ -268,7 +268,23 @@ test('the turn that ends by itself waits for the person: no reset, the strip say
   expect(resets(w)).toEqual([]);
 });
 
-test('agents at work, background work, a wrap-up or a reset a moment ago: no reset, said in the activity, the hint instead', async ($, on) => {
+test('work left in the background holds nothing: a shell, a monitor, a schedule, none of them reported back', async ($, on) => {
+  const session = { id: SESSION };
+  const w = world(on, { session });
+  const cc = engine($, on, w.clock, session);
+  await $.prompt.submit(typed('autonomous'));
+  await call($, 'Bash', { command: 'npm run watch', run_in_background: true }, 'bg');
+  await call($, 'Monitor', { command: 'tail -f build.log', description: 'build' }, 'mon');
+  await call($, 'CronCreate', { cron: '0 9 * * *', prompt: 'check', recurring: false }, 'cron');
+  await call($, 'ScheduleWakeup', { delaySeconds: 600, prompt: 'check', reason: 'later' }, 'wake');
+  await call($, 'Bash', { command: 'git commit -m one' }, 'c1');
+  expect((await call($, 'Read', { file_path: `${PROJECT}/a.ts` }, 'r1')).deny).toMatch(/Stop here/);
+  await settle(w);
+  expect(cc.clears).toBe(1);
+  expect(resets(w).map((e: any) => e.phase)).toEqual(['start', 'carried']);
+});
+
+test('agents at work, a wrap-up or a reset a moment ago: no reset, said in the activity, the hint instead', async ($, on) => {
   const session = { id: SESSION };
   const w = world(on, { session });
   const agents: any[] = [{ id: 'a1', status: 'running', type: 'Explore', description: 'look' }];
@@ -281,10 +297,6 @@ test('agents at work, background work, a wrap-up or a reset a moment ago: no res
   expect((await boundary('agents')).deny).toBe(undefined);
   expect(await band($)).toMatch(/^✓ commit: /);
   agents.length = 0;
-  await call($, 'Bash', { command: 'npm run watch', run_in_background: true }, 'bg');
-  expect((await boundary('background')).deny).toBe(undefined);
-  // The background work reported back: the next boundary resets.
-  await $.prompt.submit({ text: '<task-notification>done</task-notification>', wait: false, origin: { kind: 'task-notification' } } as any);
   await $.prompt.submit(typed('wrap up'));
   expect((await boundary('wrapUp')).deny).toBe(undefined);
   await $.prompt.submit(typed('continue'));
@@ -293,7 +305,7 @@ test('agents at work, background work, a wrap-up or a reset a moment ago: no res
   // A reset a moment ago: the next boundary in the new conversation waits.
   await $.turn.start({ text: 'x', turnId: 't2' } as any);
   expect((await boundary('recent')).deny).toBe(undefined);
-  expect(resets(w).map((e: any) => (e.phase === 'skip' ? e.why : e.phase))).toEqual(['busy', 'busy', 'wrapUp', 'start', 'carried', 'recent']);
+  expect(resets(w).map((e: any) => (e.phase === 'skip' ? e.why : e.phase))).toEqual(['busy', 'wrapUp', 'start', 'carried', 'recent']);
   expect(cc.clears).toBe(1);
   // A skip that is no failure is quiet: no toast says it.
   expect(w.toasts.some((t: string) => /No reset/.test(t))).toBe(false);
