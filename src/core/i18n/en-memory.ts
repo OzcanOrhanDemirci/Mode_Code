@@ -75,7 +75,8 @@ export const enMemory = {
   'msetup.ask.handoffs': 'Where should handoff notes go?',
   'msetup.handoffs.store': 'In this folder (handoffs/): they travel with it',
   'msetup.handoffs.tool': "With Mode_Code: in its sync's shared place when that is set up (mode-code sync setup), else in its own folder",
-  'msetup.ask.protect': 'Protect the memory folder with the safety belt? Claude then cannot delete notes, and shrinking the index asks you first.',
+  'msetup.ask.protect':
+    'Protect the memory folder with the safety belt? Claude then cannot delete notes on its own, and shrinking a memory file asks you first in Manual and keeps a copy first in Autonomous and full autonomy.',
   'msetup.plan.title': 'This is what will happen:',
   'msetup.plan.confirm': 'Go ahead?',
   'msetup.plan.create': 'create the private repository {repo} on GitHub',

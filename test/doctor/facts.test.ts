@@ -322,7 +322,10 @@ test(
       // Git keeps the local file now, and jq is on the PATH.
       const git = (...args: string[]) => runProgram('git', ['-C', proj, ...args]);
       assert.equal(git('init', '-q').ok, true);
-      assert.equal(git('add', '.claude/settings.local.json').ok, true);
+      // Forced: a machine may ignore the file in its global ignore file (~/.config/git/ignore), which an
+      // isolated GIT_CONFIG_GLOBAL does not turn off; the doctor reads what git tracks, not what it ignores.
+      const add = git('add', '-f', '.claude/settings.local.json');
+      assert.equal(add.ok, true, add.error);
       writeFileSync(`${root}/hooks/${process.platform === 'win32' ? 'jq.exe' : 'jq'}`, '');
       f = await gatherFacts(env);
       assert.equal(f.setup.noGit, false);

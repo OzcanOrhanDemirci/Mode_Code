@@ -320,3 +320,31 @@ test("a script that edits another one's delete line deletes nothing: the measure
   // The same script deleting for real is still read so.
   assert.equal(await run(edit.replace('s=s.replace(', "fs.rmSync('/etc/zzprobe', { recursive: true });s=s.replace(")), 'deny fs.delete-critical');
 });
+
+test('a here-document piped through cat is read as if given directly, and judged the same', async () => {
+  const pairs = [
+    ["cat <<'EOF' | node -\nconsole.log(1)\nEOF", "node - <<'EOF'\nconsole.log(1)\nEOF"],
+    ["cat <<'EOF' | python3 -\nprint(1)\nEOF", "python3 - <<'EOF'\nprint(1)\nEOF"],
+    ["cat - <<'EOF' | python3\nprint(1)\nEOF", "python3 <<'EOF'\nprint(1)\nEOF"],
+    ["cat <<'EOF' | bash\necho hi\nEOF", "bash <<'EOF'\necho hi\nEOF"],
+    // What the body does counts as much as if it were given directly.
+    ["cat <<'EOF' | python3 -\nimport shutil; shutil.rmtree('/data/app')\nEOF", "python3 - <<'EOF'\nimport shutil; shutil.rmtree('/data/app')\nEOF"],
+    ["cat <<'EOF' | bash\nrm -rf /data/app\nEOF", "bash <<'EOF'\nrm -rf /data/app\nEOF"],
+    [
+      "cat <<'EOF' | node -\nrequire('fs').rmSync('/data/app', { recursive: true })\nEOF",
+      "node - <<'EOF'\nrequire('fs').rmSync('/data/app', { recursive: true })\nEOF",
+    ],
+  ];
+  for (const [piped, direct] of pairs) assert.equal(summary(await bash(piped!, linuxCtx())), summary(await bash(direct!, linuxCtx())), piped);
+  assert.equal(summary(await bash("cat <<'EOF' | node -\nconsole.log(1)\nEOF", linuxCtx())), 'allow', 'nothing is left to ask about');
+  assert.equal(summary(await bash("cat <<'EOF' | bash\nrm -rf /data/app\nEOF", linuxCtx())), 'ask fs.delete-outside-project');
+  // What the reader cannot see stays asked: another program in the pipe, a file beside the body, a variable as the program.
+  for (const command of [
+    "cat <<'EOF' | tee a | python3 -\nprint(1)\nEOF",
+    "cat script.py <<'EOF' | python3 -\nprint(1)\nEOF",
+    "cat <<'EOF' > script.py | python3 -\nprint(1)\nEOF",
+    "$CAT <<'EOF' | python3 -\nprint(1)\nEOF",
+    'cat script.py | python3 -',
+  ])
+    assert.equal(summary(await bash(command, linuxCtx())), 'ask meta.unverifiable', command);
+});

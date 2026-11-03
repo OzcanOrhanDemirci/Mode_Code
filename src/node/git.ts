@@ -4,7 +4,9 @@
  * and with nothing the repository's settings name (src/core/git-safe.ts).
  */
 import { spawnSync } from 'node:child_process';
-import { statSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
+import { githubHostsPath, githubUserIn } from '../core/belt/gh-repo.js';
+import { home, platform } from './env.js';
 import type { GitFacts } from '../core/belt/types.js';
 import type { MemoryStatus } from '../core/footer.js';
 import { filterDriversQuery, gitCandidates, needsFilterDrivers, repoFilterDrivers, safeGitArgs } from '../core/git-safe.js';
@@ -95,6 +97,22 @@ export function gitFacts(): GitFacts {
       });
       return list === null ? null : list.split('\n').includes(branch);
     },
+    remoteUrls: async (dir) => {
+      const listed = memo(`l\0${dir}`, () => {
+        const r = git(dir, ['remote', '-v']);
+        return r.ok ? r.out : null;
+      });
+      return listed === null ? null : listed.split('\n').flatMap((line) => line.split(/\s+/)[1] ?? []);
+    },
+    githubUser: async () =>
+      memo('github-user', () => {
+        try {
+          return githubUserIn(readFileSync(githubHostsPath(process.env, home(), platform), 'utf8'));
+        } catch {
+          // No gh here, or never signed in: no account to call the person's own.
+          return null;
+        }
+      }),
   };
 }
 

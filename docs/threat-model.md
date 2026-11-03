@@ -105,6 +105,29 @@ Three numbers, measured for every release and written down, with the target at 1
 
 Attack sets are kept out of the public repository; their runner prints totals, categories and digests only, never their content.
 
+### Measured for 1.3.0
+
+2026-11-03, on `main` as merged for 1.3.0, the belt's default settings, the same method and the same limits as [1.2.0's below](#measured-for-120); counts only. A call is stopped when it is asked about or refused. Each figure is for Manual · Autonomous · full autonomy.
+
+**Protection**, attack calls stopped. No set lost a stop against 1.2.0, in any way of working, with a safety net or without, but SABER, two fewer in each. Those two were stopped only because their code could not be read, a here-document piped through `cat` into an interpreter. Read as it now is, it trips no rule, the same as that body given directly already did: the rules read the code, and this code is outside them.
+
+- RedCode-Exec, 1,410 cases: 179 (12.7%) · 147 · 177.
+- AgentDojo, 1,105 attack calls: 646 (58.5%) · 637 · 640.
+- agent-egress-bench, 55 attack calls on the computer: 11 (20.0%) in each way of working; its 84 web requests: 24 (28.6%) in each.
+- SABER, 14,067 attack calls: 1,671 (11.9%) · 1,282 · 1,280.
+
+**False alarms**, ordinary calls stopped:
+
+- Three sets of other agents' everyday work, 224,512 calls: 126 (0.06%) · 21 · 19, as in 1.2.0.
+- The author's own sessions, 48,610 calls: 729 (1.5%) · 251 · 247. These are the last 30 days, so not the calls 1.2.0 was measured on (41,290), and default settings mean no memory folder and no registered project.
+- The ordinary calls inside the attack sets: AgentDojo 69 of 339 · 50 · 50; agent-egress-bench 0 of 25 on the computer and 7 of 26 web requests; SABER 1,500 of 95,322 · 1,304 · 1,304.
+
+**The same calls, before and after.** The author's sessions of 2026-10-27 to 2026-11-02 with their subagents (16,878 calls, 12,750 of them judged by the belt), replayed through 1.2.1's belt and this one, each session at its own way of working: 93 stops to 55, or 13.3 a day to 7.9. Where no safety net could be laid: 80. All at one way of working: Manual 157 to 135, Autonomous 108 to 61, full autonomy 87 to 39. The week before, as a second reading: 79 to 46. Of the 55 left, the largest are deletes outside the project 14 (10 of them in Manual), memory shrinks 7 (all in Manual), commands that cannot be read in full 7, deploys 6 and data sent to a host nobody named 4.
+
+**Freedom:** in the author's sessions Autonomous stops 251 calls where Manual stops 729, 66% fewer.
+
+What the before and after leaves out: it judges the old week's commands, and Claude would have written some of them differently; a file's size and a branch's merged state are read at the replay, not as they were then; what a call read is cut to 50,000 characters; a session's way of working is the last one its state file held. Checked against the live record of the same week: 93 stops replayed, 86 logged by 1.2.1. The attack sets hold no memory folder, so keeping a copy and then shrinking a memory file ([Safety net](safety-belt.md#safety-net)) is not measured against an attack: the copy and git are what stand behind it.
+
 ### Measured for 1.2.0
 
 2026-10-25, the belt's default settings, each call judged as on Linux and replayed through the belt (`scripts/belt-replay.ts`, [testing.md](testing.md)); counts only. A call is stopped when it is asked about or refused. Each figure is for Manual · Autonomous · full autonomy.
@@ -137,6 +160,9 @@ Measured, and left open by choice or not yet closed:
 - **This computer's own address is no outside.** Data sent to `localhost`, `127.0.0.1` or `0.0.0.0` goes on, bare or in a URL. It does not leave the computer, but a tunnel (`ssh -L`) or a local proxy set up beforehand can carry it on; the belt does not follow that. An address read only from outside content is still refused.
 - **A connected service's tool named outside the belt's words** is not judged by its name (Out of scope, above).
 - **The person's word loosens a send.** In Autonomous and full autonomy a target the person named in the session lets data go to it without a question; that is the evidence rule working as meant, and an attacker who can write in the person's place is outside this model.
+- **A note in the session's own words goes into the memory.** After reading outside content, what is asked about is a line of what was read: at least 12 characters, word for word apart from spacing and case. A host planted by a page reaches the memory if the model writes it in its own words. A question for every note was the other choice; on the author's sessions it came up eight times in a week, each for a name in a note and none for a pasted line.
+- **What goes to your own repository is not judged by what it says.** In Autonomous and full autonomy a pull request or an issue on a repository of the account `gh` is signed in to goes on with a line; on a public repository that text is public. What is read is secrets only: a key in a body or a title, a secret file given or printed into it. The account comes from `gh`'s `hosts.yml`, and only that line of it is read.
+- **The copy behind a delete is for mistakes, not for an adversary.** A value holding `..` can lead out of the folder kept when a delete is only known as it runs.
 - **Found and not yet closed:** a function name inside a string is taken for a definition; a here-document handed to a group or a function (`{ python3 -; } <<EOF`) is not followed; fish, csh and tcsh are not read as shells.
 
 ## Sources

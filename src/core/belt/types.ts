@@ -129,6 +129,10 @@ export interface GitFacts {
   alias(dir: string, name: string): Promise<string | null>;
   /** Whether a branch's tip is in the current branch's history (merged: deleting it loses no commit); null when unknown. */
   merged?(dir: string, branch: string): Promise<boolean | null>;
+  /** The addresses of every remote of the repository at `dir`, or null when they cannot be read. */
+  remoteUrls?(dir: string): Promise<string[] | null>;
+  /** The account `gh` is signed in to on github.com, or null. */
+  githubUser?(): Promise<string | null>;
 }
 
 export interface BeltContext {

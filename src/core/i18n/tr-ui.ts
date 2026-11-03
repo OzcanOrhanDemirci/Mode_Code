@@ -494,6 +494,9 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'news.1_2.short': "Mode_Code 1.2'de yeni: /0 kokpiti gösterir. Kemerin ne kadar soracağını çalışma biçimi belirler; bypass kalktı.",
   'news.1_2':
     '1.2: /0 konuşmanın yanında kokpiti gösterir; kontrol merkezi ondan bir tuş uzakta. Emniyet kemerinin ne kadar soracağını çalışma biçimi belirler: Manuel sorar, Otonom bir güvenlik ağı adımın götüreceğini sakladığında sürer, tam otonom üçüncü biçimdir. Bypass ayarı kalktı.',
+  'news.1_3.short': "Mode_Code 1.3'te yeni: kemer daha az durdurur. Otonom'da hafıza küçültme ve belirsiz silme önce kopya alır, sonra çalışır.",
+  'news.1_3':
+    '1.3: Emniyet kemeri aynı işte beşte iki daha az durdurur. Otonom ve tam otonomda bir hafıza dosyasını küçültmek ve hedefi ancak çalışınca belli olan bir silme önce kopya alır, sonra bir satırla çalışır (mode-code net kopyaları listeler ve geri koyar); kendi GitHub depolarına giden de bir satırla geçer; Manuel yine sorar. Dışarıdan içerik okuduktan sonra, hafızaya yalnız okunandan bir satır yazılacaksa sorulur. Arka plan işi artık görev sınırındaki sıfırlamayı tutmaz: sürer ve yeni konuşmaya haber verir.',
   'update.notes': 'Yenilikler: {url}',
   'update.how': 'Güncellemek için: {cmd}',
   'update.notInstaller': 'Bu kopyayı kurulum betiği koymadı (deponun bir klonu ya da npm): nasıl kurulduysa öyle güncelle.',

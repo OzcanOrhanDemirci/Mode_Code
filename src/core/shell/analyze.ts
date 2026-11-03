@@ -247,14 +247,24 @@ export function analyzeCommand(command: string, dialect: Dialect): Analysis {
   return out;
 }
 
+/** `cat <<EOF`, with `-` at most: all it prints is its here-documents, so the next command in a pipe reads their bodies. */
+function printsOnlyBodies(cmd: SimpleCommand | undefined): cmd is SimpleCommand {
+  return (
+    !!cmd && cmd.heredocs.length > 0 && cmd.argv[0]?.text === 'cat' && cmd.argv.slice(1).every((w) => w.text === '-') && !cmd.redirects.some((r) => r.writes)
+  );
+}
+
 function walk(script: ParsedScript, via: string[], depth: number, out: Analysis, known: readonly ReadonlyMap<string, string>[] | null = null): void {
   for (const issue of script.issues) out.issues.push(issue);
   if (depth > MAX_DEPTH) {
     out.issues.push('too-deep');
     return;
   }
-  script.commands.forEach((cmd, i) => {
+  script.commands.forEach((given, i) => {
     const k = known?.[i];
+    const before = script.commands[i - 1];
+    // Read as if the here-document were given to the command itself: `cat <<EOF | python -` is `python - <<EOF`.
+    const cmd = given.piped && printsOnlyBodies(before) ? { ...given, heredocs: [...given.heredocs, ...before.heredocs], piped: false } : given;
     // Behind an unquoted delimiter the shell fills the variables in a here-document's body too (not one behind `\$`).
     const filled = k?.size ? { ...cmd, heredocs: cmd.heredocs.map((h) => (h.expands ? { body: fillKnown(h.body, k), expands: false } : h)) } : cmd;
     expand(filled, k?.size ? substituteKnown(cmd.argv, k) : cmd.argv, via, depth, out);

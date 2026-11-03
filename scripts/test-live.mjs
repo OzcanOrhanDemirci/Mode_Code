@@ -1025,6 +1025,22 @@ async function resetCases() {
           after.map((s) => s?.tainted?.source ?? 'none').join(' '),
         );
     }
+    // A shell still running at the boundary holds nothing: the reset goes on, and the shell with it.
+    const shell = projectFor('shell');
+    const held = await openSession(
+      [
+        '/8',
+        'First, with the Bash tool and run_in_background true, run once: sleep 75; echo FINISHED > bg.txt . Do not wait for it. Then do the task in TASK.md, following CLAUDE.md. Work until it is finished.',
+      ],
+      { cwd: shell.dir, done: () => finished(shell)() && existsSync(join(shell.dir, 'bg.txt')) },
+    );
+    runs.push(held);
+    const heldEvents = eventsOf(held.ids).filter((e) => e.kind === 'reset');
+    check(
+      'reset, a shell still running: the conversation resets at the boundary all the same, and the shell finishes',
+      heldEvents.some((e) => e.phase === 'carried') && !heldEvents.some((e) => e.why === 'busy') && finished(shell)() && existsSync(join(shell.dir, 'bg.txt')),
+      `${held.ids.length} conversations · ${heldEvents.map((e) => e.phase + (e.why ? `:${e.why}` : '')).join(' ')} · shell's file ${existsSync(join(shell.dir, 'bg.txt')) ? 'written' : 'missing'}`,
+    );
     withQuota({ resetTokens: 20000, autoReset: false });
     const off = projectFor('off');
     const r = await openSession(['/8', 'Do the task in TASK.md, following CLAUDE.md. Work until it is finished.'], { cwd: off.dir, done: finished(off) });

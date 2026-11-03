@@ -125,8 +125,8 @@ export type ResetSkip = 'busy' | 'recent' | 'quota' | 'wrapUp';
 export type ResetVerdict = { go: true } | { go: false; why: ResetSkip };
 
 /**
- * Whether the armed reset goes on now: not while an agent or a background task works (it would lose the
- * conversation it reports to), not twice in RESET_GAP_MS, not at the quota's stop (the work stops there anyway), not
+ * Whether the armed reset goes on now: not while an agent works (what it brings back rests on this conversation),
+ * not twice in RESET_GAP_MS, not at the quota's stop (the work stops there anyway), not
  * while the work wraps up (it ends there). A reset that does not go on leaves the strip's hint, for the next boundary.
  */
 export function resetVerdict(o: { busy: boolean; lastResetAt: number; now: number; quotaStop: boolean; wrapUp: boolean }): ResetVerdict {
@@ -148,7 +148,7 @@ export function forkPrompt(): string {
     `[${APP_NAME}] ${APP_NAME} is about to reset this conversation to save tokens: the work goes on at once in a new conversation that sees only the note you write now (and the files, git and the memory).`,
     'Do not call any tool. Reply with one JSON object only, with four string fields, each a few lines (at most about 200 words), in the language the person writes in:',
     'summary: what was done in this conversation, with the results that matter (measured numbers, what passed and what failed);',
-    'open: what is still open or half done;',
+    'open: what is still open or half done, and anything still running in the background (a shell, a monitor, a schedule): what it does, where its output goes and what to do when it reports;',
     'decisions: what the person decided, in their own words where they gave them, and what you decided and why;',
     'next: the next step, concrete enough to start on at once (the files, the commands).',
     'No keys, tokens or passwords.',
@@ -262,7 +262,7 @@ export function carryFits(c: Carry, o: { sessionId: string; cwd: string; now: nu
 export function continuationPrompt(o: { tokens: string; note: string; path: string | null; state: string; lang: Lang }): string {
   const tr = o.lang === 'tr';
   const lead = tr
-    ? `[${APP_NAME}] Konuşma, token tasarrufu için bir görev sınırında sıfırlandı: bağlam ${o.tokens} idi ve her çağrı hepsini yeniden okuyordu. İş burada, yeni bir konuşmada sürüyor. Aşağıdaki not sıfırlamadan hemen önce bu konuşmadan yazıldı${o.path ? ` (dosyası: ${o.path})` : ''}. Biten adımları yeniden yapma (commit'lenenleri git gösterir); kuralları ve hafızayı yalnız sonraki adımın gerektirdiği kadar oku. Sonra nottaki sonraki adımla devam et.`
-    : `[${APP_NAME}] The conversation was reset at a task boundary to save tokens: it had ${o.tokens} of context, and every call read all of it again. The work goes on here, in a new conversation. The note below was written from that conversation just before the reset${o.path ? ` (its file: ${o.path})` : ''}. Do not redo finished steps (git shows what is committed); read the rules and the memory only as far as the next step needs. Then go on with the note's next step.`;
+    ? `[${APP_NAME}] Konuşma, token tasarrufu için bir görev sınırında sıfırlandı: bağlam ${o.tokens} idi ve her çağrı hepsini yeniden okuyordu. İş burada, yeni bir konuşmada sürüyor. Aşağıdaki not sıfırlamadan hemen önce bu konuşmadan yazıldı${o.path ? ` (dosyası: ${o.path})` : ''}. Biten adımları yeniden yapma (commit'lenenleri git gösterir); kuralları ve hafızayı yalnız sonraki adımın gerektirdiği kadar oku. Notta arka planda çalıştığı yazan iş sürüyor ve buraya haber verecek: bu işin parçası, haberi gelince nottaki gibi davran. Sonra nottaki sonraki adımla devam et.`
+    : `[${APP_NAME}] The conversation was reset at a task boundary to save tokens: it had ${o.tokens} of context, and every call read all of it again. The work goes on here, in a new conversation. The note below was written from that conversation just before the reset${o.path ? ` (its file: ${o.path})` : ''}. Do not redo finished steps (git shows what is committed); read the rules and the memory only as far as the next step needs. What the note says runs in the background goes on and reports here: it is part of this work, so when it does, act as the note says. Then go on with the note's next step.`;
   return [lead, o.state, o.note.trim()].filter(Boolean).join('\n\n');
 }

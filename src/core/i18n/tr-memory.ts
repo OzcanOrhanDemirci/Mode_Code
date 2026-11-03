@@ -73,7 +73,8 @@ export const trMemory: Record<keyof typeof enMemory, string> = {
   'msetup.ask.handoffs': 'Devir notları nerede dursun?',
   'msetup.handoffs.store': 'Bu klasörde (handoffs/): onunla birlikte taşınır',
   'msetup.handoffs.tool': 'Mode_Code ile: eşitlemesi kuruluysa onun ortak yerinde (mode-code sync setup), değilse kendi klasöründe',
-  'msetup.ask.protect': 'Hafıza klasörü emniyet kemeriyle korunsun mu? O zaman Claude not silemez, dizini küçültmeden önce sana sorar.',
+  'msetup.ask.protect':
+    "Hafıza klasörü emniyet kemeriyle korunsun mu? O zaman Claude kendiliğinden not silemez; bir hafıza dosyasını küçültmeden önce Manuel'de sana sorar, Otonom ve tam otonomda önce kopyasını saklar.",
   'msetup.plan.title': 'Yapılacaklar:',
   'msetup.plan.confirm': 'Başlansın mı?',
   'msetup.plan.create': "GitHub'da özel {repo} deposunu aç",

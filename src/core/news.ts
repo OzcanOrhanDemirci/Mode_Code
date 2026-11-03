@@ -17,7 +17,10 @@ export interface News {
 }
 
 /** The releases with a note, oldest first. */
-export const NEWS: readonly News[] = [{ since: '1.2.0', key: 'news.1_2', short: 'news.1_2.short' }];
+export const NEWS: readonly News[] = [
+  { since: '1.2.0', key: 'news.1_2', short: 'news.1_2.short' },
+  { since: '1.3.0', key: 'news.1_3', short: 'news.1_3.short' },
+];
 
 /**
  * The notes for an update from `from` to `to`: each release after `from`, up to `to`, that carries one. None when either
