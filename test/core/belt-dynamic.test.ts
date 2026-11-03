@@ -39,3 +39,24 @@ test('an unknown program in a variable is asked about when its arguments hold a 
 test('a variable set earlier in the same command names the program', async () => {
   assert.equal(await verdict('TOOL=/opt/tool/bin/tool; $TOOL --force'), 'allow');
 });
+
+test('a nested session spelled through a variable is the same nested session', async () => {
+  // The form measured in real use, and the same words given as arguments, in quotes, or through a wrapper.
+  for (const command of [
+    'C="claude -p --setting-sources project,local"; $C "say hi"',
+    'C="claude --bare -p"; $C "say hi"',
+    'F="--bare -p"; claude $F "say hi"',
+    'C="claude --bare -p"; nohup $C "say hi"',
+    'C="claude --bare -p hello"; bash -c "$C"',
+  ]) {
+    const d = await evaluateToolCall('Bash', { command }, ctx);
+    assert.equal(d.verdict, 'deny', command);
+    assert.ok(
+      d.findings.some((f) => f.rule === 'self.nested-session'),
+      command,
+    );
+  }
+  // A session that keeps its hooks and settings is no nested-session finding, however it is spelled.
+  const kept = await evaluateToolCall('Bash', { command: 'C="claude -p"; $C "say hi"' }, ctx);
+  assert.ok(!kept.findings.some((f) => f.rule === 'self.nested-session'));
+});

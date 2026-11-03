@@ -573,6 +573,7 @@ class BashParser {
     let text = '';
     let dynamic = false;
     let glob = false;
+    let bare = false;
     let quoted = false;
     let quoteAt = -1;
     let group = 0;
@@ -676,6 +677,7 @@ class BashParser {
         const e = this.readExpansion();
         text += e;
         dynamic = true;
+        bare = true;
         continue;
       }
       if (c === '`') {
@@ -693,7 +695,7 @@ class BashParser {
       this.pos++;
     }
     if (group > 0) this.issues.push('unbalanced-paren');
-    return { word: { text, dynamic, glob }, quoted, quoteAt };
+    return { word: { text, dynamic, glob, ...(bare ? { bare: true as const } : {}) }, quoted, quoteAt };
   }
 
   private readDoubleQuoted(): { text: string; dynamic: boolean } {

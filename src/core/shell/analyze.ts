@@ -385,10 +385,10 @@ export function straightLineConstants(command: string, script: ParsedScript): Ma
         const value = made
           ? MKTEMP_PATH
           : m[2]!.replace(/\$\{(\w+)\}|\$(\w+)/g, (whole, x: string | undefined, y: string | undefined) => known.get((x ?? y)!) ?? whole);
-        // A value with spaces or wildcards is split and globbed where it is used unquoted: not one known word.
-        // With `extglob` on, `@(a|b)` is a wildcard too. An array's elements (`NAME=(…)`) are no value of NAME, which
-        // is the first of them.
-        if (/[$`\s*?[\]()|]/.test(value)) continue;
+        // A value with wildcards is globbed where it is used unquoted: not one known word. With `extglob` on, `@(a|b)`
+        // is a wildcard too. An array's elements (`NAME=(…)`) are no value of NAME, which is the first of them. A value
+        // with blanks is kept: substituteKnown reads it as bash would, by whether its use is quoted.
+        if (/[$`*?[\]()|]/.test(value)) continue;
         (first ? settled : chain).set(m[1]!, value);
       }
     first = false;
@@ -396,12 +396,26 @@ export function straightLineConstants(command: string, script: ParsedScript): Ma
   return result;
 }
 
-/** The words with known variables filled in; a word is no longer dynamic once nothing unknown is left in it. */
+/** A word that is one `$NAME` and nothing else. */
+const WHOLE_VARIABLE = /^\$(?:\{(\w+)\}|(\w+))$/;
+
+/**
+ * The words with known variables filled in; a word is no longer dynamic once nothing unknown is left in it. A value with
+ * blanks is read as bash reads it: one word inside double quotes, several words where it stands alone unquoted
+ * (`C="tool --flag"; $C` runs `tool`). Glued to other text unquoted it stays unknown: its first and last pieces join
+ * that text.
+ */
 export function substituteKnown(words: readonly Word[], known: ReadonlyMap<string, string>): Word[] {
-  return words.map((w) => {
-    if (!w.dynamic) return w;
-    const text = w.text.replace(/\$\{(\w+)\}|\$(\w+)/g, (whole, a: string | undefined, b: string | undefined) => known.get((a ?? b)!) ?? whole);
-    return text === w.text ? w : { ...w, text, dynamic: /[$`]/.test(text) };
+  return words.flatMap((w) => {
+    if (!w.dynamic) return [w];
+    const whole = w.bare ? WHOLE_VARIABLE.exec(w.text) : null;
+    const alone = whole ? known.get((whole[1] ?? whole[2])!) : undefined;
+    if (alone !== undefined && /\s/.test(alone)) return alone.split(/\s+/).flatMap((text) => (text ? [{ text, dynamic: false, glob: false }] : []));
+    const text = w.text.replace(/\$\{(\w+)\}|\$(\w+)/g, (found, a: string | undefined, b: string | undefined) => {
+      const value = known.get((a ?? b)!);
+      return value === undefined || (w.bare && /\s/.test(value)) ? found : value;
+    });
+    return [text === w.text ? w : { ...w, text, dynamic: /[$`]/.test(text) }];
   });
 }
 

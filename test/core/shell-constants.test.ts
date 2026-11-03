@@ -35,7 +35,6 @@ test('anything that can make the value uncertain keeps it unknown', () => {
     'if true; then S=/opt/a; fi; $S', // in a branch
     'S=$(pwd); $S', // computed
     'read S; $S', // read at run time
-    'S="echo hi"; $S', // split into words where it is used
     'S=/opt/*; $S', // globbed where it is used
     '$S; S=/opt/a', // used before it is assigned
     'S=/opt/a & $S', // assigned in the background
@@ -52,6 +51,23 @@ test('anything that can make the value uncertain keeps it unknown', () => {
     'PWD=/opt/a; cd /opt/b; $PWD', // set by bash at a cd
   ])
     assert.ok(run(cmd).issues.includes('dynamic-program'), cmd);
+});
+
+test('a value with blanks is read as bash splits it: several words alone, one word in quotes', () => {
+  const split = run('S="echo hi there"; $S now');
+  assert.deepEqual(split.issues, []);
+  assert.equal(split.invocations[0]?.program, 'echo');
+  assert.deepEqual(split.invocations[0]?.args, ['hi', 'there', 'now']);
+  assert.deepEqual(run('A="-n  hi"; echo $A').invocations[0]?.args, ['-n', 'hi'], 'runs of blanks make no empty word');
+  assert.deepEqual(run('A=" "; echo $A x').invocations[0]?.args, ['x'], 'only blanks make no word at all');
+  assert.deepEqual(run('D="/opt/my tools"; "$D/run" x').invocations[0]?.program, 'run');
+  assert.deepEqual(run('D="/opt/my tools"; echo "$D/run"').invocations[0]?.args, ['/opt/my tools/run']);
+  // Glued to other text outside quotes its pieces join that text: not followed.
+  const glued = run('D="/opt/my tools"; echo $D/run').invocations[0];
+  assert.deepEqual(glued?.args, ['$D/run']);
+  assert.deepEqual(glued?.dynamic, [true]);
+  // A second assignment leaves it unknown, blanks or not.
+  assert.ok(run('S="echo hi"; S="echo no"; $S').issues.includes('dynamic-program'));
 });
 
 test('single-quoted text stays literal and is not substituted', () => {
