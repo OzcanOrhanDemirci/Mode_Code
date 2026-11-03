@@ -151,13 +151,9 @@ test('a variable used in a risky command: the verdict is the plain one with a co
   ]) {
     assert.equal(summary(await bash(command.join('\n'), ctx)), blocked, JSON.stringify(command));
   }
-  // The same command with its comment in a place that changes the meaning is another command.
-  assert.equal(
-    summary(await bash('S=/etc/zzprobe\nif true; then rm -rf "$S"; fi # note', ctx)),
-    'ask fs.delete-outside-project',
-    'a branch is still uncertain',
-  );
-  assert.equal(summary(await bash('# note\nfor i in 1; do S=/etc/zzprobe; done; rm -rf "$S"', ctx)), 'ask fs.delete-outside-project', 'a loop too');
+  // A value set before a branch is the value inside it; one set inside a loop may never be set at all.
+  assert.equal(summary(await bash('S=/etc/zzprobe\nif true; then rm -rf "$S"; fi # note', ctx)), blocked, 'a branch hides nothing');
+  assert.equal(summary(await bash('# note\nfor i in 1; do S=/etc/zzprobe; done; rm -rf "$S"', ctx)), 'ask fs.delete-outside-project', 'a loop is uncertain');
 });
 
 /** The delete these samples end in: a protected place on every system, so the verdict is the same on each. */
