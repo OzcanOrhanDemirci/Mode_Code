@@ -13,7 +13,7 @@ import { APP_ID } from './app.js';
 import { packOfTool } from './packs.js';
 import { isFileTool, isOwnTool, shellOf } from './belt/tools.js';
 import { isUnder, pathKey, resolvePath, type PathEnv } from './paths.js';
-import { carriesOutside, type Provenance } from './provenance.js';
+import { pastesOutside, type Provenance } from './provenance.js';
 
 /** Programs whose output is what a remote server sent. */
 const FETCHERS = new Set(['curl', 'wget', 'invoke-webrequest', 'invoke-restmethod', 'http', 'https', 'xh']);
@@ -207,8 +207,9 @@ export function taintedAct(
 /**
  * Whether what a tainted session's call does still needs the person here. Sending data out and what starts by
  * itself are the belt's own rules now, for every session (`outbound.network`, `persist.*`), each by where its
- * target came from (src/core/provenance.ts). What stays is the memory: written with what was read from outside.
+ * target came from (src/core/provenance.ts). What stays is the memory, when what was read is pasted into it. A note in
+ * the session's own words does not ask, whatever hosts or paths it names: that was the rule's false alarm.
  */
 export function taintMatters(t: { act: TaintedAct; what: string }, written: string, prov: Provenance): boolean {
-  return t.act === 'memory' && carriesOutside(written || t.what, prov);
+  return t.act === 'memory' && pastesOutside(written || t.what, prov);
 }
