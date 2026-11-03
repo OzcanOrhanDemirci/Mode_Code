@@ -7,7 +7,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyProvenance, withSaid, withSeen, withStart } from '../../src/core/provenance.js';
-import { bash, linuxCtx, macCtx, summary } from '../helpers/belt.js';
+import { evaluateToolCall } from '../../src/core/belt/evaluate.js';
+import { bash, linuxCtx, macCtx, summary, winCtx } from '../helpers/belt.js';
 
 // Inside an agent's container: root's home, the project in /workspace.
 const box = (over = {}) => linuxCtx({ home: '/root', cwd: '/workspace/app', projectDir: '/workspace/app', env: { HOME: '/root' }, ...over });
@@ -129,4 +130,17 @@ test("gh's host is GitHub's own: seen in what the session read, it stops nothing
   assert.equal(named.findings[0]!.outside, true);
   // Reading through gh api sends nothing.
   assert.equal(summary(await bash('gh api -X GET repos/ada/app/pulls', box({ level: 'full', prov: seen }))), 'allow');
+});
+
+test('a drive of values is no folder: deleting a key of the current user, a variable, is no file delete', async () => {
+  const ps = async (command: string) =>
+    (await evaluateToolCall('PowerShell', { command }, winCtx({ level: 'manual', cwd: 'C:/Users/ada', projectDir: 'C:/Users/ada' }))).findings.map(
+      (f) => f.rule,
+    );
+  assert.deepEqual(await ps("Remove-Item -LiteralPath 'HKCU:\\Software\\Example\\Apps\\1' -Recurse -Force"), []);
+  assert.deepEqual(await ps("Remove-Item 'hkcu:/Software/Example' -Recurse"), []);
+  assert.deepEqual(await ps('Remove-Item Env:EXAMPLE'), []);
+  // The machine's registry, and a real folder that only looks like one, are still judged.
+  assert.deepEqual(await ps("Remove-Item 'HKLM:\\Software\\Example' -Recurse"), ['fs.delete-outside-project']);
+  assert.deepEqual(await ps("Remove-Item 'C:\\Users\\ada\\HKCU\\x' -Recurse"), ['fs.delete-outside-project']);
 });
