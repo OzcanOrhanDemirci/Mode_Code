@@ -22,6 +22,7 @@ import type { BeltContext, Finding, RuleId } from './types.js';
 import type { NetPlan } from '../net.js';
 import type { Unit } from '../provenance.js';
 import { isLocalHost, sendHosts, sends } from '../taint.js';
+import { ownGitHubRepo } from './gh-repo.js';
 
 /** Issues that hide what runs: always worth asking about. */
 const STRONG_UNCERTAIN = new Set(['eval-dynamic', 'encoded-command-undecodable', 'dynamic-shell-code', 'too-deep', 'stdin-code']);
@@ -74,6 +75,8 @@ interface Scope {
   paths: ProtectedPaths;
   findings: Finding[];
   inline: boolean;
+  /** The whole command being judged, for what reaches past a single invocation. */
+  script: string;
   /** Set while judging a command that runs inside a WSL distribution (see Invocation.guest). */
   guest?: { distro: string | null; cd: string | null };
 }
@@ -698,7 +701,7 @@ async function checkInvocation(inv: Invocation, cwd: string | null, s0: Scope, d
   checkData(inv, s);
   checkSecurityOff(inv, dialect, s);
   checkExfil(inv, ws, s);
-  checkNetwork(inv, s);
+  await checkNetwork(inv, cwd, s);
   checkAgents(inv, s);
   if (p === 'gh') checkGitHub(inv, s);
 
@@ -1357,6 +1360,11 @@ function checkExfil(inv: Invocation, ws: Word[], s: Scope): void {
             .slice(3)
             .map((x) => x.text.replace(/#.*$/, '')),
         );
+      if (/^(?:issue|pr|discussion|release)$/.test(w[0] ?? '') && /^(?:create|comment|edit|review)$/.test(w[1] ?? '')) {
+        files.push(...optionValues(a, ['-F'], ['--body-file', '--notes-file']));
+        bodies.push(...optionValues(a, ['-b', '-t', '-n'], ['--body', '--title', '--notes']));
+        files.push(...[...inv.raw.matchAll(READ_IN_SUBSTITUTION)].map((m) => m[1]!));
+      }
       break;
     }
     default:
@@ -1368,6 +1376,9 @@ function checkExfil(inv: Invocation, ws: Word[], s: Scope): void {
     if (kinds.length) return leak(kinds.join(', '));
   }
 }
+
+/** A file printed into a text as it is built: `--body "$(cat .env)"`. */
+const READ_IN_SUBSTITUTION = /\$\(\s*(?:cat|type|get-content|head|tail|base64)\s+(?:-\S+\s+(?:\d+\s+)?)*["']?([^"'\s)]+)/gi;
 
 /** Programs that print or pack a file's content: what they read can be piped onwards. */
 const SECRET_READERS = new Set([
@@ -1419,6 +1430,7 @@ function checkPipedSecret(invs: readonly Invocation[], s: Scope): void {
         (v) => v === '@-' || v === '-' || v === '.' || /=[@<]-$/.test(v),
       );
     if (inv.program === 'wget') return optionValues(a, [], ['--post-file', '--body-file']).some((v) => v === '-' || v === '/dev/stdin');
+    if (inv.program === 'gh') return optionValues(a, ['-F'], ['--body-file', '--notes-file']).includes('-');
     return false;
   };
   const senders = invs.filter(stdinSender);
@@ -1438,7 +1450,7 @@ function checkPipedSecret(invs: readonly Invocation[], s: Scope): void {
  * Data sent off the computer by a command: where it goes is the target, the person's own or not (src/core/provenance.ts).
  * To this computer it does not leave; a host only known when it runs is asked as unknown.
  */
-function checkNetwork(inv: Invocation, s: Scope): void {
+async function checkNetwork(inv: Invocation, cwd: string | null, s: Scope): Promise<void> {
   if (!sends(inv.program, inv.args)) return;
   // Deleting on GitHub through its API is its own rule (github.delete), not data sent.
   if (inv.program === 'gh' && optionValues(inv.args, ['-X'], ['--method']).some((m) => m.toUpperCase() === 'DELETE')) return;
@@ -1446,6 +1458,9 @@ function checkNetwork(inv: Invocation, s: Scope): void {
   const hosts = all.filter((h) => !isLocalHost(h));
   if (all.length && !hosts.length) return;
   add(s, 'outbound.network', 'belt.reason.network', { command: show(inv.raw) });
+  const own =
+    inv.program === 'gh' && !s.guest ? await ownGitHubRepo(inv, { dir: cwd === null ? null : s.paths.canonical(cwd), script: s.script }, s.ctx) : null;
+  if (own) return actsOn(s, { kind: 'repo', values: [own], own: true });
   // gh's host is GitHub whatever the call says: it is taken from nothing the session read.
   actsOn(s, hosts.length ? { kind: 'host', values: hosts, ...(inv.program === 'gh' ? { implicit: true as const } : {}) } : undefined);
 }
@@ -1514,7 +1529,7 @@ function fieldValues(input: unknown, key: RegExp, except?: RegExp, depth = 0): s
  * judged: no vocabulary is complete.
  */
 export function checkOutward(tool: string, input: Readonly<Record<string, unknown>>, ctx: BeltContext): Finding[] {
-  const s: Scope = { ctx, paths: protectedPaths(ctx), findings: [], inline: false };
+  const s: Scope = { ctx, paths: protectedPaths(ctx), findings: [], inline: false, script: '' };
   const kinds = outwardKinds(toolWords(tool));
   // A payment through a connected service (a charge, a refund, a subscription, money sent): always the person's.
   if (kinds.pays) add(s, 'outbound.payment', 'belt.reason.payment', { what: tool });
@@ -1652,7 +1667,7 @@ async function evaluateScript(command: string, dialect: Dialect, s: Scope, start
 
 /** Checks a shell command (Bash or PowerShell tool). */
 export async function checkCommand(command: string, dialect: Dialect, ctx: BeltContext): Promise<{ findings: Finding[]; issues: string[] }> {
-  const s: Scope = { ctx, paths: protectedPaths(ctx), findings: [], inline: false };
+  const s: Scope = { ctx, paths: protectedPaths(ctx), findings: [], inline: false, script: command };
   await evaluateScript(command, dialect, s, ctx.cwd);
   // What starts by itself is decided by the command that sets it up, word for word the person's or not.
   for (const f of s.findings)
@@ -1675,7 +1690,7 @@ export interface FileToolInput {
  * half of a file of at least 1 KB, or edits that remove at least 1 KB and leave less than half of it.
  */
 export async function checkFileTool(tool: string, filePath: string, input: FileToolInput, ctx: BeltContext): Promise<Finding[]> {
-  const s: Scope = { ctx, paths: protectedPaths(ctx), findings: [], inline: false };
+  const s: Scope = { ctx, paths: protectedPaths(ctx), findings: [], inline: false, script: '' };
   const t = target({ text: filePath, dynamic: false, glob: false }, ctx.cwd, s);
   checkWrite(t, tool === 'Write' ? 'tool-write' : 'edit', s);
   const texts = [input.content ?? '', ...(input.edits ?? []).map((e) => e.newText)].join('\n');

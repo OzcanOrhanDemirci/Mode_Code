@@ -67,6 +67,7 @@ import type { RuleId } from '../core/belt/types.js';
 import { claudeHost } from './kit-host.js';
 import { decide, evaluateToolCall, decisionText, mergeDecisions } from '../core/belt/evaluate.js';
 import { taintedAct, taintMatters, taintSource, withoutInvisible } from '../core/taint.js';
+import { githubHostsPath, githubUserIn } from '../core/belt/gh-repo.js';
 import {
   madePaths,
   parseProvenance,
@@ -498,6 +499,9 @@ async function readEnv($: $): Promise<Record<string, string | undefined>> {
     WSL_DISTRO_NAME,
     COMPUTERNAME,
     HOSTNAME,
+    GH_REPO,
+    GH_HOST,
+    GH_CONFIG_DIR,
   ] = await Promise.all([
     $.env.get('HOME'),
     $.env.get('USERPROFILE'),
@@ -521,6 +525,9 @@ async function readEnv($: $): Promise<Record<string, string | undefined>> {
     $.env.get('WSL_DISTRO_NAME'),
     $.env.get('COMPUTERNAME'),
     $.env.get('HOSTNAME'),
+    $.env.get('GH_REPO'),
+    $.env.get('GH_HOST'),
+    $.env.get('GH_CONFIG_DIR'),
   ]);
   return {
     HOME,
@@ -545,6 +552,9 @@ async function readEnv($: $): Promise<Record<string, string | undefined>> {
     WSL_DISTRO_NAME,
     COMPUTERNAME,
     HOSTNAME,
+    GH_REPO,
+    GH_HOST,
+    GH_CONFIG_DIR,
   };
 }
 
@@ -893,7 +903,7 @@ async function runGit($: $, dir: string, args: string[]): Promise<{ ok: boolean;
   }
 }
 
-async function gitFactsFor($: $): Promise<GitFacts> {
+async function gitFactsFor($: $, c: Pick<Ctx, 'env' | 'home' | 'platform'>): Promise<GitFacts> {
   const cache = new Map<string, string | null>();
   const memo = async (key: string, dir: string, args: string[]): Promise<string | null> => {
     if (!cache.has(key)) {
@@ -910,6 +920,14 @@ async function gitFactsFor($: $): Promise<GitFacts> {
     merged: async (dir, branch) => {
       const list = await memo(`m\0${dir}`, dir, ['for-each-ref', '--merged', 'HEAD', '--format=%(refname:short)', 'refs/heads']);
       return list === null ? null : list.split('\n').includes(branch);
+    },
+    remoteUrls: async (dir) => {
+      const listed = await memo(`l\0${dir}`, dir, ['remote', '-v']);
+      return listed === null ? null : listed.split('\n').flatMap((line) => line.split(/\s+/)[1] ?? []);
+    },
+    githubUser: async () => {
+      const hosts = await readFile($, githubHostsPath(c.env, c.home, c.platform));
+      return hosts === null ? null : githubUserIn(hosts);
     },
   };
 }
@@ -1015,7 +1033,7 @@ async function beltContextFor($: $, c: Ctx): Promise<BeltContext> {
     level: levelOf(c.state.interaction),
     net: await hookSeen($, c),
     prov: await provOf($, c),
-    git: await gitFactsFor($),
+    git: await gitFactsFor($, c),
     fileSize: (p) => statSize($, p),
     aliases: await aliasesFor($, c, cwd),
   };

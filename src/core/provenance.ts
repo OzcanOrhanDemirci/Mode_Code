@@ -20,6 +20,8 @@ export interface Unit {
   values: string[];
   /** The tool's own, never written in the call (gh's GitHub): evidence when the person named it, never taken from outside. */
   implicit?: true;
+  /** Code read it as the person's own (a repository of their GitHub account): it stands whatever else named it. */
+  own?: true;
 }
 
 /**
@@ -185,6 +187,7 @@ export function originOf(value: string, kind: Unit['kind'], p: Provenance): Orig
  */
 export function unitOrigin(u: Unit, p: Provenance): Origin {
   if (!u.values.length) return 'none';
+  if (u.own) return 'record';
   const origins = u.values.map((v) => originOf(v, u.kind, p));
   if (origins.includes('content') && !u.implicit) return 'content';
   if (origins.every((o) => o === 'person' || o === 'record')) return origins.includes('person') ? 'person' : 'record';

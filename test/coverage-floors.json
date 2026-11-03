@@ -186,6 +186,11 @@
       "branches": 77,
       "functions": 94
     },
+    "src/core/belt/gh-repo.ts": {
+      "lines": 100,
+      "branches": 98,
+      "functions": 100
+    },
     "src/core/belt/git.ts": {
       "lines": 86,
       "branches": 65,

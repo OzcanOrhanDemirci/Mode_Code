@@ -62,6 +62,21 @@ test('the memory line in every state git can be in', { skip: !hasGit && 'git is 
   }
 });
 
+test('git facts for the belt: the account gh is signed in to, from its own folder; none when it has no file', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'tc-gh-config-'));
+  const before = process.env.GH_CONFIG_DIR;
+  process.env.GH_CONFIG_DIR = folder;
+  try {
+    assert.equal(await gitFacts().githubUser!(), null);
+    writeFileSync(join(folder, 'hosts.yml'), 'github.com:\n    git_protocol: https\n    user: ada\n');
+    assert.equal(await gitFacts().githubUser!(), 'ada');
+  } finally {
+    if (before === undefined) delete process.env.GH_CONFIG_DIR;
+    else process.env.GH_CONFIG_DIR = before;
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
+
 test(
   'git facts for the belt: the branch, the remote, aliases; asked once per process; never a prompt',
   { skip: !hasGit && 'git is not installed' },
@@ -75,6 +90,12 @@ test(
       assert.equal(await f.currentBranch(root), 'trunk');
       assert.equal(await f.remoteUrl(root), 'https://example.com/ada/app.git');
       assert.equal(await f.remoteUrl(root, 'upstream'), null);
+      run(root, 'remote', 'add', 'upstream', 'git@github.com:bob/app.git');
+      assert.deepEqual(
+        await f.remoteUrls!(root),
+        ['git@github.com:bob/app.git', 'git@github.com:bob/app.git', 'https://example.com/ada/app.git', 'https://example.com/ada/app.git'].sort().reverse(),
+      );
+      assert.equal(await f.remoteUrls!(join(root, 'does-not-exist')), null);
       assert.equal(await f.alias(root, 'p'), 'push --force');
       assert.equal(await f.alias(root, 'nope'), null);
       // An alias name that is not a plain word is never handed to git.

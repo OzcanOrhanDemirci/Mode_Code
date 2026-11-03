@@ -13,6 +13,10 @@ export interface FakeGit {
   aliases?: Record<string, string>;
   /** The branches merged into the current one. */
   merged?: string[];
+  /** Every remote's address; the remote above when not given. */
+  remotes?: string[] | null;
+  /** The account gh is signed in to; none when not given. */
+  githubUser?: string | null;
 }
 
 export function fakeGit(o: FakeGit = {}): GitFacts {
@@ -21,6 +25,8 @@ export function fakeGit(o: FakeGit = {}): GitFacts {
     remoteUrl: async () => (o.remote === undefined ? 'https://github.com/ada/app.git' : o.remote),
     alias: async (_d, name) => o.aliases?.[name] ?? null,
     merged: async (_d, branch) => (o.merged ? o.merged.includes(branch) : null),
+    remoteUrls: async () => (o.remotes === undefined ? ['https://github.com/ada/app.git'] : o.remotes),
+    githubUser: async () => o.githubUser ?? null,
   };
 }
 

@@ -131,6 +131,7 @@ Some risky calls are yours when what they act on is: a release you named, a reci
 
 - **Yours:** what you typed in this session's prompts, word for word (a key or a token in it kept masked). What you pasted into the prompt box is not counted (a paste reaches the plugin as one edit no key made); from the phone and in a headless run everything is typed.
 - **The session's start:** the project's remotes (`git remote -v`): its host and its owner/repo.
+- **Your own repository:** what `gh` sends with `issue`, `pr`, `discussion` or `release` when the repository's owner is the account `gh` is signed in to (only that line of its `hosts.yml` is read, never a token): the repository named with `-R`, or else every GitHub remote of the folder the call runs in, since `gh` picks among them by itself. Anything that points `gh` elsewhere (`GH_REPO`, `GH_HOST`, a `-R` only known when it runs) is not. It counts whatever else named the repository, its own `gh` output included.
 - **Read from outside:** the hosts, addresses, owner/repo, paths and lines of what the session read from someone else (a page, an issue, a service's data, another session).
 
 | Rule                                                                 | What it acts on                                                    | Yours (or the start record's)                                                       |
