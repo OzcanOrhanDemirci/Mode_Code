@@ -19,6 +19,8 @@ export interface WorldOptions {
   startedAtHome?: boolean;
   /** What a tool beneath the plugin answers, by tool name (default: it ran). */
   results?: Record<string, (e: any) => any>;
+  /** Claude Code's own verdict on a call (`$.tool.check`), when the test needs one beneath the plugin. */
+  check?: (e: any) => any;
   /** What `$.tool.list()` answers: the built-in four unless given (MCP tools with their descriptions, say). */
   toolList?: { name: string; description?: string; mcp?: boolean }[];
   /** More environment variables (WSL_DISTRO_NAME, …). */
@@ -206,6 +208,7 @@ export function world(on: any, opts: WorldOptions = {}) {
     const answer = opts.results?.[String(e.tool)];
     return answer ? answer(e) : { result: 'ran' };
   });
+  if (opts.check) on('tool.check', (_$: any, e: any) => opts.check!(e));
   on('tool.list', () => ({ value: opts.toolList ?? [{ name: 'Bash' }, { name: 'Read' }, { name: 'Write' }, { name: 'Edit' }] }));
   const registered: any[] = [];
   // The slash commands the plugin declares, as Claude Code takes them.

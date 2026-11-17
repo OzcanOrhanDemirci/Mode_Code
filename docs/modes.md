@@ -196,7 +196,7 @@ Where the plan is: the flow's work file, or, while Claude Code's plan mode is on
 
 **⏸ Approval: the person said yes.** Through the dialog the plugin opens when the plan step is done, through Claude Code's plan dialog when Claude Code's plan mode is on, or by typing `approve` / `onay` (headless sessions, a phone, a dismissed dialog). In the dialog the person can also ask for changes (the flow goes back to the plan step with their words) or pause the flow. The approved plan is copied into the flow's record; the verification commands are taken from that copy, so a later edit of the work file cannot change them.
 
-**🔨 Code: the verification passes.** When Claude calls `flow_step` for the code step, the plugin runs each verification command of the approved plan through Claude Code's own shell tool (the safety belt and the permission rules apply as to any command) and counts the step done only when every command exits with 0. A failure stays open with the command and the end of its output.
+**🔨 Code: the verification passes.** When Claude calls `flow_step` for the code step, the plugin runs each verification command of the approved plan through Claude Code's own shell tool (the safety belt and the permission rules apply as to any command: one Claude Code would deny, or ask about for a rule of yours, a hook's or your organization's, is refused with its reason) and counts the step done only when every command exits with 0. A failure stays open with the command and the end of its output.
 
 ### Controls
 
