@@ -4,6 +4,20 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-11-18
+
+Mode_Code with the newest Claude Code: a flow's verification commands keep to your own permission rules again, and the plugin passes Claude Code's own engine tests on the releases since 1.3.0. Nothing else changes. Checked against Claude Code 2.1.326.
+
+### Upgrading from 1.3.0
+
+- **How:** `mode-code update`, from your own terminal rather than inside a Claude Code session. Settings, history and handoff notes are kept.
+- **Unchanged:** the safety belt, the modes, the ways of working, the strip and the cockpit; Claude Code 2.1.290 or newer for the plugin (2.1.295 for the safety-net hook) and Node.js 22.13 or newer.
+
+### Fixed
+
+- A flow's verification commands keep to your own permission rules on Claude Code 2.1.326. Claude Code now lets a plugin's own tool call through every question and every deny rule, where up to 2.1.323 it refused a command that a deny rule, an ask rule of yours, a hook or your organization stopped; so the commands of an approved plan ran where the same command from Claude would have been denied or asked about. Each one is now put to Claude Code's own verdict first and refused, with its reason, where it was refused before; the permission mode's plain question still lets it run, as it did. The safety belt judged these commands all along. 2.1.325 was not checked.
+- The plugin's tests inside Claude Code's engine pass again on 2.1.322 and newer ([#120](https://github.com/OzcanOrhanDemirci/Mode_Code/issues/120)). Claude Code changed two things they leaned on: a hook that names no plugin now hears only its own plugin's focus moves, and Claude Code's own drawing stands beneath a band row the plugin hands on. Mode_Code's own hooks listen only to its own strip and cockpit, so the keyboard on the strip and the cockpit works as before.
+
 ## [1.3.0] - 2026-11-03
 
 The safety belt stops two fifths less often on the same work, for a cost measured and named, and a conversation resets at its next task boundary where background work used to hold it. The belt reads commands better, keeps a copy of what a delete or a memory shrink takes away and goes on, lets through what goes to your own GitHub repositories, and asks about the memory only for a line copied from what was read. Checked against Claude Code 2.1.317.
@@ -362,7 +376,8 @@ The first public release: the safety belt, keywords, modes and flows, full auton
 - A session started in the home folder counted the user's own settings twice, as user and as project settings, and the doctor reported the safety-net hooks as duplicated.
 - The doctor called a hook program from an earlier build of the same version "changed after installation". The installation now records the program's fingerprint, so an earlier build and a change are told apart; an older hook matcher is named as such, with the tools it does not check.
 
-[Unreleased]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.1.0...v1.2.0

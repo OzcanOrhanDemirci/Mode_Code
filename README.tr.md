@@ -62,7 +62,7 @@ Sonra yeni bir Claude Code oturumu başlat (`claude`). İstem satırının üst�
 | seçenek vermek                  | `curl -fsSL <adres> \| sh -s -- <seçenekler>` | `& ([scriptblock]::Create((irm <adres>))) <seçenekler>` |
 | her soruya evet (betikler için) | `--yes`                                       | `-Yes`                                                  |
 | eksikse Claude Code'u da kurmak | `--install-claude`                            | `-InstallClaude`                                        |
-| belirli bir sürümü kurmak       | `--version 1.3.0`                             | `-Version 1.3.0`                                        |
+| belirli bir sürümü kurmak       | `--version 1.3.1`                             | `-Version 1.3.1`                                        |
 | PATH'e dokunmamak               | `--no-modify-path`                            | `-NoModifyPath`                                         |
 | yalnız programı kurmak          | `--no-setup`                                  | `-NoSetup`                                              |
 
@@ -337,6 +337,8 @@ Sıradakiler:
 - **Daha çok kural şablonu**: Python ve Go'dan Docker Compose'a yaygın yığınlar.
 - **Daha çok dil**: arayüz için İngilizce ve Türkçenin yanına.
 - Tek satırlık kurulumda **musl Linux** (Alpine).
+
+1.3.1'de tamamlananlar: Claude Code 2.1.326 ile Mode_Code; bir akışın doğrulama komutları yeniden senin izin kurallarına uyuyor.
 
 1.3.0'da tamamlananlar: aynı işte beşte iki daha az durduran emniyet kemeri, bedeli bir açık sette 14.067 saldırı çağrısından ikisi: komutları daha iyi okuyor, bir silmenin ya da hafıza küçültmenin götüreceğinin kopyasını saklayıp devam ediyor, kendi GitHub depolarına gideni geçiriyor ve hafıza için yalnız okunandan alınmış bir satırda soruyor ([docs/threat-model.md](docs/threat-model.md#measured-for-130), İngilizce). Arka plan işinin artık tutmadığı görev sınırı sıfırlaması ([docs/quota.md](docs/quota.md#reset-at-a-task-boundary), İngilizce).
 
