@@ -121,7 +121,7 @@ test('Claude right now: worked out from the session, in words; chat mode changes
 
 test('every line says itself: a card for each, unseen in the line the cockpit opens with, revealed by the pointer; the keyboard shows it too', async ($, on) => {
   world(on);
-  on('ui.focus', () => ({}));
+  on('ui.focus', { plugin: '*' }, () => ({}));
   await run($, '0');
   const ui = await mount($);
   const drawn = await ui.drawn();

@@ -264,5 +264,6 @@ Each Claude Code release Mode_Code was checked against with `node scripts/claude
 | 2026-10-26 | 2.1.311     | pass  | pass             | FAIL    |
 | 2026-10-27 | 2.1.311     | pass  | pass             | pass    |
 | 2026-11-03 | 2.1.317     | pass  | pass             | FAIL    |
+| 2026-11-17 | 2.1.326     | pass  | pass             | not run |
 
 The live failure on 2026-10-26 was Mode_Code's own: told to read a dependency's README, the model printed it with `cat`, and only Read marked a session as having read outside content. A dependency read through Grep or a command that prints it marks the session too since [#102](https://github.com/OzcanOrhanDemirci/Mode_Code/pull/102); on 2026-10-27 the model used `cat` again and the session was marked (`cat (a dependency)`).

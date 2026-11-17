@@ -62,7 +62,7 @@ Read them before you run them: [install.sh](install.sh) · [install.ps1](install
 | pass options                               | `curl -fsSL <address> \| sh -s -- <options>` | `& ([scriptblock]::Create((irm <address>))) <options>` |
 | answer yes to every question (scripts)     | `--yes`                                      | `-Yes`                                                 |
 | install Claude Code too when it is missing | `--install-claude`                           | `-InstallClaude`                                       |
-| install a given version                    | `--version 1.3.0`                            | `-Version 1.3.0`                                       |
+| install a given version                    | `--version 1.3.1`                            | `-Version 1.3.1`                                       |
 | leave PATH alone                           | `--no-modify-path`                           | `-NoModifyPath`                                        |
 | install the program only                   | `--no-setup`                                 | `-NoSetup`                                             |
 
@@ -335,6 +335,8 @@ Next:
 - **More rule templates**: the common stacks, from Python and Go to Docker Compose.
 - **More languages** for the interface, beside English and Turkish.
 - **Linux on musl** (Alpine) in the one-line installer.
+
+Shipped in 1.3.1: Mode_Code with Claude Code 2.1.326, a flow's verification commands keeping to your own permission rules again.
 
 Shipped in 1.3.0: a safety belt that stops two fifths less often on the same work, for two attack calls of 14,067 on one public set: it reads commands better, keeps a copy of what a delete or a memory shrink takes away and goes on, lets through what goes to your own GitHub repositories, and asks about the memory only for a line copied from what was read ([docs/threat-model.md](docs/threat-model.md#measured-for-130)). A reset at a task boundary that background work no longer holds ([docs/quota.md](docs/quota.md#reset-at-a-task-boundary)).
 

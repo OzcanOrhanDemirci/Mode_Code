@@ -64,8 +64,10 @@ test('a mode keyword sets the mode; research refuses project writes and unknown 
   expect(after.deny).toBeUndefined();
 });
 
+const ALLOW = () => ({ decision: 'allow' });
+
 test('a full flow: research, plan, the approval dialog and the verification run, none skipped', async ($, on) => {
-  const w = world(on, { answer: 'allow' });
+  const w = world(on, { answer: 'allow', check: ALLOW });
   const r: any = await $.prompt.submit(typed('Add a second sign-in factor. flow'));
   expect(r.context.join('\n')).toMatch(
     /started a flow: \[🔍 research\] ▶ 📐 plan → ⏸ approval → 🔨 code\. Task, in the person's words: "Add a second sign-in factor\."/,
@@ -118,6 +120,7 @@ test('a full flow: research, plan, the approval dialog and the verification run,
 test('a failing verification keeps the code step open and shows the end of the output', async ($, on) => {
   const w = world(on, {
     answer: 'allow',
+    check: ALLOW,
     results: {
       Bash: (e: any) =>
         e.command === 'npm test' ? { isError: true, result: 'Error: Exit code 1\n1 failing', text: 'Exit code 1\n1 failing' } : { result: 'ran' },
@@ -131,6 +134,27 @@ test('a failing verification keeps the code step open and shows the end of the o
     /The code step is not done: `npm test` exited with code 1 \(it ran in \/home\/ada\/dev\/app\)\. The end of its output:\nExit code 1\n1 failing/,
   );
   expect(flowOf(w).status).toBe('active');
+});
+
+// Claude Code 2.1.326 and newer run a plugin's own call past every ask and the deny rules; the plugin puts each
+// verification command to the session's own verdict first, and refuses what Claude Code up to 2.1.323 refused.
+test("a verification command the person's rules deny or ask about is refused, as for the model; the mode's own ask lets it run", async ($, on) => {
+  let verdict: any = { decision: 'deny', reason: 'Permission to use Bash with command npm test has been denied.', rule: 'Bash(npm test)' };
+  // The verdict answers the plugin's query, which carries no call id; the call's own check, once the plugin let it
+  // go, is answered as Claude Code 2.1.326 and newer settle it for a plugin: allowed.
+  const w = world(on, { answer: 'allow', check: (e: any) => (e.tool === 'Bash' && !e.tool_use_id ? verdict : ALLOW()) });
+  await $.prompt.submit(typed('flow plan'));
+  w.write(flowOf(w).planPath, PLAN);
+  await $.tool.call(step('plan'));
+  const denied: any = await $.tool.call(step('code'));
+  expect(String(denied.result)).toMatch(/The code step is not done: `npm test` could not run: Permission to use Bash with command npm test has been denied\./);
+  expect(w.calls.some((c: any) => c.tool === 'Bash')).toBe(false);
+  verdict = { decision: 'ask', reason: 'Bash(npm test) asks first', rule: 'Bash(npm test)' };
+  expect(String(((await $.tool.call(step('code'))) as any).result)).toMatch(/could not run: Bash\(npm test\) asks first/);
+  expect(w.calls.some((c: any) => c.tool === 'Bash')).toBe(false);
+  verdict = { decision: 'ask', reason: 'This command requires approval' };
+  expect(String(((await $.tool.call(step('code'))) as any).result)).toMatch(/The code step is done: 1 verification command passed/);
+  expect(w.calls.some((c: any) => c.tool === 'Bash' && c.command === 'npm test')).toBe(true);
 });
 
 test('no one to ask: the plan waits; "approve" typed by the person approves it; the quota resume waits for it', async ($, on) => {

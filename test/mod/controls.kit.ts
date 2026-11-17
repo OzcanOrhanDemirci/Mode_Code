@@ -554,14 +554,12 @@ test('with less motion asked for, the working step is marked, not breathing', as
 test('the strip yields to a question of Claude Code, and fits a narrow terminal', async ($, on) => {
   world(on);
   await run($, '0');
-  // Under a question the plugin draws nothing and hands the band on (the kit has no engine beneath to draw it).
-  let handedOn = '';
-  try {
-    await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: { ...band, hasSurvey: true } } as any);
-  } catch (err) {
-    handedOn = String(err);
-  }
-  expect(handedOn).toMatch(/no implementation for ui\.render/);
+  // Under a question the plugin draws nothing and hands the band on: what shows is the node Claude Code draws, which
+  // the kit stands in for (Claude Code 2.1.322 and newer; older kits threw for want of an engine beneath).
+  const question: any = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: { ...band, hasSurvey: true } } as any);
+  expect(await question.drawn()).toMatchObject({ type: 'engine' });
+  expect(await question.findAll({ type: 'Button' })).toHaveLength(0);
+  await question.unmount();
   const narrow = await $.ui.mount({ plugin: 'mode-code', surface: 'terminal', component: 'AbovePrompt', props: { ...band, bodyColumns: 50 } } as any);
   expect((await narrow.findAll({ type: 'Button' })).length).toBe(11);
   expect(await narrow.find({ type: 'Text', text: '3📐' })).toBeDefined();
@@ -634,7 +632,7 @@ test("under the strip: what Claude does now, in words; the pointer on a control,
 
 test('the keyboard on the strip: the card of the control under the focus says itself in the line; typing, or a while, takes it away', async ($, on) => {
   const w = world(on, { answer: 'third' });
-  on('ui.focus', () => ({}));
+  on('ui.focus', { plugin: '*' }, () => ({}));
   await run($, '6');
   await $.prompt.submit(typed('Why is the cache slow?'));
   const ui: any = await $.ui.mount({

@@ -81,6 +81,9 @@ const ALLOWED = new Set([
   'tool.call',
   'tool.list',
   'tool.register',
+  // From Claude Code 2.1.326 on a plugin's own tool call runs past every ask and the deny rules: each verification
+  // command is first put to the session's own verdict (a query: nothing runs, no dialog), and refused as before.
+  'tool.check',
   'ui.ask',
   'ui.notify',
   'ui.resolve',

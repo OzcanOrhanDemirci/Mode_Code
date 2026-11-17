@@ -1317,6 +1317,28 @@ interface CommandRun {
   seconds: number;
 }
 
+/** What `$.tool.check` answers, as far as a verification command reads it. */
+interface Verdict {
+  decision?: string;
+  reason?: string;
+  rule?: string;
+  plugin?: string;
+  setting?: string;
+  ceiling?: string;
+}
+
+/**
+ * Whether Claude Code up to 2.1.323 refused a plugin's own call with this verdict: a deny, or an ask something raised
+ * (a rule, a plugin's hook, a setting's own check, an organization's ceiling). The permission mode's plain ask, where
+ * no rule allows the call, let it run. No verdict at all is refused: what cannot be told does not go through.
+ */
+function refusedForPlugin(v: Verdict | null): boolean {
+  if (!v || typeof v.decision !== 'string') return true;
+  if (v.decision === 'allow') return false;
+  if (v.decision === 'ask') return Boolean(v.rule || v.plugin || v.setting || v.ceiling);
+  return true;
+}
+
 /** Runs verification commands through Claude Code's own shell tool, in order, stopping at the first failure. */
 async function runCommands($: $, c: Ctx, commands: readonly string[]): Promise<CommandRun> {
   const tools = new Set((await $.tool.list()).map((t) => t.name));
@@ -1335,6 +1357,20 @@ async function runCommands($: $, c: Ctx, commands: readonly string[]): Promise<C
   for (const [i, command] of commands.entries()) {
     if (!shell) return done(tIn(c.lang, 'flow.step.codeRefused', { command, reason: 'no shell tool' }));
     const at = await $.clock.now();
+    // The session's own verdict first. Up to Claude Code 2.1.323 a plugin's own call was refused by a deny rule and by
+    // any ask beyond "no rule allows it" (an ask rule, a hook's, an organization's); by 2.1.326 it runs past all of
+    // them. So that verdict is asked here and the same commands are refused as before: the person's rules still hold
+    // for the plan's commands. Where the engine has no check to ask, the call itself still refuses them.
+    let verdict: Verdict | null | 'none';
+    try {
+      verdict = (await $.tool.check({ tool: shell, input: { command } } as never)) as Verdict | null;
+    } catch (err) {
+      verdict = err instanceof TypeError ? 'none' : { decision: 'deny', reason: String((err as Error)?.message ?? err) };
+    }
+    if (verdict !== 'none' && refusedForPlugin(verdict)) {
+      results.push({ command, ok: false, seconds: 0 });
+      return done(tIn(c.lang, 'flow.step.codeRefused', { command, reason: verdict?.reason ?? verdict?.decision ?? 'no verdict' }));
+    }
     let r: Awaited<ReturnType<typeof $.tool.call>>;
     try {
       r = await $.tool.call({ tool: shell, command, description: `Mode_Code: verification ${i + 1}/${commands.length}`, timeout: 600_000 } as never);
