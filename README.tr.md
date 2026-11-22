@@ -1,14 +1,14 @@
 <p align="right"><a href="README.md">English</a> · <b>Türkçe</b></p>
 
 <p align="center">
-  <img src="docs/images/mo.svg" width="200" alt="Mode_Code'un maskotu Mo: zırhlı küçük bir robot; dinleniyor, düşünüyor, çalışıyor, bitirdi">
+  <img src="docs/images/mo.svg" width="120" alt="Mode_Code'un maskotu Mo: zırhlı küçük bir robot; dinleniyor, düşünüyor, çalışıyor, bitirdi">
 </p>
 
 <h1 align="center">Mode_Code</h1>
 
 <p align="center">
-  <b>Claude Code için yerel bir yol arkadaşı.</b><br>
-  Claude Code'un içinde bir emniyet kemeri, modlar ve kota bekçisi; terminalinde bir kontrol merkezi.<br>
+  <b>Claude Code için emniyet kemeri, modlar ve kota bekçisi; her araç çağrısında kodla karar verilir.</b><br>
+  Claude Code'un içinde bir eklenti, altında hata anında kapalı kalan bir hook ve terminalinde bir kontrol merkezi.<br>
   Her şey kendi makinelerinde kalır. Telemetri yok.
 </p>
 
@@ -19,9 +19,50 @@
   <img alt="Windows, macOS ve Linux" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg">
 </p>
 
+Claude Code'un izin kuralları komutun metniyle eşleşir: `Bash(git push --force*)`, `git -C . push --force` ile eşleşmez. Mode_Code her kabuk komutunu (bash, PowerShell, cmd) ve dosya yazmayı kabuğun ve git'in okuyacağı gibi okur, çalışmadan önce 54 kurala göre karara bağlar ve geri alınabilir bir adımın götüreceğini önce saklar. Claude her izin modunda, bypass da dahil, başında kimse olmadan çalışabilir ve yine de geri alamayacağın adımlardan önce durdurulur. Claude Code'un kendi ayarlarına hiç dokunulmaz: Mode_Code onun yerine Claude Code'un soracağı soruları cevaplar.
+
 <p align="center">
   <img src="docs/images/control-center-tr.svg" width="872" alt="Programın kendi çizdiği Mode_Code kontrol merkezi: ilk ekranda Mo, Şimdi sayfası, modlar ve çalışma biçimleri, emniyet kemeri kuralları, kemerde sınanan bir komut, durduğu yerde açıklanan bir ayar ve kota">
 </p>
+
+## Nasıl çalışır
+
+```
+istem ──► eklenti, Claude Code'un kendi sürecinde (mods API)
+            anahtar kelimeler · mod ve çalışma biçimi · kota · senin yazdıklarının kanıtı
+araç çağrısı ─► eklenti: emniyet kemeri, sonra mod bekçisi ──► engelle │ sor │ not │ izin
+             ─► ayar hook'u (exec biçimi, onFailure: block): aynı çekirdek yeniden karar verir,
+                eklenti yüklenmediğinde tek başına, ve güvenlik ağını kurar
+             ─► araç çalışır
+                     │ durum ve olaylar, her dosyanın tek yazanı
+                     ▼
+                ~/.mode-code ◄── mode-code: kontrol merkezi · CLI · doctor · kurucu
+                                  ~/.claude/projects/*.jsonl, salt okunur ──► index.db (SQLite)
+```
+
+- **Tek çekirdek, iki çalışma ortamı.** Her karar (kabuk ayrıştırıcıları, kurallar, modlar, anahtar kelimeler, kota) `src/core`'da, Node API'si kullanmayan TypeScript. Eklenti onu mods API'siyle Claude Code'un içinde çalıştırır: çağrı başına süreç yok, kota doğrudan Claude Code'dan, kendi diyalogları. Bir `PreToolUse` ayar hook'u aynı kodu onun altında ağ olarak çalıştırır, Node'un mutlak yoluyla, arada kabuk olmadan. Eklenti yüklenmezse hook tek başına karar verir; hook başlayamazsa Claude Code çağrıyı engeller.
+- **Komutlar ayrıştırılır, kalıpla eşlenmez.** Tırnaklar, here-document'lar, yerine koymalar ve betik blokları; `sudo`, `env`, `xargs`, `bash -c`, `pwsh -Command` ve kodlanmış PowerShell açılır; `python -c`'ye, `node -e`'ye ya da bir here-document'a verilen kod yeniden okunur; git, git'in okuduğu gibi okunur (`-C`, `-c`, `:dal` refspec'leri, depoda aranan takma adlar); korunan bir yol her yazımıyla tanınır (Windows 8.3 kısa adları, sondaki noktalar, bağlantılar). Yalnız çalışırken bilinen kod (`eval`, `bash -c "$X"`) sorulur, asla güvenli sayılmaz.
+- **Tek kural seti, üç çalışma biçimi.** 54 kuralın her birinin her çalışma biçiminde ne yapacağı yazılıdır: Manuel sorar, Otonom bir güvenlik ağının ya da senin sözünün kapsadığı yerde sürer, tam otonom hiçbir şey sormaz ve kalanı tam komutuyla sana bırakır. Kilitli kurallar (Claude Code ayarların, hook'lar, Mode_Code'un kendi dosyaları, hafızan) sıkılaştırılabilir, asla gevşetilemez, oturumun içinden hiç değiştirilemez.
+- **Kanıt senin sözün.** Eklenti senin yazdıklarını, oturum başında projenin remote'larını ve oturumun dışarıdan okuduklarının parmak izlerini kaydeder. Yalnız okunan içerikte (bir web sayfası, bir issue) geçen bir adres, yol ya da komut her çalışma biçiminde reddedilir; böylece araya sokulan bir metin bir adımın hedefini seçemez.
+- **Soru yerine güvenlik ağı.** Hard reset, `git clean`, zorla dal silme ya da projenin dışında silmeden önce hook çağrının götüreceğini saklar (`refs/modecode/net/<id>/` altında commit'ler, dosyalar hard link olarak) ve Otonom adımı çalıştırır. `mode-code net restore <id>` hiçbir şeyin üzerine yazmadan geri getirir.
+- **Bir onay tek çağrıyı adlandırır.** Kemerin sorduğu bir çağrıya verdiğin izin o çağrının `tool_use_id`'sine bağlanır; onu model seçemez, on dakikada düşer.
+- **Modlar bir sınıflandırıcıdır, istem değil.** Sohbet, araştırma ve planda bir komutun çalıştırdığı her program okuyan, adı verilen dosyaları yazan, kendi klasörünün çevresini değiştiren, dışarıyı değiştiren ya da bilinmeyen diye yerleştirilir; yerleştirilemeyen, nedeniyle reddedilir.
+- **Kota kaynağından.** 5 saatlik ve haftalık rakamlar Claude Code'un kendi kullanım sınırı okumalarıdır, her cevaptan sonra kaydedilir, tokenlardan asla tahmin edilmez. Tokenlar kayıt dosyalarından API mesajı başına dizinlenir.
+
+Kararlar ve nedenleri:
+
+- **Claude Code'u yeniden ayarlama, ona cevap ver.** İzin modu, efor ve sıkıştırma ayarları bir kurumun politikası olabilir. Sorularını cevaplamak her hesapta ve her modda aynı çalışır.
+- **Koruma hata anında açılmaz.** Bozulan bir özellik kontrol merkezinde kırmızı olur ve nedenini söyler; hook engelleyebildiğini engellemeye devam eder. Oturumun içinden hiçbir şey bir korumayı azaltamaz: bunun için kendi terminalin gerekir, çünkü oturumun içindeki bir düğme tam da araya sokulan bir talimatın isteyeceği şeydir.
+- **İkinci ayrıştırıcı yok.** Tree-sitter'ın Bash dilbilgisi, kemerin kendi okuyucusunun yanında 44.434 ayrı komutta koşturuldu: ikinci bir okuma bunlardan birini temize çıkarırdı; bir eklentiye WebAssembly verilmez ve kodu en çok 1 MiB olabilir ([docs/safety-belt.md](docs/safety-belt.md#how-commands-are-read), İngilizce).
+- **Çalışma zamanı bağımlılığı yok.** Her program tek, paketlenmiş bir dosya; çalışma anındaki her dosyanın tek yazanı var ve atomik bir yeniden adlandırmayla yazılır.
+
+Yazarın Windows 11 makinesinde, Claude Code 2.1.296 ve Node.js 24.15 ile ölçüldü:
+
+- **Kayıtlardan token saymak, dikkatsiz yapılınca şişirir.** Claude Code her içerik bloğu için ayrı satır yazar ve mesajın kullanımını her birinde tekrarlar: 88.038 asistan satırında 39.572 ayrı API mesajı vardı. Dizin her mesajı bir kez sayar.
+- **Geçmiş hızlı.** 660 kayıt dosyası (2,8 GB, ajanlar dahil) ilk seferde 5,5 saniyede dizinlenir; sonraki güncelleme yaklaşık 25 ms sürer. Claude Code eski kayıtları sildikten sonra da (varsayılan 30 gün) rakamlar dizinde kalır.
+- **Güvenlik ağı ucuz.** Hook programı Windows'ta denetlenen her araç çağrısına yaklaşık 0,1 saniye ekler; bunun çoğu Node.js'in açılışı. Claude Code'un içinde eklenti aynı çağrıyı süreç içinde denetler.
+
+Katman katman bütün tasarım: [docs/architecture.md](docs/architecture.md) (İngilizce).
 
 ## Kurulum
 
@@ -92,8 +133,8 @@ Projelerine Hafıza ve projeler › Proje adları altından ad ver; geri kalan h
 
 ## İçindekiler
 
+- [Nasıl çalışır](#nasıl-çalışır)
 - [Ne yapar](#ne-yapar)
-- [Neden](#neden)
 - [Gereksinimler](#gereksinimler)
 - [Kontrol merkezi](#kontrol-merkezi)
 - [Anahtar kelimeler](#anahtar-kelimeler)
@@ -213,15 +254,6 @@ Bir akışın planı onay bekliyor: eklenti onu önce denetledi; akışı kod ad
 ────────────────────────────────────────────────────────────────────────────────
   5. Chat about this
 ```
-
-## Neden
-
-Yazarın Windows 11 makinesinde, Claude Code 2.1.296 ve Node.js 24.15 ile ölçüldü:
-
-- **Kayıtlardan token saymak, dikkatsiz yapılınca şişirir.** Claude Code her içerik bloğu için ayrı satır yazar ve mesajın kullanımını her birinde tekrarlar: 88.038 asistan satırında 39.572 ayrı API mesajı vardı. Dizin her mesajı bir kez sayar.
-- **Geçmiş hızlı.** 660 kayıt dosyası (2,8 GB, ajanlar dahil) ilk seferde 5,5 saniyede dizinlenir; sonraki güncelleme yaklaşık 25 ms sürer. Claude Code eski kayıtları sildikten sonra da (varsayılan 30 gün) rakamlar dizinde kalır.
-- **Güvenlik ağı ucuz.** Hook programı Windows'ta denetlenen her araç çağrısına yaklaşık 0,1 saniye ekler; bunun çoğu Node.js'in açılışı. Claude Code'un içinde eklenti aynı çağrıyı süreç içinde denetler.
-- **Düz izin kuralları farklı yazımları kaçırır.** `Bash(git push --force*)` gibi bir kural `git -C . push --force` ile eşleşmez; kemer komutu git'in okuduğu gibi okur.
 
 ## Gereksinimler
 

@@ -1,14 +1,14 @@
 <p align="right"><b>English</b> · <a href="README.tr.md">Türkçe</a></p>
 
 <p align="center">
-  <img src="docs/images/mo.svg" width="200" alt="Mo, the Mode_Code mascot: a small armored robot, resting, thinking, at work, done">
+  <img src="docs/images/mo.svg" width="120" alt="Mo, the Mode_Code mascot: a small armored robot, resting, thinking, at work, done">
 </p>
 
 <h1 align="center">Mode_Code</h1>
 
 <p align="center">
-  <b>A local companion for Claude Code.</b><br>
-  A safety belt, modes and a quota guard inside Claude Code, and a control center in your terminal.<br>
+  <b>A safety belt, modes and a quota guard for Claude Code, decided in code at every tool call.</b><br>
+  A plugin inside Claude Code, a fail-closed hook beneath it, and a control center in your terminal.<br>
   Everything stays on your machines. No telemetry.
 </p>
 
@@ -19,9 +19,50 @@
   <img alt="Windows, macOS and Linux" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg">
 </p>
 
+Claude Code's permission rules match a command's text: `Bash(git push --force*)` does not match `git -C . push --force`. Mode_Code reads every shell command (bash, PowerShell, cmd) and file write the way the shell and git will, decides it against 54 rules before it runs, and keeps a copy of what a recoverable step would take away. Claude can work unattended in any permission mode, bypass included, and is still stopped before the steps you could not take back. Claude Code's own settings are never changed: Mode_Code answers the questions Claude Code would ask instead.
+
 <p align="center">
   <img src="docs/images/control-center.svg" width="872" alt="The Mode_Code control center, drawn by the program itself: Mo on the first screen, the Now page, the modes and ways of working, the safety belt's rules, a command tested against the belt, a setting explained where it stands, and quota">
 </p>
+
+## How it works
+
+```
+prompt ──► plugin, in Claude Code's own process (mods API)
+             keywords · mode and way of working · quota · evidence of what you typed
+tool call ─► plugin: safety belt, then the mode guard ──► block │ ask │ note │ allow
+          ─► settings hook (exec form, onFailure: block): the same core decides again,
+             alone when the plugin is not loaded, and lays the safety net
+          ─► the tool runs
+                  │ state and events, one writer per file
+                  ▼
+             ~/.mode-code ◄── mode-code: control center · CLI · doctor · installer
+                               ~/.claude/projects/*.jsonl, read-only ──► index.db (SQLite)
+```
+
+- **One core, two runtimes.** Every decision (the shell parsers, the rules, modes, keywords, quota) is in `src/core`, TypeScript with no Node APIs. The plugin runs it inside Claude Code through the mods API: no process per call, quota straight from Claude Code, its own dialogs. A `PreToolUse` settings hook runs the same code beneath it as a net, by an absolute Node path with no shell in between. When the plugin does not load, the hook decides alone; when the hook cannot start, Claude Code blocks the call.
+- **Commands are parsed, not matched.** Quotes, here-documents, substitutions and script blocks; `sudo`, `env`, `xargs`, `bash -c`, `pwsh -Command` and encoded PowerShell unwrapped; the code given to `python -c`, `node -e` or a here-document read again; git read the way git reads it (`-C`, `-c`, `:branch` refspecs, aliases looked up in the repository); a protected path recognised under every spelling (Windows 8.3 short names, trailing dots, links). Code known only at run time (`eval`, `bash -c "$X"`) is asked about, never assumed safe.
+- **One rule set, three ways of working.** Each of the 54 rules has an act per way of working: Manual asks, Autonomous goes on where a safety net or your own words cover the step, full autonomy asks nothing and leaves the rest to you with its exact command. Locked rules (Claude Code's settings, hooks, Mode_Code's own files, your memory) can be made stricter, never weaker, and never from inside a session.
+- **Your words are the evidence.** The plugin records what you typed, the project's remotes at session start, and fingerprints of what the session read from outside. A host, path or command found only in what was read (a web page, an issue) is refused in every way of working, so injected text cannot pick a step's target.
+- **A safety net instead of a question.** Before a hard reset, `git clean`, a forced branch delete or a delete outside the project, the hook keeps what the call would take away (commits under `refs/modecode/net/<id>/`, files as hard links) and Autonomous lets it run. `mode-code net restore <id>` puts it back without overwriting anything.
+- **An approval names one call.** Allowing a call the belt asked about binds to that call's `tool_use_id`, which the model cannot choose, and expires in ten minutes.
+- **Modes are a classifier, not a prompt.** In chat, research and plan, every program a command runs is placed as reading, writing named files, changing around its folder, changing outside, or unknown; what cannot be placed is refused with the reason.
+- **Quota from the source.** The 5-hour and weekly figures are Claude Code's own rate-limit readings, recorded after each answer, never estimated from tokens. Tokens are indexed from transcripts per API message.
+
+Decisions, and why:
+
+- **Answer Claude Code, do not reconfigure it.** Its permission mode, effort and compaction settings may be an organisation's policy. Answering its questions works the same on every account and in every mode.
+- **A protection never fails open.** A broken feature turns red in the control center and says why; the hook keeps blocking what it can. Nothing inside a session can lower a protection: that takes your own terminal, because a switch inside the session is exactly what an injected instruction would ask for.
+- **No second parser.** Tree-sitter's Bash grammar was run beside the belt's own reader on 44,434 distinct commands: a second reading would have cleared one of them, and a plugin gets no WebAssembly and at most 1 MiB of code ([docs/safety-belt.md](docs/safety-belt.md#how-commands-are-read)).
+- **No runtime dependencies.** Each program is one bundled file; every runtime file has one writer and is written by an atomic rename.
+
+Measured on the author's Windows 11 machine with Claude Code 2.1.296 and Node.js 24.15:
+
+- **Counting tokens from transcripts naively overstates them.** Claude Code writes one transcript row per content block and repeats the message's usage on each: 88,038 assistant rows held 39,572 distinct API messages. The index counts each message once.
+- **History is fast.** 660 transcripts (2.8 GB, subagents included) are indexed in 5.5 s the first time; an update afterwards takes about 25 ms. The index keeps the figures after Claude Code deletes old transcripts (30 days by default).
+- **The safety net is cheap.** The hook program adds about 0.1 s to each checked tool call on Windows, most of it Node.js start-up. Inside Claude Code the plugin checks the same call in-process.
+
+The whole design, layer by layer: [docs/architecture.md](docs/architecture.md).
 
 ## Install
 
@@ -92,8 +133,8 @@ Name your projects under Memory and projects › Project names; everything else 
 
 ## Contents
 
+- [How it works](#how-it-works)
 - [What it does](#what-it-does)
-- [Why](#why)
 - [Requirements](#requirements)
 - [The control center](#the-control-center)
 - [Keywords](#keywords)
@@ -211,15 +252,6 @@ A flow's plan waits for approval: the plugin checked it first, and only the pers
 ────────────────────────────────────────────────────────────────────────────────
   5. Chat about this
 ```
-
-## Why
-
-Measured on the author's Windows 11 machine with Claude Code 2.1.296 and Node.js 24.15:
-
-- **Counting tokens from transcripts naively overstates them.** Claude Code writes one transcript row per content block and repeats the message's usage on each: 88,038 assistant rows held 39,572 distinct API messages. The index counts each message once.
-- **History is fast.** 660 transcripts (2.8 GB, subagents included) are indexed in 5.5 s the first time; an update afterwards takes about 25 ms. The index keeps the figures after Claude Code deletes old transcripts (30 days by default).
-- **The safety net is cheap.** The hook program adds about 0.1 s to each checked tool call on Windows, most of it Node.js start-up. Inside Claude Code the plugin checks the same call in-process.
-- **Plain permission rules miss spellings.** A rule like `Bash(git push --force*)` does not match `git -C . push --force`; the belt reads the command the way git does.
 
 ## Requirements
 
