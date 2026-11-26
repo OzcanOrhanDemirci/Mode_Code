@@ -4,6 +4,25 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-11-26
+
+Mode_Code with the newest Claude Code: the safety belt now also checks the commands a skill or slash command runs as it loads, another plugin's question stays with you, and a file the session may not look at is no longer taken for one it made. Checked against Claude Code 2.1.332.
+
+### Upgrading from 1.3.1
+
+- **How:** `mode-code update`, from your own terminal rather than inside a Claude Code session. Settings, history and handoff notes are kept. If you update Claude Code to 2.1.332 or newer later, run `mode-code install` once more; until then the control center shows the safety belt red and says why.
+- **Unchanged:** the modes, the ways of working, the strip and the cockpit; Claude Code 2.1.290 or newer for the plugin (2.1.295 for the safety-net hook) and Node.js 22.13 or newer.
+
+### Fixed
+
+- The safety belt checks the commands a skill or slash command runs as it loads (`` !`command` `` in its text), on Claude Code 2.1.332 and newer. Claude Code runs them without a tool call, so neither the plugin nor the `PreToolUse` hook ever saw them; they ran whenever Claude Code's own permissions allowed, in bypass permissions mode with no question at all. A second settings hook, `PreSkillShellCommand`, now judges each one with the same rules, way of working and safety net. A command the belt blocks is skipped with its reason; one it would ask about is skipped too, because nobody can be asked while a skill loads, and Claude is told it can run the command as a step of its own for you to approve. The rest of the skill loads. History shows each decision with the skill's name and who opened it. The hook is added only on 2.1.332 and newer, because older Claude Code shows a warning at every start for a hook event it does not know ([docs/safety-belt.md](docs/safety-belt.md#commands-that-run-as-a-skill-loads)).
+- Another plugin's question stays with you. Claude Code marks a question a plugin's hook raises with that plugin's name, and carries your organization's ceiling on a tool in its verdict; in Autonomous and full autonomy the plugin answered both as if Claude Code's permission mode had asked, where it should have left them to you as [docs/safety-belt.md](docs/safety-belt.md) promises for another hook's question.
+- A Write over a file your rules keep the session from looking at is no longer recorded as a file the session made. Only a look that finds nothing there counts as a new file, so a later delete of such a file is judged as the delete of a file that was there before. Claude Code 2.1.332 answers a refused look as unknown rather than failing, which made this easier to reach.
+
+### Changed
+
+- [docs/threat-model.md](docs/threat-model.md) names the shell start-up files Claude Code 2.1.327 and newer may run before a command is approved, and the older Claude Code versions on which a skill's commands stay unchecked.
+
 ## [1.3.1] - 2026-11-18
 
 Mode_Code with the newest Claude Code: a flow's verification commands keep to your own permission rules again, and the plugin passes Claude Code's own engine tests on the releases since 1.3.0. Nothing else changes. Checked against Claude Code 2.1.326.
@@ -376,7 +395,8 @@ The first public release: the safety belt, keywords, modes and flows, full auton
 - A session started in the home folder counted the user's own settings twice, as user and as project settings, and the doctor reported the safety-net hooks as duplicated.
 - The doctor called a hook program from an earlier build of the same version "changed after installation". The installation now records the program's fingerprint, so an earlier build and a change are told apart; an older hook matcher is named as such, with the tools it does not check.
 
-[Unreleased]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.3.2...HEAD
+[1.3.2]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/OzcanOrhanDemirci/Mode_Code/compare/v1.2.0...v1.2.1

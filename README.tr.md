@@ -103,7 +103,7 @@ Sonra yeni bir Claude Code oturumu başlat (`claude`). İstem satırının üst�
 | seçenek vermek                  | `curl -fsSL <adres> \| sh -s -- <seçenekler>` | `& ([scriptblock]::Create((irm <adres>))) <seçenekler>` |
 | her soruya evet (betikler için) | `--yes`                                       | `-Yes`                                                  |
 | eksikse Claude Code'u da kurmak | `--install-claude`                            | `-InstallClaude`                                        |
-| belirli bir sürümü kurmak       | `--version 1.3.1`                             | `-Version 1.3.1`                                        |
+| belirli bir sürümü kurmak       | `--version 1.3.2`                             | `-Version 1.3.2`                                        |
 | PATH'e dokunmamak               | `--no-modify-path`                            | `-NoModifyPath`                                         |
 | yalnız programı kurmak          | `--no-setup`                                  | `-NoSetup`                                              |
 
@@ -369,6 +369,8 @@ Sıradakiler:
 - **Daha çok kural şablonu**: Python ve Go'dan Docker Compose'a yaygın yığınlar.
 - **Daha çok dil**: arayüz için İngilizce ve Türkçenin yanına.
 - Tek satırlık kurulumda **musl Linux** (Alpine).
+
+1.3.2'de tamamlananlar: Claude Code 2.1.332 ile Mode_Code; emniyet kemeri bir beceri ya da eğik çizgi komutu açılırken çalışan komutları da denetliyor.
 
 1.3.1'de tamamlananlar: Claude Code 2.1.326 ile Mode_Code; bir akışın doğrulama komutları yeniden senin izin kurallarına uyuyor.
 

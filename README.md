@@ -103,7 +103,7 @@ Read them before you run them: [install.sh](install.sh) · [install.ps1](install
 | pass options                               | `curl -fsSL <address> \| sh -s -- <options>` | `& ([scriptblock]::Create((irm <address>))) <options>` |
 | answer yes to every question (scripts)     | `--yes`                                      | `-Yes`                                                 |
 | install Claude Code too when it is missing | `--install-claude`                           | `-InstallClaude`                                       |
-| install a given version                    | `--version 1.3.1`                            | `-Version 1.3.1`                                       |
+| install a given version                    | `--version 1.3.2`                            | `-Version 1.3.2`                                       |
 | leave PATH alone                           | `--no-modify-path`                           | `-NoModifyPath`                                        |
 | install the program only                   | `--no-setup`                                 | `-NoSetup`                                             |
 
@@ -367,6 +367,8 @@ Next:
 - **More rule templates**: the common stacks, from Python and Go to Docker Compose.
 - **More languages** for the interface, beside English and Turkish.
 - **Linux on musl** (Alpine) in the one-line installer.
+
+Shipped in 1.3.2: Mode_Code with Claude Code 2.1.332, the safety belt also checking the commands a skill or slash command runs as it loads.
 
 Shipped in 1.3.1: Mode_Code with Claude Code 2.1.326, a flow's verification commands keeping to your own permission rules again.
 
