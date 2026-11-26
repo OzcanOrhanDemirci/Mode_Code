@@ -81,7 +81,7 @@ const list = (v: unknown): string[] => (Array.isArray(v) ? v.map((x) => str(x, 8
 
 export function skillShellLabel(e: { commandName?: unknown; invokedBy?: unknown }, t: (k: MessageKey, p?: Record<string, string>) => string): string {
   const by = e.invokedBy === 'user' ? t('act.skillShell.user') : e.invokedBy === 'claude' ? t('act.skillShell.claude') : t('act.skillShell.other');
-  return t('act.skillShell.label', { name: str(e.commandName) || '?', by });
+  return t('act.skillShell.label', { name: str(e.commandName).trim() || '?', by });
 }
 
 /** One event as a line. A kind this version does not know reads as a note of its kind, never as nothing. */

@@ -9,7 +9,8 @@ import assert from 'node:assert/strict';
 import { CHECKS, runChecks, tally, MIN_NODE } from '../../src/app/doctor/checks.js';
 import { en } from '../../src/core/i18n/en.js';
 import { tr } from '../../src/core/i18n/tr.js';
-import { APP_VERSION, MIN_CLAUDE_CODE_FOR_HOOKS, MIN_CLAUDE_CODE_FOR_MODS, PLUGIN_ID } from '../../src/core/app.js';
+import { APP_VERSION, MIN_CLAUDE_CODE_FOR_HOOKS, MIN_CLAUDE_CODE_FOR_MODS, MIN_CLAUDE_CODE_FOR_SKILL_SHELL, PLUGIN_ID } from '../../src/core/app.js';
+import { SKILL_SHELL_EVENT, SKILL_SHELL_MATCHER } from '../../src/core/belt/tools.js';
 import { HOOK_EVENTS } from '../../src/node/install.js';
 import { compareVersions } from '../../src/core/version.js';
 import type { CheckResult, Facts } from '../../src/app/doctor/types.js';
@@ -269,6 +270,27 @@ test('installation: the hook program missing, outdated, altered; hooks missing, 
     ).status,
     'ok',
   );
+});
+
+test('installation: the skill command hook is expected from Claude Code 2.1.332, blocking and with its matcher', () => {
+  const claude = { installs: ['C:/Users/ada/.local/bin/claude.exe'], version: MIN_CLAUDE_CODE_FOR_SKILL_SHELL };
+  const base = HOOK_EVENTS.map((e) => ourHook(e));
+  const skill = (over: Parameters<typeof ourHook>[1] = {}) => [
+    ...base,
+    ourHook(SKILL_SHELL_EVENT, { matcher: SKILL_SHELL_MATCHER, onFailure: 'block', ...over }),
+  ];
+  assert.equal(brief(check('install.hooks', healthyFacts({ claude, hooks: skill() }))), 'ok doc.install.hooks.ok');
+  const missing = check('install.hooks', healthyFacts({ claude, hooks: base }));
+  assert.equal(brief(missing), 'fail doc.install.hooks.missing → restore-hooks');
+  assert.equal(missing.summary.params?.events, SKILL_SHELL_EVENT);
+  assert.equal(missing.hint?.key, 'doc.install.hint');
+  for (const weak of [skill({ onFailure: null }), skill({ matcher: 'Bash' })]) {
+    const r = check('install.hooks', healthyFacts({ claude, hooks: weak }));
+    assert.equal(brief(r), 'fail doc.install.hooks.changed → restore-hooks');
+    assert.equal(r.protection, true);
+  }
+  // Older Claude Code expects no such hook, so one left behind is not judged here.
+  assert.equal(check('install.hooks', healthyFacts({ hooks: skill({ onFailure: null }) })).status, 'ok');
 });
 
 test('installation: plugin files and the plugin seen in a session', () => {
