@@ -14,7 +14,7 @@ import { cloneDefaults, type Config } from '../../src/core/config.js';
 import { hookProgram, readManifest } from '../../src/node/install.js';
 import { readJson, writeJsonAtomic } from '../../src/node/fsx.js';
 import { APP_VERSION } from '../../src/core/app.js';
-import { built } from '../helpers/proc.js';
+import { built, world } from '../helpers/proc.js';
 import type { AppContext } from '../../src/app/context.js';
 
 function setup(t: { skip(m: string): void }) {
@@ -24,6 +24,11 @@ function setup(t: { skip(m: string): void }) {
   }
   const sb = buildSandbox('en');
   if (typeof sb === 'string') throw new Error(sb);
+  const w = world({ claude: { version: sb.env.claude.version()! } });
+  const pathKey = Object.keys(w.env).find((key) => key.toUpperCase() === 'PATH') ?? 'PATH';
+  const before = { [pathKey]: process.env[pathKey], FAKE_CLAUDE_STATE: process.env.FAKE_CLAUDE_STATE, CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR };
+  process.env[pathKey] = w.env[pathKey];
+  process.env.FAKE_CLAUDE_STATE = w.stateFile;
   process.env.CLAUDE_CONFIG_DIR = sb.claudeDir;
   const ctx = (config: Partial<Config> = {}): AppContext => ({
     layout: sb.layout,
@@ -36,7 +41,15 @@ function setup(t: { skip(m: string): void }) {
     const f = checkHealth(c).features.find((x) => x.id === id)!;
     return `${f.state}${f.reason ? ' ' + f.reason.key : ''}`;
   };
-  return { sb, ctx, state, done: () => rmSync(sb.root, { recursive: true, force: true }) };
+  const done = () => {
+    for (const [key, value] of Object.entries(before)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    w.done();
+    rmSync(sb.root, { recursive: true, force: true });
+  };
+  return { sb, ctx, state, done };
 }
 
 test('a fresh installation: the protections work, the self-test passes, the plugin waits for its first session', (t) => {

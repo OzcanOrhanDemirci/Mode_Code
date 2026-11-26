@@ -173,6 +173,10 @@ export const tr: Record<MessageKey, string> = {
     "🛡 Engellendi: Manuel'de {what} kullanıcıyı bekler ve burada sorulacak kimse yok (arayüzsüz çalışma). Kullanıcıya söyle: Otonom çalışabilir ya da kendisi çalıştırabilir.",
   'belt.failed':
     'Emniyet kemeri bu çağrıyı denetleyemedi ({error}); güvenli olsun diye engellendi. Kullanıcıya söyle; hata, kontrol merkezinde Koruma altında görünür.',
+  'hook.belt.unreadable': 'gelen komut okunamadı',
+  'hook.belt.deadline': '{seconds} saniye içinde karar verilemedi',
+  'hook.belt.skillAsk':
+    '🛡 Çalıştırılmadı: /{name} açılırken bu komutu çalıştırıyor; emniyet kemeri bunun için kullanıcının onayını ister, ama bir beceri açılırken soru sorulamaz. Becerinin geri kalanı açıldı. Kullanıcıya söyle; komut gerekiyorsa onaylayabilmesi için kendi adımın olarak çalıştır.',
 
   'kw.toast': 'Anahtar kelime: {kind}{project}',
   'kw.toast.unknownProject': 'Anahtar kelime: {kind} · "{text}" kayıtlı bir proje değil',

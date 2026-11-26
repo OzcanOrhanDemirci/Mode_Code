@@ -228,7 +228,7 @@ export function claudeVersion(): string | null {
   if (versionCache !== undefined) return versionCache;
   try {
     const r = runClaude(['--version'], { timeoutMs: 15000 });
-    const m = /(\d+\.\d+\.\d+)/.exec(r.stdout);
+    const m = /(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)/.exec(r.stdout);
     versionCache = r.status === 0 && m ? m[1]! : null;
   } catch {
     versionCache = null;

@@ -11,21 +11,26 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { eventsFile, layout } from '../../src/core/layout.js';
+import { emptyProvenance, withSaid } from '../../src/core/provenance.js';
+import { newModState } from '../../src/core/session.js';
+import { activityOf, type ActivityEvent } from '../../src/core/ux/activity.js';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const hook = join(root, 'src', 'hook', 'main.ts');
 
 function run(
   event: string,
-  input: object,
+  input: object | string,
   home: string,
   env: Record<string, string> = {},
+  preload?: string,
 ): { out: Record<string, any> | null; status: number | null; stderr: string } {
-  const r = spawnSync(process.execPath, ['--import', 'tsx', hook, event], {
+  const r = spawnSync(process.execPath, ['--import', 'tsx', ...(preload ? ['--import', preload] : []), hook, event], {
     cwd: root,
-    input: JSON.stringify(input),
+    input: typeof input === 'string' ? input : JSON.stringify(input),
     encoding: 'utf8',
-    env: { ...process.env, MODE_CODE_HOME: home, MODE_CODE_LANG: 'en', ...env },
+    env: { ...process.env, HOME: home, USERPROFILE: home, CLAUDE_CONFIG_DIR: undefined, MODE_CODE_HOME: home, MODE_CODE_LANG: 'en', ...env },
     timeout: 30_000,
   });
   const text = (r.stdout ?? '').trim();
@@ -39,6 +44,174 @@ function fresh(config: object = {}): string {
 }
 
 const base = (home: string) => ({ session_id: 'test-session', cwd: home, transcript_path: join(home, 'none.jsonl'), permission_mode: 'bypassPermissions' });
+
+const skillEvent = 'PreSkillShellCommand';
+const skillCall = (home: string, command: string, tool = 'Bash') => ({
+  ...base(home),
+  hook_event_name: skillEvent,
+  tool_name: tool,
+  tool_input: { command },
+  tool_use_id: 'skill-test',
+  command_name: 'example:summary',
+  command_source: 'projectSettings',
+  invoked_by: 'user',
+});
+
+function skillRecords(home: string): Record<string, any>[] {
+  return readFileSync(eventsFile(layout(home), 'test-session', 'hook', Date.now()), 'utf8')
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line));
+}
+
+test('a skill read passes silently, a PowerShell write to the belt data is blocked, and a non-shell event is ignored', () => {
+  const home = fresh();
+  try {
+    const allow = run(skillEvent, skillCall(home, 'printf hello'), home);
+    assert.equal(allow.status, 0, allow.stderr);
+    assert.equal(allow.out, null);
+
+    const path = join(home, 'sample.txt').replace(/\\/g, '/');
+    const call = { ...skillCall(home, `Write-Output hello > "${path}"`, 'PowerShell'), invoked_by: 'claude' };
+    const deny = run(skillEvent, call, home);
+    assert.equal(deny.status, 0, deny.stderr);
+    const decision = deny.out?.hookSpecificOutput;
+    assert.equal(decision.hookEventName, skillEvent);
+    assert.equal(decision.permissionDecision, 'deny');
+    assert.match(decision.permissionDecisionReason, /safety tool's own files/);
+
+    const ignored = run(skillEvent, { ...call, tool_name: 'Write', tool_input: { file_path: path } }, home);
+    assert.equal(ignored.status, 0, ignored.stderr);
+    assert.equal(ignored.out, null);
+    const records = skillRecords(home);
+    assert.deepEqual(
+      records.map(({ kind, source, tool, verdict, commandName, invokedBy }) => [kind, source, tool, verdict, commandName, invokedBy]),
+      [
+        ['belt', 'hook', 'Bash', 'allow', 'example:summary', 'user'],
+        ['belt', 'hook', 'PowerShell', 'deny', 'example:summary', 'claude'],
+      ],
+    );
+    const state = JSON.parse(readFileSync(join(home, 'state', 'sessions', 'test-session.hook.json'), 'utf8'));
+    assert.equal(state.blocks[records[1]!.rules[0]], 1);
+    assert.equal(state.permissionMode, 'bypassPermissions');
+    const shown = records.map((record) => activityOf(record as ActivityEvent, 'en'));
+    assert.deepEqual(
+      shown.map((line) => line.cls),
+      ['done', 'blocked'],
+    );
+    assert.match(shown[0]!.text, /allowed Bash · \/example:summary \(you opened it\)/);
+    assert.match(shown[1]!.text, /Blocked PowerShell · \/example:summary \(Claude opened it\)/);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test('a question while a skill loads is a refusal in either language, even with an approval for the same id', () => {
+  const home = fresh();
+  try {
+    // The command would only read status. The belt asks about the temporary change to Git's hooks path.
+    const call = skillCall(home, 'git -c core.hooksPath=.git/hooks status');
+    const en = run(skillEvent, call, home);
+    assert.equal(en.status, 0, en.stderr);
+    assert.deepEqual(en.out?.hookSpecificOutput, {
+      hookEventName: skillEvent,
+      permissionDecision: 'deny',
+      permissionDecisionReason:
+        "🛡 Not run: /example:summary runs this command as it loads, and the safety belt needs the user's approval for it, which cannot be asked while a skill loads. The rest of the skill loaded. Tell the user; if the command is needed, run it as a step of your own so they can approve it.",
+    });
+
+    const dir = join(home, 'state', 'sessions');
+    writeFileSync(
+      join(dir, 'test-session.mod.json'),
+      JSON.stringify({
+        ...newModState('test-session', 'test', Date.now()),
+        interaction: 'autonomous',
+        approvals: [{ toolUseId: call.tool_use_id, at: Date.now(), rules: ['git.hooks-path'] }],
+      }),
+    );
+    assert.equal(run('PreToolUse', { ...call, hook_event_name: 'PreToolUse' }, home).out, null);
+    writeFileSync(join(home, 'config.json'), JSON.stringify({ language: 'tr' }));
+    const tr = run(skillEvent, call, home);
+    assert.equal(tr.status, 0, tr.stderr);
+    assert.equal(tr.out?.hookSpecificOutput?.hookEventName, skillEvent);
+    assert.equal(tr.out?.hookSpecificOutput?.permissionDecision, 'deny');
+    assert.match(
+      tr.out?.hookSpecificOutput?.permissionDecisionReason,
+      /^🛡 Çalıştırılmadı: \/example:summary açılırken bu komutu çalıştırıyor;.*kendi adımın olarak çalıştır\.$/,
+    );
+
+    // In Autonomous, the person's own words make the same read a note. The note is recorded even with the plugin loaded.
+    writeFileSync(join(dir, 'test-session.prov.json'), JSON.stringify(withSaid(emptyProvenance(), 'Use .git/hooks as the hooks path.')));
+    const note = run(skillEvent, { ...call, invoked_by: 'other' }, home);
+    assert.equal(note.status, 0, note.stderr);
+    assert.equal(note.out, null);
+    const records = skillRecords(home);
+    assert.deepEqual(
+      records.map(({ verdict, rules }) => [verdict, rules]),
+      [
+        ['deny', ['git.hooks-path']],
+        ['deny', ['git.hooks-path']],
+        ['warn', ['git.hooks-path']],
+      ],
+    );
+    assert.equal(records[2]!.invokedBy, 'other');
+    const shown = activityOf(records[2] as ActivityEvent, 'tr');
+    assert.equal(shown.cls, 'note');
+    assert.equal(shown.quiet, false);
+    assert.match(shown.text, /\/example:summary \(başka bir yolla açıldı\)/);
+    assert.equal(JSON.parse(readFileSync(join(dir, 'test-session.hook.json'), 'utf8')).blocks['git.hooks-path'], 2);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test('unreadable input and a missing skill command fail closed', () => {
+  const home = fresh();
+  try {
+    const call = skillCall(home, 'printf hello');
+    for (const input of [JSON.stringify(call).slice(0, 80), 'null', '', { ...call, tool_input: {} }]) {
+      const r = run(skillEvent, input, home);
+      assert.equal(r.status, 0, r.stderr);
+      assert.equal(r.out?.hookSpecificOutput?.hookEventName, skillEvent);
+      assert.equal(r.out?.hookSpecificOutput?.permissionDecision, 'deny');
+      assert.match(r.out?.hookSpecificOutput?.permissionDecisionReason, /could not be read/);
+    }
+    assert.equal(skillRecords(home)[0]?.verdict, 'deny');
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test('a skill command is refused when evaluation throws or misses the deadline', { timeout: 30_000 }, () => {
+  const home = fresh();
+  try {
+    // Substitute only the evaluator in the child process. A missing answer reaches the hook's own timer.
+    const uri = (code: string) => `data:text/javascript,${encodeURIComponent(code)}`;
+    for (const [body, reason] of [
+      ["throw new Error('test error');", /test error/],
+      ['await new Promise(() => {});', /no answer in 8 s/],
+    ] as const) {
+      const evaluate = uri(`export function decisionText() {} export async function evaluateToolCall() { ${body} }`);
+      const loader = uri(`export function resolve(name, context, next) {
+        if (name === '../core/belt/evaluate.js' || name.includes('/core/belt/evaluate.ts'))
+          return { url: ${JSON.stringify(evaluate)}, shortCircuit: true };
+        return next(name, context);
+      }`);
+      const preload = uri(`import { register } from 'node:module'; register(${JSON.stringify(loader)});`);
+      const r = run(skillEvent, skillCall(home, 'printf hello'), home, {}, preload);
+      assert.equal(r.status, 0, r.stderr);
+      assert.equal(r.out?.hookSpecificOutput?.hookEventName, skillEvent, r.stderr);
+      assert.equal(r.out?.hookSpecificOutput?.permissionDecision, 'deny');
+      assert.match(r.out?.hookSpecificOutput?.permissionDecisionReason, reason);
+    }
+    assert.deepEqual(
+      skillRecords(home).map((r) => r.verdict),
+      ['deny', 'deny'],
+    );
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
 
 test('a write into the tool data folder is denied, with the reason in the person language', () => {
   const home = fresh();

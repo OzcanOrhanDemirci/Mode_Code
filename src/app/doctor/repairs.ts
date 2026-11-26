@@ -87,7 +87,7 @@ function restoreHooks(e: RepairEnv, f: Facts, id: RepairId, forceNode: boolean):
   if (e.agent && (forceNode || !recorded)) return { id, ok: false, detail: 'refused: an agent runs the doctor, and the hooks would get another Node.js' };
   const node = (forceNode || !recorded ? e.node : recorded).replace(/\\/g, '/');
   const hook = hookProgram(e.layout).replace(/\\/g, '/');
-  const groups = hookGroups(node, hook);
+  const groups = hookGroups(node, hook, f.claude.version);
   const backup = text !== null ? backupOf(e, 'settings.json', text) : undefined;
   writeAtomic(settingsFile, JSON.stringify(withOurHooks(settings, groups, e.layout.root), null, 2) + '\n');
   const m = readManifest(e.layout);

@@ -16,14 +16,15 @@ const root = fileURLToPath(new URL('../..', import.meta.url));
 const hook = join(root, 'src', 'hook', 'main.ts');
 const hasGit = spawnSync('git', ['--version']).status === 0;
 
-function run(input: object, home: string): Record<string, any> | null {
-  const r = spawnSync(process.execPath, ['--import', 'tsx', hook, 'PreToolUse'], {
+function run(input: object, home: string, event = 'PreToolUse'): Record<string, any> | null {
+  const r = spawnSync(process.execPath, ['--import', 'tsx', hook, event], {
     cwd: root,
     input: JSON.stringify(input),
     encoding: 'utf8',
     env: { ...process.env, MODE_CODE_HOME: home, MODE_CODE_LANG: 'en' },
     timeout: 30_000,
   });
+  assert.equal(r.status, 0, r.stderr ?? '');
   const text = (r.stdout ?? '').trim();
   return text ? JSON.parse(text) : null;
 }
@@ -73,6 +74,30 @@ test('Autonomous: git clean passes once what it would remove is kept, with its l
     assert.deepEqual([record.rule, record.command, record.files.map((f: { from: string }) => f.from)], ['git.clean', 'git clean -fd', [`${w.repo}/build.tmp`]]);
     assert.equal(readFileSync(record.files[0].to, 'utf8'), 'left over\n');
     assert.match(w.events().join('\n'), new RegExp(`"kind":"net".*"rule":"git.clean","id":"${id}"`));
+  } finally {
+    w.done();
+  }
+});
+
+test('a skill command uses the same safety net and refuses the command if the net cannot be laid', { skip: !hasGit && 'git is not installed' }, () => {
+  const w = world('autonomous');
+  try {
+    const event = 'PreSkillShellCommand';
+    const command = ['git', 'clean', '-fd'].join(' ');
+    const call = (cwd: string) => ({ ...w.call(cwd, command), hook_event_name: event, command_name: 'sample', invoked_by: 'user' });
+    assert.equal(run(call(w.repo), w.home, event), null);
+    const [id] = w.nets();
+    assert.ok(id);
+    const record = JSON.parse(readFileSync(`${w.home}/net/${id}/net.json`, 'utf8'));
+    assert.equal(readFileSync(record.files[0].to, 'utf8'), 'left over\n');
+    assert.equal(readFileSync(`${w.repo}/build.tmp`, 'utf8'), 'left over\n');
+
+    const outside = `${w.top}/plain`;
+    mkdirSync(outside);
+    const refused = run(call(outside), w.home, event)?.hookSpecificOutput;
+    assert.equal(refused?.permissionDecision, 'deny');
+    assert.match(refused?.permissionDecisionReason, /Not run: \/sample runs this command as it loads/);
+    assert.deepEqual(w.nets(), [id]);
   } finally {
     w.done();
   }

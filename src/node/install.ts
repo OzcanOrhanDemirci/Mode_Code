@@ -26,6 +26,7 @@ import {
   MARKETPLACE_NAME,
   MIN_CLAUDE_CODE_FOR_HOOKS,
   MIN_CLAUDE_CODE_FOR_MODS,
+  MIN_CLAUDE_CODE_FOR_SKILL_SHELL,
   PLUGIN_ID,
   PLUGIN_NAME,
   SELF_TEST_SESSION,
@@ -42,9 +43,14 @@ import { claudeIn, turnAllOff } from './packs.js';
 import { skillsSource, syncKeptSkills } from './skills.js';
 import { replacedVersion } from '../core/news.js';
 
-export const HOOK_EVENTS = ['PreToolUse', 'UserPromptSubmit', 'Stop', 'SessionStart'] as const;
-import { BELT_MATCHER } from '../core/belt/tools.js';
+import { BELT_MATCHER, SKILL_SHELL_EVENT, SKILL_SHELL_MATCHER } from '../core/belt/tools.js';
 export { BELT_MATCHER };
+/** Events every supported Claude Code version has. */
+export const HOOK_EVENTS = ['PreToolUse', 'UserPromptSubmit', 'Stop', 'SessionStart'] as const;
+
+export function expectedHookEvents(claude: string | null): readonly string[] {
+  return claude && compareVersions(claude, MIN_CLAUDE_CODE_FOR_SKILL_SHELL) >= 0 ? [...HOOK_EVENTS, SKILL_SHELL_EVENT] : HOOK_EVENTS;
+}
 
 export interface Manifest {
   v: 1;
@@ -138,7 +144,7 @@ export function fileHash(path: string): string | undefined {
 }
 
 /** The hook groups the installer adds, for one data folder and one node binary. */
-export function hookGroups(node: string, hook: string): Record<string, unknown[]> {
+export function hookGroups(node: string, hook: string, claude: string | null = null): Record<string, unknown[]> {
   const entry = (event: string, timeout: number, block: boolean) => ({
     type: 'command',
     command: node,
@@ -146,11 +152,13 @@ export function hookGroups(node: string, hook: string): Record<string, unknown[]
     timeout,
     ...(block ? { onFailure: 'block' } : {}),
   });
+  const belt = (event: string, matcher: string) => [{ matcher, hooks: [entry(event, 15, true)] }];
   return {
-    PreToolUse: [{ matcher: BELT_MATCHER, hooks: [entry('PreToolUse', 15, true)] }],
+    PreToolUse: belt('PreToolUse', BELT_MATCHER),
     UserPromptSubmit: [{ hooks: [entry('UserPromptSubmit', 10, false)] }],
     Stop: [{ hooks: [entry('Stop', 15, false)] }],
     SessionStart: [{ hooks: [entry('SessionStart', 10, false)] }],
+    ...(expectedHookEvents(claude).includes(SKILL_SHELL_EVENT) ? { [SKILL_SHELL_EVENT]: belt(SKILL_SHELL_EVENT, SKILL_SHELL_MATCHER) } : {}),
   };
 }
 
@@ -263,14 +271,14 @@ export function planInstall(
   if (manifest && manifest.version !== APP_VERSION)
     plan.warnings.push({ key: 'install.warn.otherVersion', params: { have: manifest.version, now: APP_VERSION } });
 
-  const groups = hookGroups(node, hook);
+  const groups = hookGroups(node, hook, claude);
   const current = JSON.stringify(withOurHooks(withoutPrevious(settings, prev, l.root), groups, l.root));
   if (prev?.copy) plan.steps.push({ kind: 'migrate', targets: [prev.root, l.root], done: false });
   plan.steps.push({ kind: 'data-folder', targets: [l.root], done: existsSync(l.root) });
   plan.steps.push({ kind: 'hook-program', targets: [hook], done: false });
   plan.steps.push({ kind: 'marketplace', targets: [l.marketplace], done: false });
   plan.steps.push({ kind: 'plugin', targets: [PLUGIN_ID], done: false });
-  plan.steps.push({ kind: 'settings-hooks', targets: [settingsFile, ...HOOK_EVENTS], done: current === JSON.stringify(settings) });
+  plan.steps.push({ kind: 'settings-hooks', targets: [settingsFile, ...Object.keys(groups)], done: current === JSON.stringify(settings) });
   plan.steps.push({ kind: 'config', targets: [l.config], done: existsSync(l.config) || (!!prev?.copy && existsSync(join(prev.root, 'config.json'))) });
   plan.steps.push({ kind: 'self-test', targets: [hook], done: false });
   if (prev) plan.steps.push({ kind: 'retire-previous', targets: [previousPlugin(prev).id, ...(prev.copy ? [prev.root] : [])], done: false });
@@ -357,7 +365,7 @@ export function applyInstall(l: Layout, plan: InstallPlan, opts: { config?: Part
     return `${said} · ${u.ok ? `recorded ${recorded} → ${folder}` : `record left at ${recorded}: ${u.out.split('\n').pop()}`}`;
   });
   let backup: string | null = null;
-  const groups = hookGroups(plan.node, hook.replace(/\\/g, '/'));
+  const groups = hookGroups(plan.node, hook.replace(/\\/g, '/'), plan.claude);
   ok &&= step('settings-hooks', () => {
     const text = readText(plan.settingsFile);
     let settings: Record<string, unknown> = {};
