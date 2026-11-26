@@ -10,6 +10,7 @@ import { cloneDefaults, configKeys, configValueAt, serializeConfig, setConfigVal
 import { problemWords } from '../core/config-words.js';
 import { readChanges, saveConfig } from '../node/changes.js';
 import { changeText, lastUndoable, undoOf } from '../core/ux/changes.js';
+import { skillShellLabel } from '../core/ux/activity.js';
 import { allSettingPaths, explain, nameOf, nearestSettings, personOnly, placeOf, settingOf, valueIn, valueText, type SettingPath } from '../core/ux/catalog.js';
 import { wrapText } from '../core/ux/text.js';
 import { evaluateToolCall } from '../core/belt/evaluate.js';
@@ -25,7 +26,7 @@ import { programReceipt, removeProgram, type ProgramReceipt, type ProgramStep } 
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { cacheHitRate } from '../node/index-db.js';
-import { readClaudeEnv, runClaudeInteractive } from '../node/claude-env.js';
+import { claudeVersion, readClaudeEnv, runClaudeInteractive } from '../node/claude-env.js';
 import { appContext, type AppContext } from '../app/context.js';
 import { loadEvents, loadQuota, openIndex, scanPaths } from '../app/data.js';
 import { checkHealth, healthCounts, type FeatureHealth } from '../app/health.js';
@@ -268,7 +269,7 @@ export async function cmdTry(a: Args): Promise<number> {
     return 1;
   }
   const settingsPath = join(ctx.layout.stateDir, 'try-settings.json');
-  writeAtomic(settingsPath, JSON.stringify({ hooks: hookGroups(stableNodePath().replace(/\\/g, '/'), hook) }, null, 2) + '\n');
+  writeAtomic(settingsPath, JSON.stringify({ hooks: hookGroups(stableNodePath().replace(/\\/g, '/'), hook, claudeVersion()) }, null, 2) + '\n');
   const args = ['--plugin-dir', plugin, '--settings', settingsPath, ...a.positionals];
   say(T(ctx, 'try.intro'));
   say(dim(`claude ${args.map((x) => (/\s/.test(x) ? `"${x}"` : x)).join(' ')}`));
@@ -816,7 +817,7 @@ export async function cmdBelt(a: Args): Promise<number> {
           .map((e) => [
             ago(e.at, now, ctx.lang),
             T(ctx, `verdict.${e.verdict ?? 'deny'}` as MessageKey),
-            e.tool ?? e.kind,
+            e.commandName ? `${e.tool ?? e.kind} · ${skillShellLabel(e, (k, p) => T(ctx, k, p))}` : (e.tool ?? e.kind),
             (e.reasons?.[0] ?? (e.rules ?? []).join(', ')).slice(0, 90),
           ]),
       ]),

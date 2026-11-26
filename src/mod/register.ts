@@ -103,7 +103,7 @@ import {
 import { analyzeCommand } from '../core/shell/analyze.js';
 import { CORE_SKILLS, commandsText, LIST_COMMANDS, memorySetUp, shortCommands, type CoreSkill } from '../core/skills.js';
 import { comparePins, parsePins } from '../core/mcp-pins.js';
-import { partsAllowed, shellRules, type ShellRules } from '../core/permissions.js';
+import { asksOwnQuestion, partsAllowed, shellRules, type ShellRules } from '../core/permissions.js';
 import { isFileTool, isOwnTool, shellOf } from '../core/belt/tools.js';
 import type { BeltContext, BeltDecision, GitFacts } from '../core/belt/types.js';
 import { checkFreeze, checkGuards, type ModeGuard } from '../core/guard.js';
@@ -927,6 +927,19 @@ async function gitFactsFor($: $, c: Pick<Ctx, 'env' | 'home' | 'platform'>): Pro
   };
 }
 
+/**
+ * Whether nothing is at the path: the look says ENOENT. A look the person's rules refused, or one that failed otherwise,
+ * is not known to be missing, so a file there is not taken for one the session made (src/core/provenance.ts `made`).
+ */
+async function isMissing($: $, path: string): Promise<boolean> {
+  try {
+    await $.fs.stat(path);
+    return false;
+  } catch (err) {
+    return /ENOENT/.test(String((err as Error)?.message ?? err));
+  }
+}
+
 async function statSize($: $, path: string): Promise<number | null> {
   try {
     const s = await $.fs.stat(path);
@@ -1605,7 +1618,8 @@ async function shellAllowRules($: $, c: Ctx, tool: 'Bash' | 'PowerShell', cwd: s
 /**
  * Claude Code's own permission question (docs/safety-belt.md, "Ways of working"). By the time it is asked, the safety
  * belt has let the call through or the person said yes to it. A question of the person's own (a rule in their
- * settings or their organisation's, another hook's, an option's check) stays theirs: put to them, never to a
+ * settings or their organisation's, another hook's or another plugin's, an option's check, the organisation's ceiling
+ * on the tool) stays theirs: put to them, never to a
  * classifier; in full autonomy, with nobody to ask, the step is left to them. One Claude Code's mode asks by itself
  * (an edit, a command) is answered in Autonomous and full autonomy; Manual leaves it to the person, a step at a time.
  * A compound command whose every part the person allowed is answered in every way of working.
@@ -1622,12 +1636,13 @@ async function onToolCheck($: $, e: In<'tool.check'>, next: Nx<'tool.check'>): O
   const tool = String(e.tool);
   const input = (typeof e.input === 'object' && e.input !== null ? e.input : {}) as Record<string, unknown>;
   const level = levelOf(c.state.interaction);
-  if (v.rule || v.hook || v.setting) {
+  if (asksOwnQuestion(v, 'mode-code')) {
     // Up to Claude Code 2.1.307 an ask went to the person by its `decider`; from 2.1.308 an ask a hook answers is
     // theirs by itself (the engine stamps the plugin on it) and the field is dropped, so it is no longer in the type.
+    // Another plugin's ask carries that stamp from beneath, and up to 1.3.1 Mode_Code answered it as the mode's own.
     if (level !== 'full') return { ...v, decider: 'person' } as typeof v;
     const what = callSummary(tool, input);
-    const reason = maskSecrets(v.reason ?? v.rule ?? v.hook ?? v.setting ?? '');
+    const reason = maskSecrets(v.reason ?? v.rule ?? v.hook ?? v.setting ?? v.plugin ?? '');
     c.leftThisTurn++;
     await logEvent($, c, { kind: 'permission', tool, answer: 'left', what });
     return { decision: 'deny', reason: tIn(c.lang, 'belt.claude.left', { what, reason }) };
@@ -2064,7 +2079,7 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
 
   if (tool === 'ExitPlanMode' && c.config.modules.modes) return onExitPlanMode($, c, e, next);
   // A file Write makes anew is the session's own to remove later (src/core/provenance.ts `made`).
-  const newFile = tool === 'Write' && typeof input.file_path === 'string' && (await statSize($, resolvePath(input.file_path, pathEnv(c, cwd)))) === null;
+  const newFile = tool === 'Write' && typeof input.file_path === 'string' && (await isMissing($, resolvePath(input.file_path, pathEnv(c, cwd))));
   const result = await next(e);
   // The footer counts what ran: a refused call changed nothing, and neither did a file tool that failed.
   const ran = result.deny === undefined && !(result.isError === true && isFileTool(tool));

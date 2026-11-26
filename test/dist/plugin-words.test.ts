@@ -64,6 +64,7 @@ test('the built plugin carries every message its code names, the same in both la
   const named = [...wordsUsed(rest, keys)].sort();
   assert.deepEqual(Object.keys(e.value).sort(), named);
   assert.deepEqual(Object.keys(r.value).sort(), named);
+  assert.ok(!named.some((key) => key.startsWith('hook.belt.')), 'the settings hook has its own belt messages');
   for (const k of named) {
     assert.equal(e.value[k], en[k as MessageKey], k);
     assert.equal(r.value[k], tr[k as MessageKey], k);

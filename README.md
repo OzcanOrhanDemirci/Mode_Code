@@ -40,7 +40,7 @@ tool call ─► plugin: safety belt, then the mode guard ──► block │ as
                                ~/.claude/projects/*.jsonl, read-only ──► index.db (SQLite)
 ```
 
-- **One core, two runtimes.** Every decision (the shell parsers, the rules, modes, keywords, quota) is in `src/core`, TypeScript with no Node APIs. The plugin runs it inside Claude Code through the mods API: no process per call, quota straight from Claude Code, its own dialogs. A `PreToolUse` settings hook runs the same code beneath it as a net, by an absolute Node path with no shell in between. When the plugin does not load, the hook decides alone; when the hook cannot start, Claude Code blocks the call.
+- **One core, two runtimes.** Every decision (the shell parsers, the rules, modes, keywords, quota) is in `src/core`, TypeScript with no Node APIs. The plugin runs it inside Claude Code through the mods API: no process per call, quota straight from Claude Code, its own dialogs. A `PreToolUse` settings hook runs the same code beneath it as a net, by an absolute Node path with no shell in between. On Claude Code 2.1.332 and later, `PreSkillShellCommand` also checks Bash and PowerShell commands that run as a skill or slash command loads. When the plugin does not load, the hooks decide alone. If a safety check cannot start, Claude Code blocks the call.
 - **Commands are parsed, not matched.** Quotes, here-documents, substitutions and script blocks; `sudo`, `env`, `xargs`, `bash -c`, `pwsh -Command` and encoded PowerShell unwrapped; the code given to `python -c`, `node -e` or a here-document read again; git read the way git reads it (`-C`, `-c`, `:branch` refspecs, aliases looked up in the repository); a protected path recognised under every spelling (Windows 8.3 short names, trailing dots, links). Code known only at run time (`eval`, `bash -c "$X"`) is asked about, never assumed safe.
 - **One rule set, three ways of working.** Each of the 54 rules has an act per way of working: Manual asks, Autonomous goes on where a safety net or your own words cover the step, full autonomy asks nothing and leaves the rest to you with its exact command. Locked rules (Claude Code's settings, hooks, Mode_Code's own files, your memory) can be made stricter, never weaker, and never from inside a session.
 - **Your words are the evidence.** The plugin records what you typed, the project's remotes at session start, and fingerprints of what the session read from outside. A host, path or command found only in what was read (a web page, an issue) is refused in every way of working, so injected text cannot pick a step's target.
@@ -94,7 +94,7 @@ Then start a new Claude Code session (`claude`). The strip above the prompt show
 1. **Node.js.** It uses Node.js 22.13 or newer from your PATH. Without one, it downloads the official Node.js 24 build from nodejs.org, checks it against nodejs.org's SHA-256 list and keeps it for Mode_Code alone: no administrator rights, no sudo, nothing installed system-wide.
 2. **The package.** It downloads the newest [release](https://github.com/OzcanOrhanDemirci/Mode_Code/releases) and checks it against the release's `SHA256SUMS`. A download that does not match is never installed.
 3. **The program.** It goes to `~/.local/share/mode-code` (Windows: `%LOCALAPPDATA%\mode-code`), and the `mode-code` command to `~/.local/bin` (Windows: `%USERPROFILE%\.local\bin`). When that folder is not on your PATH yet, it is added: one marked line in your shell's startup file, or your user PATH on Windows.
-4. **Claude Code.** It runs `mode-code install`, which shows every change it will make to Claude Code, asks once, backs up your settings and tests itself. Without Claude Code it offers to run [Anthropic's official installer](https://code.claude.com/docs/en/setup) first.
+4. **Claude Code.** It runs `mode-code install`, which shows every change it will make to Claude Code, asks once, backs up your settings and tests itself. If you upgraded Claude Code to 2.1.332 or later after installing Mode_Code, run `mode-code install` again to add the check for commands that run while a skill loads. Without Claude Code it offers to run [Anthropic's official installer](https://code.claude.com/docs/en/setup) first.
 
 Read them before you run them: [install.sh](install.sh) · [install.ps1](install.ps1).
 
@@ -103,7 +103,7 @@ Read them before you run them: [install.sh](install.sh) · [install.ps1](install
 | pass options                               | `curl -fsSL <address> \| sh -s -- <options>` | `& ([scriptblock]::Create((irm <address>))) <options>` |
 | answer yes to every question (scripts)     | `--yes`                                      | `-Yes`                                                 |
 | install Claude Code too when it is missing | `--install-claude`                           | `-InstallClaude`                                       |
-| install a given version                    | `--version 1.3.1`                            | `-Version 1.3.1`                                       |
+| install a given version                    | `--version 1.3.2`                            | `-Version 1.3.2`                                       |
 | leave PATH alone                           | `--no-modify-path`                           | `-NoModifyPath`                                        |
 | install the program only                   | `--no-setup`                                 | `-NoSetup`                                             |
 
@@ -367,6 +367,8 @@ Next:
 - **More rule templates**: the common stacks, from Python and Go to Docker Compose.
 - **More languages** for the interface, beside English and Turkish.
 - **Linux on musl** (Alpine) in the one-line installer.
+
+Shipped in 1.3.2: Mode_Code with Claude Code 2.1.332, the safety belt also checking the commands a skill or slash command runs as it loads.
 
 Shipped in 1.3.1: Mode_Code with Claude Code 2.1.326, a flow's verification commands keeping to your own permission rules again.
 

@@ -45,6 +45,9 @@ export const PLUGIN_ID = `${PLUGIN_NAME}@${MARKETPLACE_NAME}`;
 /** Lowest Claude Code version whose hooks support everything the safety net relies on (onFailure, exec form). */
 export const MIN_CLAUDE_CODE_FOR_HOOKS = '2.1.295';
 
+/** Lowest Claude Code version that calls a settings hook for commands run while a skill loads. */
+export const MIN_CLAUDE_CODE_FOR_SKILL_SHELL = '2.1.332';
+
 /** Lowest Claude Code version with the mods API the in-process layer is written against. */
 export const MIN_CLAUDE_CODE_FOR_MODS = '2.1.290';
 

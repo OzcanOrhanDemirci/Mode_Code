@@ -155,6 +155,8 @@ How these were measured, and what they leave out: a call to this computer's own 
 
 Measured, and left open by choice or not yet closed:
 
+- **Commands that run as a skill loads on older Claude Code.** Before 2.1.332, the belt never sees the Bash or PowerShell commands a skill or slash command runs as it loads. On newer versions, run `mode-code install` again to add the check if you installed Mode_Code before updating Claude Code. [Claude Code hooks reference](https://code.claude.com/docs/en/hooks#preskillshellcommand).
+
 - **A secret in a read's address or headers.** Reads are free, so data sent in a URL or a header of a request that only reads goes on: of agent-egress-bench's 55 web attacks that carry data in a URL, none is stopped, and 5 reads that carry a value shaped like a secret pass.
 - **Persistence and system settings the rules do not read.** 170 of SABER's attack calls change an SSH key or its settings, an autostart or startup entry, or turn security software off in a way the rules do not match.
 - **This computer's own address is no outside.** Data sent to `localhost`, `127.0.0.1` or `0.0.0.0` goes on, bare or in a URL. It does not leave the computer, but a tunnel (`ssh -L`) or a local proxy set up beforehand can carry it on; the belt does not follow that. An address read only from outside content is still refused.
@@ -163,6 +165,7 @@ Measured, and left open by choice or not yet closed:
 - **A note in the session's own words goes into the memory.** After reading outside content, what is asked about is a line of what was read: at least 12 characters, word for word apart from spacing and case. A host planted by a page reaches the memory if the model writes it in its own words. A question for every note was the other choice; on the author's sessions it came up eight times in a week, each for a name in a note and none for a pasted line.
 - **What goes to your own repository is not judged by what it says.** In Autonomous and full autonomy a pull request or an issue on a repository of the account `gh` is signed in to goes on with a line; on a public repository that text is public. What is read is secrets only: a key in a body or a title, a secret file given or printed into it. The account comes from `gh`'s `hosts.yml`, and only that line of it is read.
 - **The copy behind a delete is for mistakes, not for an adversary.** A value holding `..` can lead out of the folder kept when a delete is only known as it runs.
+- **Your shell's start-up files can run before the first command is judged.** From Claude Code 2.1.327 a session's first shell command may start its shell, and so run the shell's start-up files (`~/.bashrc`, a PowerShell profile), before the command is approved, even when it is then refused (Claude Code's release notes; not measured here). The belt judges the command, not those files. Claude Code turns this off with `CLAUDE_CODE_DISABLE_SHELL_HEAD_START=1`; Mode_Code leaves Claude Code's own settings to you.
 - **Found and not yet closed:** a function name inside a string is taken for a definition; a here-document handed to a group or a function (`{ python3 -; } <<EOF`) is not followed; fish, csh and tcsh are not read as shells.
 
 ## Sources

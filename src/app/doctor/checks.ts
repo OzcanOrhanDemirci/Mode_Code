@@ -9,8 +9,8 @@ import { CLI_NAME, MIN_CLAUDE_CODE_FOR_HOOKS, MIN_CLAUDE_CODE_FOR_MODS, PLUGIN_I
 import { caseInsensitive } from '../../core/paths.js';
 import { compareVersions } from '../../core/version.js';
 import { newerThan } from '../../core/update.js';
-import { isBeltTool } from '../../core/belt/tools.js';
-import { BELT_MATCHER, HOOK_EVENTS } from '../../node/install.js';
+import { BELT_MATCHER, isBeltTool, SKILL_SHELL_EVENT, SKILL_SHELL_MATCHER } from '../../core/belt/tools.js';
+import { expectedHookEvents } from '../../node/install.js';
 import type { CheckGroup, CheckResult, CheckStatus, Facts, Message, RepairId } from './types.js';
 
 export const MIN_NODE = '22.13.0';
@@ -190,7 +190,8 @@ const installHooks: Check = (f) => {
   if (!f.manifest) return result(id, 'install', true, 'skip', m('doc.notInstalled'));
   const ours = f.hooks.filter((h) => h.ours);
   const user = ours.filter((h) => h.scope === 'user');
-  const missing = HOOK_EVENTS.filter((ev) => !user.some((h) => h.event === ev));
+  const expected = expectedHookEvents(f.claude.version);
+  const missing = expected.filter((ev) => !user.some((h) => h.event === ev));
   const pre = user.filter((h) => h.event === 'PreToolUse');
   const weak = pre.filter((h) => h.onFailure !== 'block' || h.matcher !== BELT_MATCHER);
   const details: Message[] = [];
@@ -202,10 +203,11 @@ const installHooks: Check = (f) => {
       'install',
       true,
       'fail',
-      m('doc.install.hooks.missing', { events: missing.join(', '), n: HOOK_EVENTS.length - missing.length, of: HOOK_EVENTS.length }),
+      m('doc.install.hooks.missing', { events: missing.join(', '), n: expected.length - missing.length, of: expected.length }),
       {
         details,
         repair: 'restore-hooks',
+        ...(missing.includes(SKILL_SHELL_EVENT) ? { hint: m('doc.install.hint') } : {}),
       },
     );
   if (weak.length) {
@@ -218,14 +220,16 @@ const installHooks: Check = (f) => {
       return result(id, 'install', true, 'fail', m('doc.install.hooks.older', { tools: tools.join(', ') }), { details, repair: 'restore-hooks' });
     return result(id, 'install', true, 'fail', m('doc.install.hooks.changed'), { details, repair: 'restore-hooks' });
   }
-  const dupes = HOOK_EVENTS.filter((ev) => user.filter((h) => h.event === ev).length > 1);
+  if (expected.includes(SKILL_SHELL_EVENT) && user.some((h) => h.event === SKILL_SHELL_EVENT && (h.onFailure !== 'block' || h.matcher !== SKILL_SHELL_MATCHER)))
+    return result(id, 'install', true, 'fail', m('doc.install.hooks.changed'), { details, repair: 'restore-hooks' });
+  const dupes = expected.filter((ev) => user.filter((h) => h.event === ev).length > 1);
   const elsewhere = ours.filter((h) => h.scope !== 'user');
   if (dupes.length || elsewhere.length)
     return result(id, 'install', false, 'warn', m('doc.install.hooks.duplicates', { n: dupes.length + elsewhere.length }), {
       details: [...dupes.map((e) => m('doc.line', { text: e })), ...elsewhere.map((h) => m('doc.line', { text: `${h.scope}: ${h.event}` }))],
       ...(dupes.length ? { repair: 'remove-duplicate-hooks' as const } : {}),
     });
-  return result(id, 'install', true, 'ok', m('doc.install.hooks.ok', { n: HOOK_EVENTS.length }), details.length ? { details } : {});
+  return result(id, 'install', true, 'ok', m('doc.install.hooks.ok', { n: expected.length }), details.length ? { details } : {});
 };
 
 const installPluginFiles: Check = (f) => {

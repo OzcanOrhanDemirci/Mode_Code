@@ -119,6 +119,16 @@ test('a safety net reads as what was kept and how to put it back', () => {
   );
 });
 
+test('a command a skill ran as it loaded reads with the skill and who opened it', () => {
+  const said = (over: Partial<ActivityEvent>, lang: 'en' | 'tr' = 'en') =>
+    activityOf({ at: 1, kind: 'belt', tool: 'Bash', verdict: 'allow', commandName: 'review', invokedBy: 'user', ...over }, lang).text;
+  assert.equal(said({}), 'The safety belt allowed Bash · /review (you opened it)');
+  assert.equal(said({ invokedBy: 'claude' }), 'The safety belt allowed Bash · /review (Claude opened it)');
+  assert.equal(said({ invokedBy: 'plugin' }), 'The safety belt allowed Bash · /review (opened another way)');
+  assert.equal(said({ commandName: ' ' }), 'The safety belt allowed Bash · /? (you opened it)');
+  assert.equal(said({ invokedBy: 'claude' }, 'tr'), 'Emniyet kemeri Bash · /review (Claude açtı) için izin verdi');
+});
+
 test("Manual's question before a commit or a push reads as what you decided", () => {
   const said = (answer: string, lang: 'en' | 'tr') => activityOf({ at: 1, kind: 'manual', tool: 'Bash', what: ['commit', 'push'], answer }, lang).text;
   assert.equal(said('allow', 'en'), 'You approved the commit and push (Manual waits for you before one)');

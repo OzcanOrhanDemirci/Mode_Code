@@ -7,6 +7,7 @@ import { ago } from '../../core/format.js';
 import type { MessageKey } from '../../core/i18n/index.js';
 import type { ToolEvent } from '../../app/data.js';
 import { workingNow, type ModSessionState } from '../../core/session.js';
+import { skillShellLabel } from '../../core/ux/activity.js';
 import type { ScreenProps } from '../nav.js';
 import { EmptyState, Muted, useEnv, useHints, useScreenKeys, useT } from '../ui.js';
 import { Pressable } from '../press.js';
@@ -133,6 +134,7 @@ export function EventRows({ events, open }: { events: readonly ToolEvent[]; open
 }
 
 export function eventTitle(e: ToolEvent, t: (k: MessageKey, p?: Record<string, string | number>) => string): string {
+  if (e.kind === 'belt' && e.commandName) return `${skillShellLabel(e, t)} · ${e.tool || '?'} · ${t(`verdict.${e.verdict ?? 'deny'}` as MessageKey)}`;
   if (e.kind === 'belt' && e.left) return t('event.left', { tool: e.tool ?? '?' });
   if (e.kind === 'belt') return t(e.verdict === 'ask' ? (e.answer === 'allow' ? 'event.allowed' : 'event.asked') : 'event.blocked', { tool: e.tool ?? '?' });
   if (e.kind === 'permission' && e.answer === 'left') return t('event.left', { tool: e.tool ?? '?' });

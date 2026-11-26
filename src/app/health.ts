@@ -8,7 +8,8 @@ import { join } from 'node:path';
 import { APP_VERSION, MIN_CLAUDE_CODE_FOR_HOOKS, MIN_CLAUDE_CODE_FOR_MODS } from '../core/app.js';
 import { compareVersions } from '../core/version.js';
 import { resolvePath } from '../core/paths.js';
-import { HOOK_EVENTS, hookProgram, isOurHook, readManifest, selfTest, type Manifest } from '../node/install.js';
+import { SKILL_SHELL_EVENT } from '../core/belt/tools.js';
+import { expectedHookEvents, hookProgram, isOurHook, readManifest, selfTest, type Manifest } from '../node/install.js';
 import { readClaudeEnv, type ClaudeEnv } from '../node/claude-env.js';
 import { repoStatus } from '../node/git.js';
 import { home, platform } from '../node/env.js';
@@ -47,7 +48,7 @@ export function checkHealth(ctx: AppContext, opts: { selfTest?: boolean; withPlu
   const f: FeatureHealth[] = [];
   const hookFile = hookProgram(ctx.layout);
   const ours = env.hooks.filter((h) => h.scope === 'user' && isOurHook({ command: h.command, args: h.args }, ctx.layout.root));
-  const missingEvents = HOOK_EVENTS.filter((ev) => !ours.some((h) => h.event === ev));
+  const missingEvents = expectedHookEvents(claude).filter((ev) => !ours.some((h) => h.event === ev));
   const states = recentModStates(ctx, 20);
   const newest = states.sort((a, b) => b.aliveAt - a.aliveAt)[0];
   const modSeen = newest ? { at: newest.aliveAt, version: newest.modVersion } : null;
@@ -67,6 +68,8 @@ export function checkHealth(ctx: AppContext, opts: { selfTest?: boolean; withPlu
     belt = { id: 'belt', protection: true, state: 'red', reason: { key: 'health.belt.noProgram', params: { path: hookFile } }, fix: 'settings/maintenance' };
   else if (missingEvents.includes('PreToolUse'))
     belt = { id: 'belt', protection: true, state: 'red', reason: { key: 'health.belt.noHook' }, fix: 'settings/maintenance' };
+  else if (missingEvents.includes(SKILL_SHELL_EVENT))
+    belt = { id: 'belt', protection: true, state: 'red', reason: { key: 'health.belt.noSkillShell' }, fix: 'settings/maintenance' };
   else if (ours.some((h) => h.command && !existsSync(h.command)))
     // A hook that cannot start blocks every checked call (onFailure: block): say so before it surprises anyone.
     belt = {

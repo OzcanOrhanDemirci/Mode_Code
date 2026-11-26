@@ -40,7 +40,7 @@ araç çağrısı ─► eklenti: emniyet kemeri, sonra mod bekçisi ──► e
                                   ~/.claude/projects/*.jsonl, salt okunur ──► index.db (SQLite)
 ```
 
-- **Tek çekirdek, iki çalışma ortamı.** Her karar (kabuk ayrıştırıcıları, kurallar, modlar, anahtar kelimeler, kota) `src/core`'da, Node API'si kullanmayan TypeScript. Eklenti onu mods API'siyle Claude Code'un içinde çalıştırır: çağrı başına süreç yok, kota doğrudan Claude Code'dan, kendi diyalogları. Bir `PreToolUse` ayar hook'u aynı kodu onun altında ağ olarak çalıştırır, Node'un mutlak yoluyla, arada kabuk olmadan. Eklenti yüklenmezse hook tek başına karar verir; hook başlayamazsa Claude Code çağrıyı engeller.
+- **Tek çekirdek, iki çalışma ortamı.** Her karar (kabuk ayrıştırıcıları, kurallar, modlar, anahtar kelimeler, kota) `src/core`'da, Node API'si kullanmayan TypeScript. Eklenti onu mods API'siyle Claude Code'un içinde çalıştırır: çağrı başına süreç yok, kota doğrudan Claude Code'dan, kendi diyalogları. Bir `PreToolUse` ayar hook'u aynı kodu onun altında ağ olarak çalıştırır, Node'un mutlak yoluyla, arada kabuk olmadan. Claude Code 2.1.332 ve sonrasında `PreSkillShellCommand`, bir beceri ya da eğik çizgi komutu açılırken çalışan Bash ve PowerShell komutlarını da denetler. Eklenti yüklenmezse bu denetimler yine çalışır. Güvenlik denetimi başlayamazsa Claude Code çağrıyı engeller.
 - **Komutlar ayrıştırılır, kalıpla eşlenmez.** Tırnaklar, here-document'lar, yerine koymalar ve betik blokları; `sudo`, `env`, `xargs`, `bash -c`, `pwsh -Command` ve kodlanmış PowerShell açılır; `python -c`'ye, `node -e`'ye ya da bir here-document'a verilen kod yeniden okunur; git, git'in okuduğu gibi okunur (`-C`, `-c`, `:dal` refspec'leri, depoda aranan takma adlar); korunan bir yol her yazımıyla tanınır (Windows 8.3 kısa adları, sondaki noktalar, bağlantılar). Yalnız çalışırken bilinen kod (`eval`, `bash -c "$X"`) sorulur, asla güvenli sayılmaz.
 - **Tek kural seti, üç çalışma biçimi.** 54 kuralın her birinin her çalışma biçiminde ne yapacağı yazılıdır: Manuel sorar, Otonom bir güvenlik ağının ya da senin sözünün kapsadığı yerde sürer, tam otonom hiçbir şey sormaz ve kalanı tam komutuyla sana bırakır. Kilitli kurallar (Claude Code ayarların, hook'lar, Mode_Code'un kendi dosyaları, hafızan) sıkılaştırılabilir, asla gevşetilemez, oturumun içinden hiç değiştirilemez.
 - **Kanıt senin sözün.** Eklenti senin yazdıklarını, oturum başında projenin remote'larını ve oturumun dışarıdan okuduklarının parmak izlerini kaydeder. Yalnız okunan içerikte (bir web sayfası, bir issue) geçen bir adres, yol ya da komut her çalışma biçiminde reddedilir; böylece araya sokulan bir metin bir adımın hedefini seçemez.
@@ -94,7 +94,7 @@ Sonra yeni bir Claude Code oturumu başlat (`claude`). İstem satırının üst�
 1. **Node.js.** PATH'teki Node.js 22.13 ya da sonrasını kullanır. Yoksa nodejs.org'dan resmî Node.js 24 derlemesini indirir, nodejs.org'un SHA-256 listesiyle doğrular ve yalnız Mode_Code için tutar: yönetici hakkı yok, sudo yok, sisteme hiçbir şey kurulmaz.
 2. **Paket.** En yeni [sürümü](https://github.com/OzcanOrhanDemirci/Mode_Code/releases) indirir ve sürümün `SHA256SUMS` dosyasıyla doğrular. Eşleşmeyen bir indirme asla kurulmaz.
 3. **Program.** `~/.local/share/mode-code` klasörüne (Windows: `%LOCALAPPDATA%\mode-code`), `mode-code` komutu da `~/.local/bin` klasörüne (Windows: `%USERPROFILE%\.local\bin`) gider. Bu klasör PATH'te değilse eklenir: kabuğunun başlangıç dosyasına işaretli tek bir satır ya da Windows'ta kullanıcı PATH'in.
-4. **Claude Code.** `mode-code install` çalışır: Claude Code'da yapacağı her değişikliği gösterir, bir kez sorar, ayarlarını yedekler ve kendini sınar. Claude Code yoksa önce [Anthropic'in resmî kurulumunu](https://code.claude.com/docs/en/setup) çalıştırmayı önerir.
+4. **Claude Code.** `mode-code install` çalışır: Claude Code'da yapacağı her değişikliği gösterir, bir kez sorar, ayarlarını yedekler ve kendini sınar. Mode_Code'u kurduktan sonra Claude Code'u 2.1.332 veya daha yeni bir sürüme güncellediysen beceriler açılırken çalışan komutların da denetlenmesi için `mode-code install` komutunu yeniden çalıştır. Claude Code yoksa önce [Anthropic'in resmî kurulumunu](https://code.claude.com/docs/en/setup) çalıştırmayı önerir.
 
 Çalıştırmadan önce oku: [install.sh](install.sh) · [install.ps1](install.ps1).
 
@@ -103,7 +103,7 @@ Sonra yeni bir Claude Code oturumu başlat (`claude`). İstem satırının üst�
 | seçenek vermek                  | `curl -fsSL <adres> \| sh -s -- <seçenekler>` | `& ([scriptblock]::Create((irm <adres>))) <seçenekler>` |
 | her soruya evet (betikler için) | `--yes`                                       | `-Yes`                                                  |
 | eksikse Claude Code'u da kurmak | `--install-claude`                            | `-InstallClaude`                                        |
-| belirli bir sürümü kurmak       | `--version 1.3.1`                             | `-Version 1.3.1`                                        |
+| belirli bir sürümü kurmak       | `--version 1.3.2`                             | `-Version 1.3.2`                                        |
 | PATH'e dokunmamak               | `--no-modify-path`                            | `-NoModifyPath`                                         |
 | yalnız programı kurmak          | `--no-setup`                                  | `-NoSetup`                                              |
 
@@ -369,6 +369,8 @@ Sıradakiler:
 - **Daha çok kural şablonu**: Python ve Go'dan Docker Compose'a yaygın yığınlar.
 - **Daha çok dil**: arayüz için İngilizce ve Türkçenin yanına.
 - Tek satırlık kurulumda **musl Linux** (Alpine).
+
+1.3.2'de tamamlananlar: Claude Code 2.1.332 ile Mode_Code; emniyet kemeri bir beceri ya da eğik çizgi komutu açılırken çalışan komutları da denetliyor.
 
 1.3.1'de tamamlananlar: Claude Code 2.1.326 ile Mode_Code; bir akışın doğrulama komutları yeniden senin izin kurallarına uyuyor.
 

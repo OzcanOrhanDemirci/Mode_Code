@@ -15,6 +15,8 @@ export interface ActivityEvent {
   at: number;
   kind: string;
   session?: string;
+  commandName?: string;
+  invokedBy?: string;
   [field: string]: unknown;
 }
 
@@ -77,6 +79,11 @@ const str = (v: unknown, max = 120): string => (typeof v === 'string' ? v : v ==
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const list = (v: unknown): string[] => (Array.isArray(v) ? v.map((x) => str(x, 80)).filter(Boolean) : []);
 
+export function skillShellLabel(e: { commandName?: unknown; invokedBy?: unknown }, t: (k: MessageKey, p?: Record<string, string>) => string): string {
+  const by = e.invokedBy === 'user' ? t('act.skillShell.user') : e.invokedBy === 'claude' ? t('act.skillShell.claude') : t('act.skillShell.other');
+  return t('act.skillShell.label', { name: str(e.commandName).trim() || '?', by });
+}
+
 /** One event as a line. A kind this version does not know reads as a note of its kind, never as nothing. */
 export function activityOf(e: ActivityEvent, lang: Lang): ActivityLine {
   const t = (k: string, p?: Record<string, string | number>) => tIn(lang, k as MessageKey, p);
@@ -94,15 +101,17 @@ export function activityOf(e: ActivityEvent, lang: Lang): ActivityLine {
   const tool = str(e.tool, 40) || '?';
   switch (e.kind) {
     case 'belt': {
+      const call = e.commandName ? `${tool} · ${skillShellLabel(e, t)}` : tool;
       const rules = list(e.rules);
       const rule = rules[0];
       const why = rule ? t('act.why.rule', { rule: t(`rulename.${rule}`) }) : null;
       const at = rule ? `protection/rules/${rule}` : 'protection/events';
       const reason = list(e.reasons)[0] ?? '';
+      if (e.verdict === 'allow') return line('done', t('act.belt.pass', { tool: call }), why, at);
       // Full autonomy left it to the person, with its command: it waits for them, it was not blocked.
       if (e.verdict === 'deny' && e.left === true) return line('waiting', t('act.belt.left', { tool, reason }), why, at);
-      if (e.verdict === 'deny') return line('blocked', t('act.belt.deny', { tool, reason }), why, at);
-      if (e.verdict === 'warn') return line('note', t('act.belt.warn', { tool, reason }), why, at, true);
+      if (e.verdict === 'deny') return line('blocked', t('act.belt.deny', { tool: call, reason }), why, at);
+      if (e.verdict === 'warn') return line('note', t('act.belt.warn', { tool: call, reason }), why, at, !e.commandName);
       // Held for the person by a full-autonomy run of a version before 1.2.0.
       if (e.answer === 'deferred') return line('waiting', t('act.belt.deferred', { tool, reason }), why, at);
       if (e.answer === 'allow' || e.answer === 'third') return line('done', t('act.belt.allowed', { tool, reason }), why, at);

@@ -74,6 +74,9 @@ export interface ToolEvent {
   source: 'mod' | 'hook' | string;
   session: string;
   tool?: string;
+  /** A shell command the belt checked while a skill or slash command loaded. */
+  commandName?: string;
+  invokedBy?: 'user' | 'claude' | 'other';
   verdict?: 'deny' | 'ask' | 'warn' | string;
   answer?: string;
   /** A belt event in full autonomy: the call was left to the person (with its command), not blocked. */

@@ -26,6 +26,8 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'health.belt.noNode':
     "Hook'ların çalıştırdığı Node.js yok ({path}); Claude Code denetlenen her çağrıyı engelliyor. Onarmak için 'mode-code install' komutunu yeniden çalıştır.",
   'health.belt.noHook': "Güvenlik ağı hook'u Claude Code ayarlarında yok. Geri eklemek için yeniden kur.",
+  'health.belt.noSkillShell':
+    'Emniyet kemeri, bir beceri açılırken çalışan komutları denetleyemiyor. Bu denetimi eklemek için mode-code install komutunu yeniden çalıştır.',
   'health.claudeOld': 'Claude Code {have}, bu özelliğin istediği {need} sürümünden eski. "claude update" ile güncelle.',
   'health.belt.selfTest': 'Öz sınama başarısız: {detail}',
   'health.mod.notInstalled': 'Claude Code eklentisi kurulu değil. Eklemek için yeniden kur.',
@@ -133,7 +135,7 @@ export const trUi: Record<keyof typeof enUi, string> = {
   'install.step.hook-program': 'Güvenlik ağı hook programını kopyala',
   'install.step.marketplace': 'Yerel bir eklenti pazarı oluştur',
   'install.step.plugin': 'Claude Code eklentisini kur (kullanıcı kapsamı)',
-  'install.step.settings-hooks': 'Claude Code ayarlarına dört hook ekle (yedeği alınır)',
+  'install.step.settings-hooks': 'Claude Code ayarlarına güvenlik denetimlerini ekle (yedeği alınır)',
   'install.step.config': 'Aracın ayar dosyasını oluştur',
   'install.step.self-test': 'Korumanın çalıştığını iki zararsız denemeyle doğrula',
   'install.step.migrate': 'Aracın önceki adıyla yapılmış kurulumun tuttuklarını getir: ayarlar, geçmiş, notlar (önce kopyalanır)',

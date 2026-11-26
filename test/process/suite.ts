@@ -639,7 +639,7 @@ export function defineCliTests(mode: 'source' | 'dist' | 'package'): void {
       assert.equal(r.code, 0, r.err);
       assert.match(r.out, /--plugin-dir/);
       assert.match(r.out, /--settings/);
-      assert.deepEqual(w.claudeState().calls, [], 'claude itself was not run');
+      assert.deepEqual(w.claudeState().calls, [['--version']], 'only the version was checked');
     } finally {
       w.done();
     }

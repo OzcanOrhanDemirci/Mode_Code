@@ -2,7 +2,7 @@
 // Permission fatigue (src/core/permissions.ts): a compound command whose every part the person allowed.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { partsAllowed, shellRules } from '../../src/core/permissions.js';
+import { asksOwnQuestion, partsAllowed, shellRules } from '../../src/core/permissions.js';
 
 const env = { platform: 'linux' as const, home: '/home/ada', cwd: '/home/ada/dev/app' };
 const rules = shellRules(['Bash(npm test:*)', 'Bash(npm run build)', 'Bash(git status)', 'Bash(tail *)', 'Read(*)', 'Bash(rm:*) ignored?', 5], 'Bash');
@@ -49,4 +49,17 @@ test('a part no rule covers, a cd out of the project, a write or a nested comman
   ])
     assert.equal(ok(c), false, c);
   assert.equal(partsAllowed('rm -rf x && rm -rf y', 'bash', shellRules(['Bash'], 'Bash'), env.cwd, env), true, 'a bare Bash rule allows all');
+});
+
+test("whose question an ask is: the mode's own is Mode_Code's to answer; a rule's, a hook's, an option's, another plugin's or the organisation's ceiling is not", () => {
+  assert.equal(asksOwnQuestion({}, 'mode-code'), false);
+  assert.equal(asksOwnQuestion({ plugin: 'mode-code' }, 'mode-code'), false);
+  for (const v of [
+    { rule: 'Bash(git push:*)' },
+    { hook: 'PreToolUse' },
+    { setting: 'permissions.blockReadsOutsideWorkingDirectories' },
+    { plugin: 'lab' },
+    { ceiling: 'ask' },
+  ])
+    assert.equal(asksOwnQuestion(v, 'mode-code'), true, JSON.stringify(v));
 });

@@ -178,6 +178,10 @@ export const en = {
     '🛡 Blocked: in Manual a {what} waits for the user, and no one could be asked here (a headless run). Tell the user: they can work Autonomous, or run it themselves.',
   'belt.failed':
     'The safety belt could not check this call ({error}), so it was blocked to be safe. Tell the person; the control center shows the error under Protection.',
+  'hook.belt.unreadable': 'the tool call it was given could not be read',
+  'hook.belt.deadline': 'no answer in {seconds} s',
+  'hook.belt.skillAsk':
+    "🛡 Not run: /{name} runs this command as it loads, and the safety belt needs the user's approval for it, which cannot be asked while a skill loads. The rest of the skill loaded. Tell the user; if the command is needed, run it as a step of your own so they can approve it.",
 
   // ── keywords as the person sees them ──
   'kw.toast': 'Keyword: {kind}{project}',

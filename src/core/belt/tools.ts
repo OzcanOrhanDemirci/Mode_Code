@@ -19,6 +19,10 @@ export const BELT_TOOLS: readonly string[] = [...Object.keys(SHELL_TOOLS), ...FI
 /** The settings hook matcher for the belt: exactly the tools it checks. */
 export const BELT_MATCHER = BELT_TOOLS.join('|');
 
+export const SKILL_SHELL_EVENT = 'PreSkillShellCommand';
+export const SKILL_SHELL_TOOLS: readonly string[] = ['Bash', 'PowerShell'];
+export const SKILL_SHELL_MATCHER = SKILL_SHELL_TOOLS.join('|');
+
 /** The shell a tool's `command` is written for, or null for a tool that runs no command. */
 export function shellOf(tool: string): 'bash' | 'powershell' | null {
   return Object.hasOwn(SHELL_TOOLS, tool) ? SHELL_TOOLS[tool]! : null;

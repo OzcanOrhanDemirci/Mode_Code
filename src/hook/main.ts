@@ -11,12 +11,13 @@
 import { readFileSync } from 'node:fs';
 import { reminderDue, reminderNote } from '../core/agents.js';
 import { evaluateToolCall, decisionText } from '../core/belt/evaluate.js';
-import { isBeltTool, shellOf } from '../core/belt/tools.js';
+import { isBeltTool, shellOf, SKILL_SHELL_EVENT, SKILL_SHELL_TOOLS } from '../core/belt/tools.js';
 import { levelOf } from '../core/belt/rules.js';
 import { parseModState, parseHookState, isApproved, applyKeyword } from '../core/session.js';
 import { sessionFile, eventsFile, provFile } from '../core/layout.js';
 import { parseProvenance } from '../core/provenance.js';
 import { maskSecrets } from '../core/secrets/scan.js';
+import { visibleText } from '../core/text.js';
 import { tIn, setLanguage, type Lang } from '../core/i18n/index.js';
 import { detectKeyword, isModeKeyword } from '../core/keywords.js';
 import { footerInstruction, keywordContext } from '../core/guidance.js';
@@ -43,6 +44,8 @@ import { layNet, pruneNets } from '../node/net.js';
 import type { BeltDecision } from '../core/belt/types.js';
 
 type Input = Record<string, unknown>;
+type BeltEvent = 'PreToolUse' | typeof SKILL_SHELL_EVENT;
+type BeltCall = { tool: string; sessionId: string; cwd: string; now: number; skill?: { commandName: string; invokedBy: 'user' | 'claude' | 'other' } };
 
 /** A hook that is still running after this long answers for itself: deny for risky tools, pass otherwise. */
 const DEADLINE_MS = 8000;
@@ -55,18 +58,15 @@ function str(x: unknown): string | undefined {
   return typeof x === 'string' ? x : undefined;
 }
 
-function preToolDeny(reason: string): void {
-  out({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: reason } });
+function permissionDecision(event: BeltEvent, decision: 'deny' | 'ask', reason: string): void {
+  out({ hookSpecificOutput: { hookEventName: event, permissionDecision: decision, permissionDecisionReason: reason } });
 }
 
-async function preToolUse(input: Input, lang: Lang): Promise<void> {
+async function checkBelt(event: BeltEvent, input: Input, call: BeltCall, lang: Lang): Promise<void> {
   const l = dataLayout();
   const { config } = loadConfig(l);
-  const tool = str(input.tool_name) ?? '';
+  const { tool, sessionId, cwd, now, skill } = call;
   const toolInput = (typeof input.tool_input === 'object' && input.tool_input !== null ? input.tool_input : {}) as Record<string, unknown>;
-  const sessionId = str(input.session_id) ?? '';
-  const cwd = str(input.cwd) ?? process.cwd();
-  const now = Date.now();
 
   const modFile = sessionFile(l, sessionId, 'mod');
   const mod = modFile ? parseModState(readText(modFile)) : null;
@@ -85,24 +85,44 @@ async function preToolUse(input: Input, lang: Lang): Promise<void> {
   };
   let d = await evaluateToolCall(tool, toolInput, ctx);
   const netsLaid = layNets(l, d, { tool, toolInput, sessionId, now });
-  if (isApproved(mod, str(input.tool_use_id), now)) return; // the person approved this exact call when the mod asked
+  if (!skill && isApproved(mod, str(input.tool_use_id), now)) return; // the person approved this exact tool call when the mod asked
   // A net that could not be laid: the call is decided as it would be without one.
   if (!netsLaid) d = await evaluateToolCall(tool, toolInput, { ...ctx, net: false });
-  if (d.verdict === 'allow') return;
+  if (!skill && d.verdict === 'allow') return;
 
-  // The self-test's samples are not real calls: no session state, no events.
-  const hookFile = sessionId === SELF_TEST_SESSION ? null : sessionFile(l, sessionId, 'hook');
-  const state = parseHookState(hookFile ? readText(hookFile) : null, sessionId);
-  let repeat = 0;
-  if (d.verdict === 'deny') {
-    for (const f of d.findings.filter((x) => x.verdict === 'deny')) state.blocks[f.rule] = (state.blocks[f.rule] ?? 0) + 1;
-    repeat = Math.max(0, ...d.findings.filter((x) => x.verdict === 'deny').map((f) => state.blocks[f.rule] ?? 0));
+  const repeat = recordBeltDecision(l, call, d, !!mod);
+  if (d.verdict === 'allow' || (skill && d.verdict === 'warn')) return;
+  if (skill && d.verdict === 'ask') {
+    permissionDecision(event, 'deny', tIn(lang, 'hook.belt.skillAsk', { name: skill.commandName }));
+    return;
   }
-  state.lastRunAt = now;
+  const text = decisionText(d, ctx, { repeatCount: repeat, command: shellOf(tool) ? str(toolInput.command) : null });
+  if (d.verdict === 'deny' || d.verdict === 'ask') permissionDecision(event, d.verdict, text);
+  else if (!mod) out({ hookSpecificOutput: { hookEventName: event, additionalContext: text } });
+}
+
+function recordBeltDecision(l: ReturnType<typeof dataLayout>, call: BeltCall, d: BeltDecision, modLoaded: boolean, failure?: string): number {
+  const { tool, sessionId, cwd, now, skill } = call;
+  // The self-test's samples are not real calls: no session state, no events.
+  if (sessionId === SELF_TEST_SESSION) return 0;
+  const verdict = skill && d.verdict === 'ask' ? 'deny' : d.verdict;
+  let repeat = 0;
   try {
+    const hookFile = sessionFile(l, sessionId, 'hook');
+    const state = parseHookState(hookFile ? readText(hookFile) : null, sessionId);
+    if (verdict === 'deny') {
+      const blocked = d.findings.filter((f) => f.verdict === d.verdict);
+      for (const f of blocked) state.blocks[f.rule] = (state.blocks[f.rule] ?? 0) + 1;
+      repeat = Math.max(0, ...blocked.map((f) => state.blocks[f.rule] ?? 0));
+    }
+    state.lastRunAt = now;
     if (hookFile) writeJsonAtomic(hookFile, state);
+  } catch {
+    /* the event can still be recorded */
+  }
+  try {
     // The mod logs what it decides; the hook logs only what reached it on its own.
-    if (sessionId !== SELF_TEST_SESSION && (!mod || d.verdict === 'deny'))
+    if (skill || !modLoaded || verdict === 'deny')
       appendLine(
         eventsFile(l, sessionId, 'hook', now),
         JSON.stringify({
@@ -111,22 +131,20 @@ async function preToolUse(input: Input, lang: Lang): Promise<void> {
           kind: 'belt',
           source: 'hook',
           tool,
-          verdict: d.verdict,
+          verdict,
           rules: d.findings.map((f) => f.rule),
-          reasons: d.findings.map((f) => maskSecrets(f.reason)),
+          reasons: failure === undefined ? d.findings.map((f) => maskSecrets(f.reason)) : [maskSecrets(failure)],
           issues: d.issues,
           cwd,
           app: APP_VERSION,
+          ...skill,
         }),
       );
   } catch {
     /* logging must never change a decision */
   }
 
-  const text = decisionText(d, ctx, { repeatCount: repeat, command: shellOf(tool) ? str(toolInput.command) : null });
-  if (d.verdict === 'deny') preToolDeny(text);
-  else if (d.verdict === 'ask') out({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'ask', permissionDecisionReason: text } });
-  else if (!mod) out({ hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: text } });
+  return repeat;
 }
 
 /**
@@ -396,9 +414,10 @@ async function main(): Promise<void> {
   let unreadable = false;
   try {
     const raw = readFileSync(0, 'utf8');
-    input = raw.trim() ? (JSON.parse(raw) as Input) : {};
+    const parsed: unknown = raw.trim() ? JSON.parse(raw) : {};
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) unreadable = true;
+    else input = parsed as Input;
   } catch {
-    input = {};
     unreadable = true;
   }
   let lang: Lang = 'en';
@@ -409,21 +428,46 @@ async function main(): Promise<void> {
   }
   setLanguage(lang);
 
-  if (event === 'PreToolUse') {
+  if (event === 'PreToolUse' || event === SKILL_SHELL_EVENT) {
+    const skillEvent = event === SKILL_SHELL_EVENT;
+    const tool = str(input.tool_name) ?? '';
+    if (skillEvent && tool && !SKILL_SHELL_TOOLS.includes(tool)) return;
+    const call: BeltCall = { tool, sessionId: str(input.session_id) ?? '', cwd: str(input.cwd) ?? process.cwd(), now: Date.now() };
+    if (skillEvent) {
+      const by = input.invoked_by;
+      call.skill = {
+        commandName:
+          visibleText(maskSecrets(str(input.command_name) ?? ''))
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 120) || '?',
+        invokedBy: by === 'user' || by === 'claude' ? by : 'other',
+      };
+    }
+    const refuse = (error: string) => {
+      const reason = tIn(lang, 'belt.failed', { error });
+      if (skillEvent) {
+        try {
+          recordBeltDecision(dataLayout(), call, { verdict: 'deny', findings: [], issues: [] }, false, reason);
+        } catch {
+          /* no data folder to log to; the refusal still stands */
+        }
+      }
+      permissionDecision(event, 'deny', reason);
+    };
     // Input cut short or garbled: the call cannot be judged, so it does not run (the belt fails closed, A3-9).
-    if (unreadable) {
-      preToolDeny(tIn(lang, 'belt.failed', { error: 'the tool call it was given could not be read' }));
+    if (unreadable || (skillEvent && (!tool || str((input.tool_input as Input | undefined)?.command) === undefined))) {
+      refuse(tIn(lang, 'hook.belt.unreadable'));
       return;
     }
-    const tool = str(input.tool_name) ?? '';
     const timer = setTimeout(() => {
-      if (isBeltTool(tool)) preToolDeny(tIn(lang, 'belt.failed', { error: `no answer in ${DEADLINE_MS / 1000} s` }));
-      process.exit(0);
+      if (skillEvent || isBeltTool(tool)) refuse(tIn(lang, 'hook.belt.deadline', { seconds: DEADLINE_MS / 1000 }));
+      process.stdout.end(() => process.exit(0));
     }, DEADLINE_MS);
     try {
-      await preToolUse(input, lang);
+      await checkBelt(event, input, call, lang);
     } catch (err) {
-      if (isBeltTool(tool)) preToolDeny(tIn(lang, 'belt.failed', { error: (err as Error)?.message ?? String(err) }));
+      if (skillEvent || isBeltTool(tool)) refuse((err as Error)?.message ?? String(err));
     } finally {
       clearTimeout(timer);
     }
