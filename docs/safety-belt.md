@@ -67,7 +67,7 @@ The rules are the same in every way of working; the way of working on the strip 
 
 - **What is blocked stays blocked**, in every way of working: deleting the home folder or a system folder, a protected branch's history, the tool's own files. The refusal says what was meant and the command for you to run yourself (`! <command>`), every character shown, the invisible ones too.
 - **A secret leaving the computer is stopped** outright: nobody is told to run it.
-- **Your own question stays yours.** A rule in your Claude Code settings (or your organisation's), another hook's question and an option's own check are put to you, never to a classifier; in full autonomy, with nobody to ask, the step is left to you. What Claude Code or your rules deny stays denied.
+- **Your own question stays yours.** A rule in your Claude Code settings (or your organisation's), another hook's or another plugin's question, an option's own check and a tool your organisation keeps at asking are put to you, never to a classifier; in full autonomy, with nobody to ask, the step is left to you. What Claude Code or your rules deny stays denied.
 - **Manual waits for you before a commit and a push**, whatever else lets them through (`git commit`, `git push`, in any spelling of git); with nobody to ask (a headless run) they do not run.
 - **A safety net turns a question into an undoable step** in Autonomous and full autonomy (below): with what the call takes away kept first, it runs.
 - `mode-code belt test --level autonomous --command "git reset --hard"` shows what a way of working decides; `mode-code belt rules` lists each rule's verdict in Manual.

@@ -54,6 +54,12 @@ test('a part no rule covers, a cd out of the project, a write or a nested comman
 test("whose question an ask is: the mode's own is Mode_Code's to answer; a rule's, a hook's, an option's, another plugin's or the organisation's ceiling is not", () => {
   assert.equal(asksOwnQuestion({}, 'mode-code'), false);
   assert.equal(asksOwnQuestion({ plugin: 'mode-code' }, 'mode-code'), false);
-  for (const v of [{ rule: 'Bash(git push:*)' }, { hook: 'PreToolUse' }, { setting: 'permissions.blockReadsOutsideWorkingDirectories' }, { plugin: 'lab' }, { ceiling: 'ask' }])
+  for (const v of [
+    { rule: 'Bash(git push:*)' },
+    { hook: 'PreToolUse' },
+    { setting: 'permissions.blockReadsOutsideWorkingDirectories' },
+    { plugin: 'lab' },
+    { ceiling: 'ask' },
+  ])
     assert.equal(asksOwnQuestion(v, 'mode-code'), true, JSON.stringify(v));
 });

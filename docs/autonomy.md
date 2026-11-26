@@ -19,17 +19,17 @@ Only the person chooses a way of working; Claude cannot press the strip. A new s
 
 ## What changes
 
-|                                                                      | Autonomous              | Full autonomy                                                                                      |
-| -------------------------------------------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------- |
-| a step the safety belt would ask about                               | asked, where it matters | **left to you**: refused with its command, Claude goes on with the rest and lists it in its answer |
-| a step a safety net makes undoable (a hard reset, `git clean`, …)    | runs once kept          | runs once kept ([safety-belt.md](safety-belt.md#safety-net))                                       |
-| a step on a target you named (a release, a recipient, …)             | runs, Claude is told    | runs where the table says ([safety-belt.md](safety-belt.md#evidence))                              |
-| a target found only in what was read from outside                    | refused                 | refused                                                                                            |
-| a step you clearly asked for, your sentence quoted and checked       | asked                   | goes on with a note ([safety-belt.md](safety-belt.md#a-clear-request-in-full-autonomy))            |
-| a step a rule of yours asks about (your settings, another hook)      | asked                   | **left to you**, the same way                                                                      |
-| Claude Code's own permission question, once the belt let the call by | answered yes            | answered yes                                                                                       |
-| what the belt blocks; a secret leaving the computer                  | blocked; stopped        | blocked; stopped                                                                                   |
-| a question to you (`AskUserQuestion`), Claude Code's plan mode       | yours                   | refused: Claude decides by your recorded decisions or the reversible default, and says which       |
+|                                                                           | Autonomous              | Full autonomy                                                                                      |
+| ------------------------------------------------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------- |
+| a step the safety belt would ask about                                    | asked, where it matters | **left to you**: refused with its command, Claude goes on with the rest and lists it in its answer |
+| a step a safety net makes undoable (a hard reset, `git clean`, …)         | runs once kept          | runs once kept ([safety-belt.md](safety-belt.md#safety-net))                                       |
+| a step on a target you named (a release, a recipient, …)                  | runs, Claude is told    | runs where the table says ([safety-belt.md](safety-belt.md#evidence))                              |
+| a target found only in what was read from outside                         | refused                 | refused                                                                                            |
+| a step you clearly asked for, your sentence quoted and checked            | asked                   | goes on with a note ([safety-belt.md](safety-belt.md#a-clear-request-in-full-autonomy))            |
+| a step a rule of yours asks about (your settings, another hook or plugin) | asked                   | **left to you**, the same way                                                                      |
+| Claude Code's own permission question, once the belt let the call by      | answered yes            | answered yes                                                                                       |
+| what the belt blocks; a secret leaving the computer                       | blocked; stopped        | blocked; stopped                                                                                   |
+| a question to you (`AskUserQuestion`), Claude Code's plan mode            | yours                   | refused: Claude decides by your recorded decisions or the reversible default, and says which       |
 
 [safety-belt.md](safety-belt.md#ways-of-working) has the same table for all three ways of working, rule by rule. With each of your messages Claude is told what full autonomy means; when the project has its own definition of done (`projects[].verify` in the settings, for example `["npm run check"]`), Claude is told to run those commands and fix what fails before it calls the task done.
 
