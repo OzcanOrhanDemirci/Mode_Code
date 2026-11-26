@@ -18,6 +18,12 @@ The same code decides in two places:
 
 A protection never turns gray: if something is broken, the control center shows it red and the hook keeps blocking what it can.
 
+## Commands that run as a skill loads
+
+On Claude Code 2.1.332 and later, the settings hook (`PreSkillShellCommand`) checks Bash and PowerShell commands that a skill or slash command runs as it loads. Claude Code checks its own permissions first, including in bypass permissions mode. The belt uses the session's way of working and its record of where things came from. When a command can run on the strength of a safety net, the hook keeps what it would take away first.
+
+If the belt would ask for approval, it skips that command, because nobody can be asked while a skill loads, and tells Claude why: Claude can run the command as an ordinary step, which the belt then asks you about. A command the belt blocks is skipped with its usual reason. Either way, the rest of the skill still loads. Approvals for individual tool calls apply only to those calls. Commands that the belt lets through run without a message from Mode_Code. Protection › Events and `mode-code belt events` record the decisions, the name of the skill or slash command, and who opened it. [Claude Code hooks reference](https://code.claude.com/docs/en/hooks#preskillshellcommand).
+
 ## How commands are read
 
 - bash, PowerShell and cmd syntax, including quotes, escapes, here-documents, substitutions and script blocks;

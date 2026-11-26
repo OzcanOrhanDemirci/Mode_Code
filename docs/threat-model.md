@@ -155,6 +155,8 @@ How these were measured, and what they leave out: a call to this computer's own 
 
 Measured, and left open by choice or not yet closed:
 
+- **Commands that run as a skill loads on older Claude Code.** Before 2.1.332, the belt never sees the Bash or PowerShell commands a skill or slash command runs as it loads. On newer versions, run `mode-code install` again to add the check if you installed Mode_Code before updating Claude Code. [Claude Code hooks reference](https://code.claude.com/docs/en/hooks#preskillshellcommand).
+
 - **A secret in a read's address or headers.** Reads are free, so data sent in a URL or a header of a request that only reads goes on: of agent-egress-bench's 55 web attacks that carry data in a URL, none is stopped, and 5 reads that carry a value shaped like a secret pass.
 - **Persistence and system settings the rules do not read.** 170 of SABER's attack calls change an SSH key or its settings, an autostart or startup entry, or turn security software off in a way the rules do not match.
 - **This computer's own address is no outside.** Data sent to `localhost`, `127.0.0.1` or `0.0.0.0` goes on, bare or in a URL. It does not leave the computer, but a tunnel (`ssh -L`) or a local proxy set up beforehand can carry it on; the belt does not follow that. An address read only from outside content is still refused.
