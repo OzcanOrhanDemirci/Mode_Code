@@ -10,6 +10,8 @@ export interface WorldOptions {
   /** Answer to a question: the first option, the second, the third, words typed under "Other", or 'nobody' when no one can be asked. */
   answer?: 'allow' | 'block' | 'third' | 'nobody' | { typed: string };
   config?: Record<string, unknown>;
+  /** Paths whose look (`$.fs.stat`) the person's rules refuse: refused, not missing. */
+  statRefused?: (path: string) => boolean;
   now?: number;
   lang?: 'en' | 'tr';
   windows?: boolean;
@@ -134,6 +136,7 @@ export function world(on: any, opts: WorldOptions = {}) {
   });
   on('fs.stat', (_$: any, e: any) => {
     const path = norm(e.path);
+    if (opts.statRefused?.(path)) return { deny: 'refused by a rule of the person' };
     const f = files.get(path);
     if (f) return { value: { kind: 'file', size: f.text.length, mtimeMs: f.mtimeMs, isLink: false } };
     if ([...files.keys()].some((p) => p.startsWith(path.replace(/\/+$/, '') + '/'))) return { value: { kind: 'dir', size: 0, mtimeMs: 0, isLink: false } };

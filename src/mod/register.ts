@@ -927,6 +927,19 @@ async function gitFactsFor($: $, c: Pick<Ctx, 'env' | 'home' | 'platform'>): Pro
   };
 }
 
+/**
+ * Whether nothing is at the path: the look says ENOENT. A look the person's rules refused, or one that failed otherwise,
+ * is not known to be missing, so a file there is not taken for one the session made (src/core/provenance.ts `made`).
+ */
+async function isMissing($: $, path: string): Promise<boolean> {
+  try {
+    await $.fs.stat(path);
+    return false;
+  } catch (err) {
+    return /ENOENT/.test(String((err as Error)?.message ?? err));
+  }
+}
+
 async function statSize($: $, path: string): Promise<number | null> {
   try {
     const s = await $.fs.stat(path);
@@ -2066,7 +2079,7 @@ async function onToolCall($: $, e: In<'tool.call'>, next: Nx<'tool.call'>): Out<
 
   if (tool === 'ExitPlanMode' && c.config.modules.modes) return onExitPlanMode($, c, e, next);
   // A file Write makes anew is the session's own to remove later (src/core/provenance.ts `made`).
-  const newFile = tool === 'Write' && typeof input.file_path === 'string' && (await statSize($, resolvePath(input.file_path, pathEnv(c, cwd)))) === null;
+  const newFile = tool === 'Write' && typeof input.file_path === 'string' && (await isMissing($, resolvePath(input.file_path, pathEnv(c, cwd))));
   const result = await next(e);
   // The footer counts what ran: a refused call changed nothing, and neither did a file tool that failed.
   const ran = result.deny === undefined && !(result.isError === true && isFileTool(tool));

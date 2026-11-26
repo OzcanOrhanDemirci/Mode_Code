@@ -150,3 +150,10 @@ test('a folder this session made is its own to remove; one it did not make is as
   await $.tool.call({ tool: 'Bash', command: `rm -rf ${HOME}/elsewhere`, tool_use_id: 'toolu_m3' } as any);
   expect(w.asked.length).toBe(before + 1);
 });
+
+test('a Write over a file the look was refused for does not make it the session own: only a missing file is new', async ($, on) => {
+  const w = world(on, { answer: 'block', statRefused: (p) => p.includes('/locked/') });
+  await $.tool.call({ tool: 'Write', file_path: `${HOME}/locked/notes.txt`, content: 'x', tool_use_id: 'toolu_l1' } as any);
+  await $.tool.call({ tool: 'Write', file_path: `${HOME}/scratch/b.txt`, content: 'x', tool_use_id: 'toolu_l2' } as any);
+  expect(w.json(`${DATA}/state/sessions/${SESSION}.prov.json`).made).toEqual([`${HOME}/scratch/b.txt`.toLowerCase()]);
+});
