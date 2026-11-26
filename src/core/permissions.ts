@@ -60,3 +60,27 @@ export function partsAllowed(command: string, dialect: 'bash' | 'powershell', ru
   }
   return parts > 0;
 }
+
+/** Who raised an ask, as Claude Code's verdict on a call names it (`tool.check`). */
+export interface AskOrigin {
+  /** A permission rule in the person's settings or their organisation's, as written. */
+  rule?: string;
+  /** The classic hook event (PreToolUse) whose ask it is. */
+  hook?: string;
+  /** The option whose own check asked (`permissions.blockReadsOutsideWorkingDirectories`). */
+  setting?: string;
+  /** The plugin whose hook made the ask, stamped by the engine (Claude Code 2.1.308 and newer). */
+  plugin?: string;
+  /** The most permissive verdict the organisation lets a call of the tool reach. */
+  ceiling?: string;
+}
+
+/**
+ * Whether an ask is someone's own question rather than one Claude Code's permission mode raised by itself: a rule,
+ * a classic hook, an option's own check, another plugin's hook, or the organisation's ceiling on the tool. Only the
+ * mode's own question is Mode_Code's to answer in Autonomous and full autonomy; the rest stay with the person.
+ * `self` is this plugin's name, since the engine stamps an ask it answered with it.
+ */
+export function asksOwnQuestion(v: AskOrigin, self: string): boolean {
+  return Boolean(v.rule || v.hook || v.setting || v.ceiling || (v.plugin && v.plugin !== self));
+}
